@@ -62,6 +62,21 @@ function getMondayOf(date: Date): Date {
   return d;
 }
 
+const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getPeakDayLabel(data: number[]): string {
+  const total = data.reduce((s, v) => s + v, 0);
+  if (total === 0) return "—";
+  const peakIndex = data.indexOf(Math.max(...data));
+  return DAYS_OF_WEEK[peakIndex] ?? "—";
+}
+
+function systemStatusMessage(degraded: number, hasStatuses: boolean): string {
+  if (!hasStatuses) return "No status data available";
+  if (degraded === 0) return "All services operational · Last check 30s ago";
+  return `${degraded} service${degraded > 1 ? "s" : ""} degraded · Last check 30s ago`;
+}
+
 export default function DashboardPage() {
   const {
     tasks,
@@ -101,7 +116,7 @@ export default function DashboardPage() {
   const chartData = period === "week" ? weekData : monthData;
   const chartTotal = chartData.reduce((s, v) => s + v, 0);
   const chartAvg = chartTotal ? (chartTotal / 7).toFixed(1) : "0";
-  const peakDayLabel = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][chartData.indexOf(Math.max(...chartData))] ?? "—";
+  const peakDayLabel = getPeakDayLabel(chartData);
 
   const recentActivities = useMemo(
     () => [...activities].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5),
@@ -114,10 +129,10 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="pt-2">
         <h1 className="text-3xl font-bold tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>
-          {greeting}, Alex.
+          {greeting}.
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {today} · {degradedCount === 0 ? "All systems operational" : `${degradedCount} service${degradedCount > 1 ? "s" : ""} degraded`}
+          {today}{systemStatuses.length > 0 ? ` · ${degradedCount === 0 ? "All systems operational" : `${degradedCount} service${degradedCount > 1 ? "s" : ""} degraded`}` : ""}
         </p>
       </div>
 
@@ -225,29 +240,33 @@ export default function DashboardPage() {
 
         <Card>
           <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>System Status</p>
-          <div className="space-y-3">
-            {systemStatuses.map(({ name, status, latency }) => {
-              const ok = status === "operational";
-              const warn = status === "degraded";
-              return (
-                <div key={name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-2 h-2 rounded-full" style={{ background: ok ? "var(--success)" : warn ? "var(--warning)" : "var(--error)" }} />
-                    <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{name}</span>
+          {systemStatuses.length === 0 ? (
+            <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>No data available.</p>
+          ) : (
+            <div className="space-y-3">
+              {systemStatuses.map(({ name, status, latency }) => {
+                const ok = status === "operational";
+                const warn = status === "degraded";
+                return (
+                  <div key={name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2 h-2 rounded-full" style={{ background: ok ? "var(--success)" : warn ? "var(--warning)" : "var(--error)" }} />
+                      <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{latency}</span>
+                      <Badge label={ok ? "Operational" : warn ? "Degraded" : "Down"} color={ok ? "green" : warn ? "yellow" : "red"} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{latency}</span>
-                    <Badge label={ok ? "Operational" : warn ? "Degraded" : "Down"} color={ok ? "green" : warn ? "yellow" : "red"} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
           <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
             <div className="flex items-center gap-2">
               <AlertCircle size={13} style={{ color: degradedCount > 0 ? "var(--warning)" : "var(--success)" }} />
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {degradedCount === 0 ? "All services operational" : `${degradedCount} service${degradedCount > 1 ? "s" : ""} degraded`} · Last check 30s ago
+                {systemStatusMessage(degradedCount, systemStatuses.length > 0)}
               </p>
             </div>
           </div>

@@ -13,14 +13,6 @@ import {
   type ReactNode,
 } from "react";
 import type { Activity, ActivityType, Client, Project, SystemStatus, Task, TeamMember } from "./types";
-import {
-  initialActivities,
-  initialClients,
-  initialMembers,
-  initialProjects,
-  initialTasks,
-  systemStatuses as seedStatuses,
-} from "./mockData";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -86,6 +78,19 @@ const LS_KEYS = {
   activities: "openy_activities",
 };
 
+// Bump this version whenever the data schema changes (e.g. demo data removed).
+// On a version mismatch all stored data is wiped so the app starts clean.
+const DATA_VERSION = "2";
+const DATA_VERSION_KEY = "openy_data_version";
+
+function migrateIfNeeded(): void {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem(DATA_VERSION_KEY) !== DATA_VERSION) {
+    Object.values(LS_KEYS).forEach((key) => localStorage.removeItem(key));
+    localStorage.setItem(DATA_VERSION_KEY, DATA_VERSION);
+  }
+}
+
 function loadFromLS<T>(key: string, fallback: T[]): T[] {
   if (typeof window === "undefined") return fallback;
   try {
@@ -108,20 +113,21 @@ function saveToLS(key: string, value: unknown): void {
 // ── Provider ─────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(() =>
-    loadFromLS<Client>(LS_KEYS.clients, initialClients)
-  );
+  const [clients, setClients] = useState<Client[]>(() => {
+    migrateIfNeeded();
+    return loadFromLS<Client>(LS_KEYS.clients, []);
+  });
   const [projects, setProjects] = useState<Project[]>(() =>
-    loadFromLS<Project>(LS_KEYS.projects, initialProjects)
+    loadFromLS<Project>(LS_KEYS.projects, [])
   );
   const [tasks, setTasks] = useState<Task[]>(() =>
-    loadFromLS<Task>(LS_KEYS.tasks, initialTasks)
+    loadFromLS<Task>(LS_KEYS.tasks, [])
   );
   const [members, setMembers] = useState<TeamMember[]>(() =>
-    loadFromLS<TeamMember>(LS_KEYS.members, initialMembers)
+    loadFromLS<TeamMember>(LS_KEYS.members, [])
   );
   const [activities, setActivities] = useState<Activity[]>(() =>
-    loadFromLS<Activity>(LS_KEYS.activities, initialActivities)
+    loadFromLS<Activity>(LS_KEYS.activities, [])
   );
 
   // Persist on every state change
@@ -284,7 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tasks,
       members,
       activities,
-      systemStatuses: seedStatuses,
+      systemStatuses: [],
       activeProjectCount,
       totalClientCount,
       openTaskCount,
