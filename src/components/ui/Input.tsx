@@ -1,0 +1,44 @@
+import { LucideIcon } from "lucide-react";
+
+interface InputProps {
+  label?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  icon?: LucideIcon;
+  required?: boolean;
+}
+
+export function Input({ label, placeholder, value, onChange, type = "text", icon: Icon, required }: InputProps) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && (
+        <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          {label}{required && <span style={{ color: 'var(--accent)' }}> *</span>}
+        </label>
+      )}
+      <div className="relative">
+        {Icon && (
+          <div className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
+            <Icon size={15} />
+          </div>
+        )}
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          required={required}
+          className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all"
+          style={{
+            background: 'var(--surface-3)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            paddingLeft: Icon ? '2.25rem' : undefined,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
