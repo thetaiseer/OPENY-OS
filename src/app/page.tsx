@@ -1,9 +1,8 @@
 "use client";
 import { useState } from "react";
-import { TrendingUp, Users, FolderOpen, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle } from "lucide-react";
+import { Users, FolderOpen, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 
