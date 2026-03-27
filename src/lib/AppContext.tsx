@@ -1,24 +1,31 @@
 "use client";
 
 // ============================================================
-// OPENY OS – Centralised Application Store
+// OPENY OS – Centralised Application Store (Firestore Edition)
 // ============================================================
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useEffect,
   type ReactNode,
 } from "react";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import { db } from "./firebase";
 import type { Activity, ActivityType, Client, Project, SystemStatus, Task, TeamMember } from "./types";
 
 // ── Helpers ──────────────────────────────────────────────────
-
-function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
 
 const PALETTE = ["#4f8ef7", "#a78bfa", "#34d399", "#fbbf24", "#f87171", "#8888a0"];
 
@@ -46,6 +53,9 @@ interface AppContextValue {
   activities: Activity[];
   systemStatuses: SystemStatus[];
 
+  // Loading
+  loading: boolean;
+
   // Computed
   activeProjectCount: number;
   totalClientCount: number;
@@ -53,137 +63,137 @@ interface AppContextValue {
   teamMemberCount: number;
 
   // Client actions
-  addClient: (data: { name: string; email: string; website?: string; phone?: string }) => void;
+  addClient: (data: { name: string; email: string; website?: string; phone?: string }) => Promise<void>;
 
   // Project actions
-  addProject: (data: { name: string; description: string; client: string; dueDate: string }) => void;
+  addProject: (data: { name: string; description: string; client: string; dueDate: string }) => Promise<void>;
 
   // Task actions
-  addTask: (data: { title: string; project: string; assignee: string; priority: Task["priority"]; dueDate: string }) => void;
-  toggleTaskDone: (id: string) => void;
+  addTask: (data: { title: string; project: string; assignee: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
+  toggleTaskDone: (id: string) => Promise<void>;
 
   // Member actions
-  addMember: (data: { name: string; role: string; email: string }) => void;
+  addMember: (data: { name: string; role: string; email: string }) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-// ── LocalStorage persistence helpers ─────────────────────────
-
-const LS_KEYS = {
-  clients: "openy_clients",
-  projects: "openy_projects",
-  tasks: "openy_tasks",
-  members: "openy_members",
-  activities: "openy_activities",
-};
-
-// Bump this version whenever the data schema changes (e.g. demo data removed).
-// On a version mismatch all stored data is wiped so the app starts clean.
-const DATA_VERSION = "2";
-const DATA_VERSION_KEY = "openy_data_version";
-
-function migrateIfNeeded(): void {
-  if (typeof window === "undefined") return;
-  if (localStorage.getItem(DATA_VERSION_KEY) !== DATA_VERSION) {
-    Object.values(LS_KEYS).forEach((key) => localStorage.removeItem(key));
-    localStorage.setItem(DATA_VERSION_KEY, DATA_VERSION);
-  }
-}
-
-function loadFromLS<T>(key: string, fallback: T[]): T[] {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveToLS(key: string, value: unknown): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // quota exceeded – silently ignore
-  }
-}
-
 // ── Provider ─────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(() => {
-    migrateIfNeeded();
-    return loadFromLS<Client>(LS_KEYS.clients, []);
-  });
-  const [projects, setProjects] = useState<Project[]>(() =>
-    loadFromLS<Project>(LS_KEYS.projects, [])
-  );
-  const [tasks, setTasks] = useState<Task[]>(() =>
-    loadFromLS<Task>(LS_KEYS.tasks, [])
-  );
-  const [members, setMembers] = useState<TeamMember[]>(() =>
-    loadFromLS<TeamMember>(LS_KEYS.members, [])
-  );
-  const [activities, setActivities] = useState<Activity[]>(() =>
-    loadFromLS<Activity>(LS_KEYS.activities, [])
-  );
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Persist on every state change
-  useEffect(() => { saveToLS(LS_KEYS.clients, clients); }, [clients]);
-  useEffect(() => { saveToLS(LS_KEYS.projects, projects); }, [projects]);
-  useEffect(() => { saveToLS(LS_KEYS.tasks, tasks); }, [tasks]);
-  useEffect(() => { saveToLS(LS_KEYS.members, members); }, [members]);
-  useEffect(() => { saveToLS(LS_KEYS.activities, activities); }, [activities]);
+  // ── Firestore real-time listeners ─────────────────────────
+  useEffect(() => {
+    // Track which collections have received their first snapshot (success or error).
+    // On error the collection stays empty and loading is cleared so the app remains usable.
+    const loadedSet = new Set<string>();
+    const markLoaded = (name: string) => {
+      loadedSet.add(name);
+      if (loadedSet.size === 5) setLoading(false);
+    };
+    const handleError = (name: string, err: unknown) => {
+      console.error(`[OPENY] Firestore listener error for "${name}":`, err);
+      markLoaded(name);
+    };
+
+    const unsubClients = onSnapshot(
+      query(collection(db, "clients"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setClients(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client)));
+        markLoaded("clients");
+      },
+      (err) => handleError("clients", err),
+    );
+
+    const unsubProjects = onSnapshot(
+      query(collection(db, "projects"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)));
+        markLoaded("projects");
+      },
+      (err) => handleError("projects", err),
+    );
+
+    const unsubTasks = onSnapshot(
+      query(collection(db, "tasks"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setTasks(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task)));
+        markLoaded("tasks");
+      },
+      (err) => handleError("tasks", err),
+    );
+
+    const unsubMembers = onSnapshot(
+      query(collection(db, "team"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as TeamMember)));
+        markLoaded("team");
+      },
+      (err) => handleError("team", err),
+    );
+
+    const unsubActivities = onSnapshot(
+      query(collection(db, "activities"), orderBy("timestamp", "desc")),
+      (snap) => {
+        setActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
+        markLoaded("activities");
+      },
+      (err) => handleError("activities", err),
+    );
+
+    return () => {
+      unsubClients();
+      unsubProjects();
+      unsubTasks();
+      unsubMembers();
+      unsubActivities();
+    };
+  }, []);
 
   // ── Internal activity logger ──────────────────────────────
   const pushActivity = useCallback(
-    (type: ActivityType, message: string, detail: string, entityId: string) => {
-      setActivities((prev) => [
-        {
-          id: uid(),
-          type,
-          message,
-          detail,
-          entityId,
-          timestamp: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+    async (type: ActivityType, message: string, detail: string, entityId: string) => {
+      await addDoc(collection(db, "activities"), {
+        type,
+        message,
+        detail,
+        entityId,
+        timestamp: new Date().toISOString(),
+      });
     },
-    []
+    [],
   );
 
   // ── Client actions ────────────────────────────────────────
   const addClient = useCallback(
-    (data: { name: string; email: string; website?: string; phone?: string }) => {
-      const id = uid();
-      const client: Client = {
-        id,
+    async (data: { name: string; email: string; website?: string; phone?: string }) => {
+      const docRef = await addDoc(collection(db, "clients"), {
         name: data.name,
         company: data.name,
         email: data.email,
-        phone: data.phone,
-        website: data.website,
+        phone: data.phone ?? null,
+        website: data.website ?? null,
         status: "prospect",
         createdAt: new Date().toISOString(),
         initials: makeInitials(data.name),
         color: pickColor(),
         projects: 0,
-      };
-      setClients((prev) => [...prev, client]);
-      pushActivity("client_added", "New client added", data.name, id);
+      });
+      await pushActivity("client_added", "New client added", data.name, docRef.id);
     },
-    [pushActivity]
+    [pushActivity],
   );
 
   // ── Project actions ───────────────────────────────────────
   const addProject = useCallback(
-    (data: { name: string; description: string; client: string; dueDate: string }) => {
-      const id = uid();
-      const project: Project = {
-        id,
+    async (data: { name: string; description: string; client: string; dueDate: string }) => {
+      const docRef = await addDoc(collection(db, "projects"), {
         name: data.name,
         clientId: "",
         client: data.client || "—",
@@ -194,25 +204,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dueDate: data.dueDate || "TBD",
         color: pickColor(),
         createdAt: new Date().toISOString(),
-      };
-      setProjects((prev) => [...prev, project]);
-      pushActivity("project_created", "New project created", data.name, id);
+      });
+      await pushActivity("project_created", "New project created", data.name, docRef.id);
     },
-    [pushActivity]
+    [pushActivity],
   );
 
   // ── Task actions ──────────────────────────────────────────
   const addTask = useCallback(
-    (data: {
+    async (data: {
       title: string;
       project: string;
       assignee: string;
       priority: Task["priority"];
       dueDate: string;
     }) => {
-      const id = uid();
-      const task: Task = {
-        id,
+      const docRef = await addDoc(collection(db, "tasks"), {
         title: data.title,
         projectId: "",
         project: data.project || "—",
@@ -222,40 +229,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
         priority: data.priority,
         dueDate: data.dueDate || "TBD",
         createdAt: new Date().toISOString(),
-      };
-      setTasks((prev) => [...prev, task]);
-      pushActivity("task_created", "New task created", data.title, id);
+        completedAt: null,
+      });
+      await pushActivity("task_created", "New task created", data.title, docRef.id);
     },
-    [pushActivity]
+    [pushActivity],
   );
 
+  // Keep a stable ref to the latest tasks list so toggleTaskDone
+  // can read the current value without re-creating its identity on every render.
+  const tasksRef = useRef(tasks);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+
   const toggleTaskDone = useCallback(
-    (id: string) => {
-      setTasks((prev) =>
-        prev.map((t) => {
-          if (t.id !== id) return t;
-          const isDone = t.status === "done";
-          const updated: Task = {
-            ...t,
-            status: isDone ? "todo" : "done",
-            completedAt: isDone ? undefined : new Date().toISOString(),
-          };
-          if (!isDone) {
-            pushActivity("task_completed", "Task completed", t.title, id);
-          }
-          return updated;
-        })
-      );
+    async (id: string) => {
+      const task = tasksRef.current.find((t) => t.id === id);
+      if (!task) return;
+      const isDone = task.status === "done";
+      await updateDoc(doc(db, "tasks", id), {
+        status: isDone ? "todo" : "done",
+        completedAt: isDone ? null : new Date().toISOString(),
+      });
+      if (!isDone) {
+        await pushActivity("task_completed", "Task completed", task.title, id);
+      }
     },
-    [pushActivity]
+    [pushActivity],
   );
 
   // ── Member actions ────────────────────────────────────────
   const addMember = useCallback(
-    (data: { name: string; role: string; email: string }) => {
-      const id = uid();
-      const member: TeamMember = {
-        id,
+    async (data: { name: string; role: string; email: string }) => {
+      const docRef = await addDoc(collection(db, "team"), {
         name: data.name,
         role: data.role,
         email: data.email,
@@ -264,22 +269,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         color: pickColor(),
         projects: 0,
         createdAt: new Date().toISOString(),
-      };
-      setMembers((prev) => [...prev, member]);
-      pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, id);
+      });
+      await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, docRef.id);
     },
-    [pushActivity]
+    [pushActivity],
   );
 
   // ── Computed values ───────────────────────────────────────
   const activeProjectCount = useMemo(
     () => projects.filter((p) => p.status === "active").length,
-    [projects]
+    [projects],
   );
   const totalClientCount = useMemo(() => clients.length, [clients]);
   const openTaskCount = useMemo(
     () => tasks.filter((t) => t.status !== "done").length,
-    [tasks]
+    [tasks],
   );
   const teamMemberCount = useMemo(() => members.length, [members]);
 
@@ -291,6 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       members,
       activities,
       systemStatuses: [],
+      loading,
       activeProjectCount,
       totalClientCount,
       openTaskCount,
@@ -307,6 +312,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tasks,
       members,
       activities,
+      loading,
       activeProjectCount,
       totalClientCount,
       openTaskCount,
@@ -316,7 +322,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addTask,
       toggleTaskDone,
       addMember,
-    ]
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
