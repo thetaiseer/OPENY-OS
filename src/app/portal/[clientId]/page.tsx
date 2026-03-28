@@ -45,7 +45,7 @@ const TABS: { key: PortalTab; label: string; icon: typeof LayoutDashboard }[] = 
 // ── Inner portal (needs context) ─────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function PortalContent({ clientId }: { clientId: string }) {
+function PortalContent({ clientId: _clientId }: { clientId: string }) {
   const {
     client,
     pendingApprovals,

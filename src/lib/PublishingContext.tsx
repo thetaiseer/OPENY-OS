@@ -184,8 +184,9 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         if (!item.scheduledDate) return false;
         if (item.scheduledDate !== today) return false;
         if (item.scheduledTime) {
-          const scheduledHour = parseInt(item.scheduledTime.split(":")[0] ?? "0", 10);
-          return scheduledHour <= nowHour;
+          const timeParts = item.scheduledTime.split(":");
+          const scheduledHour = timeParts.length > 0 ? parseInt(timeParts[0], 10) : 0;
+          return !isNaN(scheduledHour) && scheduledHour <= nowHour;
         }
         return true;
       });
