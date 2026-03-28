@@ -48,6 +48,10 @@ const activityColors: Record<ActivityType, string> = {
   project_updated:  "#a78bfa",
   member_joined:    "#fbbf24",
   report_generated: "#8888a0",
+  invite_sent:      "#4f8ef7",
+  invite_cancelled: "#f87171",
+  invite_accepted:  "#34d399",
+  invite_expired:   "#8888a0",
 };
 
 function relativeTime(iso: string, t: (k: string) => string): string {

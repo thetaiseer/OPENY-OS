@@ -63,7 +63,11 @@ export type ActivityType =
   | "project_created"
   | "project_updated"
   | "member_joined"
-  | "report_generated";
+  | "report_generated"
+  | "invite_sent"
+  | "invite_cancelled"
+  | "invite_accepted"
+  | "invite_expired";
 
 export interface Activity {
   id: string;
@@ -95,6 +99,8 @@ export type NotificationType =
   | "member_invited"
   | "member_added"
   | "invite_accepted"
+  | "invite_cancelled"
+  | "invite_expired"
   | "status_change";
 
 export interface AppNotification {
@@ -115,11 +121,15 @@ export interface Invitation {
   id: string;
   email: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   role: string;
   invitedBy: string;
+  invitedByName?: string;
   status: InvitationStatus;
   token: string;
   createdAt: string;
   expiresAt: string;
   acceptedAt?: string | null;
+  cancelledAt?: string | null;
 }
