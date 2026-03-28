@@ -81,3 +81,45 @@ export interface SystemStatus {
   latency: string;
   status: ServiceStatus;
 }
+
+// ── Notifications ─────────────────────────────────────────────
+
+export type NotificationType =
+  | "client_created"
+  | "client_updated"
+  | "project_created"
+  | "project_updated"
+  | "task_created"
+  | "task_updated"
+  | "task_completed"
+  | "member_invited"
+  | "member_added"
+  | "invite_accepted"
+  | "status_change";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  entityId: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+// ── Invitations ───────────────────────────────────────────────
+
+export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
+
+export interface Invitation {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  invitedBy: string;
+  status: InvitationStatus;
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt?: string | null;
+}

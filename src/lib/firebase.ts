@@ -28,4 +28,42 @@ export async function getAnalyticsInstance() {
   return getAnalytics(app);
 }
 
+// FCM – only initialised on the client to avoid SSR issues.
+// Returns null when called server-side or when push is unsupported.
+export async function getFCMToken(vapidKey?: string): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const { getMessaging, getToken } = await import("firebase/messaging");
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
+// Request browser push permission and get FCM token.
+// Stores the token in Firestore under fcmTokens/{token}.
+export async function requestPushPermission(): Promise<{ granted: boolean; token: string | null }> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return { granted: false, token: null };
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return { granted: false, token: null };
+  const token = await getFCMToken();
+  if (token) {
+    try {
+      const { addDoc, collection } = await import("firebase/firestore");
+      await addDoc(collection(db, "fcmTokens"), {
+        token,
+        createdAt: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+      });
+    } catch {
+      // Non-critical — log silently
+    }
+  }
+  return { granted: true, token };
+}
+
 export default app;

@@ -25,6 +25,28 @@ import {
 import { db } from "./firebase";
 import type { Activity, ActivityType, Client, Project, SystemStatus, Task, TeamMember } from "./types";
 
+// ── Notification helper (writes to Firestore independently) ───
+
+async function pushNotificationDoc(
+  type: string,
+  title: string,
+  message: string,
+  entityId: string
+) {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      type,
+      title,
+      message,
+      entityId,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[OPENY] Failed to create notification:", err);
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const PALETTE = ["#4f8ef7", "#a78bfa", "#34d399", "#fbbf24", "#f87171", "#8888a0"];
@@ -186,6 +208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         projects: 0,
       });
       await pushActivity("client_added", "New client added", data.name, docRef.id);
+      await pushNotificationDoc("client_created", "New Client Added", data.name, docRef.id);
     },
     [pushActivity],
   );
@@ -206,6 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       });
       await pushActivity("project_created", "New project created", data.name, docRef.id);
+      await pushNotificationDoc("project_created", "New Project Created", data.name, docRef.id);
     },
     [pushActivity],
   );
@@ -232,6 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completedAt: null,
       });
       await pushActivity("task_created", "New task created", data.title, docRef.id);
+      await pushNotificationDoc("task_created", "New Task Created", data.title, docRef.id);
     },
     [pushActivity],
   );
@@ -252,6 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       if (!isDone) {
         await pushActivity("task_completed", "Task completed", task.title, id);
+        await pushNotificationDoc("task_completed", "Task Completed", task.title, id);
       }
     },
     [pushActivity],
@@ -271,6 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       });
       await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, docRef.id);
+      await pushNotificationDoc("member_added", "Team Member Added", `${data.name} joined as ${data.role}`, docRef.id);
     },
     [pushActivity],
   );

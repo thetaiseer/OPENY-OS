@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Settings2, User, Palette, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Check, Globe } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useLanguage } from "@/lib/LanguageContext";
+import { requestPushPermission } from "@/lib/firebase";
 import type { Language } from "@/lib/LanguageContext";
 
 export default function SettingsPage() {
@@ -15,7 +16,8 @@ export default function SettingsPage() {
   const { t, language, setLanguage } = useLanguage();
   const [active, setActive] = useState("profile");
   const [profile, setProfile] = useState({ name: "Alex Chen", email: "alex@openy.os", role: "Administrator" });
-  const [notifications, setNotifications] = useState({ desktop: true, sound: false, sync: true, email: true });
+  const [notifications, setNotifications] = useState({ desktop: true, sound: false, sync: true, email: true, push: false });
+  const [pushStatus, setPushStatus] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
   const [security, setSecurity] = useState({ twoFactor: false, activityLogs: true });
   const [accent, setAccent] = useState("#4f8ef7");
 
@@ -32,6 +34,26 @@ export default function SettingsPage() {
     { value: "en", label: t("settings.english"), nativeLabel: "English" },
     { value: "ar", label: t("settings.arabic"), nativeLabel: "العربية" },
   ];
+
+  const handlePushToggle = useCallback(async (enabled: boolean) => {
+    if (!enabled) {
+      setNotifications(p => ({ ...p, push: false }));
+      return;
+    }
+    setPushStatus("requesting");
+    try {
+      const { granted } = await requestPushPermission();
+      if (granted) {
+        setNotifications(p => ({ ...p, push: true }));
+        setPushStatus("granted");
+      } else {
+        setNotifications(p => ({ ...p, push: false }));
+        setPushStatus("denied");
+      }
+    } catch {
+      setPushStatus("idle");
+    }
+  }, []);
 
   return (
     <div>
@@ -207,6 +229,22 @@ export default function SettingsPage() {
                   label={t("settings.emailNotifs")}
                   description={t("settings.emailNotifsDesc")}
                 />
+                <div style={{ height: '1px', background: 'var(--border)' }} />
+                <Toggle
+                  checked={notifications.push}
+                  onChange={handlePushToggle}
+                  label={t("settings.pushNotifs")}
+                  description={
+                    pushStatus === "denied"
+                      ? t("settings.pushDenied")
+                      : t("settings.pushNotifsDesc")
+                  }
+                />
+                {pushStatus === "denied" && (
+                  <p className="text-xs mt-1" style={{ color: "var(--error)" }}>
+                    {t("settings.pushDeniedHint")}
+                  </p>
+                )}
               </div>
             </Card>
           )}
@@ -270,4 +308,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
