@@ -47,7 +47,7 @@ export default function CampaignDetailPage() {
     [contentItems, id]
   );
   const linkedTasks = useMemo(
-    () => tasks.filter((t) => t.projectId === id || t.title.includes(campaign?.name ?? "___NOOP___")),
+    () => tasks.filter((t) => t.projectId === id || (campaign && t.title.includes(campaign.name))),
     [tasks, id, campaign]
   );
 

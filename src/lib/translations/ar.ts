@@ -350,7 +350,6 @@ export const ar: Translations = {
     statusPaused: "موقوفة",
     statusCompleted: "مكتملة",
     statusArchived: "مؤرشفة",
-    filterCampaign: "جميع الحملات",
     viewOverview: "نظرة عامة",
     viewContent: "المحتوى",
     viewTasks: "المهام",

@@ -358,7 +358,6 @@ export const en = {
     statusPaused: "Paused",
     statusCompleted: "Completed",
     statusArchived: "Archived",
-    filterCampaign: "All Campaigns",
     viewOverview: "Overview",
     viewContent: "Content",
     viewTasks: "Tasks",
