@@ -96,7 +96,7 @@ function MonthView({
   const totalDays = daysInMonth(year, month);
 
   const dayHeaders = isRTL
-    ? ["أح", "سب", "جم", "خم", "أر", "ثل", "إث"]
+    ? ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"]
     : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const itemsByDate = useMemo(() => {

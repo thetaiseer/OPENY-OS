@@ -134,7 +134,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       if (!item) return;
       const newComment: ContentComment = {
         ...comment,
-        id: Math.random().toString(36).slice(2),
+        id: crypto.randomUUID(),
       };
       await updateDoc(doc(db, "contentItems", id), {
         comments: [...(item.comments ?? []), newComment],

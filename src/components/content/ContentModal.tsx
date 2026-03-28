@@ -242,7 +242,7 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
         attachments: [],
       };
       if (item) {
-        await updateContentItem(item.id, { ...data, updatedAt: new Date().toISOString() });
+        await updateContentItem(item.id, { ...data });
       } else {
         await createContentItem(data);
       }
