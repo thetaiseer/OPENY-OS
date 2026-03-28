@@ -9,6 +9,8 @@ import { NotificationProvider } from "@/lib/NotificationContext";
 import { InvitationProvider } from "@/lib/InvitationContext";
 import { CampaignProvider } from "@/lib/CampaignContext";
 import { ApprovalProvider } from "@/lib/ApprovalContext";
+import { AssetProvider } from "@/lib/AssetContext";
+import { ClientNotesProvider } from "@/lib/ClientNotesContext";
 
 export const metadata: Metadata = {
   title: "OPENY OS",
@@ -25,11 +27,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ContentProvider>
                 <CampaignProvider>
                   <ApprovalProvider>
-                    <NotificationProvider>
-                      <InvitationProvider>
-                        <AppShell>{children}</AppShell>
-                      </InvitationProvider>
-                    </NotificationProvider>
+                    <AssetProvider>
+                      <ClientNotesProvider>
+                        <NotificationProvider>
+                          <InvitationProvider>
+                            <AppShell>{children}</AppShell>
+                          </InvitationProvider>
+                        </NotificationProvider>
+                      </ClientNotesProvider>
+                    </AssetProvider>
                   </ApprovalProvider>
                 </CampaignProvider>
               </ContentProvider>

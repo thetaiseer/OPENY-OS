@@ -6,11 +6,26 @@ export interface Client {
   id: string;
   name: string;
   company: string;
+  // Extended Phase-3 fields (optional to maintain backward compatibility)
+  companyName?: string;
+  industry?: string;
+  contactName?: string;
   email: string;
   phone?: string;
   website?: string;
   status: "active" | "inactive" | "prospect";
+  packageType?: string;
+  monthlyPostQuota?: number;
+  activePlatforms?: string[];
+  toneOfVoice?: string;
+  brandColors?: string[];
+  brandGuidelines?: string;
+  targetAudience?: string;
+  goals?: string;
+  notesInternal?: string;
+  notesClientFacing?: string;
   createdAt: string;
+  updatedAt?: string;
   initials: string;
   color: string;
   projects: number;
@@ -286,4 +301,103 @@ export interface ClientQuota {
   warningThreshold: number; // percentage 0-100
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Assets Library ────────────────────────────────────────────
+
+export type AssetType =
+  | "image"
+  | "video"
+  | "logo"
+  | "brand_file"
+  | "document"
+  | "template"
+  | "caption_template"
+  | "hashtag_bank"
+  | "cta_bank";
+
+export interface Asset {
+  id: string;
+  clientId: string;
+  name: string;
+  type: AssetType;
+  fileUrl: string;
+  thumbnailUrl?: string;
+  fileSize?: number;
+  format?: string;
+  tags: string[];
+  folder?: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Client Notes ──────────────────────────────────────────────
+
+export type ClientNoteType = "internal" | "client_facing";
+
+export interface ClientNote {
+  id: string;
+  clientId: string;
+  type: ClientNoteType;
+  content: string;
+  author: string;
+  tag?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Caption / Hashtag / CTA Bank ──────────────────────────────
+
+export interface CaptionBankItem {
+  id: string;
+  clientId?: string;
+  text: string;
+  tags: string[];
+  platform?: ContentPlatform;
+  category?: string;
+  createdAt: string;
+}
+
+export interface HashtagBankItem {
+  id: string;
+  clientId?: string;
+  text: string;
+  tags: string[];
+  platform?: ContentPlatform;
+  category?: string;
+  createdAt: string;
+}
+
+export interface CTABankItem {
+  id: string;
+  clientId?: string;
+  text: string;
+  tags: string[];
+  platform?: ContentPlatform;
+  category?: string;
+  createdAt: string;
+}
+
+// ── Client Activity Timeline ──────────────────────────────────
+
+export type ClientActivityType =
+  | "client_created"
+  | "campaign_created"
+  | "post_scheduled"
+  | "post_approved"
+  | "task_completed"
+  | "asset_uploaded"
+  | "invitation_accepted"
+  | "report_generated"
+  | "note_added";
+
+export interface ClientActivity {
+  id: string;
+  clientId: string;
+  type: ClientActivityType;
+  message: string;
+  detail?: string;
+  entityId?: string;
+  timestamp: string;
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Users2, Plus, Search, Building2, Globe, Mail, Trash2, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Users2, Plus, Search, Building2, Globe, Mail, Trash2, Pencil, ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -123,6 +124,9 @@ export default function ClientsPage() {
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" size="sm" fullWidth icon={Pencil} onClick={() => openEdit(client)}>{t("common.edit")}</Button>
+                <Link href={`/clients/${client.id}`}>
+                  <Button variant="ghost" size="sm" icon={ArrowRight}>{t("common.view")}</Button>
+                </Link>
                 <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDelete(client.id)}>{t("common.delete")}</Button>
               </div>
             </Card>
