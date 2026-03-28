@@ -17,6 +17,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   onSnapshot,
   query,
@@ -86,16 +87,23 @@ interface AppContextValue {
 
   // Client actions
   addClient: (data: { name: string; email: string; website?: string; phone?: string }) => Promise<void>;
+  updateClient: (id: string, data: Partial<Omit<Client, "id">>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
 
   // Project actions
   addProject: (data: { name: string; description: string; client: string; dueDate: string }) => Promise<void>;
+  updateProject: (id: string, data: Partial<Omit<Project, "id">>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 
   // Task actions
   addTask: (data: { title: string; project: string; assignee: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
+  updateTask: (id: string, data: Partial<Omit<Task, "id">>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   toggleTaskDone: (id: string) => Promise<void>;
 
   // Member actions
   addMember: (data: { name: string; role: string; email: string }) => Promise<void>;
+  deleteMember: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -213,6 +221,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [pushActivity],
   );
 
+  const updateClient = useCallback(
+    async (id: string, data: Partial<Omit<Client, "id">>) => {
+      await updateDoc(doc(db, "clients", id), data);
+      await pushActivity("client_updated", "Client updated", data.name ?? id, id);
+      await pushNotificationDoc("client_updated", "Client Updated", data.name ?? id, id);
+    },
+    [pushActivity],
+  );
+
+  const deleteClient = useCallback(
+    async (id: string) => {
+      const client = clients.find((c) => c.id === id);
+      await deleteDoc(doc(db, "clients", id));
+      await pushActivity("client_deleted", "Client removed", client?.name ?? id, id);
+    },
+    [clients, pushActivity],
+  );
+
   // ── Project actions ───────────────────────────────────────
   const addProject = useCallback(
     async (data: { name: string; description: string; client: string; dueDate: string }) => {
@@ -232,6 +258,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await pushNotificationDoc("project_created", "New Project Created", data.name, docRef.id);
     },
     [pushActivity],
+  );
+
+  const updateProject = useCallback(
+    async (id: string, data: Partial<Omit<Project, "id">>) => {
+      await updateDoc(doc(db, "projects", id), data);
+      await pushActivity("project_updated", "Project updated", data.name ?? id, id);
+      await pushNotificationDoc("project_updated", "Project Updated", data.name ?? id, id);
+    },
+    [pushActivity],
+  );
+
+  const deleteProject = useCallback(
+    async (id: string) => {
+      const project = projects.find((p) => p.id === id);
+      await deleteDoc(doc(db, "projects", id));
+      await pushActivity("project_deleted", "Project removed", project?.name ?? id, id);
+    },
+    [projects, pushActivity],
   );
 
   // ── Task actions ──────────────────────────────────────────
@@ -259,6 +303,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await pushNotificationDoc("task_created", "New Task Created", data.title, docRef.id);
     },
     [pushActivity],
+  );
+
+  const updateTask = useCallback(
+    async (id: string, data: Partial<Omit<Task, "id">>) => {
+      await updateDoc(doc(db, "tasks", id), data);
+    },
+    [],
+  );
+
+  const deleteTask = useCallback(
+    async (id: string) => {
+      await deleteDoc(doc(db, "tasks", id));
+    },
+    [],
   );
 
   // Keep a stable ref to the latest tasks list so toggleTaskDone
@@ -302,6 +360,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [pushActivity],
   );
 
+  const deleteMember = useCallback(
+    async (id: string) => {
+      const member = members.find((m) => m.id === id);
+      await deleteDoc(doc(db, "team", id));
+      await pushActivity("member_removed", "Team member removed", member?.name ?? id, id);
+    },
+    [members, pushActivity],
+  );
+
   // ── Computed values ───────────────────────────────────────
   const activeProjectCount = useMemo(
     () => projects.filter((p) => p.status === "active").length,
@@ -328,10 +395,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openTaskCount,
       teamMemberCount,
       addClient,
+      updateClient,
+      deleteClient,
       addProject,
+      updateProject,
+      deleteProject,
       addTask,
+      updateTask,
+      deleteTask,
       toggleTaskDone,
       addMember,
+      deleteMember,
     }),
     [
       clients,
@@ -345,10 +419,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openTaskCount,
       teamMemberCount,
       addClient,
+      updateClient,
+      deleteClient,
       addProject,
+      updateProject,
+      deleteProject,
       addTask,
+      updateTask,
+      deleteTask,
       toggleTaskDone,
       addMember,
+      deleteMember,
     ],
   );
 
@@ -364,23 +445,23 @@ export function useAppStore(): AppContextValue {
 }
 
 export function useClients() {
-  const { clients, addClient, totalClientCount } = useAppStore();
-  return { clients, addClient, totalClientCount };
+  const { clients, addClient, updateClient, deleteClient, totalClientCount } = useAppStore();
+  return { clients, addClient, updateClient, deleteClient, totalClientCount };
 }
 
 export function useProjects() {
-  const { projects, addProject, activeProjectCount } = useAppStore();
-  return { projects, addProject, activeProjectCount };
+  const { projects, addProject, updateProject, deleteProject, activeProjectCount } = useAppStore();
+  return { projects, addProject, updateProject, deleteProject, activeProjectCount };
 }
 
 export function useTasks() {
-  const { tasks, addTask, toggleTaskDone, openTaskCount } = useAppStore();
-  return { tasks, addTask, toggleTaskDone, openTaskCount };
+  const { tasks, addTask, updateTask, deleteTask, toggleTaskDone, openTaskCount } = useAppStore();
+  return { tasks, addTask, updateTask, deleteTask, toggleTaskDone, openTaskCount };
 }
 
 export function useTeam() {
-  const { members, addMember, teamMemberCount } = useAppStore();
-  return { members, addMember, teamMemberCount };
+  const { members, addMember, deleteMember, teamMemberCount } = useAppStore();
+  return { members, addMember, deleteMember, teamMemberCount };
 }
 
 export function useActivities() {

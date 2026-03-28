@@ -16,6 +16,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   onSnapshot,
   query,
@@ -94,7 +95,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [notifications]);
 
   const deleteNotification = useCallback(async (id: string) => {
-    const { deleteDoc } = await import("firebase/firestore");
     await deleteDoc(doc(db, "notifications", id));
   }, []);
 

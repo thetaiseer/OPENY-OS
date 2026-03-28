@@ -74,6 +74,7 @@ export const ar: Translations = {
     noClientsTitle: "لا يوجد عملاء",
     noClientsDesc: "أضف أول عميل أو عدّل بحثك.",
     modalTitle: "إضافة عميل جديد",
+    editTitle: "تعديل العميل",
     nameLabel: "اسم الشركة / العميل",
     namePlaceholder: "مثال: شركة الفا",
     emailLabel: "البريد الإلكتروني",
@@ -84,6 +85,7 @@ export const ar: Translations = {
   projects: {
     title: "المشاريع",
     addProject: "مشروع جديد",
+    editTitle: "تعديل المشروع",
     searchPlaceholder: "البحث في المشاريع...",
     progress: "التقدم",
     noProjectsTitle: "لا توجد مشاريع",

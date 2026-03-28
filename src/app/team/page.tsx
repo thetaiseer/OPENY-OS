@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { UserCircle, Plus, Search, Mail, Star, Send, Clock, CheckCircle, XCircle } from "lucide-react";
+import { UserCircle, Plus, Search, Mail, Star, Send, Clock, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -39,7 +39,7 @@ const inviteStatusColor: Record<InvitationStatus, string> = {
 };
 
 export default function TeamPage() {
-  const { members, addMember } = useTeam();
+  const { members, addMember, deleteMember } = useTeam();
   const { invitations, sendInvitation, cancelInvitation } = useInvitations();
   const { pushNotification } = useNotifications();
   const { t } = useLanguage();
@@ -187,6 +187,7 @@ export default function TeamPage() {
                   <div className="flex gap-2">
                     <Button variant="secondary" size="sm" fullWidth>{t("common.profile")}</Button>
                     <Button variant="ghost" size="sm" icon={Mail}>{t("common.message")}</Button>
+                    <Button variant="ghost" size="sm" icon={Trash2} onClick={() => deleteMember(member.id)} />
                   </div>
                 </Card>
               ))}

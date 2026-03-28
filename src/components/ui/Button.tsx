@@ -2,7 +2,7 @@ import { LucideIcon } from "lucide-react";
 import { ReactNode } from "react";
 
 interface ButtonProps {
-  children: ReactNode;
+  children?: ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "ghost" | "destructive";
   size?: "sm" | "md" | "lg";
