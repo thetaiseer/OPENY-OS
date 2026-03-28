@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Users2, Plus, Search, Building2, Globe, Mail, Trash2, Pencil } from "lucide-react";
+import { Users2, Plus, Search, Building2, Globe, Mail, Trash2, Pencil, ExternalLink } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import type { Client } from "@/lib/types";
+import Link from "next/link";
 
 const statusColors: Record<string, "green" | "blue" | "gray"> = {
   active: "green",
@@ -121,9 +122,14 @@ export default function ClientsPage() {
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>{client.projects} {t("clients.activeProjects")}</span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" fullWidth icon={Pencil} onClick={() => openEdit(client)}>{t("common.edit")}</Button>
-                <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDelete(client.id)}>{t("common.delete")}</Button>
+              <div className="flex flex-col gap-2">
+                <Link href={`/clients/${client.id}`} className="block">
+                  <Button variant="secondary" size="sm" fullWidth icon={ExternalLink}>{t("clients.viewWorkspace")}</Button>
+                </Link>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" fullWidth icon={Pencil} onClick={() => openEdit(client)}>{t("common.edit")}</Button>
+                  <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDelete(client.id)}>{t("common.delete")}</Button>
+                </div>
               </div>
             </Card>
           ))}
