@@ -117,6 +117,68 @@ export interface AppNotification {
   createdAt: string;
 }
 
+// ── Content Planner ───────────────────────────────────────────
+
+export type ContentStatus =
+  | "idea"
+  | "copywriting"
+  | "design"
+  | "internal_review"
+  | "client_review"
+  | "approved"
+  | "scheduled"
+  | "published";
+
+export type ContentPlatform =
+  | "Facebook"
+  | "Instagram"
+  | "TikTok"
+  | "LinkedIn"
+  | "X"
+  | "Snapchat"
+  | "YouTube";
+
+export type ContentType = "post" | "reel" | "story" | "carousel" | "video" | "ad";
+
+export type ContentPriority = "low" | "medium" | "high";
+
+export type ApprovalStatus =
+  | "pending_internal"
+  | "pending_client"
+  | "approved"
+  | "rejected";
+
+export interface ContentComment {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ContentItem {
+  id: string;
+  clientId: string;
+  campaignId?: string;
+  title: string;
+  description: string;
+  caption: string;
+  hashtags: string[];
+  platform: ContentPlatform;
+  contentType: ContentType;
+  status: ContentStatus;
+  priority: ContentPriority;
+  assignedTo: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  publishedAt?: string;
+  approvalStatus: ApprovalStatus;
+  attachments: string[];
+  comments: ContentComment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Invitations ───────────────────────────────────────────────
 
 export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";

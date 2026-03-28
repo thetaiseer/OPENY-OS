@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppProvider } from "@/lib/AppContext";
+import { ContentProvider } from "@/lib/ContentContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
 import { NotificationProvider } from "@/lib/NotificationContext";
 import { InvitationProvider } from "@/lib/InvitationContext";
@@ -19,11 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LanguageProvider>
             <AppProvider>
-              <NotificationProvider>
-                <InvitationProvider>
-                  <AppShell>{children}</AppShell>
-                </InvitationProvider>
-              </NotificationProvider>
+              <ContentProvider>
+                <NotificationProvider>
+                  <InvitationProvider>
+                    <AppShell>{children}</AppShell>
+                  </InvitationProvider>
+                </NotificationProvider>
+              </ContentProvider>
             </AppProvider>
           </LanguageProvider>
         </ThemeProvider>

@@ -1,0 +1,120 @@
+"use client";
+
+// ============================================================
+// Content Planner – Shared utilities & platform helpers
+// ============================================================
+import type { ContentPlatform, ContentStatus, ContentPriority, ApprovalStatus, ContentType } from "@/lib/types";
+
+// ── Platform colours & icons (emoji fallback – no extra deps) ─
+
+export const PLATFORM_COLORS: Record<ContentPlatform, string> = {
+  Facebook:  "#1877f2",
+  Instagram: "#e1306c",
+  TikTok:    "#010101",
+  LinkedIn:  "#0a66c2",
+  X:         "#000000",
+  Snapchat:  "#fffc00",
+  YouTube:   "#ff0000",
+};
+
+export const PLATFORM_EMOJIS: Record<ContentPlatform, string> = {
+  Facebook:  "f",
+  Instagram: "ig",
+  TikTok:    "tt",
+  LinkedIn:  "in",
+  X:         "𝕏",
+  Snapchat:  "👻",
+  YouTube:   "▶",
+};
+
+// ── Status pipeline ───────────────────────────────────────────
+
+export const STATUS_ORDER: ContentStatus[] = [
+  "idea",
+  "copywriting",
+  "design",
+  "internal_review",
+  "client_review",
+  "approved",
+  "scheduled",
+  "published",
+];
+
+export const STATUS_LABELS: Record<ContentStatus, string> = {
+  idea:            "content.statusIdea",
+  copywriting:     "content.statusCopywriting",
+  design:          "content.statusDesign",
+  internal_review: "content.statusInternalReview",
+  client_review:   "content.statusClientReview",
+  approved:        "content.statusApproved",
+  scheduled:       "content.statusScheduled",
+  published:       "content.statusPublished",
+};
+
+export const STATUS_COLORS: Record<ContentStatus, string> = {
+  idea:            "#8888a0",
+  copywriting:     "#4f8ef7",
+  design:          "#a78bfa",
+  internal_review: "#fbbf24",
+  client_review:   "#f97316",
+  approved:        "#34d399",
+  scheduled:       "#06b6d4",
+  published:       "#10b981",
+};
+
+// ── Priority ──────────────────────────────────────────────────
+
+export const PRIORITY_COLORS: Record<ContentPriority, string> = {
+  low:    "#34d399",
+  medium: "#fbbf24",
+  high:   "#f87171",
+};
+
+export const PRIORITY_LABELS: Record<ContentPriority, string> = {
+  low:    "content.priorityLow",
+  medium: "content.priorityMedium",
+  high:   "content.priorityHigh",
+};
+
+// ── Approval ──────────────────────────────────────────────────
+
+export const APPROVAL_COLORS: Record<ApprovalStatus, string> = {
+  pending_internal: "#fbbf24",
+  pending_client:   "#f97316",
+  approved:         "#34d399",
+  rejected:         "#f87171",
+};
+
+export const APPROVAL_LABELS: Record<ApprovalStatus, string> = {
+  pending_internal: "content.approvalPendingInternal",
+  pending_client:   "content.approvalPendingClient",
+  approved:         "content.approvalApproved",
+  rejected:         "content.approvalRejected",
+};
+
+// ── Content type ──────────────────────────────────────────────
+
+export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
+  post:     "content.typePost",
+  reel:     "content.typeReel",
+  story:    "content.typeStory",
+  carousel: "content.typeCarousel",
+  video:    "content.typeVideo",
+  ad:       "content.typeAd",
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+
+export function formatDate(iso: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+export function isOverdue(scheduledDate: string): boolean {
+  if (!scheduledDate) return false;
+  return new Date(scheduledDate) < new Date(new Date().toDateString());
+}
