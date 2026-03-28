@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users2, UserCircle, CheckSquare, Settings2, Zap, Globe } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users2, UserCircle, CheckSquare, Settings2, Zap, Globe, CalendarDays } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 export function SideNav() {
@@ -10,6 +10,7 @@ export function SideNav() {
 
   const navItems = [
     { href: "/", label: t("nav.dashboard"), icon: LayoutDashboard },
+    { href: "/content", label: t("nav.content"), icon: CalendarDays },
     { href: "/projects", label: t("nav.projects"), icon: FolderKanban },
     { href: "/clients", label: t("nav.clients"), icon: Users2 },
     { href: "/team", label: t("nav.team"), icon: UserCircle },
