@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Users2, Plus, Search, Building2, Globe, Mail } from "lucide-react";
+import { Users2, Plus, Search, Building2, Globe, Mail, Trash2, Pencil } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import type { Client } from "@/lib/types";
 
 const statusColors: Record<string, "green" | "blue" | "gray"> = {
   active: "green",
@@ -18,10 +19,11 @@ const statusColors: Record<string, "green" | "blue" | "gray"> = {
 };
 
 export default function ClientsPage() {
-  const { clients, addClient } = useClients();
+  const { clients, addClient, updateClient, deleteClient } = useClients();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editClient, setEditClient] = useState<Client | null>(null);
   const [form, setForm] = useState({ name: "", email: "", website: "" });
 
   const filtered = clients.filter((c) =>
@@ -34,6 +36,33 @@ export default function ClientsPage() {
     addClient({ name: form.name, email: form.email, website: form.website });
     setForm({ name: "", email: "", website: "" });
     setModalOpen(false);
+  };
+
+  const openEdit = (client: Client) => {
+    setEditClient(client);
+    setForm({ name: client.name, email: client.email, website: client.website ?? "" });
+  };
+
+  const handleEdit = () => {
+    if (!editClient || !form.name || !form.email) return;
+    updateClient(editClient.id, {
+      name: form.name,
+      company: form.name,
+      email: form.email,
+      website: form.website || undefined,
+      initials: form.name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+    });
+    setEditClient(null);
+    setForm({ name: "", email: "", website: "" });
+  };
+
+  const handleDelete = (id: string) => {
+    deleteClient(id);
   };
 
   const subtitle = `${clients.length} ${clients.length === 1 ? t("clients.totalClient") : t("clients.totalClients")}`;
@@ -93,14 +122,15 @@ export default function ClientsPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" fullWidth>{t("common.view")}</Button>
-                <Button variant="ghost" size="sm">{t("common.edit")}</Button>
+                <Button variant="secondary" size="sm" fullWidth icon={Pencil} onClick={() => openEdit(client)}>{t("common.edit")}</Button>
+                <Button variant="ghost" size="sm" icon={Trash2} onClick={() => handleDelete(client.id)}>{t("common.delete")}</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
 
+      {/* Add Client Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t("clients.modalTitle")}>
         <div className="space-y-4">
           <Input
@@ -128,6 +158,38 @@ export default function ClientsPage() {
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
             <Button fullWidth onClick={handleAdd} disabled={!form.name || !form.email}>{t("clients.addClient")}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Client Modal */}
+      <Modal open={!!editClient} onClose={() => { setEditClient(null); setForm({ name: "", email: "", website: "" }); }} title={t("clients.editTitle") || t("common.edit")}>
+        <div className="space-y-4">
+          <Input
+            label={t("clients.nameLabel")}
+            placeholder={t("clients.namePlaceholder")}
+            value={form.name}
+            onChange={(v) => setForm((p) => ({ ...p, name: v }))}
+            required
+          />
+          <Input
+            label={t("clients.emailLabel")}
+            placeholder={t("clients.emailPlaceholder")}
+            value={form.email}
+            onChange={(v) => setForm((p) => ({ ...p, email: v }))}
+            type="email"
+            required
+          />
+          <Input
+            label={t("clients.websiteLabel")}
+            placeholder={t("clients.websitePlaceholder")}
+            value={form.website}
+            onChange={(v) => setForm((p) => ({ ...p, website: v }))}
+            icon={Globe}
+          />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" fullWidth onClick={() => { setEditClient(null); setForm({ name: "", email: "", website: "" }); }}>{t("common.cancel")}</Button>
+            <Button fullWidth onClick={handleEdit} disabled={!form.name || !form.email}>{t("common.save") || t("common.edit")}</Button>
           </div>
         </div>
       </Modal>

@@ -72,6 +72,7 @@ export const en = {
     noClientsTitle: "No clients found",
     noClientsDesc: "Add your first client or adjust your search.",
     modalTitle: "Add New Client",
+    editTitle: "Edit Client",
     nameLabel: "Company / Client Name",
     namePlaceholder: "e.g. Acme Corp",
     emailLabel: "Email Address",
@@ -82,6 +83,7 @@ export const en = {
   projects: {
     title: "Projects",
     addProject: "New Project",
+    editTitle: "Edit Project",
     searchPlaceholder: "Search projects...",
     progress: "Progress",
     noProjectsTitle: "No projects found",

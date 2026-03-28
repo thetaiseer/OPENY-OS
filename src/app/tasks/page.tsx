@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CheckSquare, Plus, Search, Circle, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { CheckSquare, Plus, Search, Circle, CheckCircle2, AlertCircle, Clock, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -20,7 +20,7 @@ const priorityColors: Record<Priority, "red" | "yellow" | "blue"> = {
 };
 
 export default function TasksPage() {
-  const { tasks, addTask, toggleTaskDone } = useTasks();
+  const { tasks, addTask, toggleTaskDone, deleteTask } = useTasks();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -128,6 +128,13 @@ export default function TasksPage() {
                             <Clock size={11} style={{ color: "var(--text-muted)" }} />
                             <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.dueDate}</span>
                           </div>
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="transition-all p-0.5 rounded"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </div>
                     ))}

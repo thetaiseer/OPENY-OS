@@ -58,11 +58,16 @@ export interface TeamMember {
 
 export type ActivityType =
   | "client_added"
+  | "client_updated"
+  | "client_deleted"
   | "task_completed"
   | "task_created"
   | "project_created"
   | "project_updated"
+  | "project_deleted"
   | "member_joined"
+  | "member_removed"
+  | "report_generated";
   | "report_generated"
   | "invite_sent"
   | "invite_cancelled"

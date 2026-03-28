@@ -42,11 +42,15 @@ function MiniChart({ data, label }: { data: number[]; label: string }) {
 
 const activityColors: Record<ActivityType, string> = {
   client_added:     "#4f8ef7",
+  client_updated:   "#4f8ef7",
+  client_deleted:   "#f87171",
   task_completed:   "#34d399",
   task_created:     "#34d399",
   project_created:  "#a78bfa",
   project_updated:  "#a78bfa",
+  project_deleted:  "#f87171",
   member_joined:    "#fbbf24",
+  member_removed:   "#f87171",
   report_generated: "#8888a0",
   invite_sent:      "#4f8ef7",
   invite_cancelled: "#f87171",
