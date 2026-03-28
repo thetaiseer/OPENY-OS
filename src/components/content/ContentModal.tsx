@@ -20,6 +20,7 @@ import {
 import { useContentItems, type CreateContentData } from "@/lib/ContentContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
+import { useCampaigns } from "@/lib/CampaignContext";
 
 interface ContentModalProps {
   open: boolean;
@@ -153,6 +154,7 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
   const { t } = useLanguage();
   const { clients, members } = useAppStore();
   const { createContentItem, updateContentItem, addComment } = useContentItems();
+  const { campaigns } = useCampaigns();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -356,13 +358,18 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
               {/* Row: Client + Campaign */}
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("content.clientLabel")}>
-                  <SelectInput value={clientId} onChange={setClientId}>
+                  <SelectInput value={clientId} onChange={(v) => { setClientId(v); setCampaignId(""); }}>
                     <option value="">— Select client —</option>
                     {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </SelectInput>
                 </Field>
                 <Field label={t("content.campaignLabel")}>
-                  <TextInput value={campaignId} onChange={setCampaignId} placeholder={t("content.campaignPlaceholder")} />
+                  <SelectInput value={campaignId} onChange={setCampaignId}>
+                    <option value="">— No campaign —</option>
+                    {campaigns
+                      .filter((c) => !clientId || c.clientId === clientId)
+                      .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </SelectInput>
                 </Field>
               </div>
 

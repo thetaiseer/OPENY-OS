@@ -199,3 +199,91 @@ export interface Invitation {
   acceptedAt?: string | null;
   cancelledAt?: string | null;
 }
+
+// ── Campaigns ─────────────────────────────────────────────────
+
+export type CampaignStatus = "draft" | "planned" | "active" | "paused" | "completed" | "archived";
+
+export interface Campaign {
+  id: string;
+  clientId: string;
+  name: string;
+  objective: string;
+  description: string;
+  platforms: ContentPlatform[];
+  budget: number;
+  targetAudience: string;
+  startDate: string;
+  endDate: string;
+  status: CampaignStatus;
+  ownerId: string;
+  linkedContentCount: number;
+  linkedTaskCount: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Approval Workflow ─────────────────────────────────────────
+
+export type ApprovalWorkflowStatus =
+  | "pending_internal"
+  | "pending_client"
+  | "approved"
+  | "rejected"
+  | "revision_requested";
+
+export interface ApprovalComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userInitials: string;
+  userColor: string;
+  text: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface Approval {
+  id: string;
+  contentItemId: string;
+  clientId: string;
+  campaignId: string;
+  status: ApprovalWorkflowStatus;
+  assignedTo: string;
+  internalComments: ApprovalComment[];
+  clientComments: ApprovalComment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Recurring Content ─────────────────────────────────────────
+
+export type RecurringFrequency = "daily" | "weekly" | "monthly" | "custom";
+
+export interface RecurringContentRule {
+  id: string;
+  clientId: string;
+  titleTemplate: string;
+  platform: ContentPlatform;
+  contentType: ContentType;
+  frequency: RecurringFrequency;
+  defaultAssigneeId: string;
+  defaultStatus: ContentStatus;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Client Quota ──────────────────────────────────────────────
+
+export interface ClientQuota {
+  id: string;
+  clientId: string;
+  month: string; // "YYYY-MM"
+  packageLimit: number;
+  usedPosts: number;
+  warningThreshold: number; // percentage 0-100
+  createdAt: string;
+  updatedAt: string;
+}

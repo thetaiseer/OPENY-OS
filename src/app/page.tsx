@@ -1,12 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Users, FolderOpen, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle } from "lucide-react";
+import { Users, FolderOpen, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle, Megaphone, ClipboardCheck } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useCampaigns } from "@/lib/CampaignContext";
+import { useApprovals } from "@/lib/ApprovalContext";
 import type { ActivityType } from "@/lib/types";
 
 function MiniChart({ data, label }: { data: number[]; label: string }) {
@@ -104,6 +106,8 @@ export default function DashboardPage() {
     teamMemberCount,
   } = useAppStore();
   const { t, isRTL, language } = useLanguage();
+  const { campaigns } = useCampaigns();
+  const { approvals } = useApprovals();
 
   const [period, setPeriod] = useState<"week" | "month">("week");
 
@@ -293,6 +297,41 @@ export default function DashboardPage() {
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* Marketing widgets */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link
+          href="/campaigns"
+          className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01]"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#3b82f620" }}>
+            <Megaphone size={20} style={{ color: "#3b82f6" }} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+              {campaigns.filter((c) => c.status === "active").length}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("nav.campaigns")} — Active</p>
+          </div>
+        </Link>
+
+        <Link
+          href="/approvals"
+          className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01]"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#f59e0b20" }}>
+            <ClipboardCheck size={20} style={{ color: "#f59e0b" }} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+              {approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client").length}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("nav.approvals")} — Pending</p>
+          </div>
+        </Link>
       </div>
     </div>
   );
