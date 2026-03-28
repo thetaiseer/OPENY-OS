@@ -287,3 +287,103 @@ export interface ClientQuota {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── Extended Client Fields ────────────────────────────────────
+
+export interface ClientExtended extends Client {
+  companyName?: string;
+  industry?: string;
+  contactName?: string;
+  packageType?: string;
+  monthlyPostQuota?: number;
+  activePlatforms?: ContentPlatform[];
+  toneOfVoice?: string;
+  brandColors?: string[];
+  brandGuidelines?: string;
+  targetAudience?: string;
+  goals?: string;
+  notesInternal?: string;
+  notesClientFacing?: string;
+  updatedAt?: string;
+}
+
+// ── Assets ───────────────────────────────────────────────────
+
+export type AssetType =
+  | "image"
+  | "video"
+  | "logo"
+  | "brand_file"
+  | "document"
+  | "template"
+  | "caption_template"
+  | "hashtag_bank"
+  | "cta_bank";
+
+export interface Asset {
+  id: string;
+  clientId: string;
+  name: string;
+  type: AssetType;
+  fileUrl: string;
+  thumbnailUrl?: string;
+  fileSize?: number;
+  format?: string;
+  tags?: string[];
+  folder?: string;
+  uploadedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Client Notes ─────────────────────────────────────────────
+
+export type NoteType = "internal" | "client_facing";
+
+export interface ClientNote {
+  id: string;
+  clientId: string;
+  type: NoteType;
+  content: string;
+  author: string;
+  tag?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Bank Entries (Caption / Hashtag / CTA) ────────────────────
+
+export type BankCategory = "caption" | "hashtag" | "cta";
+
+export interface BankEntry {
+  id: string;
+  clientId: string;
+  category: BankCategory;
+  text: string;
+  tags?: string[];
+  platform?: ContentPlatform;
+  createdAt: string;
+}
+
+// ── Client Activity Timeline ──────────────────────────────────
+
+export type ClientActivityType =
+  | "client_created"
+  | "campaign_created"
+  | "post_scheduled"
+  | "post_approved"
+  | "task_completed"
+  | "asset_uploaded"
+  | "invitation_accepted"
+  | "report_generated"
+  | "note_added";
+
+export interface ClientActivity {
+  id: string;
+  clientId: string;
+  type: ClientActivityType;
+  message: string;
+  detail?: string;
+  entityId?: string;
+  createdAt: string;
+}
