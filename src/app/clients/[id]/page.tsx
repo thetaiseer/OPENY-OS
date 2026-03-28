@@ -1295,9 +1295,16 @@ export default function ClientWorkspacePage() {
               {extClient.industry ? ` · ${extClient.industry}` : ""}
             </p>
           </div>
-          <Button variant="secondary" size="sm" icon={Edit3}>
-            {t("clientWorkspace.editProfile")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href={`/portal/${client.id}`}>
+              <Button variant="secondary" size="sm">
+                {t("nav.portal")}
+              </Button>
+            </Link>
+            <Button variant="secondary" size="sm" icon={Edit3}>
+              {t("clientWorkspace.editProfile")}
+            </Button>
+          </div>
         </div>
       </div>
 

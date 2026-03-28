@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Toggle } from "@/components/ui/Toggle";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { NotificationPreferencesPanel } from "@/components/ui/NotificationPreferencesPanel";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useLanguage } from "@/lib/LanguageContext";
 import { requestPushPermission } from "@/lib/firebase";
@@ -234,54 +235,61 @@ export default function SettingsPage() {
           )}
 
           {active === "notifications" && (
-            <Card>
-              <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.notificationPrefs")}</p>
-              <div className="space-y-5">
-                <Toggle
-                  checked={notifications.desktop}
-                  onChange={v => updateNotifications(p => ({ ...p, desktop: v }))}
-                  label={t("settings.desktopNotifs")}
-                  description={t("settings.desktopNotifsDesc")}
-                />
-                <div style={{ height: '1px', background: 'var(--border)' }} />
-                <Toggle
-                  checked={notifications.sound}
-                  onChange={v => updateNotifications(p => ({ ...p, sound: v }))}
-                  label={t("settings.soundEffects")}
-                  description={t("settings.soundEffectsDesc")}
-                />
-                <div style={{ height: '1px', background: 'var(--border)' }} />
-                <Toggle
-                  checked={notifications.sync}
-                  onChange={v => updateNotifications(p => ({ ...p, sync: v }))}
-                  label={t("settings.cloudSync")}
-                  description={t("settings.cloudSyncDesc")}
-                />
-                <div style={{ height: '1px', background: 'var(--border)' }} />
-                <Toggle
-                  checked={notifications.email}
-                  onChange={v => updateNotifications(p => ({ ...p, email: v }))}
-                  label={t("settings.emailNotifs")}
-                  description={t("settings.emailNotifsDesc")}
-                />
-                <div style={{ height: '1px', background: 'var(--border)' }} />
-                <Toggle
-                  checked={notifications.push}
-                  onChange={handlePushToggle}
-                  label={t("settings.pushNotifs")}
-                  description={
-                    pushStatus === "denied"
-                      ? t("settings.pushDenied")
-                      : t("settings.pushNotifsDesc")
-                  }
-                />
-                {pushStatus === "denied" && (
-                  <p className="text-xs mt-1" style={{ color: "var(--error)" }}>
-                    {t("settings.pushDeniedHint")}
-                  </p>
-                )}
-              </div>
-            </Card>
+            <>
+              <Card>
+                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.notificationPrefs")}</p>
+                <div className="space-y-5">
+                  <Toggle
+                    checked={notifications.desktop}
+                    onChange={v => updateNotifications(p => ({ ...p, desktop: v }))}
+                    label={t("settings.desktopNotifs")}
+                    description={t("settings.desktopNotifsDesc")}
+                  />
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <Toggle
+                    checked={notifications.sound}
+                    onChange={v => updateNotifications(p => ({ ...p, sound: v }))}
+                    label={t("settings.soundEffects")}
+                    description={t("settings.soundEffectsDesc")}
+                  />
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <Toggle
+                    checked={notifications.sync}
+                    onChange={v => updateNotifications(p => ({ ...p, sync: v }))}
+                    label={t("settings.cloudSync")}
+                    description={t("settings.cloudSyncDesc")}
+                  />
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <Toggle
+                    checked={notifications.email}
+                    onChange={v => updateNotifications(p => ({ ...p, email: v }))}
+                    label={t("settings.emailNotifs")}
+                    description={t("settings.emailNotifsDesc")}
+                  />
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <Toggle
+                    checked={notifications.push}
+                    onChange={handlePushToggle}
+                    label={t("settings.pushNotifs")}
+                    description={
+                      pushStatus === "denied"
+                        ? t("settings.pushDenied")
+                        : t("settings.pushNotifsDesc")
+                    }
+                  />
+                  {pushStatus === "denied" && (
+                    <p className="text-xs mt-1" style={{ color: "var(--error)" }}>
+                      {t("settings.pushDeniedHint")}
+                    </p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Per-category notification preferences */}
+              <Card>
+                <NotificationPreferencesPanel />
+              </Card>
+            </>
           )}
 
           {active === "security" && (

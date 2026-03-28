@@ -71,7 +71,16 @@ export type ActivityType =
   | "invite_sent"
   | "invite_cancelled"
   | "invite_accepted"
-  | "invite_expired";
+  | "invite_expired"
+  | "post_approved_by_client"
+  | "post_marked_published"
+  | "publishing_failed"
+  | "client_requested_changes"
+  | "post_rescheduled"
+  | "approval_submitted"
+  | "content_created"
+  | "content_status_changed"
+  | "publishing_simulated";
 
 export interface Activity {
   id: string;
@@ -100,12 +109,30 @@ export type NotificationType =
   | "task_created"
   | "task_updated"
   | "task_completed"
+  | "task_assigned"
   | "member_invited"
   | "member_added"
   | "invite_accepted"
   | "invite_cancelled"
   | "invite_expired"
-  | "status_change";
+  | "status_change"
+  | "approval_requested"
+  | "approval_received"
+  | "content_approved"
+  | "content_rejected"
+  | "publishing_due_soon"
+  | "post_overdue"
+  | "campaign_starting_soon"
+  | "campaign_ending_soon"
+  | "quota_warning"
+  | "new_client_created"
+  | "asset_uploaded"
+  | "publishing_failed"
+  | "post_published"
+  | "client_approved"
+  | "client_rejected"
+  | "client_requested_changes"
+  | "post_rescheduled";
 
 export interface AppNotification {
   id: string;
@@ -121,13 +148,18 @@ export interface AppNotification {
 
 export type ContentStatus =
   | "idea"
+  | "draft"
   | "copywriting"
   | "design"
+  | "in_progress"
   | "internal_review"
   | "client_review"
   | "approved"
   | "scheduled"
-  | "published";
+  | "publishing_ready"
+  | "published"
+  | "failed"
+  | "archived";
 
 export type ContentPlatform =
   | "Facebook"
@@ -387,3 +419,87 @@ export interface ClientActivity {
   entityId?: string;
   createdAt: string;
 }
+
+// ── Publishing Workflow ───────────────────────────────────────
+
+export type PublishingStatus =
+  | "scheduled"
+  | "due_now"
+  | "published"
+  | "failed"
+  | "rescheduled";
+
+export type PublishingReadiness =
+  | "not_ready"
+  | "needs_attention"
+  | "ready_to_schedule"
+  | "ready_to_publish";
+
+export type FailureReason =
+  | "missing_asset"
+  | "rejected_by_client"
+  | "missed_schedule"
+  | "platform_issue"
+  | "manual_delay"
+  | "other";
+
+export interface PublishingEvent {
+  id: string;
+  contentItemId: string;
+  clientId: string;
+  status: PublishingStatus;
+  scheduledAt: string;
+  publishedAt?: string;
+  failedAt?: string;
+  rescheduledTo?: string;
+  failureReason?: FailureReason;
+  failureNote?: string;
+  performedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublishingFailure {
+  id: string;
+  contentItemId: string;
+  clientId: string;
+  reason: FailureReason;
+  note?: string;
+  reportedBy: string;
+  retriedAt?: string;
+  resolvedAt?: string;
+  createdAt: string;
+}
+
+// ── Notification Preferences ──────────────────────────────────
+
+export interface NotificationChannelPrefs {
+  inApp: boolean;
+  push: boolean;
+  email: boolean;
+}
+
+export interface UserNotificationPreferences {
+  id: string;
+  userId: string;
+  approvals: NotificationChannelPrefs;
+  publishingReminders: NotificationChannelPrefs;
+  taskAlerts: NotificationChannelPrefs;
+  campaignAlerts: NotificationChannelPrefs;
+  invitationEmails: NotificationChannelPrefs;
+  systemAlerts: NotificationChannelPrefs;
+  clientActions: NotificationChannelPrefs;
+  updatedAt: string;
+}
+
+// ── Client Portal Session ─────────────────────────────────────
+
+export interface ClientPortalSession {
+  id: string;
+  clientId: string;
+  accessToken: string;
+  createdAt: string;
+  expiresAt: string;
+  lastSeenAt?: string;
+}
+
