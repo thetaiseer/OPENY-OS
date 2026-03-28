@@ -1,7 +1,8 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { Bell, Zap, Globe } from "lucide-react";
+import { Zap, Globe } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { NotificationCenter } from "@/components/ui/NotificationCenter";
 
 export function TopBar() {
   const pathname = usePathname();
@@ -40,12 +41,8 @@ export function TopBar() {
           <Globe size={13} />
           <span>{language === "en" ? "ع" : "EN"}</span>
         </button>
-        <button
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          <Bell size={16} />
-        </button>
+        {/* Notification bell */}
+        <NotificationCenter />
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
           A
         </div>

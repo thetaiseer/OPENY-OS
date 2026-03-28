@@ -4,6 +4,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppProvider } from "@/lib/AppContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
+import { NotificationProvider } from "@/lib/NotificationContext";
+import { InvitationProvider } from "@/lib/InvitationContext";
 
 export const metadata: Metadata = {
   title: "OPENY OS",
@@ -17,7 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LanguageProvider>
             <AppProvider>
-              <AppShell>{children}</AppShell>
+              <NotificationProvider>
+                <InvitationProvider>
+                  <AppShell>{children}</AppShell>
+                </InvitationProvider>
+              </NotificationProvider>
             </AppProvider>
           </LanguageProvider>
         </ThemeProvider>
