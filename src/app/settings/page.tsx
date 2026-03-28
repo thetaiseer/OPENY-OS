@@ -1,22 +1,18 @@
 "use client";
 import { useState } from "react";
-import { Settings2, User, Palette, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Check } from "lucide-react";
+import { Settings2, User, Palette, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Check, Globe } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import { Toggle } from "@/components/ui/Toggle";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useTheme } from "@/components/layout/ThemeProvider";
-
-const sections = [
-  { id: "profile", label: "Profile", icon: User },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: Shield },
-];
+import { useLanguage } from "@/lib/LanguageContext";
+import type { Language } from "@/lib/LanguageContext";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
+  const { t, language, setLanguage } = useLanguage();
   const [active, setActive] = useState("profile");
   const [profile, setProfile] = useState({ name: "Alex Chen", email: "alex@openy.os", role: "Administrator" });
   const [notifications, setNotifications] = useState({ desktop: true, sound: false, sync: true, email: true });
@@ -25,9 +21,21 @@ export default function SettingsPage() {
 
   const accents = ["#4f8ef7", "#34d399", "#a78bfa", "#fbbf24", "#f87171", "#06b6d4"];
 
+  const sections = [
+    { id: "profile", label: t("settings.profile"), icon: User },
+    { id: "appearance", label: t("settings.appearance"), icon: Palette },
+    { id: "notifications", label: t("settings.notifications"), icon: Bell },
+    { id: "security", label: t("settings.security"), icon: Shield },
+  ];
+
+  const languages: { value: Language; label: string; nativeLabel: string }[] = [
+    { value: "en", label: t("settings.english"), nativeLabel: "English" },
+    { value: "ar", label: t("settings.arabic"), nativeLabel: "العربية" },
+  ];
+
   return (
     <div>
-      <SectionHeader title="Settings" subtitle="Manage your account and system preferences" icon={Settings2} />
+      <SectionHeader title={t("settings.title")} subtitle={t("settings.subtitle")} icon={Settings2} />
       
       <div className="flex flex-col lg:flex-row gap-5">
         {/* Sidebar nav */}
@@ -38,7 +46,7 @@ export default function SettingsPage() {
                 <button
                   key={id}
                   onClick={() => setActive(id)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-start"
                   style={{
                     background: active === id ? 'var(--accent-dim)' : 'transparent',
                     color: active === id ? 'var(--accent)' : 'var(--text-secondary)',
@@ -46,7 +54,7 @@ export default function SettingsPage() {
                 >
                   <Icon size={16} />
                   <span className="text-sm font-medium">{label}</span>
-                  {active === id && <ChevronRight size={13} className="ml-auto" />}
+                  {active === id && <ChevronRight size={13} className="ms-auto rtl-flip" />}
                 </button>
               ))}
             </nav>
@@ -58,10 +66,10 @@ export default function SettingsPage() {
           {active === "profile" && (
             <>
               <Card>
-                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>Profile Information</p>
+                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.profileInfo")}</p>
                 <div className="flex items-center gap-4 mb-6">
                   <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white"
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
                     style={{ background: 'var(--accent)' }}
                   >
                     {profile.name.split(" ").map(n => n[0]).join("")}
@@ -69,16 +77,16 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{profile.name}</p>
                     <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{profile.role}</p>
-                    <Button variant="ghost" size="sm" className="mt-2">Change Photo</Button>
+                    <Button variant="ghost" size="sm" className="mt-2">{t("settings.changePhoto")}</Button>
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <Input label="Full Name" value={profile.name} onChange={v => setProfile(p => ({ ...p, name: v }))} />
-                  <Input label="Email Address" value={profile.email} onChange={v => setProfile(p => ({ ...p, email: v }))} type="email" />
-                  <Input label="Role" value={profile.role} onChange={v => setProfile(p => ({ ...p, role: v }))} />
+                  <Input label={t("settings.fullNameLabel")} value={profile.name} onChange={v => setProfile(p => ({ ...p, name: v }))} />
+                  <Input label={t("settings.emailLabel")} value={profile.email} onChange={v => setProfile(p => ({ ...p, email: v }))} type="email" />
+                  <Input label={t("settings.roleLabel")} value={profile.role} onChange={v => setProfile(p => ({ ...p, role: v }))} />
                 </div>
                 <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-                  <Button>Save Changes</Button>
+                  <Button>{t("settings.saveChanges")}</Button>
                 </div>
               </Card>
             </>
@@ -87,11 +95,11 @@ export default function SettingsPage() {
           {active === "appearance" && (
             <>
               <Card>
-                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>Theme Mode</p>
+                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.themeMode")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {([
-                    { mode: "dark", icon: Moon, label: "Dark" },
-                    { mode: "light", icon: Sun, label: "Light" },
+                    { mode: "dark", icon: Moon, label: t("settings.dark") },
+                    { mode: "light", icon: Sun, label: t("settings.light") },
                   ] as const).map(({ mode, icon: Icon, label }) => (
                     <button
                       key={mode}
@@ -106,7 +114,7 @@ export default function SettingsPage() {
                       <span className="text-xs font-medium" style={{ color: theme === mode ? 'var(--accent)' : 'var(--text-secondary)' }}>{label}</span>
                       {theme === mode && (
                         <div
-                          className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
+                          className="absolute top-2 end-2 w-4 h-4 rounded-full flex items-center justify-center"
                           style={{ background: 'var(--accent)' }}
                         >
                           <Check size={9} color="white" />
@@ -118,7 +126,37 @@ export default function SettingsPage() {
               </Card>
 
               <Card>
-                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Accent Color</p>
+                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t("settings.languageSection")}</p>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{t("settings.languageLabel")}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {languages.map(({ value, label, nativeLabel }) => (
+                    <button
+                      key={value}
+                      onClick={() => setLanguage(value)}
+                      className="relative flex flex-col items-center gap-2 p-4 rounded-2xl transition-all"
+                      style={{
+                        background: language === value ? 'var(--accent-dim)' : 'var(--surface-3)',
+                        border: `1.5px solid ${language === value ? 'var(--accent)' : 'var(--border)'}`,
+                      }}
+                    >
+                      <Globe size={20} style={{ color: language === value ? 'var(--accent)' : 'var(--text-secondary)' }} />
+                      <span className="text-xs font-semibold" style={{ color: language === value ? 'var(--accent)' : 'var(--text-primary)' }}>{nativeLabel}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                      {language === value && (
+                        <div
+                          className="absolute top-2 end-2 w-4 h-4 rounded-full flex items-center justify-center"
+                          style={{ background: 'var(--accent)' }}
+                        >
+                          <Check size={9} color="white" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              <Card>
+                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t("settings.accentColor")}</p>
                 <div className="flex gap-3">
                   {accents.map(color => (
                     <button
@@ -140,34 +178,34 @@ export default function SettingsPage() {
 
           {active === "notifications" && (
             <Card>
-              <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>Notification Preferences</p>
+              <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.notificationPrefs")}</p>
               <div className="space-y-5">
                 <Toggle
                   checked={notifications.desktop}
                   onChange={v => setNotifications(p => ({ ...p, desktop: v }))}
-                  label="Desktop Notifications"
-                  description="Show system notifications on your desktop"
+                  label={t("settings.desktopNotifs")}
+                  description={t("settings.desktopNotifsDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.sound}
                   onChange={v => setNotifications(p => ({ ...p, sound: v }))}
-                  label="Sound Effects"
-                  description="Play sounds for alerts and actions"
+                  label={t("settings.soundEffects")}
+                  description={t("settings.soundEffectsDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.sync}
                   onChange={v => setNotifications(p => ({ ...p, sync: v }))}
-                  label="Cloud Sync"
-                  description="Sync settings and data across devices"
+                  label={t("settings.cloudSync")}
+                  description={t("settings.cloudSyncDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.email}
                   onChange={v => setNotifications(p => ({ ...p, email: v }))}
-                  label="Email Notifications"
-                  description="Receive updates and digests by email"
+                  label={t("settings.emailNotifs")}
+                  description={t("settings.emailNotifsDesc")}
                 />
               </div>
             </Card>
@@ -176,26 +214,26 @@ export default function SettingsPage() {
           {active === "security" && (
             <>
               <Card>
-                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>Security Settings</p>
+                <p className="text-sm font-semibold mb-5" style={{ color: 'var(--text-primary)' }}>{t("settings.securitySettings")}</p>
                 <div className="space-y-5">
                   <Toggle
                     checked={security.twoFactor}
                     onChange={v => setSecurity(p => ({ ...p, twoFactor: v }))}
-                    label="Two-Factor Authentication"
-                    description="Add an extra layer of security to your account"
+                    label={t("settings.twoFactor")}
+                    description={t("settings.twoFactorDesc")}
                   />
                   <div style={{ height: '1px', background: 'var(--border)' }} />
                   <Toggle
                     checked={security.activityLogs}
                     onChange={v => setSecurity(p => ({ ...p, activityLogs: v }))}
-                    label="Activity Logging"
-                    description="Keep detailed logs of account activity"
+                    label={t("settings.activityLogging")}
+                    description={t("settings.activityLoggingDesc")}
                   />
                 </div>
               </Card>
 
               <Card>
-                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Active Sessions</p>
+                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t("settings.activeSessions")}</p>
                 <div className="space-y-3">
                   {[
                     { device: "MacBook Pro", location: "San Francisco, CA", current: true, time: "Now" },
@@ -210,20 +248,20 @@ export default function SettingsPage() {
                               className="text-[10px] px-1.5 py-0.5 rounded-full"
                               style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
                             >
-                              Current
+                              {t("settings.current")}
                             </span>
                           )}
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{location} · {time}</p>
                       </div>
-                      {!current && <Button variant="ghost" size="sm">Revoke</Button>}
+                      {!current && <Button variant="ghost" size="sm">{t("common.revoke")}</Button>}
                     </div>
                   ))}
                 </div>
               </Card>
 
               <div className="pt-2">
-                <Button variant="destructive" icon={LogOut}>Sign Out</Button>
+                <Button variant="destructive" icon={LogOut}>{t("settings.signOut")}</Button>
               </div>
             </>
           )}
@@ -232,3 +270,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

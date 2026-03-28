@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useTeam } from "@/lib/AppContext";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const roleColors: Record<string, "blue" | "green" | "yellow" | "purple" | "gray"> = {
   Admin: "blue",
@@ -22,6 +23,7 @@ const statusColors = { active: "#34d399", away: "#fbbf24", offline: "#55556a" };
 
 export default function TeamPage() {
   const { members, addMember } = useTeam();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", role: "", email: "" });
@@ -41,22 +43,22 @@ export default function TeamPage() {
   return (
     <div>
       <SectionHeader
-        title="Team"
-        subtitle={`${members.length} members across all roles`}
+        title={t("team.title")}
+        subtitle={`${members.length} ${t("team.membersCount")}`}
         icon={UserCircle}
-        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>Add Member</Button>}
+        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("team.addMember")}</Button>}
       />
 
       <div className="mb-5">
-        <Input placeholder="Search members..." value={search} onChange={setSearch} icon={Search} />
+        <Input placeholder={t("team.searchPlaceholder")} value={search} onChange={setSearch} icon={Search} />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={UserCircle}
-          title="No members found"
-          description="Try adjusting your search, or add a new team member."
-          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>Add Member</Button>}
+          title={t("team.noMembersTitle")}
+          description={t("team.noMembersDesc")}
+          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("team.addMember")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -74,7 +76,9 @@ export default function TeamPage() {
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{member.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ background: statusColors[member.status] }} />
-                      <span className="text-[11px] capitalize" style={{ color: "var(--text-muted)" }}>{member.status}</span>
+                      <span className="text-[11px] capitalize" style={{ color: "var(--text-muted)" }}>
+                        {t(`status.${member.status}`) || member.status}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -88,49 +92,50 @@ export default function TeamPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Star size={12} style={{ color: "var(--text-muted)" }} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{member.projects} active projects</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{member.projects} {t("team.activeProjects")}</span>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" fullWidth>Profile</Button>
-                <Button variant="ghost" size="sm" icon={Mail}>Message</Button>
+                <Button variant="secondary" size="sm" fullWidth>{t("common.profile")}</Button>
+                <Button variant="ghost" size="sm" icon={Mail}>{t("common.message")}</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Team Member">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t("team.modalTitle")}>
         <div className="space-y-4">
           <Input
-            label="Full Name"
-            placeholder="e.g. Jordan Blake"
+            label={t("team.nameLabel")}
+            placeholder={t("team.namePlaceholder")}
             value={form.name}
             onChange={(v) => setForm((p) => ({ ...p, name: v }))}
             required
           />
           <Input
-            label="Role"
-            placeholder="e.g. Developer, Designer..."
+            label={t("team.roleLabel")}
+            placeholder={t("team.rolePlaceholder")}
             value={form.role}
             onChange={(v) => setForm((p) => ({ ...p, role: v }))}
             required
           />
           <Input
-            label="Email Address"
-            placeholder="member@company.com"
+            label={t("team.emailLabel")}
+            placeholder={t("team.emailPlaceholder")}
             value={form.email}
             onChange={(v) => setForm((p) => ({ ...p, email: v }))}
             type="email"
             required
           />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button fullWidth onClick={handleAdd} disabled={!form.name || !form.role || !form.email}>Add Member</Button>
+            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button fullWidth onClick={handleAdd} disabled={!form.name || !form.role || !form.email}>{t("team.addMember")}</Button>
           </div>
         </div>
       </Modal>
     </div>
   );
 }
+

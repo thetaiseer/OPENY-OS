@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useClients } from "@/lib/AppContext";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const statusColors: Record<string, "green" | "blue" | "gray"> = {
   active: "green",
@@ -18,6 +19,7 @@ const statusColors: Record<string, "green" | "blue" | "gray"> = {
 
 export default function ClientsPage() {
   const { clients, addClient } = useClients();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", website: "" });
@@ -34,25 +36,27 @@ export default function ClientsPage() {
     setModalOpen(false);
   };
 
+  const subtitle = `${clients.length} ${clients.length === 1 ? t("clients.totalClient") : t("clients.totalClients")}`;
+
   return (
     <div>
       <SectionHeader
-        title="Clients"
-        subtitle={`${clients.length} total clients`}
+        title={t("clients.title")}
+        subtitle={subtitle}
         icon={Users2}
-        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>Add Client</Button>}
+        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("clients.addClient")}</Button>}
       />
 
       <div className="mb-5">
-        <Input placeholder="Search clients..." value={search} onChange={setSearch} icon={Search} />
+        <Input placeholder={t("clients.searchPlaceholder")} value={search} onChange={setSearch} icon={Search} />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={Users2}
-          title="No clients found"
-          description="Add your first client or adjust your search."
-          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>Add Client</Button>}
+          title={t("clients.noClientsTitle")}
+          description={t("clients.noClientsDesc")}
+          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("clients.addClient")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -68,7 +72,7 @@ export default function ClientsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>{client.name}</p>
-                    <Badge label={client.status} color={statusColors[client.status]} />
+                    <Badge label={t(`status.${client.status}`) || client.status} color={statusColors[client.status]} />
                   </div>
                 </div>
               </div>
@@ -85,48 +89,49 @@ export default function ClientsPage() {
                 )}
                 <div className="flex items-center gap-2">
                   <Building2 size={12} style={{ color: "var(--text-muted)" }} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{client.projects} active projects</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{client.projects} {t("clients.activeProjects")}</span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" fullWidth>View</Button>
-                <Button variant="ghost" size="sm">Edit</Button>
+                <Button variant="secondary" size="sm" fullWidth>{t("common.view")}</Button>
+                <Button variant="ghost" size="sm">{t("common.edit")}</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Client">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t("clients.modalTitle")}>
         <div className="space-y-4">
           <Input
-            label="Company / Client Name"
-            placeholder="e.g. Acme Corp"
+            label={t("clients.nameLabel")}
+            placeholder={t("clients.namePlaceholder")}
             value={form.name}
             onChange={(v) => setForm((p) => ({ ...p, name: v }))}
             required
           />
           <Input
-            label="Email Address"
-            placeholder="contact@company.com"
+            label={t("clients.emailLabel")}
+            placeholder={t("clients.emailPlaceholder")}
             value={form.email}
             onChange={(v) => setForm((p) => ({ ...p, email: v }))}
             type="email"
             required
           />
           <Input
-            label="Website"
-            placeholder="company.com"
+            label={t("clients.websiteLabel")}
+            placeholder={t("clients.websitePlaceholder")}
             value={form.website}
             onChange={(v) => setForm((p) => ({ ...p, website: v }))}
             icon={Globe}
           />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button fullWidth onClick={handleAdd} disabled={!form.name || !form.email}>Add Client</Button>
+            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button fullWidth onClick={handleAdd} disabled={!form.name || !form.email}>{t("clients.addClient")}</Button>
           </div>
         </div>
       </Modal>
     </div>
   );
 }
+

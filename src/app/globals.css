@@ -70,8 +70,36 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Arabic / RTL typography */
+html[dir="rtl"] body {
+  font-family: 'Segoe UI', Tahoma, 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', 'Simplified Arabic', 'Noto Sans Arabic', Arial, sans-serif;
+  line-height: 1.75;
+  letter-spacing: 0;
+}
+
+/* Ensure Arabic text uses the correct font wherever inherited */
+html[dir="rtl"] * {
+  font-family: inherit;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Safe area support */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* RTL utility helpers */
+html[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
