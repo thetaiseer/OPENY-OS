@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppProvider } from "@/lib/AppContext";
+import { LanguageProvider } from "@/lib/LanguageContext";
 
 export const metadata: Metadata = {
   title: "OPENY OS",
@@ -11,12 +12,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <AppProvider>
-            <AppShell>{children}</AppShell>
-          </AppProvider>
+          <LanguageProvider>
+            <AppProvider>
+              <AppShell>{children}</AppShell>
+            </AppProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

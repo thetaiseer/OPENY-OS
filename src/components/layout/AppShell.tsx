@@ -2,8 +2,11 @@
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { isRTL } = useLanguage();
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--surface-0)' }}>
       {/* Desktop side nav */}
@@ -16,8 +19,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TopBar />
       </div>
       
-      {/* Main content */}
-      <main className="lg:pl-[220px] min-h-screen">
+      {/* Main content — shifts right (LTR) or left (RTL) to clear the nav */}
+      <main
+        className="min-h-screen"
+        style={{ [isRTL ? 'paddingRight' : 'paddingLeft']: 'var(--lg-nav-offset, 0px)' }}
+      >
+        {/* Tailwind responsive nav offset */}
+        <style>{`@media (min-width: 1024px) { :root { --lg-nav-offset: 220px; } }`}</style>
         <div className="lg:hidden h-14" />
         <div className="pb-20 lg:pb-8 px-4 lg:px-8 pt-6 lg:pt-8 max-w-[1400px] mx-auto">
           {children}
@@ -31,3 +39,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

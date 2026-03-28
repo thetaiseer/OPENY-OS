@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useTasks } from "@/lib/AppContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import type { Task } from "@/lib/types";
 
 type Priority = Task["priority"];
@@ -18,17 +19,24 @@ const priorityColors: Record<Priority, "red" | "yellow" | "blue"> = {
   high: "red", medium: "yellow", low: "blue",
 };
 
-const statusGroups: { key: Status; label: string; icon: typeof Circle }[] = [
-  { key: "todo",        label: "To Do",       icon: Circle },
-  { key: "in-progress", label: "In Progress",  icon: AlertCircle },
-  { key: "done",        label: "Done",         icon: CheckCircle2 },
-];
-
 export default function TasksPage() {
   const { tasks, addTask, toggleTaskDone } = useTasks();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ title: "", project: "", assignee: "", priority: "medium" as Priority, dueDate: "" });
+
+  const statusGroups: { key: Status; label: string; icon: typeof Circle }[] = [
+    { key: "todo",        label: t("tasks.statusTodo"),       icon: Circle },
+    { key: "in-progress", label: t("tasks.statusInProgress"), icon: AlertCircle },
+    { key: "done",        label: t("tasks.statusDone"),       icon: CheckCircle2 },
+  ];
+
+  const priorityLabels: Record<Priority, string> = {
+    high: t("tasks.priorityHigh"),
+    medium: t("tasks.priorityMedium"),
+    low: t("tasks.priorityLow"),
+  };
 
   const filtered = tasks.filter((t) =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,25 +50,29 @@ export default function TasksPage() {
     setModalOpen(false);
   };
 
+  const openCount = tasks.filter((t) => t.status !== "done").length;
+  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const subtitle = `${openCount} ${t("tasks.open")} · ${doneCount} ${t("tasks.completed")}`;
+
   return (
     <div>
       <SectionHeader
-        title="Tasks"
-        subtitle={`${tasks.filter((t) => t.status !== "done").length} open · ${tasks.filter((t) => t.status === "done").length} completed`}
+        title={t("tasks.title")}
+        subtitle={subtitle}
         icon={CheckSquare}
-        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>New Task</Button>}
+        action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("tasks.addTask")}</Button>}
       />
 
       <div className="mb-5">
-        <Input placeholder="Search tasks..." value={search} onChange={setSearch} icon={Search} />
+        <Input placeholder={t("tasks.searchPlaceholder")} value={search} onChange={setSearch} icon={Search} />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={CheckSquare}
-          title="No tasks found"
-          description="Create tasks to track your work."
-          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>New Task</Button>}
+          title={t("tasks.noTasksTitle")}
+          description={t("tasks.noTasksDesc")}
+          action={<Button icon={Plus} onClick={() => setModalOpen(true)}>{t("tasks.addTask")}</Button>}
         />
       ) : (
         <div className="space-y-6">
@@ -73,7 +85,7 @@ export default function TasksPage() {
                   <Icon size={14} style={{ color: key === "done" ? "var(--success)" : key === "in-progress" ? "var(--accent)" : "var(--text-muted)" }} />
                   <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
                   <span
-                    className="ml-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    className="ms-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
                     style={{ background: "var(--surface-3)", color: "var(--text-secondary)" }}
                   >
                     {groupTasks.length}
@@ -111,7 +123,7 @@ export default function TasksPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge label={task.priority} color={priorityColors[task.priority]} />
+                          <Badge label={priorityLabels[task.priority]} color={priorityColors[task.priority]} />
                           <div className="flex items-center gap-1">
                             <Clock size={11} style={{ color: "var(--text-muted)" }} />
                             <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.dueDate}</span>
@@ -127,25 +139,25 @@ export default function TasksPage() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create New Task">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t("tasks.modalTitle")}>
         <div className="space-y-4">
           <Input
-            label="Task Title"
-            placeholder="Describe the task..."
+            label={t("tasks.titleLabel")}
+            placeholder={t("tasks.titlePlaceholder")}
             value={form.title}
             onChange={(v) => setForm((p) => ({ ...p, title: v }))}
             required
           />
-          <Input label="Project" placeholder="Which project?" value={form.project} onChange={(v) => setForm((p) => ({ ...p, project: v }))} />
-          <Input label="Assignee" placeholder="Who handles this?" value={form.assignee} onChange={(v) => setForm((p) => ({ ...p, assignee: v }))} />
+          <Input label={t("tasks.projectLabel")} placeholder={t("tasks.projectPlaceholder")} value={form.project} onChange={(v) => setForm((p) => ({ ...p, project: v }))} />
+          <Input label={t("tasks.assigneeLabel")} placeholder={t("tasks.assigneePlaceholder")} value={form.assignee} onChange={(v) => setForm((p) => ({ ...p, assignee: v }))} />
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Priority</label>
+            <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t("tasks.priorityLabel")}</label>
             <div className="flex gap-2">
               {(["high", "medium", "low"] as Priority[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
-                  className="flex-1 py-2 rounded-xl text-xs font-medium capitalize transition-all"
+                  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all"
                   style={{
                     background: form.priority === p
                       ? (p === "high" ? "rgba(248,113,113,0.2)" : p === "medium" ? "rgba(251,191,36,0.2)" : "rgba(79,142,247,0.2)")
@@ -156,18 +168,19 @@ export default function TasksPage() {
                     border: "1px solid var(--border)",
                   }}
                 >
-                  {p}
+                  {priorityLabels[p]}
                 </button>
               ))}
             </div>
           </div>
-          <Input label="Due Date" placeholder="e.g. Apr 15" value={form.dueDate} onChange={(v) => setForm((p) => ({ ...p, dueDate: v }))} />
+          <Input label={t("tasks.dueDateLabel")} placeholder={t("tasks.dueDatePlaceholder")} value={form.dueDate} onChange={(v) => setForm((p) => ({ ...p, dueDate: v }))} />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button fullWidth onClick={handleAdd} disabled={!form.title}>Create Task</Button>
+            <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>{t("common.cancel")}</Button>
+            <Button fullWidth onClick={handleAdd} disabled={!form.title}>{t("tasks.createButton")}</Button>
           </div>
         </div>
       </Modal>
     </div>
   );
 }
+

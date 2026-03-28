@@ -6,11 +6,17 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { useAppStore } from "@/lib/AppContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import type { ActivityType } from "@/lib/types";
 
 function MiniChart({ data, label }: { data: number[]; label: string }) {
   const max = Math.max(...data) || 1;
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const { t } = useLanguage();
+  const days = [
+    t("common.justNow").slice(0, 1) === "ا"
+      ? ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"]
+      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  ][0];
   const peak = data.indexOf(Math.max(...data));
   return (
     <div>
@@ -44,14 +50,14 @@ const activityColors: Record<ActivityType, string> = {
   report_generated: "#8888a0",
 };
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("common.justNow");
+  if (mins < 60) return `${mins}${t("common.minAgo")}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return `${hrs}${t("common.hrAgo")}`;
+  return `${Math.floor(hrs / 24)}${t("common.dayAgo")}`;
 }
 
 function getMondayOf(date: Date): Date {
@@ -62,19 +68,21 @@ function getMondayOf(date: Date): Date {
   return d;
 }
 
-const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS_AR = ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"];
 
-function getPeakDayLabel(data: number[]): string {
+function getPeakDayLabel(data: number[], isRTL: boolean): string {
   const total = data.reduce((s, v) => s + v, 0);
   if (total === 0) return "—";
   const peakIndex = data.indexOf(Math.max(...data));
-  return DAYS_OF_WEEK[peakIndex] ?? "—";
+  const days = isRTL ? DAYS_AR : DAYS_EN;
+  return days[peakIndex] ?? "—";
 }
 
-function systemStatusMessage(degraded: number, hasStatuses: boolean): string {
-  if (!hasStatuses) return "No status data available";
-  if (degraded === 0) return "All services operational · Last check 30s ago";
-  return `${degraded} service${degraded > 1 ? "s" : ""} degraded · Last check 30s ago`;
+function systemStatusMessage(degraded: number, hasStatuses: boolean, t: (k: string) => string): string {
+  if (!hasStatuses) return t("dashboard.noStatusDataAvail");
+  if (degraded === 0) return t("dashboard.allServicesOperational");
+  return `${degraded} ${degraded > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")} ${t("dashboard.lastCheck")}`;
 }
 
 export default function DashboardPage() {
@@ -87,12 +95,13 @@ export default function DashboardPage() {
     openTaskCount,
     teamMemberCount,
   } = useAppStore();
+  const { t, isRTL, language } = useLanguage();
 
   const [period, setPeriod] = useState<"week" | "month">("week");
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const greetingKey = hour < 12 ? "dashboard.greeting_morning" : hour < 17 ? "dashboard.greeting_afternoon" : "dashboard.greeting_evening";
+  const today = new Date().toLocaleDateString(language === "ar" ? "ar-SA" : "en-US", { weekday: "long", month: "long", day: "numeric" });
 
   const { weekData, monthData } = useMemo(() => {
     const doneTasks = tasks.filter((t) => t.status === "done" && t.completedAt);
@@ -116,7 +125,7 @@ export default function DashboardPage() {
   const chartData = period === "week" ? weekData : monthData;
   const chartTotal = chartData.reduce((s, v) => s + v, 0);
   const chartAvg = chartTotal ? (chartTotal / 7).toFixed(1) : "0";
-  const peakDayLabel = getPeakDayLabel(chartData);
+  const peakDayLabel = getPeakDayLabel(chartData, isRTL);
 
   const recentActivities = useMemo(
     () => [...activities].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5),
@@ -125,30 +134,39 @@ export default function DashboardPage() {
 
   const degradedCount = systemStatuses.filter((s) => s.status !== "operational").length;
 
+  const quickActions = [
+    { label: t("dashboard.newClient"),    href: "/clients",  icon: Users },
+    { label: t("dashboard.newProject"),   href: "/projects", icon: FolderOpen },
+    { label: t("dashboard.newTask"),      href: "/tasks",    icon: CheckSquare },
+    { label: t("dashboard.inviteMember"), href: "/team",     icon: Plus },
+    { label: t("dashboard.viewReports"),  href: "/projects", icon: BarChart3 },
+    { label: t("dashboard.settingsLink"), href: "/settings", icon: Zap },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="pt-2">
         <h1 className="text-3xl font-bold tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>
-          {greeting}.
+          {t(greetingKey)}.
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {today}{systemStatuses.length > 0 ? ` · ${degradedCount === 0 ? "All systems operational" : `${degradedCount} service${degradedCount > 1 ? "s" : ""} degraded`}` : ""}
+          {today}{systemStatuses.length > 0 ? ` · ${degradedCount === 0 ? t("dashboard.allOperational") : `${degradedCount} ${degradedCount > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")}`}` : ""}
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard label="Active Projects" value={activeProjectCount} icon={FolderOpen} change={`+${activeProjectCount}`} positive accent />
-        <StatCard label="Total Clients"   value={totalClientCount}   icon={Users}       change={`+${totalClientCount}`}   positive />
-        <StatCard label="Open Tasks"      value={openTaskCount}      icon={CheckSquare} change={openTaskCount > 0 ? `${openTaskCount}` : "0"} positive={openTaskCount === 0} />
-        <StatCard label="Team Members"    value={teamMemberCount}    icon={Activity}    change={`+${teamMemberCount}`}    positive />
+        <StatCard label={t("dashboard.activeProjects")} value={activeProjectCount} icon={FolderOpen} change={`+${activeProjectCount}`} positive accent />
+        <StatCard label={t("dashboard.totalClients")}   value={totalClientCount}   icon={Users}       change={`+${totalClientCount}`}   positive />
+        <StatCard label={t("dashboard.openTasks")}      value={openTaskCount}      icon={CheckSquare} change={openTaskCount > 0 ? `${openTaskCount}` : "0"} positive={openTaskCount === 0} />
+        <StatCard label={t("dashboard.teamMembers")}    value={teamMemberCount}    icon={Activity}    change={`+${teamMemberCount}`}    positive />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Activity Overview</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Tasks completed this {period}</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t("dashboard.activityOverview")}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("dashboard.tasksCompletedThis")} {period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}</p>
             </div>
             <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--surface-3)" }}>
               {(["week", "month"] as const).map((p) => (
@@ -161,32 +179,32 @@ export default function DashboardPage() {
                     color: period === p ? "var(--text-primary)" : "var(--text-muted)",
                   }}
                 >
-                  {p === "week" ? "Week" : "Month"}
+                  {p === "week" ? t("dashboard.week") : t("dashboard.month")}
                 </button>
               ))}
             </div>
           </div>
-          <MiniChart data={chartData} label="Completed tasks" />
+          <MiniChart data={chartData} label={t("dashboard.completedTasks")} />
           <div className="mt-4 pt-4 flex items-center gap-6" style={{ borderTop: "1px solid var(--border)" }}>
             <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Total this {period}</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.totalThis")} {period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}</p>
               <p className="text-lg font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>{chartTotal}</p>
             </div>
             <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Avg per day</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.avgPerDay")}</p>
               <p className="text-lg font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>{chartAvg}</p>
             </div>
             <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Peak day</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.peakDay")}</p>
               <p className="text-lg font-bold mt-0.5" style={{ color: "var(--accent)" }}>{peakDayLabel}</p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Recent Activity</p>
+          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("dashboard.recentActivity")}</p>
           {recentActivities.length === 0 ? (
-            <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>No activity yet.</p>
+            <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>{t("dashboard.noActivity")}</p>
           ) : (
             <div className="space-y-0">
               {recentActivities.map((item, i) => (
@@ -204,7 +222,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{item.detail}</p>
                   </div>
                   <span className="text-[10px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>
-                    {relativeTime(item.timestamp)}
+                    {relativeTime(item.timestamp, t)}
                   </span>
                 </div>
               ))}
@@ -215,16 +233,9 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Quick Actions</p>
+          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("dashboard.quickActions")}</p>
           <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "New Client",    href: "/clients",  icon: Users },
-              { label: "New Project",   href: "/projects", icon: FolderOpen },
-              { label: "New Task",      href: "/tasks",    icon: CheckSquare },
-              { label: "Invite Member", href: "/team",     icon: Plus },
-              { label: "View Reports",  href: "/projects", icon: BarChart3 },
-              { label: "Settings",      href: "/settings", icon: Zap },
-            ].map(({ label, href, icon: Icon }) => (
+            {quickActions.map(({ label, href, icon: Icon }) => (
               <Link
                 key={label}
                 href={href}
@@ -239,9 +250,9 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>System Status</p>
+          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("dashboard.systemStatus")}</p>
           {systemStatuses.length === 0 ? (
-            <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>No data available.</p>
+            <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>{t("dashboard.noStatusData")}</p>
           ) : (
             <div className="space-y-3">
               {systemStatuses.map(({ name, status, latency }) => {
@@ -255,7 +266,10 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{latency}</span>
-                      <Badge label={ok ? "Operational" : warn ? "Degraded" : "Down"} color={ok ? "green" : warn ? "yellow" : "red"} />
+                      <Badge
+                        label={ok ? t("status.operational") : warn ? t("status.degraded") : t("status.down")}
+                        color={ok ? "green" : warn ? "yellow" : "red"}
+                      />
                     </div>
                   </div>
                 );
@@ -266,7 +280,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <AlertCircle size={13} style={{ color: degradedCount > 0 ? "var(--warning)" : "var(--success)" }} />
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {systemStatusMessage(degradedCount, systemStatuses.length > 0)}
+                {systemStatusMessage(degradedCount, systemStatuses.length > 0, t)}
               </p>
             </div>
           </div>
@@ -275,3 +289,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

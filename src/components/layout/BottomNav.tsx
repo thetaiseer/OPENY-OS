@@ -2,41 +2,46 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, FolderKanban, Users2, CheckSquare, Settings2 } from "lucide-react";
-
-const items = [
-  { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
-  { href: "/team", label: "Team", icon: Users2 },
-  { href: "/settings", label: "Settings", icon: Settings2 },
-];
+import { useLanguage } from "@/lib/LanguageContext";
 
 export function BottomNav() {
   const pathname = usePathname();
-  
+  const { t } = useLanguage();
+
+  const items = [
+    { href: "/", labelKey: "nav.home", icon: LayoutDashboard },
+    { href: "/projects", labelKey: "nav.projects", icon: FolderKanban },
+    { href: "/tasks", labelKey: "nav.tasks", icon: CheckSquare },
+    { href: "/team", labelKey: "nav.team", icon: Users2 },
+    { href: "/settings", labelKey: "nav.settings", icon: Settings2 },
+  ];
+
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 z-40"
+      className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40"
       style={{
         background: 'var(--surface-1)',
         borderTop: '1px solid var(--border)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
+        paddingTop: '8px',
+        minHeight: '56px',
       }}
     >
-      {items.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, labelKey, icon: Icon }) => {
         const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
         return (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all min-w-[56px]"
+            className="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[48px] min-h-[44px] justify-center"
             style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
           >
             <Icon size={20} />
-            <span className="text-[10px] font-medium">{label}</span>
+            <span className="text-[10px] font-medium leading-tight">{t(labelKey)}</span>
           </Link>
         );
       })}
     </nav>
   );
 }
+
