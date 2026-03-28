@@ -780,7 +780,7 @@ function AssetsPanel({ clientId }: { clientId: string }) {
           />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" fullWidth onClick={() => setModalOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               fullWidth
