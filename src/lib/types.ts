@@ -67,7 +67,6 @@ export type ActivityType =
   | "project_deleted"
   | "member_joined"
   | "member_removed"
-  | "report_generated";
   | "report_generated"
   | "invite_sent"
   | "invite_cancelled"
