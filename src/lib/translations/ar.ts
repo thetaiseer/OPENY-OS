@@ -223,5 +223,9 @@ export const ar: Translations = {
     project_updated: "تم تحديث المشروع",
     member_joined: "انضم عضو جديد للفريق",
     report_generated: "تم إنشاء تقرير",
+    invite_sent: "تم إرسال الدعوة",
+    invite_cancelled: "تم إلغاء الدعوة",
+    invite_accepted: "تمت قبول الدعوة",
+    invite_expired: "انتهت صلاحية الدعوة",
   },
 };

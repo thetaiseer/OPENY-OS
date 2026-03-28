@@ -221,6 +221,10 @@ export const en = {
     project_updated: "Project updated",
     member_joined: "Team member joined",
     report_generated: "Report generated",
+    invite_sent: "Invitation sent",
+    invite_cancelled: "Invitation cancelled",
+    invite_accepted: "Invitation accepted",
+    invite_expired: "Invitation expired",
   },
 };
 
