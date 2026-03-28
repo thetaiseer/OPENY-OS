@@ -12,6 +12,8 @@ import {
 } from "./contentUtils";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
+import { computeReadiness } from "@/lib/PublishingContext";
+import { PublishingReadinessBadge } from "@/components/ui/PublishingReadinessBadge";
 
 interface ContentCardProps {
   item: ContentItem;
@@ -25,6 +27,7 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
   const { clients } = useAppStore();
   const client = clients.find((c) => c.id === item.clientId);
   const overdue = isOverdue(item.scheduledDate) && item.status !== "published";
+  const readiness = computeReadiness(item);
 
   return (
     <div
@@ -127,15 +130,20 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
         )}
       </div>
 
-      {/* Status dot */}
-      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-        <div
-          className="w-1.5 h-1.5 rounded-full"
-          style={{ background: STATUS_COLORS[item.status] }}
-        />
-        <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
-          {t(("content.status" + item.status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("")) as Parameters<typeof t>[0])}
-        </span>
+      {/* Status dot + Readiness */}
+      <div className="flex items-center justify-between gap-1 mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-1">
+          <div
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: STATUS_COLORS[item.status] }}
+          />
+          <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
+            {t(("content.status" + item.status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("")) as Parameters<typeof t>[0])}
+          </span>
+        </div>
+        {readiness !== "not_ready" && (
+          <PublishingReadinessBadge readiness={readiness} size="sm" />
+        )}
       </div>
     </div>
   );

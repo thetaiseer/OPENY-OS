@@ -12,6 +12,7 @@ import { ApprovalProvider } from "@/lib/ApprovalContext";
 import { AssetsProvider } from "@/lib/AssetsContext";
 import { ClientNotesProvider } from "@/lib/ClientNotesContext";
 import { BankProvider } from "@/lib/BankContext";
+import { PublishingProvider } from "@/lib/PublishingContext";
 
 export const metadata: Metadata = {
   title: "OPENY OS",
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <AssetsProvider>
                           <ClientNotesProvider>
                             <BankProvider>
-                              <AppShell>{children}</AppShell>
+                              <PublishingProvider>
+                                <AppShell>{children}</AppShell>
+                              </PublishingProvider>
                             </BankProvider>
                           </ClientNotesProvider>
                         </AssetsProvider>

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Megaphone, ClipboardCheck, Settings2 } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Megaphone, ClipboardCheck, Send } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 export function BottomNav() {
@@ -9,11 +9,11 @@ export function BottomNav() {
   const { t } = useLanguage();
 
   const items = [
-    { href: "/",          labelKey: "nav.home",      icon: LayoutDashboard },
-    { href: "/content",   labelKey: "nav.content",   icon: CalendarDays },
-    { href: "/campaigns", labelKey: "nav.campaigns", icon: Megaphone },
-    { href: "/approvals", labelKey: "nav.approvals", icon: ClipboardCheck },
-    { href: "/settings",  labelKey: "nav.settings",  icon: Settings2 },
+    { href: "/",           labelKey: "nav.home",        icon: LayoutDashboard },
+    { href: "/content",    labelKey: "nav.content",     icon: CalendarDays },
+    { href: "/publishing", labelKey: "nav.publishing",  icon: Send },
+    { href: "/campaigns",  labelKey: "nav.campaigns",   icon: Megaphone },
+    { href: "/approvals",  labelKey: "nav.approvals",   icon: ClipboardCheck },
   ];
 
   return (
