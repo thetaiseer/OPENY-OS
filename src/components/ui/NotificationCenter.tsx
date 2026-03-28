@@ -26,6 +26,8 @@ const TYPE_META: Record<
   member_invited:  { label: "Team",    dot: "#f87171" },
   member_added:    { label: "Team",    dot: "#34d399" },
   invite_accepted: { label: "Invite",  dot: "#34d399" },
+  invite_cancelled:{ label: "Invite",  dot: "#f87171" },
+  invite_expired:  { label: "Invite",  dot: "#8888a0" },
   status_change:   { label: "System",  dot: "#8888a0" },
 };
 

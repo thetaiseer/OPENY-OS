@@ -11,13 +11,48 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { requestPushPermission } from "@/lib/firebase";
 import type { Language } from "@/lib/LanguageContext";
 
+const NOTIF_STORAGE_KEY = "openy_notification_prefs";
+
+function loadNotificationPrefs() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveNotificationPrefs(prefs: Record<string, boolean>) {
+  try {
+    localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Non-critical
+  }
+}
+
+type NotifPrefs = { desktop: boolean; sound: boolean; sync: boolean; email: boolean; push: boolean };
+
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const [active, setActive] = useState("profile");
   const [profile, setProfile] = useState({ name: "Alex Chen", email: "alex@openy.os", role: "Administrator" });
-  const [notifications, setNotifications] = useState({ desktop: true, sound: false, sync: true, email: true, push: false });
+  const [notifications, setNotifications] = useState<NotifPrefs>(() => {
+    // Load persisted notification preferences on first render
+    const saved = loadNotificationPrefs();
+    return { desktop: true, sound: false, sync: true, email: true, push: false, ...saved };
+  });
   const [pushStatus, setPushStatus] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
+
+  // Persist notification preferences whenever they change
+  const updateNotifications = useCallback((updater: (prev: NotifPrefs) => NotifPrefs) => {
+    setNotifications((prev: NotifPrefs) => {
+      const next = updater(prev);
+      saveNotificationPrefs(next);
+      return next;
+    });
+  }, []);
   const [security, setSecurity] = useState({ twoFactor: false, activityLogs: true });
   const [accent, setAccent] = useState("#4f8ef7");
 
@@ -37,23 +72,23 @@ export default function SettingsPage() {
 
   const handlePushToggle = useCallback(async (enabled: boolean) => {
     if (!enabled) {
-      setNotifications(p => ({ ...p, push: false }));
+      updateNotifications((p) => ({ ...p, push: false }));
       return;
     }
     setPushStatus("requesting");
     try {
       const { granted } = await requestPushPermission();
       if (granted) {
-        setNotifications(p => ({ ...p, push: true }));
+        updateNotifications((p) => ({ ...p, push: true }));
         setPushStatus("granted");
       } else {
-        setNotifications(p => ({ ...p, push: false }));
+        updateNotifications((p) => ({ ...p, push: false }));
         setPushStatus("denied");
       }
     } catch {
       setPushStatus("idle");
     }
-  }, []);
+  }, [updateNotifications]);
 
   return (
     <div>
@@ -204,28 +239,28 @@ export default function SettingsPage() {
               <div className="space-y-5">
                 <Toggle
                   checked={notifications.desktop}
-                  onChange={v => setNotifications(p => ({ ...p, desktop: v }))}
+                  onChange={v => updateNotifications(p => ({ ...p, desktop: v }))}
                   label={t("settings.desktopNotifs")}
                   description={t("settings.desktopNotifsDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.sound}
-                  onChange={v => setNotifications(p => ({ ...p, sound: v }))}
+                  onChange={v => updateNotifications(p => ({ ...p, sound: v }))}
                   label={t("settings.soundEffects")}
                   description={t("settings.soundEffectsDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.sync}
-                  onChange={v => setNotifications(p => ({ ...p, sync: v }))}
+                  onChange={v => updateNotifications(p => ({ ...p, sync: v }))}
                   label={t("settings.cloudSync")}
                   description={t("settings.cloudSyncDesc")}
                 />
                 <div style={{ height: '1px', background: 'var(--border)' }} />
                 <Toggle
                   checked={notifications.email}
-                  onChange={v => setNotifications(p => ({ ...p, email: v }))}
+                  onChange={v => updateNotifications(p => ({ ...p, email: v }))}
                   label={t("settings.emailNotifs")}
                   description={t("settings.emailNotifsDesc")}
                 />

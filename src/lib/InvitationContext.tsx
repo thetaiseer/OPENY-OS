@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -30,6 +31,21 @@ import type { Invitation, InvitationStatus } from "./types";
 
 const INVITATION_EXPIRY_DAYS = 7;
 
+const PALETTE = ["#4f8ef7", "#a78bfa", "#34d399", "#fbbf24", "#f87171", "#8888a0"];
+function pickColor() { return PALETTE[Math.floor(Math.random() * PALETTE.length)]; }
+function makeInitials(name: string) {
+  return name.split(" ").filter((w) => w.length > 0).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+/** Derive a display name from invitation fields, falling back to the email prefix. */
+function deriveMemberName(inv: Pick<Invitation, "name" | "firstName" | "lastName" | "email">): string {
+  if (inv.name) return inv.name;
+  if (inv.firstName && inv.lastName) return `${inv.firstName} ${inv.lastName}`.trim();
+  if (inv.firstName) return inv.firstName;
+  if (inv.lastName) return inv.lastName;
+  return inv.email.split("@")[0];
+}
+
 function generateToken(): string {
   const arr = new Uint8Array(24);
   crypto.getRandomValues(arr);
@@ -44,6 +60,45 @@ function calculateExpiresAt(): string {
   return d.toISOString();
 }
 
+async function writeActivity(
+  type: string,
+  message: string,
+  detail: string,
+  entityId: string
+): Promise<void> {
+  try {
+    await addDoc(collection(db, "activities"), {
+      type,
+      message,
+      detail,
+      entityId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[OPENY] Failed to write activity:", err);
+  }
+}
+
+async function writeNotification(
+  type: string,
+  title: string,
+  message: string,
+  entityId: string
+): Promise<void> {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      type,
+      title,
+      message,
+      entityId,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[OPENY] Failed to write notification:", err);
+  }
+}
+
 // ── Context shape ─────────────────────────────────────────────
 
 interface InvitationContextValue {
@@ -51,8 +106,11 @@ interface InvitationContextValue {
   sendInvitation: (data: {
     email: string;
     name?: string;
+    firstName?: string;
+    lastName?: string;
     role: string;
     invitedBy: string;
+    invitedByName?: string;
   }) => Promise<{ token: string }>;
   cancelInvitation: (id: string) => Promise<void>;
   getInvitationByToken: (token: string) => Promise<Invitation | null>;
@@ -80,39 +138,87 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
+  // Stable ref so cancelInvitation can read current invitations without stale closure
+  const invitationsRef = useRef(invitations);
+  useEffect(() => { invitationsRef.current = invitations; }, [invitations]);
+
   const sendInvitation = useCallback(
-    async (data: { email: string; name?: string; role: string; invitedBy: string }) => {
+    async (data: {
+      email: string;
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      role: string;
+      invitedBy: string;
+      invitedByName?: string;
+    }) => {
       const token = generateToken();
       const now = new Date().toISOString();
       const exp = calculateExpiresAt();
+      const displayName = deriveMemberName({
+        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+      });
 
       // Create invitation document
-      await addDoc(collection(db, "invitations"), {
+      const docRef = await addDoc(collection(db, "invitations"), {
         email: data.email,
-        name: data.name ?? null,
+        name: displayName !== data.email.split("@")[0] ? displayName : null,
+        firstName: data.firstName ?? null,
+        lastName: data.lastName ?? null,
         role: data.role,
         invitedBy: data.invitedBy,
+        invitedByName: data.invitedByName ?? data.invitedBy,
         status: "pending" as InvitationStatus,
         token,
         createdAt: now,
         expiresAt: exp,
         acceptedAt: null,
+        cancelledAt: null,
       });
+
+      // Activity log
+      await writeActivity(
+        "invite_sent",
+        "Invitation sent",
+        `Invitation sent to ${data.email}`,
+        docRef.id
+      );
+
+      // In-app notification
+      await writeNotification(
+        "member_invited",
+        "Invitation Sent",
+        `Invited ${data.email} as ${data.role}`,
+        docRef.id
+      );
 
       // Send email via Firestore mail collection (Firebase Trigger Email extension)
       const appUrl =
         typeof window !== "undefined"
-          ? `${window.location.origin}/invite/${token}`
-          : `/invite/${token}`;
+          ? `${window.location.origin}/accept-invite?token=${token}`
+          : `/accept-invite?token=${token}`;
 
-      const recipientName = data.name || data.email;
+      const recipientName = displayName;
 
       await addDoc(collection(db, "mail"), {
         to: data.email,
         message: {
           subject: `You're invited to join OPENY OS`,
-          html: buildInviteEmail({ recipientName, role: data.role, invitedBy: data.invitedBy, acceptUrl: appUrl }),
-          text: buildInviteEmailText({ recipientName, role: data.role, invitedBy: data.invitedBy, acceptUrl: appUrl }),
+          html: buildInviteEmail({
+            recipientName,
+            role: data.role,
+            invitedBy: data.invitedByName ?? data.invitedBy,
+            acceptUrl: appUrl,
+          }),
+          text: buildInviteEmailText({
+            recipientName,
+            role: data.role,
+            invitedBy: data.invitedByName ?? data.invitedBy,
+            acceptUrl: appUrl,
+          }),
         },
       });
 
@@ -122,7 +228,30 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
   );
 
   const cancelInvitation = useCallback(async (id: string) => {
-    await updateDoc(doc(db, "invitations", id), { status: "cancelled" as InvitationStatus });
+    const inv = invitationsRef.current.find((i) => i.id === id);
+    const email = inv?.email ?? "";
+    const now = new Date().toISOString();
+
+    await updateDoc(doc(db, "invitations", id), {
+      status: "cancelled" as InvitationStatus,
+      cancelledAt: now,
+    });
+
+    // Activity log
+    await writeActivity(
+      "invite_cancelled",
+      "Invitation cancelled",
+      email ? `Invitation to ${email} was cancelled` : "Invitation was cancelled",
+      id
+    );
+
+    // In-app notification
+    await writeNotification(
+      "invite_cancelled",
+      "Invitation Cancelled",
+      email ? `Invitation to ${email} was cancelled` : "An invitation was cancelled",
+      id
+    );
   }, []);
 
   const getInvitationByToken = useCallback(async (token: string): Promise<Invitation | null> => {
@@ -138,20 +267,88 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       const invitation = await getInvitationByToken(token);
       if (!invitation) return { success: false };
 
-      if (invitation.status !== "pending") return { success: false, invitation };
+      if (invitation.status === "accepted") return { success: false, invitation };
+      if (invitation.status === "cancelled") return { success: false, invitation };
 
       const now = new Date();
+      const nowISO = now.toISOString();
+
       if (new Date(invitation.expiresAt) < now) {
-        await updateDoc(doc(db, "invitations", invitation.id), { status: "expired" as InvitationStatus });
+        await updateDoc(doc(db, "invitations", invitation.id), {
+          status: "expired" as InvitationStatus,
+        });
+        await writeActivity(
+          "invite_expired",
+          "Invitation expired",
+          `Invitation to ${invitation.email} expired`,
+          invitation.id
+        );
+        await writeNotification(
+          "invite_expired",
+          "Invitation Expired",
+          `Invitation to ${invitation.email} has expired`,
+          invitation.id
+        );
         return { success: false, invitation: { ...invitation, status: "expired" } };
       }
 
+      // Update invitation status
       await updateDoc(doc(db, "invitations", invitation.id), {
         status: "accepted" as InvitationStatus,
-        acceptedAt: now.toISOString(),
+        acceptedAt: nowISO,
       });
 
-      return { success: true, invitation: { ...invitation, status: "accepted", acceptedAt: now.toISOString() } };
+      // Prevent duplicate team members by checking existing email
+      const teamQuery = query(collection(db, "team"), where("email", "==", invitation.email));
+      const teamSnap = await getDocs(teamQuery);
+
+      if (teamSnap.empty) {
+        const memberName = deriveMemberName(invitation);
+
+        const memberRef = await addDoc(collection(db, "team"), {
+          name: memberName,
+          role: invitation.role,
+          email: invitation.email,
+          status: "active",
+          initials: makeInitials(memberName),
+          color: pickColor(),
+          projects: 0,
+          createdAt: nowISO,
+          updatedAt: nowISO,
+        });
+
+        // Activity logs
+        await writeActivity(
+          "invite_accepted",
+          "Invitation accepted",
+          `${memberName} accepted invitation as ${invitation.role}`,
+          memberRef.id
+        );
+        await writeActivity(
+          "member_joined",
+          "New team member joined",
+          `${memberName} — ${invitation.role}`,
+          memberRef.id
+        );
+
+        // In-app notification
+        await writeNotification(
+          "invite_accepted",
+          "Invitation Accepted",
+          `${memberName} joined as ${invitation.role}`,
+          memberRef.id
+        );
+      } else {
+        // Team member already exists (duplicate prevention)
+        await writeActivity(
+          "invite_accepted",
+          "Invitation accepted",
+          `${invitation.email} (already a member) accepted invitation`,
+          invitation.id
+        );
+      }
+
+      return { success: true, invitation: { ...invitation, status: "accepted", acceptedAt: nowISO } };
     },
     [getInvitationByToken]
   );
