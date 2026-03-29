@@ -14,10 +14,10 @@ import {
 import { getAuth } from "firebase/auth";
 
 // ── Workspace scope ──────────────────────────────────────────
-// All business data is stored under workspaces/{workspaceId}/*
-// so that it is scoped, persists across devices, and never
-// conflicts with root-level system collections.
-export const DEFAULT_WORKSPACE_ID = "default";
+// All business data is stored under workspaces/main/*
+// using a single, fixed workspace ID so that every device and
+// every browser sees exactly the same shared data.
+export const DEFAULT_WORKSPACE_ID = "main";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhXa5gLCMIIxuFIAj0RFeFEvAcE5TiilY",
@@ -64,7 +64,7 @@ export const auth = getAuth(app);
 // device.
 //
 // Usage:  wsCol("clients")
-//      -> collection(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients")
+//      -> collection(db, "workspaces", "main", "clients")
 export function wsCol(
   collectionName: string
 ): CollectionReference<DocumentData> {
