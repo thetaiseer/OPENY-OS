@@ -541,6 +541,7 @@ html.light .glass-modal {
   box-shadow: var(--shadow-modal);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
 
 /* ── Enhanced sidebar styles ──────────────────────────────── */
 .sidebar-nav-section-label {
