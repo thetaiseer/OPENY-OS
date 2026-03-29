@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <style>{`@media (min-width: 1024px) { :root { --lg-nav-offset: 240px; } }`}</style>
         {/* Mobile topbar spacer */}
         <div className="lg:hidden" style={{ height: "var(--topbar-height)" }} />
-        <div className="pb-24 lg:pb-10 px-4 lg:px-8 pt-6 lg:pt-8 max-w-[1440px] mx-auto">
+        <div className="pb-24 lg:pb-10 px-4 lg:px-7 pt-6 lg:pt-7 max-w-[1440px] mx-auto">
           <PageTransition>{children}</PageTransition>
         </div>
       </main>
