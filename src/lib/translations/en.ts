@@ -31,6 +31,11 @@ export const en = {
     reports: "Reports",
     publishing: "Publishing",
     portal: "Portal",
+    workspace: "Workspace",
+    operations: "Operations",
+    insights: "Insights",
+    system: "System",
+    team_section: "Team",
   },
   dashboard: {
     greeting_morning: "Good morning",
