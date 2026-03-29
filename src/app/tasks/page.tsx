@@ -126,7 +126,6 @@ function AssigneeSelect({ members, loading, value, onChange, label, required, t 
               {activeMembers.length > 5 && (
                 <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
                   <input
-                    autoFocus
                     className="glass-input w-full rounded-lg px-3 py-1.5 text-xs outline-none"
                     placeholder={t("tasks.assigneeSearchPlaceholder")}
                     value={search}
@@ -180,7 +179,7 @@ function AssigneeSelect({ members, loading, value, onChange, label, required, t 
                 ))}
                 {filtered.length === 0 && (
                   <p className="px-3 py-3 text-xs text-center" style={{ color: "var(--text-muted)" }}>
-                    {t("tasks.assigneeSearchPlaceholder")}…
+                    {t("tasks.assigneeNoResults")}
                   </p>
                 )}
               </div>

@@ -137,6 +137,7 @@ export const en = {
     assigneeUnassigned: "Unassigned",
     assigneeDeletedMember: "(Deleted member)",
     assigneeSearchPlaceholder: "Search members...",
+    assigneeNoResults: "No members match your search.",
     priorityLabel: "Priority",
     dueDateLabel: "Due Date",
     dueDatePlaceholder: "e.g. Apr 15",

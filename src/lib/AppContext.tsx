@@ -235,8 +235,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const docRef = await addDoc(collection(db, "tasks"), {
         title: data.title,
         clientId: data.clientId ?? "",
+        // assignedTo kept for backward compatibility with older documents that used this field name
         assignedTo: data.assigneeId ?? "",
         assigneeId: data.assigneeId ?? "",
+        // assignee kept as a plain-text fallback for older display code; assigneeName is the canonical snapshot
         assignee: displayName,
         assigneeName: displayName,
         status: "todo",

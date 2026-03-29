@@ -139,6 +139,7 @@ export const ar: Translations = {
     assigneeUnassigned: "غير محدد",
     assigneeDeletedMember: "(عضو محذوف)",
     assigneeSearchPlaceholder: "ابحث عن عضو...",
+    assigneeNoResults: "لا يوجد أعضاء يطابقون بحثك.",
     priorityLabel: "الأولوية",
     dueDateLabel: "تاريخ الاستحقاق",
     dueDatePlaceholder: "مثال: 15 أبريل",
