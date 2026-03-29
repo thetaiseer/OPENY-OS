@@ -2,7 +2,12 @@
 // OPENY OS – Firebase Initialisation (single shared instance)
 // ============================================================
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -15,10 +20,31 @@ const firebaseConfig = {
   measurementId: "G-6VJ1ZZPD5E",
 };
 
-// Prevent duplicate initialisation in Next.js hot-reload and SSR environments.
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Prevent duplicate app initialisation in Next.js hot-reload and SSR environments.
+const isNewApp = getApps().length === 0;
+const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 
-export const db = getFirestore(app);
+// Enable persistent multi-tab local cache on the browser so data survives page
+// refreshes and hot-reloads. On the server (SSR) or when the app was already
+// initialised we fall back to the default in-memory Firestore instance.
+function createDb() {
+  if (typeof window !== "undefined" && isNewApp) {
+    try {
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch (err) {
+      // Already initialised with different settings (e.g. after hot-reload).
+      // Log for debugging but continue — getFirestore() returns the existing instance.
+      console.warn("[OPENY] initializeFirestore skipped (already initialised):", err);
+    }
+  }
+  return getFirestore(app);
+}
+
+export const db = createDb();
 export const auth = getAuth(app);
 
 // Analytics – only initialised on the client to avoid SSR issues.
