@@ -5,9 +5,7 @@ import {
   Users, CheckSquare, BarChart3,
   ClipboardCheck, FileText, TrendingUp,
   Circle, Calendar, ChevronRight, Layers, Activity,
-  Users, CheckSquare, ClipboardCheck, FileText,
-  ArrowRight, Plus, Calendar, Zap, UserPlus,
-  TrendingUp, Clock,
+  ArrowRight, Plus, Zap, UserPlus, Clock,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -19,7 +17,6 @@ import { useApprovals } from "@/lib/ApprovalContext";
 import { useContentItems } from "@/lib/ContentContext";
 import type { ActivityType, ContentPlatform } from "@/lib/types";
 
-// ── Animation helpers ────────────────────────────────────────
 // ── Animation helpers ─────────────────────────────────────────
 
 const containerVariants = {
@@ -31,8 +28,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 380, damping: 30 } },
 };
 
-// ── Day labels ───────────────────────────────────────────────
-// ── Bar chart ────────────────────────────────────────────────
+// ── Day labels / Bar chart ────────────────────────────────────
 
 const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_AR = ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"];
@@ -135,7 +131,6 @@ function DonutChart({ segments, total }: { segments: DonutSegment[]; total: numb
   );
 }
 
-// ── Activity colours ─────────────────────────────────────────
 // ── Activity color map ────────────────────────────────────────
 
 const activityColors: Record<ActivityType, string> = {
@@ -229,14 +224,6 @@ function formatScheduledDate(dateStr: string, timeStr: string, language: string)
   }
 }
 
-// ── Priority badge colour ────────────────────────────────────
-
-function priorityColor(priority: string): "red" | "yellow" | "gray" {
-  if (priority === "high") return "red";
-  if (priority === "medium") return "yellow";
-  return "gray";
-}
-
 // ── Section header ───────────────────────────────────────────
 
 function SectionHeader({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) {
@@ -266,6 +253,10 @@ function InsightChip({ icon: Icon, text, color }: { icon: typeof Circle; text: s
       <span>{text}</span>
     </motion.div>
   );
+}
+
+// ── Due date formatter ────────────────────────────────────────
+
 function formatDueDate(iso: string): string {
   if (!iso || iso === "TBD") return "TBD";
   try {
@@ -335,8 +326,6 @@ export default function DashboardPage() {
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
   }, [contentItems]);
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
-  });
 
   // ── KPI derived data ───────────────────────────────────────
   const pendingApprovals = useMemo(
@@ -455,18 +444,10 @@ export default function DashboardPage() {
           const d = new Date(c.scheduledDate);
           return d >= now && (c.status === "scheduled" || c.status === "publishing_ready" || c.status === "approved");
         } catch { return false; }
-    [activities],
-  );
-
-  // ── Upcoming tasks (sorted by dueDate, open only) ─────────
-  const upcomingTasks = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.status !== "done" && task.dueDate && task.dueDate !== "TBD")
-        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-        .slice(0, 5),
-    [tasks],
-  );
+      })
+      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+      .slice(0, 5);
+  }, [contentItems]);
 
   // ── Approval queue ─────────────────────────────────────────
   const approvalQueue = useMemo(() => pendingApprovals.slice(0, 4), [pendingApprovals]);
@@ -532,25 +513,6 @@ export default function DashboardPage() {
     return "gray";
   }
 
-  return (
-    <motion.div
-      className="space-y-6 pb-10"
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-    >
-      {/* ── Page Header ─────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="pt-1">
-        <h1 className="text-2xl font-bold tracking-tight mb-0.5" style={{ color: "var(--text-primary)" }}>
-          {t(greetingKey)}.
-        </h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>{today}</p>
-        {insights.length > 0 && (
-          <motion.div
-            className="flex flex-wrap gap-2 mt-3"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
   // ── Team workload ──────────────────────────────────────────
   const teamWorkload = useMemo(() => {
     return members.map((member) => {
@@ -820,17 +782,6 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
-            <BarChart data={chartData} isRTL={isRTL} />
-            <div className="mt-4 pt-4 flex items-center gap-6" style={{ borderTop: "1px solid var(--border)" }}>
-              {[
-                { label: t("dashboard.totalThis") + (period === "week" ? " " + t("dashboard.week") : " " + t("dashboard.month")), value: chartTotal },
-                { label: t("dashboard.avgPerDay"), value: chartAvg },
-                { label: t("dashboard.peakDay"), value: peakDayLabel },
-              ].map((s) => (
-                <div key={s.label}>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{s.value}</p>
-                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{s.label}</p>
             </Card>
           </motion.div>
 
@@ -920,6 +871,8 @@ export default function DashboardPage() {
               </div>
             </div>
           </Card>
+        </motion.div>
+
         {/* ── RIGHT COLUMN (2/5) ─────────────────────────────── */}
         <motion.div
           className="xl:col-span-2 space-y-4"
@@ -1406,51 +1359,8 @@ export default function DashboardPage() {
               </Link>
             </motion.div>
           ))}
-        {/* Content Status Donut */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)" }}>
-                  <FileText size={14} style={{ color: "#34d399" }} />
-                </div>
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {t("dashboard.contentOverview")}
-                </p>
-              </div>
-              <Link href="/content" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                {t("dashboard.viewAll")} <ArrowRight size={11} />
-              </Link>
-            </div>
-            <div className="flex items-center gap-6">
-              <DonutChart segments={donutSegments} total={contentStats.total} />
-              <div className="flex-1 space-y-2.5">
-                {donutSegments.map((seg) => (
-                  <div key={seg.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: seg.color }} />
-                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{seg.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-1.5 rounded-full"
-                        style={{
-                          width: contentStats.total > 0 ? `${Math.max((seg.value / contentStats.total) * 60, 4)}px` : "4px",
-                          background: seg.color,
-                          opacity: 0.5,
-                        }}
-                      />
-                      <span className="text-xs font-semibold w-5 text-right" style={{ color: "var(--text-primary)" }}>
-                        {seg.value}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
         </motion.div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
