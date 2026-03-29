@@ -577,10 +577,11 @@ export default function ClientsPage() {
             {errors.name && <p style={{ fontSize: 11, color: "var(--error)", marginTop: 4 }}>{errors.name}</p>}
           </div>
 
-          {/* Company (edit only for create — shown in both but only saved on edit) */}
+          {/* Company — only available when editing (addClient API doesn't accept company) */}
+          {editClient && (
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              Company {!editClient && <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>(can be updated after saving)</span>}
+              Company
             </label>
             <Input
               value={form.company}
@@ -588,6 +589,7 @@ export default function ClientsPage() {
               placeholder="Company name"
             />
           </div>
+          )}
 
           {/* Email */}
           <div>

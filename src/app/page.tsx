@@ -535,7 +535,7 @@ export default function DashboardPage() {
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500, margin: 0,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
-                        {approval.contentItemId.slice(0, 12)}…
+                        {contentItems.find(ci => ci.id === approval.contentItemId)?.title ?? `#${approval.contentItemId.slice(0, 8)}`}
                       </p>
                       <Badge
                         label={approval.status === "pending_internal" ? "Internal" : "Client"}
