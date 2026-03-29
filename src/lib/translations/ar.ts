@@ -33,6 +33,11 @@ export const ar: Translations = {
     reports: "التقارير",
     publishing: "النشر",
     portal: "البوابة",
+    section: {
+      manage: "إدارة",
+      resources: "الموارد",
+      settings: "الإعدادات",
+    },
   },
   dashboard: {
     greeting_morning: "صباح الخير",

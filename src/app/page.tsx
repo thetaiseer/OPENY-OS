@@ -2,9 +2,9 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Users, CheckSquare, Activity, BarChart3, Plus, Zap,
-  AlertCircle, ClipboardCheck, Send, FileText, TrendingUp,
-  ArrowRight, Circle,
+  Users, CheckSquare, ClipboardCheck, FileText,
+  ArrowRight, Plus, Calendar, Zap, UserPlus,
+  TrendingUp, Clock,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -16,7 +16,7 @@ import { useApprovals } from "@/lib/ApprovalContext";
 import { useContentItems } from "@/lib/ContentContext";
 import type { ActivityType } from "@/lib/types";
 
-// ── Stagger animation helpers ────────────────────────────────
+// ── Animation helpers ─────────────────────────────────────────
 
 const containerVariants = {
   hidden: {},
@@ -27,7 +27,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 380, damping: 30 } },
 };
 
-// ── Animated bar chart ───────────────────────────────────────
+// ── Bar chart ────────────────────────────────────────────────
 
 const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_AR = ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"];
@@ -38,43 +38,43 @@ function BarChart({ data, isRTL }: { data: number[]; isRTL: boolean }) {
   const peak = data.indexOf(Math.max(...data));
 
   return (
-    <div className="flex items-end gap-1.5 h-28" style={{ direction: "ltr" }}>
+    <div className="flex items-end gap-2 h-32" style={{ direction: "ltr" }}>
       {data.map((v, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
           <motion.div
             className="w-full rounded-t-lg"
             style={{
               background: i === peak
-                ? "linear-gradient(180deg, var(--accent) 0%, rgba(79,142,247,0.5) 100%)"
-                : "var(--glass-overlay-border)",
+                ? "linear-gradient(180deg, var(--accent) 0%, rgba(79,142,247,0.4) 100%)"
+                : "rgba(255,255,255,0.07)",
               minHeight: 4,
-              boxShadow: i === peak ? "0 0 12px rgba(79,142,247,0.35)" : "none",
+              boxShadow: i === peak ? "0 0 14px rgba(79,142,247,0.4)" : "none",
             }}
             initial={{ height: 0 }}
             animate={{ height: `${(v / max) * 100}%` }}
-            transition={{ duration: 0.5, delay: i * 0.05, ease: [0.34, 1.1, 0.64, 1] }}
+            transition={{ duration: 0.55, delay: i * 0.05, ease: [0.34, 1.1, 0.64, 1] }}
           />
-          <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>{days[i]}</span>
+          <span className="text-[9px] font-medium" style={{ color: "var(--text-muted)" }}>{days[i]}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ── Donut chart for content status ──────────────────────────
+// ── Donut chart ──────────────────────────────────────────────
 
 interface DonutSegment { value: number; color: string; label: string }
 
 function DonutChart({ segments, total }: { segments: DonutSegment[]; total: number }) {
-  const size = 80;
-  const radius = 30;
+  const size = 96;
+  const radius = 36;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={10} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={11} />
         {total === 0 ? null : segments.map((seg, i) => {
           const dashArray = (seg.value / total) * circumference;
           const dashOffset = circumference - offset;
@@ -85,32 +85,33 @@ function DonutChart({ segments, total }: { segments: DonutSegment[]; total: numb
               cx={size / 2} cy={size / 2} r={radius}
               fill="none"
               stroke={seg.color}
-              strokeWidth={10}
+              strokeWidth={11}
               strokeDasharray={`${dashArray} ${circumference - dashArray}`}
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
               initial={{ strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${dashArray} ${circumference - dashArray}` }}
-              transition={{ duration: 0.7, delay: i * 0.1, ease: "easeOut" }}
+              transition={{ duration: 0.8, delay: i * 0.12, ease: "easeOut" }}
             />
           );
         })}
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{total}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold leading-none" style={{ color: "var(--text-primary)" }}>{total}</span>
+        <span className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>total</span>
       </div>
     </div>
   );
 }
 
-// ── Activity colors ──────────────────────────────────────────
+// ── Activity color map ────────────────────────────────────────
 
 const activityColors: Record<ActivityType, string> = {
   client_added:             "#4f8ef7",
   client_updated:           "#4f8ef7",
   client_deleted:           "#f87171",
   task_completed:           "#34d399",
-  task_created:             "#34d399",
+  task_created:             "#a78bfa",
   member_joined:            "#fbbf24",
   member_removed:           "#f87171",
   report_generated:         "#8888a0",
@@ -128,6 +129,8 @@ const activityColors: Record<ActivityType, string> = {
   content_status_changed:   "#06b6d4",
   publishing_simulated:     "#8888a0",
 };
+
+// ── Utility helpers ───────────────────────────────────────────
 
 function relativeTime(iso: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -155,32 +158,44 @@ function getPeakDayLabel(data: number[], isRTL: boolean): string {
   return days[peakIndex] ?? "—";
 }
 
-// ── Insight chip ─────────────────────────────────────────────
-
-function InsightChip({ icon: Icon, text, color }: { icon: typeof Circle; text: string; color: string }) {
-  return (
-    <motion.div
-      className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium"
-      style={{ background: `${color}18`, border: `1px solid ${color}28`, color }}
-      whileHover={{ scale: 1.03 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-    >
-      <Icon size={13} />
-      <span>{text}</span>
-    </motion.div>
-  );
+function formatDueDate(iso: string): string {
+  if (!iso || iso === "TBD") return "TBD";
+  try {
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return iso;
+  }
 }
+
+function priorityColor(p: string): "red" | "yellow" | "blue" | "gray" {
+  if (p === "high") return "red";
+  if (p === "medium") return "yellow";
+  if (p === "low") return "blue";
+  return "gray";
+}
+
+// ── Content pipeline statuses ─────────────────────────────────
+
+const PIPELINE_STAGES: { key: string; label: string; color: string }[] = [
+  { key: "idea",            label: "Idea",      color: "#8888a0" },
+  { key: "draft",           label: "Draft",     color: "#a78bfa" },
+  { key: "copywriting",     label: "Writing",   color: "#4f8ef7" },
+  { key: "design",          label: "Design",    color: "#06b6d4" },
+  { key: "internal_review", label: "Review",    color: "#fbbf24" },
+  { key: "approved",        label: "Approved",  color: "#34d399" },
+  { key: "scheduled",       label: "Scheduled", color: "#10b981" },
+  { key: "published",       label: "Published", color: "#22c55e" },
+];
 
 // ── Main dashboard ───────────────────────────────────────────
 
 export default function DashboardPage() {
   const {
+    clients,
     tasks,
+    members,
     activities,
-    systemStatuses,
-    totalClientCount,
     openTaskCount,
-    teamMemberCount,
   } = useAppStore();
   const { t, isRTL, language } = useLanguage();
   const { approvals } = useApprovals();
@@ -188,23 +203,31 @@ export default function DashboardPage() {
 
   const [period, setPeriod] = useState<"week" | "month">("week");
 
+  // ── Greeting ───────────────────────────────────────────────
   const hour = new Date().getHours();
+  const greetingEmoji = hour < 12 ? "☀️" : hour < 17 ? "🌤️" : "🌙";
   const greetingKey =
     hour < 12 ? "dashboard.greeting_morning"
     : hour < 17 ? "dashboard.greeting_afternoon"
     : "dashboard.greeting_evening";
   const today = new Date().toLocaleDateString(language === "ar" ? "ar-SA" : "en-US", {
-    weekday: "long", month: "long", day: "numeric",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+
+  // ── KPI derived data ───────────────────────────────────────
+  const pendingApprovals = useMemo(
+    () => approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client"),
+    [approvals],
+  );
 
   // ── Task chart data ────────────────────────────────────────
   const { weekData, monthData } = useMemo(() => {
-    const doneTasks = tasks.filter((t) => t.status === "done" && t.completedAt);
+    const doneTasks = tasks.filter((task) => task.status === "done" && task.completedAt);
     const monday = getMondayOf(new Date());
     const weekCounts = [0, 0, 0, 0, 0, 0, 0];
-    doneTasks.forEach((t) => {
+    doneTasks.forEach((task) => {
       const offset = Math.floor(
-        (new Date(t.completedAt!).getTime() - monday.getTime()) / 86_400_000
+        (new Date(task.completedAt!).getTime() - monday.getTime()) / 86_400_000,
       );
       if (offset >= 0 && offset < 7) weekCounts[offset]++;
     });
@@ -212,8 +235,8 @@ export default function DashboardPage() {
     cutoff.setDate(cutoff.getDate() - 27);
     cutoff.setHours(0, 0, 0, 0);
     const monthCounts = [0, 0, 0, 0, 0, 0, 0];
-    doneTasks.forEach((t) => {
-      const d = new Date(t.completedAt!);
+    doneTasks.forEach((task) => {
+      const d = new Date(task.completedAt!);
       if (d >= cutoff) monthCounts[(d.getDay() + 6) % 7]++;
     });
     return { weekData: weekCounts, monthData: monthCounts };
@@ -224,7 +247,7 @@ export default function DashboardPage() {
   const chartAvg = chartTotal ? (chartTotal / 7).toFixed(1) : "0";
   const peakDayLabel = getPeakDayLabel(chartData, isRTL);
 
-  // ── Content status breakdown ────────────────────────────────
+  // ── Content stats ──────────────────────────────────────────
   const DRAFT_STATUSES = ["draft", "idea", "copywriting", "design"] as const;
   const contentStats = useMemo(() => {
     const published   = contentItems.filter((c) => c.status === "published").length;
@@ -237,120 +260,168 @@ export default function DashboardPage() {
   }, [contentItems]);
 
   const donutSegments = [
-    { value: contentStats.published,  color: "#34d399", label: "Published" },
-    { value: contentStats.scheduled,  color: "#4f8ef7", label: "Scheduled" },
-    { value: contentStats.inReview,   color: "#fbbf24", label: "In Review" },
-    { value: contentStats.drafts,     color: "#8888a0", label: "Drafts" },
+    { value: contentStats.published, color: "#34d399", label: "Published" },
+    { value: contentStats.scheduled, color: "#4f8ef7", label: "Scheduled" },
+    { value: contentStats.inReview,  color: "#fbbf24", label: "In Review" },
+    { value: contentStats.drafts,    color: "#8888a0", label: "Drafts"    },
   ];
+
+  // ── Pipeline stage counts ──────────────────────────────────
+  const pipelineCounts = useMemo(() => {
+    return PIPELINE_STAGES.map((stage) => ({
+      ...stage,
+      count: contentItems.filter((c) => c.status === stage.key).length,
+    }));
+  }, [contentItems]);
+
+  const pipelineTotal = pipelineCounts.reduce((s, s2) => s + s2.count, 0);
 
   // ── Recent activities ──────────────────────────────────────
   const recentActivities = useMemo(
     () =>
       [...activities]
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 6),
-    [activities]
+        .slice(0, 8),
+    [activities],
   );
 
-  // ── System status ──────────────────────────────────────────
-  const degradedCount = systemStatuses.filter((s) => s.status !== "operational").length;
-  const pendingApprovals = approvals.filter(
-    (a) => a.status === "pending_internal" || a.status === "pending_client"
-  ).length;
+  // ── Upcoming tasks (sorted by dueDate, open only) ─────────
+  const upcomingTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.status !== "done" && task.dueDate && task.dueDate !== "TBD")
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+        .slice(0, 5),
+    [tasks],
+  );
 
-  // ── Insights ───────────────────────────────────────────────
-  const insights = useMemo(() => {
-    const list: { icon: typeof Circle; text: string; color: string }[] = [];
-    if (pendingApprovals > 0) {
-      list.push({
-        icon: ClipboardCheck,
-        text: `${pendingApprovals} ${pendingApprovals > 1 ? t("dashboard.insightPendingApprovals") : t("dashboard.insightPendingApproval")}`,
-        color: "#fbbf24",
-      });
-    }
-    if (contentStats.inReview > 0) {
-      list.push({ icon: FileText, text: `${contentStats.inReview} ${t("dashboard.insightContentInReview")}`, color: "#06b6d4" });
-    }
-    if (openTaskCount > 0) {
-      list.push({
-        icon: CheckSquare,
-        text: `${openTaskCount} ${openTaskCount > 1 ? t("dashboard.insightOpenTasks") : t("dashboard.insightOpenTask")}`,
-        color: "#4f8ef7",
-      });
-    }
-    if (degradedCount > 0) {
-      list.push({
-        icon: AlertCircle,
-        text: `${degradedCount} ${degradedCount > 1 ? t("dashboard.insightServicesDegraded") : t("dashboard.insightServiceDegraded")}`,
-        color: "#f87171",
-      });
-    }
-    if (list.length === 0) {
-      list.push({ icon: TrendingUp, text: t("dashboard.insightAllHealthy"), color: "#34d399" });
-    }
-    return list;
-  }, [pendingApprovals, contentStats.inReview, openTaskCount, degradedCount, t]);
+  // ── Approval queue ─────────────────────────────────────────
+  const approvalQueue = useMemo(() => pendingApprovals.slice(0, 4), [pendingApprovals]);
 
-  // ── Quick actions ──────────────────────────────────────────
-  const quickActions = [
-    { label: t("dashboard.newClient"),    href: "/clients",   icon: Users },
-    { label: t("dashboard.newTask"),      href: "/tasks",     icon: CheckSquare },
-    { label: t("dashboard.inviteMember"), href: "/team",      icon: Plus },
-    { label: t("dashboard.viewReports"),  href: "/reports",   icon: BarChart3 },
-    { label: t("nav.approvals"),          href: "/approvals", icon: ClipboardCheck },
-    { label: t("dashboard.settingsLink"), href: "/settings",  icon: Zap },
-  ];
+  // ── This week's scheduled content ─────────────────────────
+  const thisWeekContent = useMemo(() => {
+    const now = new Date();
+    const monday = getMondayOf(now);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return contentItems
+      .filter((c) => {
+        if (!c.scheduledDate) return false;
+        const d = new Date(c.scheduledDate);
+        return d >= monday && d <= sunday;
+      })
+      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+      .slice(0, 5);
+  }, [contentItems]);
+
+  // ── Team workload ──────────────────────────────────────────
+  const teamWorkload = useMemo(() => {
+    return members.map((member) => {
+      const count = tasks.filter(
+        (task) => task.status !== "done" && (task.assigneeId === member.id || task.assignedTo === member.id),
+      ).length;
+      return { ...member, taskCount: count };
+    }).sort((a, b) => b.taskCount - a.taskCount);
+  }, [members, tasks]);
+
+  const maxWorkload = Math.max(...teamWorkload.map((m) => m.taskCount), 1);
+
+  // ── Client name lookup ─────────────────────────────────────
+  const clientMap = useMemo(
+    () => Object.fromEntries(clients.map((c) => [c.id, c.name])),
+    [clients],
+  );
+
+  // ── Content item lookup ────────────────────────────────────
+  const contentMap = useMemo(
+    () => Object.fromEntries(contentItems.map((c) => [c.id, c.title])),
+    [contentItems],
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 pb-8">
+      {/* ── Page Header ───────────────────────────────────────── */}
       <motion.div
-        className="pt-2"
-        initial={{ opacity: 0, y: -8 }}
+        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pt-2"
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.35 }}
       >
-        <h1
-          className="text-3xl font-bold tracking-tight mb-1"
-          style={{ color: "var(--text-primary)" }}
-        >
-          {t(greetingKey)}.
-        </h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {today}
-          {systemStatuses.length > 0
-            ? ` · ${degradedCount === 0 ? t("dashboard.allOperational") : `${degradedCount} ${degradedCount > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")}`}`
-            : ""}
-        </p>
-        {/* Insights row */}
-        {insights.length > 0 && (
-          <motion.div
-            className="flex flex-wrap gap-2 mt-3"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>
+            {greetingEmoji} {t(greetingKey)}, Alex.
+          </h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Here&apos;s what&apos;s happening in your workspace today.
+          </p>
+          <p className="text-xs mt-0.5 font-medium" style={{ color: "var(--text-muted)" }}>
+            {today}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            href="/content"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium"
+            style={{
+              background: "rgba(79,142,247,0.15)",
+              border: "1px solid rgba(79,142,247,0.3)",
+              color: "var(--accent)",
+            }}
           >
-            {insights.map((ins, i) => (
-              <motion.div key={i} variants={itemVariants}>
-                <InsightChip icon={ins.icon} text={ins.text} color={ins.color} />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+            <Plus size={14} /> New Content
+          </Link>
+          <Link
+            href="/tasks"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium"
+            style={{
+              background: "var(--surface-3)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            }}
+          >
+            <Plus size={14} /> New Task
+          </Link>
+        </div>
       </motion.div>
 
-      {/* Stat Cards */}
+      {/* ── KPI Stats Row ─────────────────────────────────────── */}
       <motion.div
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
         {[
-          { label: t("dashboard.totalClients"),    value: totalClientCount,  icon: Users,          change: `+${totalClientCount}`,  positive: true,  accent: true },
-          { label: t("dashboard.openTasks"),        value: openTaskCount,     icon: CheckSquare,    change: `${openTaskCount}`,      positive: openTaskCount === 0 },
-          { label: t("dashboard.pendingApprovals"), value: pendingApprovals,  icon: ClipboardCheck, change: `${pendingApprovals}`,   positive: pendingApprovals === 0 },
-          { label: t("dashboard.teamMembers"),      value: teamMemberCount,   icon: Activity,       change: `+${teamMemberCount}`,   positive: true },
+          {
+            label: t("dashboard.totalClients"),
+            value: clients.length,
+            icon: Users,
+            change: `+${clients.length}`,
+            positive: true,
+            accent: true,
+          },
+          {
+            label: t("dashboard.openTasks"),
+            value: openTaskCount,
+            icon: CheckSquare,
+            change: `${openTaskCount}`,
+            positive: openTaskCount === 0,
+          },
+          {
+            label: t("dashboard.pendingApprovals"),
+            value: pendingApprovals.length,
+            icon: ClipboardCheck,
+            change: `${pendingApprovals.length}`,
+            positive: pendingApprovals.length === 0,
+          },
+          {
+            label: "Total Content",
+            value: contentStats.total,
+            icon: FileText,
+            change: `${contentStats.total}`,
+            positive: true,
+          },
         ].map((card) => (
           <motion.div key={card.label} variants={itemVariants}>
             <StatCard {...card} />
@@ -358,301 +429,511 @@ export default function DashboardPage() {
         ))}
       </motion.div>
 
-      {/* Charts row */}
-      <motion.div
-        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {/* Task activity bar chart */}
-        <motion.div variants={itemVariants} className="lg:col-span-2">
-          <Card>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {t("dashboard.activityOverview")}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {t("dashboard.tasksCompletedThis")}{" "}
-                  {period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}
-                </p>
-              </div>
-              <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--surface-3)" }}>
-                {(["week", "month"] as const).map((p) => (
-                  <motion.button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className="px-3 py-1 rounded-lg text-xs font-medium"
-                    style={{
-                      background: period === p ? "var(--surface-1)" : "transparent",
-                      color: period === p ? "var(--text-primary)" : "var(--text-muted)",
-                    }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    {p === "week" ? t("dashboard.week") : t("dashboard.month")}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-            <BarChart data={chartData} isRTL={isRTL} />
-            <div
-              className="mt-4 pt-4 flex items-center gap-6"
-              style={{ borderTop: "1px solid var(--border)" }}
-            >
-              {[
-                { label: `${t("dashboard.totalThis")} ${period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}`, value: chartTotal },
-                { label: t("dashboard.avgPerDay"),  value: chartAvg },
-                { label: t("dashboard.peakDay"),    value: peakDayLabel, accent: true },
-              ].map(({ label, value, accent }) => (
-                <div key={label}>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
-                  <p
-                    className="text-lg font-bold mt-0.5"
-                    style={{ color: accent ? "var(--accent)" : "var(--text-primary)" }}
-                  >
-                    {value}
+      {/* ── Main two-column layout ────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+
+        {/* ── LEFT COLUMN (3/5) ──────────────────────────────── */}
+        <motion.div
+          className="xl:col-span-3 space-y-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+
+          {/* Content Pipeline */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    Content Pipeline
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    {pipelineTotal} items across all stages
                   </p>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <Link
+                  href="/content"
+                  className="flex items-center gap-1 text-xs font-medium"
+                  style={{ color: "var(--accent)" }}
+                >
+                  View all <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {pipelineTotal === 0 ? (
+                <div className="py-6 text-center">
+                  <FileText size={28} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>No content items yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {/* Stacked bar */}
+                  <div className="flex h-3 rounded-full overflow-hidden gap-px">
+                    {pipelineCounts.filter((s) => s.count > 0).map((stage) => (
+                      <motion.div
+                        key={stage.key}
+                        title={`${stage.label}: ${stage.count}`}
+                        style={{ background: stage.color, flexBasis: `${(stage.count / pipelineTotal) * 100}%` }}
+                        initial={{ scaleX: 0, originX: isRTL ? 1 : 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.6, delay: 0.1, ease: [0.34, 1.1, 0.64, 1] }}
+                      />
+                    ))}
+                  </div>
+                  {/* Labels row */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {pipelineCounts.filter((s) => s.count > 0).slice(0, 8).map((stage) => (
+                      <div key={stage.key} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
+                        <span className="text-[10px] truncate" style={{ color: "var(--text-secondary)" }}>
+                          {stage.label}
+                        </span>
+                        <span className="text-[10px] font-semibold ml-auto" style={{ color: "var(--text-primary)" }}>
+                          {stage.count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Task Activity Chart */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {t("dashboard.activityOverview")}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    Tasks completed this{" "}
+                    {period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}
+                  </p>
+                </div>
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--surface-3)" }}>
+                  {(["week", "month"] as const).map((p) => (
+                    <motion.button
+                      key={p}
+                      onClick={() => setPeriod(p)}
+                      className="px-3 py-1 rounded-lg text-xs font-medium"
+                      style={{
+                        background: period === p ? "var(--surface-1)" : "transparent",
+                        color: period === p ? "var(--text-primary)" : "var(--text-muted)",
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      {p === "week" ? t("dashboard.week") : t("dashboard.month")}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+              <BarChart data={chartData} isRTL={isRTL} />
+              <div
+                className="mt-4 pt-4 flex items-center gap-6"
+                style={{ borderTop: "1px solid var(--border)" }}
+              >
+                {[
+                  { label: `Total this ${period}`, value: chartTotal },
+                  { label: t("dashboard.avgPerDay"),  value: chartAvg },
+                  { label: t("dashboard.peakDay"),    value: peakDayLabel, accent: true },
+                ].map(({ label, value, accent }) => (
+                  <div key={label}>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{label}</p>
+                    <p
+                      className="text-lg font-bold mt-0.5"
+                      style={{ color: accent ? "var(--accent)" : "var(--text-primary)" }}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Recent Activity Feed */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {t("dashboard.recentActivity")}
+                </p>
+                <Link
+                  href="/activities"
+                  className="flex items-center gap-1 text-xs font-medium"
+                  style={{ color: "var(--accent)" }}
+                >
+                  View all <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {recentActivities.length === 0 ? (
+                <div className="py-8 text-center">
+                  <TrendingUp size={28} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                  <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                    No activity yet — things will show up here as your team works.
+                  </p>
+                </div>
+              ) : (
+                <motion.div className="space-y-0" variants={containerVariants} initial="hidden" animate="show">
+                  {recentActivities.map((item, i) => (
+                    <motion.div
+                      key={item.id}
+                      variants={itemVariants}
+                      className="flex items-start gap-3 py-2.5"
+                      style={{
+                        borderBottom: i < recentActivities.length - 1 ? "1px solid var(--border)" : "none",
+                      }}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5"
+                        style={{ background: `${activityColors[item.type] ?? "#8888a0"}20` }}
+                      >
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: activityColors[item.type] ?? "#8888a0" }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium leading-tight" style={{ color: "var(--text-primary)" }}>
+                          {item.message}
+                        </p>
+                        {item.detail && (
+                          <p className="text-[11px] mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>
+                            {item.detail}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-[10px] flex-shrink-0 pt-0.5" style={{ color: "var(--text-muted)" }}>
+                        {relativeTime(item.timestamp, t)}
+                      </span>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </Card>
+          </motion.div>
         </motion.div>
 
-        {/* Recent activity */}
-        <motion.div variants={itemVariants}>
-          <Card className="h-full">
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.recentActivity")}
-            </p>
-            {recentActivities.length === 0 ? (
-              <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-                {t("dashboard.noActivity")}
-              </p>
-            ) : (
-              <motion.div
-                className="space-y-0"
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-              >
-                {recentActivities.map((item, i) => (
-                  <motion.div
-                    key={item.id}
-                    variants={itemVariants}
-                    className="flex items-start gap-3 py-2.5"
-                    style={{
-                      borderBottom:
-                        i < recentActivities.length - 1 ? "1px solid var(--border)" : "none",
-                    }}
-                  >
+        {/* ── RIGHT COLUMN (2/5) ─────────────────────────────── */}
+        <motion.div
+          className="xl:col-span-2 space-y-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+
+          {/* Upcoming Tasks */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(167,139,250,0.15)" }}>
+                    <Clock size={14} style={{ color: "#a78bfa" }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Upcoming Tasks</p>
+                </div>
+                <Link href="/tasks" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  All <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {upcomingTasks.length === 0 ? (
+                <div className="py-6 text-center">
+                  <CheckSquare size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>No upcoming tasks</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {upcomingTasks.map((task) => (
                     <div
-                      className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: activityColors[item.type] ?? "#8888a0" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-xs font-medium leading-tight"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {item.message}
-                      </p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                        {item.detail}
-                      </p>
+                      key={task.id}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl"
+                      style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5"
+                        style={{ borderColor: "var(--border-strong)" }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium leading-snug truncate" style={{ color: "var(--text-primary)" }}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {clientMap[task.clientId ?? ""] && (
+                            <span className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
+                              {clientMap[task.clientId ?? ""]}
+                            </span>
+                          )}
+                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>·</span>
+                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                            {formatDueDate(task.dueDate)}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge label={task.priority} color={priorityColor(task.priority)} />
                     </div>
-                    <span className="text-[10px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>
-                      {relativeTime(item.timestamp, t)}
-                    </span>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Approval Queue */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(251,191,36,0.15)" }}>
+                    <ClipboardCheck size={14} style={{ color: "#fbbf24" }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Approval Queue</p>
+                </div>
+                <Link href="/approvals" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  All <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {approvalQueue.length === 0 ? (
+                <div className="py-6 text-center">
+                  <ClipboardCheck size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>No pending approvals 🎉</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {approvalQueue.map((approval) => (
+                    <div
+                      key={approval.id}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl"
+                      style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center"
+                        style={{ background: "rgba(251,191,36,0.15)" }}
+                      >
+                        <ClipboardCheck size={12} style={{ color: "#fbbf24" }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {contentMap[approval.contentItemId] ?? "Content item"}
+                        </p>
+                        <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>
+                          {clientMap[approval.clientId] ?? "Unknown client"}
+                        </p>
+                      </div>
+                      <Badge
+                        label={approval.status === "pending_internal" ? "Internal" : "Client"}
+                        color={approval.status === "pending_internal" ? "blue" : "yellow"}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Content Calendar Preview */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(6,182,212,0.15)" }}>
+                    <Calendar size={14} style={{ color: "#06b6d4" }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>This Week</p>
+                </div>
+                <Link href="/content" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  Calendar <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {thisWeekContent.length === 0 ? (
+                <div className="py-6 text-center">
+                  <Calendar size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Nothing scheduled this week</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {thisWeekContent.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-2.5 p-2 rounded-xl"
+                      style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+                    >
+                      <div
+                        className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+                        style={{ background: "rgba(6,182,212,0.15)", color: "#06b6d4" }}
+                      >
+                        {item.platform.slice(0, 2)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {item.title}
+                        </p>
+                        <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          {item.platform} · {formatDueDate(item.scheduledDate)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Quick Actions Panel */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(79,142,247,0.15)" }}>
+                  <Zap size={14} style={{ color: "var(--accent)" }} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {t("dashboard.quickActions")}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "New Client",    href: "/clients",   icon: Users,         color: "#4f8ef7" },
+                  { label: "New Content",   href: "/content",   icon: FileText,      color: "#06b6d4" },
+                  { label: "New Task",      href: "/tasks",     icon: CheckSquare,   color: "#a78bfa" },
+                  { label: "Invite Member", href: "/team",      icon: UserPlus,      color: "#34d399" },
+                ].map(({ label, href, icon: Icon, color }) => (
+                  <motion.div
+                    key={label}
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <Link
+                      href={href}
+                      className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl w-full text-center"
+                      style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+                    >
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}>
+                        <Icon size={14} style={{ color }} />
+                      </div>
+                      <span className="text-[11px] font-medium" style={{ color: "var(--text-primary)" }}>
+                        {label}
+                      </span>
+                    </Link>
                   </motion.div>
                 ))}
-              </motion.div>
-            )}
-          </Card>
+              </div>
+            </Card>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
 
-      {/* Content status + Quick actions */}
+      {/* ── Bottom Row ────────────────────────────────────────── */}
       <motion.div
         className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        {/* Content breakdown donut */}
+        {/* Team Workload */}
         <motion.div variants={itemVariants}>
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                {t("dashboard.contentOverview")}
-              </p>
-              <Link
-                href="/content"
-                className="flex items-center gap-1 text-xs"
-                style={{ color: "var(--accent)" }}
-              >
-                {t("dashboard.viewAll")} <ArrowRight size={12} />
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(251,191,36,0.15)" }}>
+                  <Users size={14} style={{ color: "#fbbf24" }} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Team Workload</p>
+              </div>
+              <Link href="/team" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                All <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {teamWorkload.length === 0 ? (
+              <div className="py-6 text-center">
+                <Users size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>No team members yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {teamWorkload.slice(0, 5).map((member) => (
+                  <div key={member.id} className="flex items-center gap-3">
+                    <div
+                      className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+                      style={{ background: member.color ?? "var(--accent)", color: "#fff" }}
+                    >
+                      {member.initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {member.name}
+                        </p>
+                        <span className="text-[10px] font-semibold flex-shrink-0 ml-2" style={{ color: "var(--text-muted)" }}>
+                          {member.taskCount} tasks
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-4)" }}>
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: member.color ?? "var(--accent)" }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(member.taskCount / maxWorkload) * 100}%` }}
+                          transition={{ duration: 0.6, ease: [0.34, 1.1, 0.64, 1] }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* Content Status Donut */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)" }}>
+                  <FileText size={14} style={{ color: "#34d399" }} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {t("dashboard.contentOverview")}
+                </p>
+              </div>
+              <Link href="/content" className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                {t("dashboard.viewAll")} <ArrowRight size={11} />
               </Link>
             </div>
             <div className="flex items-center gap-6">
               <DonutChart segments={donutSegments} total={contentStats.total} />
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-2.5">
                 {donutSegments.map((seg) => (
                   <div key={seg.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ background: seg.color }} />
-                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {seg.label}
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: seg.color }} />
+                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{seg.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-1.5 rounded-full"
+                        style={{
+                          width: contentStats.total > 0 ? `${Math.max((seg.value / contentStats.total) * 60, 4)}px` : "4px",
+                          background: seg.color,
+                          opacity: 0.5,
+                        }}
+                      />
+                      <span className="text-xs font-semibold w-5 text-right" style={{ color: "var(--text-primary)" }}>
+                        {seg.value}
                       </span>
                     </div>
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {seg.value}
-                    </span>
                   </div>
                 ))}
               </div>
             </div>
           </Card>
-        </motion.div>
-
-        {/* Quick actions */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.quickActions")}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {quickActions.map(({ label, href, icon: Icon }) => (
-                <motion.div
-                  key={label}
-                  whileHover={{ scale: 1.03, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Link
-                    href={href}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full"
-                    style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
-                  >
-                    <Icon size={14} style={{ color: "var(--accent)" }} />
-                    <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-                      {label}
-                    </span>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* System status + Pending metrics */}
-      <motion.div
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {/* System status */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.systemStatus")}
-            </p>
-            {systemStatuses.length === 0 ? (
-              <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-                {t("dashboard.noStatusData")}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {systemStatuses.map(({ name, status, latency }) => {
-                  const ok = status === "operational";
-                  const warn = status === "degraded";
-                  return (
-                    <div key={name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <motion.div
-                          className="w-2 h-2 rounded-full"
-                          style={{ background: ok ? "var(--success)" : warn ? "var(--warning)" : "var(--error)" }}
-                          animate={ok ? {} : { scale: [1, 1.4, 1] }}
-                          transition={{ repeat: Infinity, duration: 1.5 }}
-                        />
-                        <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-                          {name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{latency}</span>
-                        <Badge
-                          label={ok ? t("status.operational") : warn ? t("status.degraded") : t("status.down")}
-                          color={ok ? "green" : warn ? "yellow" : "red"}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-4 pt-4 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)" }}>
-              <AlertCircle size={13} style={{ color: degradedCount > 0 ? "var(--warning)" : "var(--success)" }} />
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {degradedCount === 0 && systemStatuses.length > 0
-                  ? t("dashboard.allServicesOperational")
-                  : systemStatuses.length === 0
-                  ? t("dashboard.noStatusDataAvail")
-                  : `${degradedCount} ${degradedCount > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")} ${t("dashboard.lastCheck")}`}
-              </p>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Pending actions */}
-        <motion.div variants={itemVariants} className="grid grid-rows-2 gap-4">
-          <motion.div whileHover={{ scale: 1.01, y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-            <Link
-              href="/approvals"
-              className="rounded-2xl p-5 flex items-center gap-4 h-full"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex" }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "#f59e0b20" }}
-              >
-                <ClipboardCheck size={20} style={{ color: "#f59e0b" }} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {pendingApprovals}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {t("nav.approvals")} — Pending
-                </p>
-              </div>
-            </Link>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.01, y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-            <Link
-              href="/publishing"
-              className="rounded-2xl p-5 flex items-center gap-4 h-full"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex" }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "#4f8ef720" }}
-              >
-                <Send size={20} style={{ color: "#4f8ef7" }} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {contentStats.scheduled}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {t("nav.publishing")} — Scheduled
-                </p>
-              </div>
-            </Link>
-          </motion.div>
         </motion.div>
       </motion.div>
     </div>
