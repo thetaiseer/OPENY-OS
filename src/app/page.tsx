@@ -8,8 +8,8 @@ import {
   Users, CheckSquare, ClipboardCheck, UserCheck,
   Plus, FileText, BarChart3, FilePlus2,
   ArrowRight, Clock, TrendingUp, Layers,
-  Activity, CheckCircle2, Circle, AlertCircle,
-  Calendar, Star, Zap,
+  Activity, CheckCircle2, AlertCircle,
+  Calendar, Star, Zap, ArrowUpRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppContext";
 import { useApprovals } from "@/lib/ApprovalContext";
@@ -68,12 +68,12 @@ function activityIcon(type: ActivityType) {
 }
 
 function activityColor(type: ActivityType): string {
-  if (type.startsWith("client")) return "#4f8ef7";
-  if (type.startsWith("task")) return "#34d399";
-  if (type.startsWith("member")) return "#a78bfa";
-  if (type.includes("approved") || type === "post_marked_published") return "#34d399";
-  if (type.includes("failed")) return "#f87171";
-  return "#8888a0";
+  if (type.startsWith("client")) return "#4F8CFF";
+  if (type.startsWith("task")) return "#10B981";
+  if (type.startsWith("member")) return "#818CF8";
+  if (type.includes("approved") || type === "post_marked_published") return "#10B981";
+  if (type.includes("failed")) return "#F87171";
+  return "#94A3B8";
 }
 
 // ── Animation variants ───────────────────────────────────────
@@ -82,9 +82,34 @@ const fade = {
   hidden: { opacity: 0, y: 16 },
   show: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.07, type: "spring", stiffness: 360, damping: 30 },
+    transition: { delay: i * 0.06, type: "spring", stiffness: 360, damping: 30 },
   }),
 };
+
+// ── Sparkline ─────────────────────────────────────────────────
+
+function Sparkline({ color, values }: { color: string; values: number[] }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 28 }}>
+      {values.map((v, i) => (
+        <motion.div
+          key={i}
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{ delay: i * 0.05, duration: 0.4, ease: "easeOut" }}
+          style={{
+            flex: 1, borderRadius: 2,
+            height: `${Math.max(15, (v / max) * 100)}%`,
+            background: color,
+            opacity: 0.7 + (i / values.length) * 0.3,
+            transformOrigin: "bottom",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 // ── DonutChart ───────────────────────────────────────────────
 
@@ -128,13 +153,13 @@ function DonutChart({ done, total }: { done: number; total: number }) {
 // ── ContentBarChart ──────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "#8888a0",
-  copywriting: "#4f8ef7",
-  design: "#a78bfa",
-  internal_review: "#fbbf24",
-  client_review: "#fb923c",
-  approved: "#34d399",
-  scheduled: "#22d3ee",
+  draft: "#94A3B8",
+  copywriting: "#4F8CFF",
+  design: "#818CF8",
+  internal_review: "#F59E0B",
+  client_review: "#FB923C",
+  approved: "#10B981",
+  scheduled: "#22D3EE",
   published: "#059669",
 };
 const STATUS_LABELS: Record<string, string> = {
@@ -157,11 +182,11 @@ function ContentBarChart({ counts }: { counts: Record<string, number> }) {
     <div style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>No content yet</div>
   );
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       {entries.map(({ key, label, count }) => (
         <div key={key} className="flex items-center gap-3">
           <span style={{ width: 72, fontSize: 11, color: "var(--text-secondary)", textAlign: "right", flexShrink: 0 }}>{label}</span>
-          <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-3)" }}>
             <motion.div
               className="h-full rounded-full"
               style={{ background: STATUS_COLORS[key] ?? "var(--accent)" }}
@@ -180,7 +205,7 @@ function ContentBarChart({ counts }: { counts: Record<string, number> }) {
 // ── Main Component ───────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { tasks, members, activities, loading: appLoading } = useAppStore();
+  const { tasks, activities, loading: appLoading } = useAppStore();
   const { clients } = useAppStore();
   const { approvals, loading: approvalsLoading } = useApprovals();
   const { contentItems, loading: contentLoading } = useContentItems();
@@ -191,6 +216,7 @@ export default function DashboardPage() {
   // KPI
   const openTasks = useMemo(() => tasks.filter(t => t.status !== "done"), [tasks]);
   const doneTasks = useMemo(() => tasks.filter(t => t.status === "done"), [tasks]);
+  const publishedContent = useMemo(() => contentItems.filter(c => c.status === "published"), [contentItems]);
   const pendingApprovals = useMemo(
     () => approvals.filter(a => a.status === "pending_internal" || a.status === "pending_client"),
     [approvals],
@@ -213,10 +239,10 @@ export default function DashboardPage() {
   }, [contentItems]);
 
   const pipelineColumns = [
-    { key: "draft", label: "Draft", color: "#8888a0" },
-    { key: "in_review", label: "In Review", color: "#fbbf24", keys: ["internal_review", "client_review"] },
-    { key: "approved", label: "Approved", color: "#34d399" },
-    { key: "scheduled", label: "Scheduled", color: "#22d3ee" },
+    { key: "draft", label: "Draft", color: "#94A3B8" },
+    { key: "in_review", label: "In Review", color: "#F59E0B", keys: ["internal_review", "client_review"] },
+    { key: "approved", label: "Approved", color: "#10B981" },
+    { key: "scheduled", label: "Scheduled", color: "#22D3EE" },
     { key: "published", label: "Published", color: "#059669" },
   ] as const;
 
@@ -247,6 +273,14 @@ export default function DashboardPage() {
   // Recent activities
   const recentActivities = useMemo(() => activities.slice(0, 8), [activities]);
 
+  // Mock sparkline data (last 7 data points)
+  const sparklineData = useMemo(() => ({
+    clients: [2,3,2,4,3,5,clients.length || 1],
+    tasks: [5,4,6,4,7,5,openTasks.length || 1],
+    approvals: [1,2,1,3,2,2,pendingApprovals.length || 1],
+    published: [1,2,3,2,4,3,publishedContent.length || 1],
+  }), [clients.length, openTasks.length, pendingApprovals.length, publishedContent.length]);
+
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 320 }}>
@@ -260,57 +294,59 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: "24px 24px 48px", direction: isRTL ? "rtl" : "ltr" }}>
+    <div style={{ direction: isRTL ? "rtl" : "ltr" }}>
+      {/* ── Page Header / Greeting ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+        style={{ marginBottom: 28 }}
+      >
+        <div style={{
+          borderRadius: 20,
+          padding: "28px 32px",
+          background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
+          position: "relative",
+          overflow: "hidden",
+          boxShadow: "0 8px 32px rgba(79,140,255,0.25)",
+        }}>
+          {/* Decorative circles */}
+          <div style={{ position: "absolute", top: -60, right: -40, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, right: 120, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: 500, marginBottom: 6, letterSpacing: 0.3 }}>
+              {formatDate()}
+            </p>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", marginBottom: 6, letterSpacing: -0.5 }}>
+              {getGreeting()}, Alex 👋
+            </h1>
+            {attentionCount > 0 ? (
+              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>
+                <span style={{ fontWeight: 600 }}>{attentionCount} item{attentionCount !== 1 ? "s" : ""}</span>
+                {" "}need{attentionCount === 1 ? "s" : ""} your attention today.
+              </p>
+            ) : (
+              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>Everything looks great — you&apos;re all caught up! ✨</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
       {/* ── Two-column layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.9fr) minmax(0,1fr)", gap: 24, alignItems: "start" }}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.85fr) minmax(0,1fr)", gap: 24, alignItems: "start" }}
         className="dashboard-grid">
 
         {/* ── LEFT COLUMN ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
 
-          {/* A. Hero Greeting */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="premium-card"
-            style={{
-              padding: "28px 32px",
-              background: "linear-gradient(135deg, var(--glass-card-elevated) 0%, var(--glass-card) 100%)",
-              position: "relative", overflow: "hidden",
-            }}
-          >
-            {/* Decorative glow */}
-            <div style={{
-              position: "absolute", top: -40, right: -40, width: 200, height: 200,
-              borderRadius: "50%", background: "var(--accent)", opacity: 0.06, pointerEvents: "none",
-            }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <p style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600, marginBottom: 6, letterSpacing: 0.3 }}>
-                {formatDate()}
-              </p>
-              <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-                {getGreeting()}, Alex Chen 👋
-              </h1>
-              {attentionCount > 0 ? (
-                <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-                  <span style={{ color: "var(--warning)", fontWeight: 600 }}>{attentionCount} item{attentionCount !== 1 ? "s" : ""}</span>
-                  {" "}need{attentionCount === 1 ? "s" : ""} your attention today.
-                </p>
-              ) : (
-                <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Everything looks great — you&apos;re all caught up! ✨</p>
-              )}
-            </div>
-          </motion.div>
-
-          {/* B. KPI Stats Row */}
+          {/* KPI Stats Row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }} className="kpi-grid">
             {[
-              { label: "Clients", value: clients.length, icon: Users, color: "#4f8ef7", bg: "rgba(79,142,247,0.12)" },
-              { label: "Open Tasks", value: openTasks.length, icon: CheckSquare, color: "#34d399", bg: "rgba(52,211,153,0.12)" },
-              { label: "Approvals", value: pendingApprovals.length, icon: ClipboardCheck, color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-              { label: "Team", value: members.length, icon: UserCheck, color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
-            ].map(({ label, value, icon: Icon, color, bg }, i) => (
+              { label: "Clients", value: clients.length, icon: Users, color: "#4F8CFF", bg: "rgba(79,140,255,0.12)", sparkColor: "#4F8CFF", spark: sparklineData.clients },
+              { label: "Open Tasks", value: openTasks.length, icon: CheckSquare, color: "#10B981", bg: "rgba(16,185,129,0.12)", sparkColor: "#10B981", spark: sparklineData.tasks },
+              { label: "Approvals", value: pendingApprovals.length, icon: ClipboardCheck, color: "#F59E0B", bg: "rgba(245,158,11,0.12)", sparkColor: "#F59E0B", spark: sparklineData.approvals },
+              { label: "Published", value: publishedContent.length, icon: Zap, color: "#818CF8", bg: "rgba(129,140,248,0.12)", sparkColor: "#818CF8", spark: sparklineData.published },
+            ].map(({ label, value, icon: Icon, color, bg, sparkColor, spark }, i) => (
               <motion.div
                 key={label}
                 custom={i}
@@ -318,47 +354,51 @@ export default function DashboardPage() {
                 initial="hidden"
                 animate="show"
                 className="stat-card"
-                style={{ padding: "18px 16px" }}
+                style={{ padding: "18px 16px", cursor: "default" }}
               >
-                <div style={{
-                  width: 38, height: 38, borderRadius: "var(--radius-md)",
-                  background: bg, display: "flex", alignItems: "center", justifyContent: "center",
-                  marginBottom: 12,
-                }}>
-                  <Icon size={18} style={{ color }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 10,
+                    background: bg, display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Icon size={17} style={{ color }} />
+                  </div>
+                  <ArrowUpRight size={13} style={{ color: "var(--text-muted)", marginTop: 4 }} />
                 </div>
-                <p style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1, marginBottom: 4 }}>{value}</p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{label}</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1, marginBottom: 3, letterSpacing: -1 }}>{value}</p>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 10 }}>{label}</p>
+                <Sparkline color={sparkColor} values={spark} />
               </motion.div>
             ))}
           </div>
 
-          {/* C. Content Pipeline */}
+          {/* Content Pipeline */}
           <motion.div custom={4} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 24px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Content Pipeline</h2>
-              <Link href="/content" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+              <Link href="/content" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 500 }}>
                 View all <ArrowRight size={12} />
               </Link>
             </div>
-            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+            <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
               {pipelineColumns.map(col => {
                 const count = pipelineCount(col);
                 return (
                   <Link key={col.key} href="/content" style={{ textDecoration: "none", flexShrink: 0 }}>
                     <motion.div
-                      whileHover={{ scale: 1.03, y: -2 }}
+                      whileHover={{ scale: 1.04, y: -2 }}
                       style={{
-                        minWidth: 110, padding: "14px 16px", borderRadius: "var(--radius-md)",
+                        minWidth: 108, padding: "14px 14px", borderRadius: 12,
                         background: "var(--surface-2)", border: "1px solid var(--border)",
                         cursor: "pointer", textAlign: "center",
                       }}
                     >
                       <div style={{
-                        width: 10, height: 10, borderRadius: "50%",
+                        width: 8, height: 8, borderRadius: "50%",
                         background: col.color, margin: "0 auto 8px",
+                        boxShadow: `0 0 6px ${col.color}80`,
                       }} />
-                      <p style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1, marginBottom: 4 }}>{count}</p>
+                      <p style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1, marginBottom: 4, letterSpacing: -1 }}>{count}</p>
                       <p style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>{col.label}</p>
                     </motion.div>
                   </Link>
@@ -367,33 +407,36 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-          {/* F. Charts row */}
+          {/* Charts row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="charts-grid">
             {/* Donut - Task Completion */}
             <motion.div custom={5} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Task Completion</h2>
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Task Completion</h2>
               <DonutChart done={doneTasks.length} total={tasks.length} />
             </motion.div>
 
             {/* Bar - Content by Status */}
             <motion.div custom={6} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Content by Status</h2>
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Content by Status</h2>
               <ContentBarChart counts={contentStatusCounts} />
             </motion.div>
           </div>
 
-          {/* G. Upcoming Tasks */}
+          {/* Upcoming Tasks */}
           <motion.div custom={7} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 24px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Upcoming Tasks</h2>
-              <Link href="/tasks" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+              <Link href="/tasks" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 500 }}>
                 View all <ArrowRight size={12} />
               </Link>
             </div>
             {upcomingTasks.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No upcoming tasks 🎉</p>
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <CheckCircle2 size={28} style={{ color: "var(--success)", margin: "0 auto 8px" }} />
+                <p style={{ color: "var(--text-muted)", fontSize: 13 }}>No upcoming tasks 🎉</p>
+              </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <AnimatePresence>
                   {upcomingTasks.map((task, i) => (
                     <motion.div
@@ -403,13 +446,13 @@ export default function DashboardPage() {
                       transition={{ delay: i * 0.05 }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 14px", borderRadius: "var(--radius-md)",
+                        padding: "10px 14px", borderRadius: 12,
                         background: "var(--surface-2)", border: "1px solid var(--border)",
                       }}
                     >
                       <div style={{
                         width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                        background: task.priority === "high" ? "var(--error)" : task.priority === "medium" ? "var(--warning)" : "var(--text-muted)",
+                        background: task.priority === "high" ? "#EF4444" : task.priority === "medium" ? "#F59E0B" : "var(--text-muted)",
                       }} />
                       <span style={{ flex: 1, fontSize: 13, color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {task.title}
@@ -418,9 +461,6 @@ export default function DashboardPage() {
                       <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
                         <Calendar size={11} />
                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
-                      </span>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {task.assigneeName ?? task.assignee ?? "—"}
                       </span>
                     </motion.div>
                   ))}
@@ -431,44 +471,44 @@ export default function DashboardPage() {
         </div>
 
         {/* ── RIGHT COLUMN ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
 
-          {/* D. Quick Actions */}
-          <motion.div custom={1} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 20px" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Quick Actions</h2>
+          {/* Quick Actions */}
+          <motion.div custom={1} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px" }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Quick Actions</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {[
-                { label: "New Content", href: "/content", icon: FilePlus2, color: "#4f8ef7", bg: "rgba(79,142,247,0.1)" },
-                { label: "New Task", href: "/tasks", icon: Plus, color: "#34d399", bg: "rgba(52,211,153,0.1)" },
-                { label: "New Client", href: "/clients", icon: Users, color: "#a78bfa", bg: "rgba(167,139,250,0.1)" },
-                { label: "Reports", href: "/reports", icon: BarChart3, color: "#fbbf24", bg: "rgba(251,191,36,0.1)" },
+                { label: "New Content", href: "/content", icon: FilePlus2, color: "#4F8CFF", bg: "rgba(79,140,255,0.10)" },
+                { label: "New Task", href: "/tasks", icon: Plus, color: "#10B981", bg: "rgba(16,185,129,0.10)" },
+                { label: "New Client", href: "/clients", icon: Users, color: "#818CF8", bg: "rgba(129,140,248,0.10)" },
+                { label: "Reports", href: "/reports", icon: BarChart3, color: "#F59E0B", bg: "rgba(245,158,11,0.10)" },
               ].map(({ label, href, icon: Icon, color, bg }) => (
                 <Link key={href} href={href} style={{ textDecoration: "none" }}>
                   <motion.div
                     whileHover={{ scale: 1.04, y: -2 }}
                     whileTap={{ scale: 0.97 }}
                     style={{
-                      padding: "14px 12px", borderRadius: "var(--radius-md)",
+                      padding: "14px 12px", borderRadius: 12,
                       background: bg, border: `1px solid ${color}22`,
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
                       cursor: "pointer",
                     }}
                   >
                     <Icon size={20} style={{ color }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", textAlign: "center" }}>{label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)", textAlign: "center" }}>{label}</span>
                   </motion.div>
                 </Link>
               ))}
             </div>
           </motion.div>
 
-          {/* E. Activity Feed */}
-          <motion.div custom={2} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 20px" }}>
+          {/* Activity Feed */}
+          <motion.div custom={2} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Activity</h2>
-              <TrendingUp size={15} style={{ color: "var(--accent)" }} />
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Activity</h2>
+              <TrendingUp size={14} style={{ color: "var(--accent)" }} />
             </div>
-            <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
               <AnimatePresence>
                 {recentActivities.length === 0 ? (
                   <p style={{ color: "var(--text-muted)", fontSize: 12, textAlign: "center", padding: "16px 0" }}>No recent activity</p>
@@ -485,11 +525,11 @@ export default function DashboardPage() {
                         style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
                       >
                         <div style={{
-                          width: 28, height: 28, borderRadius: "var(--radius-sm)",
+                          width: 28, height: 28, borderRadius: 8,
                           background: `${color}18`, display: "flex", alignItems: "center",
                           justifyContent: "center", flexShrink: 0, marginTop: 1,
                         }}>
-                          <Icon size={13} style={{ color }} />
+                          <Icon size={12} style={{ color }} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500, margin: 0, lineHeight: 1.4 }}>{act.message}</p>
@@ -505,21 +545,21 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-          {/* H. Pending Approvals Preview */}
-          <motion.div custom={3} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px 20px" }}>
+          {/* Pending Approvals Preview */}
+          <motion.div custom={3} variants={fade} initial="hidden" animate="show" className="premium-card" style={{ padding: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Pending Approvals</h2>
-              <Link href="/approvals" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Pending Approvals</h2>
+              <Link href="/approvals" style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 500 }}>
                 View all <ArrowRight size={12} />
               </Link>
             </div>
             {pendingApprovalPreview.length === 0 ? (
               <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <CheckCircle2 size={28} style={{ color: "var(--success)", margin: "0 auto 8px" }} />
+                <CheckCircle2 size={28} style={{ color: "#10B981", margin: "0 auto 8px" }} />
                 <p style={{ color: "var(--text-muted)", fontSize: 12 }}>All approvals are up to date</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {pendingApprovalPreview.map((approval, i) => (
                   <motion.div
                     key={approval.id}
@@ -527,28 +567,31 @@ export default function DashboardPage() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.06 }}
                     style={{
-                      padding: "10px 12px", borderRadius: "var(--radius-md)",
+                      padding: "10px 12px", borderRadius: 12,
                       background: "var(--surface-2)", border: "1px solid var(--border)",
                       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500, margin: 0,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>
                         {contentItems.find(ci => ci.id === approval.contentItemId)?.title ?? `#${approval.contentItemId.slice(0, 8)}`}
                       </p>
-                      <Badge
-                        label={approval.status === "pending_internal" ? "Internal" : "Client"}
-                        color={approval.status === "pending_internal" ? "yellow" : "blue"}
-                      />
+                      <div style={{ marginTop: 4 }}>
+                        <Badge
+                          label={approval.status === "pending_internal" ? "Internal" : "Client"}
+                          color={approval.status === "pending_internal" ? "yellow" : "blue"}
+                        />
+                      </div>
                     </div>
                     <Link href="/approvals" style={{ textDecoration: "none" }}>
                       <motion.span
                         whileHover={{ scale: 1.05 }}
                         style={{
                           fontSize: 11, fontWeight: 600, color: "var(--accent)",
-                          background: "rgba(79,142,247,0.1)", padding: "4px 10px",
-                          borderRadius: "var(--radius-sm)", cursor: "pointer", whiteSpace: "nowrap",
+                          background: "rgba(79,140,255,0.10)", padding: "5px 10px",
+                          borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap",
+                          border: "1px solid rgba(79,140,255,0.20)",
                         }}
                       >
                         Review
@@ -560,21 +603,21 @@ export default function DashboardPage() {
             )}
           </motion.div>
 
-          {/* Attention summary card */}
+          {/* Attention warning */}
           {attentionCount > 0 && (
             <motion.div custom={8} variants={fade} initial="hidden" animate="show"
               style={{
-                padding: "14px 16px", borderRadius: "var(--radius-md)",
-                background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.2)",
+                padding: "14px 16px", borderRadius: 12,
+                background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.20)",
                 display: "flex", alignItems: "center", gap: 10,
               }}
             >
-              <AlertCircle size={16} style={{ color: "var(--warning)", flexShrink: 0 }} />
+              <AlertCircle size={15} style={{ color: "#F59E0B", flexShrink: 0 }} />
               <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
-                <strong style={{ color: "var(--warning)" }}>{overdueCount} overdue task{overdueCount !== 1 ? "s" : ""}</strong>
+                {overdueCount > 0 && <><strong style={{ color: "#F59E0B" }}>{overdueCount} overdue task{overdueCount !== 1 ? "s" : ""}</strong></>}
                 {overdueCount > 0 && pendingApprovals.length > 0 && " and "}
                 {pendingApprovals.length > 0 && (
-                  <strong style={{ color: "var(--warning)" }}>{pendingApprovals.length} pending approval{pendingApprovals.length !== 1 ? "s" : ""}</strong>
+                  <strong style={{ color: "#F59E0B" }}>{pendingApprovals.length} pending approval{pendingApprovals.length !== 1 ? "s" : ""}</strong>
                 )} require attention.
               </p>
             </motion.div>
