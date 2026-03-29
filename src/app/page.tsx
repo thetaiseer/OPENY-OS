@@ -109,21 +109,17 @@ function DonutChart({ segments, total }: { segments: DonutSegment[]; total: numb
               fill="none"
               stroke={seg.color}
               strokeWidth={strokeWidth}
-              strokeWidth={11}
               strokeDasharray={`${dashArray} ${circumference - dashArray}`}
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
               initial={{ strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${dashArray} ${circumference - dashArray}` }}
-              transition={{ duration: 0.75, delay: i * 0.12, ease: "easeOut" }}
               transition={{ duration: 0.8, delay: i * 0.12, ease: "easeOut" }}
             />
           );
         })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{total}</span>
-        <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>items</span>
         <span className="text-sm font-bold leading-none" style={{ color: "var(--text-primary)" }}>{total}</span>
         <span className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>total</span>
       </div>
@@ -594,9 +590,6 @@ export default function DashboardPage() {
         {[
           {
             label: t("dashboard.totalClients"),
-            value: totalClientCount,
-            icon: Users,
-            change: `+${totalClientCount}`,
             value: clients.length,
             icon: Users,
             change: `+${clients.length}`,
@@ -622,10 +615,7 @@ export default function DashboardPage() {
             value: publishedThisMonth,
             icon: Activity,
             change: `+${publishedThisMonth}`,
-            value: pendingApprovals.length,
-            icon: ClipboardCheck,
-            change: `${pendingApprovals.length}`,
-            positive: pendingApprovals.length === 0,
+            positive: true,
           },
           {
             label: "Total Content",
@@ -660,6 +650,64 @@ export default function DashboardPage() {
                   {t("dashboard.tasksCompletedThis")}{" "}
                   {period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}
                 </p>
+              </div>
+              {/* Period toggle */}
+              <div className="flex items-center gap-1 rounded-lg overflow-hidden" style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}>
+                {(["week", "month"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className="px-3 py-1 text-xs font-semibold transition-all"
+                    style={{
+                      background: period === p ? "var(--accent)" : "transparent",
+                      color: period === p ? "#fff" : "var(--text-muted)",
+                    }}
+                  >
+                    {p === "week" ? t("dashboard.week") : t("dashboard.month")}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <BarChart data={chartData} isRTL={isRTL} />
+            <div className="flex items-center justify-around mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="text-center">
+                <p className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{chartTotal}</p>
+                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t("dashboard.total")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{chartAvg}</p>
+                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t("dashboard.avgPerDay")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{peakDayLabel}</p>
+                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t("dashboard.peakDay")}</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Content status donut */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("dashboard.contentStatus")}</p>
+            <div className="flex items-center gap-4">
+              <DonutChart segments={donutSegments.slice(0, 4)} total={contentStats.total} />
+              <div className="flex-1 space-y-2">
+                {donutSegments.slice(0, 4).map((seg) => (
+                  <div key={seg.label} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ background: seg.color }} />
+                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{seg.label}</span>
+                    </div>
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{seg.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </motion.div>
+
       {/* ── Main two-column layout ────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
 
@@ -1221,6 +1269,11 @@ export default function DashboardPage() {
                     </Link>
                   );
                 })}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
         {/* Team Workload */}
         <motion.div variants={itemVariants}>
           <Card>

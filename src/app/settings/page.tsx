@@ -8,9 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { NotificationPreferencesPanel } from "@/components/ui/NotificationPreferencesPanel";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { useLanguage } from "@/lib/LanguageContext";
+import { useLanguage, type Language } from "@/lib/LanguageContext";
 import { requestPushPermission } from "@/lib/firebase";
-import type { Language } from "@/lib/LanguageContext";
 
 // ── localStorage keys ──────────────────────────────────────────
 const NOTIF_STORAGE_KEY = "openy_notification_prefs";

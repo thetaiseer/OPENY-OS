@@ -25,9 +25,8 @@ import {
   CheckCircle2,
   Users,
 } from "lucide-react";
-import { useClients } from "@/lib/AppContext";
+import { useClients, useTasks } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useTasks } from "@/lib/AppContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useAssets } from "@/lib/AssetsContext";
 import { useClientNotes } from "@/lib/ClientNotesContext";

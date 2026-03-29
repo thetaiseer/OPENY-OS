@@ -9,8 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { en, ar } from "./translations";
-import type { Translations } from "./translations";
+import { en, ar, type Translations } from "./translations";
 
 // ── Types ─────────────────────────────────────────────────────
 
