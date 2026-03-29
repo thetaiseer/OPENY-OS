@@ -1,12 +1,14 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { Zap, Globe } from "lucide-react";
+import { Globe } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
+import { useTheme } from "@/components/layout/ThemeProvider";
 
 export function TopBar() {
   const pathname = usePathname();
   const { t, language, setLanguage } = useLanguage();
+  const { theme } = useTheme();
 
   const pageTitles: Record<string, string> = {
     "/": t("nav.dashboard"),
@@ -21,7 +23,7 @@ export function TopBar() {
     "/settings": t("nav.settings"),
   };
 
-  const title = pageTitles[pathname] || "OPENY OS";
+  const title = pageTitles[pathname];
   
   return (
     <header
@@ -29,10 +31,15 @@ export function TopBar() {
       style={{ background: 'rgba(17,17,24,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
     >
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
-          <Zap size={14} color="white" fill="white" />
-        </div>
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        <img
+          src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+          alt="OPENY OS"
+          height={30}
+          style={{ height: 30, width: "auto", objectFit: "contain" }}
+        />
+        {title && (
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {/* Language switcher */}

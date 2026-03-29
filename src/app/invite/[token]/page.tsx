@@ -5,8 +5,9 @@
 // ============================================================
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { Zap, CheckCircle, XCircle, Clock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { useInvitations } from "@/lib/InvitationContext";
+import { useTheme } from "@/components/layout/ThemeProvider";
 import type { Invitation } from "@/lib/types";
 
 // ── State types ───────────────────────────────────────────────
@@ -36,6 +37,7 @@ function formatDate(iso: string): string {
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const { getInvitationByToken, acceptInvitation } = useInvitations();
+  const { theme } = useTheme();
   const [state, setState] = useState<PageState>({ phase: "loading" });
 
   useEffect(() => {
@@ -105,20 +107,15 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--accent)" }}
-          >
-            <Zap size={17} color="white" fill="white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-              OPENY OS
-            </p>
-            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-              Team Invitation
-            </p>
-          </div>
+          <img
+            src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+            alt="OPENY OS"
+            height={36}
+            style={{ height: 36, width: "auto", objectFit: "contain" }}
+          />
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            Team Invitation
+          </p>
         </div>
 
         {/* Content */}

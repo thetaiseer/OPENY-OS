@@ -1,12 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users2, UserCircle, CheckSquare, Settings2, Zap, Globe, CalendarDays, ClipboardCheck, ImageIcon, BarChart2, Send, DollarSign } from "lucide-react";
+import { LayoutDashboard, Users2, UserCircle, CheckSquare, Settings2, Globe, CalendarDays, ClipboardCheck, ImageIcon, BarChart2, Send, DollarSign } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useTheme } from "@/components/layout/ThemeProvider";
 
 export function SideNav() {
   const pathname = usePathname();
   const { t, language, setLanguage, isRTL } = useLanguage();
+  const { theme } = useTheme();
 
   const navItems = [
     { href: "/", label: t("nav.dashboard"), icon: LayoutDashboard },
@@ -33,14 +35,13 @@ export function SideNav() {
       }}
     >
       <div className="px-5 pt-6 pb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)' }}>
-            <Zap size={16} color="white" fill="white" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>OPENY OS</p>
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>v2.0</p>
-          </div>
+        <div className="flex items-center">
+          <img
+            src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+            alt="OPENY OS"
+            height={36}
+            style={{ height: 36, width: "auto", objectFit: "contain" }}
+          />
         </div>
       </div>
       
