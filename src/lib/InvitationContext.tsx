@@ -24,7 +24,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Invitation, InvitationStatus } from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -67,7 +67,7 @@ async function writeActivity(
   entityId: string
 ): Promise<void> {
   try {
-    await addDoc(collection(db, "activities"), {
+    await addDoc(wsCol("activities"), {
       type,
       message,
       detail,
@@ -75,7 +75,7 @@ async function writeActivity(
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.warn("[OPENY] Failed to write activity:", err);
+    console.error("[OPENY] Failed to write activity:", err);
   }
 }
 
@@ -86,7 +86,7 @@ async function writeNotification(
   entityId: string
 ): Promise<void> {
   try {
-    await addDoc(collection(db, "notifications"), {
+    await addDoc(wsCol("notifications"), {
       type,
       title,
       message,
@@ -95,7 +95,7 @@ async function writeNotification(
       createdAt: new Date().toISOString(),
     });
   } catch (err) {
-    console.warn("[OPENY] Failed to write notification:", err);
+    console.error("[OPENY] Failed to write notification:", err);
   }
 }
 
@@ -125,7 +125,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
 
   useEffect(() => {
-    const q = query(collection(db, "invitations"), orderBy("createdAt", "desc"));
+    const q = query(wsCol("invitations"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -163,7 +163,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       });
 
       // Create invitation document
-      const docRef = await addDoc(collection(db, "invitations"), {
+      const docRef = await addDoc(wsCol("invitations"), {
         email: data.email,
         name: displayName !== data.email.split("@")[0] ? displayName : null,
         firstName: data.firstName ?? null,
@@ -196,6 +196,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       );
 
       // Send email via Firestore mail collection (Firebase Trigger Email extension)
+      // NOTE: mail collection stays at root level (required by Firebase extension)
       const appUrl =
         typeof window !== "undefined"
           ? `${window.location.origin}/accept-invite?token=${token}`
@@ -232,7 +233,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
     const email = inv?.email ?? "";
     const now = new Date().toISOString();
 
-    await updateDoc(doc(db, "invitations", id), {
+    await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", id), {
       status: "cancelled" as InvitationStatus,
       cancelledAt: now,
     });
@@ -255,7 +256,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getInvitationByToken = useCallback(async (token: string): Promise<Invitation | null> => {
-    const q = query(collection(db, "invitations"), where("token", "==", token));
+    const q = query(wsCol("invitations"), where("token", "==", token));
     const snap = await getDocs(q);
     if (snap.empty) return null;
     const d = snap.docs[0];
@@ -274,7 +275,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       const nowISO = now.toISOString();
 
       if (new Date(invitation.expiresAt) < now) {
-        await updateDoc(doc(db, "invitations", invitation.id), {
+        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", invitation.id), {
           status: "expired" as InvitationStatus,
         });
         await writeActivity(
@@ -293,19 +294,19 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       }
 
       // Update invitation status
-      await updateDoc(doc(db, "invitations", invitation.id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", invitation.id), {
         status: "accepted" as InvitationStatus,
         acceptedAt: nowISO,
       });
 
       // Prevent duplicate team members by checking existing email
-      const teamQuery = query(collection(db, "team"), where("email", "==", invitation.email));
+      const teamQuery = query(wsCol("team"), where("email", "==", invitation.email));
       const teamSnap = await getDocs(teamQuery);
 
       if (teamSnap.empty) {
         const memberName = deriveMemberName(invitation);
 
-        const memberRef = await addDoc(collection(db, "team"), {
+        const memberRef = await addDoc(wsCol("team"), {
           name: memberName,
           role: invitation.role,
           email: invitation.email,

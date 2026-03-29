@@ -7,8 +7,17 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  collection,
+  type CollectionReference,
+  type DocumentData,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+
+// ── Workspace scope ──────────────────────────────────────────
+// All business data is stored under workspaces/{workspaceId}/*
+// so that it is scoped, persists across devices, and never
+// conflicts with root-level system collections.
+export const DEFAULT_WORKSPACE_ID = "default";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhXa5gLCMIIxuFIAj0RFeFEvAcE5TiilY",
@@ -46,6 +55,21 @@ function createDb() {
 
 export const db = createDb();
 export const auth = getAuth(app);
+
+// ── Workspace collection helper ──────────────────────────────
+// Returns a typed Firestore CollectionReference scoped to the
+// default workspace.  Use this everywhere instead of calling
+// collection(db, "collectionName") directly so that all data
+// lives under the same workspace path and is visible on every
+// device.
+//
+// Usage:  wsCol("clients")
+//      -> collection(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients")
+export function wsCol(
+  collectionName: string
+): CollectionReference<DocumentData> {
+  return collection(db, "workspaces", DEFAULT_WORKSPACE_ID, collectionName);
+}
 
 // Analytics – only initialised on the client to avoid SSR issues.
 export async function getAnalyticsInstance() {

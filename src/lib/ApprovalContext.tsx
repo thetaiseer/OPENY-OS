@@ -13,7 +13,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -22,7 +21,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Approval, ApprovalComment, ApprovalWorkflowStatus } from "./types";
 
 // ── Context shape ─────────────────────────────────────────────
@@ -55,7 +54,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, "approvals"), orderBy("createdAt", "desc")),
+      query(wsCol("approvals"), orderBy("createdAt", "desc")),
       (snap) => {
         setApprovals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Approval)));
         setLoading(false);
@@ -70,7 +69,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
 
   const createApproval = useCallback(async (data: CreateApprovalData): Promise<string> => {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "approvals"), {
+    const docRef = await addDoc(wsCol("approvals"), {
       contentItemId: data.contentItemId,
       clientId: data.clientId,
       status: data.status ?? "pending_internal",
@@ -85,7 +84,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
 
   const updateApproval = useCallback(
     async (id: string, data: Partial<Omit<Approval, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "approvals", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
         ...data,
         updatedAt: new Date().toISOString(),
       });
@@ -98,7 +97,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
       const approval = approvals.find((a) => a.id === id);
       if (!approval) return;
       const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
-      await updateDoc(doc(db, "approvals", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
         internalComments: [...(approval.internalComments ?? []), newComment],
         updatedAt: new Date().toISOString(),
       });
@@ -111,7 +110,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
       const approval = approvals.find((a) => a.id === id);
       if (!approval) return;
       const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
-      await updateDoc(doc(db, "approvals", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
         clientComments: [...(approval.clientComments ?? []), newComment],
         updatedAt: new Date().toISOString(),
       });
@@ -121,7 +120,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
 
   const updateApprovalStatus = useCallback(
     async (id: string, status: ApprovalWorkflowStatus) => {
-      await updateDoc(doc(db, "approvals", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
         status,
         updatedAt: new Date().toISOString(),
       });
@@ -130,7 +129,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteApproval = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "approvals", id));
+    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id));
   }, []);
 
   const value: ApprovalContextValue = useMemo(

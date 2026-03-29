@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -19,7 +18,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Asset, AssetType } from "./types";
 
 export type CreateAssetData = {
@@ -51,7 +50,7 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, "assets"), orderBy("createdAt", "desc")),
+      query(wsCol("assets"), orderBy("createdAt", "desc")),
       (snap) => {
         setAssets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Asset)));
         setLoading(false);
@@ -66,7 +65,7 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
 
   const createAsset = useCallback(async (data: CreateAssetData): Promise<string> => {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "assets"), {
+    const docRef = await addDoc(wsCol("assets"), {
       clientId: data.clientId,
       name: data.name,
       type: data.type,
@@ -85,7 +84,7 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
 
   const updateAsset = useCallback(
     async (id: string, data: Partial<Omit<Asset, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "assets", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "assets", id), {
         ...data,
         updatedAt: new Date().toISOString(),
       });
@@ -94,7 +93,7 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteAsset = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "assets", id));
+    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "assets", id));
   }, []);
 
   const value: AssetsContextValue = useMemo(

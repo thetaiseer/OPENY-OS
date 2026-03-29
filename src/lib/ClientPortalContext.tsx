@@ -14,7 +14,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   doc,
@@ -23,7 +22,7 @@ import {
   where,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   ContentItem,
   Approval,
@@ -90,7 +89,7 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
     // Content items for this client (only client-safe statuses)
     const contentUnsub = onSnapshot(
       query(
-        collection(db, "contentItems"),
+        wsCol("contentItems"),
         where("clientId", "==", clientId),
         orderBy("createdAt", "desc")
       ),
@@ -120,7 +119,7 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
     // Approvals for this client
     const approvalsUnsub = onSnapshot(
       query(
-        collection(db, "approvals"),
+        wsCol("approvals"),
         where("clientId", "==", clientId),
         orderBy("createdAt", "desc")
       ),
@@ -145,7 +144,7 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
     // Assets for this client
     const assetsUnsub = onSnapshot(
       query(
-        collection(db, "assets"),
+        wsCol("assets"),
         where("clientId", "==", clientId),
         orderBy("createdAt", "desc")
       ),
@@ -195,9 +194,9 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
           newComment,
         ];
       }
-      await updateDoc(doc(db, "approvals", approvalId), updateData);
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), updateData);
       // Log activity
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "post_approved_by_client",
         message: `Post approved by client: ${clientData?.name ?? "Client"}`,
         detail: `Approval ${approvalId}`,
@@ -205,7 +204,7 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
         timestamp: now,
       });
       // Push notification
-      await addDoc(collection(db, "notifications"), {
+      await addDoc(wsCol("notifications"), {
         type: "client_approved",
         title: "Client Approved",
         message: `${clientData?.name ?? "Client"} approved a content item`,
@@ -231,19 +230,19 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
         isInternal: false,
         createdAt: now,
       };
-      await updateDoc(doc(db, "approvals", approvalId), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), {
         status: "rejected",
         clientComments: [...(approval?.clientComments ?? []), newComment],
         updatedAt: now,
       });
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "publishing_failed",
         message: `Post rejected by client: ${clientData?.name ?? "Client"}`,
         detail: reason,
         entityId: approvalId,
         timestamp: now,
       });
-      await addDoc(collection(db, "notifications"), {
+      await addDoc(wsCol("notifications"), {
         type: "client_rejected",
         title: "Client Rejected",
         message: `${clientData?.name ?? "Client"} rejected a content item`,
@@ -269,19 +268,19 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
         isInternal: false,
         createdAt: now,
       };
-      await updateDoc(doc(db, "approvals", approvalId), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), {
         status: "revision_requested",
         clientComments: [...(approval?.clientComments ?? []), newComment],
         updatedAt: now,
       });
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "client_requested_changes",
         message: `Client requested changes: ${clientData?.name ?? "Client"}`,
         detail: note,
         entityId: approvalId,
         timestamp: now,
       });
-      await addDoc(collection(db, "notifications"), {
+      await addDoc(wsCol("notifications"), {
         type: "client_requested_changes",
         title: "Changes Requested",
         message: `${clientData?.name ?? "Client"} requested changes`,

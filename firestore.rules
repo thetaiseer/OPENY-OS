@@ -12,79 +12,88 @@ rules_version = '2';
 //      verify `request.auth != null` and validate data fields.
 //   3. Run `firebase deploy --only firestore:rules` to deploy.
 //
-// Without this file deployed, Firebase may fall back to its
-// default test-mode rules which expire and block all access.
+// All business data lives under:
+//   workspaces/{workspaceId}/{collection}/{docId}
+//
+// System collections (mail, fcmTokens) remain at root level
+// because they are managed by Firebase extensions.
 // ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Core entity collections ──────────────────────────────
-    // All collections used by OPENY OS are opened for read/write
-    // until authentication is implemented.
+    // ── Workspace-scoped business data ───────────────────────
+    // All OPENY OS data is stored under workspaces/{workspaceId}
+    // so it is device-agnostic and workspace-scoped.
 
-    match /clients/{docId} {
+    match /workspaces/{workspaceId} {
       allow read, write: if true;
-    }
 
-    match /tasks/{docId} {
-      allow read, write: if true;
-    }
+      match /clients/{docId} {
+        allow read, write: if true;
+      }
 
-    match /team/{docId} {
-      allow read, write: if true;
-    }
+      match /tasks/{docId} {
+        allow read, write: if true;
+      }
 
-    match /activities/{docId} {
-      allow read, write: if true;
-    }
+      match /team/{docId} {
+        allow read, write: if true;
+      }
 
-    match /contentItems/{docId} {
-      allow read, write: if true;
-    }
+      match /activities/{docId} {
+        allow read, write: if true;
+      }
 
-    match /approvals/{docId} {
-      allow read, write: if true;
-    }
+      match /contentItems/{docId} {
+        allow read, write: if true;
+      }
 
-    match /assets/{docId} {
-      allow read, write: if true;
-    }
+      match /approvals/{docId} {
+        allow read, write: if true;
+      }
 
-    match /clientNotes/{docId} {
-      allow read, write: if true;
-    }
+      match /assets/{docId} {
+        allow read, write: if true;
+      }
 
-    match /bankEntries/{docId} {
-      allow read, write: if true;
-    }
+      match /clientNotes/{docId} {
+        allow read, write: if true;
+      }
 
-    match /notifications/{docId} {
-      allow read, write: if true;
-    }
+      match /bankEntries/{docId} {
+        allow read, write: if true;
+      }
 
-    match /invitations/{docId} {
-      allow read, write: if true;
-    }
+      match /notifications/{docId} {
+        allow read, write: if true;
+      }
 
-    match /publishingEvents/{docId} {
-      allow read, write: if true;
-    }
+      match /invitations/{docId} {
+        allow read, write: if true;
+      }
 
-    match /publishingFailures/{docId} {
-      allow read, write: if true;
-    }
+      match /publishingEvents/{docId} {
+        allow read, write: if true;
+      }
 
-    match /userNotificationPreferences/{docId} {
-      allow read, write: if true;
+      match /publishingFailures/{docId} {
+        allow read, write: if true;
+      }
+
+      match /userNotificationPreferences/{docId} {
+        allow read, write: if true;
+      }
     }
 
     // ── Firebase Trigger Email extension ────────────────────
+    // Stays at root level – required by the extension.
     match /mail/{docId} {
       allow read, write: if true;
     }
 
     // ── FCM push tokens ──────────────────────────────────────
+    // Stays at root level – shared across workspaces.
     match /fcmTokens/{docId} {
       allow read, write: if true;
     }
