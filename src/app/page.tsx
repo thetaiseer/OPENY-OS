@@ -2,9 +2,9 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Users, CheckSquare, Activity, BarChart3, Plus, Zap,
-  AlertCircle, ClipboardCheck, Send, FileText, TrendingUp,
-  ArrowRight, Circle,
+  Users, CheckSquare, BarChart3,
+  ClipboardCheck, FileText, TrendingUp,
+  Circle, Calendar, ChevronRight, Layers, Activity,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -14,9 +14,9 @@ import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useContentItems } from "@/lib/ContentContext";
-import type { ActivityType } from "@/lib/types";
+import type { ActivityType, ContentPlatform } from "@/lib/types";
 
-// ── Stagger animation helpers ────────────────────────────────
+// ── Animation helpers ────────────────────────────────────────
 
 const containerVariants = {
   hidden: {},
@@ -27,10 +27,12 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 380, damping: 30 } },
 };
 
-// ── Animated bar chart ───────────────────────────────────────
+// ── Day labels ───────────────────────────────────────────────
 
 const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_AR = ["إث", "ثل", "أر", "خم", "جم", "سب", "أح"];
+
+// ── Animated bar chart ───────────────────────────────────────
 
 function BarChart({ data, isRTL }: { data: number[]; isRTL: boolean }) {
   const max = Math.max(...data, 1);
@@ -38,22 +40,24 @@ function BarChart({ data, isRTL }: { data: number[]; isRTL: boolean }) {
   const peak = data.indexOf(Math.max(...data));
 
   return (
-    <div className="flex items-end gap-1.5 h-28" style={{ direction: "ltr" }}>
+    <div className="flex items-end gap-2 h-32" style={{ direction: "ltr" }}>
       {data.map((v, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-          <motion.div
-            className="w-full rounded-t-lg"
-            style={{
-              background: i === peak
-                ? "linear-gradient(180deg, var(--accent) 0%, rgba(79,142,247,0.5) 100%)"
-                : "var(--glass-overlay-border)",
-              minHeight: 4,
-              boxShadow: i === peak ? "0 0 12px rgba(79,142,247,0.35)" : "none",
-            }}
-            initial={{ height: 0 }}
-            animate={{ height: `${(v / max) * 100}%` }}
-            transition={{ duration: 0.5, delay: i * 0.05, ease: [0.34, 1.1, 0.64, 1] }}
-          />
+          <div className="w-full relative flex items-end" style={{ height: "100px" }}>
+            <motion.div
+              className="w-full rounded-t-md"
+              style={{
+                background: i === peak
+                  ? "linear-gradient(180deg, var(--accent) 0%, rgba(79,142,247,0.45) 100%)"
+                  : "rgba(255,255,255,0.07)",
+                minHeight: 4,
+                boxShadow: i === peak ? "0 0 14px rgba(79,142,247,0.4)" : "none",
+              }}
+              initial={{ height: 0 }}
+              animate={{ height: `${(v / max) * 100}%` }}
+              transition={{ duration: 0.55, delay: i * 0.05, ease: [0.34, 1.1, 0.64, 1] }}
+            />
+          </div>
           <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>{days[i]}</span>
         </div>
       ))}
@@ -61,21 +65,23 @@ function BarChart({ data, isRTL }: { data: number[]; isRTL: boolean }) {
   );
 }
 
-// ── Donut chart for content status ──────────────────────────
+// ── Donut / ring chart ───────────────────────────────────────
 
 interface DonutSegment { value: number; color: string; label: string }
 
 function DonutChart({ segments, total }: { segments: DonutSegment[]; total: number }) {
-  const size = 80;
-  const radius = 30;
+  const size = 96;
+  const radius = 36;
+  const strokeWidth = 11;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={10} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} />
         {total === 0 ? null : segments.map((seg, i) => {
+          if (seg.value === 0) return null;
           const dashArray = (seg.value / total) * circumference;
           const dashOffset = circumference - offset;
           offset += dashArray;
@@ -85,25 +91,26 @@ function DonutChart({ segments, total }: { segments: DonutSegment[]; total: numb
               cx={size / 2} cy={size / 2} r={radius}
               fill="none"
               stroke={seg.color}
-              strokeWidth={10}
+              strokeWidth={strokeWidth}
               strokeDasharray={`${dashArray} ${circumference - dashArray}`}
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
               initial={{ strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${dashArray} ${circumference - dashArray}` }}
-              transition={{ duration: 0.7, delay: i * 0.1, ease: "easeOut" }}
+              transition={{ duration: 0.75, delay: i * 0.12, ease: "easeOut" }}
             />
           );
         })}
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{total}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{total}</span>
+        <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>items</span>
       </div>
     </div>
   );
 }
 
-// ── Activity colors ──────────────────────────────────────────
+// ── Activity colours ─────────────────────────────────────────
 
 const activityColors: Record<ActivityType, string> = {
   client_added:             "#4f8ef7",
@@ -129,6 +136,32 @@ const activityColors: Record<ActivityType, string> = {
   publishing_simulated:     "#8888a0",
 };
 
+// ── Platform colour badge ────────────────────────────────────
+
+const PLATFORM_COLORS: Partial<Record<ContentPlatform, string>> = {
+  Instagram:  "#e1306c",
+  Facebook:   "#1877f2",
+  YouTube:    "#ff0000",
+  LinkedIn:   "#0a66c2",
+  X:          "#1da1f2",
+  TikTok:     "#69c9d0",
+  Snapchat:   "#fbbf24",
+};
+
+function PlatformDot({ platform }: { platform: ContentPlatform }) {
+  const color = PLATFORM_COLORS[platform] ?? "var(--text-secondary)";
+  return (
+    <span
+      className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold"
+      style={{ background: `${color}22`, color, border: `1px solid ${color}44` }}
+    >
+      {platform[0]}
+    </span>
+  );
+}
+
+// ── Relative time ────────────────────────────────────────────
+
 function relativeTime(iso: string, t: (k: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
@@ -138,6 +171,8 @@ function relativeTime(iso: string, t: (k: string) => string): string {
   if (hrs < 24) return `${hrs}${t("common.hrAgo")}`;
   return `${Math.floor(hrs / 24)}${t("common.dayAgo")}`;
 }
+
+// ── Date helpers ─────────────────────────────────────────────
 
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
@@ -155,17 +190,52 @@ function getPeakDayLabel(data: number[], isRTL: boolean): string {
   return days[peakIndex] ?? "—";
 }
 
+function formatScheduledDate(dateStr: string, timeStr: string, language: string): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(`${dateStr}${timeStr ? "T" + timeStr : ""}`);
+    return d.toLocaleDateString(language === "ar" ? "ar-SA" : "en-US", {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+// ── Priority badge colour ────────────────────────────────────
+
+function priorityColor(priority: string): "red" | "yellow" | "gray" {
+  if (priority === "high") return "red";
+  if (priority === "medium") return "yellow";
+  return "gray";
+}
+
+// ── Section header ───────────────────────────────────────────
+
+function SectionHeader({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h2>
+      {href && linkLabel && (
+        <Link href={href} className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+          {linkLabel} <ChevronRight size={12} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
 // ── Insight chip ─────────────────────────────────────────────
 
 function InsightChip({ icon: Icon, text, color }: { icon: typeof Circle; text: string; color: string }) {
   return (
     <motion.div
-      className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium"
       style={{ background: `${color}18`, border: `1px solid ${color}28`, color }}
       whileHover={{ scale: 1.03 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
     >
-      <Icon size={13} />
+      <Icon size={12} />
       <span>{text}</span>
     </motion.div>
   );
@@ -177,7 +247,6 @@ export default function DashboardPage() {
   const {
     tasks,
     activities,
-    systemStatuses,
     totalClientCount,
     openTaskCount,
     teamMemberCount,
@@ -188,14 +257,28 @@ export default function DashboardPage() {
 
   const [period, setPeriod] = useState<"week" | "month">("week");
 
+  // ── Greeting ───────────────────────────────────────────────
   const hour = new Date().getHours();
   const greetingKey =
     hour < 12 ? "dashboard.greeting_morning"
     : hour < 17 ? "dashboard.greeting_afternoon"
     : "dashboard.greeting_evening";
+
   const today = new Date().toLocaleDateString(language === "ar" ? "ar-SA" : "en-US", {
-    weekday: "long", month: "long", day: "numeric",
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
+
+  // ── Published this month ───────────────────────────────────
+  const publishedThisMonth = useMemo(() => {
+    const now = new Date();
+    return contentItems.filter((c) => {
+      if (c.status !== "published") return false;
+      const ref = c.publishedAt || c.scheduledDate;
+      if (!ref) return false;
+      const d = new Date(ref);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+  }, [contentItems]);
 
   // ── Task chart data ────────────────────────────────────────
   const { weekData, monthData } = useMemo(() => {
@@ -224,23 +307,27 @@ export default function DashboardPage() {
   const chartAvg = chartTotal ? (chartTotal / 7).toFixed(1) : "0";
   const peakDayLabel = getPeakDayLabel(chartData, isRTL);
 
-  // ── Content status breakdown ────────────────────────────────
+  // ── Content pipeline status ────────────────────────────────
   const DRAFT_STATUSES = ["draft", "idea", "copywriting", "design"] as const;
   const contentStats = useMemo(() => {
     const published   = contentItems.filter((c) => c.status === "published").length;
     const scheduled   = contentItems.filter((c) => c.status === "scheduled" || c.status === "publishing_ready").length;
     const inReview    = contentItems.filter((c) => c.status === "client_review" || c.status === "internal_review").length;
+    const approved    = contentItems.filter((c) => c.status === "approved").length;
     const drafts      = contentItems.filter((c) => (DRAFT_STATUSES as readonly string[]).includes(c.status)).length;
+    const inProgress  = contentItems.filter((c) => c.status === "in_progress").length;
     const total       = contentItems.length;
-    return { published, scheduled, inReview, drafts, total };
+    return { published, scheduled, inReview, approved, drafts, inProgress, total };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentItems]);
 
   const donutSegments = [
-    { value: contentStats.published,  color: "#34d399", label: "Published" },
-    { value: contentStats.scheduled,  color: "#4f8ef7", label: "Scheduled" },
-    { value: contentStats.inReview,   color: "#fbbf24", label: "In Review" },
-    { value: contentStats.drafts,     color: "#8888a0", label: "Drafts" },
+    { value: contentStats.published,  color: "#34d399", label: t("dashboard.statusPublished") },
+    { value: contentStats.scheduled,  color: "#4f8ef7", label: t("dashboard.statusScheduled") },
+    { value: contentStats.approved,   color: "#10b981", label: t("dashboard.statusApproved") },
+    { value: contentStats.inReview,   color: "#fbbf24", label: t("dashboard.statusInReview") },
+    { value: contentStats.inProgress, color: "#a78bfa", label: t("dashboard.statusInProgress") },
+    { value: contentStats.drafts,     color: "#8888a0", label: t("dashboard.statusDrafts") },
   ];
 
   // ── Recent activities ──────────────────────────────────────
@@ -248,23 +335,59 @@ export default function DashboardPage() {
     () =>
       [...activities]
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 6),
+        .slice(0, 8),
     [activities]
   );
 
-  // ── System status ──────────────────────────────────────────
-  const degradedCount = systemStatuses.filter((s) => s.status !== "operational").length;
-  const pendingApprovals = approvals.filter(
-    (a) => a.status === "pending_internal" || a.status === "pending_client"
-  ).length;
+  // ── Pending approvals ──────────────────────────────────────
+  const pendingApprovalsList = useMemo(
+    () => approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client").slice(0, 4),
+    [approvals]
+  );
+  const pendingApprovalsCount = useMemo(
+    () => approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client").length,
+    [approvals]
+  );
 
-  // ── Insights ───────────────────────────────────────────────
+  // ── Upcoming tasks (next 7 days) ───────────────────────────
+  const upcomingTasks = useMemo(() => {
+    const now = new Date();
+    const in7 = new Date(now.getTime() + 7 * 86_400_000);
+    return tasks
+      .filter((t) => {
+        if (t.status === "done") return false;
+        if (!t.dueDate || t.dueDate === "TBD") return false;
+        try {
+          const d = new Date(t.dueDate);
+          return d >= now && d <= in7;
+        } catch { return false; }
+      })
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 5);
+  }, [tasks]);
+
+  // ── Content queue (upcoming scheduled) ────────────────────
+  const contentQueue = useMemo(() => {
+    const now = new Date();
+    return contentItems
+      .filter((c) => {
+        if (!c.scheduledDate) return false;
+        try {
+          const d = new Date(c.scheduledDate);
+          return d >= now && (c.status === "scheduled" || c.status === "publishing_ready" || c.status === "approved");
+        } catch { return false; }
+      })
+      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+      .slice(0, 5);
+  }, [contentItems]);
+
+  // ── Insights row ───────────────────────────────────────────
   const insights = useMemo(() => {
     const list: { icon: typeof Circle; text: string; color: string }[] = [];
-    if (pendingApprovals > 0) {
+    if (pendingApprovalsCount > 0) {
       list.push({
         icon: ClipboardCheck,
-        text: `${pendingApprovals} ${pendingApprovals > 1 ? t("dashboard.insightPendingApprovals") : t("dashboard.insightPendingApproval")}`,
+        text: `${pendingApprovalsCount} ${pendingApprovalsCount > 1 ? t("dashboard.insightPendingApprovals") : t("dashboard.insightPendingApproval")}`,
         color: "#fbbf24",
       });
     }
@@ -278,51 +401,43 @@ export default function DashboardPage() {
         color: "#4f8ef7",
       });
     }
-    if (degradedCount > 0) {
-      list.push({
-        icon: AlertCircle,
-        text: `${degradedCount} ${degradedCount > 1 ? t("dashboard.insightServicesDegraded") : t("dashboard.insightServiceDegraded")}`,
-        color: "#f87171",
-      });
-    }
     if (list.length === 0) {
       list.push({ icon: TrendingUp, text: t("dashboard.insightAllHealthy"), color: "#34d399" });
     }
     return list;
-  }, [pendingApprovals, contentStats.inReview, openTaskCount, degradedCount, t]);
+  }, [pendingApprovalsCount, contentStats.inReview, openTaskCount, t]);
 
-  // ── Quick actions ──────────────────────────────────────────
-  const quickActions = [
-    { label: t("dashboard.newClient"),    href: "/clients",   icon: Users },
-    { label: t("dashboard.newTask"),      href: "/tasks",     icon: CheckSquare },
-    { label: t("dashboard.inviteMember"), href: "/team",      icon: Plus },
-    { label: t("dashboard.viewReports"),  href: "/reports",   icon: BarChart3 },
-    { label: t("nav.approvals"),          href: "/approvals", icon: ClipboardCheck },
-    { label: t("dashboard.settingsLink"), href: "/settings",  icon: Zap },
-  ];
+  // ── Approval status label ──────────────────────────────────
+  function approvalStatusLabel(status: string): string {
+    if (status === "pending_internal") return t("dashboard.approvalPendingInternal");
+    if (status === "pending_client")   return t("dashboard.approvalPendingClient");
+    if (status === "approved")         return t("dashboard.approvalApproved");
+    if (status === "rejected")         return t("dashboard.approvalRejected");
+    if (status === "revision_requested") return t("dashboard.approvalRevision");
+    return status;
+  }
+
+  function approvalStatusColor(status: string): "yellow" | "blue" | "green" | "red" | "gray" {
+    if (status === "pending_internal") return "yellow";
+    if (status === "pending_client")   return "blue";
+    if (status === "approved")         return "green";
+    if (status === "rejected")         return "red";
+    return "gray";
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        className="pt-2"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <h1
-          className="text-3xl font-bold tracking-tight mb-1"
-          style={{ color: "var(--text-primary)" }}
-        >
+    <motion.div
+      className="space-y-6 pb-10"
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+    >
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="pt-1">
+        <h1 className="text-2xl font-bold tracking-tight mb-0.5" style={{ color: "var(--text-primary)" }}>
           {t(greetingKey)}.
         </h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {today}
-          {systemStatuses.length > 0
-            ? ` · ${degradedCount === 0 ? t("dashboard.allOperational") : `${degradedCount} ${degradedCount > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")}`}`
-            : ""}
-        </p>
-        {/* Insights row */}
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>{today}</p>
         {insights.length > 0 && (
           <motion.div
             className="flex flex-wrap gap-2 mt-3"
@@ -339,7 +454,7 @@ export default function DashboardPage() {
         )}
       </motion.div>
 
-      {/* Stat Cards */}
+      {/* ── KPI Cards ───────────────────────────────────────── */}
       <motion.div
         className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4"
         variants={containerVariants}
@@ -347,10 +462,35 @@ export default function DashboardPage() {
         animate="show"
       >
         {[
-          { label: t("dashboard.totalClients"),    value: totalClientCount,  icon: Users,          change: `+${totalClientCount}`,  positive: true,  accent: true },
-          { label: t("dashboard.openTasks"),        value: openTaskCount,     icon: CheckSquare,    change: `${openTaskCount}`,      positive: openTaskCount === 0 },
-          { label: t("dashboard.pendingApprovals"), value: pendingApprovals,  icon: ClipboardCheck, change: `${pendingApprovals}`,   positive: pendingApprovals === 0 },
-          { label: t("dashboard.teamMembers"),      value: teamMemberCount,   icon: Activity,       change: `+${teamMemberCount}`,   positive: true },
+          {
+            label: t("dashboard.totalClients"),
+            value: totalClientCount,
+            icon: Users,
+            change: `+${totalClientCount}`,
+            positive: true,
+            accent: true,
+          },
+          {
+            label: t("dashboard.openTasks"),
+            value: openTaskCount,
+            icon: CheckSquare,
+            change: `${openTaskCount}`,
+            positive: openTaskCount === 0,
+          },
+          {
+            label: t("dashboard.pendingApprovals"),
+            value: pendingApprovalsCount,
+            icon: ClipboardCheck,
+            change: `${pendingApprovalsCount}`,
+            positive: pendingApprovalsCount === 0,
+          },
+          {
+            label: t("dashboard.publishedThisMonth"),
+            value: publishedThisMonth,
+            icon: Activity,
+            change: `+${publishedThisMonth}`,
+            positive: true,
+          },
         ].map((card) => (
           <motion.div key={card.label} variants={itemVariants}>
             <StatCard {...card} />
@@ -358,17 +498,17 @@ export default function DashboardPage() {
         ))}
       </motion.div>
 
-      {/* Charts row */}
+      {/* ── Charts row ──────────────────────────────────────── */}
       <motion.div
         className="grid grid-cols-1 lg:grid-cols-3 gap-4"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        {/* Task activity bar chart */}
+        {/* Activity bar chart */}
         <motion.div variants={itemVariants} className="lg:col-span-2">
           <Card>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                   {t("dashboard.activityOverview")}
@@ -396,265 +536,272 @@ export default function DashboardPage() {
               </div>
             </div>
             <BarChart data={chartData} isRTL={isRTL} />
-            <div
-              className="mt-4 pt-4 flex items-center gap-6"
-              style={{ borderTop: "1px solid var(--border)" }}
-            >
+            <div className="mt-4 pt-4 flex items-center gap-6" style={{ borderTop: "1px solid var(--border)" }}>
               {[
-                { label: `${t("dashboard.totalThis")} ${period === "week" ? t("dashboard.week").toLowerCase() : t("dashboard.month").toLowerCase()}`, value: chartTotal },
-                { label: t("dashboard.avgPerDay"),  value: chartAvg },
-                { label: t("dashboard.peakDay"),    value: peakDayLabel, accent: true },
-              ].map(({ label, value, accent }) => (
-                <div key={label}>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
-                  <p
-                    className="text-lg font-bold mt-0.5"
-                    style={{ color: accent ? "var(--accent)" : "var(--text-primary)" }}
-                  >
-                    {value}
-                  </p>
+                { label: t("dashboard.totalThis") + (period === "week" ? " " + t("dashboard.week") : " " + t("dashboard.month")), value: chartTotal },
+                { label: t("dashboard.avgPerDay"), value: chartAvg },
+                { label: t("dashboard.peakDay"), value: peakDayLabel },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{s.value}</p>
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{s.label}</p>
                 </div>
               ))}
             </div>
           </Card>
         </motion.div>
 
-        {/* Recent activity */}
+        {/* Content pipeline donut */}
         <motion.div variants={itemVariants}>
           <Card className="h-full">
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.recentActivity")}
-            </p>
-            {recentActivities.length === 0 ? (
-              <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-                {t("dashboard.noActivity")}
-              </p>
-            ) : (
-              <motion.div
-                className="space-y-0"
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-              >
-                {recentActivities.map((item, i) => (
-                  <motion.div
-                    key={item.id}
-                    variants={itemVariants}
-                    className="flex items-start gap-3 py-2.5"
-                    style={{
-                      borderBottom:
-                        i < recentActivities.length - 1 ? "1px solid var(--border)" : "none",
-                    }}
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: activityColors[item.type] ?? "#8888a0" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-xs font-medium leading-tight"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {item.message}
-                      </p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                        {item.detail}
-                      </p>
-                    </div>
-                    <span className="text-[10px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>
-                      {relativeTime(item.timestamp, t)}
-                    </span>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* Content status + Quick actions */}
-      <motion.div
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {/* Content breakdown donut */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                {t("dashboard.contentOverview")}
-              </p>
-              <Link
-                href="/content"
-                className="flex items-center gap-1 text-xs"
-                style={{ color: "var(--accent)" }}
-              >
-                {t("dashboard.viewAll")} <ArrowRight size={12} />
-              </Link>
-            </div>
-            <div className="flex items-center gap-6">
+            <SectionHeader title={t("dashboard.contentPipeline")} href="/content" linkLabel={t("dashboard.viewAll")} />
+            <div className="flex items-center gap-5">
               <DonutChart segments={donutSegments} total={contentStats.total} />
-              <div className="flex-1 space-y-2">
-                {donutSegments.map((seg) => (
-                  <div key={seg.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ background: seg.color }} />
-                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {seg.label}
-                      </span>
+              <div className="flex flex-col gap-2 min-w-0 flex-1">
+                {donutSegments.filter((s) => s.value > 0).map((seg) => (
+                  <div key={seg.label} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: seg.color }} />
+                      <span className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{seg.label}</span>
                     </div>
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {seg.value}
-                    </span>
+                    <span className="text-xs font-semibold flex-shrink-0" style={{ color: "var(--text-primary)" }}>{seg.value}</span>
                   </div>
                 ))}
+                {contentStats.total === 0 && (
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("common.noData")}</p>
+                )}
               </div>
             </div>
           </Card>
         </motion.div>
-
-        {/* Quick actions */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.quickActions")}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {quickActions.map(({ label, href, icon: Icon }) => (
-                <motion.div
-                  key={label}
-                  whileHover={{ scale: 1.03, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Link
-                    href={href}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full"
-                    style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
-                  >
-                    <Icon size={14} style={{ color: "var(--accent)" }} />
-                    <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-                      {label}
-                    </span>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
       </motion.div>
 
-      {/* System status + Pending metrics */}
+      {/* ── Recent Activity + Upcoming Tasks ────────────────── */}
       <motion.div
         className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        {/* System status */}
+        {/* Recent Activity feed */}
         <motion.div variants={itemVariants}>
           <Card>
-            <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              {t("dashboard.systemStatus")}
-            </p>
-            {systemStatuses.length === 0 ? (
-              <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-                {t("dashboard.noStatusData")}
-              </p>
+            <SectionHeader title={t("dashboard.recentActivity")} />
+            {recentActivities.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.noActivity")}</p>
             ) : (
-              <div className="space-y-3">
-                {systemStatuses.map(({ name, status, latency }) => {
-                  const ok = status === "operational";
-                  const warn = status === "degraded";
+              <div className="space-y-0">
+                {recentActivities.map((act, i) => {
+                  const color = activityColors[act.type] ?? "#8888a0";
                   return (
-                    <div key={name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <motion.div
-                          className="w-2 h-2 rounded-full"
-                          style={{ background: ok ? "var(--success)" : warn ? "var(--warning)" : "var(--error)" }}
-                          animate={ok ? {} : { scale: [1, 1.4, 1] }}
-                          transition={{ repeat: Infinity, duration: 1.5 }}
-                        />
-                        <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-                          {name}
-                        </span>
+                    <motion.div
+                      key={act.id}
+                      className="flex items-start gap-3 py-2.5"
+                      style={{ borderBottom: i < recentActivities.length - 1 ? "1px solid var(--border)" : "none" }}
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                    >
+                      <span
+                        className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: color, boxShadow: `0 0 6px ${color}55`, marginTop: "5px" }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {act.message}
+                        </p>
+                        {act.detail && (
+                          <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>{act.detail}</p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{latency}</span>
-                        <Badge
-                          label={ok ? t("status.operational") : warn ? t("status.degraded") : t("status.down")}
-                          color={ok ? "green" : warn ? "yellow" : "red"}
-                        />
-                      </div>
-                    </div>
+                      <span className="text-[10px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                        {relativeTime(act.timestamp, t)}
+                      </span>
+                    </motion.div>
                   );
                 })}
               </div>
             )}
-            <div className="mt-4 pt-4 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)" }}>
-              <AlertCircle size={13} style={{ color: degradedCount > 0 ? "var(--warning)" : "var(--success)" }} />
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {degradedCount === 0 && systemStatuses.length > 0
-                  ? t("dashboard.allServicesOperational")
-                  : systemStatuses.length === 0
-                  ? t("dashboard.noStatusDataAvail")
-                  : `${degradedCount} ${degradedCount > 1 ? t("dashboard.servicesDegraded") : t("dashboard.serviceDegraded")} ${t("dashboard.lastCheck")}`}
-              </p>
-            </div>
           </Card>
         </motion.div>
 
-        {/* Pending actions */}
-        <motion.div variants={itemVariants} className="grid grid-rows-2 gap-4">
-          <motion.div whileHover={{ scale: 1.01, y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-            <Link
-              href="/approvals"
-              className="rounded-2xl p-5 flex items-center gap-4 h-full"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex" }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "#f59e0b20" }}
-              >
-                <ClipboardCheck size={20} style={{ color: "#f59e0b" }} />
+        {/* Upcoming tasks */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <SectionHeader title={t("dashboard.upcomingTasks")} href="/tasks" linkLabel={t("dashboard.viewAll")} />
+            {upcomingTasks.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.noUpcomingTasks")}</p>
+            ) : (
+              <div className="space-y-0">
+                {upcomingTasks.map((task, i) => (
+                  <Link
+                    key={task.id}
+                    href="/tasks"
+                    className="flex items-center gap-3 py-2.5 group"
+                    style={{ borderBottom: i < upcomingTasks.length - 1 ? "1px solid var(--border)" : "none" }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate group-hover:text-[var(--accent)] transition-colors" style={{ color: "var(--text-primary)" }}>
+                        {task.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                          {task.assigneeName || task.assignee || t("tasks.assigneeUnassigned")}
+                        </span>
+                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>·</span>
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                          <Calendar size={10} />
+                          {task.dueDate}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge label={task.priority} color={priorityColor(task.priority)} />
+                  </Link>
+                ))}
               </div>
-              <div>
-                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {pendingApprovals}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {t("nav.approvals")} — Pending
-                </p>
-              </div>
-            </Link>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.01, y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-            <Link
-              href="/publishing"
-              className="rounded-2xl p-5 flex items-center gap-4 h-full"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex" }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "#4f8ef720" }}
-              >
-                <Send size={20} style={{ color: "#4f8ef7" }} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {contentStats.scheduled}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {t("nav.publishing")} — Scheduled
-                </p>
-              </div>
-            </Link>
-          </motion.div>
+            )}
+          </Card>
         </motion.div>
       </motion.div>
-    </div>
+
+      {/* ── Approvals + Content Queue ────────────────────────── */}
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Pending Approvals */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <SectionHeader
+              title={t("dashboard.pendingApprovalsSectionTitle")}
+              href="/approvals"
+              linkLabel={t("dashboard.viewAll")}
+            />
+            {pendingApprovalsList.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.noApprovals")}</p>
+            ) : (
+              <div className="space-y-0">
+                {pendingApprovalsList.map((appr, i) => {
+                  const linked = contentItems.find((c) => c.id === appr.contentItemId);
+                  return (
+                    <Link
+                      key={appr.id}
+                      href="/approvals"
+                      className="flex items-center gap-3 py-2.5 group"
+                      style={{ borderBottom: i < pendingApprovalsList.length - 1 ? "1px solid var(--border)" : "none" }}
+                    >
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-dim)" }}
+                      >
+                        <ClipboardCheck size={14} style={{ color: "var(--accent)" }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate group-hover:text-[var(--accent)] transition-colors" style={{ color: "var(--text-primary)" }}>
+                          {linked?.title ?? appr.contentItemId}
+                        </p>
+                         {linked && (
+                          <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+                            <PlatformDot platform={linked.platform} />
+                            {linked.platform}
+                          </p>
+                        )}
+                      </div>
+                      <Badge label={approvalStatusLabel(appr.status)} color={approvalStatusColor(appr.status)} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* Content Queue */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <SectionHeader title={t("dashboard.contentQueue")} href="/content" linkLabel={t("dashboard.viewAll")} />
+            {contentQueue.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t("dashboard.noContentQueue")}</p>
+            ) : (
+              <div className="space-y-0">
+                {contentQueue.map((item, i) => (
+                  <Link
+                    key={item.id}
+                    href="/content"
+                    className="flex items-center gap-3 py-2.5 group"
+                    style={{ borderBottom: i < contentQueue.length - 1 ? "1px solid var(--border)" : "none" }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--glass-overlay)", border: "1px solid var(--border)" }}
+                    >
+                      <PlatformDot platform={item.platform} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate group-hover:text-[var(--accent)] transition-colors" style={{ color: "var(--text-primary)" }}>
+                        {item.title}
+                      </p>
+                      <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+                        <Calendar size={10} />
+                        {formatScheduledDate(item.scheduledDate, item.scheduledTime, language)}
+                      </p>
+                    </div>
+                    <Badge label={item.contentType} color="gray" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      {/* ── Quick Actions ────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <SectionHeader title={t("dashboard.quickActions")} />
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          {[
+            { label: t("dashboard.newClient"),    href: "/clients",   icon: Users,         color: "var(--accent)" },
+            { label: t("dashboard.newTask"),      href: "/tasks",     icon: CheckSquare,   color: "#34d399" },
+            { label: t("dashboard.newContent"),   href: "/content",   icon: Layers,        color: "#a78bfa" },
+            { label: t("dashboard.viewReports"),  href: "/reports",   icon: BarChart3,     color: "#fbbf24" },
+          ].map((action) => (
+            <motion.div key={action.label} variants={itemVariants}>
+              <Link href={action.href} className="block">
+                <motion.div
+                  className="rounded-2xl p-4 flex flex-col items-center gap-2.5 text-center cursor-pointer"
+                  style={{
+                    background: "var(--glass-card)",
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                    border: "1px solid var(--border)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}
+                  whileHover={{ y: -3, scale: 1.02, boxShadow: "var(--shadow-md)" }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: `${action.color}18`, border: `1px solid ${action.color}28` }}
+                  >
+                    <action.icon size={18} color={action.color} />
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                    {action.label}
+                  </span>
+                </motion.div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 }
