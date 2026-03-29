@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users2, UserCircle, CheckSquare, Settings2, Globe, CalendarDays, ClipboardCheck, ImageIcon, BarChart2, Send, DollarSign } from "lucide-react";
+import { motion } from "framer-motion";
+import { LayoutDashboard, Users2, UserCircle, CheckSquare, Settings2, Globe, CalendarDays, ClipboardCheck, ImageIcon, BarChart2, Send } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
 
@@ -27,7 +28,7 @@ export function SideNav() {
     <aside
       className="fixed top-0 h-full w-[220px] flex flex-col z-40"
       style={{
-        background: 'rgba(17,17,24,0.85)',
+        background: 'rgba(17,17,24,0.88)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         borderInlineEnd: '1px solid rgba(255,255,255,0.07)',
@@ -51,39 +52,54 @@ export function SideNav() {
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
           return (
-            <Link
+            <motion.div
               key={href}
-              href={href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
-              style={{
-                background: isActive ? 'rgba(79,142,247,0.15)' : 'transparent',
-                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                boxShadow: isActive ? 'inset 0 0 0 1px rgba(79,142,247,0.2)' : 'none',
-              }}
+              whileHover={{ x: isRTL ? -2 : 2 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
             >
-              <Icon size={17} className="flex-shrink-0" />
-              <span className="text-sm font-medium">{label}</span>
-            </Link>
+              <Link
+                href={href}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150"
+                style={{
+                  background: isActive ? 'rgba(79,142,247,0.15)' : 'transparent',
+                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                  boxShadow: isActive ? 'inset 0 0 0 1px rgba(79,142,247,0.2)' : 'none',
+                }}
+              >
+                <Icon size={17} className="flex-shrink-0" />
+                <span className="text-sm font-medium">{label}</span>
+                {isActive && (
+                  <motion.div
+                    className="ms-auto w-1.5 h-1.5 rounded-full"
+                    style={{ background: 'var(--accent)' }}
+                    layoutId="nav-dot"
+                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  />
+                )}
+              </Link>
+            </motion.div>
           );
         })}
       </nav>
 
       {/* Language switcher */}
       <div className="px-3 mb-3">
-        <button
+        <motion.button
           onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl"
           style={{
             background: 'rgba(255,255,255,0.04)',
             color: 'var(--text-secondary)',
             border: '1px solid rgba(255,255,255,0.07)',
           }}
+          whileHover={{ background: 'rgba(255,255,255,0.07)' }}
+          whileTap={{ scale: 0.98 }}
         >
           <Globe size={17} className="flex-shrink-0" />
           <span className="text-sm font-medium">
             {language === "en" ? "العربية" : "English"}
           </span>
-        </button>
+        </motion.button>
       </div>
       
       <div
