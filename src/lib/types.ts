@@ -21,6 +21,10 @@ export interface Task {
   clientId?: string;
   assignedTo: string;
   assignee: string;
+  /** ID of the team member from the "team" Firestore collection */
+  assigneeId?: string;
+  /** Snapshot of the assignee's name at time of assignment (for display even if member is deleted) */
+  assigneeName?: string;
   status: "todo" | "in-progress" | "done";
   priority: "low" | "medium" | "high";
   dueDate: string;
