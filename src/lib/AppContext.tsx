@@ -13,19 +13,31 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Activity, ActivityType, Client, SystemStatus, Task, TeamMember } from "./types";
+import {
+  subscribeToClients,
+  createClient as fsCreateClient,
+  updateClient as fsUpdateClient,
+  deleteClient as fsDeleteClient,
+} from "./firestore/clients";
+import {
+  subscribeToTasks,
+  createTask as fsCreateTask,
+  updateTask as fsUpdateTask,
+  deleteTask as fsDeleteTask,
+} from "./firestore/tasks";
+import {
+  subscribeToTeam,
+  createTeamMember as fsCreateTeamMember,
+  deleteTeamMember as fsDeleteTeamMember,
+} from "./firestore/team";
+import {
+  subscribeToActivities,
+  createActivity as fsCreateActivity,
+} from "./firestore/activities";
+import { pushNotification as fsPushNotification } from "./firestore/notifications";
 
-// ── Notification helper (writes to Firestore independently) ───
+// ── Notification helper (writes to Firestore via service layer) ─
 
 async function pushNotificationDoc(
   type: string,
@@ -34,14 +46,7 @@ async function pushNotificationDoc(
   entityId: string
 ) {
   try {
-    await addDoc(wsCol("notifications"), {
-      type,
-      title,
-      message,
-      entityId,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    });
+    await fsPushNotification(type as Parameters<typeof fsPushNotification>[0], title, message, entityId);
   } catch (err) {
     console.error("[OPENY] Failed to create notification:", err);
   }
@@ -109,52 +114,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Firestore real-time listeners ─────────────────────────
+  // ── Firestore real-time listeners (via service layer) ─────
   useEffect(() => {
     const loadedSet = new Set<string>();
     const markLoaded = (name: string) => {
       loadedSet.add(name);
       if (loadedSet.size === 4) setLoading(false);
     };
-    const handleError = (name: string, err: unknown) => {
-      console.error(`[OPENY] Firestore listener error for "${name}":`, err);
-      markLoaded(name);
-    };
 
-    const unsubClients = onSnapshot(
-      query(wsCol("clients"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setClients(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client)));
-        markLoaded("clients");
-      },
-      (err) => handleError("clients", err),
+    const unsubClients = subscribeToClients(
+      (rows) => { setClients(rows); markLoaded("clients"); },
+      () => markLoaded("clients"),
     );
 
-    const unsubTasks = onSnapshot(
-      query(wsCol("tasks"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setTasks(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task)));
-        markLoaded("tasks");
-      },
-      (err) => handleError("tasks", err),
+    const unsubTasks = subscribeToTasks(
+      (rows) => { setTasks(rows); markLoaded("tasks"); },
+      () => markLoaded("tasks"),
     );
 
-    const unsubMembers = onSnapshot(
-      query(wsCol("team"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as TeamMember)));
-        markLoaded("team");
-      },
-      (err) => handleError("team", err),
+    const unsubMembers = subscribeToTeam(
+      (rows) => { setMembers(rows); markLoaded("team"); },
+      () => markLoaded("team"),
     );
 
-    const unsubActivities = onSnapshot(
-      query(wsCol("activities"), orderBy("timestamp", "desc")),
-      (snap) => {
-        setActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
-        markLoaded("activities");
-      },
-      (err) => handleError("activities", err),
+    const unsubActivities = subscribeToActivities(
+      (rows) => { setActivities(rows); markLoaded("activities"); },
+      () => markLoaded("activities"),
     );
 
     return () => {
@@ -165,24 +150,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── Internal activity logger ──────────────────────────────
+  // ── Internal activity logger (via service layer) ──────────
   const pushActivity = useCallback(
     async (type: ActivityType, message: string, detail: string, entityId: string) => {
-      await addDoc(wsCol("activities"), {
-        type,
-        message,
-        detail,
-        entityId,
-        timestamp: new Date().toISOString(),
-      });
+      await fsCreateActivity(type, message, detail, entityId);
     },
     [],
   );
 
-  // ── Client actions ────────────────────────────────────────
+  // ── Client actions (via service layer) ───────────────────
   const addClient = useCallback(
     async (data: { name: string; email: string; website?: string; phone?: string }) => {
-      const docRef = await addDoc(wsCol("clients"), {
+      const id = await fsCreateClient({
         name: data.name,
         company: data.name,
         email: data.email,
@@ -192,17 +171,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         initials: makeInitials(data.name),
         color: pickColor(),
-
-      });
-      await pushActivity("client_added", "New client added", data.name, docRef.id);
-      await pushNotificationDoc("client_created", "New Client Added", data.name, docRef.id);
+      } as Omit<Client, "id">);
+      await pushActivity("client_added", "New client added", data.name, id);
+      await pushNotificationDoc("client_created", "New Client Added", data.name, id);
     },
     [pushActivity],
   );
 
   const updateClient = useCallback(
     async (id: string, data: Partial<Omit<Client, "id">>) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients", id), data);
+      await fsUpdateClient(id, data);
       await pushActivity("client_updated", "Client updated", data.name ?? id, id);
       await pushNotificationDoc("client_updated", "Client Updated", data.name ?? id, id);
     },
@@ -212,13 +190,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback(
     async (id: string) => {
       const client = clients.find((c) => c.id === id);
-      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients", id));
+      await fsDeleteClient(id);
       await pushActivity("client_deleted", "Client removed", client?.name ?? id, id);
     },
     [clients, pushActivity],
   );
 
-  // ── Task actions ──────────────────────────────────────────
+  // ── Task actions (via service layer) ─────────────────────
   const addTask = useCallback(
     async (data: {
       title: string;
@@ -231,7 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       // assigneeName is the snapshot; assignee is kept for backward compat
       const displayName = data.assigneeName || data.assignee || "Unassigned";
-      const docRef = await addDoc(wsCol("tasks"), {
+      const id = await fsCreateTask({
         title: data.title,
         clientId: data.clientId ?? "",
         // assignedTo kept for backward compatibility with older documents that used this field name
@@ -245,23 +223,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dueDate: data.dueDate || "TBD",
         createdAt: new Date().toISOString(),
         completedAt: null,
-      });
-      await pushActivity("task_created", "New task created", data.title, docRef.id);
-      await pushNotificationDoc("task_created", "New Task Created", data.title, docRef.id);
+      } as Omit<Task, "id">);
+      await pushActivity("task_created", "New task created", data.title, id);
+      await pushNotificationDoc("task_created", "New Task Created", data.title, id);
     },
     [pushActivity],
   );
 
   const updateTask = useCallback(
     async (id: string, data: Partial<Omit<Task, "id">>) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id), data);
+      await fsUpdateTask(id, data);
     },
     [],
   );
 
   const deleteTask = useCallback(
     async (id: string) => {
-      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id));
+      await fsDeleteTask(id);
     },
     [],
   );
@@ -276,7 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const task = tasksRef.current.find((t) => t.id === id);
       if (!task) return;
       const isDone = task.status === "done";
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id), {
+      await fsUpdateTask(id, {
         status: isDone ? "todo" : "done",
         completedAt: isDone ? null : new Date().toISOString(),
       });
@@ -288,21 +266,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [pushActivity],
   );
 
-  // ── Member actions ────────────────────────────────────────
+  // ── Member actions (via service layer) ───────────────────
   const addMember = useCallback(
     async (data: { name: string; role: string; email: string }) => {
-      const docRef = await addDoc(wsCol("team"), {
+      const id = await fsCreateTeamMember({
         name: data.name,
         role: data.role,
         email: data.email,
         status: "active",
         initials: makeInitials(data.name),
         color: pickColor(),
-
         createdAt: new Date().toISOString(),
-      });
-      await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, docRef.id);
-      await pushNotificationDoc("member_added", "Team Member Added", `${data.name} joined as ${data.role}`, docRef.id);
+      } as Omit<TeamMember, "id">);
+      await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, id);
+      await pushNotificationDoc("member_added", "Team Member Added", `${data.name} joined as ${data.role}`, id);
     },
     [pushActivity],
   );
@@ -310,7 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMember = useCallback(
     async (id: string) => {
       const member = members.find((m) => m.id === id);
-      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "team", id));
+      await fsDeleteTeamMember(id);
       await pushActivity("member_removed", "Team member removed", member?.name ?? id, id);
     },
     [members, pushActivity],

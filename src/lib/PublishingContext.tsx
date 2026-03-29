@@ -13,15 +13,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   PublishingEvent,
   PublishingStatus,
@@ -29,6 +20,13 @@ import type {
   PublishingReadiness,
   ContentItem,
 } from "./types";
+import {
+  subscribeToPublishingEvents,
+  createPublishingEvent as fsCreatePublishingEvent,
+  updatePublishingEvent as fsUpdatePublishingEvent,
+  recordPublishingFailure as fsRecordPublishingFailure,
+} from "./firestore/publishing";
+import { createActivity as fsCreateActivity } from "./firestore/activities";
 
 // ── Readiness check helper ────────────────────────────────────
 
@@ -141,22 +139,9 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(
-      wsCol("publishingEvents"),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setPublishingEvents(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as PublishingEvent))
-        );
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] PublishingEvents listener error:", err);
-        setLoading(false);
-      }
+    const unsub = subscribeToPublishingEvents(
+      (rows) => { setPublishingEvents(rows); setLoading(false); },
+      () => setLoading(false),
     );
     return unsub;
   }, []);
@@ -277,7 +262,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
       scheduledAt: string
     ): Promise<string> => {
       const now = new Date().toISOString();
-      const docRef = await addDoc(wsCol("publishingEvents"), {
+      return fsCreatePublishingEvent({
         contentItemId,
         clientId,
         status: "scheduled" as PublishingStatus,
@@ -285,7 +270,6 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         createdAt: now,
         updatedAt: now,
       });
-      return docRef.id;
     },
     []
   );
@@ -297,21 +281,18 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
+        await fsUpdatePublishingEvent(event.id, {
           status: "published" as PublishingStatus,
           publishedAt: now,
           performedBy,
-          updatedAt: now,
         });
       }
-      // Log to activities
-      await addDoc(wsCol("activities"), {
-        type: "post_marked_published",
-        message: "Post marked as published",
-        detail: `Content item ${contentItemId} published by ${performedBy}`,
-        entityId: contentItemId,
-        timestamp: now,
-      });
+      await fsCreateActivity(
+        "post_marked_published",
+        "Post marked as published",
+        `Content item ${contentItemId} published by ${performedBy}`,
+        contentItemId
+      );
     },
     [publishingEvents]
   );
@@ -328,30 +309,28 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
+        await fsUpdatePublishingEvent(event.id, {
           status: "failed" as PublishingStatus,
           failedAt: now,
           failureReason: reason,
           failureNote: note,
           performedBy: reportedBy,
-          updatedAt: now,
         });
       }
-      // Log failure
-      await addDoc(wsCol("publishingFailures"), {
+      await fsRecordPublishingFailure({
         contentItemId,
+        clientId: event?.clientId ?? "",
         reason,
         note,
         reportedBy,
         createdAt: now,
       });
-      await addDoc(wsCol("activities"), {
-        type: "publishing_failed",
-        message: `Publishing failed: ${reason.replace(/_/g, " ")}`,
-        detail: note || `Content item ${contentItemId}`,
-        entityId: contentItemId,
-        timestamp: now,
-      });
+      await fsCreateActivity(
+        "publishing_failed",
+        `Publishing failed: ${reason.replace(/_/g, " ")}`,
+        note || `Content item ${contentItemId}`,
+        contentItemId
+      );
     },
     [publishingEvents]
   );
@@ -362,35 +341,29 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
       newScheduledAt: string,
       performedBy: string
     ) => {
-      const now = new Date().toISOString();
       const event = publishingEvents.find(
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
+        await fsUpdatePublishingEvent(event.id, {
           status: "rescheduled" as PublishingStatus,
           rescheduledTo: newScheduledAt,
           performedBy,
-          updatedAt: now,
         });
       }
-      await addDoc(wsCol("activities"), {
-        type: "post_rescheduled",
-        message: "Post rescheduled",
-        detail: `Content item ${contentItemId} rescheduled to ${newScheduledAt}`,
-        entityId: contentItemId,
-        timestamp: now,
-      });
+      await fsCreateActivity(
+        "post_rescheduled",
+        "Post rescheduled",
+        `Content item ${contentItemId} rescheduled to ${newScheduledAt}`,
+        contentItemId
+      );
     },
     [publishingEvents]
   );
 
   const updatePublishingStatus = useCallback(
     async (eventId: string, status: PublishingStatus) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", eventId), {
-        status,
-        updatedAt: new Date().toISOString(),
-      });
+      await fsUpdatePublishingEvent(eventId, { status });
     },
     []
   );
