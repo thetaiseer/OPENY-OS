@@ -12,17 +12,16 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Approval, ApprovalComment, ApprovalWorkflowStatus } from "./types";
+import {
+  subscribeToApprovals,
+  createApproval as fsCreateApproval,
+  updateApproval as fsUpdateApproval,
+  updateApprovalStatus as fsUpdateApprovalStatus,
+  addApprovalInternalComment,
+  addApprovalClientComment,
+  deleteApproval as fsDeleteApproval,
+} from "./firestore/approvals";
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -53,41 +52,20 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      query(wsCol("approvals"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setApprovals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Approval)));
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] Firestore listener error for approvals:", err);
-        setLoading(false);
-      },
+    const unsub = subscribeToApprovals(
+      (rows) => { setApprovals(rows); setLoading(false); },
+      () => setLoading(false),
     );
     return unsub;
   }, []);
 
   const createApproval = useCallback(async (data: CreateApprovalData): Promise<string> => {
-    const now = new Date().toISOString();
-    const docRef = await addDoc(wsCol("approvals"), {
-      contentItemId: data.contentItemId,
-      clientId: data.clientId,
-      status: data.status ?? "pending_internal",
-      assignedTo: data.assignedTo ?? "",
-      internalComments: [],
-      clientComments: [],
-      createdAt: now,
-      updatedAt: now,
-    });
-    return docRef.id;
+    return fsCreateApproval(data);
   }, []);
 
   const updateApproval = useCallback(
     async (id: string, data: Partial<Omit<Approval, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
-        ...data,
-        updatedAt: new Date().toISOString(),
-      });
+      await fsUpdateApproval(id, data);
     },
     [],
   );
@@ -96,11 +74,7 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
     async (id: string, comment: Omit<ApprovalComment, "id">) => {
       const approval = approvals.find((a) => a.id === id);
       if (!approval) return;
-      const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
-        internalComments: [...(approval.internalComments ?? []), newComment],
-        updatedAt: new Date().toISOString(),
-      });
+      await addApprovalInternalComment(id, approval.internalComments ?? [], comment);
     },
     [approvals],
   );
@@ -109,27 +83,20 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
     async (id: string, comment: Omit<ApprovalComment, "id">) => {
       const approval = approvals.find((a) => a.id === id);
       if (!approval) return;
-      const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
-        clientComments: [...(approval.clientComments ?? []), newComment],
-        updatedAt: new Date().toISOString(),
-      });
+      await addApprovalClientComment(id, approval.clientComments ?? [], comment);
     },
     [approvals],
   );
 
   const updateApprovalStatus = useCallback(
     async (id: string, status: ApprovalWorkflowStatus) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id), {
-        status,
-        updatedAt: new Date().toISOString(),
-      });
+      await fsUpdateApprovalStatus(id, status);
     },
     [],
   );
 
   const deleteApproval = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id));
+    await fsDeleteApproval(id);
   }, []);
 
   const value: ApprovalContextValue = useMemo(

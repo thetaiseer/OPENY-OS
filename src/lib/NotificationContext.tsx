@@ -12,18 +12,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-  writeBatch,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { AppNotification, NotificationType } from "./types";
+import {
+  subscribeToNotifications,
+  pushNotification as fsPushNotification,
+  markNotificationRead,
+  markAllNotificationsRead as fsMarkAllRead,
+  deleteNotification as fsDeleteNotification,
+} from "./firestore/notifications";
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -49,15 +45,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   useEffect(() => {
-    const q = query(wsCol("notifications"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification)));
-      },
-      (err) => {
-        console.error("[OPENY] Notifications listener error:", err);
-      }
+    const unsub = subscribeToNotifications(
+      (rows) => setNotifications(rows),
     );
     return unsub;
   }, []);
@@ -69,32 +58,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const pushNotification = useCallback(
     async (type: NotificationType, title: string, message: string, entityId: string) => {
-      await addDoc(wsCol("notifications"), {
-        type,
-        title,
-        message,
-        entityId,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      });
+      await fsPushNotification(type, title, message, entityId);
     },
     []
   );
 
   const markAsRead = useCallback(async (id: string) => {
-    await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", id), { isRead: true });
+    await markNotificationRead(id);
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    const unread = notifications.filter((n) => !n.isRead);
-    if (unread.length === 0) return;
-    const batch = writeBatch(db);
-    unread.forEach((n) => batch.update(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", n.id), { isRead: true }));
-    await batch.commit();
+    await fsMarkAllRead(notifications);
   }, [notifications]);
 
   const deleteNotification = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", id));
+    await fsDeleteNotification(id);
   }, []);
 
   const value = useMemo(

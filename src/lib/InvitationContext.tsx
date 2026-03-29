@@ -16,16 +16,21 @@ import {
 import {
   collection,
   addDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
   query,
-  orderBy,
   where,
   getDocs,
 } from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
+import { db, wsCol } from "./firebase";
 import type { Invitation, InvitationStatus } from "./types";
+import {
+  subscribeToInvitations,
+  createInvitation as fsCreateInvitation,
+  updateInvitation as fsUpdateInvitation,
+  getInvitationByToken as fsGetInvitationByToken,
+} from "./firestore/invitations";
+import { createActivity as fsCreateActivity } from "./firestore/activities";
+import { pushNotification as fsPushNotification } from "./firestore/notifications";
+import { createTeamMember as fsCreateTeamMember } from "./firestore/team";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -67,13 +72,7 @@ async function writeActivity(
   entityId: string
 ): Promise<void> {
   try {
-    await addDoc(wsCol("activities"), {
-      type,
-      message,
-      detail,
-      entityId,
-      timestamp: new Date().toISOString(),
-    });
+    await fsCreateActivity(type as Parameters<typeof fsCreateActivity>[0], message, detail, entityId);
   } catch (err) {
     console.error("[OPENY] Failed to write activity:", err);
   }
@@ -86,14 +85,7 @@ async function writeNotification(
   entityId: string
 ): Promise<void> {
   try {
-    await addDoc(wsCol("notifications"), {
-      type,
-      title,
-      message,
-      entityId,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    });
+    await fsPushNotification(type as Parameters<typeof fsPushNotification>[0], title, message, entityId);
   } catch (err) {
     console.error("[OPENY] Failed to write notification:", err);
   }
@@ -125,15 +117,8 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
 
   useEffect(() => {
-    const q = query(wsCol("invitations"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setInvitations(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Invitation)));
-      },
-      (err) => {
-        console.error("[OPENY] Invitations listener error:", err);
-      }
+    const unsub = subscribeToInvitations(
+      (rows) => setInvitations(rows),
     );
     return unsub;
   }, []);
@@ -163,7 +148,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       });
 
       // Create invitation document
-      const docRef = await addDoc(wsCol("invitations"), {
+      const invId = await fsCreateInvitation({
         email: data.email,
         name: displayName !== data.email.split("@")[0] ? displayName : null,
         firstName: data.firstName ?? null,
@@ -177,14 +162,14 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
         expiresAt: exp,
         acceptedAt: null,
         cancelledAt: null,
-      });
+      } as Omit<Invitation, "id">);
 
       // Activity log
       await writeActivity(
         "invite_sent",
         "Invitation sent",
         `Invitation sent to ${data.email}`,
-        docRef.id
+        invId
       );
 
       // In-app notification
@@ -192,7 +177,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
         "member_invited",
         "Invitation Sent",
         `Invited ${data.email} as ${data.role}`,
-        docRef.id
+        invId
       );
 
       // Send email via Firestore mail collection (Firebase Trigger Email extension)
@@ -233,7 +218,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
     const email = inv?.email ?? "";
     const now = new Date().toISOString();
 
-    await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", id), {
+    await fsUpdateInvitation(id, {
       status: "cancelled" as InvitationStatus,
       cancelledAt: now,
     });
@@ -256,11 +241,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getInvitationByToken = useCallback(async (token: string): Promise<Invitation | null> => {
-    const q = query(wsCol("invitations"), where("token", "==", token));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const d = snap.docs[0];
-    return { id: d.id, ...d.data() } as Invitation;
+    return fsGetInvitationByToken(token);
   }, []);
 
   const acceptInvitation = useCallback(
@@ -275,7 +256,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       const nowISO = now.toISOString();
 
       if (new Date(invitation.expiresAt) < now) {
-        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", invitation.id), {
+        await fsUpdateInvitation(invitation.id, {
           status: "expired" as InvitationStatus,
         });
         await writeActivity(
@@ -294,7 +275,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       }
 
       // Update invitation status
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", invitation.id), {
+      await fsUpdateInvitation(invitation.id, {
         status: "accepted" as InvitationStatus,
         acceptedAt: nowISO,
       });
@@ -306,30 +287,28 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       if (teamSnap.empty) {
         const memberName = deriveMemberName(invitation);
 
-        const memberRef = await addDoc(wsCol("team"), {
+        const memberId = await fsCreateTeamMember({
           name: memberName,
           role: invitation.role,
           email: invitation.email,
           status: "active",
           initials: makeInitials(memberName),
           color: pickColor(),
-  
           createdAt: nowISO,
-          updatedAt: nowISO,
-        });
+        } as Omit<import("./types").TeamMember, "id">);
 
         // Activity logs
         await writeActivity(
           "invite_accepted",
           "Invitation accepted",
           `${memberName} accepted invitation as ${invitation.role}`,
-          memberRef.id
+          memberId
         );
         await writeActivity(
           "member_joined",
           "New team member joined",
           `${memberName} — ${invitation.role}`,
-          memberRef.id
+          memberId
         );
 
         // In-app notification
@@ -337,7 +316,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
           "invite_accepted",
           "Invitation Accepted",
           `${memberName} joined as ${invitation.role}`,
-          memberRef.id
+          memberId
         );
       } else {
         // Team member already exists (duplicate prevention)

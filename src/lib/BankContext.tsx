@@ -9,16 +9,12 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { BankEntry, BankCategory, ContentPlatform } from "./types";
+import {
+  subscribeToBankEntries,
+  createBankEntry as fsCreateBankEntry,
+  deleteBankEntry as fsDeleteBankEntry,
+} from "./firestore/bankEntries";
 
 export type CreateBankEntryData = {
   clientId: string;
@@ -42,34 +38,19 @@ export function BankProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      query(wsCol("bankEntries"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setEntries(snap.docs.map((d) => ({ id: d.id, ...d.data() } as BankEntry)));
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] Firestore listener error for bankEntries:", err);
-        setLoading(false);
-      },
+    const unsub = subscribeToBankEntries(
+      (rows) => { setEntries(rows); setLoading(false); },
+      () => setLoading(false),
     );
     return unsub;
   }, []);
 
   const createEntry = useCallback(async (data: CreateBankEntryData): Promise<string> => {
-    const docRef = await addDoc(wsCol("bankEntries"), {
-      clientId: data.clientId,
-      category: data.category,
-      text: data.text,
-      tags: data.tags ?? [],
-      platform: data.platform ?? null,
-      createdAt: new Date().toISOString(),
-    });
-    return docRef.id;
+    return fsCreateBankEntry(data);
   }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "bankEntries", id));
+    await fsDeleteBankEntry(id);
   }, []);
 
   const value: BankContextValue = useMemo(

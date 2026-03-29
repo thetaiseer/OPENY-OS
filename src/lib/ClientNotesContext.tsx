@@ -9,17 +9,13 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { ClientNote, NoteType } from "./types";
+import {
+  subscribeToClientNotes,
+  createClientNote as fsCreateClientNote,
+  updateClientNote as fsUpdateClientNote,
+  deleteClientNote as fsDeleteClientNote,
+} from "./firestore/clientNotes";
 
 export type CreateNoteData = {
   clientId: string;
@@ -44,46 +40,26 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      query(wsCol("clientNotes"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setNotes(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClientNote)));
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] Firestore listener error for clientNotes:", err);
-        setLoading(false);
-      },
+    const unsub = subscribeToClientNotes(
+      (rows) => { setNotes(rows); setLoading(false); },
+      () => setLoading(false),
     );
     return unsub;
   }, []);
 
   const createNote = useCallback(async (data: CreateNoteData): Promise<string> => {
-    const now = new Date().toISOString();
-    const docRef = await addDoc(wsCol("clientNotes"), {
-      clientId: data.clientId,
-      type: data.type,
-      content: data.content,
-      author: data.author,
-      tag: data.tag ?? "",
-      createdAt: now,
-      updatedAt: now,
-    });
-    return docRef.id;
+    return fsCreateClientNote(data);
   }, []);
 
   const updateNote = useCallback(
     async (id: string, data: Partial<Omit<ClientNote, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clientNotes", id), {
-        ...data,
-        updatedAt: new Date().toISOString(),
-      });
+      await fsUpdateClientNote(id, data);
     },
     [],
   );
 
   const deleteNote = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clientNotes", id));
+    await fsDeleteClientNote(id);
   }, []);
 
   const value: ClientNotesContextValue = useMemo(
