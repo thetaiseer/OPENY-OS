@@ -134,24 +134,19 @@ export default function ApprovalsPage() {
       {/* Detail panel / modal */}
       {liveSelected && (
         <div
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)", zIndex: 9999, display: "flex",
-            alignItems: "flex-start", justifyContent: "center",
-            padding: "40px 16px", overflowY: "auto",
-          }}
+          className="modal-backdrop"
           onClick={() => setSelectedApproval(null)}
         >
           <div
+            className="glass-modal flex flex-col"
             style={{
-              background: "var(--surface-1)", border: "1px solid var(--border)",
-              borderRadius: "20px", width: "100%", maxWidth: "680px",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+              width: "min(92vw, 680px)",
+              maxHeight: "min(88vh, 820px)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
               <div>
                 <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
                   {contentItems.find((ci) => ci.id === liveSelected.contentItemId)?.title ?? "—"}
@@ -170,7 +165,7 @@ export default function ApprovalsPage() {
             </div>
 
             {/* Comment threads */}
-            <div className="px-6 py-5 space-y-6">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
               <ApprovalCommentThread
                 comments={liveSelected.internalComments ?? []}
                 onAdd={handleAddComment}

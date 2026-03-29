@@ -271,19 +271,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
 
   if (!open) return null;
 
-  const overlayStyle: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.6)",
-    backdropFilter: "blur(4px)",
-    zIndex: 9999,
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    padding: "40px 16px",
-    overflowY: "auto",
-  };
-
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px",
     borderRadius: "10px",
@@ -298,21 +285,18 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
   });
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div
+        className="glass-modal flex flex-col overflow-hidden"
         style={{
-          background: "var(--surface-1)",
-          border: "1px solid var(--border)",
-          borderRadius: "20px",
-          width: "100%",
-          maxWidth: "680px",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+          width: "min(92vw, 680px)",
+          maxHeight: "min(88vh, 820px)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4"
+          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderBottom: "1px solid var(--border)" }}
         >
           <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
@@ -329,7 +313,7 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
 
         {/* Tabs (only in edit mode) */}
         {item && (
-          <div className="px-6 pt-4 pb-0">
+          <div className="px-6 pt-4 pb-0 flex-shrink-0">
             <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "var(--surface-3)" }}>
               {(["details", "approval", "comments"] as const).map((tab) => (
                 <button key={tab} style={tabStyle(activeTab === tab)} onClick={() => setActiveTab(tab)}>
@@ -341,7 +325,7 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
         )}
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {/* ── DETAILS TAB ── */}
           {(activeTab === "details" || !item) && (
             <>
@@ -576,7 +560,7 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
         {/* Footer */}
         {(activeTab === "details" || !item) && (
           <div
-            className="flex items-center justify-end gap-2 px-6 py-4"
+            className="flex items-center justify-end gap-2 px-6 py-4 flex-shrink-0"
             style={{ borderTop: "1px solid var(--border)" }}
           >
             <button

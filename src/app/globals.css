@@ -41,7 +41,9 @@
   --glass-topbar: rgba(17,17,24,0.85);
   --glass-card: rgba(24,24,31,0.75);
   --glass-card-elevated: rgba(20,20,28,0.90);
-  --glass-modal: rgba(18,18,26,0.95);
+  --glass-modal: rgba(20,24,36,0.78);
+  --modal-overlay-bg: rgba(8,10,18,0.28);
+  --modal-border: rgba(255,255,255,0.14);
   --glass-input: rgba(255,255,255,0.04);
   --glass-input-focus: rgba(255,255,255,0.06);
   --glass-overlay: rgba(255,255,255,0.04);
@@ -56,8 +58,11 @@
   --shadow-sm: 0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.06);
-  --shadow-modal: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07);
+  --shadow-modal: 0 24px 64px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.07);
   --shadow-nav: none;
+
+  /* ── Z-index scale ──────────────────────────────────────────── */
+  --z-modal: 9990;
 }
 
 .light {
@@ -92,7 +97,10 @@
   --glass-topbar: rgba(255,255,255,0.85);
   --glass-card: rgba(255,255,255,0.65);
   --glass-card-elevated: rgba(255,255,255,0.82);
-  --glass-modal: rgba(255,255,255,0.92);
+  --glass-modal: rgba(255,255,255,0.78);
+  --modal-overlay-bg: rgba(248,250,252,0.22);
+  --modal-border: rgba(255,255,255,0.55);
+  --shadow-modal: 0 24px 64px rgba(100,116,139,0.16), 0 8px 24px rgba(100,116,139,0.09), inset 0 1px 0 rgba(255,255,255,0.80);
   --glass-input: rgba(255,255,255,0.65);
   --glass-input-focus: rgba(255,255,255,0.88);
   --glass-overlay: rgba(255,255,255,0.60);
@@ -201,11 +209,26 @@ html[dir="rtl"] .rtl-flip {
 
 .glass-modal {
   background: var(--glass-modal);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--modal-border);
   border-radius: 20px;
   box-shadow: var(--shadow-modal);
+}
+
+/* ── Unified modal overlay backdrop ─────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-overlay-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vw, 32px);
+  overflow: hidden;
 }
 
 .glass-input {
