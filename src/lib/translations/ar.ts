@@ -38,6 +38,11 @@ export const ar: Translations = {
     insights: "التحليلات",
     system: "النظام",
     team_section: "الفريق",
+    section: {
+      manage: "إدارة",
+      resources: "الموارد",
+      settings: "الإعدادات",
+    },
   },
   dashboard: {
     greeting_morning: "صباح الخير",
