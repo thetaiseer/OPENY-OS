@@ -28,7 +28,7 @@ export function TopBar() {
   return (
     <header
       className="fixed top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-40"
-      style={{ background: 'rgba(17,17,24,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--glass-topbar)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border)' }}
     >
       <div className="flex items-center gap-2.5">
         <img
@@ -46,7 +46,7 @@ export function TopBar() {
         <button
           onClick={() => setLanguage(language === "en" ? "ar" : "en")}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--glass-overlay)', color: 'var(--text-secondary)', border: '1px solid var(--glass-overlay-border)' }}
           title={language === "en" ? "Switch to Arabic" : "التبديل إلى الإنجليزية"}
         >
           <Globe size={13} />

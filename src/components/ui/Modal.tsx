@@ -28,22 +28,17 @@ export function Modal({ open, onClose, title, children, maxWidth = "480px" }: Mo
       {open && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.7)' }}
+          style={{ background: 'rgba(0,0,0,0.45)' }}
           initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-          animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+          animate={{ opacity: 1, backdropFilter: 'blur(6px)' }}
           exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
           transition={{ duration: 0.18 }}
           onClick={onClose}
         >
           <motion.div
-            className="w-full rounded-2xl flex flex-col max-h-[90vh]"
+            className="w-full rounded-2xl flex flex-col max-h-[90vh] glass-modal"
             style={{
-              background: 'rgba(18,18,26,0.95)',
-              backdropFilter: 'blur(32px)',
-              WebkitBackdropFilter: 'blur(32px)',
-              border: '1px solid rgba(255,255,255,0.10)',
               maxWidth,
-              boxShadow: '0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
             }}
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -56,7 +51,7 @@ export function Modal({ open, onClose, title, children, maxWidth = "480px" }: Mo
               <motion.button
                 onClick={onClose}
                 className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}
+                style={{ background: 'var(--glass-overlay)', border: '1px solid var(--glass-overlay-border)', color: 'var(--text-secondary)' }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >

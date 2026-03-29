@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { ReactNode } from "react";
+import { useTheme } from "@/components/layout/ThemeProvider";
 
 interface CardProps {
   children: ReactNode;
@@ -12,23 +13,29 @@ interface CardProps {
 }
 
 export function Card({ children, className = "", padding = "md", elevated, interactive }: CardProps) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+
   const paddings = { sm: "p-4", md: "p-5", lg: "p-6" };
+
   const baseStyle = {
-    background: elevated ? 'rgba(20,20,28,0.90)' : 'rgba(24,24,31,0.75)',
+    background: elevated ? 'var(--glass-card-elevated)' : 'var(--glass-card)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.07)',
-    boxShadow: elevated
-      ? '0 16px 48px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.06)'
-      : '0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)',
+    border: '1px solid var(--border)',
+    boxShadow: elevated ? 'var(--shadow-lg)' : 'var(--shadow-sm)',
   } as React.CSSProperties;
+
+  const hoverShadow = isLight
+    ? '0 8px 24px rgba(100,116,139,0.12), 0 2px 8px rgba(100,116,139,0.06)'
+    : '0 12px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)';
 
   if (interactive) {
     return (
       <motion.div
         className={`rounded-2xl ${paddings[padding]} ${className} glass-card`}
         style={baseStyle}
-        whileHover={{ y: -2, boxShadow: '0 12px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+        whileHover={{ y: -2, boxShadow: hoverShadow }}
         transition={{ type: "spring", stiffness: 400, damping: 28 }}
       >
         {children}
