@@ -13,7 +13,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -22,7 +21,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   ContentItem,
   ContentStatus,
@@ -72,7 +71,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   // ── Firestore real-time listener ──────────────────────────
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, "contentItems"), orderBy("createdAt", "desc")),
+      query(wsCol("contentItems"), orderBy("createdAt", "desc")),
       (snap) => {
         setContentItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ContentItem)));
         setLoading(false);
@@ -89,7 +88,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   const createContentItem = useCallback(async (data: CreateContentData): Promise<string> => {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "contentItems"), {
+    const docRef = await addDoc(wsCol("contentItems"), {
       clientId: data.clientId,
       title: data.title,
       description: data.description ?? "",
@@ -114,7 +113,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   const updateContentItem = useCallback(
     async (id: string, data: Partial<Omit<ContentItem, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "contentItems", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id), {
         ...data,
         updatedAt: new Date().toISOString(),
       });
@@ -123,7 +122,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteContentItem = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "contentItems", id));
+    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id));
   }, []);
 
   const addComment = useCallback(
@@ -134,7 +133,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         ...comment,
         id: crypto.randomUUID(),
       };
-      await updateDoc(doc(db, "contentItems", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id), {
         comments: [...(item.comments ?? []), newComment],
         updatedAt: new Date().toISOString(),
       });

@@ -2,7 +2,7 @@
   "indexes": [
     {
       "collectionGroup": "contentItems",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "clientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
@@ -10,7 +10,7 @@
     },
     {
       "collectionGroup": "approvals",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "clientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
@@ -18,10 +18,31 @@
     },
     {
       "collectionGroup": "assets",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "clientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "invitations",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "token", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "team",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userNotificationPreferences",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" }
       ]
     }
   ],

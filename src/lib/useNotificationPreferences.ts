@@ -6,7 +6,6 @@
 // ============================================================
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   doc,
@@ -14,7 +13,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   UserNotificationPreferences,
   NotificationChannelPrefs,
@@ -46,7 +45,7 @@ export function useNotificationPreferences() {
 
   useEffect(() => {
     const q = query(
-      collection(db, "userNotificationPreferences"),
+      wsCol("userNotificationPreferences"),
       where("userId", "==", CURRENT_USER_ID)
     );
     const unsub = onSnapshot(
@@ -56,7 +55,7 @@ export function useNotificationPreferences() {
           // Create default preferences for this user
           const now = new Date().toISOString();
           const ref = await addDoc(
-            collection(db, "userNotificationPreferences"),
+            wsCol("userNotificationPreferences"),
             {
               userId: CURRENT_USER_ID,
               ...DEFAULT_PREFS,
@@ -91,7 +90,7 @@ export function useNotificationPreferences() {
       if (!docId) return;
       const currentCategoryPrefs =
         prefs?.[category] ?? DEFAULT_CHANNEL;
-      await updateDoc(doc(db, "userNotificationPreferences", docId), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "userNotificationPreferences", docId), {
         [category]: {
           ...currentCategoryPrefs,
           [channel]: value,

@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -19,7 +18,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { ClientNote, NoteType } from "./types";
 
 export type CreateNoteData = {
@@ -46,7 +45,7 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, "clientNotes"), orderBy("createdAt", "desc")),
+      query(wsCol("clientNotes"), orderBy("createdAt", "desc")),
       (snap) => {
         setNotes(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClientNote)));
         setLoading(false);
@@ -61,7 +60,7 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
 
   const createNote = useCallback(async (data: CreateNoteData): Promise<string> => {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "clientNotes"), {
+    const docRef = await addDoc(wsCol("clientNotes"), {
       clientId: data.clientId,
       type: data.type,
       content: data.content,
@@ -75,7 +74,7 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
 
   const updateNote = useCallback(
     async (id: string, data: Partial<Omit<ClientNote, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "clientNotes", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clientNotes", id), {
         ...data,
         updatedAt: new Date().toISOString(),
       });
@@ -84,7 +83,7 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteNote = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "clientNotes", id));
+    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clientNotes", id));
   }, []);
 
   const value: ClientNotesContextValue = useMemo(

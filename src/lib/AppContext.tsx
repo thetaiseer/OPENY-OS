@@ -14,7 +14,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -23,7 +22,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { Activity, ActivityType, Client, SystemStatus, Task, TeamMember } from "./types";
 
 // ── Notification helper (writes to Firestore independently) ───
@@ -35,7 +34,7 @@ async function pushNotificationDoc(
   entityId: string
 ) {
   try {
-    await addDoc(collection(db, "notifications"), {
+    await addDoc(wsCol("notifications"), {
       type,
       title,
       message,
@@ -44,7 +43,7 @@ async function pushNotificationDoc(
       createdAt: new Date().toISOString(),
     });
   } catch (err) {
-    console.warn("[OPENY] Failed to create notification:", err);
+    console.error("[OPENY] Failed to create notification:", err);
   }
 }
 
@@ -123,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     const unsubClients = onSnapshot(
-      query(collection(db, "clients"), orderBy("createdAt", "desc")),
+      query(wsCol("clients"), orderBy("createdAt", "desc")),
       (snap) => {
         setClients(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client)));
         markLoaded("clients");
@@ -132,7 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     const unsubTasks = onSnapshot(
-      query(collection(db, "tasks"), orderBy("createdAt", "desc")),
+      query(wsCol("tasks"), orderBy("createdAt", "desc")),
       (snap) => {
         setTasks(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task)));
         markLoaded("tasks");
@@ -141,7 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     const unsubMembers = onSnapshot(
-      query(collection(db, "team"), orderBy("createdAt", "desc")),
+      query(wsCol("team"), orderBy("createdAt", "desc")),
       (snap) => {
         setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as TeamMember)));
         markLoaded("team");
@@ -150,7 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     const unsubActivities = onSnapshot(
-      query(collection(db, "activities"), orderBy("timestamp", "desc")),
+      query(wsCol("activities"), orderBy("timestamp", "desc")),
       (snap) => {
         setActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
         markLoaded("activities");
@@ -169,7 +168,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Internal activity logger ──────────────────────────────
   const pushActivity = useCallback(
     async (type: ActivityType, message: string, detail: string, entityId: string) => {
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type,
         message,
         detail,
@@ -183,7 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Client actions ────────────────────────────────────────
   const addClient = useCallback(
     async (data: { name: string; email: string; website?: string; phone?: string }) => {
-      const docRef = await addDoc(collection(db, "clients"), {
+      const docRef = await addDoc(wsCol("clients"), {
         name: data.name,
         company: data.name,
         email: data.email,
@@ -203,7 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateClient = useCallback(
     async (id: string, data: Partial<Omit<Client, "id">>) => {
-      await updateDoc(doc(db, "clients", id), data);
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients", id), data);
       await pushActivity("client_updated", "Client updated", data.name ?? id, id);
       await pushNotificationDoc("client_updated", "Client Updated", data.name ?? id, id);
     },
@@ -213,7 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback(
     async (id: string) => {
       const client = clients.find((c) => c.id === id);
-      await deleteDoc(doc(db, "clients", id));
+      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "clients", id));
       await pushActivity("client_deleted", "Client removed", client?.name ?? id, id);
     },
     [clients, pushActivity],
@@ -232,7 +231,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       // assigneeName is the snapshot; assignee is kept for backward compat
       const displayName = data.assigneeName || data.assignee || "Unassigned";
-      const docRef = await addDoc(collection(db, "tasks"), {
+      const docRef = await addDoc(wsCol("tasks"), {
         title: data.title,
         clientId: data.clientId ?? "",
         // assignedTo kept for backward compatibility with older documents that used this field name
@@ -255,14 +254,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateTask = useCallback(
     async (id: string, data: Partial<Omit<Task, "id">>) => {
-      await updateDoc(doc(db, "tasks", id), data);
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id), data);
     },
     [],
   );
 
   const deleteTask = useCallback(
     async (id: string) => {
-      await deleteDoc(doc(db, "tasks", id));
+      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id));
     },
     [],
   );
@@ -277,7 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const task = tasksRef.current.find((t) => t.id === id);
       if (!task) return;
       const isDone = task.status === "done";
-      await updateDoc(doc(db, "tasks", id), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "tasks", id), {
         status: isDone ? "todo" : "done",
         completedAt: isDone ? null : new Date().toISOString(),
       });
@@ -292,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Member actions ────────────────────────────────────────
   const addMember = useCallback(
     async (data: { name: string; role: string; email: string }) => {
-      const docRef = await addDoc(collection(db, "team"), {
+      const docRef = await addDoc(wsCol("team"), {
         name: data.name,
         role: data.role,
         email: data.email,
@@ -311,7 +310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMember = useCallback(
     async (id: string) => {
       const member = members.find((m) => m.id === id);
-      await deleteDoc(doc(db, "team", id));
+      await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "team", id));
       await pushActivity("member_removed", "Team member removed", member?.name ?? id, id);
     },
     [members, pushActivity],

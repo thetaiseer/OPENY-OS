@@ -14,7 +14,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   updateDoc,
   doc,
@@ -22,7 +21,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   PublishingEvent,
   PublishingStatus,
@@ -143,7 +142,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const q = query(
-      collection(db, "publishingEvents"),
+      wsCol("publishingEvents"),
       orderBy("createdAt", "desc")
     );
     const unsub = onSnapshot(
@@ -278,7 +277,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
       scheduledAt: string
     ): Promise<string> => {
       const now = new Date().toISOString();
-      const docRef = await addDoc(collection(db, "publishingEvents"), {
+      const docRef = await addDoc(wsCol("publishingEvents"), {
         contentItemId,
         clientId,
         status: "scheduled" as PublishingStatus,
@@ -298,7 +297,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "publishingEvents", event.id), {
+        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
           status: "published" as PublishingStatus,
           publishedAt: now,
           performedBy,
@@ -306,7 +305,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Log to activities
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "post_marked_published",
         message: "Post marked as published",
         detail: `Content item ${contentItemId} published by ${performedBy}`,
@@ -329,7 +328,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "publishingEvents", event.id), {
+        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
           status: "failed" as PublishingStatus,
           failedAt: now,
           failureReason: reason,
@@ -339,14 +338,14 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Log failure
-      await addDoc(collection(db, "publishingFailures"), {
+      await addDoc(wsCol("publishingFailures"), {
         contentItemId,
         reason,
         note,
         reportedBy,
         createdAt: now,
       });
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "publishing_failed",
         message: `Publishing failed: ${reason.replace(/_/g, " ")}`,
         detail: note || `Content item ${contentItemId}`,
@@ -368,14 +367,14 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
         (e) => e.contentItemId === contentItemId
       );
       if (event) {
-        await updateDoc(doc(db, "publishingEvents", event.id), {
+        await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", event.id), {
           status: "rescheduled" as PublishingStatus,
           rescheduledTo: newScheduledAt,
           performedBy,
           updatedAt: now,
         });
       }
-      await addDoc(collection(db, "activities"), {
+      await addDoc(wsCol("activities"), {
         type: "post_rescheduled",
         message: "Post rescheduled",
         detail: `Content item ${contentItemId} rescheduled to ${newScheduledAt}`,
@@ -388,7 +387,7 @@ export function PublishingProvider({ children }: { children: ReactNode }) {
 
   const updatePublishingStatus = useCallback(
     async (eventId: string, status: PublishingStatus) => {
-      await updateDoc(doc(db, "publishingEvents", eventId), {
+      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "publishingEvents", eventId), {
         status,
         updatedAt: new Date().toISOString(),
       });

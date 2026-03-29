@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  collection,
   addDoc,
   deleteDoc,
   doc,
@@ -18,7 +17,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type { BankEntry, BankCategory, ContentPlatform } from "./types";
 
 export type CreateBankEntryData = {
@@ -44,7 +43,7 @@ export function BankProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, "bankEntries"), orderBy("createdAt", "desc")),
+      query(wsCol("bankEntries"), orderBy("createdAt", "desc")),
       (snap) => {
         setEntries(snap.docs.map((d) => ({ id: d.id, ...d.data() } as BankEntry)));
         setLoading(false);
@@ -58,7 +57,7 @@ export function BankProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createEntry = useCallback(async (data: CreateBankEntryData): Promise<string> => {
-    const docRef = await addDoc(collection(db, "bankEntries"), {
+    const docRef = await addDoc(wsCol("bankEntries"), {
       clientId: data.clientId,
       category: data.category,
       text: data.text,
@@ -70,7 +69,7 @@ export function BankProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "bankEntries", id));
+    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "bankEntries", id));
   }, []);
 
   const value: BankContextValue = useMemo(
