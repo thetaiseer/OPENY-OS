@@ -18,8 +18,6 @@ const TYPE_META: Record<
 > = {
   client_created:          { label: "Client",      dot: "#4f8ef7" },
   client_updated:          { label: "Client",      dot: "#4f8ef7" },
-  project_created:         { label: "Project",     dot: "#a78bfa" },
-  project_updated:         { label: "Project",     dot: "#a78bfa" },
   task_created:            { label: "Task",        dot: "#fbbf24" },
   task_updated:            { label: "Task",        dot: "#fbbf24" },
   task_completed:          { label: "Task",        dot: "#34d399" },
@@ -36,8 +34,6 @@ const TYPE_META: Record<
   content_rejected:        { label: "Content",     dot: "#f87171" },
   publishing_due_soon:     { label: "Publishing",  dot: "#fbbf24" },
   post_overdue:            { label: "Publishing",  dot: "#f87171" },
-  campaign_starting_soon:  { label: "Campaign",    dot: "#4f8ef7" },
-  campaign_ending_soon:    { label: "Campaign",    dot: "#fbbf24" },
   quota_warning:           { label: "Quota",       dot: "#f87171" },
   new_client_created:      { label: "Client",      dot: "#4f8ef7" },
   asset_uploaded:          { label: "Assets",      dot: "#a78bfa" },

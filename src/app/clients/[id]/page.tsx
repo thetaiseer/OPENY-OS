@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   LayoutDashboard,
   CalendarDays,
-  Megaphone,
   CheckSquare,
   ClipboardCheck,
   ImageIcon,
@@ -28,7 +27,6 @@ import {
 } from "lucide-react";
 import { useClients } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useCampaigns } from "@/lib/CampaignContext";
 import { useTasks } from "@/lib/AppContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useAssets } from "@/lib/AssetsContext";
@@ -272,12 +270,10 @@ function NotesPanel({ clientId }: { clientId: string }) {
 
 function TimelinePanel({
   contentItems,
-  campaigns,
   tasks,
 }: {
   clientId: string;
   contentItems: Array<{ id: string; title: string; status: string; createdAt: string }>;
-  campaigns: Array<{ id: string; name: string; createdAt: string }>;
   tasks: Array<{
     id: string;
     title: string;
@@ -305,14 +301,6 @@ function TimelinePanel({
       timestamp: c.createdAt,
       icon: CalendarDays,
       color: "var(--accent)",
-    })),
-    ...campaigns.slice(0, 3).map((c) => ({
-      id: `campaign-${c.id}`,
-      message: "Campaign created",
-      detail: c.name,
-      timestamp: c.createdAt,
-      icon: Megaphone,
-      color: "var(--success)",
     })),
     ...tasks
       .filter((task) => task.status === "done" && task.completedAt)
@@ -384,7 +372,6 @@ function TimelinePanel({
 function OverviewPanel({
   client,
   contentItems,
-  campaigns,
   tasks,
   approvals,
 }: {
@@ -398,14 +385,12 @@ function OverviewPanel({
     targetAudience?: string;
   };
   contentItems: Array<{ id: string; status: string; createdAt: string }>;
-  campaigns: Array<{ id: string; status: string }>;
   tasks: Array<{ id: string; status: string }>;
   approvals: Array<{ id: string; status: string }>;
 }) {
   const { t } = useLanguage();
 
   const publishedCount = contentItems.filter((c) => c.status === "published").length;
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
   const openTasks = tasks.filter((task) => task.status !== "done").length;
   const pendingApprovals = approvals.filter((a) => a.status.startsWith("pending")).length;
 
@@ -511,9 +496,9 @@ function OverviewPanel({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             {
-              label: t("clientWorkspace.campaigns"),
-              value: activeCampaigns,
-              icon: Megaphone,
+              label: t("nav.content"),
+              value: contentItems.length,
+              icon: CalendarDays,
               color: "var(--accent)",
             },
             {
@@ -621,7 +606,6 @@ function OverviewPanel({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
               { label: t("clientWorkspace.newPost"), icon: CalendarDays, href: "/content" },
-              { label: t("clientWorkspace.newCampaign"), icon: Megaphone, href: "/campaigns" },
               { label: t("clientWorkspace.newTask"), icon: CheckSquare, href: "/tasks" },
               { label: t("clientWorkspace.uploadAsset"), icon: ImageIcon, href: "/assets" },
               {
@@ -801,13 +785,11 @@ function AssetsPanel({ clientId }: { clientId: string }) {
 function ClientReportPanel({
   client,
   contentItems,
-  campaigns,
   tasks,
   approvals,
 }: {
   client: Client & { monthlyPostQuota?: number };
   contentItems: Array<{ id: string; status: string }>;
-  campaigns: Array<{ id: string; status: string }>;
   tasks: Array<{ id: string; status: string; dueDate: string }>;
   approvals: Array<{ id: string; status: string }>;
 }) {
@@ -817,7 +799,6 @@ function ClientReportPanel({
   const published = contentItems.filter((c) => c.status === "published").length;
   const planned = contentItems.length;
   const pendingApprovals = approvals.filter((a) => a.status.startsWith("pending")).length;
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
   const today = new Date();
   const overdueTasks = tasks.filter((task) => {
     if (task.status === "done") return false;
@@ -838,7 +819,6 @@ function ClientReportPanel({
     { label: t("reports.totalPlanned"), value: planned, sub: undefined },
     { label: t("reports.totalPublished"), value: published, sub: undefined },
     { label: t("reports.pendingApprovals"), value: pendingApprovals, sub: undefined },
-    { label: t("reports.activeCampaigns"), value: activeCampaigns, sub: undefined },
     { label: t("reports.delayedTasks"), value: overdueTasks, sub: undefined },
   ];
 
@@ -962,78 +942,6 @@ function ContentPlanTab({
             {item.status.replace("_", " ")}
           </span>
         </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Campaigns Tab ─────────────────────────────────────────────
-
-function CampaignsTab({
-  campaigns,
-}: {
-  campaigns: Array<{
-    id: string;
-    name: string;
-    status: string;
-    startDate: string;
-    endDate: string;
-    objective: string;
-  }>;
-  clientId: string;
-}) {
-  const { t } = useLanguage();
-  const statusColor: Record<string, "green" | "blue" | "gray" | "yellow"> = {
-    active: "green",
-    planned: "blue",
-    draft: "gray",
-    paused: "yellow",
-    completed: "green",
-    archived: "gray",
-  };
-
-  if (campaigns.length === 0) {
-    return (
-      <EmptyState
-        icon={Megaphone}
-        title={t("clientWorkspace.noCampaignsTitle")}
-        description={t("clientWorkspace.noCampaignsDesc")}
-        action={
-          <Link href="/campaigns">
-            <Button size="sm" icon={Plus}>
-              {t("clientWorkspace.newCampaign")}
-            </Button>
-          </Link>
-        }
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {campaigns.map((c) => (
-        <Link key={c.id} href={`/campaigns/${c.id}`}>
-          <div
-            className="p-4 rounded-xl transition-all"
-            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-          >
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                {c.name}
-              </p>
-              <Badge
-                label={c.status}
-                color={(statusColor[c.status] as "green" | "blue" | "gray") ?? "gray"}
-              />
-            </div>
-            <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-              {c.objective}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-              {c.startDate} → {c.endDate}
-            </p>
-          </div>
-        </Link>
       ))}
     </div>
   );
@@ -1190,7 +1098,6 @@ function ApprovalsTab({
 const TAB_ICONS = {
   overview: LayoutDashboard,
   contentPlan: CalendarDays,
-  campaigns: Megaphone,
   tasks: CheckSquare,
   approvals: ClipboardCheck,
   assets: ImageIcon,
@@ -1205,19 +1112,13 @@ export default function ClientWorkspacePage() {
   const { t } = useLanguage();
   const { clients } = useClients();
   const { contentItems } = useContentItems();
-  const { campaigns } = useCampaigns();
   const { tasks } = useTasks();
   const { approvals } = useApprovals();
 
   const client = clients.find((c) => c.id === clientId);
 
   const clientContent = contentItems.filter((c) => c.clientId === clientId);
-  const clientCampaigns = campaigns.filter((c) => c.clientId === clientId);
-  const projectIds = new Set([
-    ...clientCampaigns.map((c) => c.id),
-    ...clientContent.map((c) => c.id),
-  ]);
-  const clientTasks = tasks.filter((task) => projectIds.has(task.projectId));
+  const clientTasks = tasks.filter((task) => task.clientId === clientId);
   const clientApprovals = approvals.filter((a) => a.clientId === clientId);
 
   const [activeTab, setActiveTab] = useState<keyof typeof TAB_ICONS>("overview");
@@ -1337,15 +1238,11 @@ export default function ClientWorkspacePage() {
           <OverviewPanel
             client={extClient}
             contentItems={clientContent}
-            campaigns={clientCampaigns}
             tasks={clientTasks}
             approvals={clientApprovals}
           />
         )}
         {activeTab === "contentPlan" && <ContentPlanTab contentItems={clientContent} />}
-        {activeTab === "campaigns" && (
-          <CampaignsTab campaigns={clientCampaigns} clientId={clientId} />
-        )}
         {activeTab === "tasks" && <TasksTab tasks={clientTasks} />}
         {activeTab === "approvals" && <ApprovalsTab approvals={clientApprovals} />}
         {activeTab === "assets" && <AssetsPanel clientId={clientId} />}
@@ -1354,7 +1251,6 @@ export default function ClientWorkspacePage() {
           <TimelinePanel
             clientId={clientId}
             contentItems={clientContent}
-            campaigns={clientCampaigns}
             tasks={tasks}
           />
         )}
@@ -1362,7 +1258,6 @@ export default function ClientWorkspacePage() {
           <ClientReportPanel
             client={extClient}
             contentItems={clientContent}
-            campaigns={clientCampaigns}
             tasks={clientTasks}
             approvals={clientApprovals}
           />

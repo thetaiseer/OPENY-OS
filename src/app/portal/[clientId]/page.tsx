@@ -2,7 +2,6 @@
 
 // ============================================================
 // OPENY OS – Client Portal Page
-// Phase 4: Client Portal
 // ============================================================
 import { use, useMemo, useState } from "react";
 import {
@@ -10,7 +9,6 @@ import {
   ClipboardCheck,
   CalendarDays,
   CheckCircle2,
-  Megaphone,
   ImageIcon,
   LayoutDashboard,
   ArrowLeft,
@@ -30,7 +28,6 @@ type PortalTab =
   | "awaiting"
   | "calendar"
   | "approved"
-  | "campaigns"
   | "assets";
 
 const TABS: { key: PortalTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -38,7 +35,6 @@ const TABS: { key: PortalTab; label: string; icon: typeof LayoutDashboard }[] = 
   { key: "awaiting", label: "Awaiting Approval", icon: ClipboardCheck },
   { key: "calendar", label: "Content Calendar", icon: CalendarDays },
   { key: "approved", label: "Approved", icon: CheckCircle2 },
-  { key: "campaigns", label: "Campaigns", icon: Megaphone },
   { key: "assets", label: "Assets", icon: ImageIcon },
 ];
 
@@ -51,7 +47,6 @@ function PortalContent({ clientId: _clientId }: { clientId: string }) {
     pendingApprovals,
     contentItems,
     publishedItems,
-    campaigns,
     assets,
     loading,
     clientApprove,
@@ -239,51 +234,6 @@ function PortalContent({ clientId: _clientId }: { clientId: string }) {
                 </div>
               ))}
 
-              {/* Active campaigns summary */}
-              {campaigns.length > 0 && (
-                <div
-                  className="col-span-2 md:col-span-4 rounded-2xl p-4"
-                  style={{
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <p
-                    className="text-sm font-semibold mb-3"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    Active Campaigns
-                  </p>
-                  <div className="space-y-2">
-                    {campaigns
-                      .filter((c) => c.status === "active")
-                      .slice(0, 3)
-                      .map((c) => (
-                        <div
-                          key={c.id}
-                          className="flex items-center justify-between py-2"
-                          style={{ borderBottom: "1px solid var(--border)" }}
-                        >
-                          <span
-                            className="text-sm font-medium"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {c.name}
-                          </span>
-                          <Badge label="Active" color="green" />
-                        </div>
-                      ))}
-                    {campaigns.filter((c) => c.status === "active").length === 0 && (
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        No active campaigns
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -358,65 +308,6 @@ function PortalContent({ clientId: _clientId }: { clientId: string }) {
                     />
                   );
                 })
-              )}
-            </div>
-          )}
-
-          {/* Campaigns */}
-          {activeTab === "campaigns" && (
-            <div className="space-y-3">
-              {campaigns.length === 0 ? (
-                <EmptyState
-                  icon={Megaphone}
-                  title="No campaigns"
-                  description="Campaigns will appear here."
-                />
-              ) : (
-                campaigns.map((c) => (
-                  <div
-                    key={c.id}
-                    className="rounded-2xl p-4"
-                    style={{
-                      background: "var(--surface-2)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {c.name}
-                      </h3>
-                      <Badge
-                        label={c.status}
-                        color={
-                          c.status === "active"
-                            ? "green"
-                            : c.status === "completed"
-                            ? "blue"
-                            : "gray"
-                        }
-                      />
-                    </div>
-                    {c.objective && (
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {c.objective}
-                      </p>
-                    )}
-                    {(c.startDate || c.endDate) && (
-                      <p
-                        className="text-[11px] mt-2"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {c.startDate} → {c.endDate}
-                      </p>
-                    )}
-                  </div>
-                ))
               )}
             </div>
           )}

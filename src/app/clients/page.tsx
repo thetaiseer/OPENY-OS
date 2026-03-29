@@ -119,7 +119,7 @@ export default function ClientsPage() {
                 )}
                 <div className="flex items-center gap-2">
                   <Building2 size={12} style={{ color: "var(--text-muted)" }} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{client.projects} {t("clients.activeProjects")}</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{client.company}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-2">

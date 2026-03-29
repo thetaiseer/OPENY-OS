@@ -1,6 +1,6 @@
 "use client";
 
-import type { Approval, ContentItem, Client, Campaign } from "@/lib/types";
+import type { Approval, ContentItem, Client } from "@/lib/types";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { CheckCircle, XCircle, RefreshCw } from "lucide-react";
@@ -25,15 +25,13 @@ interface ApprovalCardProps {
   approval: Approval;
   contentItem: ContentItem | undefined;
   clients: Client[];
-  campaigns: Campaign[];
   onClick: () => void;
 }
 
-export function ApprovalCard({ approval, contentItem, clients, campaigns, onClick }: ApprovalCardProps) {
+export function ApprovalCard({ approval, contentItem, clients, onClick }: ApprovalCardProps) {
   const { t } = useLanguage();
   const { updateApprovalStatus } = useApprovals();
   const client = clients.find((c) => c.id === approval.clientId);
-  const campaign = campaigns.find((c) => c.id === approval.campaignId);
   const style = STATUS_STYLES[approval.status] ?? STATUS_STYLES.pending_internal;
   const statusLabel = t((STATUS_LABEL_KEYS[approval.status] ?? "approvals.pendingInternal") as Parameters<typeof t>[0]);
 
@@ -73,11 +71,6 @@ export function ApprovalCard({ approval, contentItem, clients, campaigns, onClic
         {contentItem?.platform && (
           <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
             {contentItem.platform}
-          </span>
-        )}
-        {campaign && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {t("approvals.campaign")}: {campaign.name}
           </span>
         )}
         {approval.assignedTo && (

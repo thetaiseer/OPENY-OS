@@ -7,7 +7,6 @@ import { ContentProvider } from "@/lib/ContentContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
 import { NotificationProvider } from "@/lib/NotificationContext";
 import { InvitationProvider } from "@/lib/InvitationContext";
-import { CampaignProvider } from "@/lib/CampaignContext";
 import { ApprovalProvider } from "@/lib/ApprovalContext";
 import { AssetsProvider } from "@/lib/AssetsContext";
 import { ClientNotesProvider } from "@/lib/ClientNotesContext";
@@ -27,23 +26,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LanguageProvider>
             <AppProvider>
               <ContentProvider>
-                <CampaignProvider>
-                  <ApprovalProvider>
-                    <NotificationProvider>
-                      <InvitationProvider>
-                        <AssetsProvider>
-                          <ClientNotesProvider>
-                            <BankProvider>
-                              <PublishingProvider>
-                                <AppShell>{children}</AppShell>
-                              </PublishingProvider>
-                            </BankProvider>
-                          </ClientNotesProvider>
-                        </AssetsProvider>
-                      </InvitationProvider>
-                    </NotificationProvider>
-                  </ApprovalProvider>
-                </CampaignProvider>
+                <ApprovalProvider>
+                  <NotificationProvider>
+                    <InvitationProvider>
+                      <AssetsProvider>
+                        <ClientNotesProvider>
+                          <BankProvider>
+                            <PublishingProvider>
+                              <AppShell>{children}</AppShell>
+                            </PublishingProvider>
+                          </BankProvider>
+                        </ClientNotesProvider>
+                      </AssetsProvider>
+                    </InvitationProvider>
+                  </NotificationProvider>
+                </ApprovalProvider>
               </ContentProvider>
             </AppProvider>
           </LanguageProvider>

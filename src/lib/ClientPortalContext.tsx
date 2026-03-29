@@ -28,7 +28,6 @@ import type {
   ContentItem,
   Approval,
   ApprovalComment,
-  Campaign,
   Asset,
   Client,
 } from "./types";
@@ -61,7 +60,6 @@ interface ClientPortalContextValue {
   pendingApprovals: Approval[];
   contentItems: ContentItem[];
   publishedItems: ContentItem[];
-  campaigns: Campaign[];
   assets: Asset[];
   loading: boolean;
   // Actions
@@ -83,7 +81,6 @@ interface Props {
 export function ClientPortalProvider({ clientId, clientData, children }: Props) {
   const [pendingApprovals, setPendingApprovals] = useState<Approval[]>([]);
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -145,21 +142,6 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
       (err) => console.error("[OPENY] ClientPortal approvals error:", err)
     );
 
-    // Campaigns for this client
-    const campaignsUnsub = onSnapshot(
-      query(
-        collection(db, "campaigns"),
-        where("clientId", "==", clientId),
-        orderBy("createdAt", "desc")
-      ),
-      (snap) => {
-        setCampaigns(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Campaign))
-        );
-      },
-      (err) => console.error("[OPENY] ClientPortal campaigns error:", err)
-    );
-
     // Assets for this client
     const assetsUnsub = onSnapshot(
       query(
@@ -178,7 +160,6 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
     return () => {
       contentUnsub();
       approvalsUnsub();
-      campaignsUnsub();
       assetsUnsub();
     };
   }, [clientId]);
@@ -318,7 +299,6 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
       pendingApprovals,
       contentItems,
       publishedItems,
-      campaigns,
       assets,
       loading,
       clientApprove,
@@ -330,7 +310,6 @@ export function ClientPortalProvider({ clientId, clientData, children }: Props) 
       pendingApprovals,
       contentItems,
       publishedItems,
-      campaigns,
       assets,
       loading,
       clientApprove,

@@ -29,11 +29,6 @@ const CATEGORIES: { key: PrefCategory; label: string; description: string }[] = 
     description: "New tasks assigned and completions",
   },
   {
-    key: "campaignAlerts",
-    label: "Campaign Alerts",
-    description: "Campaign start / end and status changes",
-  },
-  {
     key: "invitationEmails",
     label: "Invitations",
     description: "Team invitation sent and accepted",

@@ -13,28 +13,12 @@ export interface Client {
   createdAt: string;
   initials: string;
   color: string;
-  projects: number;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  clientId: string;
-  client: string;
-  description: string;
-  status: "active" | "completed" | "paused" | "planning" | "review";
-  progress: number;
-  team: number;
-  dueDate: string;
-  color: string;
-  createdAt: string;
 }
 
 export interface Task {
   id: string;
   title: string;
-  projectId: string;
-  project: string;
+  clientId?: string;
   assignedTo: string;
   assignee: string;
   status: "todo" | "in-progress" | "done";
@@ -52,7 +36,6 @@ export interface TeamMember {
   status: "active" | "away" | "offline";
   initials: string;
   color: string;
-  projects: number;
   createdAt: string;
 }
 
@@ -62,9 +45,6 @@ export type ActivityType =
   | "client_deleted"
   | "task_completed"
   | "task_created"
-  | "project_created"
-  | "project_updated"
-  | "project_deleted"
   | "member_joined"
   | "member_removed"
   | "report_generated"
@@ -104,8 +84,6 @@ export interface SystemStatus {
 export type NotificationType =
   | "client_created"
   | "client_updated"
-  | "project_created"
-  | "project_updated"
   | "task_created"
   | "task_updated"
   | "task_completed"
@@ -122,8 +100,6 @@ export type NotificationType =
   | "content_rejected"
   | "publishing_due_soon"
   | "post_overdue"
-  | "campaign_starting_soon"
-  | "campaign_ending_soon"
   | "quota_warning"
   | "new_client_created"
   | "asset_uploaded"
@@ -191,7 +167,6 @@ export interface ContentComment {
 export interface ContentItem {
   id: string;
   clientId: string;
-  campaignId?: string;
   title: string;
   description: string;
   caption: string;
@@ -232,30 +207,6 @@ export interface Invitation {
   cancelledAt?: string | null;
 }
 
-// ── Campaigns ─────────────────────────────────────────────────
-
-export type CampaignStatus = "draft" | "planned" | "active" | "paused" | "completed" | "archived";
-
-export interface Campaign {
-  id: string;
-  clientId: string;
-  name: string;
-  objective: string;
-  description: string;
-  platforms: ContentPlatform[];
-  budget: number;
-  targetAudience: string;
-  startDate: string;
-  endDate: string;
-  status: CampaignStatus;
-  ownerId: string;
-  linkedContentCount: number;
-  linkedTaskCount: number;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // ── Approval Workflow ─────────────────────────────────────────
 
 export type ApprovalWorkflowStatus =
@@ -280,7 +231,6 @@ export interface Approval {
   id: string;
   contentItemId: string;
   clientId: string;
-  campaignId: string;
   status: ApprovalWorkflowStatus;
   assignedTo: string;
   internalComments: ApprovalComment[];
@@ -401,7 +351,6 @@ export interface BankEntry {
 
 export type ClientActivityType =
   | "client_created"
-  | "campaign_created"
   | "post_scheduled"
   | "post_approved"
   | "task_completed"
@@ -485,7 +434,6 @@ export interface UserNotificationPreferences {
   approvals: NotificationChannelPrefs;
   publishingReminders: NotificationChannelPrefs;
   taskAlerts: NotificationChannelPrefs;
-  campaignAlerts: NotificationChannelPrefs;
   invitationEmails: NotificationChannelPrefs;
   systemAlerts: NotificationChannelPrefs;
   clientActions: NotificationChannelPrefs;

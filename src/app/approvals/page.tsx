@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useCampaigns } from "@/lib/CampaignContext";
 import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { ApprovalCard } from "@/components/approvals/ApprovalCard";
@@ -26,7 +25,7 @@ export default function ApprovalsPage() {
   const { t } = useLanguage();
   const { approvals, loading, addInternalComment, addClientComment } = useApprovals();
   const { contentItems } = useContentItems();
-  const { campaigns } = useCampaigns();
+
   const { clients } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
@@ -125,7 +124,6 @@ export default function ApprovalsPage() {
                 approval={approval}
                 contentItem={contentItem}
                 clients={clients}
-                campaigns={campaigns}
                 onClick={() => setSelectedApproval(approval)}
               />
             );

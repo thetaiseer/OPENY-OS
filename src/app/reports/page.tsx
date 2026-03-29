@@ -7,15 +7,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  Megaphone,
   Users,
   Download,
+  CalendarDays,
 } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Button } from "@/components/ui/Button";
 import { useAppStore } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useCampaigns } from "@/lib/CampaignContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import type { Client } from "@/lib/types";
@@ -80,13 +79,11 @@ function ReportWidget({
 function ClientReportRow({
   client,
   contentItems,
-  campaigns,
   tasks,
   approvals,
 }: {
   client: Client & { monthlyPostQuota?: number };
-  contentItems: Array<{ id: string; status: string; clientId: string }>;
-  campaigns: Array<{ id: string; status: string; clientId: string }>;
+  contentItems: Array<{ id: string; status: string; clientId: string; scheduledDate?: string }>;
   tasks: Array<{ id: string; status: string; dueDate: string }>;
   approvals: Array<{ id: string; status: string; clientId: string }>;
 }) {
@@ -95,9 +92,6 @@ function ClientReportRow({
   const clientContent = contentItems.filter((c) => c.clientId === client.id);
   const published = clientContent.filter((c) => c.status === "published").length;
   const pct = Math.min(100, Math.round((published / quota) * 100));
-  const activeC = campaigns.filter(
-    (c) => c.clientId === client.id && c.status === "active",
-  ).length;
   const pendingA = approvals.filter(
     (a) => a.clientId === client.id && a.status.startsWith("pending"),
   ).length;
@@ -149,14 +143,6 @@ function ClientReportRow({
       </div>
       <div className="gap-4 text-center hidden md:flex">
         <div>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {activeC}
-          </p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {t("reports.activeCampaigns")}
-          </p>
-        </div>
-        <div>
           <p
             className="text-sm font-semibold"
             style={{ color: pendingA > 0 ? "var(--warning)" : "var(--text-primary)" }}
@@ -187,7 +173,6 @@ export default function ReportsPage() {
   const { t } = useLanguage();
   const { clients, tasks } = useAppStore();
   const { contentItems } = useContentItems();
-  const { campaigns } = useCampaigns();
   const { approvals } = useApprovals();
 
   const [period, setPeriod] = useState<Period>("month");
@@ -206,8 +191,7 @@ export default function ReportsPage() {
   const postsPlanned = filteredContent.length;
   const postsPublished = filteredContent.filter((c) => c.status === "published").length;
   const pendingApprovals = approvals.filter((a) => a.status.startsWith("pending")).length;
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
-  const completedCampaigns = campaigns.filter((c) => c.status === "completed").length;
+  const approvedItems = approvals.filter((a) => a.status === "approved").length;
   const today = new Date();
   const overdueTasks = tasks.filter(
     (task) => task.status !== "done" && new Date(task.dueDate) < today,
@@ -231,8 +215,7 @@ export default function ReportsPage() {
       ["Posts Planned", postsPlanned],
       ["Posts Published", postsPublished],
       ["Pending Approvals", pendingApprovals],
-      ["Active Campaigns", activeCampaigns],
-      ["Completed Campaigns", completedCampaigns],
+      ["Approved Items", approvedItems],
       ["Overdue Tasks", overdueTasks],
       ["Overdue Content", overdueContent],
     ];
@@ -331,16 +314,16 @@ export default function ReportsPage() {
           color="var(--error)"
         />
         <ReportWidget
-          label={t("reports.activeCampaigns")}
-          value={activeCampaigns}
-          icon={Megaphone}
-          color="var(--accent)"
-        />
-        <ReportWidget
-          label={t("reports.completedCampaigns")}
-          value={completedCampaigns}
+          label={t("reports.approvedItems")}
+          value={approvedItems}
           icon={CheckCircle2}
           color="var(--success)"
+        />
+        <ReportWidget
+          label={t("reports.totalContent")}
+          value={contentItems.length}
+          icon={CalendarDays}
+          color="var(--accent)"
         />
         <ReportWidget
           label={t("reports.overdueContent")}
@@ -383,7 +366,6 @@ export default function ReportsPage() {
                 key={client.id}
                 client={client as Client & { monthlyPostQuota?: number }}
                 contentItems={contentItems}
-                campaigns={campaigns}
                 tasks={tasks}
                 approvals={approvals}
               />

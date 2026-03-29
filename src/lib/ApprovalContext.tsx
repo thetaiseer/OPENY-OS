@@ -30,7 +30,6 @@ import type { Approval, ApprovalComment, ApprovalWorkflowStatus } from "./types"
 export type CreateApprovalData = {
   contentItemId: string;
   clientId: string;
-  campaignId?: string;
   assignedTo?: string;
   status?: ApprovalWorkflowStatus;
 };
@@ -74,7 +73,6 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
     const docRef = await addDoc(collection(db, "approvals"), {
       contentItemId: data.contentItemId,
       clientId: data.clientId,
-      campaignId: data.campaignId ?? "",
       status: data.status ?? "pending_internal",
       assignedTo: data.assignedTo ?? "",
       internalComments: [],

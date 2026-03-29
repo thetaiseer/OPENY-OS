@@ -312,7 +312,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
           status: "active",
           initials: makeInitials(memberName),
           color: pickColor(),
-          projects: 0,
+  
           createdAt: nowISO,
           updatedAt: nowISO,
         });

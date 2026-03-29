@@ -10,10 +10,14 @@ export function TopBar() {
 
   const pageTitles: Record<string, string> = {
     "/": t("nav.dashboard"),
-    "/projects": t("nav.projects"),
     "/clients": t("nav.clients"),
-    "/team": t("nav.team"),
+    "/content": t("nav.content"),
     "/tasks": t("nav.tasks"),
+    "/team": t("nav.team"),
+    "/approvals": t("nav.approvals"),
+    "/assets": t("nav.assets"),
+    "/reports": t("nav.reports"),
+    "/publishing": t("nav.publishing"),
     "/settings": t("nav.settings"),
   };
 
@@ -22,7 +26,7 @@ export function TopBar() {
   return (
     <header
       className="fixed top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-40"
-      style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border)' }}
+      style={{ background: 'rgba(17,17,24,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
     >
       <div className="flex items-center gap-2.5">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>

@@ -20,7 +20,7 @@ import {
 import { useContentItems, type CreateContentData } from "@/lib/ContentContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
-import { useCampaigns } from "@/lib/CampaignContext";
+
 
 interface ContentModalProps {
   open: boolean;
@@ -154,7 +154,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
   const { t } = useLanguage();
   const { clients, members } = useAppStore();
   const { createContentItem, updateContentItem, addComment } = useContentItems();
-  const { campaigns } = useCampaigns();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -162,7 +161,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
   const [caption, setCaption] = useState("");
   const [hashtagsRaw, setHashtagsRaw] = useState("");
   const [clientId, setClientId] = useState("");
-  const [campaignId, setCampaignId] = useState("");
   const [platform, setPlatform] = useState<ContentPlatform>("Instagram");
   const [contentType, setContentType] = useState<ContentType>("post");
   const [status, setStatus] = useState<ContentStatus>("idea");
@@ -190,7 +188,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
       setCaption(item.caption ?? "");
       setHashtagsRaw((item.hashtags ?? []).join(" "));
       setClientId(item.clientId ?? "");
-      setCampaignId(item.campaignId ?? "");
       setPlatform(item.platform);
       setContentType(item.contentType);
       setStatus(item.status);
@@ -206,7 +203,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
       setCaption("");
       setHashtagsRaw("");
       setClientId("");
-      setCampaignId("");
       setPlatform("Instagram");
       setContentType("post");
       setStatus(defaultStatus ?? "idea");
@@ -228,7 +224,6 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
     try {
       const data: CreateContentData = {
         clientId,
-        campaignId,
         title: title.trim(),
         description,
         caption,
@@ -355,20 +350,12 @@ export function ContentModal({ open, onClose, item, defaultStatus }: ContentModa
                 <TextInput value={title} onChange={setTitle} placeholder={t("content.titlePlaceholder")} required />
               </Field>
 
-              {/* Row: Client + Campaign */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row: Client */}
+              <div className="grid grid-cols-1 gap-3">
                 <Field label={t("content.clientLabel")}>
-                  <SelectInput value={clientId} onChange={(v) => { setClientId(v); setCampaignId(""); }}>
+                  <SelectInput value={clientId} onChange={setClientId}>
                     <option value="">— Select client —</option>
                     {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </SelectInput>
-                </Field>
-                <Field label={t("content.campaignLabel")}>
-                  <SelectInput value={campaignId} onChange={setCampaignId}>
-                    <option value="">— No campaign —</option>
-                    {campaigns
-                      .filter((c) => !clientId || c.clientId === clientId)
-                      .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </SelectInput>
                 </Field>
               </div>

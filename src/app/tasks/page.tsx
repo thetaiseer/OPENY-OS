@@ -24,7 +24,7 @@ export default function TasksPage() {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", project: "", assignee: "", priority: "medium" as Priority, dueDate: "" });
+  const [form, setForm] = useState({ title: "", assignee: "", priority: "medium" as Priority, dueDate: "" });
 
   const statusGroups: { key: Status; label: string; icon: typeof Circle }[] = [
     { key: "todo",        label: t("tasks.statusTodo"),       icon: Circle },
@@ -40,13 +40,13 @@ export default function TasksPage() {
 
   const filtered = tasks.filter((t) =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
-    t.project.toLowerCase().includes(search.toLowerCase())
+    (t.assignee ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   const handleAdd = () => {
     if (!form.title) return;
-    addTask({ title: form.title, project: form.project, assignee: form.assignee, priority: form.priority, dueDate: form.dueDate });
-    setForm({ title: "", project: "", assignee: "", priority: "medium", dueDate: "" });
+    addTask({ title: form.title, assignee: form.assignee, priority: form.priority, dueDate: form.dueDate });
+    setForm({ title: "", assignee: "", priority: "medium", dueDate: "" });
     setModalOpen(false);
   };
 
@@ -117,8 +117,6 @@ export default function TasksPage() {
                             {task.title}
                           </p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.project}</span>
-                            <span style={{ color: "var(--border-strong)" }}>·</span>
                             <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.assignee}</span>
                           </div>
                         </div>
@@ -155,7 +153,6 @@ export default function TasksPage() {
             onChange={(v) => setForm((p) => ({ ...p, title: v }))}
             required
           />
-          <Input label={t("tasks.projectLabel")} placeholder={t("tasks.projectPlaceholder")} value={form.project} onChange={(v) => setForm((p) => ({ ...p, project: v }))} />
           <Input label={t("tasks.assigneeLabel")} placeholder={t("tasks.assigneePlaceholder")} value={form.assignee} onChange={(v) => setForm((p) => ({ ...p, assignee: v }))} />
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t("tasks.priorityLabel")}</label>

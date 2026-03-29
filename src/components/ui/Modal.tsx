@@ -33,10 +33,12 @@ export function Modal({ open, onClose, title, children, maxWidth = "480px" }: Mo
       <div
         className="w-full rounded-2xl flex flex-col max-h-[90vh]"
         style={{
-          background: 'var(--surface-2)',
-          border: '1px solid var(--border-strong)',
+          background: 'rgba(18,18,26,0.95)',
+          backdropFilter: 'blur(32px)',
+          WebkitBackdropFilter: 'blur(32px)',
+          border: '1px solid rgba(255,255,255,0.10)',
           maxWidth,
-          boxShadow: '0 25px 80px rgba(0,0,0,0.5)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
         }}
         onClick={e => e.stopPropagation()}
       >
