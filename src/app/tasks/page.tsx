@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { CheckSquare, Plus, Search, Circle, CheckCircle2, AlertCircle, Clock, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { CheckSquare, Plus, Search, Circle, CheckCircle2, AlertCircle, Clock, Trash2, ChevronDown, Loader2, Users } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -8,9 +9,9 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { useTasks } from "@/lib/AppContext";
+import { useTasks, useTeam, useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import type { Task } from "@/lib/types";
+import type { Task, TeamMember } from "@/lib/types";
 
 type Priority = Task["priority"];
 type Status = Task["status"];
@@ -19,12 +20,196 @@ const priorityColors: Record<Priority, "red" | "yellow" | "blue"> = {
   high: "red", medium: "yellow", low: "blue",
 };
 
+// ── Assignee Dropdown ─────────────────────────────────────────
+
+interface AssigneeSelectProps {
+  members: TeamMember[];
+  loading: boolean;
+  value: string; // assigneeId
+  onChange: (id: string, name: string) => void;
+  label: string;
+  required?: boolean;
+  t: (k: string) => string;
+}
+
+function AssigneeSelect({ members, loading, value, onChange, label, required, t }: AssigneeSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const activeMembers = members.filter((m) => m.status === "active");
+  const filtered = activeMembers.filter(
+    (m) =>
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.role.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selected = members.find((m) => m.id === value);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-1.5" ref={ref}>
+      <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+        {label}{required && <span style={{ color: "var(--accent)" }}> *</span>}
+      </label>
+
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => !loading && setOpen((v) => !v)}
+        className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-start flex items-center justify-between gap-2 transition-all"
+        style={{ color: selected ? "var(--text-primary)" : "var(--text-muted)" }}
+      >
+        {loading ? (
+          <span className="flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
+            <Loader2 size={13} className="animate-spin" />
+            {t("tasks.assigneeLoading")}
+          </span>
+        ) : selected ? (
+          <span className="flex items-center gap-2">
+            <span
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+              style={{ background: selected.color }}
+            >
+              {selected.initials}
+            </span>
+            <span>{selected.name}</span>
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>· {selected.role}</span>
+          </span>
+        ) : (
+          <span>{t("tasks.assigneePlaceholder")}</span>
+        )}
+        <ChevronDown size={14} style={{ color: "var(--text-muted)", flexShrink: 0, transform: open ? "rotate(180deg)" : undefined, transition: "transform 0.15s" }} />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          className="absolute z-50 rounded-2xl shadow-xl overflow-hidden"
+          style={{
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            width: "100%",
+            maxWidth: 320,
+            marginTop: 2,
+          }}
+        >
+          {activeMembers.length === 0 ? (
+            /* Empty state */
+            <div className="flex flex-col items-center gap-3 p-5">
+              <Users size={28} style={{ color: "var(--text-muted)" }} />
+              <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+                {t("tasks.assigneeNoMembers")}
+              </p>
+              <button
+                type="button"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                style={{ background: "var(--accent)", color: "#fff" }}
+                onClick={() => { setOpen(false); router.push("/team"); }}
+              >
+                {t("tasks.assigneeGoToTeam")}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Search */}
+              {activeMembers.length > 5 && (
+                <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
+                  <input
+                    className="glass-input w-full rounded-lg px-3 py-1.5 text-xs outline-none"
+                    placeholder={t("tasks.assigneeSearchPlaceholder")}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{ color: "var(--text-primary)" }}
+                  />
+                </div>
+              )}
+
+              {/* Unassigned option */}
+              <button
+                type="button"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all hover:opacity-80"
+                style={{
+                  background: !value ? "rgba(79,142,247,0.1)" : "transparent",
+                  color: "var(--text-muted)",
+                }}
+                onClick={() => { onChange("", ""); setOpen(false); setSearch(""); }}
+              >
+                <span
+                  className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: "var(--surface-3)" }}
+                >
+                  <Users size={11} style={{ color: "var(--text-muted)" }} />
+                </span>
+                <span>{t("tasks.assigneeUnassigned")}</span>
+              </button>
+
+              {/* Member list */}
+              <div className="max-h-52 overflow-y-auto">
+                {filtered.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all hover:opacity-80"
+                    style={{
+                      background: value === m.id ? "rgba(79,142,247,0.1)" : "transparent",
+                      color: "var(--text-primary)",
+                    }}
+                    onClick={() => { onChange(m.id, m.name); setOpen(false); setSearch(""); }}
+                  >
+                    <span
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                      style={{ background: m.color }}
+                    >
+                      {m.initials}
+                    </span>
+                    <span className="flex-1 text-start">{m.name}</span>
+                    <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{m.role}</span>
+                  </button>
+                ))}
+                {filtered.length === 0 && (
+                  <p className="px-3 py-3 text-xs text-center" style={{ color: "var(--text-muted)" }}>
+                    {t("tasks.assigneeNoResults")}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────
+
 export default function TasksPage() {
   const { tasks, addTask, toggleTaskDone, deleteTask } = useTasks();
+  const { members } = useTeam();
+  const { loading } = useAppStore();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", assignee: "", priority: "medium" as Priority, dueDate: "" });
+  const [form, setForm] = useState({
+    title: "",
+    assigneeId: "",
+    assigneeName: "",
+    priority: "medium" as Priority,
+    dueDate: "",
+  });
+
+  // Wrapper ref for positioning dropdown relative to the modal form
+  const assigneeWrapRef = useRef<HTMLDivElement>(null);
 
   const statusGroups: { key: Status; label: string; icon: typeof Circle }[] = [
     { key: "todo",        label: t("tasks.statusTodo"),       icon: Circle },
@@ -40,19 +225,37 @@ export default function TasksPage() {
 
   const filtered = tasks.filter((t) =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
-    (t.assignee ?? "").toLowerCase().includes(search.toLowerCase())
+    (t.assigneeName ?? t.assignee ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   const handleAdd = () => {
     if (!form.title) return;
-    addTask({ title: form.title, assignee: form.assignee, priority: form.priority, dueDate: form.dueDate });
-    setForm({ title: "", assignee: "", priority: "medium", dueDate: "" });
+    addTask({
+      title: form.title,
+      assigneeId: form.assigneeId,
+      assigneeName: form.assigneeName,
+      priority: form.priority,
+      dueDate: form.dueDate,
+    });
+    setForm({ title: "", assigneeId: "", assigneeName: "", priority: "medium", dueDate: "" });
     setModalOpen(false);
   };
 
   const openCount = tasks.filter((t) => t.status !== "done").length;
   const doneCount = tasks.filter((t) => t.status === "done").length;
   const subtitle = `${openCount} ${t("tasks.open")} · ${doneCount} ${t("tasks.completed")}`;
+
+  /** Resolve display name for a task — handles both old (text) and new (id-based) formats */
+  function getTaskAssigneeName(task: Task): string {
+    if (task.assigneeName) return task.assigneeName;
+    if (task.assignee && task.assignee !== "Unassigned") return task.assignee;
+    if (task.assigneeId) {
+      const member = members.find((m) => m.id === task.assigneeId);
+      if (member) return member.name;
+      return t("tasks.assigneeDeletedMember");
+    }
+    return "";
+  }
 
   return (
     <div>
@@ -93,49 +296,63 @@ export default function TasksPage() {
                 </div>
                 <Card padding="sm">
                   <div>
-                    {groupTasks.map((task, i) => (
-                      <div
-                        key={task.id}
-                        className="flex items-start gap-3 py-3"
-                        style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}
-                      >
-                        <button
-                          onClick={() => toggleTaskDone(task.id)}
-                          className="mt-0.5 flex-shrink-0 transition-all"
-                          style={{ color: task.status === "done" ? "var(--success)" : "var(--text-muted)" }}
+                    {groupTasks.map((task, i) => {
+                      const assigneeName = getTaskAssigneeName(task);
+                      const assigneeMember = task.assigneeId ? members.find((m) => m.id === task.assigneeId) : undefined;
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 py-3"
+                          style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}
                         >
-                          {task.status === "done" ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-sm font-medium"
-                            style={{
-                              color: task.status === "done" ? "var(--text-muted)" : "var(--text-primary)",
-                              textDecoration: task.status === "done" ? "line-through" : "none",
-                            }}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.assignee}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge label={priorityLabels[task.priority]} color={priorityColors[task.priority]} />
-                          <div className="flex items-center gap-1">
-                            <Clock size={11} style={{ color: "var(--text-muted)" }} />
-                            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.dueDate}</span>
-                          </div>
                           <button
-                            onClick={() => deleteTask(task.id)}
-                            className="transition-all p-0.5 rounded"
-                            style={{ color: "var(--text-muted)" }}
+                            onClick={() => toggleTaskDone(task.id)}
+                            className="mt-0.5 flex-shrink-0 transition-all"
+                            style={{ color: task.status === "done" ? "var(--success)" : "var(--text-muted)" }}
                           >
-                            <Trash2 size={13} />
+                            {task.status === "done" ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                           </button>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="text-sm font-medium"
+                              style={{
+                                color: task.status === "done" ? "var(--text-muted)" : "var(--text-primary)",
+                                textDecoration: task.status === "done" ? "line-through" : "none",
+                              }}
+                            >
+                              {task.title}
+                            </p>
+                            {assigneeName && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                {assigneeMember ? (
+                                  <span
+                                    className="w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0"
+                                    style={{ background: assigneeMember.color }}
+                                  >
+                                    {assigneeMember.initials}
+                                  </span>
+                                ) : null}
+                                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{assigneeName}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge label={priorityLabels[task.priority]} color={priorityColors[task.priority]} />
+                            <div className="flex items-center gap-1">
+                              <Clock size={11} style={{ color: "var(--text-muted)" }} />
+                              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{task.dueDate}</span>
+                            </div>
+                            <button
+                              onClick={() => deleteTask(task.id)}
+                              className="transition-all p-0.5 rounded"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Card>
               </div>
@@ -153,7 +370,19 @@ export default function TasksPage() {
             onChange={(v) => setForm((p) => ({ ...p, title: v }))}
             required
           />
-          <Input label={t("tasks.assigneeLabel")} placeholder={t("tasks.assigneePlaceholder")} value={form.assignee} onChange={(v) => setForm((p) => ({ ...p, assignee: v }))} />
+
+          {/* Assignee dropdown — positioned relatively so dropdown overlay works */}
+          <div ref={assigneeWrapRef} className="relative">
+            <AssigneeSelect
+              members={members}
+              loading={loading}
+              value={form.assigneeId}
+              onChange={(id, name) => setForm((p) => ({ ...p, assigneeId: id, assigneeName: name }))}
+              label={t("tasks.assigneeLabel")}
+              t={t}
+            />
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t("tasks.priorityLabel")}</label>
             <div className="flex gap-2">

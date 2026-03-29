@@ -89,7 +89,7 @@ interface AppContextValue {
   deleteClient: (id: string) => Promise<void>;
 
   // Task actions
-  addTask: (data: { title: string; clientId?: string; assignee: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
+  addTask: (data: { title: string; clientId?: string; assigneeId?: string; assigneeName?: string; assignee?: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
   updateTask: (id: string, data: Partial<Omit<Task, "id">>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskDone: (id: string) => Promise<void>;
@@ -224,15 +224,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (data: {
       title: string;
       clientId?: string;
-      assignee: string;
+      assigneeId?: string;
+      assigneeName?: string;
+      assignee?: string;
       priority: Task["priority"];
       dueDate: string;
     }) => {
+      // assigneeName is the snapshot; assignee is kept for backward compat
+      const displayName = data.assigneeName || data.assignee || "Unassigned";
       const docRef = await addDoc(collection(db, "tasks"), {
         title: data.title,
         clientId: data.clientId ?? "",
-        assignedTo: "",
-        assignee: data.assignee || "Unassigned",
+        // assignedTo kept for backward compatibility with older documents that used this field name
+        assignedTo: data.assigneeId ?? "",
+        assigneeId: data.assigneeId ?? "",
+        // assignee kept as a plain-text fallback for older display code; assigneeName is the canonical snapshot
+        assignee: displayName,
+        assigneeName: displayName,
         status: "todo",
         priority: data.priority,
         dueDate: data.dueDate || "TBD",
