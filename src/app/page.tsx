@@ -8,7 +8,7 @@ import {
   Users, CheckSquare, ClipboardCheck, UserCheck,
   Plus, FileText, BarChart3, FilePlus2,
   ArrowRight, Clock, TrendingUp, Layers,
-  Activity, CheckCircle2, Circle, AlertCircle,
+  Activity, CheckCircle2, AlertCircle,
   Calendar, Star, Zap, ArrowUpRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppContext";
@@ -205,7 +205,7 @@ function ContentBarChart({ counts }: { counts: Record<string, number> }) {
 // ── Main Component ───────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { tasks, members, activities, loading: appLoading } = useAppStore();
+  const { tasks, activities, loading: appLoading } = useAppStore();
   const { clients } = useAppStore();
   const { approvals, loading: approvalsLoading } = useApprovals();
   const { contentItems, loading: contentLoading } = useContentItems();
@@ -280,10 +280,6 @@ export default function DashboardPage() {
     approvals: [1,2,1,3,2,2,pendingApprovals.length || 1],
     published: [1,2,3,2,4,3,publishedContent.length || 1],
   }), [clients.length, openTasks.length, pendingApprovals.length, publishedContent.length]);
-
-  // suppress unused import warnings
-  void members;
-  void Circle;
 
   if (loading) {
     return (
