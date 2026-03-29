@@ -473,3 +473,61 @@ html.light .accent-glow {
 html.light .nav-item-active::before {
   background: var(--accent);
 }
+
+
+/* ── Enhanced sidebar styles ──────────────────────────────── */
+.sidebar-nav-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.sidebar-tooltip {
+  position: fixed;
+  background: var(--surface-4);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 9999;
+}
+
+/* ── Notion-style page header ─────────────────────────────── */
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  margin-bottom: 16px;
+}
+
+.page-header-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.page-header-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}

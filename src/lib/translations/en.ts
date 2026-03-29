@@ -31,6 +31,11 @@ export const en = {
     reports: "Reports",
     publishing: "Publishing",
     portal: "Portal",
+    section: {
+      manage: "Manage",
+      resources: "Resources",
+      settings: "Settings",
+    },
   },
   dashboard: {
     greeting_morning: "Good morning",
