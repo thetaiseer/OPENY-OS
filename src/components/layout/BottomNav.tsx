@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LayoutDashboard, CalendarDays, Users2, CheckSquare, ClipboardCheck } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -32,15 +33,26 @@ export function BottomNav() {
       {items.map(({ href, labelKey, icon: Icon }) => {
         const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
         return (
-          <Link
-            key={href}
-            href={href}
-            className="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[48px] min-h-[44px] justify-center"
-            style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
-          >
-            <Icon size={20} />
-            <span className="text-[10px] font-medium leading-tight">{t(labelKey)}</span>
-          </Link>
+          <motion.div key={href} whileTap={{ scale: 0.9 }}>
+            <Link
+              href={href}
+              className="flex flex-col items-center gap-1 px-3 py-1 rounded-xl min-w-[48px] min-h-[44px] justify-center relative"
+              style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
+            >
+              {isActive && (
+                <motion.div
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: 'rgba(79,142,247,0.12)' }}
+                  layoutId="bottom-nav-bg"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
+              <Icon size={20} style={{ position: 'relative', zIndex: 1 }} />
+              <span className="text-[10px] font-medium leading-tight" style={{ position: 'relative', zIndex: 1 }}>
+                {t(labelKey)}
+              </span>
+            </Link>
+          </motion.div>
         );
       })}
     </nav>

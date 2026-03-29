@@ -218,3 +218,78 @@ html[dir="rtl"] .rtl-flip {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
 }
+
+/* ── Enhanced hover glow for interactive cards ──────────────── */
+.hover-glow {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.hover-glow:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(79,142,247,0.1), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateY(-2px);
+}
+
+/* ── Pulse dot for live indicators ─────────────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 1; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.pulse-dot {
+  position: relative;
+  display: inline-block;
+}
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+/* ── Bar chart bar entrance ─────────────────────────────────── */
+@keyframes bar-rise {
+  from { transform: scaleY(0); transform-origin: bottom; }
+  to   { transform: scaleY(1); transform-origin: bottom; }
+}
+
+/* ── Shimmer loading skeleton ───────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ── Gradient text utility ──────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #4f8ef7 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Floating card shadow boost ─────────────────────────────── */
+.floating-card {
+  box-shadow:
+    0 4px 6px rgba(0,0,0,0.07),
+    0 12px 30px rgba(0,0,0,0.15),
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.floating-card:hover {
+  box-shadow:
+    0 8px 16px rgba(0,0,0,0.1),
+    0 24px 48px rgba(0,0,0,0.22),
+    0 0 0 1px rgba(79,142,247,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* ── Accent glow ────────────────────────────────────────────── */
+.accent-glow {
+  box-shadow: 0 0 0 1px rgba(79,142,247,0.3), 0 4px 20px rgba(79,142,247,0.2);
+}

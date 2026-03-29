@@ -2,6 +2,7 @@
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { PageTransition } from "./PageTransition";
 import { useLanguage } from "@/lib/LanguageContext";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <style>{`@media (min-width: 1024px) { :root { --lg-nav-offset: 220px; } }`}</style>
         <div className="lg:hidden h-14" />
         <div className="pb-20 lg:pb-8 px-4 lg:px-8 pt-6 lg:pt-8 max-w-[1400px] mx-auto">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
       
