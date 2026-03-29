@@ -24,7 +24,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Activity, ActivityType, Client, Project, SystemStatus, Task, TeamMember } from "./types";
+import type { Activity, ActivityType, Client, SystemStatus, Task, TeamMember } from "./types";
 
 // ── Notification helper (writes to Firestore independently) ───
 
@@ -70,7 +70,6 @@ function makeInitials(name: string): string {
 interface AppContextValue {
   // Data
   clients: Client[];
-  projects: Project[];
   tasks: Task[];
   members: TeamMember[];
   activities: Activity[];
@@ -80,7 +79,6 @@ interface AppContextValue {
   loading: boolean;
 
   // Computed
-  activeProjectCount: number;
   totalClientCount: number;
   openTaskCount: number;
   teamMemberCount: number;
@@ -90,13 +88,8 @@ interface AppContextValue {
   updateClient: (id: string, data: Partial<Omit<Client, "id">>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 
-  // Project actions
-  addProject: (data: { name: string; description: string; client: string; dueDate: string }) => Promise<void>;
-  updateProject: (id: string, data: Partial<Omit<Project, "id">>) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
-
   // Task actions
-  addTask: (data: { title: string; project: string; assignee: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
+  addTask: (data: { title: string; clientId?: string; assignee: string; priority: Task["priority"]; dueDate: string }) => Promise<void>;
   updateTask: (id: string, data: Partial<Omit<Task, "id">>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskDone: (id: string) => Promise<void>;
@@ -112,7 +105,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -120,12 +112,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Firestore real-time listeners ─────────────────────────
   useEffect(() => {
-    // Track which collections have received their first snapshot (success or error).
-    // On error the collection stays empty and loading is cleared so the app remains usable.
     const loadedSet = new Set<string>();
     const markLoaded = (name: string) => {
       loadedSet.add(name);
-      if (loadedSet.size === 5) setLoading(false);
+      if (loadedSet.size === 4) setLoading(false);
     };
     const handleError = (name: string, err: unknown) => {
       console.error(`[OPENY] Firestore listener error for "${name}":`, err);
@@ -139,15 +129,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         markLoaded("clients");
       },
       (err) => handleError("clients", err),
-    );
-
-    const unsubProjects = onSnapshot(
-      query(collection(db, "projects"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)));
-        markLoaded("projects");
-      },
-      (err) => handleError("projects", err),
     );
 
     const unsubTasks = onSnapshot(
@@ -179,7 +160,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubClients();
-      unsubProjects();
       unsubTasks();
       unsubMembers();
       unsubActivities();
@@ -213,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         initials: makeInitials(data.name),
         color: pickColor(),
-        projects: 0,
+
       });
       await pushActivity("client_added", "New client added", data.name, docRef.id);
       await pushNotificationDoc("client_created", "New Client Added", data.name, docRef.id);
@@ -239,58 +219,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [clients, pushActivity],
   );
 
-  // ── Project actions ───────────────────────────────────────
-  const addProject = useCallback(
-    async (data: { name: string; description: string; client: string; dueDate: string }) => {
-      const docRef = await addDoc(collection(db, "projects"), {
-        name: data.name,
-        clientId: "",
-        client: data.client || "—",
-        description: data.description,
-        status: "planning",
-        progress: 0,
-        team: 1,
-        dueDate: data.dueDate || "TBD",
-        color: pickColor(),
-        createdAt: new Date().toISOString(),
-      });
-      await pushActivity("project_created", "New project created", data.name, docRef.id);
-      await pushNotificationDoc("project_created", "New Project Created", data.name, docRef.id);
-    },
-    [pushActivity],
-  );
-
-  const updateProject = useCallback(
-    async (id: string, data: Partial<Omit<Project, "id">>) => {
-      await updateDoc(doc(db, "projects", id), data);
-      await pushActivity("project_updated", "Project updated", data.name ?? id, id);
-      await pushNotificationDoc("project_updated", "Project Updated", data.name ?? id, id);
-    },
-    [pushActivity],
-  );
-
-  const deleteProject = useCallback(
-    async (id: string) => {
-      const project = projects.find((p) => p.id === id);
-      await deleteDoc(doc(db, "projects", id));
-      await pushActivity("project_deleted", "Project removed", project?.name ?? id, id);
-    },
-    [projects, pushActivity],
-  );
-
   // ── Task actions ──────────────────────────────────────────
   const addTask = useCallback(
     async (data: {
       title: string;
-      project: string;
+      clientId?: string;
       assignee: string;
       priority: Task["priority"];
       dueDate: string;
     }) => {
       const docRef = await addDoc(collection(db, "tasks"), {
         title: data.title,
-        projectId: "",
-        project: data.project || "—",
+        clientId: data.clientId ?? "",
         assignedTo: "",
         assignee: data.assignee || "Unassigned",
         status: "todo",
@@ -351,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: "active",
         initials: makeInitials(data.name),
         color: pickColor(),
-        projects: 0,
+
         createdAt: new Date().toISOString(),
       });
       await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, docRef.id);
@@ -370,10 +310,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Computed values ───────────────────────────────────────
-  const activeProjectCount = useMemo(
-    () => projects.filter((p) => p.status === "active").length,
-    [projects],
-  );
   const totalClientCount = useMemo(() => clients.length, [clients]);
   const openTaskCount = useMemo(
     () => tasks.filter((t) => t.status !== "done").length,
@@ -384,22 +320,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = useMemo(
     () => ({
       clients,
-      projects,
       tasks,
       members,
       activities,
       systemStatuses: [],
       loading,
-      activeProjectCount,
       totalClientCount,
       openTaskCount,
       teamMemberCount,
       addClient,
       updateClient,
       deleteClient,
-      addProject,
-      updateProject,
-      deleteProject,
       addTask,
       updateTask,
       deleteTask,
@@ -409,21 +340,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       clients,
-      projects,
       tasks,
       members,
       activities,
       loading,
-      activeProjectCount,
       totalClientCount,
       openTaskCount,
       teamMemberCount,
       addClient,
       updateClient,
       deleteClient,
-      addProject,
-      updateProject,
-      deleteProject,
       addTask,
       updateTask,
       deleteTask,
@@ -447,11 +373,6 @@ export function useAppStore(): AppContextValue {
 export function useClients() {
   const { clients, addClient, updateClient, deleteClient, totalClientCount } = useAppStore();
   return { clients, addClient, updateClient, deleteClient, totalClientCount };
-}
-
-export function useProjects() {
-  const { projects, addProject, updateProject, deleteProject, activeProjectCount } = useAppStore();
-  return { projects, addProject, updateProject, deleteProject, activeProjectCount };
 }
 
 export function useTasks() {

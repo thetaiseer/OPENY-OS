@@ -30,7 +30,6 @@ const DEFAULT_PREFS: Omit<UserNotificationPreferences, "id" | "userId" | "update
   approvals: { inApp: true, push: true, email: true },
   publishingReminders: { inApp: true, push: true, email: false },
   taskAlerts: { inApp: true, push: false, email: false },
-  campaignAlerts: { inApp: true, push: false, email: false },
   invitationEmails: { inApp: true, push: false, email: true },
   systemAlerts: { inApp: true, push: false, email: false },
   clientActions: { inApp: true, push: true, email: true },

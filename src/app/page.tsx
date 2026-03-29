@@ -1,13 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Users, FolderOpen, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle, Megaphone, ClipboardCheck } from "lucide-react";
+import { Users, CheckSquare, Activity, BarChart3, Plus, Zap, AlertCircle, ClipboardCheck, Send } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useCampaigns } from "@/lib/CampaignContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import type { ActivityType } from "@/lib/types";
 
@@ -48,9 +47,6 @@ const activityColors: Record<ActivityType, string> = {
   client_deleted:            "#f87171",
   task_completed:            "#34d399",
   task_created:              "#34d399",
-  project_created:           "#a78bfa",
-  project_updated:           "#a78bfa",
-  project_deleted:           "#f87171",
   member_joined:             "#fbbf24",
   member_removed:            "#f87171",
   report_generated:          "#8888a0",
@@ -109,13 +105,11 @@ export default function DashboardPage() {
     tasks,
     activities,
     systemStatuses,
-    activeProjectCount,
     totalClientCount,
     openTaskCount,
     teamMemberCount,
   } = useAppStore();
   const { t, isRTL, language } = useLanguage();
-  const { campaigns } = useCampaigns();
   const { approvals } = useApprovals();
 
   const [period, setPeriod] = useState<"week" | "month">("week");
@@ -154,14 +148,15 @@ export default function DashboardPage() {
   );
 
   const degradedCount = systemStatuses.filter((s) => s.status !== "operational").length;
+  const pendingApprovals = approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client").length;
 
   const quickActions = [
-    { label: t("dashboard.newClient"),    href: "/clients",  icon: Users },
-    { label: t("dashboard.newProject"),   href: "/projects", icon: FolderOpen },
-    { label: t("dashboard.newTask"),      href: "/tasks",    icon: CheckSquare },
-    { label: t("dashboard.inviteMember"), href: "/team",     icon: Plus },
-    { label: t("dashboard.viewReports"),  href: "/projects", icon: BarChart3 },
-    { label: t("dashboard.settingsLink"), href: "/settings", icon: Zap },
+    { label: t("dashboard.newClient"),    href: "/clients",   icon: Users },
+    { label: t("dashboard.newTask"),      href: "/tasks",     icon: CheckSquare },
+    { label: t("dashboard.inviteMember"), href: "/team",      icon: Plus },
+    { label: t("dashboard.viewReports"),  href: "/reports",   icon: BarChart3 },
+    { label: t("nav.approvals"),          href: "/approvals", icon: ClipboardCheck },
+    { label: t("dashboard.settingsLink"), href: "/settings",  icon: Zap },
   ];
 
   return (
@@ -176,10 +171,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard label={t("dashboard.activeProjects")} value={activeProjectCount} icon={FolderOpen} change={`+${activeProjectCount}`} positive accent />
-        <StatCard label={t("dashboard.totalClients")}   value={totalClientCount}   icon={Users}       change={`+${totalClientCount}`}   positive />
-        <StatCard label={t("dashboard.openTasks")}      value={openTaskCount}      icon={CheckSquare} change={openTaskCount > 0 ? `${openTaskCount}` : "0"} positive={openTaskCount === 0} />
-        <StatCard label={t("dashboard.teamMembers")}    value={teamMemberCount}    icon={Activity}    change={`+${teamMemberCount}`}    positive />
+        <StatCard label={t("dashboard.totalClients")}   value={totalClientCount}   icon={Users}          change={`+${totalClientCount}`}   positive accent />
+        <StatCard label={t("dashboard.openTasks")}      value={openTaskCount}      icon={CheckSquare}    change={openTaskCount > 0 ? `${openTaskCount}` : "0"} positive={openTaskCount === 0} />
+        <StatCard label={t("dashboard.pendingApprovals")} value={pendingApprovals} icon={ClipboardCheck} change={`${pendingApprovals}`}     positive={pendingApprovals === 0} />
+        <StatCard label={t("dashboard.teamMembers")}    value={teamMemberCount}    icon={Activity}       change={`+${teamMemberCount}`}    positive />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -308,24 +303,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Marketing widgets */}
+      {/* Core metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Link
-          href="/campaigns"
-          className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01]"
-          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-        >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#3b82f620" }}>
-            <Megaphone size={20} style={{ color: "#3b82f6" }} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-              {campaigns.filter((c) => c.status === "active").length}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("nav.campaigns")} — Active</p>
-          </div>
-        </Link>
-
         <Link
           href="/approvals"
           className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01]"
@@ -336,13 +315,28 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-              {approvals.filter((a) => a.status === "pending_internal" || a.status === "pending_client").length}
+              {pendingApprovals}
             </p>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("nav.approvals")} — Pending</p>
+          </div>
+        </Link>
+
+        <Link
+          href="/publishing"
+          className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01]"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#4f8ef720" }}>
+            <Send size={20} style={{ color: "#4f8ef7" }} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+              {openTaskCount}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("nav.publishing")} — Queue</p>
           </div>
         </Link>
       </div>
     </div>
   );
 }
-

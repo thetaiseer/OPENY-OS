@@ -180,7 +180,7 @@ export default function TeamPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Star size={12} style={{ color: "var(--text-muted)" }} />
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{member.projects} {t("team.activeProjects")}</span>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{member.role}</span>
                     </div>
                   </div>
 

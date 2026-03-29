@@ -37,7 +37,6 @@ import type {
 
 export type CreateContentData = {
   clientId: string;
-  campaignId?: string;
   title: string;
   description?: string;
   caption?: string;
@@ -92,7 +91,6 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
     const docRef = await addDoc(collection(db, "contentItems"), {
       clientId: data.clientId,
-      campaignId: data.campaignId ?? "",
       title: data.title,
       description: data.description ?? "",
       caption: data.caption ?? "",

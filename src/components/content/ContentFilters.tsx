@@ -3,13 +3,11 @@
 import { Filter, X } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
-import { useCampaigns } from "@/lib/CampaignContext";
-import type { ContentPlatform, ContentStatus, ApprovalStatus } from "@/lib/types";
+import type { ContentPlatform, ContentStatus, ApprovalStatus, ContentItem } from "@/lib/types";
 import { STATUS_ORDER } from "./contentUtils";
 
 export interface ContentFiltersState {
   clientId: string;
-  campaignId: string;
   platform: ContentPlatform | "";
   status: ContentStatus | "";
   assignedTo: string;
@@ -20,7 +18,6 @@ export interface ContentFiltersState {
 
 export const EMPTY_FILTERS: ContentFiltersState = {
   clientId: "",
-  campaignId: "",
   platform: "",
   status: "",
   assignedTo: "",
@@ -40,7 +37,6 @@ const APPROVAL_STATUSES: ApprovalStatus[] = ["pending_internal", "pending_client
 export function ContentFilters({ filters, onChange }: ContentFiltersProps) {
   const { t } = useLanguage();
   const { clients, members } = useAppStore();
-  const { campaigns } = useCampaigns();
 
   const set = (key: keyof ContentFiltersState, val: string) =>
     onChange({ ...filters, [key]: val });
@@ -68,27 +64,13 @@ export function ContentFilters({ filters, onChange }: ContentFiltersProps) {
       {/* Client filter */}
       <select
         value={filters.clientId}
-        onChange={(e) => { set("clientId", e.target.value); set("campaignId", ""); }}
+        onChange={(e) => set("clientId", e.target.value)}
         style={selectStyle}
       >
         <option value="">{t("content.filterClient")}</option>
         {clients.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
-      </select>
-
-      {/* Campaign filter */}
-      <select
-        value={filters.campaignId}
-        onChange={(e) => set("campaignId", e.target.value)}
-        style={selectStyle}
-      >
-        <option value="">{t("content.filterCampaign")}</option>
-        {campaigns
-          .filter((c) => !filters.clientId || c.clientId === filters.clientId)
-          .map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
       </select>
 
       {/* Platform filter */}
@@ -175,12 +157,9 @@ export function ContentFilters({ filters, onChange }: ContentFiltersProps) {
 
 // ── Filter application helper ─────────────────────────────────
 
-import type { ContentItem } from "@/lib/types";
-
 export function applyFilters(items: ContentItem[], filters: ContentFiltersState): ContentItem[] {
   return items.filter((item) => {
     if (filters.clientId && item.clientId !== filters.clientId) return false;
-    if (filters.campaignId && item.campaignId !== filters.campaignId) return false;
     if (filters.platform && item.platform !== filters.platform) return false;
     if (filters.status && item.status !== filters.status) return false;
     if (filters.assignedTo && item.assignedTo !== filters.assignedTo) return false;
