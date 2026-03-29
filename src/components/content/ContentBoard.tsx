@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ContentItem, ContentStatus } from "@/lib/types";
 import { STATUS_ORDER, STATUS_LABELS, STATUS_COLORS } from "./contentUtils";
 import { ContentCard } from "./ContentCard";
@@ -14,7 +15,24 @@ interface ContentBoardProps {
   onNewInColumn?: (status: ContentStatus) => void;
 }
 
-// ── Single column ─────────────────────────────────────────────
+// Column background gradient by status — very subtle
+const COLUMN_BG: Partial<Record<ContentStatus, string>> = {
+  idea:             "linear-gradient(180deg, rgba(136,136,160,0.06) 0%, transparent 100%)",
+  draft:            "linear-gradient(180deg, rgba(136,136,160,0.06) 0%, transparent 100%)",
+  copywriting:      "linear-gradient(180deg, rgba(79,142,247,0.07) 0%, transparent 100%)",
+  design:           "linear-gradient(180deg, rgba(167,139,250,0.07) 0%, transparent 100%)",
+  in_progress:      "linear-gradient(180deg, rgba(79,142,247,0.07) 0%, transparent 100%)",
+  internal_review:  "linear-gradient(180deg, rgba(251,191,36,0.07) 0%, transparent 100%)",
+  client_review:    "linear-gradient(180deg, rgba(249,115,22,0.07) 0%, transparent 100%)",
+  approved:         "linear-gradient(180deg, rgba(52,211,153,0.07) 0%, transparent 100%)",
+  scheduled:        "linear-gradient(180deg, rgba(6,182,212,0.07) 0%, transparent 100%)",
+  publishing_ready: "linear-gradient(180deg, rgba(16,185,129,0.08) 0%, transparent 100%)",
+  published:        "linear-gradient(180deg, rgba(16,185,129,0.08) 0%, transparent 100%)",
+  failed:           "linear-gradient(180deg, rgba(248,113,113,0.07) 0%, transparent 100%)",
+  archived:         "linear-gradient(180deg, rgba(136,136,160,0.05) 0%, transparent 100%)",
+};
+
+// ── Single column ──────────────────────────────────────────────
 
 function ContentColumn({
   status,
@@ -45,11 +63,17 @@ function ContentColumn({
     <div
       className="flex flex-col flex-shrink-0 rounded-2xl overflow-hidden"
       style={{
-        width: "220px",
-        background: isDragOver ? "var(--surface-3)" : "var(--surface-1)",
-        border: `1px solid ${isDragOver ? color + "55" : "var(--border)"}`,
-        transition: "border-color 0.15s, background 0.15s",
-        minHeight: "200px",
+        width: "240px",
+        minWidth: "240px",
+        background: isDragOver
+          ? `var(--surface-3)`
+          : `var(--surface-1)`,
+        backgroundImage: isDragOver ? undefined : COLUMN_BG[status],
+        border: `1px solid ${isDragOver ? color + "80" : "var(--border)"}`,
+        boxShadow: isDragOver ? `0 0 0 2px ${color}30, 0 4px 20px rgba(0,0,0,0.1)` : "none",
+        transition: "border-color 0.15s, box-shadow 0.15s, background 0.15s",
+        minHeight: "300px",
+        maxHeight: "calc(100vh - 260px)",
       }}
       onDragOver={(e) => { e.preventDefault(); onDragOver(e); }}
       onDrop={() => onDrop(status)}
@@ -57,17 +81,27 @@ function ContentColumn({
     >
       {/* Column header */}
       <div
-        className="flex items-center justify-between px-3 py-2.5"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        className="flex items-center justify-between px-3 py-2.5 flex-shrink-0"
+        style={{ borderBottom: `1px solid ${color}30` }}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-          <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ background: color, boxShadow: `0 0 6px ${color}60` }}
+          />
+          <span
+            className="text-xs font-semibold truncate"
+            style={{ color: "var(--text-primary)" }}
+          >
             {t(labelKey)}
           </span>
           <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{ background: "var(--surface-3)", color: "var(--text-muted)" }}
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{
+              background: color + "20",
+              color: color,
+              border: `1px solid ${color}35`,
+            }}
           >
             {items.length}
           </span>
@@ -75,49 +109,75 @@ function ContentColumn({
         {onNewInColumn && (
           <button
             onClick={() => onNewInColumn(status)}
-            className="w-5 h-5 rounded-lg flex items-center justify-center transition-all"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
+            style={{ color: "var(--text-muted)", background: "transparent" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = color + "20";
+              (e.currentTarget as HTMLElement).style.color = color;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+            }}
+            title={`Add to ${t(labelKey)}`}
           >
             <Plus size={13} />
           </button>
         )}
       </div>
 
-      {/* Cards */}
-      <div className="flex flex-col gap-2 p-2 flex-1">
-        {items.map((item) => (
-          <ContentCard
-            key={item.id}
-            item={item}
-            onClick={() => onCardClick(item)}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData("contentItemId", item.id);
-              e.dataTransfer.effectAllowed = "move";
-              onCardDragStart(item.id);
-            }}
-          />
-        ))}
+      {/* Cards (scrollable) */}
+      <div className="flex flex-col gap-2 p-2.5 overflow-y-auto flex-1">
+        <AnimatePresence>
+          {items.map((item, i) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15, delay: i * 0.03 }}
+            >
+              <ContentCard
+                item={item}
+                onClick={() => onCardClick(item)}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("contentItemId", item.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  onCardDragStart(item.id);
+                }}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
         {items.length === 0 && (
-          <div
-            className="flex-1 flex items-center justify-center rounded-xl min-h-[80px]"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center rounded-xl gap-2"
             style={{
-              border: "1px dashed var(--border)",
+              minHeight: "80px",
+              border: `1.5px dashed ${color}40`,
               color: "var(--text-muted)",
               fontSize: "11px",
             }}
           >
-            Drop here
-          </div>
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center"
+              style={{ background: color + "15" }}
+            >
+              <Plus size={12} style={{ color }} />
+            </div>
+            <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>Drop here</span>
+          </motion.div>
         )}
       </div>
     </div>
   );
 }
 
-// ── Board ─────────────────────────────────────────────────────
+// ── Board ──────────────────────────────────────────────────────
 
 export function ContentBoard({ items, onCardClick, onNewInColumn }: ContentBoardProps) {
   const { updateContentItem } = useContentItems();
