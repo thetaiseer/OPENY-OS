@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Users2, UserCircle, CheckSquare,
   Settings2, Globe, FileText, ClipboardCheck,
   ImageIcon, BarChart2, PanelLeftClose, PanelLeftOpen,
+  Sun, Moon,
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
@@ -72,7 +73,7 @@ interface SideNavProps {
 export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
   const pathname = usePathname();
   const { t, language, setLanguage, isRTL } = useLanguage();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -111,25 +112,26 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           [isRTL ? "right" : "left"]: 0,
         }}
       >
-        {/* Workspace header */}
+        {/* ── Workspace header ──────────────────────────────────── */}
         <div
           className="flex items-center justify-between px-3 pt-4 pb-3 flex-shrink-0"
-          style={{ minHeight: 60 }}
+          style={{ minHeight: 64 }}
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
+            {/* Gradient logo badge */}
             <div
-              className="flex-shrink-0 rounded-lg flex items-center justify-center"
+              className="flex-shrink-0 rounded-xl flex items-center justify-center"
               style={{
-                width: 34,
-                height: 34,
-                background: "var(--accent-dim)",
-                border: "1px solid var(--glass-nav-active-border)",
+                width: 36,
+                height: 36,
+                background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
+                boxShadow: "0 4px 12px rgba(79,142,247,0.35)",
               }}
             >
               <img
                 src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
                 alt="OPENY OS"
-                style={{ height: 22, width: "auto", objectFit: "contain" }}
+                style={{ height: 22, width: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }}
               />
             </div>
             <AnimatePresence initial={false}>
@@ -141,10 +143,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                   transition={{ duration: 0.18 }}
                   className="overflow-hidden whitespace-nowrap"
                 >
-                  <p className="text-sm font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
+                  <p className="text-sm font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
                     OPENY Workspace
                   </p>
-                  <p className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-[10px] font-medium tracking-wide" style={{ color: "var(--text-muted)" }}>
                     Marketing Agency
                   </p>
                 </motion.div>
@@ -167,10 +169,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           </motion.button>
         </div>
 
-        <div className="mx-3 mb-2 flex-shrink-0" style={{ height: 1, background: "var(--border)" }} />
+        <div className="mx-3 mb-1 flex-shrink-0" style={{ height: 1, background: "var(--border)" }} />
 
-        {/* Nav sections */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-1 space-y-1">
+        {/* ── Nav sections ──────────────────────────────────────── */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-0.5">
           {NAV_SECTIONS.map((section) => (
             <div key={section.id}>
               <AnimatePresence initial={false}>
@@ -203,7 +205,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                     >
                       <Link
                         href={href}
-                        className="relative flex items-center rounded-lg transition-colors duration-150"
+                        className="relative flex items-center rounded-xl transition-colors duration-150"
                         style={{
                           gap: collapsed ? 0 : 10,
                           padding: collapsed ? "9px 0" : "8px 10px",
@@ -215,7 +217,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                             : "none",
                         }}
                       >
-                        {/* Left border indicator for active item */}
+                        {/* Active left border indicator */}
                         {isActive && !collapsed && (
                           <motion.span
                             layoutId="nav-active-bar"
@@ -225,7 +227,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                               top: "50%",
                               transform: "translateY(-50%)",
                               width: 3,
-                              height: 18,
+                              height: 20,
                               background: "var(--accent)",
                               borderRadius: 99,
                             }}
@@ -266,14 +268,14 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           ))}
         </nav>
 
-        {/* Bottom section */}
+        {/* ── Bottom section ────────────────────────────────────── */}
         <div className="flex-shrink-0 px-2 pb-3 space-y-1.5">
-          <div className="flex-shrink-0" style={{ height: 1, background: "var(--border)", marginBottom: 6 }} />
+          <div className="flex-shrink-0" style={{ height: 1, background: "var(--border)", marginBottom: 8 }} />
 
           {/* Language switcher */}
           <motion.button
             onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-            className="w-full flex items-center rounded-lg transition-colors"
+            className="w-full flex items-center rounded-xl transition-colors"
             style={{
               gap: collapsed ? 0 : 10,
               padding: collapsed ? "9px 0" : "8px 10px",
@@ -306,9 +308,47 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
             </AnimatePresence>
           </motion.button>
 
+          {/* Theme toggle */}
+          <motion.button
+            onClick={toggleTheme}
+            className="w-full flex items-center rounded-xl transition-colors"
+            style={{
+              gap: collapsed ? 0 : 10,
+              padding: collapsed ? "9px 0" : "8px 10px",
+              justifyContent: collapsed ? "center" : "flex-start",
+              background: "var(--glass-overlay)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--glass-overlay-border)",
+            }}
+            whileHover={{ background: "var(--surface-3)" }}
+            whileTap={{ scale: 0.97 }}
+            onMouseEnter={(e) =>
+              handleMouseEnterItem(theme === "dark" ? "Light Mode" : "Dark Mode", e)
+            }
+            onMouseLeave={handleMouseLeaveItem}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark"
+              ? <Sun size={15} className="flex-shrink-0" />
+              : <Moon size={15} className="flex-shrink-0" />}
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-xs font-semibold whitespace-nowrap overflow-hidden"
+                >
+                  {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+
           {/* User card */}
           <div
-            className="flex items-center rounded-lg overflow-hidden"
+            className="flex items-center rounded-xl overflow-hidden cursor-pointer"
             style={{
               gap: collapsed ? 0 : 10,
               padding: collapsed ? "9px 0" : "9px 10px",
@@ -319,7 +359,9 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           >
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-              style={{ background: "var(--accent)" }}
+              style={{
+                background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
+              }}
             >
               A
             </div>
@@ -345,14 +387,14 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
         </div>
       </motion.aside>
 
-      {/* Tooltip for collapsed mode */}
+      {/* ── Tooltip for collapsed mode ─────────────────────────── */}
       <AnimatePresence>
         {collapsed && tooltip && (
           <motion.div
             key={tooltip.label}
-            initial={{ opacity: 0, x: -4 }}
+            initial={{ opacity: 0, x: isRTL ? 4 : -4 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -4 }}
+            exit={{ opacity: 0, x: isRTL ? 4 : -4 }}
             transition={{ duration: 0.12 }}
             className="sidebar-tooltip"
             style={{

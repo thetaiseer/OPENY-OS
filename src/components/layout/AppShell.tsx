@@ -47,11 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           [isRTL ? "paddingRight" : "paddingLeft"]: `var(--lg-nav-offset, 0px)`,
         }}
       >
-        {/* Tailwind responsive nav offset */}
         <style>{`@media (min-width: 1024px) { :root { --lg-nav-offset: 240px; } }`}</style>
-        <div className="lg:hidden" style={{ height: 'var(--topbar-height)' }} />
-        <div className="lg:hidden h-14" />
-        <div className="pb-20 lg:pb-8 px-4 lg:px-8 pt-6 lg:pt-8 max-w-[1400px] mx-auto">
+        {/* Mobile topbar spacer */}
+        <div className="lg:hidden" style={{ height: "var(--topbar-height)" }} />
+        <div className="pb-24 lg:pb-10 px-4 lg:px-8 pt-6 lg:pt-8 max-w-[1440px] mx-auto">
           <PageTransition>{children}</PageTransition>
         </div>
       </main>
@@ -63,4 +62,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
 
