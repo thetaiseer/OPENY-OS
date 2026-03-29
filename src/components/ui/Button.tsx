@@ -22,11 +22,28 @@ export function Button({
   
   const sizes = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2.5 text-sm", lg: "px-6 py-3 text-sm" };
   
-  const variants = {
-    primary: { background: 'var(--accent)', color: 'white', border: 'none' },
-    secondary: { background: 'var(--surface-3)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' },
-    ghost: { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' },
-    destructive: { background: 'rgba(248,113,113,0.15)', color: 'var(--error)', border: '1px solid rgba(248,113,113,0.3)' },
+  const variants: Record<string, React.CSSProperties> = {
+    primary: {
+      background: 'var(--accent)',
+      color: 'white',
+      border: 'none',
+      boxShadow: '0 2px 8px var(--accent-dim)',
+    },
+    secondary: {
+      background: 'var(--glass-overlay)',
+      color: 'var(--text-primary)',
+      border: '1px solid var(--glass-overlay-border)',
+    },
+    ghost: {
+      background: 'transparent',
+      color: 'var(--text-secondary)',
+      border: '1px solid var(--border)',
+    },
+    destructive: {
+      background: 'rgba(239,68,68,0.10)',
+      color: 'var(--error)',
+      border: '1px solid rgba(239,68,68,0.22)',
+    },
   };
   
   return (

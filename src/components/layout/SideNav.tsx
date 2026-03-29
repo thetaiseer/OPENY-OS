@@ -28,10 +28,11 @@ export function SideNav() {
     <aside
       className="fixed top-0 h-full w-[220px] flex flex-col z-40"
       style={{
-        background: 'rgba(17,17,24,0.88)',
+        background: 'var(--glass-nav)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
-        borderInlineEnd: '1px solid rgba(255,255,255,0.07)',
+        borderInlineEnd: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-nav)',
         [isRTL ? 'right' : 'left']: 0,
       }}
     >
@@ -46,7 +47,7 @@ export function SideNav() {
         </div>
       </div>
       
-      <div className="mx-4 mb-4" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+      <div className="mx-4 mb-4" style={{ height: '1px', background: 'var(--border)' }} />
       
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
@@ -61,9 +62,9 @@ export function SideNav() {
                 href={href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150"
                 style={{
-                  background: isActive ? 'rgba(79,142,247,0.15)' : 'transparent',
+                  background: isActive ? 'var(--glass-nav-active)' : 'transparent',
                   color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                  boxShadow: isActive ? 'inset 0 0 0 1px rgba(79,142,247,0.2)' : 'none',
+                  boxShadow: isActive ? `inset 0 0 0 1px var(--glass-nav-active-border)` : 'none',
                 }}
               >
                 <Icon size={17} className="flex-shrink-0" />
@@ -88,11 +89,11 @@ export function SideNav() {
           onClick={() => setLanguage(language === "en" ? "ar" : "en")}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl"
           style={{
-            background: 'rgba(255,255,255,0.04)',
+            background: 'var(--glass-overlay)',
             color: 'var(--text-secondary)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            border: '1px solid var(--glass-overlay-border)',
           }}
-          whileHover={{ background: 'rgba(255,255,255,0.07)' }}
+          whileHover={{ background: 'var(--surface-3)' }}
           whileTap={{ scale: 0.98 }}
         >
           <Globe size={17} className="flex-shrink-0" />
@@ -104,7 +105,7 @@ export function SideNav() {
       
       <div
         className="mx-3 mb-4 p-3 rounded-xl flex items-center gap-2.5"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ background: 'var(--glass-overlay)', border: '1px solid var(--glass-overlay-border)' }}
       >
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style={{ background: 'var(--accent)' }}>
           A

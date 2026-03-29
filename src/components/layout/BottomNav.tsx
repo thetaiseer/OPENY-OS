@@ -21,10 +21,10 @@ export function BottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40"
       style={{
-        background: 'rgba(17,17,24,0.92)',
+        background: 'var(--glass-nav)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
+        borderTop: '1px solid var(--border)',
         paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
         paddingTop: '8px',
         minHeight: '56px',
@@ -42,7 +42,7 @@ export function BottomNav() {
               {isActive && (
                 <motion.div
                   className="absolute inset-0 rounded-xl"
-                  style={{ background: 'rgba(79,142,247,0.12)' }}
+                  style={{ background: 'var(--glass-nav-active)' }}
                   layoutId="bottom-nav-bg"
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />

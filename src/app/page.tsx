@@ -46,7 +46,7 @@ function BarChart({ data, isRTL }: { data: number[]; isRTL: boolean }) {
             style={{
               background: i === peak
                 ? "linear-gradient(180deg, var(--accent) 0%, rgba(79,142,247,0.5) 100%)"
-                : "rgba(255,255,255,0.07)",
+                : "var(--glass-overlay-border)",
               minHeight: 4,
               boxShadow: i === peak ? "0 0 12px rgba(79,142,247,0.35)" : "none",
             }}
