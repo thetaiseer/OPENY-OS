@@ -29,7 +29,7 @@ export interface Task {
   priority: "low" | "medium" | "high";
   dueDate: string;
   createdAt: string;
-  completedAt?: string;
+  completedAt?: string | null;
 }
 
 export interface TeamMember {

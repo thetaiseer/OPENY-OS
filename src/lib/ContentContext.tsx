@@ -12,16 +12,6 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
 import type {
   ContentItem,
   ContentStatus,
@@ -31,6 +21,13 @@ import type {
   ApprovalStatus,
   ContentComment,
 } from "./types";
+import {
+  subscribeToContentItems,
+  createContentItem as fsCreateContentItem,
+  updateContentItem as fsUpdateContentItem,
+  deleteContentItem as fsDeleteContentItem,
+  addContentComment as fsAddContentComment,
+} from "./firestore/content";
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -68,75 +65,37 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Firestore real-time listener ──────────────────────────
+  // ── Firestore real-time listener (via service layer) ─────
   useEffect(() => {
-    const unsub = onSnapshot(
-      query(wsCol("contentItems"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setContentItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ContentItem)));
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] Firestore listener error for contentItems:", err);
-        setLoading(false);
-      },
+    const unsub = subscribeToContentItems(
+      (rows) => { setContentItems(rows); setLoading(false); },
+      () => setLoading(false),
     );
     return unsub;
   }, []);
 
-  // ── CRUD actions ──────────────────────────────────────────
+  // ── CRUD actions (via service layer) ─────────────────────
 
   const createContentItem = useCallback(async (data: CreateContentData): Promise<string> => {
-    const now = new Date().toISOString();
-    const docRef = await addDoc(wsCol("contentItems"), {
-      clientId: data.clientId,
-      title: data.title,
-      description: data.description ?? "",
-      caption: data.caption ?? "",
-      hashtags: data.hashtags ?? [],
-      platform: data.platform,
-      contentType: data.contentType,
-      status: data.status ?? "idea",
-      priority: data.priority ?? "medium",
-      assignedTo: data.assignedTo ?? "",
-      scheduledDate: data.scheduledDate ?? "",
-      scheduledTime: data.scheduledTime ?? "",
-      publishedAt: null,
-      approvalStatus: data.approvalStatus ?? "pending_internal",
-      attachments: data.attachments ?? [],
-      comments: [],
-      createdAt: now,
-      updatedAt: now,
-    });
-    return docRef.id;
+    return fsCreateContentItem(data);
   }, []);
 
   const updateContentItem = useCallback(
     async (id: string, data: Partial<Omit<ContentItem, "id" | "createdAt">>) => {
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id), {
-        ...data,
-        updatedAt: new Date().toISOString(),
-      });
+      await fsUpdateContentItem(id, data);
     },
     [],
   );
 
   const deleteContentItem = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id));
+    await fsDeleteContentItem(id);
   }, []);
 
   const addComment = useCallback(
     async (id: string, comment: Omit<ContentComment, "id">) => {
       const item = contentItems.find((c) => c.id === id);
       if (!item) return;
-      const newComment: ContentComment = {
-        ...comment,
-        id: crypto.randomUUID(),
-      };
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id), {
-        comments: [...(item.comments ?? []), newComment],
-        updatedAt: new Date().toISOString(),
-      });
+      await fsAddContentComment(id, item.comments ?? [], comment);
     },
     [contentItems],
   );
