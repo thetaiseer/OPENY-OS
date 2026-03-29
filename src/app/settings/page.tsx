@@ -1,6 +1,6 @@
 "use client";
 import { useState, useCallback } from "react";
-import { Settings2, User, Palette, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Check, Globe } from "lucide-react";
+import { Settings2, User, Palette, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Check, Globe, Monitor } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import { Toggle } from "@/components/ui/Toggle";
@@ -12,36 +12,56 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { requestPushPermission } from "@/lib/firebase";
 import type { Language } from "@/lib/LanguageContext";
 
+// ── localStorage keys ──────────────────────────────────────────
 const NOTIF_STORAGE_KEY = "openy_notification_prefs";
+const PROFILE_STORAGE_KEY = "openy_profile";
+const ACCENT_STORAGE_KEY = "openy_accent";
+const SECURITY_STORAGE_KEY = "openy_security";
 
-function loadNotificationPrefs() {
+// ── Helpers ────────────────────────────────────────────────────
+
+function loadJson<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
   }
 }
 
-function saveNotificationPrefs(prefs: Record<string, boolean>) {
+function saveJson(key: string, value: unknown) {
   try {
-    localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Non-critical
   }
 }
 
 type NotifPrefs = { desktop: boolean; sound: boolean; sync: boolean; email: boolean; push: boolean };
+type ProfileData = { name: string; email: string; role: string };
+type SecurityData = { twoFactor: boolean; activityLogs: boolean };
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const [active, setActive] = useState("profile");
-  const [profile, setProfile] = useState({ name: "Alex Chen", email: "alex@openy.os", role: "Administrator" });
+
+  // Profile – loaded from localStorage so it persists across reloads
+  const [profile, setProfile] = useState<ProfileData>(() => {
+    const saved = loadJson<ProfileData>(PROFILE_STORAGE_KEY);
+    return saved ?? { name: "", email: "", role: "" };
+  });
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const handleSaveProfile = useCallback(() => {
+    saveJson(PROFILE_STORAGE_KEY, profile);
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  }, [profile]);
+
   const [notifications, setNotifications] = useState<NotifPrefs>(() => {
-    // Load persisted notification preferences on first render
-    const saved = loadNotificationPrefs();
+    const saved = loadJson<NotifPrefs>(NOTIF_STORAGE_KEY);
     return { desktop: true, sound: false, sync: true, email: true, push: false, ...saved };
   });
   const [pushStatus, setPushStatus] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
@@ -50,12 +70,35 @@ export default function SettingsPage() {
   const updateNotifications = useCallback((updater: (prev: NotifPrefs) => NotifPrefs) => {
     setNotifications((prev: NotifPrefs) => {
       const next = updater(prev);
-      saveNotificationPrefs(next);
+      saveJson(NOTIF_STORAGE_KEY, next);
       return next;
     });
   }, []);
-  const [security, setSecurity] = useState({ twoFactor: false, activityLogs: true });
-  const [accent, setAccent] = useState("#4f8ef7");
+
+  // Security – persisted in localStorage (UI preferences)
+  const [security, setSecurity] = useState<SecurityData>(() => {
+    const saved = loadJson<SecurityData>(SECURITY_STORAGE_KEY);
+    return saved ?? { twoFactor: false, activityLogs: true };
+  });
+
+  const updateSecurity = useCallback((updater: (prev: SecurityData) => SecurityData) => {
+    setSecurity((prev) => {
+      const next = updater(prev);
+      saveJson(SECURITY_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  // Accent color – persisted in localStorage (UI preference)
+  const [accent, setAccent] = useState<string>(() => {
+    if (typeof window === "undefined") return "#4f8ef7";
+    return localStorage.getItem(ACCENT_STORAGE_KEY) ?? "#4f8ef7";
+  });
+
+  const handleAccentChange = useCallback((color: string) => {
+    setAccent(color);
+    saveJson(ACCENT_STORAGE_KEY, color);
+  }, []);
 
   const accents = ["#4f8ef7", "#34d399", "#a78bfa", "#fbbf24", "#f87171", "#06b6d4"];
 
@@ -130,12 +173,11 @@ export default function SettingsPage() {
                     className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
                     style={{ background: 'var(--accent)' }}
                   >
-                    {profile.name.split(" ").map(n => n[0]).join("")}
+                    {profile.name ? profile.name.trim().split(" ").filter(n => n.length > 0).map(n => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
                   </div>
                   <div>
-                    <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{profile.name}</p>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{profile.role}</p>
-                    <Button variant="ghost" size="sm" className="mt-2">{t("settings.changePhoto")}</Button>
+                    <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{profile.name || t("settings.noName")}</p>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{profile.role || t("settings.noRole")}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -144,7 +186,9 @@ export default function SettingsPage() {
                   <Input label={t("settings.roleLabel")} value={profile.role} onChange={v => setProfile(p => ({ ...p, role: v }))} />
                 </div>
                 <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-                  <Button>{t("settings.saveChanges")}</Button>
+                  <Button onClick={handleSaveProfile}>
+                    {profileSaved ? t("settings.saved") : t("settings.saveChanges")}
+                  </Button>
                 </div>
               </Card>
             </>
@@ -219,7 +263,7 @@ export default function SettingsPage() {
                   {accents.map(color => (
                     <button
                       key={color}
-                      onClick={() => setAccent(color)}
+                      onClick={() => handleAccentChange(color)}
                       className="w-8 h-8 rounded-full transition-all"
                       style={{
                         background: color,
@@ -299,14 +343,14 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <Toggle
                     checked={security.twoFactor}
-                    onChange={v => setSecurity(p => ({ ...p, twoFactor: v }))}
+                    onChange={v => updateSecurity(p => ({ ...p, twoFactor: v }))}
                     label={t("settings.twoFactor")}
                     description={t("settings.twoFactorDesc")}
                   />
                   <div style={{ height: '1px', background: 'var(--border)' }} />
                   <Toggle
                     checked={security.activityLogs}
-                    onChange={v => setSecurity(p => ({ ...p, activityLogs: v }))}
+                    onChange={v => updateSecurity(p => ({ ...p, activityLogs: v }))}
                     label={t("settings.activityLogging")}
                     description={t("settings.activityLoggingDesc")}
                   />
@@ -315,29 +359,26 @@ export default function SettingsPage() {
 
               <Card>
                 <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t("settings.activeSessions")}</p>
-                <div className="space-y-3">
-                  {[
-                    { device: "MacBook Pro", location: "San Francisco, CA", current: true, time: "Now" },
-                    { device: "iPhone 15 Pro", location: "San Francisco, CA", current: false, time: "2h ago" },
-                  ].map(({ device, location, current, time }) => (
-                    <div key={device} className="flex items-center justify-between py-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{device}</p>
-                          {current && (
-                            <span
-                              className="text-[10px] px-1.5 py-0.5 rounded-full"
-                              style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
-                            >
-                              {t("settings.current")}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{location} · {time}</p>
-                      </div>
-                      {!current && <Button variant="ghost" size="sm">{t("common.revoke")}</Button>}
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Monitor size={15} style={{ color: 'var(--text-secondary)' }} />
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {typeof navigator !== "undefined" && /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
+                          ? t("settings.mobileDevice")
+                          : t("settings.desktopDevice")}
+                      </p>
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
+                      >
+                        {t("settings.current")}
+                      </span>
                     </div>
-                  ))}
+                    <p className="text-xs mt-0.5 ms-5" style={{ color: 'var(--text-muted)' }}>
+                      {t("settings.currentBrowser")}
+                    </p>
+                  </div>
                 </div>
               </Card>
 
