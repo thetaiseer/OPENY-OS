@@ -13,9 +13,6 @@ export function TopBar() {
   const { theme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Close search on route change
-  useEffect(() => { setSearchOpen(false); }, [pathname]);
-
   // Close on Escape key
   useEffect(() => {
     if (!searchOpen) return;
