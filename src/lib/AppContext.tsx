@@ -190,10 +190,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback(
     async (id: string) => {
       const client = clients.find((c) => c.id === id);
+      // Cascade: unlink tasks that reference this client
+      const relatedTasks = tasks.filter((t) => t.clientId === id);
+      await Promise.all(relatedTasks.map((t) => fsUpdateTask(t.id, { clientId: "" })));
       await fsDeleteClient(id);
       await pushActivity("client_deleted", "Client removed", client?.name ?? id, id);
     },
-    [clients, pushActivity],
+    [clients, tasks, pushActivity],
   );
 
   // ── Task actions (via service layer) ─────────────────────
@@ -287,10 +290,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMember = useCallback(
     async (id: string) => {
       const member = members.find((m) => m.id === id);
+      // Cascade: unlink tasks assigned to this member
+      const relatedTasks = tasks.filter((t) => t.assigneeId === id);
+      await Promise.all(
+        relatedTasks.map((t) =>
+          fsUpdateTask(t.id, { assigneeId: "", assignee: "Unassigned", assigneeName: "Unassigned" })
+        )
+      );
       await fsDeleteTeamMember(id);
       await pushActivity("member_removed", "Team member removed", member?.name ?? id, id);
     },
-    [members, pushActivity],
+    [members, tasks, pushActivity],
   );
 
   // ── Computed values ───────────────────────────────────────
