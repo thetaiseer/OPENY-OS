@@ -43,6 +43,11 @@ const TYPE_META: Record<
   client_rejected:         { label: "Client",      dot: "#f87171" },
   client_requested_changes:{ label: "Client",      dot: "#fbbf24" },
   post_rescheduled:        { label: "Publishing",  dot: "#a78bfa" },
+  task:                    { label: "Task",        dot: "#fbbf24" },
+  approval:                { label: "Approval",    dot: "#f97316" },
+  system:                  { label: "System",      dot: "#8888a0" },
+  invite:                  { label: "Invite",      dot: "#a78bfa" },
+  publish_reminder:        { label: "Publishing",  dot: "#fbbf24" },
 };
 
 function formatRelativeTime(iso: string): string {
