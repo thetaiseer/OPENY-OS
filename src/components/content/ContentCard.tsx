@@ -49,12 +49,12 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
     setDeleting(true);
     try {
       await deleteContentItem(item.id);
+      setConfirmDelete(false);
       showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
     } catch {
       showToast(isArabic ? "فشل حذف المحتوى" : "Failed to delete content", "error");
     } finally {
       setDeleting(false);
-      setConfirmDelete(false);
     }
   };
 

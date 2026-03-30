@@ -10,19 +10,25 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  /** When true, backdrop click and Escape key are disabled to prevent
+   *  accidental dismissal while an async operation is in progress. */
+  loading?: boolean;
 }
 
-export function Modal({ open, onClose, title, children, maxWidth = "min(92vw, 560px)" }: ModalProps) {
+export function Modal({ open, onClose, title, children, maxWidth = "min(92vw, 560px)", loading = false }: ModalProps) {
   useEffect(() => {
     if (!open) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKey = (e: KeyboardEvent) => {
+      // Block Escape while a destructive/async action is in progress
+      if (e.key === "Escape" && !loading) onClose();
+    };
     document.addEventListener("keydown", handleKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, loading, onClose]);
 
   const content = (
     <AnimatePresence>
@@ -33,7 +39,7 @@ export function Modal({ open, onClose, title, children, maxWidth = "min(92vw, 56
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          onClick={onClose}
+          onClick={!loading ? onClose : undefined}
         >
           <motion.div
             className="glass-modal flex flex-col overflow-hidden"
@@ -51,11 +57,12 @@ export function Modal({ open, onClose, title, children, maxWidth = "min(92vw, 56
             <div className="flex items-center justify-between px-6 pt-5 pb-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
               <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
               <motion.button
-                onClick={onClose}
-                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                onClick={!loading ? onClose : undefined}
+                disabled={loading}
+                className="w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
                 style={{ background: 'var(--glass-overlay)', border: '1px solid var(--glass-overlay-border)', color: 'var(--text-secondary)' }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={!loading ? { scale: 1.1 } : undefined}
+                whileTap={!loading ? { scale: 0.95 } : undefined}
               >
                 <X size={14} />
               </motion.button>

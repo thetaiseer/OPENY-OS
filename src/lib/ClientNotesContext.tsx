@@ -16,6 +16,7 @@ import {
   updateClientNote as fsUpdateClientNote,
   deleteClientNote as fsDeleteClientNote,
 } from "./firestore/clientNotes";
+import { withTimeout } from "./utils/crud";
 
 export type CreateNoteData = {
   clientId: string;
@@ -48,18 +49,18 @@ export function ClientNotesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createNote = useCallback(async (data: CreateNoteData): Promise<string> => {
-    return fsCreateClientNote(data);
+    return withTimeout(fsCreateClientNote(data));
   }, []);
 
   const updateNote = useCallback(
     async (id: string, data: Partial<Omit<ClientNote, "id" | "createdAt">>) => {
-      await fsUpdateClientNote(id, data);
+      await withTimeout(fsUpdateClientNote(id, data));
     },
     [],
   );
 
   const deleteNote = useCallback(async (id: string) => {
-    await fsDeleteClientNote(id);
+    await withTimeout(fsDeleteClientNote(id));
   }, []);
 
   const value: ClientNotesContextValue = useMemo(
