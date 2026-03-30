@@ -16,6 +16,7 @@ import { PublishingProvider } from "@/lib/PublishingContext";
 import { RecurringTaskProvider } from "@/lib/RecurringTaskContext";
 import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui/ToastContainer";
+import { UserPreferencesSync } from "@/components/layout/UserPreferencesSync";
 
 export const metadata: Metadata = {
   title: "OPENY OS",
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LanguageProvider>
             <ToastProvider>
               <AuthProvider>
+                <UserPreferencesSync />
                 <AppProvider>
                   <ContentProvider>
                     <ApprovalProvider>
