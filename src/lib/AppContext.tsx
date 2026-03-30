@@ -34,6 +34,7 @@ import {
 import {
   subscribeToActivities,
   createActivity as fsCreateActivity,
+  clearAllActivities as fsClearAllActivities,
 } from "./firestore/activities";
 import { pushNotification as fsPushNotification } from "./firestore/notifications";
 import { withTimeout, fireAndForget } from "./utils/crud";
@@ -102,6 +103,9 @@ interface AppContextValue {
   // Member actions
   addMember: (data: { name: string; role: string; email: string }) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
+
+  // Activity actions
+  clearActivities: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -363,6 +367,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [members, tasks, pushActivity],
   );
 
+  const clearActivities = useCallback(async () => {
+    await withTimeout(fsClearAllActivities());
+  }, []);
+
   // ── Computed values ───────────────────────────────────────
   const totalClientCount = useMemo(() => clients.length, [clients]);
   const openTaskCount = useMemo(
@@ -391,6 +399,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleTaskDone,
       addMember,
       deleteMember,
+      clearActivities,
     }),
     [
       clients,
@@ -410,6 +419,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleTaskDone,
       addMember,
       deleteMember,
+      clearActivities,
     ],
   );
 
@@ -440,6 +450,6 @@ export function useTeam() {
 }
 
 export function useActivities() {
-  const { activities } = useAppStore();
-  return { activities };
+  const { activities, clearActivities } = useAppStore();
+  return { activities, clearActivities };
 }

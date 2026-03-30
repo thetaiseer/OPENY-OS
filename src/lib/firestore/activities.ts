@@ -4,11 +4,13 @@
 // ============================================================
 import {
   addDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
+  writeBatch,
 } from "firebase/firestore";
-import { wsCol } from "@/lib/firebase";
+import { db, wsCol } from "@/lib/firebase";
 import type { Activity, ActivityType } from "@/lib/types";
 
 const DEV = process.env.NODE_ENV !== "production";
@@ -41,6 +43,26 @@ export function subscribeToActivities(
       onError?.(err);
     }
   );
+}
+
+// ── Delete all ───────────────────────────────────────────────
+
+export async function clearAllActivities(): Promise<void> {
+  log("clearAllActivities start");
+  const snap = await getDocs(wsCol("activities"));
+  if (snap.empty) {
+    log("clearAllActivities – nothing to delete");
+    return;
+  }
+  // Firestore batch supports up to 500 ops; chunk if needed
+  const BATCH_SIZE = 500;
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    docs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  log("clearAllActivities done – deleted", docs.length, "docs");
 }
 
 // ── Create ───────────────────────────────────────────────────
