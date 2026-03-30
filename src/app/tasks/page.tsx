@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Clock3, Plus, Workflow, Zap } from "lucide-react";
+import { CheckCircle2, Clock3, Plus, Workflow, Zap, Trash2, Edit } from "lucide-react";
 import { useTasks, useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddTaskModal } from "@/components/ui/AddTaskModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { useToast } from "@/lib/ToastContext";
 import {
   BarListChart,
   ButtonLink,
@@ -20,11 +23,27 @@ import {
 } from "@/components/redesign/ui";
 
 export default function TasksPage() {
-  const { tasks, toggleTaskDone } = useTasks();
+  const { tasks, toggleTaskDone, deleteTask } = useTasks();
   const { members } = useTeam();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
   const [showAddTask, setShowAddTask] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteTask = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteTask(id);
+      showToast(isArabic ? "تم حذف المهمة بنجاح" : "Task deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف المهمة" : "Failed to delete task", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   const openTasks = tasks.filter((task) => task.status !== "done").length;
   const inProgress = tasks.filter((task) => task.status === "in-progress").length;
@@ -51,6 +70,17 @@ export default function TasksPage() {
   return (
     <PageMotion>
       <AddTaskModal open={showAddTask} onClose={() => setShowAddTask(false)} />
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={isArabic ? "حذف المهمة" : "Delete task"}
+        message={isArabic ? "هل أنت متأكد من حذف هذه المهمة نهائيًا؟" : "Are you sure you want to permanently delete this task?"}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDelete && handleDeleteTask(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <PageHeader
         eyebrow={pageText("Execution center", "مركز التنفيذ")}
         title={pageText("Task workflow rebuilt", "إعادة بناء سير المهام")}
@@ -106,7 +136,16 @@ export default function TasksPage() {
                     <h3 className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</h3>
                     <p className="mt-1 text-xs text-[var(--muted)]">{task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}</p>
                   </div>
-                  <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
+                    <ActionMenu
+                      items={[
+                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => {} },
+                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(task.id) },
+                      ]}
+                      size={16}
+                    />
+                  </div>
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
                   <span>{task.dueDate || (isArabic ? "بدون موعد" : "No deadline")}</span>

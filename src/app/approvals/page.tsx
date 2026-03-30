@@ -1,10 +1,14 @@
 "use client";
 
-import { CheckCircle2, Clock3, MessageSquareText, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Clock3, MessageSquareText, ShieldCheck, Trash2, Eye } from "lucide-react";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useContentItems } from "@/lib/ContentContext";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { useToast } from "@/lib/ToastContext";
 import {
   EmptyPanel,
   InfoBadge,
@@ -17,11 +21,27 @@ import {
 } from "@/components/redesign/ui";
 
 export default function ApprovalsPage() {
-  const { approvals } = useApprovals();
+  const { approvals, deleteApproval } = useApprovals();
   const { contentItems } = useContentItems();
   const { clients } = useClients();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteApproval(id);
+      showToast(isArabic ? "تم حذف طلب الموافقة بنجاح" : "Approval deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف طلب الموافقة" : "Failed to delete approval", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   const pendingInternal = approvals.filter((approval) => approval.status === "pending_internal").length;
   const pendingClient = approvals.filter((approval) => approval.status === "pending_client").length;
@@ -37,6 +57,17 @@ export default function ApprovalsPage() {
 
   return (
     <PageMotion>
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={isArabic ? "حذف طلب الموافقة" : "Delete approval"}
+        message={isArabic ? "هل أنت متأكد من حذف طلب الموافقة هذا؟" : "Are you sure you want to delete this approval request?"}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <PageHeader
         eyebrow={pageText("Review pipeline", "خط المراجعة")}
         title={pageText("Approval flow redesigned", "إعادة تصميم تدفق الموافقات")}
@@ -71,7 +102,16 @@ export default function ApprovalsPage() {
                       <h3 className="text-sm font-semibold text-[var(--text)]">{item?.title || approval.contentItemId}</h3>
                       <p className="mt-1 text-xs text-[var(--muted)]">{client?.name || (isArabic ? "عميل غير معروف" : "Unknown client")}</p>
                     </div>
-                    <InfoBadge label={approval.status.replace(/_/g, " ")} tone={approval.status === "approved" ? "mint" : approval.status === "pending_client" ? "violet" : approval.status === "pending_internal" ? "amber" : "rose"} />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <InfoBadge label={approval.status.replace(/_/g, " ")} tone={approval.status === "approved" ? "mint" : approval.status === "pending_client" ? "violet" : approval.status === "pending_internal" ? "amber" : "rose"} />
+                      <ActionMenu
+                        items={[
+                          { label: isArabic ? "عرض التفاصيل" : "View details", icon: Eye, onClick: () => {} },
+                          { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(approval.id) },
+                        ]}
+                        size={16}
+                      />
+                    </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <InfoBadge label={`${commentsCount} ${isArabic ? "تعليقات" : "comments"}`} tone="slate" />

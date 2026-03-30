@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, Plus, Sparkles, Target } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle2, Plus, Sparkles, Target, Eye, Edit, Archive, Trash2 } from "lucide-react";
 import { useClients, useTasks } from "@/lib/AppContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { useToast } from "@/lib/ToastContext";
 import { useContentItems } from "@/lib/ContentContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -20,13 +23,29 @@ import {
 } from "@/components/redesign/ui";
 
 export default function ClientsPage() {
-  const { clients } = useClients();
+  const { clients, deleteClient } = useClients();
   const { tasks } = useTasks();
   const { contentItems } = useContentItems();
   const { approvals } = useApprovals();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
   const [showAddClient, setShowAddClient] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteClient(id);
+      showToast(isArabic ? "تم حذف العميل بنجاح" : "Client deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف العميل" : "Failed to delete client", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   const activeClients = clients.filter((client) => client.status === "active").length;
   const prospects = clients.filter((client) => client.status === "prospect").length;
@@ -55,6 +74,17 @@ export default function ClientsPage() {
   return (
     <PageMotion>
       <AddClientModal open={showAddClient} onClose={() => setShowAddClient(false)} />
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={isArabic ? "حذف العميل" : "Delete client"}
+        message={isArabic ? "هل أنت متأكد من حذف هذا العميل؟ سيتم إزالة جميع البيانات المرتبطة به." : "Are you sure you want to delete this client? All associated data will be unlinked."}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <PageHeader
         eyebrow={pageText("Client intelligence", "ذكاء العملاء")}
         title={pageText("Premium client spaces", "مساحات عملاء فاخرة")}
@@ -89,9 +119,9 @@ export default function ClientsPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {clientLoad.map((entry) => (
-                <Link key={entry.client.id} href={`/clients/${entry.client.id}`} className="glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1">
+                <div key={entry.client.id} className="relative glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <Link href={`/clients/${entry.client.id}`} className="flex items-center gap-3 flex-1">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: entry.client.color }}>
                         {entry.client.initials}
                       </div>
@@ -99,8 +129,15 @@ export default function ClientsPage() {
                         <h3 className="text-base font-semibold text-[var(--text)]">{entry.client.name}</h3>
                         <p className="text-sm text-[var(--muted)]">{entry.client.company}</p>
                       </div>
-                    </div>
-                    <ArrowUpRight size={18} className="text-[var(--accent)]" />
+                    </Link>
+                    <ActionMenu
+                      items={[
+                        { label: isArabic ? "عرض التفاصيل" : "View details", icon: Eye, onClick: () => {} },
+                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => {} },
+                        { label: isArabic ? "أرشفة" : "Archive", icon: Archive, onClick: () => {} },
+                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(entry.client.id) },
+                      ]}
+                    />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <InfoBadge label={entry.client.status} tone={entry.client.status === "active" ? "mint" : entry.client.status === "prospect" ? "amber" : "slate"} />
@@ -112,7 +149,7 @@ export default function ClientsPage() {
                     <SummaryCell label={isArabic ? "المهام" : "Tasks"} value={entry.openTasks} />
                     <SummaryCell label={isArabic ? "الزخم" : "Pulse"} value={entry.score} />
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}

@@ -1,9 +1,13 @@
 "use client";
 
-import { FolderOpen, Image as ImageIcon, PlayCircle, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { FolderOpen, Image as ImageIcon, PlayCircle, Sparkles, Trash2, Archive, Eye } from "lucide-react";
 import { useAssets } from "@/lib/AssetsContext";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { useToast } from "@/lib/ToastContext";
 import {
   BarListChart,
   EmptyPanel,
@@ -16,10 +20,26 @@ import {
 } from "@/components/redesign/ui";
 
 export default function AssetsPage() {
-  const { assets } = useAssets();
+  const { assets, deleteAsset } = useAssets();
   const { clients } = useClients();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteAsset(id);
+      showToast(isArabic ? "تم حذف الأصل بنجاح" : "Asset deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف الأصل" : "Failed to delete asset", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   const images = assets.filter((asset) => asset.type === "image" || asset.type === "logo").length;
   const videos = assets.filter((asset) => asset.type === "video").length;
@@ -33,6 +53,17 @@ export default function AssetsPage() {
 
   return (
     <PageMotion>
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={isArabic ? "حذف الأصل" : "Delete asset"}
+        message={isArabic ? "هل أنت متأكد من حذف هذا الأصل؟" : "Are you sure you want to delete this asset?"}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <PageHeader
         eyebrow={pageText("Media library", "مكتبة الوسائط")}
         title={pageText("Asset management refreshed", "تحديث إدارة الأصول")}
@@ -58,8 +89,17 @@ export default function AssetsPage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {assets.slice(0, 9).map((asset) => (
                 <article key={asset.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(61,217,180,0.16))] text-[var(--accent)]">
-                    {asset.type === "video" ? <PlayCircle size={18} /> : <ImageIcon size={18} />}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(61,217,180,0.16))] text-[var(--accent)]">
+                      {asset.type === "video" ? <PlayCircle size={18} /> : <ImageIcon size={18} />}
+                    </div>
+                    <ActionMenu
+                      items={[
+                        { label: isArabic ? "عرض التفاصيل" : "View details", icon: Eye, onClick: () => {} },
+                        { label: isArabic ? "أرشفة" : "Archive", icon: Archive, onClick: () => {} },
+                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(asset.id) },
+                      ]}
+                    />
                   </div>
                   <h3 className="mt-4 text-sm font-semibold text-[var(--text)]">{asset.name}</h3>
                   <p className="mt-1 text-xs text-[var(--muted)]">{clients.find((client) => client.id === asset.clientId)?.name || (isArabic ? "عميل غير معروف" : "Unknown client")}</p>

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Plus, ShieldCheck, Sparkles, Users, Workflow } from "lucide-react";
+import { Activity, Plus, ShieldCheck, Sparkles, Users, Workflow, Trash2, Edit } from "lucide-react";
 import { useAppStore, useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddMemberModal } from "@/components/ui/AddMemberModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { useToast } from "@/lib/ToastContext";
 import {
   BarListChart,
   EmptyPanel,
@@ -17,11 +20,27 @@ import {
 } from "@/components/redesign/ui";
 
 export default function TeamPage() {
-  const { members } = useTeam();
+  const { members, deleteMember } = useTeam();
   const { tasks, activities } = useAppStore();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
   const [showAddMember, setShowAddMember] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteMember(id);
+      showToast(isArabic ? "تم حذف العضو بنجاح" : "Team member deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف العضو" : "Failed to delete member", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   const activeMembers = members.filter((member) => member.status === "active").length;
   const awayMembers = members.filter((member) => member.status === "away").length;
@@ -34,6 +53,17 @@ export default function TeamPage() {
   return (
     <PageMotion>
       <AddMemberModal open={showAddMember} onClose={() => setShowAddMember(false)} />
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={isArabic ? "حذف العضو" : "Delete member"}
+        message={isArabic ? "هل أنت متأكد من حذف هذا العضو؟ سيتم إلغاء إسناد مهامه." : "Are you sure you want to delete this member? Their task assignments will be removed."}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <PageHeader
         eyebrow={pageText("People operations", "عمليات الفريق")}
         title={pageText("Team cockpit rebuilt", "إعادة بناء قمرة الفريق")}
@@ -69,14 +99,22 @@ export default function TeamPage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {members.map((member) => (
                 <article key={member.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: member.color }}>
-                      {member.initials}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: member.color }}>
+                        {member.initials}
+                      </div>
+                      <div>
+                        <h3 className="text-base font-semibold text-[var(--text)]">{member.name}</h3>
+                        <p className="text-sm text-[var(--muted)]">{member.role}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-[var(--text)]">{member.name}</h3>
-                      <p className="text-sm text-[var(--muted)]">{member.role}</p>
-                    </div>
+                    <ActionMenu
+                      items={[
+                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => {} },
+                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(member.id) },
+                      ]}
+                    />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <InfoBadge label={member.status} tone={member.status === "active" ? "mint" : member.status === "away" ? "amber" : "slate"} />
