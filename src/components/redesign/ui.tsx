@@ -57,17 +57,17 @@ export function PageHeader({
   const descriptionText = pickLocalized(description, language);
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-      <div className="space-y-3">
-        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.34em] text-[var(--muted)]">
+    <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <div className="space-y-2">
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--muted)] sm:px-4 sm:py-1.5 sm:text-[11px]">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           {eyebrowText}
         </span>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--text)] sm:text-4xl">
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-[var(--text)] sm:text-3xl lg:text-4xl">
             {titleText}
           </h1>
-          <p className="max-w-3xl text-sm leading-7 text-[var(--muted)] sm:text-base">
+          <p className="hidden max-w-3xl text-sm leading-7 text-[var(--muted)] sm:block sm:text-base">
             {descriptionText}
           </p>
         </div>
@@ -97,15 +97,15 @@ export function Panel({
   return (
     <section className={`glass-panel overflow-hidden rounded-[28px] border border-[var(--border)] ${className}`.trim()}>
       {(titleText || descriptionText || action) && (
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-6">
           <div className="space-y-1">
-            {titleText ? <h2 className="text-base font-semibold text-[var(--text)]">{titleText}</h2> : null}
-            {descriptionText ? <p className="text-sm text-[var(--muted)]">{descriptionText}</p> : null}
+            {titleText ? <h2 className="text-sm font-semibold text-[var(--text)] sm:text-base">{titleText}</h2> : null}
+            {descriptionText ? <p className="hidden text-sm text-[var(--muted)] sm:block">{descriptionText}</p> : null}
           </div>
           {action ? <div className="flex items-center gap-2">{action}</div> : null}
         </div>
       )}
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -148,19 +148,20 @@ export function StatCard({
   return (
     <motion.div
       whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.2 }}
-      className="glass-panel rounded-[26px] border border-[var(--border)] p-5"
+      className="glass-panel rounded-[26px] border border-[var(--border)] p-4 sm:p-5"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <span className="text-xs font-medium uppercase tracking-[0.24em] text-[var(--muted)]">{labelText}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2">
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">{labelText}</span>
           <div className="space-y-1">
-            <div className="text-3xl font-semibold tracking-[-0.04em] text-[var(--text)]">{value}</div>
-            <p className="text-sm text-[var(--muted)]">{hintText}</p>
+            <div className="text-2xl font-semibold tracking-[-0.04em] text-[var(--text)] sm:text-3xl">{value}</div>
+            <p className="text-xs text-[var(--muted)] sm:text-sm">{hintText}</p>
           </div>
         </div>
         <span
-          className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border"
+          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border sm:h-12 sm:w-12"
           style={{ background: colors.soft, borderColor: colors.border, color: colors.accent }}
         >
           <Icon size={20} />
@@ -329,24 +330,36 @@ export function CalendarHeatmap({
   });
 
   return (
-    <div className="grid grid-cols-7 gap-2">
-      {days.map((day) => {
-        const level = Math.min(day.value, 4);
-        return (
-          <div key={day.key} className="space-y-1 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-3 text-center">
-            <div className={`text-xs ${day.currentMonth ? "text-[var(--text)]" : "text-[var(--muted)]"}`}>{day.date.getDate()}</div>
-            <div
-              className="mx-auto h-8 w-full rounded-xl"
-              style={{
-                background:
-                  level === 0
-                    ? "var(--glass-overlay)"
-                    : `linear-gradient(180deg, rgba(106,168,255,${0.18 + level * 0.16}), rgba(169,139,255,${0.12 + level * 0.16}))`,
-              }}
-            />
-          </div>
-        );
-      })}
+    <div
+      className="-mx-1 overflow-x-auto"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      role="region"
+      aria-label="Publishing calendar — scroll horizontally on small screens"
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") (e.currentTarget as HTMLElement).scrollLeft += 80;
+        if (e.key === "ArrowLeft") (e.currentTarget as HTMLElement).scrollLeft -= 80;
+      }}
+    >
+      <div className="grid min-w-[280px] grid-cols-7 gap-1.5 px-1">
+        {days.map((day) => {
+          const level = Math.min(day.value, 4);
+          return (
+            <div key={day.key} className="space-y-1 rounded-xl border border-[var(--border)] bg-[var(--glass-overlay)] p-2 text-center">
+              <div className={`text-[10px] leading-none ${day.currentMonth ? "text-[var(--text)]" : "text-[var(--muted)]"}`}>{day.date.getDate()}</div>
+              <div
+                className="mx-auto h-5 w-full rounded-lg"
+                style={{
+                  background:
+                    level === 0
+                      ? "var(--glass-overlay)"
+                      : `linear-gradient(180deg, rgba(106,168,255,${0.18 + level * 0.16}), rgba(169,139,255,${0.12 + level * 0.16}))`,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -359,19 +372,31 @@ export function KanbanBoard<T extends { id: string }>({
   renderItem: (item: T) => ReactNode;
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-4">
-      {columns.map((column) => (
-        <div key={column.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-[var(--text)]">{column.title}</div>
-              <div className="text-xs text-[var(--muted)]">{column.items.length}</div>
+    <div
+      className="-mx-5 overflow-x-auto px-5 pb-2 sm:-mx-6 sm:px-6"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      role="region"
+      aria-label="Kanban board — scroll horizontally on small screens"
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") (e.currentTarget as HTMLElement).scrollLeft += 120;
+        if (e.key === "ArrowLeft") (e.currentTarget as HTMLElement).scrollLeft -= 120;
+      }}
+    >
+      <div className="flex gap-4 xl:grid xl:grid-cols-4" style={{ minWidth: `${columns.length * 260}px` }}>
+        {columns.map((column) => (
+          <div key={column.id} className="glass-panel w-[260px] flex-shrink-0 rounded-[24px] border border-[var(--border)] p-4 xl:w-auto">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--text)]">{column.title}</div>
+                <div className="text-xs text-[var(--muted)]">{column.items.length}</div>
+              </div>
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
             </div>
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
+            <div className="space-y-3">{column.items.map((item) => <div key={item.id}>{renderItem(item)}</div>)}</div>
           </div>
-          <div className="space-y-3">{column.items.map((item) => <div key={item.id}>{renderItem(item)}</div>)}</div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

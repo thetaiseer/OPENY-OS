@@ -44,7 +44,7 @@ export default function SettingsPage() {
         )}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Theme", "المظهر")} value={theme === "dark" ? (isArabic ? "داكن" : "Dark") : (isArabic ? "فاتح" : "Light")} hint={pageText("Switch instantly in the shell", "يتم التبديل فورًا في الواجهة")} icon={MoonStar} tone="blue" />
         <StatCard label={pageText("Language", "اللغة")} value={language === "ar" ? "العربية" : "English"} hint={pageText("Full RTL and LTR support", "دعم كامل RTL وLTR")} icon={Globe} tone="violet" />
         <StatCard label={pageText("Notification sets", "مجموعات الإشعارات")} value={NOTIFICATION_CATEGORIES.length} hint={pageText("Stored directly in Firebase", "مخزنة مباشرة في Firebase")} icon={BellRing} tone="mint" />
@@ -118,7 +118,7 @@ function SettingRow({ icon: Icon, title, description, control }: { icon: typeof 
 
 function ToggleButton({ activeLabel, onClick }: { activeLabel: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--glass-overlay)]">
+    <button type="button" onClick={onClick} className="touch-target rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--glass-overlay)] active:scale-95">
       {activeLabel}
     </button>
   );
@@ -129,11 +129,11 @@ function PreferenceToggle({ label, checked, onChange }: { label: string; checked
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
+      className="touch-target flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-[var(--glass-overlay)] active:scale-[0.98]"
     >
       <span>{label}</span>
       <span className={`inline-flex h-7 w-12 items-center rounded-full p-1 transition ${checked ? "justify-end bg-[rgba(61,217,180,0.22)]" : "justify-start bg-[var(--glass-overlay)]"}`}>
-        <span className={`h-5 w-5 rounded-full ${checked ? "bg-[var(--mint)]" : "bg-[var(--muted)]"}`} />
+        <span className={`h-5 w-5 rounded-full transition-transform ${checked ? "bg-[var(--mint)]" : "bg-[var(--muted)]"}`} />
       </span>
     </button>
   );

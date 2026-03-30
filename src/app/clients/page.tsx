@@ -96,7 +96,7 @@ export default function ClientsPage() {
           <button
             type="button"
             onClick={() => setShowAddClient(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
           >
             <Plus size={16} />
             {isArabic ? "إضافة عميل" : "Add client"}
@@ -104,7 +104,8 @@ export default function ClientsPage() {
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Stat cards — 2×2 on mobile */}
+      <section className="stat-grid">
         <StatCard label={pageText("Total clients", "إجمالي العملاء")} value={clients.length} hint={pageText("All records in your workspace", "كل السجلات في مساحة العمل")} icon={BriefcaseBusiness} tone="blue" />
         <StatCard label={pageText("Active", "النشطون")} value={activeClients} hint={pageText("Accounts in live service", "حسابات في خدمة مباشرة")} icon={CheckCircle2} tone="mint" />
         <StatCard label={pageText("Prospects", "العملاء المحتملون")} value={prospects} hint={pageText("Pipeline opportunities", "فرص في خط المبيعات")} icon={Target} tone="amber" />
@@ -119,15 +120,15 @@ export default function ClientsPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {clientLoad.map((entry) => (
-                <div key={entry.client.id} className="relative glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1">
+                <div key={entry.client.id} className="relative glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1 active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-3">
-                    <Link href={`/clients/${entry.client.id}`} className="flex items-center gap-3 flex-1">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: entry.client.color }}>
+                    <Link href={`/clients/${entry.client.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: entry.client.color }}>
                         {entry.client.initials}
                       </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-[var(--text)]">{entry.client.name}</h3>
-                        <p className="text-sm text-[var(--muted)]">{entry.client.company}</p>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-semibold text-[var(--text)]">{entry.client.name}</h3>
+                        <p className="truncate text-sm text-[var(--muted)]">{entry.client.company}</p>
                       </div>
                     </Link>
                     <ActionMenu
@@ -139,12 +140,12 @@ export default function ClientsPage() {
                       ]}
                     />
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <InfoBadge label={entry.client.status} tone={entry.client.status === "active" ? "mint" : entry.client.status === "prospect" ? "amber" : "slate"} />
                     <InfoBadge label={`${entry.contentCount} ${isArabic ? "محتوى" : "content"}`} tone="blue" />
                     <InfoBadge label={`${entry.pendingApprovals} ${isArabic ? "موافقات" : "approvals"}`} tone="violet" />
                   </div>
-                  <div className="mt-5 grid grid-cols-3 gap-3 text-sm">
+                  <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
                     <SummaryCell label={isArabic ? "المحتوى" : "Content"} value={entry.contentCount} />
                     <SummaryCell label={isArabic ? "المهام" : "Tasks"} value={entry.openTasks} />
                     <SummaryCell label={isArabic ? "الزخم" : "Pulse"} value={entry.score} />

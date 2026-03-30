@@ -89,7 +89,8 @@ export default function DashboardPage() {
         actions={<ButtonLink href="/reports" label={pageText("Open analytics", "افتح التحليلات")} tone="violet" />}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Stat cards — 2×2 on mobile, 4×1 on xl */}
+      <section className="stat-grid">
         <StatCard label={pageText("Clients", "العملاء")} value={clients.length} hint={pageText("Active relationships and prospects", "العلاقات النشطة والعملاء المحتملون")} icon={BriefcaseBusiness} tone="blue" />
         <StatCard label={pageText("Task completion", "إنجاز المهام")} value={`${completedTasks}/${tasks.length || 0}`} hint={pageText("Finished versus total workload", "المكتمل مقارنة بإجمالي العمل")} icon={Workflow} tone="mint" />
         <StatCard label={pageText("Publishing this week", "النشر هذا الأسبوع")} value={scheduledThisWeek} hint={pageText("Scheduled content in pipeline", "المحتوى المجدول ضمن خط الإنتاج")} icon={CalendarRange} tone="violet" />
@@ -100,10 +101,10 @@ export default function DashboardPage() {
         <Panel title={pageText("Operations momentum", "زخم العمليات")} description={pageText("Eight-point signal for recently created content and campaigns.", "إشارة من ثماني نقاط للمحتوى والحملات التي تم إنشاؤها مؤخرًا.")}
           action={<InfoBadge label={isArabic ? `${dueNow} مستحق الآن` : `${dueNow} due now`} tone={dueNow > 0 ? "amber" : "mint"} />}>
           <MiniAreaChart values={weeklySeries} tone="blue" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-3 gap-3">
             <QuickMetric label={isArabic ? "الفريق" : "Team"} value={members.length} />
             <QuickMetric label={isArabic ? "المحتوى" : "Content"} value={contentItems.length} />
-            <QuickMetric label={isArabic ? "الأنشطة الأخيرة" : "Recent activity"} value={activities.length} />
+            <QuickMetric label={isArabic ? "الأنشطة" : "Activity"} value={activities.length} />
           </div>
         </Panel>
 
@@ -161,7 +162,7 @@ export default function DashboardPage() {
       </section>
 
       <Panel title={pageText("Executive shortcuts", "اختصارات تنفيذية")} description={pageText("Jump directly into planning, delivery, and reporting flows.", "انتقل مباشرة إلى التخطيط والتنفيذ ومسارات التقارير.")}>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
           <Shortcut href="/content" title={isArabic ? "لوحة المحتوى" : "Content workspace"} description={isArabic ? "كانبان، تقويم، وتحليلات نشر" : "Kanban, calendar, and publishing analytics"} icon={Sparkles} />
           <Shortcut href="/publishing" title={isArabic ? "مركز النشر" : "Publishing hub"} description={isArabic ? "التنبيهات، الجاهزية، والجدولة" : "Due alerts, readiness, and scheduling"} icon={CheckCircle2} />
           <Shortcut href="/clients" title={isArabic ? "مساحات العملاء" : "Client spaces"} description={isArabic ? "صحة الحسابات والحصص والمهام" : "Account health, quotas, and workload"} icon={TrendingUp} />
