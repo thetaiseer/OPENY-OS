@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
+import { useAuth } from "./AuthContext";
 import type {
   UserNotificationPreferences,
   NotificationChannelPrefs,
@@ -35,17 +36,26 @@ const DEFAULT_PREFS: Omit<UserNotificationPreferences, "id" | "userId" | "update
 };
 
 // The admin user id used to scope notification preferences.
-const CURRENT_USER_ID = "thetaiseer@gmail.com";
+// const CURRENT_USER_ID = "thetaiseer@gmail.com"; // removed: now uses authenticated user
 
 export function useNotificationPreferences() {
+  const { user } = useAuth();
+  const userId = user?.email ?? "";
   const [prefs, setPrefs] = useState<UserNotificationPreferences | null>(null);
   const [docId, setDocId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Internal loading flag — only meaningful when userId is set.
+  const [_loading, setLoading] = useState(true);
+  // When there's no authenticated user there's nothing to load.
+  const loading = userId ? _loading : false;
 
   useEffect(() => {
+    // No user yet — return without calling setState in the effect body
+    // (avoids the react-hooks/set-state-in-effect lint rule).
+    if (!userId) return;
+
     const q = query(
       wsCol("userNotificationPreferences"),
-      where("userId", "==", CURRENT_USER_ID)
+      where("userId", "==", userId)
     );
     const unsub = onSnapshot(
       q,
@@ -56,7 +66,7 @@ export function useNotificationPreferences() {
           const ref = await addDoc(
             wsCol("userNotificationPreferences"),
             {
-              userId: CURRENT_USER_ID,
+              userId,
               ...DEFAULT_PREFS,
               updatedAt: now,
             }
@@ -75,7 +85,7 @@ export function useNotificationPreferences() {
       }
     );
     return unsub;
-  }, []);
+  }, [userId]);
 
   const updateCategory = useCallback(
     async (
@@ -104,11 +114,11 @@ export function useNotificationPreferences() {
     () =>
       prefs ?? {
         id: "",
-        userId: CURRENT_USER_ID,
+        userId,
         ...DEFAULT_PREFS,
         updatedAt: "",
       },
-    [prefs]
+    [prefs, userId]
   );
 
   return { prefs: effectivePrefs, loading, updateCategory };

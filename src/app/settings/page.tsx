@@ -5,8 +5,10 @@ import type { UserNotificationPreferences } from "@/lib/types";
 import { useNotificationPreferences } from "@/lib/useNotificationPreferences";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
+import { useAuth } from "@/lib/AuthContext";
 import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { updateTeamMember } from "@/lib/firestore/team";
 import {
   BellRing,
   Camera,
@@ -47,17 +49,26 @@ const NOTIFICATION_CATEGORIES: Array<{
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const { prefs, loading, updateCategory } = useNotificationPreferences();
+  const { user, member } = useAuth();
   const isArabic = language === "ar";
 
-  // Profile state (local form state — saved to Firestore on submit in a real implementation)
-  const [displayName, setDisplayName] = useState("Thetaiseer");
-  const [email] = useState("thetaiseer@gmail.com");
-  const [role, setRole] = useState(isArabic ? "مدير" : "Admin");
+  // Profile state – seeded from Firestore TeamMember record.
+  // We use "override" variables so there's no need for a useEffect
+  // that calls setState (which triggers the react-hooks/set-state-in-effect rule).
+  // When the user edits a field, the override takes precedence; when no override
+  // is set the value comes directly from the Firestore member record.
+  const [nameOverride, setNameOverride] = useState<string | undefined>(undefined);
+  const [roleOverride, setRoleOverride] = useState<string | undefined>(undefined);
+  const displayName = nameOverride ?? member?.name ?? "";
+  const role = roleOverride ?? member?.role ?? "";
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const email = user?.email ?? member?.email ?? "";
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -74,12 +85,33 @@ export default function SettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = () => {
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2000);
+  const handleSaveProfile = async () => {
+    setProfileError("");
+    if (!member?.id) {
+      // No Firestore member record – nothing to update
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+      return;
+    }
+    try {
+      await updateTeamMember(member.id, {
+        name: displayName,
+        role,
+        initials: displayName
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2),
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch {
+      setProfileError(isArabic ? "فشل حفظ التغييرات" : "Failed to save changes");
+    }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError("");
     if (!currentPassword) {
       setPasswordError(isArabic ? "أدخل كلمة المرور الحالية" : "Enter your current password");
@@ -93,11 +125,24 @@ export default function SettingsPage() {
       setPasswordError(isArabic ? "كلمات المرور غير متطابقة" : "Passwords do not match");
       return;
     }
-    setPasswordSaved(true);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => setPasswordSaved(false), 2000);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) {
+        setPasswordError(isArabic ? "لم يتم تسجيل الدخول" : "Not signed in");
+        return;
+      }
+      // Re-authenticate then update password
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, newPassword);
+      setPasswordSaved(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordSaved(false), 2000);
+    } catch {
+      setPasswordError(isArabic ? "كلمة المرور الحالية غير صحيحة أو فشلت العملية" : "Current password is incorrect or operation failed");
+    }
   };
 
   const handleSignOut = async () => {
@@ -188,7 +233,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => setNameOverride(e.target.value)}
                 className="glass-input w-full rounded-xl px-3 py-2.5 text-sm"
                 placeholder={isArabic ? "أدخل اسمك الكامل" : "Enter your full name"}
               />
@@ -210,7 +255,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => setRoleOverride(e.target.value)}
                 className="glass-input w-full rounded-xl px-3 py-2.5 text-sm"
                 placeholder={isArabic ? "مثال: مدير، مصمم..." : "e.g. Admin, Designer..."}
               />
@@ -224,14 +269,17 @@ export default function SettingsPage() {
             >
               {profileSaved ? (isArabic ? "تم الحفظ ✓" : "Saved ✓") : (isArabic ? "حفظ التغييرات" : "Save changes")}
             </button>
+            {profileError && (
+              <p className="text-sm text-[var(--rose)]">{profileError}</p>
+            )}
           </div>
         </Panel>
 
         {/* ── Appearance + Language ─────────────────────── */}
         <Panel
           title={pageText("Interface preferences", "تفضيلات الواجهة")}
-          description={pageText("Theme and language controls stored on this device.", "ضوابط المظهر واللغة مخزنة على هذا الجهاز.")}
-          action={<InfoBadge label={isArabic ? "محلي للجهاز" : "Device-local"} tone="slate" />}
+          description={pageText("Theme and language — synced across all your devices.", "المظهر واللغة — تُزامَن عبر جميع أجهزتك.")}
+          action={<InfoBadge label={isArabic ? "مُزامَن" : "Synced"} tone="mint" />}
         >
           <div className="space-y-4">
             <SettingRow
