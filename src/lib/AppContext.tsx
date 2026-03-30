@@ -52,6 +52,34 @@ async function pushNotificationDoc(
   }
 }
 
+// ── Timeout + fire-and-forget helpers ────────────────────────
+
+/**
+ * Races a promise against a timeout so that a slow/offline Firestore
+ * write never leaves the UI frozen indefinitely.
+ */
+function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Operation timed out after ${ms}ms`)),
+      ms
+    );
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err)   => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+/**
+ * Runs a secondary side-effect (activity log, notification) without
+ * blocking the calling operation. Errors are swallowed to avoid
+ * unhandled-rejection warnings.
+ */
+function fireAndForget(promise: Promise<unknown>): void {
+  promise.catch((err) => console.error("[OPENY] Side-effect error:", err));
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const PALETTE = ["#4f8ef7", "#a78bfa", "#34d399", "#fbbf24", "#f87171", "#8888a0"];
@@ -161,7 +189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Client actions (via service layer) ───────────────────
   const addClient = useCallback(
     async (data: { name: string; email: string; website?: string; phone?: string }) => {
-      const id = await fsCreateClient({
+      const id = await withTimeout(fsCreateClient({
         name: data.name,
         company: data.name,
         email: data.email,
@@ -171,18 +199,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         initials: makeInitials(data.name),
         color: pickColor(),
-      } as Omit<Client, "id">);
-      await pushActivity("client_added", "New client added", data.name, id);
-      await pushNotificationDoc("client_created", "New Client Added", data.name, id);
+      } as Omit<Client, "id">));
+      // Secondary side-effects: do not block the UI
+      fireAndForget(pushActivity("client_added", "New client added", data.name, id));
+      fireAndForget(pushNotificationDoc("client_created", "New Client Added", data.name, id));
     },
     [pushActivity],
   );
 
   const updateClient = useCallback(
     async (id: string, data: Partial<Omit<Client, "id">>) => {
-      await fsUpdateClient(id, data);
-      await pushActivity("client_updated", "Client updated", data.name ?? id, id);
-      await pushNotificationDoc("client_updated", "Client Updated", data.name ?? id, id);
+      await withTimeout(fsUpdateClient(id, data));
+      // Secondary side-effects: do not block the UI
+      fireAndForget(pushActivity("client_updated", "Client updated", data.name ?? id, id));
+      fireAndForget(pushNotificationDoc("client_updated", "Client Updated", data.name ?? id, id));
     },
     [pushActivity],
   );
@@ -190,11 +220,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback(
     async (id: string) => {
       const client = clients.find((c) => c.id === id);
-      // Cascade: unlink tasks that reference this client
+      // Cascade: unlink tasks that reference this client (non-blocking)
       const relatedTasks = tasks.filter((t) => t.clientId === id);
-      await Promise.all(relatedTasks.map((t) => fsUpdateTask(t.id, { clientId: "" })));
-      await fsDeleteClient(id);
-      await pushActivity("client_deleted", "Client removed", client?.name ?? id, id);
+      fireAndForget(Promise.all(relatedTasks.map((t) => fsUpdateTask(t.id, { clientId: "" }))));
+      await withTimeout(fsDeleteClient(id));
+      // Secondary side-effect: do not block the UI
+      fireAndForget(pushActivity("client_deleted", "Client removed", client?.name ?? id, id));
     },
     [clients, tasks, pushActivity],
   );
@@ -212,7 +243,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       // assigneeName is the snapshot; assignee is kept for backward compat
       const displayName = data.assigneeName || data.assignee || "Unassigned";
-      const id = await fsCreateTask({
+      const id = await withTimeout(fsCreateTask({
         title: data.title,
         clientId: data.clientId ?? "",
         // assignedTo kept for backward compatibility with older documents that used this field name
@@ -226,23 +257,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dueDate: data.dueDate || "TBD",
         createdAt: new Date().toISOString(),
         completedAt: null,
-      } as Omit<Task, "id">);
-      await pushActivity("task_created", "New task created", data.title, id);
-      await pushNotificationDoc("task_created", "New Task Created", data.title, id);
+      } as Omit<Task, "id">));
+      // Secondary side-effects: do not block the UI
+      fireAndForget(pushActivity("task_created", "New task created", data.title, id));
+      fireAndForget(pushNotificationDoc("task_created", "New Task Created", data.title, id));
     },
     [pushActivity],
   );
 
   const updateTask = useCallback(
     async (id: string, data: Partial<Omit<Task, "id">>) => {
-      await fsUpdateTask(id, data);
+      await withTimeout(fsUpdateTask(id, data));
     },
     [],
   );
 
   const deleteTask = useCallback(
     async (id: string) => {
-      await fsDeleteTask(id);
+      await withTimeout(fsDeleteTask(id));
     },
     [],
   );
@@ -257,13 +289,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const task = tasksRef.current.find((t) => t.id === id);
       if (!task) return;
       const isDone = task.status === "done";
-      await fsUpdateTask(id, {
+      await withTimeout(fsUpdateTask(id, {
         status: isDone ? "todo" : "done",
         completedAt: isDone ? null : new Date().toISOString(),
-      });
+      }));
       if (!isDone) {
-        await pushActivity("task_completed", "Task completed", task.title, id);
-        await pushNotificationDoc("task_completed", "Task Completed", task.title, id);
+        // Secondary side-effects: do not block the UI
+        fireAndForget(pushActivity("task_completed", "Task completed", task.title, id));
+        fireAndForget(pushNotificationDoc("task_completed", "Task Completed", task.title, id));
       }
     },
     [pushActivity],
@@ -272,7 +305,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Member actions (via service layer) ───────────────────
   const addMember = useCallback(
     async (data: { name: string; role: string; email: string }) => {
-      const id = await fsCreateTeamMember({
+      const id = await withTimeout(fsCreateTeamMember({
         name: data.name,
         role: data.role,
         email: data.email,
@@ -280,9 +313,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         initials: makeInitials(data.name),
         color: pickColor(),
         createdAt: new Date().toISOString(),
-      } as Omit<TeamMember, "id">);
-      await pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, id);
-      await pushNotificationDoc("member_added", "Team Member Added", `${data.name} joined as ${data.role}`, id);
+      } as Omit<TeamMember, "id">));
+      // Secondary side-effects: do not block the UI
+      fireAndForget(pushActivity("member_joined", "Team member joined", `${data.name} — ${data.role}`, id));
+      fireAndForget(pushNotificationDoc("member_added", "Team Member Added", `${data.name} joined as ${data.role}`, id));
     },
     [pushActivity],
   );
@@ -290,15 +324,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMember = useCallback(
     async (id: string) => {
       const member = members.find((m) => m.id === id);
-      // Cascade: unlink tasks assigned to this member
+      // Cascade: unlink tasks assigned to this member (non-blocking)
       const relatedTasks = tasks.filter((t) => t.assigneeId === id);
-      await Promise.all(
+      fireAndForget(Promise.all(
         relatedTasks.map((t) =>
           fsUpdateTask(t.id, { assigneeId: "", assignee: "Unassigned", assigneeName: "Unassigned" })
         )
-      );
-      await fsDeleteTeamMember(id);
-      await pushActivity("member_removed", "Team member removed", member?.name ?? id, id);
+      ));
+      await withTimeout(fsDeleteTeamMember(id));
+      // Secondary side-effect: do not block the UI
+      fireAndForget(pushActivity("member_removed", "Team member removed", member?.name ?? id, id));
     },
     [members, tasks, pushActivity],
   );
