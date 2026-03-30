@@ -2,17 +2,65 @@
 // OPENY OS – Core Data Models
 // ============================================================
 
+// ── Workspace ─────────────────────────────────────────────────
+
+export interface Workspace {
+  id: string;
+  name: string;
+  companyName: string;
+  logoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── User Profile (root-level users/{uid}) ─────────────────────
+
+export type UserRole = "admin" | "account_manager" | "creative" | "reviewer" | "client";
+export type UserLanguage = "ar" | "en";
+export type UserTheme = "light" | "dark" | "system";
+
+export interface UserProfile {
+  uid: string;
+  fullName: string;
+  email: string;
+  avatarUrl: string | null;
+  role: UserRole;
+  isActive: boolean;
+  language: UserLanguage;
+  theme: UserTheme;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Client ───────────────────────────────────────────────────
+
 export interface Client {
   id: string;
   name: string;
-  company: string;
+  /** @deprecated use `name` – kept for backwards-compatibility */
+  company?: string;
+  slug?: string;
+  logoUrl?: string | null;
+  industry?: string;
   email: string;
   phone?: string;
   website?: string;
-  status: "active" | "inactive" | "prospect";
+  status: "active" | "inactive" | "prospect" | "archived";
+  accountManagerId?: string | null;
+  teamMemberIds?: string[];
+  monthlyPlanPosts?: number;
+  monthlyPlanReels?: number;
+  monthlyPlanStories?: number;
+  notes?: string;
+  tags?: string[];
   createdAt: string;
-  initials: string;
-  color: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
+  /** @deprecated kept for backwards-compatibility */
+  initials?: string;
+  /** @deprecated kept for backwards-compatibility */
+  color?: string;
 }
 
 export interface WorkflowStep {
@@ -24,21 +72,47 @@ export interface WorkflowStep {
   assigneeName: string;
 }
 
+export type TaskType =
+  | "content"
+  | "design"
+  | "video"
+  | "report"
+  | "meeting"
+  | "approval"
+  | "other";
+
+export interface TaskRecurrence {
+  enabled: boolean;
+  type: "monthly" | "weekly" | "custom" | null;
+  interval: number | null;
+}
+
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   clientId?: string;
+  clientName?: string;
+  type?: TaskType;
   assignedTo: string;
   assignee: string;
   /** ID of the team member from the "team" Firestore collection */
   assigneeId?: string;
   /** Snapshot of the assignee's name at time of assignment (for display even if member is deleted) */
   assigneeName?: string;
-  status: "todo" | "in-progress" | "done";
-  priority: "low" | "medium" | "high";
+  reviewerId?: string | null;
+  status: "todo" | "in-progress" | "in_progress" | "review" | "approved" | "done" | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
   dueDate: string;
+  scheduledMonth?: number;
+  scheduledYear?: number;
+  relatedContentId?: string | null;
+  recurrence?: TaskRecurrence;
   createdAt: string;
+  updatedAt?: string;
   completedAt?: string | null;
+  createdBy?: string;
+  updatedBy?: string;
   /** Optional list of sequential workflow steps. When the task is marked done
    *  and workflowIndex < workflowSteps.length - 1, a new task is created for
    *  the next step automatically. */
@@ -51,7 +125,17 @@ export interface Task {
 
 // ── Team Roles ───────────────────────────────────────────────
 
-export type TeamRole = "admin" | "account_manager" | "creative";
+export type TeamRole = "admin" | "account_manager" | "creative" | "reviewer" | "client";
+export type TeamDepartment = "content" | "design" | "video" | "accounts" | "management";
+
+export interface MemberPermissions {
+  canViewAllClients: boolean;
+  canEditClients: boolean;
+  canDeleteClients: boolean;
+  canManageTeam: boolean;
+  canApproveContent: boolean;
+  canManageBilling: boolean;
+}
 
 export interface TeamMember {
   id: string;
@@ -59,13 +143,21 @@ export interface TeamMember {
   role: string;
   /** Structured role for permission checks */
   teamRole?: TeamRole;
-  email: string;
   /** Firebase Auth UID linked to this team member */
   uid?: string;
+  email: string;
+  avatarUrl?: string | null;
+  department?: TeamDepartment;
+  assignedClientIds?: string[];
+  permissions?: MemberPermissions;
   status: "active" | "away" | "offline";
-  initials: string;
-  color: string;
+  isActive?: boolean;
+  /** @deprecated kept for backwards-compatibility */
+  initials?: string;
+  /** @deprecated kept for backwards-compatibility */
+  color?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ── Recurring Task Templates ──────────────────────────────────
@@ -112,7 +204,13 @@ export type ActivityType =
   | "approval_submitted"
   | "content_created"
   | "content_status_changed"
-  | "publishing_simulated";
+  | "publishing_simulated"
+  | "client_created"
+  | "approval_requested"
+  | "approval_completed"
+  | "asset_uploaded";
+
+export type ActivityEntityType = "client" | "task" | "content" | "approval" | "asset";
 
 export interface Activity {
   id: string;
@@ -120,6 +218,10 @@ export interface Activity {
   message: string;
   detail: string;
   entityId: string;
+  entityType?: ActivityEntityType;
+  clientId?: string | null;
+  actorId?: string;
+  actorName?: string;
   timestamp: string;
 }
 
@@ -160,14 +262,23 @@ export type NotificationType =
   | "client_approved"
   | "client_rejected"
   | "client_requested_changes"
-  | "post_rescheduled";
+  | "post_rescheduled"
+  | "task"
+  | "approval"
+  | "system"
+  | "invite"
+  | "publish_reminder";
 
 export interface AppNotification {
   id: string;
   type: NotificationType;
   title: string;
   message: string;
+  /** @deprecated use `message` – kept for backwards-compatibility */
+  body?: string;
   entityId: string;
+  relatedId?: string | null;
+  userId?: string;
   isRead: boolean;
   createdAt: string;
 }
@@ -216,9 +327,19 @@ export interface ContentComment {
   createdAt: string;
 }
 
+export type ContentSubStatus = "pending" | "in_progress" | "done";
+export type ContentPublishStatus =
+  | "draft"
+  | "in_review"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "rejected";
+
 export interface ContentItem {
   id: string;
   clientId: string;
+  clientName?: string;
   title: string;
   description: string;
   caption: string;
@@ -226,14 +347,26 @@ export interface ContentItem {
   platform: ContentPlatform;
   contentType: ContentType;
   status: ContentStatus;
+  publishStatus?: ContentPublishStatus;
+  designStatus?: ContentSubStatus;
+  captionStatus?: ContentSubStatus;
   priority: ContentPriority;
   assignedTo: string;
+  assignedWriterId?: string | null;
+  assignedDesignerId?: string | null;
+  assignedVideoEditorId?: string | null;
   scheduledDate: string;
   scheduledTime: string;
+  publishDate?: string | null;
   publishedAt?: string;
   approvalStatus: ApprovalStatus;
   attachments: string[];
   comments: ContentComment[];
+  relatedTaskIds?: string[];
+  assetIds?: string[];
+  tags?: string[];
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -501,5 +634,51 @@ export interface ClientPortalSession {
   createdAt: string;
   expiresAt: string;
   lastSeenAt?: string;
+}
+
+// ── Client Contracts (subcollection: clients/{id}/contracts) ──
+
+export type ContractStatus = "active" | "expired" | "draft";
+
+export interface Contract {
+  id: string;
+  clientId: string;
+  title: string;
+  fileUrl: string;
+  storagePath: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: ContractStatus;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+// ── Content Versions (subcollection: content/{id}/versions) ───
+
+export interface ContentVersion {
+  id: string;
+  contentItemId: string;
+  versionNumber: number;
+  previewUrl: string;
+  storagePath: string;
+  uploadedBy: string;
+  note: string;
+  createdAt: string;
+}
+
+// ── Calendar Events ───────────────────────────────────────────
+
+export type CalendarEventType = "publish" | "task" | "meeting" | "deadline";
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  clientId: string | null;
+  type: CalendarEventType;
+  relatedId: string | null;
+  startAt: string;
+  endAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 

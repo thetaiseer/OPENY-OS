@@ -22,15 +22,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Workspace-scoped business data ───────────────────────
-    // All OPENY OS data is stored under workspaces/{workspaceId}
-    // so it is device-agnostic and workspace-scoped.
+    // ── Root-level user profiles ─────────────────────────────
+    // Each document ID is the Firebase Auth UID.
+    match /users/{uid} {
+      allow read, write: if true;
+    }
 
+    // ── Workspace document ───────────────────────────────────
     match /workspaces/{workspaceId} {
       allow read, write: if true;
 
       match /clients/{docId} {
         allow read, write: if true;
+
+        // Client subcollections
+        match /assets/{assetId} {
+          allow read, write: if true;
+        }
+
+        match /contracts/{contractId} {
+          allow read, write: if true;
+        }
+
+        match /notes/{noteId} {
+          allow read, write: if true;
+        }
       }
 
       match /tasks/{docId} {
@@ -41,22 +57,37 @@ service cloud.firestore {
         allow read, write: if true;
       }
 
+      match /members/{docId} {
+        allow read, write: if true;
+      }
+
       match /activities/{docId} {
         allow read, write: if true;
       }
 
       match /contentItems/{docId} {
         allow read, write: if true;
+
+        // Content subcollections
+        match /comments/{commentId} {
+          allow read, write: if true;
+        }
+
+        match /versions/{versionId} {
+          allow read, write: if true;
+        }
       }
 
       match /approvals/{docId} {
         allow read, write: if true;
       }
 
+      // Flat assets collection (workspace-level, kept for backwards-compatibility)
       match /assets/{docId} {
         allow read, write: if true;
       }
 
+      // Flat client notes collection (kept for backwards-compatibility)
       match /clientNotes/{docId} {
         allow read, write: if true;
       }
@@ -86,6 +117,10 @@ service cloud.firestore {
       }
 
       match /recurringTaskTemplates/{docId} {
+        allow read, write: if true;
+      }
+
+      match /calendarEvents/{docId} {
         allow read, write: if true;
       }
 
