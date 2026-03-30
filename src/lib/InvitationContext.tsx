@@ -31,6 +31,7 @@ import {
 import { createActivity as fsCreateActivity } from "./firestore/activities";
 import { pushNotification as fsPushNotification } from "./firestore/notifications";
 import { createTeamMember as fsCreateTeamMember } from "./firestore/team";
+import { withTimeout } from "./utils/crud";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       });
 
       // Create invitation document
-      const invId = await fsCreateInvitation({
+      const invId = await withTimeout(fsCreateInvitation({
         email: data.email,
         name: displayName !== data.email.split("@")[0] ? displayName : null,
         firstName: data.firstName ?? null,
@@ -162,7 +163,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
         expiresAt: exp,
         acceptedAt: null,
         cancelledAt: null,
-      } as Omit<Invitation, "id">);
+      } as Omit<Invitation, "id">));
 
       // Activity log
       await writeActivity(
@@ -218,10 +219,10 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
     const email = inv?.email ?? "";
     const now = new Date().toISOString();
 
-    await fsUpdateInvitation(id, {
+    await withTimeout(fsUpdateInvitation(id, {
       status: "cancelled" as InvitationStatus,
       cancelledAt: now,
-    });
+    }));
 
     // Activity log
     await writeActivity(
@@ -256,9 +257,9 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       const nowISO = now.toISOString();
 
       if (new Date(invitation.expiresAt) < now) {
-        await fsUpdateInvitation(invitation.id, {
+        await withTimeout(fsUpdateInvitation(invitation.id, {
           status: "expired" as InvitationStatus,
-        });
+        }));
         await writeActivity(
           "invite_expired",
           "Invitation expired",
@@ -275,19 +276,19 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
       }
 
       // Update invitation status
-      await fsUpdateInvitation(invitation.id, {
+      await withTimeout(fsUpdateInvitation(invitation.id, {
         status: "accepted" as InvitationStatus,
         acceptedAt: nowISO,
-      });
+      }));
 
       // Prevent duplicate team members by checking existing email
       const teamQuery = query(wsCol("team"), where("email", "==", invitation.email));
-      const teamSnap = await getDocs(teamQuery);
+      const teamSnap = await withTimeout(getDocs(teamQuery));
 
       if (teamSnap.empty) {
         const memberName = deriveMemberName(invitation);
 
-        const memberId = await fsCreateTeamMember({
+        const memberId = await withTimeout(fsCreateTeamMember({
           name: memberName,
           role: invitation.role,
           email: invitation.email,
@@ -295,7 +296,7 @@ export function InvitationProvider({ children }: { children: ReactNode }) {
           initials: makeInitials(memberName),
           color: pickColor(),
           createdAt: nowISO,
-        } as Omit<import("./types").TeamMember, "id">);
+        } as Omit<import("./types").TeamMember, "id">));
 
         // Activity logs
         await writeActivity(

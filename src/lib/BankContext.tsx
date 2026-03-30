@@ -15,6 +15,7 @@ import {
   createBankEntry as fsCreateBankEntry,
   deleteBankEntry as fsDeleteBankEntry,
 } from "./firestore/bankEntries";
+import { withTimeout } from "./utils/crud";
 
 export type CreateBankEntryData = {
   clientId: string;
@@ -46,11 +47,11 @@ export function BankProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createEntry = useCallback(async (data: CreateBankEntryData): Promise<string> => {
-    return fsCreateBankEntry(data);
+    return withTimeout(fsCreateBankEntry(data));
   }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
-    await fsDeleteBankEntry(id);
+    await withTimeout(fsDeleteBankEntry(id));
   }, []);
 
   const value: BankContextValue = useMemo(
