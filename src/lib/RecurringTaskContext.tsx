@@ -31,11 +31,36 @@ function currentYearMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * Returns the ISO week string "YYYY-Www" for a given date.
+ * Used to detect whether a weekly template was already generated this week.
+ */
+function isoWeekKey(date: Date = new Date()): string {
+  // Copy date to avoid mutation
+  const d = new Date(date);
+  // Set to Thursday in current week (ISO week date standard)
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
 /** Returns a due date set to the last day of the current month. */
 function endOfCurrentMonth(): string {
   const now = new Date();
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return last.toISOString().slice(0, 10);
+}
+
+/** Returns the date of the next Sunday (end of current ISO week). */
+function endOfCurrentWeek(): string {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 6=Sat
+  const daysUntilSunday = day === 0 ? 0 : 7 - day;
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() + daysUntilSunday);
+  return sunday.toISOString().slice(0, 10);
 }
 
 // ── Context shape ────────────────────────────────────────────
@@ -104,14 +129,17 @@ export function RecurringTaskProvider({ children }: { children: ReactNode }) {
 
   const runMonthlyGeneration = useCallback(async (): Promise<{ generated: number }> => {
     const month = currentYearMonth();
-    const due = endOfCurrentMonth();
+    const week = isoWeekKey();
     let generated = 0;
 
     const active = templates.filter((t) => {
       if (!t.isActive) return false;
       if (t.frequency === "monthly") {
-        // Only generate once per month
+        // Only generate once per calendar month
         if (t.lastGeneratedAt && t.lastGeneratedAt.startsWith(month)) return false;
+      } else if (t.frequency === "weekly") {
+        // Only generate once per ISO week
+        if (t.lastGeneratedAt && isoWeekKey(new Date(t.lastGeneratedAt)) === week) return false;
       }
       return true;
     });
@@ -121,6 +149,7 @@ export function RecurringTaskProvider({ children }: { children: ReactNode }) {
       const firstStep: WorkflowStep | undefined = steps[0];
       const assigneeId = firstStep?.assigneeId ?? tmpl.assigneeId ?? "";
       const assigneeName = firstStep?.assigneeName ?? tmpl.assigneeName ?? "Unassigned";
+      const due = tmpl.frequency === "weekly" ? endOfCurrentWeek() : endOfCurrentMonth();
 
       await withTimeout(fsCreateTask({
         title: tmpl.title,

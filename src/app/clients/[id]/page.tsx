@@ -405,3 +405,79 @@ export default function ClientWorkspacePage() {
 }
 
 // ── Inline task card ──────────────────────────────────────────
+
+function TaskCard({
+  task,
+  isArabic,
+  onToggle,
+  onDelete,
+}: {
+  task: import("@/lib/types").Task;
+  isArabic: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</h3>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
+          {task.workflowSteps && task.workflowSteps.length > 0 && (
+            <InfoBadge
+              label={`${(task.workflowIndex ?? 0) + 1}/${task.workflowSteps.length}`}
+              tone="violet"
+            />
+          )}
+          <ActionMenu
+            items={[
+              { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger" as const, onClick: onDelete },
+            ]}
+            size={16}
+          />
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
+        <span>{task.dueDate || (isArabic ? "بدون موعد" : "No deadline")}</span>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
+        >
+          {task.status === "done"
+            ? (isArabic ? "إعادة فتح" : "Re-open")
+            : (isArabic ? "تمييز كمكتمل" : "Mark done")}
+        </button>
+      </div>
+      {task.workflowSteps && task.workflowSteps.length > 0 && (
+        <div className="mt-3 flex items-center gap-1 overflow-x-auto">
+          {task.workflowSteps.map((step, i) => (
+            <span
+              key={i}
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{
+                background: i === (task.workflowIndex ?? 0)
+                  ? "rgba(169,139,255,0.18)"
+                  : i < (task.workflowIndex ?? 0)
+                  ? "rgba(61,217,180,0.12)"
+                  : "rgba(151,163,189,0.1)",
+                color: i === (task.workflowIndex ?? 0)
+                  ? "#a98bff"
+                  : i < (task.workflowIndex ?? 0)
+                  ? "#3dd9b4"
+                  : "var(--muted)",
+              }}
+            >
+              {i < (task.workflowIndex ?? 0) ? "✓ " : ""}{step.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
