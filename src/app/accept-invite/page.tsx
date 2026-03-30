@@ -15,7 +15,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { useInvitations } from "@/lib/InvitationContext";
-import { useTheme } from "@/components/layout/ThemeProvider";
 import type { Invitation } from "@/lib/types";
 
 // ── State types ───────────────────────────────────────────────
@@ -46,7 +45,6 @@ function AcceptInviteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const { getInvitationByToken, acceptInvitation } = useInvitations();
-  const { theme } = useTheme();
   const [state, setState] = useState<PageState>({ phase: "loading" });
 
   useEffect(() => {
@@ -120,7 +118,7 @@ function AcceptInviteContent() {
           }}
         >
           <img
-            src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+            src="/assets/openy-logo.png"
             alt="OPENY OS"
             height={36}
             style={{ height: 36, width: "auto", objectFit: "contain" }}

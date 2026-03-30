@@ -7,7 +7,6 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, XCircle, Clock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { useInvitations } from "@/lib/InvitationContext";
-import { useTheme } from "@/components/layout/ThemeProvider";
 import type { Invitation } from "@/lib/types";
 
 // ── State types ───────────────────────────────────────────────
@@ -37,7 +36,6 @@ function formatDate(iso: string): string {
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const { getInvitationByToken, acceptInvitation } = useInvitations();
-  const { theme } = useTheme();
   const [state, setState] = useState<PageState>({ phase: "loading" });
 
   useEffect(() => {
@@ -108,7 +106,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           }}
         >
           <img
-            src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+            src="/assets/openy-logo.png"
             alt="OPENY OS"
             height={36}
             style={{ height: 36, width: "auto", objectFit: "contain" }}

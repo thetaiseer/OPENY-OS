@@ -18,6 +18,10 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 export const metadata: Metadata = {
   title: "OPENY OS",
   description: "Premium Operations Management System",
+  icons: {
+    icon: "/assets/openy-logo.png",
+    apple: "/assets/openy-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

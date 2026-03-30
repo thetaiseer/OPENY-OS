@@ -129,13 +129,12 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
               }}
             >
               <img
-                src="/assets/openy-logo.svg"
+                src="/assets/openy-logo.png"
                 alt="OPENY OS"
                 style={{
                   height: 22,
                   width: "auto",
                   objectFit: "contain",
-                  filter: "var(--logo-filter, none)",
                 }}
               />
             </div>

@@ -61,13 +61,12 @@ export function TopBar() {
             }}
           >
             <img
-              src="/assets/openy-logo.svg"
+              src="/assets/openy-logo.png"
               alt="OPENY OS"
               style={{
                 height: "100%",
                 width: "auto",
                 objectFit: "contain",
-                filter: theme === "dark" ? "brightness(0) invert(1)" : "brightness(0)",
               }}
             />
           </div>
