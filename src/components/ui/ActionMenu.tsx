@@ -57,12 +57,12 @@ export function ActionMenu({ items, size = 18 }: ActionMenuProps) {
           className="absolute end-0 top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded-[18px] border border-[var(--border)] py-1 shadow-2xl"
           style={{ background: "var(--panel-strong)" }}
         >
-          {items.map((item, i) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isDanger = item.tone === "danger";
             return (
               <button
-                key={i}
+                key={item.label}
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
