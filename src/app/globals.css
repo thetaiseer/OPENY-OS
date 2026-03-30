@@ -71,7 +71,7 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
     var(--bg);
   color: var(--text);
-  font-family: "Inter", "Cairo", sans-serif;
+  font-family: "Inter", "IBM Plex Sans Arabic", sans-serif;
   transition: background 240ms ease, color 240ms ease;
 }
 
@@ -83,13 +83,13 @@ body {
     var(--bg);
 }
 
-/* Arabic — switch to Cairo and enable RTL-friendly letter-spacing */
+/* Arabic — switch to IBM Plex Sans Arabic and enable RTL-friendly letter-spacing */
 [dir="rtl"] body,
 [dir="rtl"] button,
 [dir="rtl"] input,
 [dir="rtl"] textarea,
 [dir="rtl"] select {
-  font-family: "Cairo", "Inter", sans-serif;
+  font-family: "IBM Plex Sans Arabic", "Inter", sans-serif;
   letter-spacing: 0;
 }
 
@@ -97,7 +97,7 @@ body {
 [dir="rtl"] h2,
 [dir="rtl"] h3,
 [dir="rtl"] h4 {
-  font-family: "Cairo", "Inter", sans-serif;
+  font-family: "IBM Plex Sans Arabic", "Inter", sans-serif;
   letter-spacing: 0;
 }
 
