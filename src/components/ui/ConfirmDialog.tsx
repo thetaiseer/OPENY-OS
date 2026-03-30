@@ -35,11 +35,13 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      // Never allow Escape to close while a destructive action is in progress –
+      // this prevents a stale `loading` state leaking into subsequent dialogs.
+      if (e.key === "Escape" && !loading) onCancel();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onCancel]);
+  }, [open, loading, onCancel]);
 
   if (!open) return null;
 
@@ -54,7 +56,7 @@ export function ConfirmDialog({
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
-      onClick={onCancel}
+      onClick={!loading ? onCancel : undefined}
     >
       <div
         className="relative w-full max-w-md rounded-[28px] border border-[var(--border)] p-6 shadow-2xl"
@@ -64,7 +66,8 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onCancel}
-          className="absolute end-4 top-4 rounded-full p-1 text-[var(--muted)] transition hover:text-[var(--text)]"
+          disabled={loading}
+          className="absolute end-4 top-4 rounded-full p-1 text-[var(--muted)] transition hover:text-[var(--text)] disabled:pointer-events-none disabled:opacity-30"
           aria-label="Close"
         >
           <X size={18} />

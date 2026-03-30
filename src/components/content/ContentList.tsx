@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
+import { useToast } from "@/lib/ToastContext";
 
 type SortField = "title" | "scheduledDate" | "status" | "priority" | "platform";
 type SortDir = "asc" | "desc";
@@ -63,6 +64,7 @@ export function ContentList({ items, onItemClick }: ContentListProps) {
   const { t } = useLanguage();
   const { clients, members } = useAppStore();
   const { deleteContentItem } = useContentItems();
+  const { showToast } = useToast();
 
   const [sortField, setSortField] = useState<SortField>("scheduledDate");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -109,14 +111,27 @@ export function ContentList({ items, onItemClick }: ContentListProps) {
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
-    await deleteContentItem(id);
-    setDeletingId(null);
-    setSelected((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    try {
+      await deleteContentItem(id);
+      setSelected((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`Failed to delete content: ${msg}`, "error");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleBulkDelete = async () => {
-    for (const id of selected) await deleteContentItem(id);
+    const ids = Array.from(selected);
     setSelected(new Set());
+    const results = await Promise.allSettled(ids.map((id) => deleteContentItem(id)));
+    results.forEach((r) => {
+      if (r.status === "rejected") {
+        const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+        showToast(`Failed to delete item: ${msg}`, "error");
+      }
+    });
   };
 
   const thCls = "px-3 py-3 text-left whitespace-nowrap select-none";
