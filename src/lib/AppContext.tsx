@@ -281,6 +281,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Secondary side-effects: do not block the UI
         fireAndForget(pushActivity("task_completed", "Task completed", task.title, id));
         fireAndForget(pushNotificationDoc("task_completed", "Task Completed", task.title, id));
+
+        // ── Workflow auto-routing ────────────────────────────
+        // If this task has workflow steps and is not on the last step,
+        // create a new task for the next step automatically.
+        const steps = task.workflowSteps;
+        const currentIndex = task.workflowIndex ?? 0;
+        if (steps && steps.length > 0 && currentIndex < steps.length - 1) {
+          const nextIndex = currentIndex + 1;
+          const nextStep = steps[nextIndex];
+          fireAndForget(
+            fsCreateTask({
+              title: task.title,
+              clientId: task.clientId ?? "",
+              assignedTo: nextStep.assigneeId,
+              assigneeId: nextStep.assigneeId,
+              assignee: nextStep.assigneeName,
+              assigneeName: nextStep.assigneeName,
+              status: "todo",
+              priority: task.priority,
+              dueDate: task.dueDate,
+              createdAt: new Date().toISOString(),
+              completedAt: null,
+              workflowSteps: steps,
+              workflowIndex: nextIndex,
+              recurringTemplateId: task.recurringTemplateId,
+            }).then((newId) => {
+              pushActivity(
+                "task_created",
+                `Workflow advanced to "${nextStep.label}"`,
+                task.title,
+                newId
+              );
+              pushNotificationDoc(
+                "task_assigned",
+                "Task Assigned",
+                `"${task.title}" is ready for ${nextStep.assigneeName}`,
+                newId
+              );
+            })
+          );
+        }
       }
     },
     [pushActivity],

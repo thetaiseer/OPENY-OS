@@ -15,6 +15,15 @@ export interface Client {
   color: string;
 }
 
+export interface WorkflowStep {
+  /** Position in the workflow (0-indexed) */
+  order: number;
+  /** Label shown in the UI (e.g. "Copywriting", "Design", "Review") */
+  label: string;
+  assigneeId: string;
+  assigneeName: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -30,17 +39,56 @@ export interface Task {
   dueDate: string;
   createdAt: string;
   completedAt?: string | null;
+  /** Optional list of sequential workflow steps. When the task is marked done
+   *  and workflowIndex < workflowSteps.length - 1, a new task is created for
+   *  the next step automatically. */
+  workflowSteps?: WorkflowStep[];
+  /** Index of the currently-active step inside workflowSteps (0-indexed). */
+  workflowIndex?: number;
+  /** ID of the recurring template this task was generated from (if any). */
+  recurringTemplateId?: string;
 }
+
+// ── Team Roles ───────────────────────────────────────────────
+
+export type TeamRole = "admin" | "account_manager" | "creative";
 
 export interface TeamMember {
   id: string;
   name: string;
   role: string;
+  /** Structured role for permission checks */
+  teamRole?: TeamRole;
   email: string;
+  /** Firebase Auth UID linked to this team member */
+  uid?: string;
   status: "active" | "away" | "offline";
   initials: string;
   color: string;
   createdAt: string;
+}
+
+// ── Recurring Task Templates ──────────────────────────────────
+
+export type RecurringFrequencyTask = "monthly" | "weekly";
+
+export interface RecurringTaskTemplate {
+  id: string;
+  title: string;
+  clientId?: string;
+  /** Default assignee for the first step (or only step) */
+  assigneeId?: string;
+  assigneeName?: string;
+  priority: "low" | "medium" | "high";
+  frequency: RecurringFrequencyTask;
+  /** Optional multi-step workflow defined on the template */
+  workflowSteps?: WorkflowStep[];
+  /** If true, new tasks are generated automatically */
+  isActive: boolean;
+  /** ISO date-string of the last generation run */
+  lastGeneratedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ActivityType =
