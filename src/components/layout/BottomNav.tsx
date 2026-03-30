@@ -19,7 +19,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40"
+      className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40 lg:hidden"
       style={{
         background: 'var(--glass-nav)',
         backdropFilter: 'blur(20px)',

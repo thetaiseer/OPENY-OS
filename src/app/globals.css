@@ -32,6 +32,8 @@
   --glass-nav-active-border: rgba(106, 168, 255, 0.38);
   --topbar-height: 56px;
   --bottomnav-height: 60px;
+  /* Logo: white in dark mode (SVG is black by default) */
+  --logo-filter: brightness(0) invert(1);
   color-scheme: dark;
 }
 
@@ -68,6 +70,8 @@
   --glass-nav-active-border: rgba(59, 130, 246, 0.3);
   --topbar-height: 56px;
   --bottomnav-height: 60px;
+  /* Logo: black in light mode */
+  --logo-filter: brightness(0);
   color-scheme: light;
 }
 
@@ -88,8 +92,11 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
     var(--bg);
   color: var(--text);
-  font-family: "Inter", "IBM Plex Sans Arabic", sans-serif;
+  font-family: "Inter", "Cairo", "IBM Plex Sans Arabic", sans-serif;
   transition: background 240ms ease, color 240ms ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 :root.light body {
@@ -101,22 +108,47 @@ body {
     linear-gradient(160deg, #f0f6ff 0%, #f5f0ff 50%, #f8faff 100%);
 }
 
-/* Arabic — switch to IBM Plex Sans Arabic and enable RTL-friendly letter-spacing */
+/* Arabic — switch to Cairo for primary Arabic rendering, IBM Plex Sans Arabic as secondary */
+[dir="rtl"],
 [dir="rtl"] body,
 [dir="rtl"] button,
 [dir="rtl"] input,
 [dir="rtl"] textarea,
 [dir="rtl"] select {
-  font-family: "IBM Plex Sans Arabic", "Inter", sans-serif;
+  font-family: "Cairo", "IBM Plex Sans Arabic", "Noto Kufi Arabic", "Inter", sans-serif;
   letter-spacing: 0;
+  word-spacing: 0.05em;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 [dir="rtl"] h1,
 [dir="rtl"] h2,
 [dir="rtl"] h3,
-[dir="rtl"] h4 {
-  font-family: "IBM Plex Sans Arabic", "Inter", sans-serif;
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] h6 {
+  font-family: "Cairo", "IBM Plex Sans Arabic", "Noto Kufi Arabic", "Inter", sans-serif;
   letter-spacing: 0;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+[dir="rtl"] p,
+[dir="rtl"] span,
+[dir="rtl"] label,
+[dir="rtl"] div {
+  font-family: "Cairo", "IBM Plex Sans Arabic", "Noto Kufi Arabic", "Inter", sans-serif;
+  letter-spacing: 0;
+}
+
+/* Ensure all Arabic text wraps and renders correctly */
+[lang="ar"] * {
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 
 body,

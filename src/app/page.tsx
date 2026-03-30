@@ -80,13 +80,13 @@ export default function DashboardPage() {
   return (
     <PageMotion>
       <PageHeader
-        eyebrow={pageText("Premium operating system", "نظام تشغيل فاخر")}
-        title={pageText("SaaS command center", "مركز قيادة SaaS")}
+        eyebrow={pageText("Operations overview", "نظرة عامة على العمليات")}
+        title={pageText("Dashboard", "لوحة التحكم")}
         description={pageText(
-          "A fully refreshed control surface for operations, planning, approvals, and analytics — all driven live from Firebase collections.",
-          "واجهة تحكم جديدة بالكامل لإدارة العمليات، التخطيط، الموافقات، والتحليلات مع بيانات مباشرة من Firebase."
+          "Real-time overview of clients, tasks, approvals, and content pipeline.",
+          "نظرة فورية على العملاء والمهام والموافقات وخط إنتاج المحتوى."
         )}
-        actions={<ButtonLink href="/reports" label={pageText("Open analytics", "افتح التحليلات")} tone="violet" />}
+        actions={<ButtonLink href="/reports" label={pageText("Analytics", "التحليلات")} tone="violet" />}
       />
 
       {/* Stat cards — 2×2 on mobile, 4×1 on xl */}
@@ -98,7 +98,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-        <Panel title={pageText("Operations momentum", "زخم العمليات")} description={pageText("Eight-point signal for recently created content and campaigns.", "إشارة من ثماني نقاط للمحتوى والحملات التي تم إنشاؤها مؤخرًا.")}
+        <Panel title={pageText("Operations overview", "نظرة على العمليات")} description={pageText("Eight-point trend for recently created content and campaigns.", "مؤشر من ثماني نقاط للمحتوى والحملات التي تم إنشاؤها مؤخرًا.")}
           action={<InfoBadge label={isArabic ? `${dueNow} مستحق الآن` : `${dueNow} due now`} tone={dueNow > 0 ? "amber" : "mint"} />}>
           <MiniAreaChart values={weeklySeries} tone="blue" />
           <div className="mt-4 grid grid-cols-3 gap-3">
@@ -108,16 +108,16 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title={pageText("Channel mix", "مزيج القنوات")} description={pageText("Distribution of content load across channels.", "توزيع عبء المحتوى عبر القنوات المختلفة.")}
-          action={<InfoBadge label={isArabic ? "حي من Firebase" : "Live from Firebase"} tone="violet" />}>
+        <Panel title={pageText("Channel distribution", "توزيع القنوات")} description={pageText("Content distribution across platforms.", "توزيع المحتوى عبر المنصات.")}
+          action={<InfoBadge label={isArabic ? "بيانات حية" : "Live data"} tone="violet" />}>
           <BarListChart items={platformStats} tone="violet" />
         </Panel>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <Panel title={pageText("Production board preview", "معاينة لوحة الإنتاج")} description={pageText("A condensed kanban snapshot of your current content pipeline.", "لقطة كانبان مختصرة لخط إنتاج المحتوى الحالي.")}>
+        <Panel title={pageText("Content board", "لوحة المحتوى")} description={pageText("A kanban snapshot of your current content pipeline.", "لقطة كانبان من خط إنتاج المحتوى الحالي.")}>
           {contentItems.length === 0 ? (
-            <EmptyPanel title={pageText("No content connected yet", "لا يوجد محتوى متصل بعد")} description={pageText("Once Firebase content items arrive, this board will visualize planning, production, approvals, and publishing stages.", "عند وصول عناصر المحتوى من Firebase ستعرض هذه اللوحة مراحل التخطيط والإنتاج والموافقة والنشر.")} />
+            <EmptyPanel title={pageText("No content yet", "لا يوجد محتوى بعد")} description={pageText("Add content items to see them here across all pipeline stages.", "أضف عناصر محتوى لتظهر هنا عبر جميع مراحل خط الإنتاج.")} />
           ) : (
             <KanbanBoard
               columns={boardColumns}
@@ -143,7 +143,7 @@ export default function DashboardPage() {
             <CalendarHeatmap entries={heatmapEntries} />
           </Panel>
 
-          <Panel title={pageText("Latest signals", "آخر الإشارات")} description={pageText("Realtime highlights from activity and approvals.", "أبرز التحديثات المباشرة من الأنشطة والموافقات.")}>
+          <Panel title={pageText("Latest activity", "آخر الأنشطة")} description={pageText("Recent updates from activities and approvals.", "أحدث التحديثات من الأنشطة والموافقات.")}>
             <div className="space-y-3">
               {activities.slice(0, 5).map((activity) => (
                 <div key={activity.id} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
@@ -161,11 +161,11 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <Panel title={pageText("Executive shortcuts", "اختصارات تنفيذية")} description={pageText("Jump directly into planning, delivery, and reporting flows.", "انتقل مباشرة إلى التخطيط والتنفيذ ومسارات التقارير.")}>
+      <Panel title={pageText("Quick actions", "إجراءات سريعة")} description={pageText("Jump directly into key workspace sections.", "انتقل مباشرة إلى أقسام مساحة العمل الرئيسية.")}>
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <Shortcut href="/content" title={isArabic ? "لوحة المحتوى" : "Content workspace"} description={isArabic ? "كانبان، تقويم، وتحليلات نشر" : "Kanban, calendar, and publishing analytics"} icon={Sparkles} />
-          <Shortcut href="/publishing" title={isArabic ? "مركز النشر" : "Publishing hub"} description={isArabic ? "التنبيهات، الجاهزية، والجدولة" : "Due alerts, readiness, and scheduling"} icon={CheckCircle2} />
-          <Shortcut href="/clients" title={isArabic ? "مساحات العملاء" : "Client spaces"} description={isArabic ? "صحة الحسابات والحصص والمهام" : "Account health, quotas, and workload"} icon={TrendingUp} />
+          <Shortcut href="/content" title={isArabic ? "المحتوى" : "Content"} description={isArabic ? "كانبان وتقويم وتحليلات النشر" : "Kanban, calendar, and publishing analytics"} icon={Sparkles} />
+          <Shortcut href="/publishing" title={isArabic ? "النشر" : "Publishing"} description={isArabic ? "إدارة الجدولة والنشر" : "Manage scheduling and publishing"} icon={CheckCircle2} />
+          <Shortcut href="/clients" title={isArabic ? "العملاء" : "Clients"} description={isArabic ? "إدارة حسابات العملاء والمهام" : "Manage client accounts and workload"} icon={TrendingUp} />
         </div>
       </Panel>
     </PageMotion>

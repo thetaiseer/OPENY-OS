@@ -55,10 +55,10 @@ export default function ReportsPage() {
     <PageMotion>
       <PageHeader
         eyebrow={pageText("Analytics suite", "حزمة التحليلات")}
-        title={pageText("Executive analytics redesign", "إعادة تصميم التحليلات التنفيذية")}
+        title={pageText("Analytics", "التحليلات")}
         description={pageText(
-          "Rich data visualization for delivery output, team load, approvals, and client distribution.",
-          "تصورات بيانات غنية لمخرجات التسليم وعبء الفريق والموافقات وتوزيع العملاء."
+          "Data overview for delivery output, team workload, approvals, and client distribution.",
+          "نظرة عامة على بيانات التسليم وعبء الفريق والموافقات وتوزيع العملاء."
         )}
       />
 
