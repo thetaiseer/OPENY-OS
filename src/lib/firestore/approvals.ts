@@ -4,6 +4,7 @@
 // ============================================================
 import {
   addDoc,
+  arrayUnion,
   deleteDoc,
   doc,
   onSnapshot,
@@ -100,7 +101,6 @@ export async function updateApprovalStatus(
 
 export async function addApprovalInternalComment(
   id: string,
-  existingComments: ApprovalComment[],
   comment: Omit<ApprovalComment, "id">
 ): Promise<void> {
   const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
@@ -108,7 +108,7 @@ export async function addApprovalInternalComment(
   await updateDoc(
     doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id),
     {
-      internalComments: [...existingComments, newComment],
+      internalComments: arrayUnion(newComment),
       updatedAt: new Date().toISOString(),
     }
   );
@@ -117,7 +117,6 @@ export async function addApprovalInternalComment(
 
 export async function addApprovalClientComment(
   id: string,
-  existingComments: ApprovalComment[],
   comment: Omit<ApprovalComment, "id">
 ): Promise<void> {
   const newComment: ApprovalComment = { ...comment, id: crypto.randomUUID() };
@@ -125,7 +124,7 @@ export async function addApprovalClientComment(
   await updateDoc(
     doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", id),
     {
-      clientComments: [...existingComments, newComment],
+      clientComments: arrayUnion(newComment),
       updatedAt: new Date().toISOString(),
     }
   );

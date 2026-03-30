@@ -32,12 +32,12 @@ export default function AssetsPage() {
     setDeleting(true);
     try {
       await deleteAsset(id);
+      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف الأصل بنجاح" : "Asset deleted successfully", "success");
     } catch {
       showToast(isArabic ? "فشل حذف الأصل" : "Failed to delete asset", "error");
     } finally {
       setDeleting(false);
-      setConfirmDelete(null);
     }
   };
 

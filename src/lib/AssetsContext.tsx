@@ -16,6 +16,7 @@ import {
   updateAsset as fsUpdateAsset,
   deleteAsset as fsDeleteAsset,
 } from "./firestore/assets";
+import { withTimeout } from "./utils/crud";
 
 export type CreateAssetData = {
   clientId: string;
@@ -53,18 +54,18 @@ export function AssetsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createAsset = useCallback(async (data: CreateAssetData): Promise<string> => {
-    return fsCreateAsset(data);
+    return withTimeout(fsCreateAsset(data));
   }, []);
 
   const updateAsset = useCallback(
     async (id: string, data: Partial<Omit<Asset, "id" | "createdAt">>) => {
-      await fsUpdateAsset(id, data);
+      await withTimeout(fsUpdateAsset(id, data));
     },
     [],
   );
 
   const deleteAsset = useCallback(async (id: string) => {
-    await fsDeleteAsset(id);
+    await withTimeout(fsDeleteAsset(id));
   }, []);
 
   const value: AssetsContextValue = useMemo(

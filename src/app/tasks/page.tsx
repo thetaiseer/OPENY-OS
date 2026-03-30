@@ -36,12 +36,12 @@ export default function TasksPage() {
     setDeleting(true);
     try {
       await deleteTask(id);
+      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف المهمة بنجاح" : "Task deleted successfully", "success");
     } catch {
       showToast(isArabic ? "فشل حذف المهمة" : "Failed to delete task", "error");
     } finally {
       setDeleting(false);
-      setConfirmDelete(null);
     }
   };
 
