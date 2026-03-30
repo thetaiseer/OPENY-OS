@@ -5,9 +5,11 @@ import { CheckCircle2, Clock3, Plus, Workflow, Zap, Trash2, Edit } from "lucide-
 import { useTasks, useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddTaskModal } from "@/components/ui/AddTaskModal";
+import { EditTaskModal } from "@/components/ui/EditTaskModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { useToast } from "@/lib/ToastContext";
+import type { Task } from "@/lib/types";
 import {
   BarListChart,
   ButtonLink,
@@ -31,6 +33,7 @@ export default function TasksPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
 
   const handleDeleteTask = async (id: string) => {
     setDeleting(true);
@@ -70,6 +73,7 @@ export default function TasksPage() {
   return (
     <PageMotion>
       <AddTaskModal open={showAddTask} onClose={() => setShowAddTask(false)} />
+      <EditTaskModal task={editTask} onClose={() => setEditTask(null)} />
       <ConfirmDialog
         open={confirmDelete !== null}
         title={isArabic ? "حذف المهمة" : "Delete task"}
@@ -140,7 +144,7 @@ export default function TasksPage() {
                     <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
                     <ActionMenu
                       items={[
-                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => {} },
+                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => setEditTask(task) },
                         { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(task.id) },
                       ]}
                       size={16}
