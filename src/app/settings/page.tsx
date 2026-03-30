@@ -5,6 +5,8 @@ import type { UserNotificationPreferences } from "@/lib/types";
 import { useNotificationPreferences } from "@/lib/useNotificationPreferences";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 import {
   BellRing,
   Camera,
@@ -98,8 +100,12 @@ export default function SettingsPage() {
     setTimeout(() => setPasswordSaved(false), 2000);
   };
 
-  const handleSignOut = () => {
-    // In a real implementation, call auth.signOut() from firebase/auth
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch {
+      // signOut may fail if no user is signed in (unauthenticated mode)
+    }
     if (typeof window !== "undefined") {
       localStorage.removeItem("openy-lang");
       localStorage.removeItem("openy-theme");

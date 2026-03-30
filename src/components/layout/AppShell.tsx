@@ -42,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", title: { en: "Tasks", ar: "المهام" }, icon: Workflow },
   { href: "/clients", title: { en: "Clients", ar: "العملاء" }, icon: BriefcaseBusiness, match: "/clients" },
   { href: "/approvals", title: { en: "Approvals", ar: "الموافقات" }, icon: ShieldCheck },
+  { href: "/publishing", title: { en: "Publishing", ar: "النشر" }, icon: Globe },
   { href: "/reports", title: { en: "Analytics", ar: "التحليلات" }, icon: BarChart3 },
   { href: "/team", title: { en: "Team", ar: "الفريق" }, icon: Users },
   { href: "/assets", title: { en: "Assets", ar: "الأصول" }, icon: Image },

@@ -98,7 +98,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-        <Panel title={pageText("Operations overview", "نظرة على العمليات")} description={pageText("Eight-week signal for recently created content and campaigns.", "إشارة من ثمانية أسابيع للمحتوى والحملات التي تم إنشاؤها مؤخرًا.")}
+        <Panel title={pageText("Operations overview", "نظرة على العمليات")} description={pageText("Eight-point trend for recently created content and campaigns.", "مؤشر من ثماني نقاط للمحتوى والحملات التي تم إنشاؤها مؤخرًا.")}
           action={<InfoBadge label={isArabic ? `${dueNow} مستحق الآن` : `${dueNow} due now`} tone={dueNow > 0 ? "amber" : "mint"} />}>
           <MiniAreaChart values={weeklySeries} tone="blue" />
           <div className="mt-4 grid grid-cols-3 gap-3">
