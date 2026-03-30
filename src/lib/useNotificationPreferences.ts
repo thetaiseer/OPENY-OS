@@ -34,9 +34,8 @@ const DEFAULT_PREFS: Omit<UserNotificationPreferences, "id" | "userId" | "update
   clientActions: { inApp: true, push: true, email: true },
 };
 
-// The current user id – in a real app this comes from Auth.
-// We use a fixed sentinel for now so preferences are shared.
-const CURRENT_USER_ID = "default_user";
+// The admin user id used to scope notification preferences.
+const CURRENT_USER_ID = "thetaiseer@gmail.com";
 
 export function useNotificationPreferences() {
   const [prefs, setPrefs] = useState<UserNotificationPreferences | null>(null);
