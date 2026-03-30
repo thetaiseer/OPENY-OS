@@ -78,14 +78,20 @@ export async function getAnalyticsInstance() {
   return getAnalytics(app);
 }
 
+// Web Push VAPID public key for Firebase Cloud Messaging.
+// Generated in the Firebase console under Project Settings → Cloud Messaging → Web Push certificates.
+export const FCM_VAPID_KEY =
+  "BLo-zkIlw7g4UGy8qTgBfdCz12c4iMqRlwAn-S-hnjG_dAzjIL-ISFdjLLfuhxi_sU0wwveSmVmZ37x3YwqGwho";
+
 // FCM – only initialised on the client to avoid SSR issues.
 // Returns null when called server-side or when push is unsupported.
-export async function getFCMToken(vapidKey?: string): Promise<string | null> {
+// Pass a custom vapidKey to override the project default (e.g. for multi-tenant setups).
+export async function getFCMToken(vapidKey: string = FCM_VAPID_KEY): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
     const { getMessaging, getToken } = await import("firebase/messaging");
     const messaging = getMessaging(app);
-    const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
+    const token = await getToken(messaging, { vapidKey });
     return token || null;
   } catch {
     return null;
