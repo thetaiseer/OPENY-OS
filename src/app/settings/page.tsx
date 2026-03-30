@@ -29,6 +29,7 @@ import {
   Panel,
   pageText,
 } from "@/components/redesign/ui";
+import { parseFirestoreError } from "@/lib/utils/crud";
 
 // ── Notification categories ───────────────────────────────────
 
@@ -106,8 +107,8 @@ export default function SettingsPage() {
       });
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
-    } catch {
-      setProfileError(isArabic ? "فشل حفظ التغييرات" : "Failed to save changes");
+    } catch (err) {
+      setProfileError(parseFirestoreError(err, isArabic));
     }
   };
 
@@ -140,8 +141,8 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setPasswordSaved(false), 2000);
-    } catch {
-      setPasswordError(isArabic ? "كلمة المرور الحالية غير صحيحة أو فشلت العملية" : "Current password is incorrect or operation failed");
+    } catch (err) {
+      setPasswordError(parseFirestoreError(err, isArabic));
     }
   };
 

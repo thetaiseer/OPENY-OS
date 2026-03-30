@@ -8,6 +8,7 @@ import { AddMemberModal } from "@/components/ui/AddMemberModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import {
   BarListChart,
   EmptyPanel,
@@ -38,8 +39,8 @@ export default function TeamPage() {
       await deleteMember(id);
       setConfirmDelete(null);
       showToast(isArabic ? "تم حذف العضو بنجاح" : "Team member deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف العضو" : "Failed to delete member", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف العضو" : "Failed to delete member"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }
@@ -176,8 +177,8 @@ export default function TeamPage() {
             await clearActivities();
             setConfirmClear(false);
             showToast(isArabic ? "تم مسح سجل الأنشطة" : "Activity history cleared", "success");
-          } catch {
-            showToast(isArabic ? "فشل مسح السجل" : "Failed to clear history", "error");
+          } catch (err) {
+            showToast(`${isArabic ? "فشل مسح السجل" : "Failed to clear history"}: ${parseFirestoreError(err, isArabic)}`, "error");
           } finally {
             setClearing(false);
           }

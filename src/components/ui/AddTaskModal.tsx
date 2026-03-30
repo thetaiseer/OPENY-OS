@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Modal } from "./Modal";
 import { useTasks, useTeam, useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { Task } from "@/lib/types";
 
 interface AddTaskModalProps {
@@ -62,8 +63,8 @@ export function AddTaskModal({ open, onClose }: AddTaskModalProps) {
       });
       reset();
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

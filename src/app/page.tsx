@@ -18,6 +18,7 @@ import { useApprovals } from "@/lib/ApprovalContext";
 import { usePublishing } from "@/lib/PublishingContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { ContentStatus } from "@/lib/types";
 import {
   BarListChart,
@@ -193,8 +194,8 @@ export default function DashboardPage() {
                 await clearActivities();
                 setConfirmClear(false);
                 showToast(isArabic ? "تم مسح سجل الأنشطة" : "Activity history cleared", "success");
-              } catch {
-                showToast(isArabic ? "فشل مسح السجل" : "Failed to clear history", "error");
+              } catch (err) {
+                showToast(`${isArabic ? "فشل مسح السجل" : "Failed to clear history"}: ${parseFirestoreError(err, isArabic)}`, "error");
               } finally {
                 setClearing(false);
               }

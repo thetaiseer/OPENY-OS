@@ -7,6 +7,7 @@ import { usePublishing } from "@/lib/PublishingContext";
 import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import { AddContentModal } from "@/components/ui/AddContentModal";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -50,8 +51,8 @@ export default function ContentPage() {
       await deleteContentItem(id);
       setConfirmDeleteContent(null);
       showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف المحتوى" : "Failed to delete content", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف المحتوى" : "Failed to delete content"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeletingContent(false);
     }

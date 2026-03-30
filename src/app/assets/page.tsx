@@ -8,6 +8,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import {
   BarListChart,
   EmptyPanel,
@@ -34,8 +35,8 @@ export default function AssetsPage() {
       await deleteAsset(id);
       setConfirmDelete(null);
       showToast(isArabic ? "تم حذف الأصل بنجاح" : "Asset deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف الأصل" : "Failed to delete asset", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف الأصل" : "Failed to delete asset"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }

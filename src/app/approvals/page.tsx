@@ -9,6 +9,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import {
   EmptyPanel,
   InfoBadge,
@@ -36,8 +37,8 @@ export default function ApprovalsPage() {
       await deleteApproval(id);
       setConfirmDelete(null);
       showToast(isArabic ? "تم حذف طلب الموافقة بنجاح" : "Approval deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف طلب الموافقة" : "Failed to delete approval", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف طلب الموافقة" : "Failed to delete approval"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }

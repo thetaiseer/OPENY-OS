@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useTeam, useClients } from "@/lib/AppContext";
 import { useRecurringTasks } from "@/lib/RecurringTaskContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { RecurringTaskTemplate, WorkflowStep } from "@/lib/types";
 
 interface AddRecurringTaskModalProps {
@@ -89,8 +90,8 @@ export function AddRecurringTaskModal({ open, onClose }: AddRecurringTaskModalPr
       });
       reset();
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

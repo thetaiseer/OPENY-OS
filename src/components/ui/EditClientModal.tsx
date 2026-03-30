@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 import { Modal } from "./Modal";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { Client } from "@/lib/types";
 
 interface EditClientModalProps {
@@ -65,8 +66,8 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
         status,
       });
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

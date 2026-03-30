@@ -5,6 +5,7 @@ import { UserPlus } from "lucide-react";
 import { Modal } from "./Modal";
 import { useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 
 interface AddMemberModalProps {
   open: boolean;
@@ -54,8 +55,8 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
       await addMember({ name: name.trim(), role: role.trim(), email: email.trim() });
       reset();
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }
