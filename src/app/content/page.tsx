@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarRange, KanbanSquare, Sparkles, Target } from "lucide-react";
+import { CalendarRange, KanbanSquare, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import { useContentItems } from "@/lib/ContentContext";
 import { usePublishing } from "@/lib/PublishingContext";
 import { useAppStore } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useToast } from "@/lib/ToastContext";
+import { AddContentModal } from "@/components/ui/AddContentModal";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ContentStatus } from "@/lib/types";
 import {
   BarListChart,
@@ -29,11 +33,29 @@ const VIEW_OPTIONS = [
 
 export default function ContentPage() {
   const [view, setView] = useState<(typeof VIEW_OPTIONS)[number]["value"]>("board");
-  const { contentItems } = useContentItems();
+  const { contentItems, deleteContentItem } = useContentItems();
   const { getReadinessForItem } = usePublishing();
   const { clients } = useAppStore();
   const { language } = useLanguage();
+  const { showToast } = useToast();
   const isArabic = language === "ar";
+
+  const [showAddContent, setShowAddContent] = useState(false);
+  const [confirmDeleteContent, setConfirmDeleteContent] = useState<string | null>(null);
+  const [deletingContent, setDeletingContent] = useState(false);
+
+  const handleDeleteContent = async (id: string) => {
+    setDeletingContent(true);
+    try {
+      await deleteContentItem(id);
+      setConfirmDeleteContent(null);
+      showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف المحتوى" : "Failed to delete content", "error");
+    } finally {
+      setDeletingContent(false);
+    }
+  };
 
   const waitingReview = contentItems.filter((item) => item.status === "client_review" || item.status === "internal_review").length;
   const scheduled = contentItems.filter((item) => item.status === "scheduled" || item.status === "publishing_ready").length;
@@ -79,6 +101,18 @@ export default function ContentPage() {
 
   return (
     <PageMotion>
+      <AddContentModal open={showAddContent} onClose={() => setShowAddContent(false)} />
+      <ConfirmDialog
+        open={confirmDeleteContent !== null}
+        title={isArabic ? "حذف المحتوى" : "Delete content"}
+        message={isArabic ? "هل أنت متأكد من حذف عنصر المحتوى هذا نهائيًا؟" : "Are you sure you want to permanently delete this content item?"}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deletingContent}
+        onConfirm={() => confirmDeleteContent && handleDeleteContent(confirmDeleteContent)}
+        onCancel={() => setConfirmDeleteContent(null)}
+      />
       <PageHeader
         eyebrow={pageText("Planning workspace", "مساحة التخطيط")}
         title={pageText("Content planner", "مخطط المحتوى")}
@@ -86,7 +120,19 @@ export default function ContentPage() {
           "Manage content across kanban, calendar, and analytics views.",
           "إدارة المحتوى عبر عروض الكانبان والتقويم والتحليلات."
         )}
-        actions={<SegmentedControl value={view} options={[...VIEW_OPTIONS]} onChange={setView} />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddContent(true)}
+              className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
+            >
+              <Plus size={16} />
+              {isArabic ? "إضافة محتوى" : "Add content"}
+            </button>
+            <SegmentedControl value={view} options={[...VIEW_OPTIONS]} onChange={setView} />
+          </>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -107,11 +153,19 @@ export default function ContentPage() {
               renderItem={(item) => (
                 <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
                       <p className="mt-1 text-xs text-[var(--muted)]">{clients.find((client) => client.id === item.clientId)?.name ?? (isArabic ? "عميل غير معروف" : "Unknown client")}</p>
                     </div>
-                    <InfoBadge label={item.platform} tone="violet" />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <InfoBadge label={item.platform} tone="violet" />
+                      <ActionMenu
+                        items={[
+                          { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDeleteContent(item.id) },
+                        ]}
+                        size={14}
+                      />
+                    </div>
                   </div>
                   <p className="mt-3 text-sm text-[var(--muted)] line-clamp-3">{item.caption || (isArabic ? "أضف وصفًا لتفعيل السياق التحريري" : "Add a caption to activate editorial context")}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -166,3 +220,4 @@ export default function ContentPage() {
     </PageMotion>
   );
 }
+

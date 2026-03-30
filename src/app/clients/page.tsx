@@ -11,6 +11,8 @@ import { useContentItems } from "@/lib/ContentContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddClientModal } from "@/components/ui/AddClientModal";
+import { EditClientModal } from "@/components/ui/EditClientModal";
+import type { Client } from "@/lib/types";
 import {
   BarListChart,
   EmptyPanel,
@@ -33,6 +35,7 @@ export default function ClientsPage() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editClient, setEditClient] = useState<Client | null>(null);
 
   const handleDelete = async (id: string) => {
     setDeleting(true);
@@ -83,6 +86,7 @@ export default function ClientsPage() {
   return (
     <PageMotion>
       <AddClientModal open={showAddClient} onClose={() => setShowAddClient(false)} />
+      <EditClientModal client={editClient} onClose={() => setEditClient(null)} />
       <ConfirmDialog
         open={confirmDelete !== null}
         title={isArabic ? "حذف العميل" : "Delete client"}
@@ -143,7 +147,7 @@ export default function ClientsPage() {
                     <ActionMenu
                       items={[
                         { label: isArabic ? "عرض التفاصيل" : "View details", icon: Eye, onClick: () => {} },
-                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => {} },
+                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => setEditClient(entry.client) },
                         { label: isArabic ? "أرشفة" : "Archive", icon: Archive, onClick: () => {} },
                         { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(entry.client.id) },
                       ]}

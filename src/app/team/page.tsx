@@ -33,12 +33,12 @@ export default function TeamPage() {
     setDeleting(true);
     try {
       await deleteMember(id);
+      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف العضو بنجاح" : "Team member deleted successfully", "success");
     } catch {
       showToast(isArabic ? "فشل حذف العضو" : "Failed to delete member", "error");
     } finally {
       setDeleting(false);
-      setConfirmDelete(null);
     }
   };
 

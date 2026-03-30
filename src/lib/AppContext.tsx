@@ -36,6 +36,7 @@ import {
   createActivity as fsCreateActivity,
 } from "./firestore/activities";
 import { pushNotification as fsPushNotification } from "./firestore/notifications";
+import { withTimeout, fireAndForget } from "./utils/crud";
 
 // ── Notification helper (writes to Firestore via service layer) ─
 
@@ -50,34 +51,6 @@ async function pushNotificationDoc(
   } catch (err) {
     console.error("[OPENY] Failed to create notification:", err);
   }
-}
-
-// ── Timeout + fire-and-forget helpers ────────────────────────
-
-/**
- * Races a promise against a timeout so that a slow/offline Firestore
- * write never leaves the UI frozen indefinitely.
- */
-function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`Operation timed out after ${ms}ms`)),
-      ms
-    );
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (err)   => { clearTimeout(timer); reject(err); }
-    );
-  });
-}
-
-/**
- * Runs a secondary side-effect (activity log, notification) without
- * blocking the calling operation. Errors are swallowed to avoid
- * unhandled-rejection warnings.
- */
-function fireAndForget(promise: Promise<unknown>): void {
-  promise.catch((err) => console.error("[OPENY] Side-effect error:", err));
 }
 
 // ── Helpers ──────────────────────────────────────────────────

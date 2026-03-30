@@ -28,6 +28,7 @@ import {
   deleteContentItem as fsDeleteContentItem,
   addContentComment as fsAddContentComment,
 } from "./firestore/content";
+import { withTimeout } from "./utils/crud";
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -77,27 +78,25 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   // ── CRUD actions (via service layer) ─────────────────────
 
   const createContentItem = useCallback(async (data: CreateContentData): Promise<string> => {
-    return fsCreateContentItem(data);
+    return withTimeout(fsCreateContentItem(data));
   }, []);
 
   const updateContentItem = useCallback(
     async (id: string, data: Partial<Omit<ContentItem, "id" | "createdAt">>) => {
-      await fsUpdateContentItem(id, data);
+      await withTimeout(fsUpdateContentItem(id, data));
     },
     [],
   );
 
   const deleteContentItem = useCallback(async (id: string) => {
-    await fsDeleteContentItem(id);
+    await withTimeout(fsDeleteContentItem(id));
   }, []);
 
   const addComment = useCallback(
     async (id: string, comment: Omit<ContentComment, "id">) => {
-      const item = contentItems.find((c) => c.id === id);
-      if (!item) return;
-      await fsAddContentComment(id, item.comments ?? [], comment);
+      await withTimeout(fsAddContentComment(id, comment));
     },
-    [contentItems],
+    [],
   );
 
   const value: ContentContextValue = useMemo(

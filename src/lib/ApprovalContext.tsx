@@ -22,6 +22,7 @@ import {
   addApprovalClientComment,
   deleteApproval as fsDeleteApproval,
 } from "./firestore/approvals";
+import { withTimeout } from "./utils/crud";
 
 // ── Context shape ─────────────────────────────────────────────
 
@@ -60,43 +61,39 @@ export function ApprovalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createApproval = useCallback(async (data: CreateApprovalData): Promise<string> => {
-    return fsCreateApproval(data);
+    return withTimeout(fsCreateApproval(data));
   }, []);
 
   const updateApproval = useCallback(
     async (id: string, data: Partial<Omit<Approval, "id" | "createdAt">>) => {
-      await fsUpdateApproval(id, data);
+      await withTimeout(fsUpdateApproval(id, data));
     },
     [],
   );
 
   const addInternalComment = useCallback(
     async (id: string, comment: Omit<ApprovalComment, "id">) => {
-      const approval = approvals.find((a) => a.id === id);
-      if (!approval) return;
-      await addApprovalInternalComment(id, approval.internalComments ?? [], comment);
+      await withTimeout(addApprovalInternalComment(id, comment));
     },
-    [approvals],
+    [],
   );
 
   const addClientComment = useCallback(
     async (id: string, comment: Omit<ApprovalComment, "id">) => {
-      const approval = approvals.find((a) => a.id === id);
-      if (!approval) return;
-      await addApprovalClientComment(id, approval.clientComments ?? [], comment);
+      await withTimeout(addApprovalClientComment(id, comment));
     },
-    [approvals],
+    [],
   );
 
   const updateApprovalStatus = useCallback(
     async (id: string, status: ApprovalWorkflowStatus) => {
-      await fsUpdateApprovalStatus(id, status);
+      await withTimeout(fsUpdateApprovalStatus(id, status));
     },
     [],
   );
 
   const deleteApproval = useCallback(async (id: string) => {
-    await fsDeleteApproval(id);
+    await withTimeout(fsDeleteApproval(id));
   }, []);
 
   const value: ApprovalContextValue = useMemo(

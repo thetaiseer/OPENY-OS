@@ -4,6 +4,7 @@
 // ============================================================
 import {
   addDoc,
+  arrayUnion,
   deleteDoc,
   doc,
   onSnapshot,
@@ -96,7 +97,6 @@ export async function updateContentItem(
 
 export async function addContentComment(
   id: string,
-  existingComments: ContentComment[],
   comment: Omit<ContentComment, "id">
 ): Promise<void> {
   const newComment: ContentComment = { ...comment, id: crypto.randomUUID() };
@@ -104,7 +104,7 @@ export async function addContentComment(
   await updateDoc(
     doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "contentItems", id),
     {
-      comments: [...existingComments, newComment],
+      comments: arrayUnion(newComment),
       updatedAt: new Date().toISOString(),
     }
   );
