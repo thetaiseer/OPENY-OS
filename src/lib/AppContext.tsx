@@ -220,12 +220,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback(
     async (id: string) => {
       const client = clients.find((c) => c.id === id);
-      // Cascade: unlink tasks that reference this client (non-blocking)
-      const relatedTasks = tasks.filter((t) => t.clientId === id);
-      fireAndForget(Promise.all(relatedTasks.map((t) => fsUpdateTask(t.id, { clientId: "" }))));
-      await withTimeout(fsDeleteClient(id));
-      // Secondary side-effect: do not block the UI
-      fireAndForget(pushActivity("client_deleted", "Client removed", client?.name ?? id, id));
+      if (process.env.NODE_ENV !== "production") console.log("[OPENY:deleteClient] start", id);
+      try {
+        // Cascade: unlink tasks that reference this client (non-blocking)
+        const relatedTasks = tasks.filter((t) => t.clientId === id);
+        if (relatedTasks.length > 0) {
+          if (process.env.NODE_ENV !== "production") console.log("[OPENY:deleteClient] unlinking", relatedTasks.length, "task(s)");
+          fireAndForget(Promise.all(relatedTasks.map((t) => fsUpdateTask(t.id, { clientId: "" }))));
+        }
+        await withTimeout(fsDeleteClient(id));
+        if (process.env.NODE_ENV !== "production") console.log("[OPENY:deleteClient] Firestore delete success", id);
+        // Secondary side-effect: do not block the UI
+        fireAndForget(pushActivity("client_deleted", "Client removed", client?.name ?? id, id));
+        if (process.env.NODE_ENV !== "production") console.log("[OPENY:deleteClient] done", id);
+      } catch (err) {
+        console.error("[OPENY:deleteClient] error", id, err);
+        throw err;
+      }
     },
     [clients, tasks, pushActivity],
   );
