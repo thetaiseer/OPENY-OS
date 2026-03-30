@@ -1,6 +1,7 @@
 "use client";
 
-import { Paperclip, MessageSquare, Calendar, Pencil, Clock } from "lucide-react";
+import { useState } from "react";
+import { Paperclip, MessageSquare, Calendar, Pencil, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import type { ContentItem } from "@/lib/types";
 import {
@@ -16,6 +17,10 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useAppStore } from "@/lib/AppContext";
 import { computeReadiness } from "@/lib/PublishingContext";
 import { PublishingReadinessBadge } from "@/components/ui/PublishingReadinessBadge";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/lib/ToastContext";
+import { useContentItems } from "@/lib/ContentContext";
 
 interface ContentCardProps {
   item: ContentItem;
@@ -25,14 +30,33 @@ interface ContentCardProps {
 }
 
 export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCardProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isArabic = language === "ar";
   const { clients, members } = useAppStore();
+  const { deleteContentItem } = useContentItems();
+  const { showToast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const client = clients.find((c) => c.id === item.clientId);
   const assignee = members.find((m) => m.id === item.assignedTo);
   const overdue = isOverdue(item.scheduledDate) && item.status !== "published";
   const readiness = computeReadiness(item);
   const platformColor = PLATFORM_COLORS[item.platform];
   const statusColor = STATUS_COLORS[item.status];
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteContentItem(item.id);
+      showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف المحتوى" : "Failed to delete content", "error");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   return (
     <div
@@ -41,6 +65,17 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
       onClick={onClick}
       className="group"
     >
+      <ConfirmDialog
+        open={confirmDelete}
+        title={isArabic ? "حذف المحتوى" : "Delete content"}
+        message={isArabic ? "هل أنت متأكد من حذف هذا المحتوى نهائيًا؟" : "Are you sure you want to permanently delete this content item?"}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -58,12 +93,27 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
           transition: { duration: 0.15 },
         }}
       >
-      {/* Edit button — appears on hover */}
+      {/* Actions menu — appears on hover */}
       <div
-        className="absolute top-2 right-2 w-6 h-6 rounded-lg items-center justify-center hidden group-hover:flex transition-all"
-        style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
+        className="absolute top-1 right-1 hidden group-hover:flex transition-all"
+        onClick={(e) => e.stopPropagation()}
       >
-        <Pencil size={10} style={{ color: "var(--accent)" }} />
+        <ActionMenu
+          size={14}
+          items={[
+            {
+              label: isArabic ? "تعديل" : "Edit",
+              icon: Pencil,
+              onClick: () => onClick(),
+            },
+            {
+              label: isArabic ? "حذف" : "Delete",
+              icon: Trash2,
+              tone: "danger",
+              onClick: () => setConfirmDelete(true),
+            },
+          ]}
+        />
       </div>
 
       <div className="p-3">
