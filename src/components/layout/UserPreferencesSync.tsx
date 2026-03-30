@@ -48,7 +48,9 @@ export function UserPreferencesSync() {
         if (!prefs) {
           // No prefs saved yet – write current device values to Firestore
           // so other devices get them too.
-          upsertUserPreferences(uid, { theme, language }).catch(() => {});
+          upsertUserPreferences(uid, { theme, language }).catch((err) => {
+            console.error("[OPENY:UserPreferencesSync] failed to initialise prefs:", err);
+          });
           return;
         }
 
@@ -86,7 +88,9 @@ export function UserPreferencesSync() {
       return;
     }
 
-    upsertUserPreferences(user.uid, { theme, language }).catch(() => {});
+    upsertUserPreferences(user.uid, { theme, language }).catch((err) => {
+      console.error("[OPENY:UserPreferencesSync] failed to write prefs:", err);
+    });
   }, [theme, language, user]);
 
   // This component renders nothing – it's a pure side-effect bridge.
