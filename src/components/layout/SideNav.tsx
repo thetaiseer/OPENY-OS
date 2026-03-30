@@ -363,7 +363,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                 background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
               }}
             >
-              A
+              T
             </div>
             <AnimatePresence initial={false}>
               {!collapsed && (
@@ -375,10 +375,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                   className="overflow-hidden whitespace-nowrap min-w-0"
                 >
                   <p className="text-xs font-semibold leading-tight truncate" style={{ color: "var(--text-primary)" }}>
-                    Alex Chen
+                    Thetaiseer
                   </p>
                   <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
-                    Admin
+                    thetaiseer@gmail.com
                   </p>
                 </motion.div>
               )}
