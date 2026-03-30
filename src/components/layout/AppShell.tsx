@@ -197,14 +197,12 @@ function DesktopSidebar({
         <div className="flex min-w-0 items-center gap-3">
           {/* OPENY Logo */}
           <div
-            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl overflow-hidden ${theme === "dark" ? "bg-white p-1.5" : "bg-transparent p-1"}`}
-            style={theme === "dark" ? { boxShadow: "0 2px 8px rgba(0,0,0,0.18)" } : {}}
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl overflow-hidden"
           >
             <img
-              src="/assets/openy-logo.svg"
+              src="/assets/openy-logo.png"
               alt="OPENY OS"
               className="h-full w-full object-contain"
-              style={theme === "dark" ? {} : { filter: "brightness(0)" }}
             />
           </div>
           {!collapsed && (
