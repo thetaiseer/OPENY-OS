@@ -95,11 +95,11 @@ export default function ClientsPage() {
         onCancel={() => setConfirmDelete(null)}
       />
       <PageHeader
-        eyebrow={pageText("Client intelligence", "ذكاء العملاء")}
-        title={pageText("Premium client spaces", "مساحات عملاء فاخرة")}
+        eyebrow={pageText("Client management", "إدارة العملاء")}
+        title={pageText("Clients", "العملاء")}
         description={pageText(
-          "A new CRM surface for account health, delivery pressure, and cross-functional visibility.",
-          "واجهة CRM جديدة لصحة الحسابات وضغط التسليم والرؤية المشتركة بين الفرق."
+          "Manage client accounts, track delivery health and open tasks.",
+          "إدارة حسابات العملاء ومتابعة صحة التسليم والمهام المفتوحة."
         )}
         actions={
           <button
@@ -122,10 +122,10 @@ export default function ClientsPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title={pageText("Client portfolio", "محفظة العملاء")} description={pageText("Every account in a fresh card-based surface with health indicators and fast drill-down.", "كل حساب ضمن واجهة بطاقات جديدة مع مؤشرات صحة والوصول السريع للتفاصيل.")}
+        <Panel title={pageText("Client portfolio", "محفظة العملاء")} description={pageText("All client accounts with health indicators.", "جميع حسابات العملاء مع مؤشرات الصحة.")}
           action={<InfoBadge label={isArabic ? `${clients.length} سجل` : `${clients.length} records`} tone="blue" />}>
           {clients.length === 0 ? (
-            <EmptyPanel title={pageText("No clients synced yet", "لم تتم مزامنة عملاء بعد")} description={pageText("As client records arrive from Firebase, this portfolio will populate in real time.", "عند وصول سجلات العملاء من Firebase ستُملأ هذه المحفظة مباشرة.")} />
+            <EmptyPanel title={pageText("No clients yet", "لا يوجد عملاء بعد")} description={pageText("Add your first client to get started.", "أضف أول عميل للبدء.")} />
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {clientLoad.map((entry) => (
@@ -167,7 +167,7 @@ export default function ClientsPage() {
 
         <Panel title={pageText("Health leaderboard", "لوحة صحة الحسابات")} description={pageText("A simple ranking based on content volume, open tasks, and approvals pressure.", "ترتيب مبسط يعتمد على حجم المحتوى والمهام المفتوحة وضغط الموافقات.")}
           action={<InfoBadge label={isArabic ? "تحليلات مباشرة" : "Live analytics"} tone="violet" />}>
-          {healthiest.length === 0 ? <EmptyPanel title={pageText("No ranking yet", "لا يوجد ترتيب بعد")} description={pageText("Client signals will appear here once accounts start receiving content and tasks.", "ستظهر الإشارات هنا بمجرد بدء ربط العملاء بالمحتوى والمهام.")} /> : <BarListChart items={healthiest} tone="violet" />}
+          {healthiest.length === 0 ? <EmptyPanel title={pageText("No ranking yet", "لا يوجد ترتيب بعد")} description={pageText("Client ranking will appear once accounts have content and tasks.", "سيظهر ترتيب العملاء بمجرد إضافة محتوى ومهام.")} /> : <BarListChart items={healthiest} tone="violet" />}
         </Panel>
       </section>
     </PageMotion>

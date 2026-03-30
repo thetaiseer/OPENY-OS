@@ -65,11 +65,11 @@ export default function TeamPage() {
         onCancel={() => setConfirmDelete(null)}
       />
       <PageHeader
-        eyebrow={pageText("People operations", "عمليات الفريق")}
-        title={pageText("Team cockpit rebuilt", "إعادة بناء قمرة الفريق")}
+        eyebrow={pageText("People operations", "إدارة الفريق")}
+        title={pageText("Team", "الفريق")}
         description={pageText(
-          "A clean premium surface for team visibility, active workload, and operating pulse.",
-          "واجهة فاخرة ونظيفة لرؤية الفريق وعبء العمل النشط والنبض التشغيلي."
+          "Manage team members, roles, and workload.",
+          "إدارة أعضاء الفريق وأدوارهم وعبء العمل."
         )}
         actions={
           <button

@@ -51,18 +51,24 @@ export function TopBar() {
         {/* Left: logo badge + breadcrumb */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className="rounded-xl flex items-center justify-center flex-shrink-0"
+            className="rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{
               width: 34,
               height: 34,
-              background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
-              boxShadow: "0 4px 12px rgba(79,142,247,0.30)",
+              background: "var(--glass-overlay)",
+              border: "1px solid var(--border)",
+              padding: theme === "dark" ? "6px" : "5px",
             }}
           >
             <img
-              src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+              src="/assets/openy-logo.svg"
               alt="OPENY OS"
-              style={{ height: 20, width: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }}
+              style={{
+                height: "100%",
+                width: "auto",
+                objectFit: "contain",
+                filter: theme === "dark" ? "brightness(0) invert(1)" : "brightness(0)",
+              }}
             />
           </div>
 

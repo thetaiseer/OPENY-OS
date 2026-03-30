@@ -41,7 +41,7 @@ export default function ClientWorkspacePage() {
   if (!client) {
     return (
       <PageMotion>
-        <EmptyPanel title={pageText("Client not found", "العميل غير موجود")} description={pageText("This workspace could not find a matching client record in Firebase.", "تعذر العثور على سجل عميل مطابق داخل Firebase.")} />
+        <EmptyPanel title={pageText("Client not found", "العميل غير موجود")} description={pageText("No client record matches this ID.", "لا يوجد سجل عميل يطابق هذا المعرّف.")} />
       </PageMotion>
     );
   }
@@ -66,8 +66,8 @@ export default function ClientWorkspacePage() {
         eyebrow={pageText("Client workspace", "مساحة العميل")}
         title={{ en: client.name, ar: client.name }}
         description={pageText(
-          "A redesigned account view for delivery health, assets, notes, and operational signals.",
-          "عرض حساب مُعاد تصميمه لصحة التسليم، الأصول، الملاحظات، والإشارات التشغيلية."
+          "Delivery overview, content, tasks, approvals, and assets for this client.",
+          "نظرة عامة على التسليم والمحتوى والمهام والموافقات والأصول لهذا العميل."
         )}
       />
 
@@ -174,7 +174,7 @@ export default function ClientWorkspacePage() {
                 <p className="mt-1 text-xs text-[var(--muted)]">{asset.type}</p>
               </article>
             ))}
-            {assets.length === 0 ? <EmptyPanel title={pageText("No assets uploaded", "لم يتم رفع أصول بعد")} description={pageText("Images, videos, and brand resources will appear once synced to Firebase.", "الصور والفيديو وموارد الهوية ستظهر بعد مزامنتها مع Firebase.")} /> : null}
+            {assets.length === 0 ? <EmptyPanel title={pageText("No assets yet", "لا توجد أصول بعد")} description={pageText("Upload images, videos, and brand resources for this client.", "ارفع الصور والفيديو وموارد الهوية لهذا العميل.")} /> : null}
           </div>
         </Panel>
       </section>

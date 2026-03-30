@@ -66,10 +66,10 @@ export default function AssetsPage() {
       />
       <PageHeader
         eyebrow={pageText("Media library", "مكتبة الوسائط")}
-        title={pageText("Asset management refreshed", "تحديث إدارة الأصول")}
+        title={pageText("Assets", "الأصول")}
         description={pageText(
-          "A polished gallery view for images, videos, documents, and reusable brand resources.",
-          "عرض معرض مصقول للصور والفيديو والوثائق وموارد الهوية القابلة لإعادة الاستخدام."
+          "Manage images, videos, documents, and brand resources.",
+          "إدارة الصور والفيديو والوثائق وموارد الهوية."
         )}
       />
 
@@ -81,7 +81,7 @@ export default function AssetsPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title={pageText("Asset gallery", "معرض الأصول")} description={pageText("A dynamic card grid for the latest synced assets.", "شبكة بطاقات ديناميكية لأحدث الأصول المتزامنة.")}
+        <Panel title={pageText("Asset gallery", "معرض الأصول")} description={pageText("All workspace media and brand assets.", "جميع وسائط مساحة العمل وأصول الهوية.")}
           action={<InfoBadge label={isArabic ? `${clients.length} عميل` : `${clients.length} clients`} tone="blue" />}>
           {assets.length === 0 ? (
             <EmptyPanel title={pageText("No assets found", "لا توجد أصول")} description={pageText("Uploaded workspace assets will appear here automatically.", "الأصول المرفوعة في مساحة العمل ستظهر هنا تلقائيًا.")} />

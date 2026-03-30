@@ -70,10 +70,10 @@ export default function ApprovalsPage() {
       />
       <PageHeader
         eyebrow={pageText("Review pipeline", "خط المراجعة")}
-        title={pageText("Approval flow redesigned", "إعادة تصميم تدفق الموافقات")}
+        title={pageText("Approvals", "الموافقات")}
         description={pageText(
-          "A premium review command center for internal checks, client approvals, and revision loops.",
-          "مركز تحكم فاخر للمراجعات الداخلية وموافقات العميل ودورات التعديل."
+          "Manage internal reviews, client approvals, and revision requests.",
+          "إدارة المراجعات الداخلية وموافقات العميل وطلبات التعديل."
         )}
       />
 

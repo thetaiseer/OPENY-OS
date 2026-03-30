@@ -118,20 +118,25 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           style={{ minHeight: 64 }}
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
-            {/* Gradient logo badge */}
+            {/* OPENY Logo badge */}
             <div
-              className="flex-shrink-0 rounded-xl flex items-center justify-center"
+              className="flex-shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
               style={{
                 width: 36,
                 height: 36,
-                background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
-                boxShadow: "0 4px 12px rgba(79,142,247,0.35)",
+                background: "var(--glass-nav-active)",
+                border: "1px solid var(--glass-nav-active-border)",
               }}
             >
               <img
-                src={theme === "light" ? "/assets/logo-light.png" : "/assets/logo-dark.png"}
+                src="/assets/openy-logo.svg"
                 alt="OPENY OS"
-                style={{ height: 22, width: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }}
+                style={{
+                  height: 22,
+                  width: "auto",
+                  objectFit: "contain",
+                  filter: "var(--logo-filter, none)",
+                }}
               />
             </div>
             <AnimatePresence initial={false}>
@@ -144,10 +149,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                   className="overflow-hidden whitespace-nowrap"
                 >
                   <p className="text-sm font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
-                    OPENY Workspace
+                    OPENY OS
                   </p>
                   <p className="text-[10px] font-medium tracking-wide" style={{ color: "var(--text-muted)" }}>
-                    Marketing Agency
+                    {language === "ar" ? "مساحة العمل" : "Workspace"}
                   </p>
                 </motion.div>
               )}

@@ -82,11 +82,11 @@ export default function TasksPage() {
         onCancel={() => setConfirmDelete(null)}
       />
       <PageHeader
-        eyebrow={pageText("Execution center", "مركز التنفيذ")}
-        title={pageText("Task workflow rebuilt", "إعادة بناء سير المهام")}
+        eyebrow={pageText("Task management", "إدارة المهام")}
+        title={pageText("Tasks", "المهام")}
         description={pageText(
-          "A modern task surface with status lanes, deadline visibility, and team load visualization.",
-          "واجهة مهام حديثة تعرض المسارات، المواعيد النهائية، وتوزيع عبء الفريق بصريًا."
+          "Track, assign, and manage tasks across all status stages.",
+          "تتبع وتعيين وإدارة المهام عبر جميع مراحل التنفيذ."
         )}
         actions={
           <>
@@ -122,8 +122,8 @@ export default function TasksPage() {
         </Panel>
       </section>
 
-      <Panel title={pageText("Task lanes", "مسارات المهام")} description={pageText("An operational kanban across todo, active, and completed states.", "لوحة تشغيلية عبر حالات العمل والإنجاز.")}
-        action={<InfoBadge label={isArabic ? "متصل ببيانات Firebase" : "Connected to Firebase"} tone="blue" />}>
+      <Panel title={pageText("Task board", "لوحة المهام")} description={pageText("Manage tasks across todo, active, and completed states.", "إدارة المهام عبر حالات المعلق والنشط والمنجز.")}
+        action={<InfoBadge label={isArabic ? `${tasks.length} مهمة` : `${tasks.length} tasks`} tone="blue" />}>
         {tasks.length === 0 ? (
           <EmptyPanel title={pageText("No tasks in the workspace", "لا توجد مهام في مساحة العمل")} description={pageText("Create tasks from your workflow and they will appear here automatically.", "أنشئ مهام من سير العمل وستظهر هنا تلقائيًا.")} />
         ) : (

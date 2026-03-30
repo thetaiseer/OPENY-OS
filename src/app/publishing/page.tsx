@@ -48,11 +48,11 @@ export default function PublishingPage() {
   return (
     <PageMotion>
       <PageHeader
-        eyebrow={pageText("Launch orchestration", "تنسيق الإطلاق")}
-        title={pageText("Publishing hub premium refresh", "تحديث فاخر لمركز النشر")}
+        eyebrow={pageText("Launch orchestration", "إدارة النشر")}
+        title={pageText("Publishing", "النشر")}
         description={pageText(
-          "Monitor due items, readiness, and scheduled launches in a connected publishing cockpit.",
-          "راقب العناصر المستحقة والجاهزية والإطلاقات المجدولة داخل قمرة نشر مترابطة."
+          "Monitor due items, readiness, and scheduled launches.",
+          "راقب العناصر المستحقة والجاهزية والإطلاقات المجدولة."
         )}
       />
 
@@ -90,7 +90,7 @@ export default function PublishingPage() {
               </div>
             </article>
           ))}
-          {timeline.length === 0 ? <EmptyPanel title={pageText("No publishing events", "لا توجد أحداث نشر")} description={pageText("Schedule content in Firebase to populate the launch timeline here.", "قم بجدولة المحتوى في Firebase ليظهر هنا في الخط الزمني.")} /> : null}
+          {timeline.length === 0 ? <EmptyPanel title={pageText("No publishing events", "لا توجد أحداث نشر")} description={pageText("Schedule content items to populate the launch timeline.", "جدوِل عناصر المحتوى لتظهر في الخط الزمني للنشر.")} /> : null}
         </div>
       </Panel>
     </PageMotion>

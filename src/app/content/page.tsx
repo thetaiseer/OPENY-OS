@@ -81,26 +81,26 @@ export default function ContentPage() {
     <PageMotion>
       <PageHeader
         eyebrow={pageText("Planning workspace", "مساحة التخطيط")}
-        title={pageText("Content operations redesigned", "إعادة تصميم عمليات المحتوى")}
+        title={pageText("Content planner", "مخطط المحتوى")}
         description={pageText(
-          "Move between kanban, calendar, and analytics views in a single premium planning surface.",
-          "تنقّل بين كانبان، التقويم، والتحليلات داخل مساحة تخطيط فاخرة واحدة."
+          "Manage content across kanban, calendar, and analytics views.",
+          "إدارة المحتوى عبر عروض الكانبان والتقويم والتحليلات."
         )}
         actions={<SegmentedControl value={view} options={[...VIEW_OPTIONS]} onChange={setView} />}
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={pageText("Content items", "عناصر المحتوى")} value={contentItems.length} hint={pageText("Live records synced from Firebase", "سجلات حية متزامنة من Firebase")} icon={Sparkles} tone="blue" />
+        <StatCard label={pageText("Content items", "عناصر المحتوى")} value={contentItems.length} hint={pageText("All content items", "جميع عناصر المحتوى")} icon={Sparkles} tone="blue" />
         <StatCard label={pageText("Review queue", "طابور المراجعة")} value={waitingReview} hint={pageText("Internal and client approvals", "مراجعات داخلية وموافقات العميل")} icon={Target} tone="amber" />
         <StatCard label={pageText("Scheduled", "المجدول")} value={scheduled} hint={pageText("Ready for launch windows", "جاهز لنوافذ الإطلاق")} icon={CalendarRange} tone="violet" />
         <StatCard label={pageText("Published", "المنشور")} value={published} hint={pageText("Delivered content already live", "محتوى تم تسليمه وأصبح مباشرًا")} icon={KanbanSquare} tone="mint" />
       </section>
 
       {view === "board" ? (
-        <Panel title={pageText("Modern kanban board", "لوحة كانبان حديثة")} description={pageText("A clean pipeline from ideation to launch, grouped into high-signal production stages.", "خط إنتاج نظيف من الفكرة إلى الإطلاق مع تجميع المراحل ذات الإشارة العالية.")}
+        <Panel title={pageText("Content board", "لوحة المحتوى")} description={pageText("Pipeline from draft to published, grouped by production stage.", "خط الإنتاج من المسودة إلى النشر، مجمّع حسب المرحلة.")}
           action={<InfoBadge label={isArabic ? `${clients.length} عميل مرتبط` : `${clients.length} connected clients`} tone="blue" />}>
           {contentItems.length === 0 ? (
-            <EmptyPanel title={pageText("No content available", "لا يوجد محتوى متاح")} description={pageText("Create or sync content items in Firebase to see your planning board populate instantly.", "أنشئ أو قم بمزامنة عناصر المحتوى في Firebase لتظهر اللوحة فورًا.")} />
+            <EmptyPanel title={pageText("No content yet", "لا يوجد محتوى بعد")} description={pageText("Create your first content item to start planning.", "أنشئ أول عنصر محتوى للبدء في التخطيط.")} />
           ) : (
             <KanbanBoard
               columns={boardColumns}

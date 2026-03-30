@@ -18,7 +18,6 @@ import {
   Menu,
   MoonStar,
   ShieldCheck,
-  Sparkles,
   SunMedium,
   Users,
   Workflow,
@@ -38,12 +37,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", title: { en: "Dashboard", ar: "لوحة القيادة" }, icon: LayoutDashboard },
+  { href: "/", title: { en: "Dashboard", ar: "لوحة التحكم" }, icon: LayoutDashboard },
   { href: "/content", title: { en: "Content", ar: "المحتوى" }, icon: FolderKanban },
   { href: "/tasks", title: { en: "Tasks", ar: "المهام" }, icon: Workflow },
   { href: "/clients", title: { en: "Clients", ar: "العملاء" }, icon: BriefcaseBusiness, match: "/clients" },
   { href: "/approvals", title: { en: "Approvals", ar: "الموافقات" }, icon: ShieldCheck },
-  { href: "/publishing", title: { en: "Publishing", ar: "النشر" }, icon: Globe },
   { href: "/reports", title: { en: "Analytics", ar: "التحليلات" }, icon: BarChart3 },
   { href: "/team", title: { en: "Team", ar: "الفريق" }, icon: Users },
   { href: "/assets", title: { en: "Assets", ar: "الأصول" }, icon: Image },
@@ -117,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : null}
         </AnimatePresence>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Top header — compact on mobile */}
           <header className={`sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--header-bg)] backdrop-blur-2xl ${shellPadding} px-4 py-3 sm:px-6 sm:py-4`}>
             <div className="flex items-center gap-3">
@@ -125,40 +123,34 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setMobileOpen(true)}
                 className="touch-target inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
-                aria-label="Open navigation"
+                aria-label={language === "ar" ? "فتح القائمة" : "Open navigation"}
               >
                 <Menu size={18} />
               </button>
 
               <div className="min-w-0 flex-1">
-                <div className="hidden text-xs uppercase tracking-[0.28em] text-[var(--muted)] sm:block">OPENY OS</div>
                 <div className="truncate text-base font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-lg">
                   {language === "ar" ? activeItem.title.ar : activeItem.title.en}
                 </div>
               </div>
 
-              <div className="hidden min-w-[240px] flex-1 items-center justify-center lg:flex">
-                <div className="glass-panel flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/10 px-4 py-3">
-                  <Sparkles size={16} className="text-[var(--accent)]" />
-                  <span className="truncate text-sm text-[var(--muted)]">
-                    {language === "ar" ? "واجهة SaaS جديدة متصلة مباشرة ببيانات Firebase" : "Fresh SaaS surface connected directly to Firebase live data"}
-                  </span>
-                </div>
-              </div>
-
               <div className="flex items-center gap-2">
                 <StatusPill icon={Languages} label={language === "ar" ? "AR" : "EN"} onClick={() => setLanguage(language === "ar" ? "en" : "ar")} />
-                <StatusPill icon={theme === "dark" ? SunMedium : MoonStar} label={theme === "dark" ? "Light" : "Dark"} onClick={toggleTheme} />
-                <div className="inline-flex touch-target items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)]">
+                <StatusPill icon={theme === "dark" ? SunMedium : MoonStar} label={theme === "dark" ? (language === "ar" ? "فاتح" : "Light") : (language === "ar" ? "داكن" : "Dark")} onClick={toggleTheme} />
+                <Link
+                  href="/settings"
+                  className="inline-flex touch-target items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)]"
+                  aria-label={language === "ar" ? "الإشعارات" : "Notifications"}
+                >
                   <Activity size={16} className="text-[var(--mint)]" />
                   <span>{unreadCount}</span>
-                </div>
+                </Link>
               </div>
             </div>
           </header>
 
           {/* Page content */}
-          <main className={`${shellPadding} relative flex-1 px-4 py-5 mobile-page-content sm:px-6 sm:py-8`}>
+          <main className={`${shellPadding} relative flex-1 overflow-y-auto px-4 py-5 mobile-page-content sm:px-6 sm:py-8`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={pathname}
@@ -196,19 +188,29 @@ function DesktopSidebar({
   mobile?: boolean;
 }) {
   const { language, isRTL } = useLanguage();
+  const { theme } = useTheme();
 
   return (
     <div className="flex min-h-full w-full flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.9),rgba(169,139,255,0.95))] shadow-[0_24px_60px_rgba(106,168,255,0.24)]">
-            <Sparkles size={20} className="text-white" />
+          {/* OPENY Logo */}
+          <div
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl overflow-hidden ${theme === "dark" ? "bg-white p-1.5" : "bg-transparent p-1"}`}
+            style={theme === "dark" ? { boxShadow: "0 2px 8px rgba(0,0,0,0.18)" } : {}}
+          >
+            <img
+              src="/assets/openy-logo.svg"
+              alt="OPENY OS"
+              className="h-full w-full object-contain"
+              style={theme === "dark" ? {} : { filter: "brightness(0)" }}
+            />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-[var(--text)]">OPENY OS</div>
+              <div className="text-sm font-bold text-[var(--text)]">OPENY OS</div>
               <div className="text-xs text-[var(--muted)]">
-                {language === "ar" ? "منصة تشغيل SaaS حديثة" : "Premium SaaS operations suite"}
+                {language === "ar" ? "مساحة العمل" : "Workspace"}
               </div>
             </div>
           )}
@@ -218,7 +220,7 @@ function DesktopSidebar({
             type="button"
             onClick={onNavigate}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
-            aria-label="Close navigation"
+            aria-label={language === "ar" ? "إغلاق القائمة" : "Close navigation"}
           >
             <X size={18} />
           </button>
@@ -227,26 +229,12 @@ function DesktopSidebar({
             type="button"
             onClick={() => setCollapsed(!collapsed)}
             className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:inline-flex"
-            aria-label="Toggle sidebar"
+            aria-label={language === "ar" ? "طي/توسيع الشريط الجانبي" : "Toggle sidebar"}
           >
             {isRTL ? (collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />) : collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         )}
       </div>
-
-      {!collapsed && (
-        <div className="glass-panel rounded-[28px] border border-[var(--border)] p-4 text-sm text-[var(--muted)]">
-          <div className="mb-2 flex items-center gap-2 text-[var(--text)]">
-            <LayoutDashboard size={16} className="text-[var(--accent)]" />
-            {language === "ar" ? "نبض المنصة" : "Workspace pulse"}
-          </div>
-          <p className="leading-7">
-            {language === "ar"
-              ? "تصميم جديد بالكامل مع بطاقات شفافة خفيفة، شريط جانبي منظم، وتحليلات مترابطة عبر كل الأقسام."
-              : "A clean zero-based UI with soft glass surfaces, organized navigation, and connected analytics across every workspace."}
-          </p>
-        </div>
-      )}
 
       <nav className="flex flex-1 flex-col gap-2">
         {NAV_ITEMS.map((item) => {
@@ -271,15 +259,6 @@ function DesktopSidebar({
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-[var(--text)]">
                       {language === "ar" ? item.title.ar : item.title.en}
-                    </div>
-                    <div className="truncate text-xs text-[var(--muted)]">
-                      {item.href === activeItem.href
-                        ? language === "ar"
-                          ? "القسم الحالي"
-                          : "Current section"
-                        : language === "ar"
-                          ? "افتح لوحة القسم"
-                          : "Open workspace"}
                     </div>
                   </div>
                 )}
