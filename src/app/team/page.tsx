@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Activity, Plus, ShieldCheck, Sparkles, Users, Workflow, Trash2, Edit } from "lucide-react";
-import { useAppStore, useTeam } from "@/lib/AppContext";
+import { useAppStore, useTeam, useActivities } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddMemberModal } from "@/components/ui/AddMemberModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -21,13 +21,16 @@ import {
 
 export default function TeamPage() {
   const { members, deleteMember } = useTeam();
-  const { tasks, activities } = useAppStore();
+  const { tasks } = useAppStore();
+  const { activities, clearActivities } = useActivities();
   const { language } = useLanguage();
   const isArabic = language === "ar";
   const { showToast } = useToast();
   const [showAddMember, setShowAddMember] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const handleDelete = async (id: string) => {
     setDeleting(true);
@@ -131,7 +134,19 @@ export default function TeamPage() {
         </Panel>
       </section>
 
-      <Panel title={pageText("Recent activity", "النشاط الأخير")} description={pageText("The latest operational events involving the team.", "أحدث الأحداث التشغيلية التي تخص الفريق.")}>
+      <Panel title={pageText("Recent activity", "النشاط الأخير")} description={pageText("The latest operational events involving the team.", "أحدث الأحداث التشغيلية التي تخص الفريق.")}
+        action={
+          activities.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setConfirmClear(true)}
+              className="flex items-center gap-1.5 rounded-2xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--rose)] hover:border-[var(--rose)]"
+            >
+              <Trash2 size={13} />
+              {isArabic ? "مسح السجل" : "Clear history"}
+            </button>
+          ) : undefined
+        }>
         <div className="space-y-3">
           {activities.slice(0, 8).map((activity) => (
             <article key={activity.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
@@ -146,6 +161,29 @@ export default function TeamPage() {
           {activities.length === 0 ? <EmptyPanel title={pageText("No activity available", "لا يوجد نشاط متاح")} description={pageText("Activity from tasks, members, and publishing will stream here once available.", "سيظهر النشاط من المهام والأعضاء والنشر هنا عند توفره.")} /> : null}
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title={isArabic ? "مسح سجل الأنشطة" : "Clear activity history"}
+        message={isArabic ? "هل أنت متأكد من مسح كل بيانات سجل الأنشطة؟ لا يمكن التراجع عن هذا الإجراء." : "Are you sure you want to delete all activity history? This action cannot be undone."}
+        confirmLabel={isArabic ? "مسح الكل" : "Clear all"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={clearing}
+        onConfirm={async () => {
+          setClearing(true);
+          try {
+            await clearActivities();
+            setConfirmClear(false);
+            showToast(isArabic ? "تم مسح سجل الأنشطة" : "Activity history cleared", "success");
+          } catch {
+            showToast(isArabic ? "فشل مسح السجل" : "Failed to clear history", "error");
+          } finally {
+            setClearing(false);
+          }
+        }}
+        onCancel={() => setConfirmClear(false)}
+      />
     </PageMotion>
   );
 }

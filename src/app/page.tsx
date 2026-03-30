@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -7,14 +8,16 @@ import {
   CheckCircle2,
   Clock3,
   Sparkles,
+  Trash2,
   TrendingUp,
   Workflow,
 } from "lucide-react";
-import { useAppStore } from "@/lib/AppContext";
+import { useAppStore, useActivities } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { usePublishing } from "@/lib/PublishingContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useToast } from "@/lib/ToastContext";
 import type { ContentStatus } from "@/lib/types";
 import {
   BarListChart,
@@ -30,6 +33,7 @@ import {
   StatCard,
   pageText,
 } from "@/components/redesign/ui";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const BOARD_COLUMNS: Array<{ id: string; title: { en: string; ar: string }; statuses: ContentStatus[] }> = [
   { id: "strategy", title: { en: "Strategy", ar: "الاستراتيجية" }, statuses: ["idea", "draft", "copywriting"] },
@@ -39,12 +43,16 @@ const BOARD_COLUMNS: Array<{ id: string; title: { en: string; ar: string }; stat
 ] as const;
 
 export default function DashboardPage() {
-  const { clients, tasks, members, activities } = useAppStore();
+  const { clients, tasks, members } = useAppStore();
+  const { activities, clearActivities } = useActivities();
   const { contentItems } = useContentItems();
   const { approvals } = useApprovals();
   const { getDueNowItems, getThisWeekItems } = usePublishing();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const { showToast } = useToast();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const completedTasks = tasks.filter((task) => task.status === "done").length;
   const scheduledThisWeek = getThisWeekItems(contentItems).length;
@@ -143,7 +151,19 @@ export default function DashboardPage() {
             <CalendarHeatmap entries={heatmapEntries} />
           </Panel>
 
-          <Panel title={pageText("Latest activity", "آخر الأنشطة")} description={pageText("Recent updates from activities and approvals.", "أحدث التحديثات من الأنشطة والموافقات.")}>
+          <Panel title={pageText("Latest activity", "آخر الأنشطة")} description={pageText("Recent updates from activities and approvals.", "أحدث التحديثات من الأنشطة والموافقات.")}
+            action={
+              activities.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="flex items-center gap-1.5 rounded-2xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--rose)] hover:border-[var(--rose)]"
+                >
+                  <Trash2 size={13} />
+                  {isArabic ? "مسح السجل" : "Clear history"}
+                </button>
+              ) : undefined
+            }>
             <div className="space-y-3">
               {activities.slice(0, 5).map((activity) => (
                 <div key={activity.id} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
@@ -158,6 +178,29 @@ export default function DashboardPage() {
               {activities.length === 0 ? <EmptyPanel title={pageText("No activity yet", "لا توجد أنشطة بعد")} description={pageText("Activity events from clients, tasks, and publishing will stream here automatically.", "ستظهر هنا تلقائيًا أحداث العملاء والمهام والنشر.")} /> : null}
             </div>
           </Panel>
+
+          <ConfirmDialog
+            open={confirmClear}
+            title={isArabic ? "مسح سجل الأنشطة" : "Clear activity history"}
+            message={isArabic ? "هل أنت متأكد من مسح كل بيانات سجل الأنشطة؟ لا يمكن التراجع عن هذا الإجراء." : "Are you sure you want to delete all activity history? This action cannot be undone."}
+            confirmLabel={isArabic ? "مسح الكل" : "Clear all"}
+            cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+            tone="danger"
+            loading={clearing}
+            onConfirm={async () => {
+              setClearing(true);
+              try {
+                await clearActivities();
+                setConfirmClear(false);
+                showToast(isArabic ? "تم مسح سجل الأنشطة" : "Activity history cleared", "success");
+              } catch {
+                showToast(isArabic ? "فشل مسح السجل" : "Failed to clear history", "error");
+              } finally {
+                setClearing(false);
+              }
+            }}
+            onCancel={() => setConfirmClear(false)}
+          />
         </div>
       </section>
 
