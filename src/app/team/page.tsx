@@ -75,7 +75,7 @@ export default function TeamPage() {
           <button
             type="button"
             onClick={() => setShowAddMember(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
           >
             <Plus size={16} />
             {isArabic ? "إضافة عضو" : "Add member"}
@@ -83,7 +83,7 @@ export default function TeamPage() {
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Members", "الأعضاء")} value={members.length} hint={pageText("Everyone in the workspace", "كل من في مساحة العمل")} icon={Users} tone="blue" />
         <StatCard label={pageText("Active", "النشطون")} value={activeMembers} hint={pageText("Currently online or available", "متصلون أو متاحون حاليًا")} icon={ShieldCheck} tone="mint" />
         <StatCard label={pageText("Away", "غير متاح")} value={awayMembers} hint={pageText("Members temporarily idle", "أعضاء غير متاحين مؤقتًا")} icon={Activity} tone="amber" />

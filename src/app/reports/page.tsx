@@ -62,7 +62,7 @@ export default function ReportsPage() {
         )}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Published", "المنشور")} value={published} hint={pageText("Delivered content in production", "محتوى تم تسليمه في الإنتاج")} icon={CheckCircle2} tone="mint" />
         <StatCard label={pageText("Scheduled", "المجدول")} value={scheduled} hint={pageText("Upcoming launch inventory", "مخزون الإطلاق القادم")} icon={Sparkles} tone="violet" />
         <StatCard label={pageText("Team members", "أعضاء الفريق")} value={members.length} hint={pageText("Operators across all functions", "المشغلون عبر كل الوظائف")} icon={Target} tone="blue" />
@@ -79,14 +79,14 @@ export default function ReportsPage() {
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <Panel title={pageText("Client contribution", "مساهمة العملاء")} description={pageText("Who is driving the largest content load right now.", "من يقود أكبر حجم محتوى الآن.")} className="xl:col-span-1">
+      <section className="grid gap-6 lg:grid-cols-3">
+        <Panel title={pageText("Client contribution", "مساهمة العملاء")} description={pageText("Who is driving the largest content load right now.", "من يقود أكبر حجم محتوى الآن.")}>
           <BarListChart items={clientContribution} tone="violet" />
         </Panel>
-        <Panel title={pageText("Team throughput", "إنتاجية الفريق")} description={pageText("Assignments distributed across active operators.", "توزيع المهام عبر المشغلين النشطين.")} className="xl:col-span-1">
+        <Panel title={pageText("Team throughput", "إنتاجية الفريق")} description={pageText("Assignments distributed across active operators.", "توزيع المهام عبر المشغلين النشطين.")}>
           <BarListChart items={teamActivity} tone="blue" />
         </Panel>
-        <Panel title={pageText("Platform footprint", "بصمة المنصات")} description={pageText("Channel-level content distribution.", "توزيع المحتوى على مستوى القنوات.")} className="xl:col-span-1">
+        <Panel title={pageText("Platform footprint", "بصمة المنصات")} description={pageText("Channel-level content distribution.", "توزيع المحتوى على مستوى القنوات.")}>
           <BarListChart items={platformBreakdown} tone="amber" />
         </Panel>
       </section>

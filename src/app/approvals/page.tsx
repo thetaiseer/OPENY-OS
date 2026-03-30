@@ -77,7 +77,7 @@ export default function ApprovalsPage() {
         )}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Pending internal", "الداخلي المعلق")} value={pendingInternal} hint={pageText("Waiting for team feedback", "بانتظار ملاحظات الفريق")} icon={ShieldCheck} tone="amber" />
         <StatCard label={pageText("Pending client", "معلق لدى العميل")} value={pendingClient} hint={pageText("Awaiting customer decision", "بانتظار قرار العميل")} icon={Clock3} tone="violet" />
         <StatCard label={pageText("Approved", "المعتمد")} value={approved} hint={pageText("Ready for downstream publishing", "جاهز لمتابعة النشر")} icon={CheckCircle2} tone="mint" />

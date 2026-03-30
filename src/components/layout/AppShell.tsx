@@ -28,6 +28,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useNotifications } from "@/lib/NotificationContext";
 import { useTheme } from "./ThemeProvider";
+import { BottomNav } from "./BottomNav";
 
 type NavItem = {
   href: string;
@@ -72,6 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <div className="relative flex min-h-screen">
+        {/* Desktop sidebar */}
         <aside
           className={`hidden border-e border-[var(--border)] bg-[var(--sidebar-bg)] px-4 py-6 backdrop-blur-2xl lg:flex ${collapsed ? "w-[104px]" : "w-[284px]"}`}
           style={{ borderInlineEnd: "1px solid var(--border)" }}
@@ -85,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         </aside>
 
+        {/* Mobile drawer overlay */}
         <AnimatePresence>
           {mobileOpen ? (
             <motion.div
@@ -92,11 +95,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-40 bg-[rgba(7,10,20,0.76)] backdrop-blur-sm lg:hidden"
+              onClick={() => setMobileOpen(false)}
             >
               <motion.aside
                 initial={{ x: isRTL ? 120 : -120, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: isRTL ? 120 : -120, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
                 className={`absolute ${isRTL ? "right-0" : "left-0"} top-0 h-full w-[86vw] max-w-[320px] border-e border-[var(--border)] bg-[var(--sidebar-bg)] px-4 py-6 backdrop-blur-3xl`}
               >
                 <DesktopSidebar
@@ -113,20 +118,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         </AnimatePresence>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className={`sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--header-bg)] backdrop-blur-2xl ${shellPadding} px-4 py-4 sm:px-6`}>
-            <div className="flex flex-wrap items-center gap-3">
+          {/* Top header — compact on mobile */}
+          <header className={`sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--header-bg)] backdrop-blur-2xl ${shellPadding} px-4 py-3 sm:px-6 sm:py-4`}>
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
+                className="touch-target inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
                 aria-label="Open navigation"
               >
                 <Menu size={18} />
               </button>
 
               <div className="min-w-0 flex-1">
-                <div className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">OPENY OS</div>
-                <div className="truncate text-lg font-semibold tracking-[-0.03em] text-[var(--text)]">
+                <div className="hidden text-xs uppercase tracking-[0.28em] text-[var(--muted)] sm:block">OPENY OS</div>
+                <div className="truncate text-base font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-lg">
                   {language === "ar" ? activeItem.title.ar : activeItem.title.en}
                 </div>
               </div>
@@ -140,10 +146,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2">
                 <StatusPill icon={Languages} label={language === "ar" ? "AR" : "EN"} onClick={() => setLanguage(language === "ar" ? "en" : "ar")} />
                 <StatusPill icon={theme === "dark" ? SunMedium : MoonStar} label={theme === "dark" ? "Light" : "Dark"} onClick={toggleTheme} />
-                <div className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)]">
+                <div className="inline-flex touch-target items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)]">
                   <Activity size={16} className="text-[var(--mint)]" />
                   <span>{unreadCount}</span>
                 </div>
@@ -151,14 +157,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className={`${shellPadding} relative flex-1 px-4 py-6 sm:px-6 sm:py-8`}>
+          {/* Page content */}
+          <main className={`${shellPadding} relative flex-1 px-4 py-5 mobile-page-content sm:px-6 sm:py-8`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={pathname}
-                initial={{ opacity: 0, y: 18 }}
+                initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -18 }}
-                transition={{ duration: 0.28, ease: "easeOut" }}
+                exit={{ opacity: 0, y: -14 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
               >
                 {children}
               </motion.div>
@@ -166,6 +173,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <BottomNav />
     </div>
   );
 }
@@ -287,10 +297,11 @@ function StatusPill({ icon: Icon, label, onClick }: { icon: typeof Languages; la
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)] transition duration-200 hover:opacity-80"
+      className="touch-target inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)] transition duration-200 hover:opacity-80"
     >
       <Icon size={16} className="text-[var(--accent)]" />
       <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
+

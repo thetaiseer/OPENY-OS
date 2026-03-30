@@ -93,7 +93,7 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => setShowAddTask(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+              className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
             >
               <Plus size={16} />
               {isArabic ? "إضافة مهمة" : "Add task"}
@@ -103,7 +103,7 @@ export default function TasksPage() {
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Open tasks", "المهام المفتوحة")} value={openTasks} hint={pageText("Anything not yet completed", "كل ما لم يكتمل بعد")} icon={Workflow} tone="blue" />
         <StatCard label={pageText("In progress", "قيد التنفيذ")} value={inProgress} hint={pageText("Currently moving through the team", "تتحرك الآن داخل الفريق")} icon={Zap} tone="violet" />
         <StatCard label={pageText("Completed", "المكتمل")} value={doneTasks} hint={pageText("Finished workload", "العمل المنجز")} icon={CheckCircle2} tone="mint" />

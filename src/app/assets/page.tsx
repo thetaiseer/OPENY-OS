@@ -73,7 +73,7 @@ export default function AssetsPage() {
         )}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         <StatCard label={pageText("Total assets", "إجمالي الأصول")} value={assets.length} hint={pageText("All media synced to the workspace", "كل الوسائط المتزامنة مع مساحة العمل")} icon={FolderOpen} tone="blue" />
         <StatCard label={pageText("Images", "الصور")} value={images} hint={pageText("Graphics, photos, and logos", "الرسومات والصور والشعارات")} icon={ImageIcon} tone="mint" />
         <StatCard label={pageText("Videos", "الفيديو")} value={videos} hint={pageText("Video and motion assets", "أصول الفيديو والحركة")} icon={PlayCircle} tone="violet" />
