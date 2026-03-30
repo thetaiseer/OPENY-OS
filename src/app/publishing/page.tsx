@@ -1,296 +1,98 @@
 "use client";
 
-// ============================================================
-// OPENY OS – Publishing Queue & Scheduled Content Page
-// Phase 4: Publishing Workflow
-// ============================================================
-import { useState, useMemo } from "react";
-import {
-  Zap,
-  CalendarDays,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Filter,
-} from "lucide-react";
-import { usePublishing, computeReadiness } from "@/lib/PublishingContext";
+import { AlertTriangle, CalendarRange, Rocket, Zap } from "lucide-react";
+import { usePublishing } from "@/lib/PublishingContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useAppStore } from "@/lib/AppContext";
-import { PublishingReadinessBadge } from "@/components/ui/PublishingReadinessBadge";
-import { PublishingStatusBadge } from "@/components/ui/PublishingStatusBadge";
-import { PublishingActionBar } from "@/components/ui/PublishingActionBar";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
-import type { ContentItem } from "@/lib/types";
-
-type SectionKey = "due_now" | "today" | "tomorrow" | "this_week" | "overdue" | "failed" | "published";
-
-const SECTIONS: { key: SectionKey; label: string; icon: typeof Zap; color: string }[] = [
-  { key: "due_now", label: "Due Now", icon: Zap, color: "#fbbf24" },
-  { key: "today", label: "Today", icon: CalendarDays, color: "#4f8ef7" },
-  { key: "tomorrow", label: "Tomorrow", icon: Clock, color: "#a78bfa" },
-  { key: "this_week", label: "This Week", icon: CalendarDays, color: "#06b6d4" },
-  { key: "overdue", label: "Overdue", icon: AlertTriangle, color: "#f87171" },
-  { key: "failed", label: "Failed", icon: AlertTriangle, color: "#f87171" },
-  { key: "published", label: "Recently Published", icon: CheckCircle2, color: "#34d399" },
-];
+import { useClients } from "@/lib/AppContext";
+import { useLanguage } from "@/lib/LanguageContext";
+import {
+  BarListChart,
+  CalendarHeatmap,
+  EmptyPanel,
+  InfoBadge,
+  PageHeader,
+  PageMotion,
+  Panel,
+  StatCard,
+  pageText,
+} from "@/components/redesign/ui";
 
 export default function PublishingPage() {
-  const { contentItems, loading } = useContentItems();
-  const { clients } = useAppStore();
-  const {
-    getDueNowItems,
-    getTodayItems,
-    getTomorrowItems,
-    getThisWeekItems,
-    getOverdueItems,
-    getFailedItems,
-    getRecentlyPublished,
-    getPublishingEventForContent,
-  } = usePublishing();
+  const { contentItems } = useContentItems();
+  const { clients } = useClients();
+  const { getDueNowItems, getTodayItems, getThisWeekItems, getFailedItems, getReadinessForItem } = usePublishing();
+  const { language } = useLanguage();
+  const isArabic = language === "ar";
 
-  const [activeSection, setActiveSection] = useState<SectionKey>("due_now");
-  const [filterClient, setFilterClient] = useState("");
-  const [filterPlatform, setFilterPlatform] = useState("");
+  const dueNow = getDueNowItems(contentItems);
+  const today = getTodayItems(contentItems);
+  const thisWeek = getThisWeekItems(contentItems);
+  const failed = getFailedItems(contentItems);
+  const readiness = [
+    { label: isArabic ? "جاهز للنشر" : "Ready to publish", value: contentItems.filter((item) => getReadinessForItem(item) === "ready_to_publish").length, meta: isArabic ? "جاهزية عالية" : "high readiness" },
+    { label: isArabic ? "جاهز للجدولة" : "Ready to schedule", value: contentItems.filter((item) => getReadinessForItem(item) === "ready_to_schedule").length, meta: isArabic ? "بحاجة نافذة" : "needs slot" },
+    { label: isArabic ? "يحتاج انتباه" : "Needs attention", value: contentItems.filter((item) => getReadinessForItem(item) === "needs_attention").length, meta: isArabic ? "ثغرات تشغيلية" : "operational gaps" },
+    { label: isArabic ? "غير جاهز" : "Not ready", value: contentItems.filter((item) => getReadinessForItem(item) === "not_ready").length, meta: isArabic ? "بيانات ناقصة" : "missing data" },
+  ];
 
-  // Compute all sections
-  const sections = useMemo(() => ({
-    due_now: getDueNowItems(contentItems),
-    today: getTodayItems(contentItems),
-    tomorrow: getTomorrowItems(contentItems),
-    this_week: getThisWeekItems(contentItems),
-    overdue: getOverdueItems(contentItems),
-    failed: getFailedItems(contentItems),
-    published: getRecentlyPublished(contentItems),
-  }), [
-    contentItems,
-    getDueNowItems,
-    getTodayItems,
-    getTomorrowItems,
-    getThisWeekItems,
-    getOverdueItems,
-    getFailedItems,
-    getRecentlyPublished,
-  ]);
+  const heatmapEntries = contentItems.reduce<Array<{ date: string; value: number }>>((acc, item) => {
+    if (!item.scheduledDate) return acc;
+    const existing = acc.find((entry) => entry.date === item.scheduledDate);
+    if (existing) existing.value += 1;
+    else acc.push({ date: item.scheduledDate, value: 1 });
+    return acc;
+  }, []);
 
-  const activeItems = useMemo(() => {
-    let items = sections[activeSection] ?? [];
-    if (filterClient) {
-      items = items.filter((i) => i.clientId === filterClient);
-    }
-    if (filterPlatform) {
-      items = items.filter((i) => i.platform === filterPlatform);
-    }
-    return items;
-  }, [sections, activeSection, filterClient, filterPlatform]);
-
-  const platforms = ["Facebook", "Instagram", "TikTok", "LinkedIn", "X", "Snapchat", "YouTube"] as const;
+  const timeline = [...contentItems].filter((item) => item.scheduledDate).sort((a, b) => `${a.scheduledDate}${a.scheduledTime}`.localeCompare(`${b.scheduledDate}${b.scheduledTime}`)).slice(0, 10);
 
   return (
-    <div className="space-y-5">
-      <SectionHeader
-        title="Publishing"
-        subtitle="Manage your content publishing queue and track statuses"
-        icon={Zap}
+    <PageMotion>
+      <PageHeader
+        eyebrow={pageText("Launch orchestration", "تنسيق الإطلاق")}
+        title={pageText("Publishing hub premium refresh", "تحديث فاخر لمركز النشر")}
+        description={pageText(
+          "Monitor due items, readiness, and scheduled launches in a connected publishing cockpit.",
+          "راقب العناصر المستحقة والجاهزية والإطلاقات المجدولة داخل قمرة نشر مترابطة."
+        )}
       />
 
-      {/* Section tabs */}
-      <div
-        className="flex gap-1 p-1 rounded-2xl overflow-x-auto"
-        style={{ background: "var(--surface-3)" }}
-      >
-        {SECTIONS.map(({ key, label, icon: Icon, color }) => {
-          const count = sections[key]?.length ?? 0;
-          const isActive = activeSection === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveSection(key)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap flex-shrink-0"
-              style={{
-                background: isActive ? "var(--surface-1)" : "transparent",
-                color: isActive ? color : "var(--text-muted)",
-              }}
-            >
-              <Icon size={12} />
-              {label}
-              {count > 0 && (
-                <span
-                  className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                  style={{
-                    background: isActive ? `${color}20` : "var(--surface-2)",
-                    color: isActive ? color : "var(--text-muted)",
-                  }}
-                >
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label={pageText("Due now", "مستحق الآن")} value={dueNow.length} hint={pageText("Content at or past its release hour", "محتوى وصل أو تجاوز ساعة الإطلاق")} icon={Zap} tone="amber" />
+        <StatCard label={pageText("Today", "اليوم")} value={today.length} hint={pageText("All items landing today", "كل العناصر المقرر إطلاقها اليوم")} icon={CalendarRange} tone="blue" />
+        <StatCard label={pageText("This week", "هذا الأسبوع")} value={thisWeek.length} hint={pageText("Scheduled launches ahead", "الإطلاقات المجدولة القادمة")} icon={Rocket} tone="violet" />
+        <StatCard label={pageText("Failed", "الفاشل")} value={failed.length} hint={pageText("Items that require intervention", "عناصر تحتاج إلى تدخل")} icon={AlertTriangle} tone="rose" />
+      </section>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter size={13} style={{ color: "var(--text-muted)" }} />
-        <select
-          value={filterClient}
-          onChange={(e) => setFilterClient(e.target.value)}
-          className="text-xs px-3 py-1.5 rounded-xl outline-none"
-          style={{
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <option value="">All Clients</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel title={pageText("Readiness analytics", "تحليلات الجاهزية")} description={pageText("Directly derived from content completeness and approval state.", "مستمدة مباشرة من اكتمال المحتوى وحالة الموافقة.")}
+          action={<InfoBadge label={isArabic ? `${contentItems.length} عنصر` : `${contentItems.length} items`} tone="violet" />}>
+          <BarListChart items={readiness} tone="violet" />
+        </Panel>
 
-        <select
-          value={filterPlatform}
-          onChange={(e) => setFilterPlatform(e.target.value)}
-          className="text-xs px-3 py-1.5 rounded-xl outline-none"
-          style={{
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <option value="">All Platforms</option>
-          {platforms.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </div>
+        <Panel title={pageText("Launch calendar", "تقويم الإطلاق")} description={pageText("Monthly release density for all scheduled content.", "كثافة الإطلاق الشهرية لكل المحتوى المجدول.")}>
+          <CalendarHeatmap entries={heatmapEntries} />
+        </Panel>
+      </section>
 
-      {/* Items list */}
-      {loading ? (
-        <div
-          className="text-sm py-10 text-center"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Loading publishing queue…
-        </div>
-      ) : activeItems.length === 0 ? (
-        <EmptyState
-          icon={CalendarDays}
-          title="No items in this section"
-          description="Items will appear here based on their scheduled dates and publishing status."
-        />
-      ) : (
+      <Panel title={pageText("Publishing timeline", "الجدول الزمني للنشر")} description={pageText("A chronological lineup of upcoming launch windows.", "تسلسل زمني لنوافذ الإطلاق القادمة.")}>
         <div className="space-y-3">
-          {activeItems.map((item) => (
-            <PublishingQueueItem
-              key={item.id}
-              item={item}
-              clientName={clients.find((c) => c.id === item.clientId)?.name}
-              publishingEvent={getPublishingEventForContent(item.id)}
-            />
+          {timeline.map((item) => (
+            <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text)]">{item.title}</h3>
+                <p className="mt-1 text-xs text-[var(--muted)]">{clients.find((client) => client.id === item.clientId)?.name || (isArabic ? "عميل غير معروف" : "Unknown client")}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <InfoBadge label={`${item.scheduledDate}${item.scheduledTime ? ` · ${item.scheduledTime}` : ""}`} tone="blue" />
+                <InfoBadge label={item.platform} tone="slate" />
+                <InfoBadge label={item.status} tone={item.status === "published" ? "mint" : item.status === "failed" ? "rose" : "amber"} />
+                <InfoBadge label={getReadinessForItem(item).replace(/_/g, " ")} tone={getReadinessForItem(item) === "ready_to_publish" ? "mint" : "amber"} />
+              </div>
+            </article>
           ))}
+          {timeline.length === 0 ? <EmptyPanel title={pageText("No publishing events", "لا توجد أحداث نشر")} description={pageText("Schedule content in Firebase to populate the launch timeline here.", "قم بجدولة المحتوى في Firebase ليظهر هنا في الخط الزمني.")} /> : null}
         </div>
-      )}
-    </div>
-  );
-}
-
-// ── Queue Item Card ───────────────────────────────────────────
-
-interface QueueItemProps {
-  item: ContentItem;
-  clientName?: string;
-  publishingEvent?: ReturnType<ReturnType<typeof usePublishing>["getPublishingEventForContent"]>;
-}
-
-function PublishingQueueItem({ item, clientName, publishingEvent }: QueueItemProps) {
-  const readiness = computeReadiness(item);
-
-  return (
-    <div
-      className="rounded-2xl p-4 space-y-3"
-      style={{
-        background: "var(--surface-2)",
-        border: "1px solid var(--border)",
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h3
-            className="text-sm font-semibold truncate"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {item.title}
-          </h3>
-          {clientName && (
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-              {clientName}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-          <PublishingReadinessBadge readiness={readiness} />
-          {publishingEvent && (
-            <PublishingStatusBadge status={publishingEvent.status} />
-          )}
-        </div>
-      </div>
-
-      {/* Meta */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span
-          className="text-[11px] px-2 py-0.5 rounded-full"
-          style={{ background: "var(--surface-3)", color: "var(--text-muted)" }}
-        >
-          {item.platform}
-        </span>
-        <span
-          className="text-[11px] px-2 py-0.5 rounded-full capitalize"
-          style={{ background: "var(--surface-3)", color: "var(--text-muted)" }}
-        >
-          {item.contentType}
-        </span>
-        {item.scheduledDate && (
-          <span
-            className="flex items-center gap-1 text-[11px]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <CalendarDays size={11} />
-            {item.scheduledDate}
-            {item.scheduledTime && ` · ${item.scheduledTime}`}
-          </span>
-        )}
-        {item.assignedTo && (
-          <span
-            className="text-[11px]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            👤 {item.assignedTo}
-          </span>
-        )}
-        <span
-          className="text-[10px] px-2 py-0.5 rounded-full capitalize"
-          style={{
-            background:
-              item.approvalStatus === "approved"
-                ? "rgba(52,211,153,0.15)"
-                : "rgba(251,191,36,0.1)",
-            color:
-              item.approvalStatus === "approved" ? "#34d399" : "#fbbf24",
-          }}
-        >
-          {item.approvalStatus?.replace(/_/g, " ")}
-        </span>
-      </div>
-
-      {/* Actions */}
-      <PublishingActionBar item={item} />
-    </div>
+      </Panel>
+    </PageMotion>
   );
 }
