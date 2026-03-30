@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Clock3, Plus, Workflow, Zap, Trash2, Edit } from "lucide-react";
+import { CheckCircle2, Clock3, Plus, RefreshCw, Workflow, Zap, Trash2, Edit, Play, Pause } from "lucide-react";
 import { useTasks, useTeam } from "@/lib/AppContext";
+import { useRecurringTasks } from "@/lib/RecurringTaskContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useToast } from "@/lib/ToastContext";
 import { AddTaskModal } from "@/components/ui/AddTaskModal";
 import { EditTaskModal } from "@/components/ui/EditTaskModal";
+import { AddRecurringTaskModal } from "@/components/ui/AddRecurringTaskModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
-import { useToast } from "@/lib/ToastContext";
 import type { Task } from "@/lib/types";
 import {
   BarListChart,
@@ -27,12 +29,16 @@ import {
 export default function TasksPage() {
   const { tasks, toggleTaskDone, deleteTask } = useTasks();
   const { members } = useTeam();
+  const { templates, toggleTemplate, deleteTemplate, runMonthlyGeneration } = useRecurringTasks();
   const { language } = useLanguage();
   const isArabic = language === "ar";
   const { showToast } = useToast();
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
 
   const handleDeleteTask = async (id: string) => {
@@ -45,6 +51,36 @@ export default function TasksPage() {
       showToast(isArabic ? "فشل حذف المهمة" : "Failed to delete task", "error");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteTemplate(id);
+      setConfirmDeleteTemplate(null);
+      showToast(isArabic ? "تم حذف القالب" : "Template deleted", "success");
+    } catch {
+      showToast(isArabic ? "فشل حذف القالب" : "Failed to delete template", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleRunGeneration = async () => {
+    setGenerating(true);
+    try {
+      const { generated } = await runMonthlyGeneration();
+      showToast(
+        isArabic
+          ? `تم إنشاء ${generated} مهمة من القوالب المتكررة`
+          : `Generated ${generated} task(s) from recurring templates`,
+        "success"
+      );
+    } catch {
+      showToast(isArabic ? "فشل إنشاء المهام" : "Failed to generate tasks", "error");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -73,6 +109,7 @@ export default function TasksPage() {
   return (
     <PageMotion>
       <AddTaskModal open={showAddTask} onClose={() => setShowAddTask(false)} />
+      <AddRecurringTaskModal open={showAddRecurring} onClose={() => setShowAddRecurring(false)} />
       <EditTaskModal task={editTask} onClose={() => setEditTask(null)} />
       <ConfirmDialog
         open={confirmDelete !== null}
@@ -84,6 +121,17 @@ export default function TasksPage() {
         loading={deleting}
         onConfirm={() => confirmDelete && handleDeleteTask(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
+      />
+      <ConfirmDialog
+        open={confirmDeleteTemplate !== null}
+        title={isArabic ? "حذف القالب المتكرر" : "Delete recurring template"}
+        message={isArabic ? "هل أنت متأكد من حذف هذا القالب؟ لن يتم إنشاء مهام منه في المستقبل." : "Are you sure? No new tasks will be generated from this template."}
+        confirmLabel={isArabic ? "حذف" : "Delete"}
+        cancelLabel={isArabic ? "إلغاء" : "Cancel"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => confirmDeleteTemplate && handleDeleteTemplate(confirmDeleteTemplate)}
+        onCancel={() => setConfirmDeleteTemplate(null)}
       />
       <PageHeader
         eyebrow={pageText("Task management", "إدارة المهام")}
@@ -142,6 +190,12 @@ export default function TasksPage() {
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
+                    {task.workflowSteps && task.workflowSteps.length > 0 && (
+                      <InfoBadge
+                        label={`${(task.workflowIndex ?? 0) + 1}/${task.workflowSteps.length}`}
+                        tone="violet"
+                      />
+                    )}
                     <ActionMenu
                       items={[
                         { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => setEditTask(task) },
@@ -164,6 +218,113 @@ export default function TasksPage() {
               </article>
             )}
           />
+        )}
+      </Panel>
+
+      {/* ── Recurring Task Templates ─────────────────────────── */}
+      <Panel
+        title={pageText("Recurring task templates", "قوالب المهام المتكررة")}
+        description={pageText(
+          "Define routine tasks that auto-generate at the start of each month or week.",
+          "حدد المهام الروتينية التي تنشأ تلقائياً مع بداية كل شهر أو أسبوع."
+        )}
+        action={
+          <div className="flex items-center gap-2">
+            <InfoBadge label={isArabic ? `${templates.length} قالب` : `${templates.length} templates`} tone="violet" />
+          </div>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowAddRecurring(true)}
+            className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2.5 text-sm text-[var(--text)] transition hover:opacity-80"
+          >
+            <Plus size={15} />
+            {isArabic ? "إضافة قالب" : "Add template"}
+          </button>
+          <button
+            type="button"
+            onClick={handleRunGeneration}
+            disabled={generating || templates.filter((t) => t.isActive).length === 0}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            <RefreshCw size={15} className={generating ? "animate-spin" : ""} />
+            {isArabic ? "إنشاء مهام الشهر الحالي" : "Generate this month's tasks"}
+          </button>
+        </div>
+
+        {templates.length === 0 ? (
+          <EmptyPanel
+            title={pageText("No recurring templates", "لا توجد قوالب متكررة")}
+            description={pageText(
+              "Add templates for tasks like monthly reports, shooting sessions, or weekly schedules.",
+              "أضف قوالب للمهام مثل التقارير الشهرية، جلسات التصوير، أو الجداول الأسبوعية."
+            )}
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {templates.map((tmpl) => (
+              <article
+                key={tmpl.id}
+                className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4"
+                style={{ opacity: tmpl.isActive ? 1 : 0.55 }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-[var(--text)]">{tmpl.title}</h3>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {tmpl.assigneeName || (isArabic ? "غير معيّن" : "Unassigned")}
+                    </p>
+                  </div>
+                  <ActionMenu
+                    items={[
+                      {
+                        label: tmpl.isActive
+                          ? (isArabic ? "إيقاف مؤقت" : "Pause")
+                          : (isArabic ? "تفعيل" : "Activate"),
+                        icon: tmpl.isActive ? Pause : Play,
+                        onClick: () => toggleTemplate(tmpl.id, !tmpl.isActive),
+                      },
+                      {
+                        label: isArabic ? "حذف" : "Delete",
+                        icon: Trash2,
+                        tone: "danger",
+                        onClick: () => setConfirmDeleteTemplate(tmpl.id),
+                      },
+                    ]}
+                    size={16}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <InfoBadge
+                    label={isArabic ? (tmpl.frequency === "monthly" ? "شهري" : "أسبوعي") : tmpl.frequency}
+                    tone="blue"
+                  />
+                  <InfoBadge
+                    label={tmpl.priority}
+                    tone={tmpl.priority === "high" ? "rose" : tmpl.priority === "medium" ? "amber" : "mint"}
+                  />
+                  {tmpl.workflowSteps && tmpl.workflowSteps.length > 0 && (
+                    <InfoBadge
+                      label={isArabic ? `${tmpl.workflowSteps.length} خطوات` : `${tmpl.workflowSteps.length} steps`}
+                      tone="violet"
+                    />
+                  )}
+                  <InfoBadge
+                    label={tmpl.isActive ? (isArabic ? "نشط" : "Active") : (isArabic ? "موقوف" : "Paused")}
+                    tone={tmpl.isActive ? "mint" : "slate"}
+                  />
+                </div>
+                {tmpl.lastGeneratedAt && (
+                  <p className="mt-2 text-[11px] text-[var(--muted)]">
+                    {isArabic ? "آخر إنشاء:" : "Last generated:"}{" "}
+                    {new Date(tmpl.lastGeneratedAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
         )}
       </Panel>
 

@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppProvider } from "@/lib/AppContext";
+import { AuthProvider } from "@/lib/AuthContext";
 import { ContentProvider } from "@/lib/ContentContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
 import { NotificationProvider } from "@/lib/NotificationContext";
@@ -12,6 +13,7 @@ import { AssetsProvider } from "@/lib/AssetsContext";
 import { ClientNotesProvider } from "@/lib/ClientNotesContext";
 import { BankProvider } from "@/lib/BankContext";
 import { PublishingProvider } from "@/lib/PublishingContext";
+import { RecurringTaskProvider } from "@/lib/RecurringTaskContext";
 import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 
@@ -39,25 +41,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LanguageProvider>
             <ToastProvider>
-              <AppProvider>
-                <ContentProvider>
-                  <ApprovalProvider>
-                    <NotificationProvider>
-                      <InvitationProvider>
-                        <AssetsProvider>
-                          <ClientNotesProvider>
-                            <BankProvider>
-                              <PublishingProvider>
-                                <AppShell>{children}</AppShell>
-                              </PublishingProvider>
-                            </BankProvider>
-                          </ClientNotesProvider>
-                        </AssetsProvider>
-                      </InvitationProvider>
-                    </NotificationProvider>
-                  </ApprovalProvider>
-                </ContentProvider>
-              </AppProvider>
+              <AuthProvider>
+                <AppProvider>
+                  <ContentProvider>
+                    <ApprovalProvider>
+                      <NotificationProvider>
+                        <InvitationProvider>
+                          <AssetsProvider>
+                            <ClientNotesProvider>
+                              <BankProvider>
+                                <PublishingProvider>
+                                  <RecurringTaskProvider>
+                                    <AppShell>{children}</AppShell>
+                                  </RecurringTaskProvider>
+                                </PublishingProvider>
+                              </BankProvider>
+                            </ClientNotesProvider>
+                          </AssetsProvider>
+                        </InvitationProvider>
+                      </NotificationProvider>
+                    </ApprovalProvider>
+                  </ContentProvider>
+                </AppProvider>
+              </AuthProvider>
               <ToastContainer />
             </ToastProvider>
           </LanguageProvider>
