@@ -55,7 +55,7 @@ export default function ClientWorkspacePage() {
   return (
     <PageMotion>
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/clients" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-[var(--text)]">
+        <Link href="/clients" className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2.5 text-sm text-[var(--text)]">
           <ArrowLeft size={16} />
           {isArabic ? "العودة للعملاء" : "Back to clients"}
         </Link>
@@ -120,7 +120,7 @@ export default function ClientWorkspacePage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-3">
                 {clientContent.slice(0, 4).map((item) => (
-                  <article key={item.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                  <article key={item.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-[var(--text)]">{item.title}</h3>
                       <InfoBadge label={item.status} tone={item.status === "published" ? "mint" : item.status === "failed" ? "rose" : "violet"} />
@@ -132,7 +132,7 @@ export default function ClientWorkspacePage() {
               </div>
               <div className="space-y-3">
                 {clientTasks.slice(0, 4).map((task) => (
-                  <article key={task.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                  <article key={task.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-[var(--text)]">{task.title}</h3>
                       <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
@@ -151,7 +151,7 @@ export default function ClientWorkspacePage() {
         <Panel title={pageText("Notes stream", "سجل الملاحظات")} description={pageText("Internal and client-facing notes in a clean card feed.", "ملاحظات داخلية وموجهة للعميل ضمن تدفق بطاقات نظيف.")}>
           <div className="space-y-3">
             {notes.slice(0, 5).map((note) => (
-              <article key={note.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+              <article key={note.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text)]"><StickyNote size={15} />{note.author}</div>
                   <InfoBadge label={note.type} tone={note.type === "internal" ? "amber" : "mint"} />
@@ -166,7 +166,7 @@ export default function ClientWorkspacePage() {
         <Panel title={pageText("Asset gallery", "معرض الأصول")} description={pageText("A refreshed view for uploaded media and brand material.", "عرض متجدد للوسائط المرفوعة ومواد الهوية.")}>
           <div className="grid gap-3 sm:grid-cols-2">
             {assets.slice(0, 6).map((asset) => (
-              <article key={asset.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+              <article key={asset.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.18),rgba(61,217,180,0.18))] text-[var(--accent)]">
                   <ImageIcon size={18} />
                 </div>

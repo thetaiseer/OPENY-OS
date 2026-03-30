@@ -105,7 +105,7 @@ export default function ContentPage() {
             <KanbanBoard
               columns={boardColumns}
               renderItem={(item) => (
-                <article className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
@@ -135,7 +135,7 @@ export default function ContentPage() {
           <Panel title={pageText("Upcoming launches", "الإطلاقات القادمة")} description={pageText("Your next publishing windows sorted chronologically.", "نوافذ النشر القادمة مرتبة زمنيًا.")}>
             <div className="space-y-3">
               {upcoming.map((item) => (
-                <div key={item.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                <div key={item.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--text)]">{item.title}</h3>

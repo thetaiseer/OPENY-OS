@@ -77,7 +77,7 @@ export default function PublishingPage() {
       <Panel title={pageText("Publishing timeline", "الجدول الزمني للنشر")} description={pageText("A chronological lineup of upcoming launch windows.", "تسلسل زمني لنوافذ الإطلاق القادمة.")}>
         <div className="space-y-3">
           {timeline.map((item) => (
-            <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+            <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
               <div>
                 <h3 className="text-sm font-semibold text-[var(--text)]">{item.title}</h3>
                 <p className="mt-1 text-xs text-[var(--muted)]">{clients.find((client) => client.id === item.clientId)?.name || (isArabic ? "عميل غير معروف" : "Unknown client")}</p>

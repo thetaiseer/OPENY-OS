@@ -1,8 +1,10 @@
 "use client";
 
-import { CheckCircle2, Clock3, Workflow, Zap } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Clock3, Plus, Workflow, Zap } from "lucide-react";
 import { useTasks, useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { AddTaskModal } from "@/components/ui/AddTaskModal";
 import {
   BarListChart,
   ButtonLink,
@@ -22,6 +24,7 @@ export default function TasksPage() {
   const { members } = useTeam();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const [showAddTask, setShowAddTask] = useState(false);
 
   const openTasks = tasks.filter((task) => task.status !== "done").length;
   const inProgress = tasks.filter((task) => task.status === "in-progress").length;
@@ -47,6 +50,7 @@ export default function TasksPage() {
 
   return (
     <PageMotion>
+      <AddTaskModal open={showAddTask} onClose={() => setShowAddTask(false)} />
       <PageHeader
         eyebrow={pageText("Execution center", "مركز التنفيذ")}
         title={pageText("Task workflow rebuilt", "إعادة بناء سير المهام")}
@@ -54,7 +58,19 @@ export default function TasksPage() {
           "A modern task surface with status lanes, deadline visibility, and team load visualization.",
           "واجهة مهام حديثة تعرض المسارات، المواعيد النهائية، وتوزيع عبء الفريق بصريًا."
         )}
-        actions={<ButtonLink href="/team" label={pageText("Open team view", "افتح عرض الفريق")} tone="mint" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddTask(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              <Plus size={16} />
+              {isArabic ? "إضافة مهمة" : "Add task"}
+            </button>
+            <ButtonLink href="/team" label={pageText("Open team view", "افتح عرض الفريق")} tone="mint" />
+          </>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -84,7 +100,7 @@ export default function TasksPage() {
           <KanbanBoard
             columns={columns}
             renderItem={(task) => (
-              <article className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+              <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</h3>
@@ -97,7 +113,7 @@ export default function TasksPage() {
                   <button
                     type="button"
                     onClick={() => toggleTaskDone(task.id)}
-                    className="rounded-full border border-white/10 px-3 py-1.5 text-[var(--text)] transition hover:bg-white/[0.06]"
+                    className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
                   >
                     {task.status === "done" ? (isArabic ? "إعادة فتح" : "Re-open") : (isArabic ? "تمييز كمكتمل" : "Mark done")}
                   </button>
@@ -111,7 +127,7 @@ export default function TasksPage() {
       <Panel title={pageText("Upcoming deadlines", "المواعيد القادمة")} description={pageText("Chronological visibility for the next tasks that need attention.", "رؤية زمنية للمهام التالية التي تحتاج اهتمامًا.")}>
         <div className="space-y-3">
           {deadlineList.map((task) => (
-            <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+            <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
               <div>
                 <h3 className="text-sm font-semibold text-[var(--text)]">{task.title}</h3>
                 <p className="mt-1 text-xs text-[var(--muted)]">{task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}</p>

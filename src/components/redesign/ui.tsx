@@ -59,7 +59,7 @@ export function PageHeader({
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
       <div className="space-y-3">
-        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/12 bg-white/7 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.34em] text-[var(--muted)]">
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.34em] text-[var(--muted)]">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           {eyebrowText}
         </span>
@@ -95,9 +95,9 @@ export function Panel({
   const descriptionText = description ? pickLocalized(description, language) : null;
 
   return (
-    <section className={`glass-panel overflow-hidden rounded-[28px] border border-white/10 ${className}`.trim()}>
+    <section className={`glass-panel overflow-hidden rounded-[28px] border border-[var(--border)] ${className}`.trim()}>
       {(titleText || descriptionText || action) && (
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/8 px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4 sm:px-6">
           <div className="space-y-1">
             {titleText ? <h2 className="text-base font-semibold text-[var(--text)]">{titleText}</h2> : null}
             {descriptionText ? <p className="text-sm text-[var(--muted)]">{descriptionText}</p> : null}
@@ -149,7 +149,7 @@ export function StatCard({
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
-      className="glass-panel rounded-[26px] border border-white/10 p-5"
+      className="glass-panel rounded-[26px] border border-[var(--border)] p-5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
@@ -182,7 +182,7 @@ export function SegmentedControl<T extends string>({
   const { language } = useLanguage();
 
   return (
-    <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/10 p-1.5 backdrop-blur-xl">
+    <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-1.5 backdrop-blur-xl">
       {options.map((option) => {
         const label = pickLocalized(option.label, language);
         const active = option.value === value;
@@ -263,12 +263,12 @@ export function BarListChart({
               </div>
               <span className="text-xs font-semibold text-[var(--muted)]">{item.value}</span>
             </div>
-            <div className="h-2.5 rounded-full bg-white/6">
+            <div className="h-2.5 rounded-full bg-[var(--border)]">
               <div
                 className="h-full rounded-full"
                 style={{
                   width: `${width}%`,
-                  background: `linear-gradient(90deg, ${colors.accent}, rgba(255,255,255,0.9))`,
+                  background: `linear-gradient(90deg, ${colors.accent}, ${colors.soft})`,
                 }}
               />
             </div>
@@ -289,7 +289,7 @@ export function DonutChart({ value, total, tone = "mint", label }: { value: numb
   return (
     <div className="relative flex h-40 items-center justify-center">
       <svg viewBox="0 0 100 100" className="h-36 w-36 -rotate-90">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" strokeWidth="8" />
         <circle
           cx="50"
           cy="50"
@@ -333,14 +333,14 @@ export function CalendarHeatmap({
       {days.map((day) => {
         const level = Math.min(day.value, 4);
         return (
-          <div key={day.key} className="space-y-1 rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-center">
-            <div className={`text-xs ${day.currentMonth ? "text-[var(--text)]" : "text-white/28"}`}>{day.date.getDate()}</div>
+          <div key={day.key} className="space-y-1 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-3 text-center">
+            <div className={`text-xs ${day.currentMonth ? "text-[var(--text)]" : "text-[var(--muted)]"}`}>{day.date.getDate()}</div>
             <div
               className="mx-auto h-8 w-full rounded-xl"
               style={{
                 background:
                   level === 0
-                    ? "rgba(255,255,255,0.04)"
+                    ? "var(--glass-overlay)"
                     : `linear-gradient(180deg, rgba(106,168,255,${0.18 + level * 0.16}), rgba(169,139,255,${0.12 + level * 0.16}))`,
               }}
             />
@@ -361,7 +361,7 @@ export function KanbanBoard<T extends { id: string }>({
   return (
     <div className="grid gap-4 xl:grid-cols-4">
       {columns.map((column) => (
-        <div key={column.id} className="glass-panel rounded-[24px] border border-white/10 p-4">
+        <div key={column.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-[var(--text)]">{column.title}</div>
@@ -400,8 +400,8 @@ export function EmptyPanel({
   const descriptionText = pickLocalized(description, language);
 
   return (
-    <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.03] p-8 text-center">
-      <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-white/[0.05]" />
+    <div className="rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--glass-overlay)] p-8 text-center">
+      <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-[var(--glass-overlay)]" />
       <h3 className="text-lg font-semibold text-[var(--text)]">{titleText}</h3>
       <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--muted)]">{descriptionText}</p>
     </div>
@@ -412,7 +412,7 @@ export function MetricList({ items }: { items: Array<{ label: string; value: str
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {items.map((item) => (
-        <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+        <div key={item.label} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3">
           <div className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">{item.label}</div>
           <div className="mt-2 text-lg font-semibold text-[var(--text)]">{item.value}</div>
         </div>
@@ -423,7 +423,7 @@ export function MetricList({ items }: { items: Array<{ label: string; value: str
 
 export function DetailRow({ label, value }: { label: string; value: string | ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3 text-sm">
       <span className="text-[var(--muted)]">{label}</span>
       <span className="text-right text-[var(--text)]">{value}</span>
     </div>
