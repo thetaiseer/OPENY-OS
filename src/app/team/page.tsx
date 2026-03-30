@@ -1,8 +1,10 @@
 "use client";
 
-import { Activity, ShieldCheck, Sparkles, Users, Workflow } from "lucide-react";
+import { useState } from "react";
+import { Activity, Plus, ShieldCheck, Sparkles, Users, Workflow } from "lucide-react";
 import { useAppStore, useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { AddMemberModal } from "@/components/ui/AddMemberModal";
 import {
   BarListChart,
   EmptyPanel,
@@ -19,6 +21,7 @@ export default function TeamPage() {
   const { tasks, activities } = useAppStore();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const [showAddMember, setShowAddMember] = useState(false);
 
   const activeMembers = members.filter((member) => member.status === "active").length;
   const awayMembers = members.filter((member) => member.status === "away").length;
@@ -30,6 +33,7 @@ export default function TeamPage() {
 
   return (
     <PageMotion>
+      <AddMemberModal open={showAddMember} onClose={() => setShowAddMember(false)} />
       <PageHeader
         eyebrow={pageText("People operations", "عمليات الفريق")}
         title={pageText("Team cockpit rebuilt", "إعادة بناء قمرة الفريق")}
@@ -37,6 +41,16 @@ export default function TeamPage() {
           "A clean premium surface for team visibility, active workload, and operating pulse.",
           "واجهة فاخرة ونظيفة لرؤية الفريق وعبء العمل النشط والنبض التشغيلي."
         )}
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowAddMember(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            <Plus size={16} />
+            {isArabic ? "إضافة عضو" : "Add member"}
+          </button>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -54,7 +68,7 @@ export default function TeamPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {members.map((member) => (
-                <article key={member.id} className="glass-panel rounded-[24px] border border-white/10 p-5">
+                <article key={member.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: member.color }}>
                       {member.initials}
@@ -82,7 +96,7 @@ export default function TeamPage() {
       <Panel title={pageText("Recent activity", "النشاط الأخير")} description={pageText("The latest operational events involving the team.", "أحدث الأحداث التشغيلية التي تخص الفريق.")}>
         <div className="space-y-3">
           {activities.slice(0, 8).map((activity) => (
-            <article key={activity.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+            <article key={activity.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
                 <Sparkles size={14} className="text-[var(--accent)]" />
                 {new Date(activity.timestamp).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}

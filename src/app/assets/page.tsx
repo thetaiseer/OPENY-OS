@@ -57,7 +57,7 @@ export default function AssetsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {assets.slice(0, 9).map((asset) => (
-                <article key={asset.id} className="glass-panel rounded-[24px] border border-white/10 p-5">
+                <article key={asset.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-5">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(61,217,180,0.16))] text-[var(--accent)]">
                     {asset.type === "video" ? <PlayCircle size={18} /> : <ImageIcon size={18} />}
                   </div>

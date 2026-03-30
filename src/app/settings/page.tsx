@@ -76,7 +76,7 @@ export default function SettingsPage() {
             {NOTIFICATION_CATEGORIES.map((category) => {
               const value = prefs[category.key];
               return (
-                <div key={category.key} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                <div key={category.key} className="rounded-[24px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--text)]">{isArabic ? category.title.ar : category.title.en}</h3>
@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
 function SettingRow({ icon: Icon, title, description, control }: { icon: typeof MoonStar; title: string; description: string; control: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(169,139,255,0.16))] text-[var(--accent)]">
           <Icon size={18} />
@@ -118,7 +118,7 @@ function SettingRow({ icon: Icon, title, description, control }: { icon: typeof 
 
 function ToggleButton({ activeLabel, onClick }: { activeLabel: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-white/[0.08]">
+    <button type="button" onClick={onClick} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--glass-overlay)]">
       {activeLabel}
     </button>
   );
@@ -129,11 +129,11 @@ function PreferenceToggle({ label, checked, onChange }: { label: string; checked
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-white/[0.06]"
+      className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
     >
       <span>{label}</span>
-      <span className={`inline-flex h-7 w-12 items-center rounded-full p-1 transition ${checked ? "justify-end bg-[rgba(61,217,180,0.22)]" : "justify-start bg-white/[0.08]"}`}>
-        <span className={`h-5 w-5 rounded-full ${checked ? "bg-[var(--mint)]" : "bg-white/70"}`} />
+      <span className={`inline-flex h-7 w-12 items-center rounded-full p-1 transition ${checked ? "justify-end bg-[rgba(61,217,180,0.22)]" : "justify-start bg-[var(--glass-overlay)]"}`}>
+        <span className={`h-5 w-5 rounded-full ${checked ? "bg-[var(--mint)]" : "bg-[var(--muted)]"}`} />
       </span>
     </button>
   );

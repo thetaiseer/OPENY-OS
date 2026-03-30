@@ -73,7 +73,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="relative flex min-h-screen">
         <aside
-          className={`hidden border-e border-white/8 bg-black/18 px-4 py-6 backdrop-blur-2xl lg:flex ${collapsed ? "w-[104px]" : "w-[284px]"}`}
+          className={`hidden border-e border-[var(--border)] bg-[var(--sidebar-bg)] px-4 py-6 backdrop-blur-2xl lg:flex ${collapsed ? "w-[104px]" : "w-[284px]"}`}
+          style={{ borderInlineEnd: "1px solid var(--border)" }}
         >
           <DesktopSidebar
             pathname={pathname}
@@ -96,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 initial={{ x: isRTL ? 120 : -120, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: isRTL ? 120 : -120, opacity: 0 }}
-                className={`absolute ${isRTL ? "right-0" : "left-0"} top-0 h-full w-[86vw] max-w-[320px] border-e border-white/8 bg-[rgba(8,12,24,0.94)] px-4 py-6 backdrop-blur-3xl`}
+                className={`absolute ${isRTL ? "right-0" : "left-0"} top-0 h-full w-[86vw] max-w-[320px] border-e border-[var(--border)] bg-[var(--sidebar-bg)] px-4 py-6 backdrop-blur-3xl`}
               >
                 <DesktopSidebar
                   pathname={pathname}
@@ -112,12 +113,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </AnimatePresence>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className={`sticky top-0 z-30 border-b border-white/8 bg-[rgba(8,12,24,0.72)] backdrop-blur-2xl ${shellPadding} px-4 py-4 sm:px-6`}>
+          <header className={`sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--header-bg)] backdrop-blur-2xl ${shellPadding} px-4 py-4 sm:px-6`}>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[var(--text)] lg:hidden"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
                 aria-label="Open navigation"
               >
                 <Menu size={18} />
@@ -142,7 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2 sm:gap-3">
                 <StatusPill icon={Languages} label={language === "ar" ? "AR" : "EN"} onClick={() => setLanguage(language === "ar" ? "en" : "ar")} />
                 <StatusPill icon={theme === "dark" ? SunMedium : MoonStar} label={theme === "dark" ? "Light" : "Dark"} onClick={toggleTheme} />
-                <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-[var(--text)]">
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)]">
                   <Activity size={16} className="text-[var(--mint)]" />
                   <span>{unreadCount}</span>
                 </div>
@@ -206,7 +207,7 @@ function DesktopSidebar({
           <button
             type="button"
             onClick={onNavigate}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[var(--text)] lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:hidden"
             aria-label="Close navigation"
           >
             <X size={18} />
@@ -215,7 +216,7 @@ function DesktopSidebar({
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[var(--text)] lg:inline-flex"
+            className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)] lg:inline-flex"
             aria-label="Toggle sidebar"
           >
             {isRTL ? (collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />) : collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -224,7 +225,7 @@ function DesktopSidebar({
       </div>
 
       {!collapsed && (
-        <div className="glass-panel rounded-[28px] border border-white/10 p-4 text-sm text-[var(--muted)]">
+        <div className="glass-panel rounded-[28px] border border-[var(--border)] p-4 text-sm text-[var(--muted)]">
           <div className="mb-2 flex items-center gap-2 text-[var(--text)]">
             <LayoutDashboard size={16} className="text-[var(--accent)]" />
             {language === "ar" ? "نبض المنصة" : "Workspace pulse"}
@@ -248,12 +249,12 @@ function DesktopSidebar({
               onClick={onNavigate}
               className="group relative overflow-hidden rounded-2xl border px-3 py-3 transition duration-200 hover:-translate-y-0.5"
               style={{
-                borderColor: active ? "rgba(106,168,255,0.26)" : "rgba(255,255,255,0.08)",
-                background: active ? "linear-gradient(135deg, rgba(106,168,255,0.16), rgba(169,139,255,0.16))" : "rgba(255,255,255,0.03)",
+                borderColor: active ? "var(--accent)" : "var(--border)",
+                background: active ? "linear-gradient(135deg, rgba(106,168,255,0.16), rgba(169,139,255,0.16))" : "var(--glass-overlay)",
               }}
             >
               <div className="flex items-center gap-3">
-                <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-[var(--text)]">
+                <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] text-[var(--text)]">
                   <Icon size={18} className={active ? "text-[var(--accent)]" : "text-[var(--muted)]"} />
                 </span>
                 {!collapsed && (
@@ -286,7 +287,7 @@ function StatusPill({ icon: Icon, label, onClick }: { icon: typeof Languages; la
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-[var(--text)] transition duration-200 hover:bg-white/[0.07]"
+      className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-sm text-[var(--text)] transition duration-200 hover:opacity-80"
     >
       <Icon size={16} className="text-[var(--accent)]" />
       <span className="hidden sm:inline">{label}</span>

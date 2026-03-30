@@ -65,7 +65,7 @@ export default function ApprovalsPage() {
               const client = clients.find((entry) => entry.id === approval.clientId);
               const commentsCount = approval.internalComments.length + approval.clientComments.length;
               return (
-                <article className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--text)]">{item?.title || approval.contentItemId}</h3>

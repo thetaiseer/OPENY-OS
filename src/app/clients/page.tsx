@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, Sparkles, Target } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, Plus, Sparkles, Target } from "lucide-react";
 import { useClients, useTasks } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
 import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { AddClientModal } from "@/components/ui/AddClientModal";
 import {
   BarListChart,
   EmptyPanel,
@@ -24,6 +26,7 @@ export default function ClientsPage() {
   const { approvals } = useApprovals();
   const { language } = useLanguage();
   const isArabic = language === "ar";
+  const [showAddClient, setShowAddClient] = useState(false);
 
   const activeClients = clients.filter((client) => client.status === "active").length;
   const prospects = clients.filter((client) => client.status === "prospect").length;
@@ -51,6 +54,7 @@ export default function ClientsPage() {
 
   return (
     <PageMotion>
+      <AddClientModal open={showAddClient} onClose={() => setShowAddClient(false)} />
       <PageHeader
         eyebrow={pageText("Client intelligence", "ذكاء العملاء")}
         title={pageText("Premium client spaces", "مساحات عملاء فاخرة")}
@@ -58,6 +62,16 @@ export default function ClientsPage() {
           "A new CRM surface for account health, delivery pressure, and cross-functional visibility.",
           "واجهة CRM جديدة لصحة الحسابات وضغط التسليم والرؤية المشتركة بين الفرق."
         )}
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowAddClient(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            <Plus size={16} />
+            {isArabic ? "إضافة عميل" : "Add client"}
+          </button>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -75,7 +89,7 @@ export default function ClientsPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {clientLoad.map((entry) => (
-                <Link key={entry.client.id} href={`/clients/${entry.client.id}`} className="glass-panel rounded-[24px] border border-white/10 p-5 transition duration-200 hover:-translate-y-1">
+                <Link key={entry.client.id} href={`/clients/${entry.client.id}`} className="glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: entry.client.color }}>
@@ -115,7 +129,7 @@ export default function ClientsPage() {
 
 function SummaryCell({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-center">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-3 text-center">
       <div className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">{label}</div>
       <div className="mt-2 text-lg font-semibold text-[var(--text)]">{value}</div>
     </div>

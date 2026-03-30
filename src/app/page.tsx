@@ -121,7 +121,7 @@ export default function DashboardPage() {
             <KanbanBoard
               columns={boardColumns}
               renderItem={(item) => (
-                <article className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
           <Panel title={pageText("Latest signals", "آخر الإشارات")} description={pageText("Realtime highlights from activity and approvals.", "أبرز التحديثات المباشرة من الأنشطة والموافقات.")}>
             <div className="space-y-3">
               {activities.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                <div key={activity.id} className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
                     <Sparkles size={14} className="text-[var(--accent)]" />
                     {new Date(activity.timestamp).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
@@ -173,7 +173,7 @@ export default function DashboardPage() {
 
 function QuickMetric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3">
       <div className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">{label}</div>
       <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--text)]">{value}</div>
     </div>
@@ -182,7 +182,7 @@ function QuickMetric({ label, value }: { label: string; value: string | number }
 
 function Shortcut({ href, title, description, icon: Icon }: { href: string; title: string; description: string; icon: typeof Sparkles }) {
   return (
-    <Link href={href} className="glass-panel rounded-[24px] border border-white/10 p-5 transition duration-200 hover:-translate-y-1">
+    <Link href={href} className="glass-panel rounded-[24px] border border-[var(--border)] p-5 transition duration-200 hover:-translate-y-1">
       <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.18),rgba(169,139,255,0.18))] text-[var(--accent)]">
         <Icon size={20} />
       </div>

@@ -104,7 +104,7 @@ export default function ReportsPage() {
 
 function ScoreCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof BarChart3 }) {
   return (
-    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+    <div className="rounded-[24px] border border-[var(--border)] bg-[var(--glass-overlay)] p-5">
       <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(169,139,255,0.16))] text-[var(--accent)]">
         <Icon size={20} />
       </div>
