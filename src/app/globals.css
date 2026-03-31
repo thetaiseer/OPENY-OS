@@ -1,59 +1,64 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════
-   OPENY OS — Clean Premium Business Workspace
-   Design System v2.0 — Light-first
+   OPENY OS — Premium SaaS Workspace
+   Design System v3.0 — Light-first
 ═══════════════════════════════════════════════════ */
 
 :root {
   /* ── Background surfaces ── */
-  --bg: #f8fafc;
+  --bg: #f7f8fc;
   --bg-elevated: #ffffff;
   --panel: #ffffff;
   --panel-strong: #ffffff;
 
   /* ── Typography ── */
-  --text: #0f172a;
-  --muted: #64748b;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --text: #111827;
+  --muted: #6b7280;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
 
   /* ── Borders & separators ── */
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
 
   /* ── Brand colors ── */
-  --accent: #2563eb;
-  --accent-2: #6366f1;
-  --accent-soft: rgba(37, 99, 235, 0.08);
-  --accent-2-soft: rgba(99, 102, 241, 0.08);
+  --accent: #4F6EF7;
+  --accent-2: #7C5CF6;
+  --accent-soft: rgba(79, 110, 247, 0.08);
+  --accent-2-soft: rgba(124, 92, 246, 0.08);
 
   /* ── Status colors ── */
-  --mint: #10b981;
+  --mint: #22c55e;
   --amber: #f59e0b;
   --rose: #ef4444;
-  --mint-soft: rgba(16, 185, 129, 0.1);
+  --mint-soft: rgba(34, 197, 94, 0.1);
   --amber-soft: rgba(245, 158, 11, 0.1);
   --rose-soft: rgba(239, 68, 68, 0.1);
 
-  /* ── Shadows (soft, layered) ── */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow: 0 4px 6px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(15, 23, 42, 0.05);
+  /* ── Shadows (soft, subtle) ── */
+  --shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04), 0 0 1px rgba(17, 24, 39, 0.03);
+  --shadow-sm: 0 2px 4px rgba(17, 24, 39, 0.05), 0 0 1px rgba(17, 24, 39, 0.04);
+  --shadow: 0 2px 8px rgba(17, 24, 39, 0.06), 0 0 1px rgba(17, 24, 39, 0.04);
+  --shadow-md: 0 8px 32px rgba(17, 24, 39, 0.10), 0 2px 8px rgba(17, 24, 39, 0.06);
+  --shadow-lg: 0 16px 48px rgba(17, 24, 39, 0.12), 0 4px 16px rgba(17, 24, 39, 0.07);
 
   /* ── Component surfaces ── */
-  --glass-overlay: #f1f5f9;
-  --glass-overlay-border: #e2e8f0;
+  --glass-overlay: #f3f4f6;
+  --glass-overlay-border: #e5e7eb;
   --glass-input: #ffffff;
   --sidebar-bg: #ffffff;
   --header-bg: #ffffff;
   --glass-nav: #ffffff;
   --glass-topbar: #ffffff;
-  --glass-nav-active: rgba(37, 99, 235, 0.07);
-  --glass-nav-active-border: rgba(37, 99, 235, 0.18);
+  --glass-nav-active: rgba(79, 110, 247, 0.07);
+  --glass-nav-active-border: rgba(79, 110, 247, 0.18);
+
+  /* ── Radius ── */
+  --radius-card: 16px;
+  --radius-btn: 12px;
+  --radius-modal: 24px;
 
   /* ── Layout sizing ── */
   --topbar-height: 64px;
@@ -65,41 +70,41 @@
 
 /* ── Dark mode ── */
 :root.dark {
-  --bg: #080d1a;
-  --bg-elevated: rgba(13, 19, 36, 0.96);
-  --panel: rgba(14, 21, 40, 0.92);
-  --panel-strong: rgba(16, 24, 46, 0.98);
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg: #0d1117;
+  --bg-elevated: rgba(13, 20, 36, 0.97);
+  --panel: rgba(16, 23, 42, 0.94);
+  --panel-strong: rgba(18, 26, 48, 0.99);
+  --text: #f9fafb;
+  --muted: #9ca3af;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
-  --accent: #60a5fa;
-  --accent-2: #a5b4fc;
-  --accent-soft: rgba(96, 165, 250, 0.12);
-  --accent-2-soft: rgba(165, 180, 252, 0.12);
-  --mint: #34d399;
+  --accent: #6d8ef8;
+  --accent-2: #9b7ff7;
+  --accent-soft: rgba(109, 142, 248, 0.14);
+  --accent-2-soft: rgba(155, 127, 247, 0.14);
+  --mint: #4ade80;
   --amber: #fbbf24;
   --rose: #f87171;
-  --mint-soft: rgba(52, 211, 153, 0.12);
+  --mint-soft: rgba(74, 222, 128, 0.12);
   --amber-soft: rgba(251, 191, 36, 0.12);
   --rose-soft: rgba(248, 113, 113, 0.12);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.24);
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.36);
-  --shadow-lg: 0 20px 64px rgba(0, 0, 0, 0.48);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.28);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 20px 64px rgba(0, 0, 0, 0.52);
   --glass-overlay: rgba(255, 255, 255, 0.04);
-  --glass-overlay-border: rgba(255, 255, 255, 0.1);
+  --glass-overlay-border: rgba(255, 255, 255, 0.09);
   --glass-input: rgba(255, 255, 255, 0.06);
-  --sidebar-bg: rgba(8, 12, 24, 0.98);
-  --header-bg: rgba(8, 12, 24, 0.96);
-  --glass-nav: rgba(8, 12, 26, 0.96);
-  --glass-topbar: rgba(8, 12, 24, 0.96);
-  --glass-nav-active: rgba(96, 165, 250, 0.12);
-  --glass-nav-active-border: rgba(96, 165, 250, 0.28);
+  --sidebar-bg: rgba(9, 13, 25, 0.99);
+  --header-bg: rgba(9, 13, 25, 0.97);
+  --glass-nav: rgba(9, 13, 26, 0.97);
+  --glass-topbar: rgba(9, 13, 25, 0.97);
+  --glass-nav-active: rgba(109, 142, 248, 0.13);
+  --glass-nav-active-border: rgba(109, 142, 248, 0.30);
   --logo-filter: brightness(0) invert(1);
   color-scheme: dark;
 }

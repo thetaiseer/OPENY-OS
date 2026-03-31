@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           height: "var(--topbar-height)",
         }}
       >
-        <div className="mx-auto flex h-full max-w-screen-2xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="flex flex-shrink-0 items-center gap-2.5 me-2">
             <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl">
@@ -103,10 +103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150"
+                  className="flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-150"
                   style={{
                     color: active ? "var(--accent)" : "var(--muted)",
                     background: active ? "var(--glass-nav-active)" : "transparent",
+                    border: active ? "1px solid var(--glass-nav-active-border)" : "1px solid transparent",
                   }}
                 >
                   <Icon size={15} />
@@ -324,7 +325,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* ── Page Content ── */}
-      <main className="mx-auto max-w-screen-2xl px-4 py-6 mobile-page-content sm:px-6 sm:py-8 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 mobile-page-content sm:px-6 sm:py-8 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}

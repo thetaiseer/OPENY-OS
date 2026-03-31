@@ -28,7 +28,6 @@ import {
   InfoBadge,
   KanbanBoard,
   MiniAreaChart,
-  PageHeader,
   PageMotion,
   Panel,
   StatCard,
@@ -86,17 +85,47 @@ export default function DashboardPage() {
     items: contentItems.filter((item) => column.statuses.includes(item.status)).slice(0, 4),
   }));
 
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = isArabic
+    ? (hour < 12 ? "صباح الخير" : hour < 17 ? "مساء الخير" : "مساء النور")
+    : (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening");
+  const dateLabel = now.toLocaleDateString(isArabic ? "ar-EG" : "en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+
   return (
     <PageMotion>
-      <PageHeader
-        eyebrow={pageText("Operations overview", "نظرة عامة على العمليات")}
-        title={pageText("Dashboard", "لوحة التحكم")}
-        description={pageText(
-          "Real-time overview of clients, tasks, approvals, and content pipeline.",
-          "نظرة فورية على العملاء والمهام والموافقات وخط إنتاج المحتوى."
-        )}
-        actions={<ButtonLink href="/reports" label={pageText("Analytics", "التحليلات")} tone="violet" />}
-      />
+      {/* Hero greeting */}
+      <section
+        className="relative overflow-hidden rounded-2xl border px-6 py-8 sm:px-8 sm:py-10"
+        style={{
+          background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)",
+          borderColor: "transparent",
+          boxShadow: "var(--shadow-md)",
+        }}
+      >
+        <div className="relative z-10">
+          <p className="text-sm font-medium text-white/70">{dateLabel}</p>
+          <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+            {greeting}! {isArabic ? "إليك نظرة عامة على مساحة عملك" : "Here's your workspace overview."}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">
+            {isArabic
+              ? `لديك ${pendingApprovals} موافقات معلقة و${scheduledThisWeek} عنصر مجدول هذا الأسبوع.`
+              : `You have ${pendingApprovals} pending approval${pendingApprovals !== 1 ? "s" : ""} and ${scheduledThisWeek} item${scheduledThisWeek !== 1 ? "s" : ""} scheduled this week.`}
+          </p>
+        </div>
+        {/* Decorative circles */}
+        <div
+          className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full"
+          style={{ background: "rgba(255,255,255,0.07)" }}
+        />
+        <div
+          className="pointer-events-none absolute -bottom-8 right-24 h-32 w-32 rounded-full"
+          style={{ background: "rgba(255,255,255,0.05)" }}
+        />
+      </section>
 
       {/* Stat cards — 2×2 on mobile, 4×1 on xl */}
       <section className="stat-grid">
