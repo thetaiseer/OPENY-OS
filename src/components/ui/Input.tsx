@@ -30,10 +30,10 @@ export function Input({ label, placeholder, value, onChange, type = "text", icon
           value={value}
           onChange={e => onChange(e.target.value)}
           required={required}
-          className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all"
+          className="glass-input w-full outline-none transition-all"
           style={{
-            color: 'var(--text-primary)',
-            paddingLeft: Icon ? '2.25rem' : undefined,
+            color: 'var(--text)',
+            paddingLeft: Icon ? '2.25rem' : '14px',
           }}
         />
       </div>

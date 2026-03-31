@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           height: "var(--topbar-height)",
         }}
       >
-        <div className="mx-auto flex h-full max-w-screen-2xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="flex flex-shrink-0 items-center gap-2.5 me-2">
             <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl">
@@ -93,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           {/* Desktop nav links */}
-          <nav className="hidden lg:flex lg:items-center lg:gap-1">
+          <nav className="hidden lg:flex lg:items-center lg:gap-0.5">
             {NAV_ITEMS.slice(0, 7).map((item) => {
               const active =
                 pathname === item.href ||
@@ -103,13 +103,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150"
+                  className="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--glass-overlay)]"
                   style={{
-                    color: active ? "var(--accent)" : "var(--muted)",
-                    background: active ? "var(--glass-nav-active)" : "transparent",
+                    color: active ? "#ffffff" : "var(--muted)",
+                    background: active ? "var(--accent)" : "transparent",
                   }}
                 >
-                  <Icon size={15} />
+                  <Icon size={14} />
                   <span>{language === "ar" ? item.title.ar : item.title.en}</span>
                 </Link>
               );
@@ -272,19 +272,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 mb-1"
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 mb-1 hover:bg-[var(--glass-overlay)]"
                       style={{
-                        color: active ? "var(--accent)" : "var(--text)",
-                        background: active ? "var(--glass-nav-active)" : "transparent",
-                        borderLeft: active && !isRTL ? "3px solid var(--accent)" : "3px solid transparent",
-                        borderRight: active && isRTL ? "3px solid var(--accent)" : "3px solid transparent",
+                        color: active ? "#ffffff" : "var(--text)",
+                        background: active ? "var(--accent)" : "transparent",
                       }}
                     >
                       <span
                         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
                         style={{
-                          background: active ? "var(--accent-soft)" : "var(--glass-overlay)",
-                          color: active ? "var(--accent)" : "var(--muted)",
+                          background: active ? "rgba(255,255,255,0.2)" : "var(--glass-overlay)",
+                          color: active ? "#ffffff" : "var(--muted)",
                         }}
                       >
                         <Icon size={16} />
@@ -324,7 +322,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* ── Page Content ── */}
-      <main className="mx-auto max-w-screen-2xl px-4 py-6 mobile-page-content sm:px-6 sm:py-8 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 mobile-page-content sm:px-6 sm:py-8 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}

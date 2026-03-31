@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BriefcaseBusiness, CheckCircle2, Sparkles, Target } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CheckCircle2, ListChecks, Sparkles, Target, TrendingUp } from "lucide-react";
 import { useAppStore } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
 import { useApprovals } from "@/lib/ApprovalContext";
@@ -62,7 +62,7 @@ export default function ReportsPage() {
         )}
       />
 
-      <section className="stat-grid">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label={pageText("Published", "المنشور")} value={published} hint={pageText("Delivered content in production", "محتوى تم تسليمه في الإنتاج")} icon={CheckCircle2} tone="mint" />
         <StatCard label={pageText("Scheduled", "المجدول")} value={scheduled} hint={pageText("Upcoming launch inventory", "مخزون الإطلاق القادم")} icon={Sparkles} tone="violet" />
         <StatCard label={pageText("Team members", "أعضاء الفريق")} value={members.length} hint={pageText("Operators across all functions", "المشغلون عبر كل الوظائف")} icon={Target} tone="blue" />
@@ -70,30 +70,48 @@ export default function ReportsPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Panel title={pageText("Momentum curve", "منحنى الزخم")} description={pageText("A simple trend line for recently created content activity.", "خط اتجاه مبسط لنشاط إنشاء المحتوى مؤخرًا.")}
-          action={<span className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{isArabic ? `${activities.length} نشاط` : `${activities.length} activities`}</span>}>
+        <Panel
+          title={pageText("Content momentum", "زخم المحتوى")}
+          description={pageText("Weekly content creation trend over the past 8 weeks.", "اتجاه إنشاء المحتوى الأسبوعي خلال الـ 8 أسابيع الماضية.")}
+          action={<span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--accent)" }}><TrendingUp size={13} />{isArabic ? `${activities.length} نشاط` : `${activities.length} activities`}</span>}
+        >
           <MiniAreaChart values={trendValues} tone="blue" />
         </Panel>
-        <Panel title={pageText("Approval efficiency", "كفاءة الموافقات")} description={pageText("Approved approvals against the total workflow volume.", "الموافقات المعتمدة مقابل إجمالي حجم سير العمل.")}>
+        <Panel
+          title={pageText("Approval rate", "معدل الموافقة")}
+          description={pageText("Approved vs. total approval requests.", "الموافقات المعتمدة مقابل إجمالي الطلبات.")}
+        >
           <DonutChart value={approvalRate} total={approvals.length || 1} tone="mint" label={isArabic ? "اعتماد" : "Approval"} />
         </Panel>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <Panel title={pageText("Client contribution", "مساهمة العملاء")} description={pageText("Who is driving the largest content load right now.", "من يقود أكبر حجم محتوى الآن.")}>
-          <BarListChart items={clientContribution} tone="violet" />
+        <Panel
+          title={pageText("Platform distribution", "توزيع المنصات")}
+          description={pageText("Content volume per publishing channel.", "حجم المحتوى لكل قناة نشر.")}
+        >
+          <BarListChart items={platformBreakdown} tone="amber" />
         </Panel>
-        <Panel title={pageText("Team throughput", "إنتاجية الفريق")} description={pageText("Assignments distributed across active operators.", "توزيع المهام عبر المشغلين النشطين.")}>
+        <Panel
+          title={pageText("Team workload", "عبء الفريق")}
+          description={pageText("Task assignments distributed across team members.", "توزيع المهام عبر أعضاء الفريق.")}
+        >
           <BarListChart items={teamActivity} tone="blue" />
         </Panel>
-        <Panel title={pageText("Platform footprint", "بصمة المنصات")} description={pageText("Channel-level content distribution.", "توزيع المحتوى على مستوى القنوات.")}>
-          <BarListChart items={platformBreakdown} tone="amber" />
+        <Panel
+          title={pageText("Client output", "إنتاج العملاء")}
+          description={pageText("Content volume driven by each client account.", "حجم المحتوى لكل حساب عميل.")}
+        >
+          <BarListChart items={clientContribution} tone="violet" />
         </Panel>
       </section>
 
-      <Panel title={pageText("Operations scorecard", "بطاقة الأداء التشغيلية")} description={pageText("Core outcome ratios across tasks, content, and approvals.", "نسب النتائج الأساسية عبر المهام والمحتوى والموافقات.")}>
+      <Panel
+        title={pageText("Operations scorecard", "بطاقة الأداء التشغيلية")}
+        description={pageText("Core outcome ratios across tasks, content, and approvals.", "نسب النتائج الأساسية عبر المهام والمحتوى والموافقات.")}
+      >
         <div className="grid gap-4 md:grid-cols-3">
-          <ScoreCard label={isArabic ? "اكتمال المهام" : "Task completion"} value={`${completedTasks}/${tasks.length || 0}`} icon={Target} />
+          <ScoreCard label={isArabic ? "اكتمال المهام" : "Task completion"} value={`${completedTasks}/${tasks.length}`} icon={ListChecks} />
           <ScoreCard label={isArabic ? "موافقة المحتوى" : "Approval progress"} value={`${approvalRate}/${approvals.length || 0}`} icon={CheckCircle2} />
           <ScoreCard label={isArabic ? "إجمالي المحتوى" : "Total content"} value={contentItems.length} icon={BarChart3} />
         </div>

@@ -21,9 +21,9 @@ export function BottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40 lg:hidden"
       style={{
-        background: "var(--glass-nav)",
+        background: "#ffffff",
         borderTop: "1px solid var(--border)",
-        boxShadow: "0 -2px 16px rgba(15, 23, 42, 0.06)",
+        boxShadow: "0 -4px 24px rgba(15,23,42,0.06), 0 -1px 0 var(--border)",
         paddingBottom: "max(env(safe-area-inset-bottom), 8px)",
         paddingTop: "6px",
         minHeight: "var(--bottomnav-height)",
@@ -35,24 +35,21 @@ export function BottomNav() {
           <motion.div key={href} whileTap={{ scale: 0.88 }}>
             <Link
               href={href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl min-w-[56px] min-h-[48px] justify-center relative"
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[56px] min-h-[48px] justify-center relative"
               style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}
             >
+              <Icon size={20} />
+              <span className="text-[10px] font-semibold leading-tight">
+                {t(labelKey)}
+              </span>
               {isActive && (
-                <motion.div
-                  className="absolute inset-0 rounded-2xl"
-                  style={{ background: "var(--glass-nav-active)" }}
-                  layoutId="bottom-nav-bg"
+                <motion.span
+                  layoutId="bottom-nav-dot"
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                  style={{ background: "var(--accent)" }}
                   transition={{ type: "spring", stiffness: 480, damping: 38 }}
                 />
               )}
-              <Icon size={20} style={{ position: "relative", zIndex: 1 }} />
-              <span
-                className="text-[10px] font-semibold leading-tight"
-                style={{ position: "relative", zIndex: 1 }}
-              >
-                {t(labelKey)}
-              </span>
             </Link>
           </motion.div>
         );

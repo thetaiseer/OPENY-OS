@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Clock3, Plus, RefreshCw, Workflow, Zap, Trash2, Edit, Play, Pause } from "lucide-react";
+import { CheckCircle2, Clock3, Edit, Pause, Play, Plus, RefreshCw, Trash2, Workflow, Zap } from "lucide-react";
 import { useTasks, useTeam } from "@/lib/AppContext";
 import { useRecurringTasks } from "@/lib/RecurringTaskContext";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -19,13 +19,110 @@ import {
   DonutChart,
   EmptyPanel,
   InfoBadge,
-  KanbanBoard,
   PageHeader,
   PageMotion,
   Panel,
+  SegmentedControl,
   StatCard,
   pageText,
 } from "@/components/redesign/ui";
+
+type StatusFilter = "all" | "todo" | "in-progress" | "done";
+
+const PRIORITY_CONFIG = {
+  high: { color: "var(--rose)", label: { en: "High Priority", ar: "أولوية عالية" } },
+  urgent: { color: "#dc2626", label: { en: "Urgent", ar: "عاجل" } },
+  medium: { color: "var(--amber)", label: { en: "Medium Priority", ar: "أولوية متوسطة" } },
+  low: { color: "var(--mint)", label: { en: "Low Priority", ar: "أولوية منخفضة" } },
+} as const;
+
+type PriorityKey = keyof typeof PRIORITY_CONFIG;
+
+const STATUS_OPTIONS = [
+  { value: "all" as StatusFilter, label: pageText("All", "الكل") },
+  { value: "todo" as StatusFilter, label: pageText("To do", "للعمل") },
+  { value: "in-progress" as StatusFilter, label: pageText("In progress", "قيد التنفيذ") },
+  { value: "done" as StatusFilter, label: pageText("Done", "مكتمل") },
+];
+
+function AssigneeAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div
+      className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+      style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-2))" }}
+      title={name}
+    >
+      {initials}
+    </div>
+  );
+}
+
+interface TaskRowProps {
+  task: Task;
+  isArabic: boolean;
+  priorityColor: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggle: () => void;
+}
+
+function TaskRow({ task, isArabic, priorityColor, onEdit, onDelete, onToggle }: TaskRowProps) {
+  const isDone = task.status === "done";
+  const assigneeName = task.assigneeName || task.assignee || "";
+  return (
+    <div className="card card-hover flex items-center gap-3 px-4 py-3">
+      <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: priorityColor }} />
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-sm font-medium truncate"
+          style={{
+            color: isDone ? "var(--muted)" : "var(--text)",
+            textDecoration: isDone ? "line-through" : "none",
+          }}
+        >
+          {task.title}
+        </p>
+        {task.clientName && (
+          <p className="text-xs" style={{ color: "var(--muted)" }}>{task.clientName}</p>
+        )}
+      </div>
+      {assigneeName && <AssigneeAvatar name={assigneeName} />}
+      {task.dueDate && (
+        <span className="hidden sm:block text-xs flex-shrink-0" style={{ color: "var(--muted)" }}>
+          {task.dueDate}
+        </span>
+      )}
+      <InfoBadge
+        label={task.status}
+        tone={task.status === "done" ? "mint" : task.status === "in-progress" || task.status === "in_progress" ? "violet" : "amber"}
+      />
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="hidden sm:flex h-7 w-7 items-center justify-center rounded-xl transition hover:bg-[var(--glass-overlay)]"
+          style={{ color: "var(--muted)" }}
+          title={isDone ? (isArabic ? "إعادة فتح" : "Reopen") : (isArabic ? "تمييز كمكتمل" : "Mark done")}
+        >
+          <CheckCircle2 size={15} />
+        </button>
+        <ActionMenu
+          items={[
+            { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: onEdit },
+            { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: onDelete },
+          ]}
+          size={16}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function TasksPage() {
   const { tasks, toggleTaskDone, deleteTask } = useTasks();
@@ -41,6 +138,7 @@ export default function TasksPage() {
   const [deleting, setDeleting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const handleDeleteTask = async (id: string) => {
     setDeleting(true);
@@ -86,26 +184,44 @@ export default function TasksPage() {
   };
 
   const openTasks = tasks.filter((task) => task.status !== "done").length;
-  const inProgress = tasks.filter((task) => task.status === "in-progress").length;
+  const inProgress = tasks.filter((task) => task.status === "in-progress" || task.status === "in_progress").length;
   const doneTasks = tasks.filter((task) => task.status === "done").length;
-  const overdue = tasks.filter((task) => task.status !== "done" && task.dueDate && !Number.isNaN(new Date(task.dueDate).getTime()) && new Date(task.dueDate) < new Date()).length;
+  const overdue = tasks.filter(
+    (task) =>
+      task.status !== "done" &&
+      task.dueDate &&
+      !Number.isNaN(new Date(task.dueDate).getTime()) &&
+      new Date(task.dueDate) < new Date()
+  ).length;
 
-  const columns = [
-    { id: "todo", title: isArabic ? "للعمل" : "To do", items: tasks.filter((task) => task.status === "todo") },
-    { id: "doing", title: isArabic ? "قيد التنفيذ" : "In progress", items: tasks.filter((task) => task.status === "in-progress") },
-    { id: "done", title: isArabic ? "مكتمل" : "Done", items: tasks.filter((task) => task.status === "done") },
-  ];
-
-  const workload = members.map((member) => ({
-    label: member.name,
-    value: tasks.filter((task) => task.assigneeId === member.id && task.status !== "done").length,
-    meta: member.role,
-  })).filter((item) => item.value > 0);
+  const workload = members
+    .map((member) => ({
+      label: member.name,
+      value: tasks.filter((task) => task.assigneeId === member.id && task.status !== "done").length,
+      meta: member.role,
+    }))
+    .filter((item) => item.value > 0);
 
   const deadlineList = [...tasks]
     .filter((task) => task.dueDate)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 8);
+
+  const filteredTasks = tasks.filter((task) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "in-progress") return task.status === "in-progress" || task.status === "in_progress";
+    return task.status === statusFilter;
+  });
+
+  const PRIORITY_ORDER: PriorityKey[] = ["urgent", "high", "medium", "low"];
+
+  const priorityGroups = PRIORITY_ORDER.map((priority) => ({
+    priority,
+    tasks: filteredTasks.filter((task) => task.priority === priority),
+  })).filter((group) => group.tasks.length > 0);
+
+  const knownPriorities = new Set(PRIORITY_ORDER as string[]);
+  const noPriorityTasks = filteredTasks.filter((task) => !knownPriorities.has(task.priority));
 
   return (
     <PageMotion>
@@ -146,10 +262,9 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => setShowAddTask(true)}
-              className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-2))", color: "white", borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600 }}
             >
-              <Plus size={16} />
-              {isArabic ? "إضافة مهمة" : "Add task"}
+              + {isArabic ? "إضافة مهمة" : "Add Task"}
             </button>
             <ButtonLink href="/team" label={pageText("Open team view", "افتح عرض الفريق")} tone="mint" />
           </>
@@ -164,65 +279,107 @@ export default function TasksPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title={pageText("Completion health", "صحة الإنجاز")} description={pageText("Track finished work versus the full backlog.", "تابع الإنجاز مقابل كامل قائمة العمل.")}
-          action={<InfoBadge label={isArabic ? `${doneTasks}/${tasks.length || 0} مكتمل` : `${doneTasks}/${tasks.length || 0} completed`} tone="mint" />}>
+        <Panel
+          title={pageText("Completion health", "صحة الإنجاز")}
+          description={pageText("Track finished work versus the full backlog.", "تابع الإنجاز مقابل كامل قائمة العمل.")}
+          action={<InfoBadge label={isArabic ? `${doneTasks}/${tasks.length || 0} مكتمل` : `${doneTasks}/${tasks.length || 0} completed`} tone="mint" />}
+        >
           <DonutChart value={doneTasks} total={tasks.length || 1} tone="mint" label={isArabic ? "إنجاز" : "Completion"} />
         </Panel>
 
-        <Panel title={pageText("Team workload", "عبء الفريق")} description={pageText("Live assignment pressure based on active tasks.", "ضغط التعيينات المباشر بناءً على المهام النشطة.")}
-          action={<InfoBadge label={isArabic ? `${members.length} عضو` : `${members.length} members`} tone="blue" />}>
-          {workload.length === 0 ? <EmptyPanel title={pageText("No active allocations", "لا توجد توزيعات نشطة")} description={pageText("Once tasks are assigned to team members, their live workload appears here.", "عند تعيين المهام لأعضاء الفريق سيظهر عبؤهم المباشر هنا.")} /> : <BarListChart items={workload} tone="violet" />}
+        <Panel
+          title={pageText("Team workload", "عبء الفريق")}
+          description={pageText("Live assignment pressure based on active tasks.", "ضغط التعيينات المباشر بناءً على المهام النشطة.")}
+          action={<InfoBadge label={isArabic ? `${members.length} عضو` : `${members.length} members`} tone="blue" />}
+        >
+          {workload.length === 0 ? (
+            <EmptyPanel
+              title={pageText("No active allocations", "لا توجد توزيعات نشطة")}
+              description={pageText("Once tasks are assigned to team members, their live workload appears here.", "عند تعيين المهام لأعضاء الفريق سيظهر عبؤهم المباشر هنا.")}
+            />
+          ) : (
+            <BarListChart items={workload} tone="violet" />
+          )}
         </Panel>
       </section>
 
-      <Panel title={pageText("Task board", "لوحة المهام")} description={pageText("Manage tasks across todo, active, and completed states.", "إدارة المهام عبر حالات المعلق والنشط والمنجز.")}
-        action={<InfoBadge label={isArabic ? `${tasks.length} مهمة` : `${tasks.length} tasks`} tone="blue" />}>
-        {tasks.length === 0 ? (
-          <EmptyPanel title={pageText("No tasks in the workspace", "لا توجد مهام في مساحة العمل")} description={pageText("Create tasks from your workflow and they will appear here automatically.", "أنشئ مهام من سير العمل وستظهر هنا تلقائيًا.")} />
-        ) : (
-          <KanbanBoard
-            columns={columns}
-            renderItem={(task) => (
-              <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</h3>
-                    <p className="mt-1 text-xs text-[var(--muted)]">{task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <InfoBadge label={task.priority} tone={task.priority === "high" ? "rose" : task.priority === "medium" ? "amber" : "mint"} />
-                    {task.workflowSteps && task.workflowSteps.length > 0 && (
-                      <InfoBadge
-                        label={`${(task.workflowIndex ?? 0) + 1}/${task.workflowSteps.length}`}
-                        tone="violet"
-                      />
-                    )}
-                    <ActionMenu
-                      items={[
-                        { label: isArabic ? "تعديل" : "Edit", icon: Edit, onClick: () => setEditTask(task) },
-                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger", onClick: () => setConfirmDelete(task.id) },
-                      ]}
-                      size={16}
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
-                  <span>{task.dueDate || (isArabic ? "بدون موعد" : "No deadline")}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleTaskDone(task.id)}
-                    className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
-                  >
-                    {task.status === "done" ? (isArabic ? "إعادة فتح" : "Re-open") : (isArabic ? "تمييز كمكتمل" : "Mark done")}
-                  </button>
-                </div>
-              </article>
-            )}
+      {/* Task List grouped by priority */}
+      <Panel
+        title={pageText("Task list", "قائمة المهام")}
+        description={pageText("All tasks grouped by priority.", "جميع المهام مجمّعة حسب الأولوية.")}
+        action={
+          <div className="flex items-center gap-3">
+            <InfoBadge label={isArabic ? `${filteredTasks.length} مهمة` : `${filteredTasks.length} tasks`} tone="blue" />
+            <SegmentedControl
+              value={statusFilter}
+              options={STATUS_OPTIONS}
+              onChange={setStatusFilter}
+            />
+          </div>
+        }
+      >
+        {filteredTasks.length === 0 ? (
+          <EmptyPanel
+            title={pageText("No tasks in the workspace", "لا توجد مهام في مساحة العمل")}
+            description={pageText("Create tasks from your workflow and they will appear here automatically.", "أنشئ مهام من سير العمل وستظهر هنا تلقائيًا.")}
           />
+        ) : (
+          <div className="space-y-6">
+            {priorityGroups.map(({ priority, tasks: groupTasks }) => {
+              const config = PRIORITY_CONFIG[priority];
+              return (
+                <div key={priority}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: config.color }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: config.color }}>
+                      {isArabic ? config.label.ar : config.label.en}
+                    </span>
+                    <span className="text-xs" style={{ color: "var(--muted)" }}>({groupTasks.length})</span>
+                  </div>
+                  <div className="space-y-2">
+                    {groupTasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        isArabic={isArabic}
+                        priorityColor={config.color}
+                        onEdit={() => setEditTask(task)}
+                        onDelete={() => setConfirmDelete(task.id)}
+                        onToggle={() => toggleTaskDone(task.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {noPriorityTasks.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: "var(--muted)" }} />
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                    {isArabic ? "غير محدد" : "No Priority"} ({noPriorityTasks.length})
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {noPriorityTasks.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      isArabic={isArabic}
+                      priorityColor="var(--muted)"
+                      onEdit={() => setEditTask(task)}
+                      onDelete={() => setConfirmDelete(task.id)}
+                      onToggle={() => toggleTaskDone(task.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </Panel>
 
-      {/* ── Recurring Task Templates ─────────────────────────── */}
+      {/* Recurring Task Templates */}
       <Panel
         title={pageText("Recurring task templates", "قوالب المهام المتكررة")}
         description={pageText(
@@ -230,9 +387,7 @@ export default function TasksPage() {
           "حدد المهام الروتينية التي تنشأ تلقائياً مع بداية كل شهر أو أسبوع."
         )}
         action={
-          <div className="flex items-center gap-2">
-            <InfoBadge label={isArabic ? `${templates.length} قالب` : `${templates.length} templates`} tone="violet" />
-          </div>
+          <InfoBadge label={isArabic ? `${templates.length} قالب` : `${templates.length} templates`} tone="violet" />
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -281,9 +436,7 @@ export default function TasksPage() {
                   <ActionMenu
                     items={[
                       {
-                        label: tmpl.isActive
-                          ? (isArabic ? "إيقاف مؤقت" : "Pause")
-                          : (isArabic ? "تفعيل" : "Activate"),
+                        label: tmpl.isActive ? (isArabic ? "إيقاف مؤقت" : "Pause") : (isArabic ? "تفعيل" : "Activate"),
                         icon: tmpl.isActive ? Pause : Play,
                         onClick: () => toggleTemplate(tmpl.id, !tmpl.isActive),
                       },
@@ -329,23 +482,49 @@ export default function TasksPage() {
         )}
       </Panel>
 
-      <Panel title={pageText("Upcoming deadlines", "المواعيد القادمة")} description={pageText("Chronological visibility for the next tasks that need attention.", "رؤية زمنية للمهام التالية التي تحتاج اهتمامًا.")}>
+      <Panel
+        title={pageText("Upcoming deadlines", "المواعيد القادمة")}
+        description={pageText("Chronological visibility for the next tasks that need attention.", "رؤية زمنية للمهام التالية التي تحتاج اهتمامًا.")}
+      >
         <div className="space-y-3">
           {deadlineList.map((task) => (
-            <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
+            <div
+              key={task.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4"
+            >
               <div>
                 <h3 className="text-sm font-semibold text-[var(--text)]">{task.title}</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">{task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {task.assigneeName || task.assignee || (isArabic ? "غير معيّن" : "Unassigned")}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <InfoBadge label={task.dueDate || (isArabic ? "بدون موعد" : "No deadline")} tone="slate" />
-                <InfoBadge label={task.status} tone={task.status === "done" ? "mint" : task.status === "in-progress" ? "violet" : "amber"} />
+                <InfoBadge
+                  label={task.status}
+                  tone={task.status === "done" ? "mint" : task.status === "in-progress" || task.status === "in_progress" ? "violet" : "amber"}
+                />
               </div>
             </div>
           ))}
-          {deadlineList.length === 0 ? <EmptyPanel title={pageText("No deadlines available", "لا توجد مواعيد متاحة")} description={pageText("Tasks with due dates will appear here automatically.", "المهام ذات المواعيد النهائية ستظهر هنا تلقائيًا.")} /> : null}
+          {deadlineList.length === 0 && (
+            <EmptyPanel
+              title={pageText("No deadlines available", "لا توجد مواعيد متاحة")}
+              description={pageText("Tasks with due dates will appear here automatically.", "المهام ذات المواعيد النهائية ستظهر هنا تلقائيًا.")}
+            />
+          )}
         </div>
       </Panel>
+
+      {/* Mobile FAB */}
+      <button
+        type="button"
+        onClick={() => setShowAddTask(true)}
+        className="mobile-fab"
+        aria-label={isArabic ? "إضافة مهمة" : "Add task"}
+      >
+        <Plus size={22} />
+      </button>
     </PageMotion>
   );
 }

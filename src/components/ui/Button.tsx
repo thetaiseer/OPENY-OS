@@ -24,25 +24,25 @@ export function Button({
   
   const variants: Record<string, React.CSSProperties> = {
     primary: {
-      background: 'var(--accent)',
+      background: 'linear-gradient(135deg, #4F6EF7 0%, #7C5CF6 100%)',
       color: 'white',
       border: 'none',
-      boxShadow: '0 2px 8px var(--accent-dim)',
+      boxShadow: '0 2px 12px rgba(79,110,247,0.30)',
     },
     secondary: {
-      background: 'var(--glass-overlay)',
-      color: 'var(--text-primary)',
-      border: '1px solid var(--glass-overlay-border)',
+      background: 'var(--panel)',
+      color: 'var(--text)',
+      border: '1.5px solid var(--border)',
     },
     ghost: {
       background: 'transparent',
-      color: 'var(--text-secondary)',
+      color: 'var(--muted)',
       border: '1px solid var(--border)',
     },
     destructive: {
-      background: 'rgba(239,68,68,0.10)',
-      color: 'var(--error)',
-      border: '1px solid rgba(239,68,68,0.22)',
+      background: 'rgba(239,68,68,0.08)',
+      color: '#ef4444',
+      border: '1.5px solid rgba(239,68,68,0.20)',
     },
   };
   

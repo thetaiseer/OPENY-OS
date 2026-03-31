@@ -171,7 +171,7 @@ export default function SettingsPage() {
     <PageMotion>
       <PageHeader
         eyebrow={pageText("Account & system", "الحساب والنظام")}
-        title={pageText("Account settings", "إعدادات الحساب")}
+        title={pageText("Settings", "الإعدادات")}
         description={pageText(
           "Manage your profile, security, notifications, and interface preferences.",
           "إدارة ملفك الشخصي والأمان والإشعارات وتفضيلات الواجهة."

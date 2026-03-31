@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Inbox, type LucideIcon } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import type { ReactNode } from "react";
 
@@ -93,9 +93,9 @@ export function PageHeader({
 
   return (
     <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <div
-          className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-widest"
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest"
           style={{
             background: "var(--accent-soft)",
             color: "var(--accent)",
@@ -105,8 +105,8 @@ export function PageHeader({
           {eyebrowText}
         </div>
         <h1
-          className="text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: "var(--text)" }}
+          className="font-bold tracking-tight"
+          style={{ color: "var(--text)", fontSize: "clamp(24px,4vw,32px)", lineHeight: "1.2" }}
         >
           {titleText}
         </h1>
@@ -195,11 +195,14 @@ export function ButtonLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm"
+      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm"
       style={{
-        background: colors.bg,
-        borderColor: colors.border,
-        color: colors.text,
+        background: tone === "blue"
+          ? "linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)"
+          : colors.bg,
+        borderRadius: "var(--radius-btn)",
+        color: tone === "blue" ? "#ffffff" : colors.text,
+        border: tone === "blue" ? "none" : `1px solid ${colors.border}`,
       }}
     >
       {text}
@@ -232,19 +235,24 @@ export function StatCard({
       whileHover={{ y: -2, boxShadow: "var(--shadow-md)" }}
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.16 }}
-      className="overflow-hidden rounded-2xl border p-5"
+      className="relative overflow-hidden rounded-2xl border p-5"
       style={{
         background: "var(--panel)",
         borderColor: "var(--border)",
         boxShadow: "var(--shadow)",
       }}
     >
-      <div className="flex items-start justify-between gap-3">
+      {/* Gradient overlay top-left */}
+      <div
+        className="pointer-events-none absolute left-0 top-0 h-24 w-24 rounded-br-full"
+        style={{ background: `radial-gradient(circle at 0% 0%, ${colors.bg} 0%, transparent 70%)` }}
+      />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
             {labelText}
           </p>
-          <p className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text)" }}>
+          <p className="font-bold tracking-tight" style={{ color: "var(--text)", fontSize: "clamp(28px,3vw,32px)", lineHeight: "1" }}>
             {value}
           </p>
           <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
@@ -252,8 +260,8 @@ export function StatCard({
           </p>
         </div>
         <span
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: colors.bg, color: colors.accent }}
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+          style={{ background: colors.bg, color: colors.accent, borderRadius: "12px" }}
         >
           <Icon size={20} />
         </span>
@@ -276,10 +284,10 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div
-      className="inline-flex items-center gap-1 rounded-2xl border p-1"
+      className="inline-flex items-center gap-1 rounded-full p-1"
       style={{
         background: "var(--glass-overlay)",
-        borderColor: "var(--border)",
+        border: "1px solid var(--border)",
       }}
     >
       {options.map((option) => {
@@ -291,11 +299,11 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className="rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-150"
+            className="rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-150"
             style={{
               background: active ? "var(--panel)" : "transparent",
               color: active ? "var(--accent)" : "var(--muted)",
-              boxShadow: active ? "var(--shadow-xs)" : "none",
+              boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
             }}
           >
             {label}
@@ -520,6 +528,8 @@ export function CalendarHeatmap({
 }
 
 /* ── Kanban Board ── */
+const COLUMN_ACCENTS = ["var(--accent)", "var(--accent-2)", "var(--mint)", "var(--amber)"];
+
 export function KanbanBoard<T extends { id: string }>({
   columns,
   renderItem,
@@ -542,36 +552,37 @@ export function KanbanBoard<T extends { id: string }>({
         className="flex gap-4 xl:grid xl:grid-cols-4"
         style={{ minWidth: `${columns.length * 260}px` }}
       >
-        {columns.map((column) => (
-          <div
-            key={column.id}
-            className="w-[260px] flex-shrink-0 rounded-2xl border p-4 xl:w-auto"
-            style={{
-              background: "var(--glass-overlay)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
+        {columns.map((column, idx) => {
+          const accent = COLUMN_ACCENTS[idx % COLUMN_ACCENTS.length];
+          return (
+            <div
+              key={column.id}
+              className="w-[260px] flex-shrink-0 rounded-2xl border xl:w-auto"
+              style={{
+                background: "var(--glass-overlay)",
+                borderColor: "var(--border)",
+                borderTop: `3px solid ${accent}`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
                 <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
                   {column.title}
                 </div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                  {column.items.length} {column.items.length === 1 ? "item" : "items"}
-                </div>
+                <span
+                  className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+                  style={{ background: accent, color: "#ffffff" }}
+                >
+                  {column.items.length}
+                </span>
               </div>
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: "var(--accent)" }}
-              />
+              <div className="space-y-2.5 px-4 pb-4">
+                {column.items.map((item) => (
+                  <div key={item.id}>{renderItem(item)}</div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2.5">
-              {column.items.map((item) => (
-                <div key={item.id}>{renderItem(item)}</div>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -582,11 +593,12 @@ export function InfoBadge({ label, tone = "slate" }: { label: string; tone?: Ton
   const colors = TONE_STYLES[tone];
   return (
     <span
-      className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold"
       style={{
         background: colors.bg,
-        borderColor: colors.border,
+        border: `1px solid ${colors.border}`,
         color: colors.text,
+        fontSize: "11px",
       }}
     >
       {label}
@@ -613,9 +625,11 @@ export function EmptyPanel({
     >
       <div
         className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
-        style={{ background: "var(--glass-overlay)" }}
+        style={{
+          background: "linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-2-soft) 100%)",
+        }}
       >
-        <span className="h-6 w-6 rounded-lg" style={{ background: "var(--border)" }} />
+        <Inbox size={22} style={{ color: "var(--accent)" }} />
       </div>
       <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>
         {titleText}
