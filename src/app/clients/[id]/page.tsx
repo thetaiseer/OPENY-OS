@@ -171,7 +171,7 @@ export default function ClientWorkspacePage() {
       >
         <div
           className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-          style={{ background: client.color ?? "linear-gradient(135deg,#4F6EF7,#7C5CF6)" }}
+          style={{ background: client.color ?? "linear-gradient(135deg, var(--accent), var(--accent-2))" }}
         >
           {client.initials}
         </div>

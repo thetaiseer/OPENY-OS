@@ -598,7 +598,7 @@ export function InfoBadge({ label, tone = "slate" }: { label: string; tone?: Ton
         background: colors.bg,
         border: `1px solid ${colors.border}`,
         color: colors.text,
-        fontSize: "10px",
+        fontSize: "11px",
       }}
     >
       {label}

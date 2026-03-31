@@ -111,7 +111,7 @@ export default function ReportsPage() {
         description={pageText("Core outcome ratios across tasks, content, and approvals.", "نسب النتائج الأساسية عبر المهام والمحتوى والموافقات.")}
       >
         <div className="grid gap-4 md:grid-cols-3">
-          <ScoreCard label={isArabic ? "اكتمال المهام" : "Task completion"} value={`${completedTasks}/${tasks.length || 0}`} icon={ListChecks} />
+          <ScoreCard label={isArabic ? "اكتمال المهام" : "Task completion"} value={`${completedTasks}/${tasks.length}`} icon={ListChecks} />
           <ScoreCard label={isArabic ? "موافقة المحتوى" : "Approval progress"} value={`${approvalRate}/${approvals.length || 0}`} icon={CheckCircle2} />
           <ScoreCard label={isArabic ? "إجمالي المحتوى" : "Total content"} value={contentItems.length} icon={BarChart3} />
         </div>

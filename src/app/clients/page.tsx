@@ -212,7 +212,7 @@ export default function ClientsPage() {
                         className="h-12 w-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
                         style={{ background: getAvatarGradient(entry.client.name) }}
                       >
-                        {(entry.client.name[0] ?? "?").toUpperCase()}
+                        {(entry.client.name?.length > 0 ? entry.client.name[0] : "?").toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-semibold truncate text-sm" style={{ color: "var(--text)" }}>{entry.client.name}</h3>
