@@ -7,6 +7,7 @@ import { useContentItems } from "@/lib/ContentContext";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 import type { ContentPlatform, ContentType } from "@/lib/types";
 
 interface AddContentModalProps {
@@ -38,6 +39,7 @@ export function AddContentModal({ open, onClose }: AddContentModalProps) {
   const { clients } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [clientId, setClientId] = useState("");
@@ -86,10 +88,13 @@ export function AddContentModal({ open, onClose }: AddContentModalProps) {
         status: "idea",
         priority: "medium",
       });
+      showToast(isAr ? "تمت إضافة المحتوى بنجاح" : "Content added successfully", "success");
       reset();
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

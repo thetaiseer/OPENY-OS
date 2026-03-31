@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useTeam } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 
 interface AddMemberModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
   const { addMember } = useTeam();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -53,10 +55,13 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
     setError("");
     try {
       await addMember({ name: name.trim(), role: role.trim(), email: email.trim() });
+      showToast(isAr ? "تمت إضافة العضو بنجاح" : "Member added successfully", "success");
       reset();
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

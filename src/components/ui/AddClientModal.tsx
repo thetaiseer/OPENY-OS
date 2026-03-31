@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 
 interface AddClientModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
   const { addClient } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,10 +53,13 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
     setError("");
     try {
       await addClient({ name: name.trim(), email: email.trim(), phone: phone.trim() || undefined, website: website.trim() || undefined });
+      showToast(isAr ? "تمت إضافة العميل بنجاح" : "Client added successfully", "success");
       reset();
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
