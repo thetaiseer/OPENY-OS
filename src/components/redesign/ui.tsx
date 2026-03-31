@@ -1,474 +1,686 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowUpRight, Inbox } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUpRight, Inbox, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { ReactNode, useState } from "react";
 
-
-
-
-
-
-const TONE_STYLES =
-
-
-{
-  blue: {
-    accent: "var(--accent)",
-    bg: "var(--accent-soft)",
-    border: "rgba(37,99,235,0.2)",
-    text: "var(--accent)"
-  },
-  violet: {
-    accent: "var(--accent-2)",
-    bg: "var(--accent-2-soft)",
-    border: "rgba(99,102,241,0.2)",
-    text: "var(--accent-2)"
-  },
-  mint: {
-    accent: "var(--mint)",
-    bg: "var(--mint-soft)",
-    border: "rgba(16,185,129,0.2)",
-    text: "var(--mint)"
-  },
-  amber: {
-    accent: "var(--amber)",
-    bg: "var(--amber-soft)",
-    border: "rgba(245,158,11,0.2)",
-    text: "var(--amber)"
-  },
-  rose: {
-    accent: "var(--rose)",
-    bg: "var(--rose-soft)",
-    border: "rgba(239,68,68,0.2)",
-    text: "var(--rose)"
-  },
-  slate: {
-    accent: "var(--muted)",
-    bg: "var(--glass-overlay)",
-    border: "var(--border)",
-    text: "var(--muted)"
-  }
-};
-
-export function pickLocalized(text, language) {
+/* ─── Helpers ─── */
+export function pickLocalized(text: { en: string; ar: string }, language: string): string {
   return language === "ar" ? text.ar : text.en;
 }
 
-export function pageText(en, ar) {
+export function pageText(en: string, ar: string): { en: string; ar: string } {
   return { en, ar };
 }
 
-/* ── Page animation wrapper ── */
-export function PageMotion({ children }) {
+type Localizable = string | { en: string; ar: string };
+
+function resolveText(val: Localizable | undefined, language: string): string | undefined {
+  if (val === undefined) return undefined;
+  if (typeof val === "string") return val;
+  return language === "ar" ? val.ar : val.en;
+}
+
+/* ─── Page animation wrapper ─── */
+export function PageMotion({ children }: { children: ReactNode }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="space-y-6">
-      
+      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+    >
       {children}
-    </motion.div>);
-
+    </motion.div>
+  );
 }
 
-/* ── Page Header ── */
-export function PageHeader({
-  eyebrow,
-  title,
-  description,
-  actions = null
+/* ─── Page Header ─── */
+interface PageHeaderProps {
+  eyebrow: { en: string; ar: string };
+  title: { en: string; ar: string };
+  description?: { en: string; ar: string };
+  actions?: ReactNode;
+}
 
-
-
-
-
-}) {
+export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
   const { language } = useLanguage();
-  const eyebrowText = pickLocalized(eyebrow, language);
-  const titleText = pickLocalized(title, language);
-  const descriptionText = pickLocalized(description, language);
-
   return (
-    <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-2">
-        <div
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest"
-          style={{
-            background: "var(--accent-soft)",
-            color: "var(--accent)"
-          }}>
-          
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-          {eyebrowText}
-        </div>
-        <h1
-          className="font-bold tracking-tight"
-          style={{ color: "var(--text)", fontSize: "clamp(24px,4vw,32px)", lineHeight: "1.2" }}>
-          
-          {titleText}
-        </h1>
-        <p
-          className="hidden max-w-2xl text-sm leading-relaxed sm:block"
-          style={{ color: "var(--muted)" }}>
-          
-          {descriptionText}
+    <div style={{
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 16,
+      marginBottom: 28,
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <p style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: "var(--accent)",
+          marginBottom: 6,
+        }}>
+          {pickLocalized(eyebrow, language)}
         </p>
+        <h1 style={{
+          fontSize: "clamp(1.35rem, 3vw, 1.65rem)",
+          fontWeight: 700, letterSpacing: "-0.015em",
+          color: "var(--text)", lineHeight: 1.25,
+          margin: 0,
+        }}>
+          {pickLocalized(title, language)}
+        </h1>
+        {description && (
+          <p style={{
+            fontSize: 13.5, color: "var(--text-secondary)",
+            marginTop: 6, lineHeight: 1.5, margin: "6px 0 0",
+          }}>
+            {pickLocalized(description, language)}
+          </p>
+        )}
       </div>
-      {actions ?
-      <div className="flex flex-wrap items-center gap-2">{actions}</div> :
-      null}
-    </section>);
-
+      {actions && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
+          {actions}
+        </div>
+      )}
+    </div>
+  );
 }
 
-/* ── Panel / Card ── */
-export function Panel({
-  title = null,
-  description = null,
-  action = null,
-  children,
-  className = "",
-  noPadding = false
+/* ─── Panel ─── */
+interface PanelProps {
+  children: ReactNode;
+  title?: Localizable;
+  subtitle?: Localizable;
+  description?: Localizable;
+  actions?: ReactNode;
+  action?: ReactNode;
+  padding?: number | string;
+  noPadding?: boolean;
+  style?: React.CSSProperties;
+  className?: string;
+}
 
-
-
-
-
-
-
-}) {
+export function Panel({ children, title, subtitle, description, actions, action, padding = "1.25rem", noPadding, style, className }: PanelProps) {
   const { language } = useLanguage();
-  const titleText = title ? pickLocalized(title, language) : null;
-  const descriptionText = description ? pickLocalized(description, language) : null;
-
+  const resolvedTitle = resolveText(title, language);
+  const resolvedSubtitle = resolveText(subtitle ?? description, language);
+  const resolvedActions = actions ?? action;
+  const resolvedPadding = noPadding ? 0 : padding;
   return (
-    <section
-      className={`overflow-hidden rounded-2xl border ${className}`.trim()}
+    <div
+      className={className}
       style={{
         background: "var(--panel)",
-        borderColor: "var(--border)",
-        boxShadow: "var(--shadow)"
-      }}>
-      
-      {(titleText || descriptionText || action) &&
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6"
-        style={{ borderColor: "var(--border)" }}>
-        
-          <div className="space-y-0.5">
-            {titleText ?
-          <h2 className="text-sm font-semibold sm:text-base" style={{ color: "var(--text)" }}>
-                {titleText}
-              </h2> :
-          null}
-            {descriptionText ?
-          <p className="hidden text-xs sm:block" style={{ color: "var(--muted)" }}>
-                {descriptionText}
-              </p> :
-          null}
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-card)",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      {(resolvedTitle || resolvedActions) && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: `1rem ${resolvedPadding}`,
+          borderBottom: "1px solid var(--border)",
+        }}>
+          <div>
+            {resolvedTitle && (
+              <h3 style={{
+                fontSize: 14, fontWeight: 600, color: "var(--text)",
+                margin: 0,
+              }}>
+                {resolvedTitle}
+              </h3>
+            )}
+            {resolvedSubtitle && (
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                {resolvedSubtitle}
+              </p>
+            )}
           </div>
-          {action ? <div className="flex items-center gap-2">{action}</div> : null}
+          {resolvedActions && <div style={{ display: "flex", gap: 8 }}>{resolvedActions}</div>}
         </div>
-      }
-      <div className={noPadding ? "" : "p-5 sm:p-6"}>{children}</div>
-    </section>);
-
+      )}
+      <div style={{ padding: resolvedPadding }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
-/* ── Button Link ── */
-export function ButtonLink({
-  href,
-  label,
-  tone = "blue"
+/* ─── StatCard ─── */
+type StatCardTone = "blue" | "violet" | "mint" | "amber" | "rose" | "cyan";
 
+interface StatCardProps {
+  label: Localizable;
+  value: string | number;
+  sub?: Localizable;
+  hint?: Localizable;
+  icon?: React.ElementType;
+  tone?: StatCardTone;
+  trend?: number;
+  href?: string;
+  loading?: boolean;
+}
 
+const TONE_COLORS = {
+  blue:   { bg: "var(--accent-soft)",   color: "var(--accent)",  glow: "rgba(59,130,246,0.25)" },
+  violet: { bg: "var(--accent-2-soft)", color: "var(--accent-2)", glow: "rgba(139,92,246,0.25)" },
+  mint:   { bg: "var(--mint-soft)",     color: "var(--mint)",    glow: "rgba(16,185,129,0.2)" },
+  amber:  { bg: "var(--amber-soft)",    color: "var(--amber)",   glow: "rgba(245,158,11,0.2)" },
+  rose:   { bg: "var(--rose-soft)",     color: "var(--rose)",    glow: "rgba(239,68,68,0.2)" },
+  cyan:   { bg: "var(--cyan-soft)",     color: "var(--cyan)",    glow: "rgba(6,182,212,0.2)" },
+};
 
+function resolveText(val: Localizable | undefined, language: string): string | undefined {
+  if (val === undefined) return undefined;
+  if (typeof val === "string") return val;
+  return language === "ar" ? val.ar : val.en;
+}
 
-}) {
+export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", trend, href, loading }: StatCardProps) {
   const { language } = useLanguage();
-  const text = pickLocalized(label, language);
-  const colors = TONE_STYLES[tone];
+  const tc = TONE_COLORS[tone];
+  const resolvedLabel = resolveText(label, language) ?? "";
+  const resolvedSub = resolveText(sub ?? hint, language);
+  const Wrapper = href ? Link : "div";
 
+  if (loading) {
+    return (
+      <div style={{
+        background: "var(--panel)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-card)",
+        padding: "1.25rem",
+      }}>
+        <div className="skeleton" style={{ height: 12, width: "40%", marginBottom: 16 }} />
+        <div className="skeleton" style={{ height: 28, width: "60%" }} />
+      </div>
+    );
+  }
+
+  return (
+    <Wrapper
+      {...(href ? { href } : {})}
+      style={{
+        display: "block",
+        background: "var(--panel)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-card)",
+        padding: "1.25rem",
+        textDecoration: "none",
+        cursor: href ? "pointer" : "default",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Subtle top accent line */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        height: 2,
+        background: `linear-gradient(90deg, ${tc.color}60, transparent)`,
+      }} />
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <p style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+          textTransform: "uppercase", color: "var(--text-muted)",
+          margin: 0,
+        }}>
+          {resolvedLabel}
+        </p>
+        {Icon && (
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: tc.bg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <Icon size={16} style={{ color: tc.color }} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+        <span style={{
+          fontSize: "clamp(1.5rem, 3vw, 2rem)",
+          fontWeight: 700, color: "var(--text)",
+          lineHeight: 1, letterSpacing: "-0.02em",
+        }}>
+          {value}
+        </span>
+        {trend !== undefined && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 3,
+            fontSize: 12, fontWeight: 600,
+            color: trend > 0 ? "var(--mint)" : trend < 0 ? "var(--rose)" : "var(--text-muted)",
+            marginBottom: 3,
+          }}>
+            {trend > 0 ? <TrendingUp size={13} /> : trend < 0 ? <TrendingDown size={13} /> : <Minus size={13} />}
+            {Math.abs(trend)}%
+          </div>
+        )}
+      </div>
+
+      {resolvedSub && (
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6, margin: "6px 0 0" }}>
+          {resolvedSub}
+        </p>
+      )}
+
+      {href && (
+        <div style={{
+          position: "absolute", top: 16, right: 16,
+          color: "var(--text-muted)",
+          opacity: 0.4,
+        }}>
+          <ArrowUpRight size={14} />
+        </div>
+      )}
+    </Wrapper>
+  );
+}
+
+/* ─── MiniAreaChart ─── */
+interface MiniAreaChartProps {
+  data: number[];
+  color?: string;
+  height?: number;
+  filled?: boolean;
+}
+
+export function MiniAreaChart({ data, color = "var(--accent)", height = 48, filled = true }: MiniAreaChartProps) {
+  if (!data || data.length < 2) return null;
+
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const w = 200;
+  const h = height;
+  const pts = data.map((v, i) => ({
+    x: (i / (data.length - 1)) * w,
+    y: h - ((v - min) / range) * h * 0.85 - h * 0.075,
+  }));
+
+  const line = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `${line} L ${w} ${h} L 0 ${h} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height, display: "block" }}>
+      <defs>
+        <linearGradient id={`fill-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {filled && (
+        <path
+          d={area}
+          fill={`url(#fill-${color.replace(/[^a-z0-9]/gi, "")})`}
+        />
+      )}
+      <path d={line} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── BarListChart ─── */
+interface BarListItem {
+  label: string;
+  value: number;
+  meta?: string;
+  color?: string;
+}
+
+interface BarListChartProps {
+  items: BarListItem[];
+  max?: number;
+  showValues?: boolean;
+  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan";
+}
+
+export function BarListChart({ items, max, showValues = true, tone }: BarListChartProps) {
+  const peak = max ?? Math.max(...items.map(i => i.value), 1);
+  const defaultColor = tone ? TONE_COLORS[tone]?.color ?? "var(--accent)" : "var(--accent)";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map((item, idx) => {
+        const pct = Math.round((item.value / peak) * 100);
+        const color = item.color ?? defaultColor;
+        return (
+          <div key={idx}>
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              alignItems: "center", marginBottom: 4,
+            }}>
+              <span style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 500 }}>
+                {item.label}
+              </span>
+              {showValues && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
+                  {item.value}
+                  {item.meta && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> {item.meta}</span>}
+                </span>
+              )}
+            </div>
+            <div style={{
+              height: 5, borderRadius: 9999,
+              background: "var(--glass-overlay-border)",
+              overflow: "hidden",
+            }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.6, delay: idx * 0.05, ease: "easeOut" }}
+                style={{ height: "100%", borderRadius: 9999, background: color }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── EmptyPanel ─── */
+interface EmptyPanelProps {
+  icon?: React.ElementType;
+  title?: Localizable;
+  description?: Localizable;
+  action?: ReactNode;
+}
+
+export function EmptyPanel({ icon: Icon = Inbox, title, description, action }: EmptyPanelProps) {
+  const { language } = useLanguage();
+  const resolvedTitle = resolveText(title, language);
+  const resolvedDescription = resolveText(description, language);
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      gap: 12, padding: "3rem 1rem", textAlign: "center",
+    }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 16,
+        background: "var(--glass-overlay)",
+        border: "1px solid var(--border)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <Icon size={22} style={{ color: "var(--text-muted)" }} />
+      </div>
+      {resolvedTitle && (
+        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", margin: 0 }}>{resolvedTitle}</p>
+      )}
+      {resolvedDescription && (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, maxWidth: 280, lineHeight: 1.5 }}>
+          {resolvedDescription}
+        </p>
+      )}
+      {action && <div style={{ marginTop: 4 }}>{action}</div>}
+    </div>
+  );
+}
+
+/* ─── InfoBadge ─── */
+interface InfoBadgeProps {
+  label: string;
+  value?: string | number;
+  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted";
+  dot?: boolean;
+}
+
+const BADGE_STYLES = {
+  blue:   { bg: "var(--accent-soft)",   color: "#60A5FA" },
+  violet: { bg: "var(--accent-2-soft)", color: "#A78BFA" },
+  mint:   { bg: "var(--mint-soft)",     color: "#34D399" },
+  amber:  { bg: "var(--amber-soft)",    color: "#FCD34D" },
+  rose:   { bg: "var(--rose-soft)",     color: "#F87171" },
+  cyan:   { bg: "var(--cyan-soft)",     color: "#22D3EE" },
+  muted:  { bg: "var(--glass-overlay)", color: "var(--text-secondary)" },
+};
+
+export function InfoBadge({ label, value, tone = "muted", dot }: InfoBadgeProps) {
+  const bs = BADGE_STYLES[tone];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: bs.bg, color: bs.color,
+      borderRadius: 6, padding: "3px 8px",
+      fontSize: 11, fontWeight: 600,
+      letterSpacing: "0.04em",
+      textTransform: "uppercase",
+      whiteSpace: "nowrap",
+    }}>
+      {dot && (
+        <span style={{
+          width: 6, height: 6, borderRadius: "50%",
+          background: bs.color, flexShrink: 0,
+        }} />
+      )}
+      {value !== undefined ? `${label}: ${value}` : label}
+    </span>
+  );
+}
+
+/* ─── KanbanBoard ─── */
+interface KanbanColumn {
+  id: string;
+  title: string;
+  items: Array<{
+    id: string;
+    title?: string;
+    platform?: string;
+    status?: string;
+    scheduledFor?: string;
+  }>;
+}
+
+interface KanbanBoardProps {
+  columns: KanbanColumn[];
+}
+
+const STATUS_TONE: Record<string, "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted"> = {
+  idea:              "muted",
+  draft:             "muted",
+  copywriting:       "blue",
+  design:            "violet",
+  in_progress:       "blue",
+  internal_review:   "amber",
+  client_review:     "amber",
+  approved:          "mint",
+  scheduled:         "cyan",
+  publishing_ready:  "cyan",
+  published:         "mint",
+};
+
+export function KanbanBoard({ columns }: KanbanBoardProps) {
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: `repeat(${columns.length}, minmax(200px, 1fr))`,
+      gap: 12,
+      overflowX: "auto",
+    }}>
+      {columns.map(col => (
+        <div key={col.id} style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border)",
+          borderRadius: 12,
+          padding: "12px",
+          minHeight: 120,
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 10,
+          }}>
+            <h4 style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {col.title}
+            </h4>
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: "var(--text-muted)",
+              background: "var(--glass-overlay)",
+              borderRadius: 6, padding: "1px 7px",
+            }}>
+              {col.items.length}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {col.items.map((item, idx) => (
+              <div key={item.id ?? idx} style={{
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: "8px 10px",
+              }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "var(--text)", margin: "0 0 4px" }}>
+                  {item.title ?? "Untitled"}
+                </p>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {item.platform && (
+                    <InfoBadge label={item.platform} tone="blue" />
+                  )}
+                  {item.status && (
+                    <InfoBadge label={item.status} tone={STATUS_TONE[item.status] ?? "muted"} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── ButtonLink (legacy) ─── */
+interface ButtonLinkProps {
+  href: string;
+  label: { en: string; ar: string };
+  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan";
+}
+
+const BUTTON_TONE_COLORS = {
+  blue:   { bg: "linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)", color: "#fff", border: "none" },
+  violet: { bg: "var(--accent-2-soft)", color: "var(--accent-2)", border: "1px solid rgba(99,102,241,0.2)" },
+  mint:   { bg: "var(--mint-soft)",     color: "var(--mint)",    border: "1px solid rgba(16,185,129,0.2)" },
+  amber:  { bg: "var(--amber-soft)",    color: "var(--amber)",   border: "1px solid rgba(245,158,11,0.2)" },
+  rose:   { bg: "var(--rose-soft)",     color: "var(--rose)",    border: "1px solid rgba(239,68,68,0.2)" },
+  cyan:   { bg: "var(--cyan-soft)",     color: "var(--cyan)",    border: "1px solid rgba(6,182,212,0.2)" },
+};
+
+export function ButtonLink({ href, label, tone = "blue" }: ButtonLinkProps) {
+  const { language } = useLanguage();
+  const tc = BUTTON_TONE_COLORS[tone];
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm"
       style={{
-        background: tone === "blue" ?
-        "linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)" :
-        colors.bg,
-        borderRadius: "var(--radius-btn)",
-        color: tone === "blue" ? "#ffffff" : colors.text,
-        border: tone === "blue" ? "none" : `1px solid ${colors.border}`
-      }}>
-      
-      {text}
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "8px 16px", borderRadius: "var(--radius-btn)",
+        fontSize: 13, fontWeight: 600,
+        background: tc.bg, color: tc.color,
+        border: tc.border,
+        textDecoration: "none",
+        transition: "opacity 0.15s",
+      }}
+    >
+      {pickLocalized(label, language)}
       <ArrowUpRight size={14} />
-    </Link>);
-
+    </Link>
+  );
 }
 
-/* ── Stat Card ── */
-export function StatCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  tone = "blue"
-
-
-
-
-
-
-}) {
-  const { language } = useLanguage();
-  const labelText = pickLocalized(label, language);
-  const hintText = pickLocalized(hint, language);
-  const colors = TONE_STYLES[tone];
-
-  return (
-    <motion.div
-      whileHover={{ y: -2, boxShadow: "var(--shadow-md)" }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.16 }}
-      className="relative overflow-hidden rounded-2xl border p-5"
-      style={{
-        background: "var(--panel)",
-        borderColor: "var(--border)",
-        boxShadow: "var(--shadow)"
-      }}>
-      
-      {/* Gradient overlay top-left */}
-      <div
-        className="pointer-events-none absolute left-0 top-0 h-24 w-24 rounded-br-full"
-        style={{ background: `radial-gradient(circle at 0% 0%, ${colors.bg} 0%, transparent 70%)` }} />
-      
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-            {labelText}
-          </p>
-          <p className="font-bold tracking-tight" style={{ color: "var(--text)", fontSize: "clamp(28px,3vw,32px)", lineHeight: "1" }}>
-            {value}
-          </p>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            {hintText}
-          </p>
-        </div>
-        <span
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
-          style={{ background: colors.bg, color: colors.accent, borderRadius: "12px" }}>
-          
-          <Icon size={20} />
-        </span>
-      </div>
-    </motion.div>);
-
+/* ─── SegmentedControl (legacy) ─── */
+interface SegmentedControlProps {
+  value: string;
+  options: Array<{ value: string; label: { en: string; ar: string } }>;
+  onChange: (value: string) => void;
 }
 
-/* ── Segmented Control (pill tabs) ── */
-export function SegmentedControl({
-  value,
-  options,
-  onChange
-
-
-
-
-}) {
+export function SegmentedControl({ value, options, onChange }: SegmentedControlProps) {
   const { language } = useLanguage();
-
   return (
-    <div
-      className="inline-flex items-center gap-1 rounded-full p-1"
-      style={{
-        background: "var(--glass-overlay)",
-        border: "1px solid var(--border)"
-      }}>
-      
-      {options.map((option) => {
-        const label = pickLocalized(option.label, language);
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: 4, borderRadius: 9999,
+      background: "var(--glass-overlay)",
+      border: "1px solid var(--border)",
+    }}>
+      {options.map(option => {
         const active = option.value === value;
-
         return (
           <button
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className="rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-150"
             style={{
+              padding: "6px 16px", borderRadius: 9999, border: "none",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
               background: active ? "var(--panel)" : "transparent",
-              color: active ? "var(--accent)" : "var(--muted)",
-              boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10)" : "none"
-            }}>
-            
-            {label}
-          </button>);
-
+              color: active ? "var(--accent)" : "var(--text-muted)",
+              boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+              transition: "all 0.15s",
+            }}
+          >
+            {pickLocalized(option.label, language)}
+          </button>
+        );
       })}
-    </div>);
-
+    </div>
+  );
 }
 
-/* ── Mini Area Chart ── */
-export function MiniAreaChart({
-  values,
-  tone = "blue"
-
-
-
-}) {
-  const colors = TONE_STYLES[tone];
-  const safeValues = values.length > 1 ? values : [0, 0, 0, 0, 0, 0];
-  const max = Math.max(...safeValues, 1);
-  const points = safeValues.
-  map((value, index) => {
-    const x = index / (safeValues.length - 1) * 100;
-    const y = 100 - value / max * 88;
-    return `${x},${y}`;
-  }).
-  join(" ");
-  const area = `0,100 ${points} 100,100`;
-
-  return (
-    <svg viewBox="0 0 100 100" className="h-28 w-full overflow-visible">
-      <defs>
-        <linearGradient id={`area-${tone}`} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={colors.accent} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={colors.accent} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <path
-        d={`M ${area.replace(/ /g, " L ")} Z`}
-        fill={`url(#area-${tone})`} />
-      
-      <polyline
-        fill="none"
-        stroke={colors.accent}
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        points={points} />
-      
-    </svg>);
-
+/* ─── DonutChart (legacy) ─── */
+interface DonutChartProps {
+  value: number;
+  total: number;
+  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan";
+  label?: string;
 }
 
-/* ── Bar List Chart ── */
-export function BarListChart({
-  items,
-  tone = "violet"
-
-
-
-}) {
-  const colors = TONE_STYLES[tone];
-  const max = Math.max(...items.map((item) => item.value), 1);
-
-  return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const width = Math.max(item.value / max * 100, item.value > 0 ? 10 : 0);
-        return (
-          <div key={item.label} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <div className="min-w-0">
-                <div className="truncate font-medium" style={{ color: "var(--text)" }}>
-                  {item.label}
-                </div>
-                {item.meta ?
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                    {item.meta}
-                  </div> :
-                null}
-              </div>
-              <span className="text-xs font-bold" style={{ color: "var(--muted)" }}>
-                {item.value}
-              </span>
-            </div>
-            <div
-              className="h-2 rounded-full overflow-hidden"
-              style={{ background: "var(--glass-overlay)" }}>
-              
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${width}%`,
-                  background: `linear-gradient(90deg, ${colors.accent}, ${colors.bg})`
-                }} />
-              
-            </div>
-          </div>);
-
-      })}
-    </div>);
-
-}
-
-/* ── Donut Chart ── */
-export function DonutChart({
-  value,
-  total,
-  tone = "mint",
-  label
-
-
-
-
-
-}) {
-  const colors = TONE_STYLES[tone];
+export function DonutChart({ value, total, tone = "mint", label }: DonutChartProps) {
+  const color = TONE_COLORS[tone]?.color ?? "var(--accent)";
   const safeTotal = Math.max(total, 1);
   const ratio = Math.min(value / safeTotal, 1);
   const circumference = 2 * Math.PI * 42;
   const dashOffset = circumference - circumference * ratio;
-
   return (
-    <div className="relative flex h-40 items-center justify-center">
-      <svg viewBox="0 0 100 100" className="h-36 w-36 -rotate-90">
+    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 144, height: 144 }}>
+      <svg viewBox="0 0 100 100" style={{ width: 144, height: 144, transform: "rotate(-90deg)" }}>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" strokeWidth="8" />
         <circle
-          cx="50"
-          cy="50"
-          r="42"
-          fill="none"
-          stroke="var(--border)"
-          strokeWidth="8" />
-        
-        <circle
-          cx="50"
-          cy="50"
-          r="42"
-          fill="none"
-          stroke={colors.accent}
-          strokeWidth="8"
+          cx="50" cy="50" r="42" fill="none"
+          stroke={color} strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={dashOffset} />
-        
+          strokeDashoffset={dashOffset}
+        />
       </svg>
-      <div className="absolute text-center">
-        <div className="text-3xl font-bold tracking-tight" style={{ color: "var(--text)" }}>
+      <div style={{ position: "absolute", textAlign: "center" }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: "var(--text)", lineHeight: 1 }}>
           {Math.round(ratio * 100)}%
         </div>
-        <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-          {label}
-        </div>
+        {label && (
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>
+            {label}
+          </div>
+        )}
       </div>
-    </div>);
-
+    </div>
+  );
 }
 
-/* ── Calendar Heatmap ── */
-export function CalendarHeatmap({
-  entries
+/* ─── CalendarHeatmap (legacy) ─── */
+interface CalendarHeatmapProps {
+  entries: Array<{ date: string; value: number }>;
+}
 
-
-}) {
-  const map = new Map(entries.map((entry) => [entry.date, entry.value]));
+export function CalendarHeatmap({ entries }: CalendarHeatmapProps) {
+  const map = new Map(entries.map(e => [e.date, e.value]));
   const start = new Date();
   start.setDate(1);
   const month = start.getMonth();
@@ -480,219 +692,74 @@ export function CalendarHeatmap({
     const key = date.toISOString().slice(0, 10);
     return { key, date, value: map.get(key) ?? 0, currentMonth: date.getMonth() === month };
   });
-
   return (
-    <div
-      className="-mx-1 overflow-x-auto"
-      tabIndex={0}
-      role="region"
-      aria-label="Publishing calendar"
-      onKeyDown={(e) => {
-        if (e.key === "ArrowRight") e.currentTarget.scrollLeft += 80;
-        if (e.key === "ArrowLeft") e.currentTarget.scrollLeft -= 80;
+    <div style={{ overflowX: "auto" }}>
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
+        gap: 6, minWidth: 280,
       }}>
-      
-      <div className="grid min-w-[280px] grid-cols-7 gap-1.5 px-1">
-        {days.map((day) => {
+        {days.map(day => {
           const level = Math.min(day.value as number, 4);
           return (
             <div
               key={day.key}
-              className="flex flex-col items-center gap-1 rounded-xl border p-2"
               style={{
-                borderColor: "var(--border)",
-                background: "var(--glass-overlay)"
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                borderRadius: 10, border: "1px solid var(--border)",
+                padding: "6px 4px",
+                background: "var(--glass-overlay)",
+              }}
+            >
+              <div style={{
+                fontSize: 10, fontWeight: 500, lineHeight: 1,
+                color: day.currentMonth ? "var(--text)" : "var(--text-muted)",
               }}>
-              
-              <div
-                className="text-[10px] leading-none font-medium"
-                style={{ color: day.currentMonth ? "var(--text)" : "var(--text-muted)" }}>
-                
                 {day.date.getDate()}
               </div>
-              <div
-                className="h-5 w-full rounded-lg transition-all"
-                style={{
-                  background:
-                  level === 0 ?
-                  "var(--border)" :
-                  `rgba(37, 99, 235, ${0.15 + level * 0.18})`
-                }} />
-              
-            </div>);
-
+              <div style={{
+                height: 20, width: "100%", borderRadius: 6,
+                background: level === 0
+                  ? "var(--border)"
+                  : `rgba(59, 130, 246, ${0.15 + level * 0.18})`,
+              }} />
+            </div>
+          );
         })}
       </div>
-    </div>);
-
+    </div>
+  );
 }
 
-/* ── Kanban Board ── */
-const COLUMN_ACCENTS = ["var(--accent)", "var(--accent-2)", "var(--mint)", "var(--amber)"];
-
-export function KanbanBoard({
-  columns,
-  renderItem
-
-
-
-}) {
-  return (
-    <div
-      className="-mx-5 overflow-x-auto px-5 pb-2 sm:-mx-6 sm:px-6"
-      tabIndex={0}
-      role="region"
-      aria-label="Kanban board"
-      onKeyDown={(e) => {
-        if (e.key === "ArrowRight") e.currentTarget.scrollLeft += 120;
-        if (e.key === "ArrowLeft") e.currentTarget.scrollLeft -= 120;
-      }}>
-      
-      <div
-        className="flex gap-4 xl:grid xl:grid-cols-4"
-        style={{ minWidth: `${columns.length * 260}px` }}>
-        
-        {columns.map((column, idx) => {
-          const accent = COLUMN_ACCENTS[idx % COLUMN_ACCENTS.length];
-          return (
-            <div
-              key={column.id}
-              className="w-[260px] flex-shrink-0 rounded-2xl border xl:w-auto"
-              style={{
-                background: "var(--glass-overlay)",
-                borderColor: "var(--border)",
-                borderTop: `3px solid ${accent}`
-              }}>
-              
-              <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
-                <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                  {column.title}
-                </div>
-                <span
-                  className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
-                  style={{ background: accent, color: "#ffffff" }}>
-                  
-                  {column.items.length}
-                </span>
-              </div>
-              <div className="space-y-2.5 px-4 pb-4">
-                {column.items.map((item) =>
-                <div key={item.id}>{renderItem(item)}</div>
-                )}
-              </div>
-            </div>);
-
-        })}
-      </div>
-    </div>);
-
+/* ─── MetricList (legacy) ─── */
+interface MetricListItem {
+  label: string;
+  value: string | number;
 }
 
-/* ── Info Badge ── */
-export function InfoBadge({ label, tone = "slate" }) {
-  const colors = TONE_STYLES[tone];
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold"
-      style={{
-        background: colors.bg,
-        border: `1px solid ${colors.border}`,
-        color: colors.text,
-        fontSize: "11px"
-      }}>
-      
-      {label}
-    </span>);
-
+interface MetricListProps {
+  items: MetricListItem[];
 }
 
-/* ── Empty Panel ── */
-export function EmptyPanel({
-  title,
-  description
-
-
-
-}) {
-  const { language } = useLanguage();
-  const titleText = pickLocalized(title, language);
-  const descriptionText = pickLocalized(description, language);
-
+export function MetricList({ items }: MetricListProps) {
   return (
-    <div
-      className="rounded-2xl border-2 border-dashed p-10 text-center"
-      style={{ borderColor: "var(--border)" }}>
-      
-      <div
-        className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
-        style={{
-          background: "linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-2-soft) 100%)"
-        }}>
-        
-        <Inbox size={22} style={{ color: "var(--accent)" }} />
-      </div>
-      <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>
-        {titleText}
-      </h3>
-      <p
-        className="mx-auto mt-2 max-w-xs text-sm leading-relaxed"
-        style={{ color: "var(--muted)" }}>
-        
-        {descriptionText}
-      </p>
-    </div>);
-
-}
-
-/* ── Metric List ── */
-export function MetricList({
-  items
-
-
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {items.map((item) =>
-      <div
-        key={item.label}
-        className="rounded-xl border px-4 py-3"
-        style={{
-          background: "var(--glass-overlay)",
-          borderColor: "var(--border)"
-        }}>
-        
-          <div className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+      {items.map(item => (
+        <div
+          key={item.label}
+          style={{
+            borderRadius: 10, border: "1px solid var(--border)",
+            padding: "10px 14px",
+            background: "var(--glass-overlay)",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>
             {item.label}
           </div>
-          <div className="mt-1.5 text-xl font-bold" style={{ color: "var(--text)" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", marginTop: 4 }}>
             {item.value}
           </div>
         </div>
-      )}
-    </div>);
-
-}
-
-/* ── Detail Row ── */
-export function DetailRow({
-  label,
-  value
-
-
-
-}) {
-  return (
-    <div
-      className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-sm"
-      style={{
-        background: "var(--glass-overlay)",
-        borderColor: "var(--border)"
-      }}>
-      
-      <span style={{ color: "var(--muted)" }}>{label}</span>
-      <span className="font-medium" style={{ color: "var(--text)" }}>
-        {value}
-      </span>
-    </div>);
-
+      ))}
+    </div>
+  );
 }
