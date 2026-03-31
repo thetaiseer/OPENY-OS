@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarRange, KanbanSquare, Plus, Sparkles, Target, Trash2 } from "lucide-react";
+import { CalendarRange, Filter, KanbanSquare, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import { useContentItems } from "@/lib/ContentContext";
 import { usePublishing } from "@/lib/PublishingContext";
 import { useAppStore } from "@/lib/AppContext";
@@ -44,6 +44,8 @@ export default function ContentPage() {
   const [showAddContent, setShowAddContent] = useState(false);
   const [confirmDeleteContent, setConfirmDeleteContent] = useState<string | null>(null);
   const [deletingContent, setDeletingContent] = useState(false);
+  const [platformFilter, setPlatformFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const handleDeleteContent = async (id: string) => {
     setDeletingContent(true);
@@ -62,16 +64,24 @@ export default function ContentPage() {
   const scheduled = contentItems.filter((item) => item.status === "scheduled" || item.status === "publishing_ready").length;
   const published = contentItems.filter((item) => item.status === "published").length;
 
+  const PLATFORMS = ["Instagram", "TikTok", "LinkedIn", "Facebook", "YouTube", "X"];
+
+  const filteredItems = contentItems.filter((item) => {
+    const matchPlatform = platformFilter === "all" || item.platform === platformFilter;
+    const matchStatus = statusFilter === "all" || item.status === statusFilter;
+    return matchPlatform && matchStatus;
+  });
+
   const backlogStatuses: ContentStatus[] = ["idea", "draft", "copywriting"];
   const studioStatuses: ContentStatus[] = ["design", "in_progress"];
   const approvalStatuses: ContentStatus[] = ["internal_review", "client_review", "approved"];
   const deliveryStatuses: ContentStatus[] = ["scheduled", "publishing_ready", "published", "failed"];
 
   const boardColumns = [
-    { id: "backlog", title: isArabic ? "الاكتشاف" : "Discovery", items: contentItems.filter((item) => backlogStatuses.includes(item.status)) },
-    { id: "studio", title: isArabic ? "الاستوديو" : "Studio", items: contentItems.filter((item) => studioStatuses.includes(item.status)) },
-    { id: "approval", title: isArabic ? "الموافقات" : "Approvals", items: contentItems.filter((item) => approvalStatuses.includes(item.status)) },
-    { id: "delivery", title: isArabic ? "الجدولة والتسليم" : "Scheduling & delivery", items: contentItems.filter((item) => deliveryStatuses.includes(item.status)) },
+    { id: "backlog", title: isArabic ? "الاكتشاف" : "Discovery", items: filteredItems.filter((item) => backlogStatuses.includes(item.status)) },
+    { id: "studio", title: isArabic ? "الاستوديو" : "Studio", items: filteredItems.filter((item) => studioStatuses.includes(item.status)) },
+    { id: "approval", title: isArabic ? "الموافقات" : "Approvals", items: filteredItems.filter((item) => approvalStatuses.includes(item.status)) },
+    { id: "delivery", title: isArabic ? "الجدولة والتسليم" : "Scheduling & delivery", items: filteredItems.filter((item) => deliveryStatuses.includes(item.status)) },
   ];
 
   const heatmapEntries = contentItems.reduce<Array<{ date: string; value: number }>>((acc, item) => {
@@ -89,7 +99,7 @@ export default function ContentPage() {
     { label: isArabic ? "غير جاهز" : "Not ready", value: contentItems.filter((item) => getReadinessForItem(item) === "not_ready").length },
   ];
 
-  const platformStats = ["Instagram", "TikTok", "LinkedIn", "Facebook", "YouTube", "X"].map((platform) => ({
+  const platformStats = PLATFORMS.map((platform) => ({
     label: platform,
     value: contentItems.filter((item) => item.platform === platform).length,
     meta: isArabic ? "عناصر في الخطة" : "items in plan",
@@ -116,7 +126,7 @@ export default function ContentPage() {
       />
       <PageHeader
         eyebrow={pageText("Planning workspace", "مساحة التخطيط")}
-        title={pageText("Content planner", "مخطط المحتوى")}
+        title={pageText("Content", "المحتوى")}
         description={pageText(
           "Manage content across kanban, calendar, and analytics views.",
           "إدارة المحتوى عبر عروض الكانبان والتقويم والتحليلات."
@@ -126,10 +136,9 @@ export default function ContentPage() {
             <button
               type="button"
               onClick={() => setShowAddContent(true)}
-              className="touch-target inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-2))", color: "white", borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600 }}
             >
-              <Plus size={16} />
-              {isArabic ? "إضافة محتوى" : "Add content"}
+              + {isArabic ? "إضافة محتوى" : "Add Content"}
             </button>
             <SegmentedControl value={view} options={[...VIEW_OPTIONS]} onChange={setView} />
           </>
@@ -143,10 +152,70 @@ export default function ContentPage() {
         <StatCard label={pageText("Published", "المنشور")} value={published} hint={pageText("Delivered content already live", "محتوى تم تسليمه وأصبح مباشرًا")} icon={KanbanSquare} tone="mint" />
       </section>
 
+      {/* Filter bar */}
+      <Panel
+        title={pageText("Filters", "الفلاتر")}
+        description={pageText("Narrow the view by platform or status.", "قلّص العرض حسب المنصة أو الحالة.")}
+        action={<InfoBadge label={isArabic ? `${filteredItems.length} عنصر` : `${filteredItems.length} items`} tone="blue" />}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Filter size={12} style={{ color: "var(--muted)" }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                {isArabic ? "المنصة" : "Platform"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["all", ...PLATFORMS].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPlatformFilter(p)}
+                  className="rounded-full px-3 py-1 text-xs font-semibold transition-all duration-150"
+                  style={{
+                    background: platformFilter === p ? "var(--accent)" : "var(--glass-overlay)",
+                    color: platformFilter === p ? "white" : "var(--muted)",
+                    border: `1px solid ${platformFilter === p ? "var(--accent)" : "var(--border)"}`,
+                  }}
+                >
+                  {p === "all" ? (isArabic ? "الكل" : "All") : p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Filter size={12} style={{ color: "var(--muted)" }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                {isArabic ? "الحالة" : "Status"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["all", "idea", "draft", "in_progress", "client_review", "approved", "scheduled", "published"].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className="rounded-full px-3 py-1 text-xs font-semibold transition-all duration-150"
+                  style={{
+                    background: statusFilter === s ? "var(--accent-2)" : "var(--glass-overlay)",
+                    color: statusFilter === s ? "white" : "var(--muted)",
+                    border: `1px solid ${statusFilter === s ? "var(--accent-2)" : "var(--border)"}`,
+                  }}
+                >
+                  {s === "all" ? (isArabic ? "الكل" : "All") : s.replace(/_/g, " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Panel>
+
       {view === "board" ? (
         <Panel title={pageText("Content board", "لوحة المحتوى")} description={pageText("Pipeline from draft to published, grouped by production stage.", "خط الإنتاج من المسودة إلى النشر، مجمّع حسب المرحلة.")}
           action={<InfoBadge label={isArabic ? `${clients.length} عميل مرتبط` : `${clients.length} connected clients`} tone="blue" />}>
-          {contentItems.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <EmptyPanel title={pageText("No content yet", "لا يوجد محتوى بعد")} description={pageText("Create your first content item to start planning.", "أنشئ أول عنصر محتوى للبدء في التخطيط.")} />
           ) : (
             <KanbanBoard
