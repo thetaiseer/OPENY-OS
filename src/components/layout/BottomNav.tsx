@@ -1,59 +1,77 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { LayoutDashboard, CalendarDays, Users2, CheckSquare, Globe } from "lucide-react";
+import { LayoutDashboard, Users2, CheckSquare, FileText, Settings2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+
+const BOTTOM_NAV_ITEMS = [
+  { href: "/",         icon: LayoutDashboard, labelEn: "Home",     labelAr: "الرئيسية" },
+  { href: "/clients",  icon: Users2,           labelEn: "Clients",  labelAr: "العملاء" },
+  { href: "/tasks",    icon: CheckSquare,      labelEn: "Tasks",    labelAr: "المهام" },
+  { href: "/content",  icon: FileText,         labelEn: "Content",  labelAr: "المحتوى" },
+  { href: "/settings", icon: Settings2,        labelEn: "Settings", labelAr: "الإعدادات" },
+];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { language } = useLanguage();
 
-  const items = [
-  { href: "/", labelKey: "nav.home", icon: LayoutDashboard },
-  { href: "/clients", labelKey: "nav.clients", icon: Users2 },
-  { href: "/content", labelKey: "nav.content", icon: CalendarDays },
-  { href: "/tasks", labelKey: "nav.tasks", icon: CheckSquare },
-  { href: "/publishing", labelKey: "nav.publishing", icon: Globe }];
-
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-40 lg:hidden"
-      style={{
-        background: "#ffffff",
-        borderTop: "1px solid var(--border)",
-        boxShadow: "0 -4px 24px rgba(15,23,42,0.06), 0 -1px 0 var(--border)",
-        paddingBottom: "max(env(safe-area-inset-bottom), 8px)",
-        paddingTop: "6px",
-        minHeight: "var(--bottomnav-height)"
-      }}>
-      
-      {items.map(({ href, labelKey, icon: Icon }) => {
-        const isActive = pathname === href || href !== "/" && pathname.startsWith(href);
+    <nav style={{
+      position: "fixed",
+      bottom: 0, left: 0, right: 0,
+      height: "var(--bottomnav-height)",
+      background: "rgba(7,11,20,0.97)",
+      borderTop: "1px solid var(--border)",
+      backdropFilter: "blur(16px)",
+      WebkitBackdropFilter: "blur(16px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-around",
+      zIndex: 90,
+      paddingBottom: "env(safe-area-inset-bottom)",
+    }}>
+      {BOTTOM_NAV_ITEMS.map(item => {
+        const active = isActive(item.href);
+        const label = language === "ar" ? item.labelAr : item.labelEn;
         return (
-          <motion.div key={href} whileTap={{ scale: 0.88 }}>
-            <Link
-              href={href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[56px] min-h-[48px] justify-center relative"
-              style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}>
-              
-              <Icon size={20} />
-              <span className="text-[10px] font-semibold leading-tight">
-                {t(labelKey)}
-              </span>
-              {isActive &&
-              <motion.span
-                layoutId="bottom-nav-dot"
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                style={{ background: "var(--accent)" }}
-                transition={{ type: "spring", stiffness: 480, damping: 38 }} />
-
-              }
-            </Link>
-          </motion.div>);
-
+          <Link
+            key={item.href}
+            href={item.href}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              padding: "6px 16px",
+              borderRadius: 12,
+              textDecoration: "none",
+              color: active ? "var(--accent)" : "var(--text-muted)",
+              transition: "all 0.15s",
+              minWidth: 56,
+              background: active ? "var(--glass-nav-active)" : "transparent",
+            }}
+          >
+            <item.icon
+              size={20}
+              style={{
+                filter: active ? "drop-shadow(0 0 4px rgba(59,130,246,0.6))" : "none",
+              }}
+            />
+            <span style={{
+              fontSize: 10, fontWeight: active ? 600 : 400,
+              letterSpacing: "0.02em",
+              lineHeight: 1,
+            }}>
+              {label}
+            </span>
+          </Link>
+        );
       })}
-    </nav>);
-
+    </nav>
+  );
 }
