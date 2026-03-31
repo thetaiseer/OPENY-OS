@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { motion } from "framer-motion";
 
 import { useTheme } from "@/components/layout/ThemeProvider";
@@ -12,7 +13,7 @@ import { useTheme } from "@/components/layout/ThemeProvider";
 
 
 
-export function Card({ children, className = "", padding = "md", elevated, interactive }) {
+export function Card({ children, className = "", padding = "md", elevated = false, interactive = false }: { children?: React.ReactNode; className?: string; padding?: string; elevated?: boolean; interactive?: boolean }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
 

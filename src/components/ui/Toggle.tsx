@@ -5,7 +5,7 @@
 
 
 
-export function Toggle({ checked, onChange, label, description }) {
+export function Toggle({ checked, onChange, label = null, description = null }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div>

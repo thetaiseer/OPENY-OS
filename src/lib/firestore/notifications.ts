@@ -1,17 +1,16 @@
  function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }// ============================================================
-// OPENY OS – Firestore Service: invitations
-// Single source of truth: workspaces/main/invitations
+// OPENY OS – Firestore Service: notifications
+// Single source of truth: workspaces/main/notifications
 // ============================================================
 import {
   addDoc,
   deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
-  where,
+  writeBatch,
 } from "firebase/firestore";
 import { db, wsCol, DEFAULT_WORKSPACE_ID } from "@/lib/firebase";
 
@@ -19,21 +18,21 @@ import { db, wsCol, DEFAULT_WORKSPACE_ID } from "@/lib/firebase";
 const DEV = process.env.NODE_ENV !== "production";
 
 function log(...args) {
-  if (DEV) console.log("[OPENY:invitations]", ...args);
+  if (DEV) console.log("[OPENY:notifications]", ...args);
 }
 
 function logError(...args) {
-  console.error("[OPENY:invitations]", ...args);
+  console.error("[OPENY:notifications]", ...args);
 }
 
 // ── Subscribe ────────────────────────────────────────────────
 
-export function subscribeToInvitations(
+export function subscribeToNotifications(
   callback,
-  onError
+  onError?
 ) {
-  log("subscribing to workspaces/main/invitations");
-  const q = query(wsCol("invitations"), orderBy("createdAt", "desc"));
+  log("subscribing to workspaces/main/notifications");
+  const q = query(wsCol("notifications"), orderBy("createdAt", "desc"));
   return onSnapshot(
     q,
     (snap) => {
@@ -50,51 +49,57 @@ export function subscribeToInvitations(
 
 // ── Create ───────────────────────────────────────────────────
 
-export async function createInvitation(
-  payload
+export async function pushNotification(
+  type,
+  title,
+  message,
+  entityId
 ) {
-  log("createInvitation", payload);
-  const docRef = await addDoc(wsCol("invitations"), payload);
+  const payload = {
+    type,
+    title,
+    message,
+    entityId,
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  };
+  log("pushNotification", payload);
+  const docRef = await addDoc(wsCol("notifications"), payload);
   log("created doc id:", docRef.id);
   return docRef.id;
 }
 
-// ── Read by token ─────────────────────────────────────────────
-
-export async function getInvitationByToken(
-  token
-) {
-  log("getInvitationByToken token:", token);
-  const q = query(wsCol("invitations"), where("token", "==", token));
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    log("not found");
-    return null;
-  }
-  const d = snap.docs[0];
-  const result = { id: d.id, ...d.data() } ;
-  log("found", result.id);
-  return result;
-}
-
 // ── Update ───────────────────────────────────────────────────
 
-export async function updateInvitation(
-  id,
-  payload
-) {
-  log("updateInvitation id:", id, payload);
+export async function markNotificationRead(id) {
+  log("markNotificationRead id:", id);
   await updateDoc(
-    doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", id),
-    payload
+    doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", id),
+    { isRead: true }
   );
-  log("updated", id);
+}
+
+export async function markAllNotificationsRead(
+  notifications
+) {
+  const unread = notifications.filter((n) => !n.isRead);
+  if (unread.length === 0) return;
+  log("markAllNotificationsRead count:", unread.length);
+  const batch = writeBatch(db);
+  unread.forEach((n) =>
+    batch.update(
+      doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", n.id),
+      { isRead: true }
+    )
+  );
+  await batch.commit();
+  log("batch committed");
 }
 
 // ── Delete ───────────────────────────────────────────────────
 
-export async function deleteInvitation(id) {
-  log("deleteInvitation id:", id);
-  await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "invitations", id));
+export async function deleteNotification(id) {
+  log("deleteNotification id:", id);
+  await deleteDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "notifications", id));
   log("deleted", id);
 }

@@ -62,7 +62,7 @@ export function BankProvider({ children }) {
   return <BankContext.Provider value={value}>{children}</BankContext.Provider>;
 }
 
-export function useBank(clientId, category) {
+export function useBank(clientId?, category?) {
   const ctx = useContext(BankContext);
   if (!ctx) throw new Error("useBank must be used inside <BankProvider>");
   let filtered = ctx.entries;

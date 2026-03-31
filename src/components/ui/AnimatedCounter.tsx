@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 
 
@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
  * Smoothly animates a number from its previous value to the new value
  * using requestAnimationFrame for 60fps performance.
  */
-export function AnimatedCounter({ value, duration = 600, className, style }) {
+export function AnimatedCounter({ value, duration = 600, className = "", style }: { value: number; duration?: number; className?: string; style?: React.CSSProperties }) {
   const [displayed, setDisplayed] = useState(value);
   const prevRef = useRef(value);
   const rafRef = useRef(null);

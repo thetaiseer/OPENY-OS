@@ -45,7 +45,7 @@ export async function getWorkspace() {
 // Creates the workspace document if it does not exist yet.
 
 export async function bootstrapWorkspace(
-  overrides
+  overrides?
 ) {
   log("bootstrapWorkspace");
   const snap = await getDoc(workspaceDocRef());
