@@ -192,11 +192,11 @@ export default function DashboardPage() {
               setClearing(true);
               try {
                 await clearActivities();
-                setConfirmClear(false);
                 showToast(isArabic ? "تم مسح سجل الأنشطة" : "Activity history cleared", "success");
               } catch (err) {
                 showToast(`${isArabic ? "فشل مسح السجل" : "Failed to clear history"}: ${parseFirestoreError(err, isArabic)}`, "error");
               } finally {
+                setConfirmClear(false);
                 setClearing(false);
               }
             }}

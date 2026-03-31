@@ -49,11 +49,11 @@ export default function ContentPage() {
     setDeletingContent(true);
     try {
       await deleteContentItem(id);
-      setConfirmDeleteContent(null);
       showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف المحتوى" : "Failed to delete content"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDeleteContent(null);
       setDeletingContent(false);
     }
   };

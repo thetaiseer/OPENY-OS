@@ -46,11 +46,11 @@ export default function TasksPage() {
     setDeleting(true);
     try {
       await deleteTask(id);
-      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف المهمة بنجاح" : "Task deleted successfully", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف المهمة" : "Failed to delete task"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDelete(null);
       setDeleting(false);
     }
   };
@@ -59,11 +59,11 @@ export default function TasksPage() {
     setDeleting(true);
     try {
       await deleteTemplate(id);
-      setConfirmDeleteTemplate(null);
       showToast(isArabic ? "تم حذف القالب" : "Template deleted", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف القالب" : "Failed to delete template"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDeleteTemplate(null);
       setDeleting(false);
     }
   };

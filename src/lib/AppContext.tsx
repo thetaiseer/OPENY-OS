@@ -127,6 +127,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (loadedSet.size === 4) setLoading(false);
     };
 
+    // Safety valve: if any subscription never fires (e.g. network issues
+    // on first load), force loading=false after 6 s so the UI is never
+    // stuck on a spinner indefinitely.
+    const safetyTimer = setTimeout(() => setLoading(false), 6000);
+
     const unsubClients = subscribeToClients(
       (rows) => { setClients(rows); markLoaded("clients"); },
       () => markLoaded("clients"),
@@ -148,6 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
+      clearTimeout(safetyTimer);
       unsubClients();
       unsubTasks();
       unsubMembers();

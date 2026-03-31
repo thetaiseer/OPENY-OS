@@ -100,11 +100,11 @@ export default function ClientWorkspacePage() {
     setDeleting(true);
     try {
       await deleteTask(id);
-      setConfirmDeleteTask(null);
       showToast(isArabic ? "تم حذف المهمة" : "Task deleted", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف المهمة" : "Failed to delete task"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDeleteTask(null);
       setDeleting(false);
     }
   };
@@ -113,11 +113,11 @@ export default function ClientWorkspacePage() {
     setDeleting(true);
     try {
       await deleteAsset(id);
-      setConfirmDeleteAsset(null);
       showToast(isArabic ? "تم حذف الملف" : "Asset deleted", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف الملف" : "Failed to delete asset"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDeleteAsset(null);
       setDeleting(false);
     }
   };
