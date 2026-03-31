@@ -19,11 +19,10 @@ export function Card({ children, className = "", padding = "md", elevated, inter
   const paddings = { sm: "p-4", md: "p-5", lg: "p-6" };
 
   const baseStyle = {
-    background: elevated ? 'var(--glass-card-elevated)' : 'var(--glass-card)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    background: 'var(--panel)',
     border: '1px solid var(--border)',
-    boxShadow: elevated ? 'var(--shadow-lg)' : 'var(--shadow-sm)',
+    borderRadius: '16px',
+    boxShadow: elevated ? 'var(--shadow-md)' : 'var(--shadow)',
   } as React.CSSProperties;
 
   const hoverShadow = isLight
@@ -33,7 +32,7 @@ export function Card({ children, className = "", padding = "md", elevated, inter
   if (interactive) {
     return (
       <motion.div
-        className={`rounded-2xl ${paddings[padding]} ${className} glass-card`}
+        className={`${paddings[padding]} ${className} card`}
         style={baseStyle}
         whileHover={{ y: -2, boxShadow: hoverShadow }}
         transition={{ type: "spring", stiffness: 400, damping: 28 }}
@@ -45,7 +44,7 @@ export function Card({ children, className = "", padding = "md", elevated, inter
 
   return (
     <div
-      className={`rounded-2xl ${paddings[padding]} ${className} glass-card`}
+      className={`${paddings[padding]} ${className} card`}
       style={baseStyle}
     >
       {children}

@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   CheckSquare,
   Trash2,
+  ClipboardCheck,
 } from "lucide-react";
 import { useClients, useTasks } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
@@ -46,13 +47,14 @@ import {
   pageText,
 } from "@/components/redesign/ui";
 
-type Tab = "overview" | "tasks" | "assets" | "plan";
+type Tab = "overview" | "content" | "tasks" | "approvals" | "notes";
 
 const TABS: { id: Tab; labelEn: string; labelAr: string; icon: React.ElementType }[] = [
-  { id: "overview", labelEn: "Overview", labelAr: "نظرة عامة", icon: LayoutGrid },
-  { id: "tasks", labelEn: "Tasks", labelAr: "المهام", icon: CheckSquare },
-  { id: "assets", labelEn: "Assets", labelAr: "الأصول", icon: FolderOpen },
-  { id: "plan", labelEn: "Monthly Plan", labelAr: "الخطة الشهرية", icon: CalendarDays },
+  { id: "overview",  labelEn: "Overview",  labelAr: "نظرة عامة",  icon: LayoutGrid },
+  { id: "content",   labelEn: "Content",   labelAr: "المحتوى",    icon: CalendarDays },
+  { id: "tasks",     labelEn: "Tasks",     labelAr: "المهام",     icon: CheckSquare },
+  { id: "approvals", labelEn: "Approvals", labelAr: "الموافقات",  icon: ClipboardCheck },
+  { id: "notes",     labelEn: "Notes",     labelAr: "الملاحظات",  icon: StickyNote },
 ];
 
 export default function ClientWorkspacePage() {
@@ -89,7 +91,6 @@ export default function ClientWorkspacePage() {
   const published = clientContent.filter((item) => item.status === "published").length;
   const quota = 30;
 
-  // Current month tasks
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currentMonthTasks = clientTasks.filter(
@@ -150,34 +151,61 @@ export default function ClientWorkspacePage() {
         onCancel={() => setConfirmDeleteAsset(null)}
       />
 
-      {/* Header */}
+      {/* Back link + action */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/clients" className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2.5 text-sm text-[var(--text)]">
-          <ArrowLeft size={16} />
-          {isArabic ? "العودة للعملاء" : "Back to clients"}
+        <Link
+          href="/clients"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--bg)]"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <ArrowLeft size={15} />
+          {isArabic ? "← العودة للعملاء" : "← Back to clients"}
         </Link>
         <ButtonLink href="/content" label={pageText("Open planning", "افتح التخطيط")} tone="violet" />
+      </div>
+
+      {/* Client profile card */}
+      <div
+        className="flex flex-wrap items-center gap-5 rounded-2xl p-5"
+        style={{ background: "var(--panel)", border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}
+      >
+        <div
+          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
+          style={{ background: client.color ?? "linear-gradient(135deg,#4F6EF7,#7C5CF6)" }}
+        >
+          {client.initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>{client.name}</h1>
+            <InfoBadge
+              label={client.status}
+              tone={client.status === "active" ? "mint" : client.status === "prospect" ? "amber" : "slate"}
+            />
+          </div>
+          {client.company && <p className="mt-0.5 text-sm" style={{ color: "var(--muted)" }}>{client.company}</p>}
+          <div className="mt-2 flex flex-wrap gap-4 text-sm" style={{ color: "var(--muted)" }}>
+            {client.email && (
+              <span className="inline-flex items-center gap-1.5"><Mail size={13} />{client.email}</span>
+            )}
+            {client.phone && (
+              <span className="inline-flex items-center gap-1.5"><Phone size={13} />{client.phone}</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <PageHeader
         eyebrow={pageText("Client workspace", "مساحة العميل")}
         title={{ en: client.name, ar: client.name }}
         description={pageText(
-          "Delivery overview, content, tasks, approvals, and assets for this client.",
-          "نظرة عامة على التسليم والمحتوى والمهام والموافقات والأصول لهذا العميل."
+          "Delivery overview, content, tasks, approvals, and notes for this client.",
+          "نظرة عامة على التسليم والمحتوى والمهام والموافقات والملاحظات لهذا العميل."
         )}
       />
 
-      {/* Stats */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={pageText("Content", "المحتوى")} value={clientContent.length} hint={pageText("All items linked to this account", "كل العناصر المرتبطة بهذا الحساب")} icon={Sparkles} tone="blue" />
-        <StatCard label={pageText("Open tasks", "المهام المفتوحة")} value={clientTasks.filter((task) => task.status !== "done").length} hint={pageText("Execution load for the team", "عبء التنفيذ على الفريق")} icon={Workflow} tone="amber" />
-        <StatCard label={pageText("Approvals", "الموافقات")} value={clientApprovals.length} hint={pageText("Workflow checkpoints", "نقاط التحقق في سير العمل")} icon={BarChart3} tone="violet" />
-        <StatCard label={pageText("Assets", "الأصول")} value={assets.length} hint={pageText("Media and brand files", "الوسائط وملفات الهوية")} icon={ImageIcon} tone="mint" />
-      </section>
-
       {/* Tab nav */}
-      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-1.5">
+      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-1.5">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -188,11 +216,10 @@ export default function ClientWorkspacePage() {
               onClick={() => setActiveTab(tab.id)}
               className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition"
               style={{
-                background: isActive
-                  ? "linear-gradient(135deg, rgba(106,168,255,0.22), rgba(169,139,255,0.16))"
-                  : "transparent",
+                background: isActive ? "var(--panel)" : "transparent",
                 color: isActive ? "var(--accent)" : "var(--muted)",
-                border: isActive ? "1px solid rgba(106,168,255,0.28)" : "1px solid transparent",
+                boxShadow: isActive ? "var(--shadow-xs)" : "none",
+                border: isActive ? "1px solid var(--border)" : "1px solid transparent",
               }}
             >
               <Icon size={15} />
@@ -202,67 +229,61 @@ export default function ClientWorkspacePage() {
         })}
       </div>
 
-      {/* ── Overview Tab ───────────────────────────────────────── */}
+      {/* ── Overview Tab ── */}
       {activeTab === "overview" && (
         <section className="space-y-6">
-          <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-            <div className="space-y-6">
-              <Panel title={pageText("Account profile", "ملف الحساب")} description={pageText("Core client identity and contact details.", "هوية العميل الأساسية وتفاصيل التواصل.")}>
-                <div className="mb-5 flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-[24px] text-lg font-semibold text-white" style={{ background: client.color }}>
-                    {client.initials}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-[var(--text)]">{client.name}</h2>
-                    <p className="text-sm text-[var(--muted)]">{client.company}</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <DetailRow label={isArabic ? "الحالة" : "Status"} value={<InfoBadge label={client.status} tone={client.status === "active" ? "mint" : client.status === "prospect" ? "amber" : "slate"} />} />
-                  <DetailRow label={isArabic ? "البريد الإلكتروني" : "Email"} value={<span className="inline-flex items-center gap-2"><Mail size={14} />{client.email}</span>} />
-                  <DetailRow label={isArabic ? "الهاتف" : "Phone"} value={<span className="inline-flex items-center gap-2"><Phone size={14} />{client.phone || (isArabic ? "غير مضاف" : "Not added")}</span>} />
-                  <DetailRow label={isArabic ? "تاريخ الإنشاء" : "Created"} value={new Date(client.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")} />
-                </div>
-              </Panel>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard label={pageText("Content", "المحتوى")} value={clientContent.length} hint={pageText("All items linked to this account", "كل العناصر المرتبطة بهذا الحساب")} icon={Sparkles} tone="blue" />
+            <StatCard label={pageText("Open tasks", "المهام المفتوحة")} value={clientTasks.filter((task) => task.status !== "done").length} hint={pageText("Execution load for the team", "عبء التنفيذ على الفريق")} icon={Workflow} tone="amber" />
+            <StatCard label={pageText("Approvals", "الموافقات")} value={clientApprovals.length} hint={pageText("Workflow checkpoints", "نقاط التحقق في سير العمل")} icon={BarChart3} tone="violet" />
+            <StatCard label={pageText("Assets", "الأصول")} value={assets.length} hint={pageText("Media and brand files", "الوسائط وملفات الهوية")} icon={ImageIcon} tone="mint" />
+          </section>
 
-              <Panel title={pageText("Delivery quota", "حصة التسليم")} description={pageText("Published content against a default monthly plan.", "المحتوى المنشور مقابل خطة شهرية افتراضية.")}
-                action={<InfoBadge label={isArabic ? `${published}/${quota} منشور` : `${published}/${quota} published`} tone="mint" />}>
-                <DonutChart value={published} total={quota} tone="mint" label={isArabic ? "الحصة" : "Quota"} />
-              </Panel>
-            </div>
-
-            <div className="space-y-6">
-              <Panel title={pageText("Operational snapshot", "لقطة تشغيلية")} description={pageText("A concise overview for content, notes, assets, and copy banks.", "نظرة مختصرة على المحتوى، الملاحظات، الأصول، وبنوك النصوص.")}>
-                <MetricList
-                  items={[
-                    { label: isArabic ? "المحتوى المجدول" : "Scheduled content", value: clientContent.filter((item) => item.scheduledDate).length },
-                    { label: isArabic ? "المحتوى المنشور" : "Published content", value: published },
-                    { label: isArabic ? "الملاحظات" : "Notes", value: notes.length },
-                    { label: isArabic ? "بنك النصوص" : "Bank entries", value: bankEntries.length },
-                  ]}
-                />
-              </Panel>
-
-              <Panel title={pageText("Notes stream", "سجل الملاحظات")} description={pageText("Internal and client-facing notes.", "الملاحظات الداخلية والموجهة للعميل.")}>
-                <div className="space-y-3">
-                  {notes.slice(0, 4).map((note) => (
-                    <article key={note.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text)]"><StickyNote size={15} />{note.author}</div>
-                        <InfoBadge label={note.type} tone={note.type === "internal" ? "amber" : "mint"} />
-                      </div>
-                      <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{note.content}</p>
-                    </article>
-                  ))}
-                  {notes.length === 0 ? <EmptyPanel title={pageText("No notes available", "لا توجد ملاحظات متاحة")} description={pageText("Notes added through the workspace are displayed here immediately.", "الملاحظات المضافة عبر مساحة العمل تظهر هنا مباشرة.")} /> : null}
-                </div>
-              </Panel>
-            </div>
+          <section className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
+            <Panel title={pageText("Delivery quota", "حصة التسليم")} description={pageText("Published content against a default monthly plan.", "المحتوى المنشور مقابل خطة شهرية افتراضية.")}
+              action={<InfoBadge label={isArabic ? `${published}/${quota} منشور` : `${published}/${quota} published`} tone="mint" />}>
+              <DonutChart value={published} total={quota} tone="mint" label={isArabic ? "الحصة" : "Quota"} />
+            </Panel>
+            <Panel title={pageText("Operational snapshot", "لقطة تشغيلية")} description={pageText("A concise overview of content, notes, assets, and copy banks.", "نظرة مختصرة على المحتوى، الملاحظات، الأصول، وبنوك النصوص.")}>
+              <MetricList
+                items={[
+                  { label: isArabic ? "المحتوى المجدول" : "Scheduled content", value: clientContent.filter((item) => item.scheduledDate).length },
+                  { label: isArabic ? "المحتوى المنشور" : "Published content", value: published },
+                  { label: isArabic ? "الملاحظات" : "Notes", value: notes.length },
+                  { label: isArabic ? "بنك النصوص" : "Bank entries", value: bankEntries.length },
+                  { label: isArabic ? "الأصول" : "Assets", value: assets.length },
+                ]}
+              />
+            </Panel>
           </section>
         </section>
       )}
 
-      {/* ── Tasks Tab ──────────────────────────────────────────── */}
+      {/* ── Content Tab ── */}
+      {activeTab === "content" && (
+        <Panel
+          title={pageText("Monthly content plan", "الخطة الشهرية للمحتوى")}
+          description={pageText(
+            "A calendar view of all scheduled posts for this client. Click a post to see details.",
+            "عرض تقويمي لجميع المنشورات المجدولة لهذا العميل. انقر على منشور لرؤية تفاصيله."
+          )}
+          action={<InfoBadge label={isArabic ? `${clientContent.filter((i) => i.scheduledDate).length} مجدول` : `${clientContent.filter((i) => i.scheduledDate).length} scheduled`} tone="violet" />}
+        >
+          {clientContent.length === 0 ? (
+            <EmptyPanel
+              title={pageText("No content yet", "لا يوجد محتوى بعد")}
+              description={pageText(
+                "Add content items linked to this client to see the monthly publish plan.",
+                "أضف عناصر محتوى مرتبطة بهذا العميل لرؤية خطة النشر الشهرية."
+              )}
+            />
+          ) : (
+            <ContentCalendar items={clientContent} onItemClick={(item) => setSelectedContent(item)} />
+          )}
+        </Panel>
+      )}
+
+      {/* ── Tasks Tab ── */}
       {activeTab === "tasks" && (
         <Panel
           title={pageText("Client tasks", "مهام العميل")}
@@ -281,7 +302,6 @@ export default function ClientWorkspacePage() {
             />
           ) : (
             <div className="space-y-3">
-              {/* This month section */}
               {currentMonthTasks.length > 0 && (
                 <div className="mb-2">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
@@ -300,7 +320,6 @@ export default function ClientWorkspacePage() {
                   </div>
                 </div>
               )}
-              {/* Older tasks */}
               {clientTasks.filter((t) => !t.createdAt?.startsWith(currentMonth)).length > 0 && (
                 <div>
                   <p className="mb-3 mt-4 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
@@ -326,78 +345,80 @@ export default function ClientWorkspacePage() {
         </Panel>
       )}
 
-      {/* ── Assets Tab ─────────────────────────────────────────── */}
-      {activeTab === "assets" && (
+      {/* ── Approvals Tab ── */}
+      {activeTab === "approvals" && (
         <Panel
-          title={pageText("Asset gallery", "معرض الأصول")}
-          description={pageText("Brand guidelines, raw images, logos, and media files for this client.", "إرشادات الهوية والصور الخام والشعارات وملفات الوسائط لهذا العميل.")}
-          action={<InfoBadge label={isArabic ? `${assets.length} ملف` : `${assets.length} files`} tone="mint" />}
+          title={pageText("Client approvals", "موافقات العميل")}
+          description={pageText("Approval workflow checkpoints for this client's content.", "نقاط التحقق في سير الموافقات لمحتوى هذا العميل.")}
+          action={<InfoBadge label={isArabic ? `${clientApprovals.length} إجمالي` : `${clientApprovals.length} total`} tone="violet" />}
         >
-          {assets.length === 0 ? (
+          {clientApprovals.length === 0 ? (
             <EmptyPanel
-              title={pageText("No assets uploaded yet", "لا توجد أصول مرفوعة بعد")}
-              description={pageText(
-                "Upload brand guidelines, raw images, logos, and videos for this client via the Assets section.",
-                "ارفع إرشادات الهوية والصور الخام والشعارات والفيديو لهذا العميل عبر قسم الأصول."
-              )}
+              title={pageText("No approvals yet", "لا توجد موافقات بعد")}
+              description={pageText("Approval requests for this client will appear here.", "طلبات الموافقة الخاصة بهذا العميل ستظهر هنا.")}
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {assets.map((asset) => (
-                <article key={asset.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.18),rgba(61,217,180,0.18))] text-[var(--accent)]">
-                      <ImageIcon size={18} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {clientApprovals.map((approval) => {
+                const contentItem = clientContent.find((c) => c.id === approval.contentItemId);
+                return (
+                  <article key={approval.id} className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-[var(--text)]">
+                          {contentItem?.title || (isArabic ? "محتوى غير معروف" : "Unknown content")}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">
+                          {isArabic ? "معيّن إلى:" : "Assigned to:"} {approval.assignedTo || (isArabic ? "غير معيّن" : "Unassigned")}
+                        </p>
+                      </div>
+                      <InfoBadge
+                        label={approval.status.replace(/_/g, " ")}
+                        tone={
+                          approval.status === "approved" ? "mint"
+                          : approval.status === "rejected" ? "rose"
+                          : approval.status === "revision_requested" ? "amber"
+                          : "slate"
+                        }
+                      />
                     </div>
-                    <ActionMenu
-                      items={[
-                        ...(asset.fileUrl
-                          ? [{ label: isArabic ? "فتح الملف" : "Open file", icon: FolderOpen, onClick: () => window.open(asset.fileUrl, "_blank") }]
-                          : []),
-                        { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger" as const, onClick: () => setConfirmDeleteAsset(asset.id) },
-                      ]}
-                      size={16}
-                    />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-[var(--text)]">{asset.name}</h3>
-                  <p className="mt-1 text-xs text-[var(--muted)]">{asset.type}</p>
-                  {asset.folder && (
-                    <p className="mt-1 text-[11px] text-[var(--muted)]">
-                      <span className="opacity-60">{isArabic ? "الفولدر:" : "Folder:"}</span> {asset.folder}
+                    <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                      {new Date(approval.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
                     </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {asset.tags?.map((tag) => (
-                      <span key={tag} className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)]">{tag}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </Panel>
       )}
 
-      {/* ── Monthly Plan Tab ────────────────────────────────────── */}
-      {activeTab === "plan" && (
+      {/* ── Notes Tab ── */}
+      {activeTab === "notes" && (
         <Panel
-          title={pageText("Monthly content plan", "الخطة الشهرية للمحتوى")}
-          description={pageText(
-            "A calendar view of all scheduled posts for this client. Click a post to see details.",
-            "عرض تقويمي لجميع المنشورات المجدولة لهذا العميل. انقر على منشور لرؤية تفاصيله."
-          )}
-          action={<InfoBadge label={isArabic ? `${clientContent.filter((i) => i.scheduledDate).length} مجدول` : `${clientContent.filter((i) => i.scheduledDate).length} scheduled`} tone="violet" />}
+          title={pageText("Notes stream", "سجل الملاحظات")}
+          description={pageText("Internal and client-facing notes.", "الملاحظات الداخلية والموجهة للعميل.")}
+          action={<InfoBadge label={isArabic ? `${notes.length} ملاحظة` : `${notes.length} notes`} tone="blue" />}
         >
-          {clientContent.length === 0 ? (
+          {notes.length === 0 ? (
             <EmptyPanel
-              title={pageText("No content yet", "لا يوجد محتوى بعد")}
-              description={pageText(
-                "Add content items linked to this client to see the monthly publish plan.",
-                "أضف عناصر محتوى مرتبطة بهذا العميل لرؤية خطة النشر الشهرية."
-              )}
+              title={pageText("No notes available", "لا توجد ملاحظات متاحة")}
+              description={pageText("Notes added through the workspace are displayed here immediately.", "الملاحظات المضافة عبر مساحة العمل تظهر هنا مباشرة.")}
             />
           ) : (
-            <ContentCalendar items={clientContent} onItemClick={(item) => setSelectedContent(item)} />
+            <div className="space-y-3">
+              {notes.map((note) => (
+                <article key={note.id} className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text)]">
+                      <StickyNote size={15} />{note.author}
+                    </div>
+                    <InfoBadge label={note.type} tone={note.type === "internal" ? "amber" : "mint"} />
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{note.content}</p>
+                </article>
+              ))}
+            </div>
           )}
         </Panel>
       )}
@@ -419,7 +440,7 @@ function TaskCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
+    <article className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</h3>
@@ -448,7 +469,7 @@ function TaskCard({
         <button
           type="button"
           onClick={onToggle}
-          className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[var(--text)] transition hover:bg-[var(--glass-overlay)]"
+          className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[var(--text)] transition hover:bg-[var(--bg)]"
         >
           {task.status === "done"
             ? (isArabic ? "إعادة فتح" : "Re-open")
