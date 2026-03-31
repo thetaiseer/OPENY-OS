@@ -666,6 +666,209 @@ export interface ContentVersion {
   createdAt: string;
 }
 
+// ── Invoice ───────────────────────────────────────────────────
+
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+
+export interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface Invoice {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  invoiceNumber: string;
+  lineItems: LineItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  status: InvoiceStatus;
+  issuedDate: string;
+  dueDate: string;
+  paidAt?: string | null;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── Quotation ─────────────────────────────────────────────────
+
+export type QuotationStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
+
+export interface Quotation {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  quoteNumber: string;
+  lineItems: LineItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  status: QuotationStatus;
+  validUntil: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── Client Contract ───────────────────────────────────────────
+
+export type ClientContractType = "retainer" | "project" | "one_time";
+export type ClientContractStatus = "draft" | "active" | "expired" | "terminated";
+
+export interface ClientContract {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  title: string;
+  type: ClientContractType;
+  startDate: string | null;
+  endDate: string | null;
+  value?: number;
+  currency?: string;
+  status: ClientContractStatus;
+  fileUrl?: string;
+  storagePath?: string;
+  signedAt?: string | null;
+  signedBy?: string | null;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── HR Contract ───────────────────────────────────────────────
+
+export type HRContractType = "full_time" | "part_time" | "contract" | "freelance";
+export type HRContractStatus = "draft" | "active" | "expired" | "terminated";
+
+export interface HRContract {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  title: string;
+  type: HRContractType;
+  startDate: string | null;
+  endDate: string | null;
+  salary?: number;
+  currency?: string;
+  status: HRContractStatus;
+  fileUrl?: string;
+  storagePath?: string;
+  signedAt?: string | null;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── Employee ──────────────────────────────────────────────────
+
+export type EmploymentType = "full_time" | "part_time" | "contract" | "freelance";
+export type EmployeeStatus = "active" | "inactive" | "on_leave" | "terminated";
+
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  department?: TeamDepartment;
+  employmentType: EmploymentType;
+  salary?: number;
+  currency?: string;
+  startDate: string;
+  endDate?: string | null;
+  status: EmployeeStatus;
+  avatarUrl?: string | null;
+  /** Links to the corresponding TeamMember document */
+  teamMemberId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Accounting Entry ──────────────────────────────────────────
+
+export type AccountingEntryType = "income" | "expense" | "invoice" | "payment";
+
+export interface AccountingEntry {
+  id: string;
+  type: AccountingEntryType;
+  category?: string;
+  description: string;
+  amount: number;
+  currency: string;
+  /** ID of a related document (e.g. invoiceId, expenseId) */
+  referenceId?: string;
+  /** Collection name of the referenced document */
+  referenceType?: string;
+  date: string;
+  clientId?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── Expense ───────────────────────────────────────────────────
+
+export type ExpenseStatus = "pending" | "approved" | "rejected" | "paid";
+
+export interface Expense {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  status: ExpenseStatus;
+  payee?: string;
+  receiptUrl?: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  /** Set when the expense is billable to a client */
+  clientId?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// ── History Record ────────────────────────────────────────────
+
+export type HistoryAction =
+  | "created"
+  | "updated"
+  | "deleted"
+  | "status_changed"
+  | "commented"
+  | "viewed"
+  | "approved"
+  | "rejected";
+
+export interface HistoryRecord {
+  id: string;
+  /** ID of the document this history entry belongs to */
+  entityId: string;
+  /** Collection / model name (e.g. "invoice", "task", "client") */
+  entityType: string;
+  action: HistoryAction;
+  changedBy: string;
+  changedByName?: string;
+  /** Serialised previous value (stringified JSON or plain string) */
+  previousValue?: string;
+  /** Serialised new value (stringified JSON or plain string) */
+  newValue?: string;
+  note?: string;
+  createdAt: string;
+}
+
 // ── Calendar Events ───────────────────────────────────────────
 
 export type CalendarEventType = "publish" | "task" | "meeting" | "deadline";
