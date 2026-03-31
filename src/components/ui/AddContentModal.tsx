@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useContentItems } from "@/lib/ContentContext";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { ContentPlatform, ContentType } from "@/lib/types";
 
 interface AddContentModalProps {
@@ -87,8 +88,8 @@ export function AddContentModal({ open, onClose }: AddContentModalProps) {
       });
       reset();
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

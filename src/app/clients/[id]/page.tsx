@@ -26,6 +26,7 @@ import { useClientNotes } from "@/lib/ClientNotesContext";
 import { useBank } from "@/lib/BankContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { ContentCalendar } from "@/components/content/ContentCalendar";
@@ -101,8 +102,8 @@ export default function ClientWorkspacePage() {
       await deleteTask(id);
       setConfirmDeleteTask(null);
       showToast(isArabic ? "تم حذف المهمة" : "Task deleted", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف المهمة" : "Failed to delete task", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف المهمة" : "Failed to delete task"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }
@@ -114,8 +115,8 @@ export default function ClientWorkspacePage() {
       await deleteAsset(id);
       setConfirmDeleteAsset(null);
       showToast(isArabic ? "تم حذف الملف" : "Asset deleted", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف الملف" : "Failed to delete asset", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف الملف" : "Failed to delete asset"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }

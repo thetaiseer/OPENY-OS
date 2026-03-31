@@ -21,6 +21,7 @@ import { ActionMenu } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/lib/ToastContext";
 import { useContentItems } from "@/lib/ContentContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 
 interface ContentCardProps {
   item: ContentItem;
@@ -51,8 +52,8 @@ export function ContentCard({ item, onClick, draggable, onDragStart }: ContentCa
       await deleteContentItem(item.id);
       setConfirmDelete(false);
       showToast(isArabic ? "تم حذف المحتوى بنجاح" : "Content deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف المحتوى" : "Failed to delete content", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف المحتوى" : "Failed to delete content"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }

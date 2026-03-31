@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 import { Modal } from "./Modal";
 import { useTasks, useTeam, useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import type { Task } from "@/lib/types";
 
 interface EditTaskModalProps {
@@ -70,8 +71,8 @@ export function EditTaskModal({ task, onClose }: EditTaskModalProps) {
         dueDate: dueDate || "TBD",
       });
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

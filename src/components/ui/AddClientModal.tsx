@@ -5,6 +5,7 @@ import { UserPlus } from "lucide-react";
 import { Modal } from "./Modal";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 
 interface AddClientModalProps {
   open: boolean;
@@ -52,8 +53,8 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
       await addClient({ name: name.trim(), email: email.trim(), phone: phone.trim() || undefined, website: website.trim() || undefined });
       reset();
       onClose();
-    } catch {
-      setError(isAr ? "حدث خطأ، يرجى المحاولة مرة أخرى" : "Something went wrong, please try again");
+    } catch (err) {
+      setError(parseFirestoreError(err, isAr));
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import { useTasks, useTeam } from "@/lib/AppContext";
 import { useRecurringTasks } from "@/lib/RecurringTaskContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
+import { parseFirestoreError } from "@/lib/utils/crud";
 import { AddTaskModal } from "@/components/ui/AddTaskModal";
 import { EditTaskModal } from "@/components/ui/EditTaskModal";
 import { AddRecurringTaskModal } from "@/components/ui/AddRecurringTaskModal";
@@ -47,8 +48,8 @@ export default function TasksPage() {
       await deleteTask(id);
       setConfirmDelete(null);
       showToast(isArabic ? "تم حذف المهمة بنجاح" : "Task deleted successfully", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف المهمة" : "Failed to delete task", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف المهمة" : "Failed to delete task"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }
@@ -60,8 +61,8 @@ export default function TasksPage() {
       await deleteTemplate(id);
       setConfirmDeleteTemplate(null);
       showToast(isArabic ? "تم حذف القالب" : "Template deleted", "success");
-    } catch {
-      showToast(isArabic ? "فشل حذف القالب" : "Failed to delete template", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل حذف القالب" : "Failed to delete template"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setDeleting(false);
     }
@@ -77,8 +78,8 @@ export default function TasksPage() {
           : `Generated ${generated} task(s) from recurring templates`,
         "success"
       );
-    } catch {
-      showToast(isArabic ? "فشل إنشاء المهام" : "Failed to generate tasks", "error");
+    } catch (err) {
+      showToast(`${isArabic ? "فشل إنشاء المهام" : "Failed to generate tasks"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
       setGenerating(false);
     }
