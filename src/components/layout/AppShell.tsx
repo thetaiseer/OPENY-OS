@@ -93,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           {/* Desktop nav links */}
-          <nav className="hidden lg:flex lg:items-center lg:gap-1">
+          <nav className="hidden lg:flex lg:items-center lg:gap-0.5">
             {NAV_ITEMS.slice(0, 7).map((item) => {
               const active =
                 pathname === item.href ||
@@ -103,14 +103,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-150"
+                  className="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-150 hover:bg-[var(--glass-overlay)]"
                   style={{
-                    color: active ? "var(--accent)" : "var(--muted)",
-                    background: active ? "var(--glass-nav-active)" : "transparent",
-                    border: active ? "1px solid var(--glass-nav-active-border)" : "1px solid transparent",
+                    color: active ? "#ffffff" : "var(--muted)",
+                    background: active ? "var(--accent)" : "transparent",
                   }}
                 >
-                  <Icon size={15} />
+                  <Icon size={14} />
                   <span>{language === "ar" ? item.title.ar : item.title.en}</span>
                 </Link>
               );
@@ -273,19 +272,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 mb-1"
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 mb-1 hover:bg-[var(--glass-overlay)]"
                       style={{
-                        color: active ? "var(--accent)" : "var(--text)",
-                        background: active ? "var(--glass-nav-active)" : "transparent",
-                        borderLeft: active && !isRTL ? "3px solid var(--accent)" : "3px solid transparent",
-                        borderRight: active && isRTL ? "3px solid var(--accent)" : "3px solid transparent",
+                        color: active ? "#ffffff" : "var(--text)",
+                        background: active ? "var(--accent)" : "transparent",
                       }}
                     >
                       <span
                         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
                         style={{
-                          background: active ? "var(--accent-soft)" : "var(--glass-overlay)",
-                          color: active ? "var(--accent)" : "var(--muted)",
+                          background: active ? "rgba(255,255,255,0.2)" : "var(--glass-overlay)",
+                          color: active ? "#ffffff" : "var(--muted)",
                         }}
                       >
                         <Icon size={16} />
