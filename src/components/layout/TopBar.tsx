@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search, Menu } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
@@ -13,12 +13,12 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
   const { language, isRTL } = useLanguage();
   const [searchFocused, setSearchFocused] = useState(false);
 
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting =
-    language === "ar"
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    return language === "ar"
       ? hour < 12 ? "صباح الخير" : hour < 17 ? "مساء الخير" : "مساء النور"
       : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  }, [language]);
 
   return (
     <header

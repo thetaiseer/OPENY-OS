@@ -91,11 +91,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main content area */}
       <div
         style={{
-          marginLeft: isRTL ? 0 : 0,
-          marginRight: isRTL ? 0 : 0,
           paddingTop: "var(--topbar-height)",
           paddingBottom: "var(--bottomnav-height, 64px)",
-          transition: "padding-left 0.25s ease, padding-right 0.25s ease",
         }}
         className="md:pl-0 md:pr-0"
       >

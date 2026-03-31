@@ -24,7 +24,7 @@ export function BottomNav() {
       position: "fixed",
       bottom: 0, left: 0, right: 0,
       height: "var(--bottomnav-height)",
-      background: "rgba(7,11,20,0.97)",
+      background: "var(--sidebar-bg, rgba(7,11,20,0.97))",
       borderTop: "1px solid var(--border)",
       backdropFilter: "blur(16px)",
       WebkitBackdropFilter: "blur(16px)",
