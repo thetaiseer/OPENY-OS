@@ -72,7 +72,7 @@ export default function ReportsPage() {
           description={pageText("Weekly content creation trend over the past 8 weeks.", "اتجاه إنشاء المحتوى الأسبوعي خلال الـ 8 أسابيع الماضية.")}
           action={<span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--accent)" }}><TrendingUp size={13} />{isArabic ? `${activities.length} نشاط` : `${activities.length} activities`}</span>}>
           
-          <MiniAreaChart values={trendValues} tone="blue" />
+          <MiniAreaChart data={trendValues} />
         </Panel>
         <Panel
           title={pageText("Publishing progress", "تقدم النشر")}

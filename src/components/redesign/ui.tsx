@@ -175,18 +175,11 @@ const TONE_COLORS = {
   cyan:   { bg: "var(--cyan-soft)",     color: "var(--cyan)",    glow: "rgba(6,182,212,0.2)" },
 };
 
-function resolveText(val: Localizable | undefined, language: string): string | undefined {
-  if (val === undefined) return undefined;
-  if (typeof val === "string") return val;
-  return language === "ar" ? val.ar : val.en;
-}
-
 export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", trend, href, loading }: StatCardProps) {
   const { language } = useLanguage();
   const tc = TONE_COLORS[tone];
   const resolvedLabel = resolveText(label, language) ?? "";
   const resolvedSub = resolveText(sub ?? hint, language);
-  const Wrapper = href ? Link : "div";
 
   if (loading) {
     return (
@@ -202,22 +195,21 @@ export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", t
     );
   }
 
-  return (
-    <Wrapper
-      {...(href ? { href } : {})}
-      style={{
-        display: "block",
-        background: "var(--panel)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-card)",
-        padding: "1.25rem",
-        textDecoration: "none",
-        cursor: href ? "pointer" : "default",
-        transition: "border-color 0.15s, box-shadow 0.15s",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
+  const sharedStyle = {
+    display: "block" as const,
+    background: "var(--panel)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-card)",
+    padding: "1.25rem",
+    textDecoration: "none",
+    cursor: href ? "pointer" as const : "default" as const,
+    transition: "border-color 0.15s, box-shadow 0.15s",
+    position: "relative" as const,
+    overflow: "hidden" as const,
+  };
+
+  const innerContent = (
+    <>
       {/* Subtle top accent line */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
@@ -281,7 +273,13 @@ export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", t
           <ArrowUpRight size={14} />
         </div>
       )}
-    </Wrapper>
+    </>
+  );
+
+  return href ? (
+    <Link href={href} style={sharedStyle}>{innerContent}</Link>
+  ) : (
+    <div style={sharedStyle}>{innerContent}</div>
   );
 }
 
@@ -429,7 +427,7 @@ export function EmptyPanel({ icon: Icon = Inbox, title, description, action }: E
 interface InfoBadgeProps {
   label: string;
   value?: string | number;
-  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted";
+  tone?: "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted" | "slate";
   dot?: boolean;
 }
 
@@ -441,6 +439,7 @@ const BADGE_STYLES = {
   rose:   { bg: "var(--rose-soft)",     color: "#F87171" },
   cyan:   { bg: "var(--cyan-soft)",     color: "#22D3EE" },
   muted:  { bg: "var(--glass-overlay)", color: "var(--text-secondary)" },
+  slate:  { bg: "var(--glass-overlay)", color: "var(--text-secondary)" },
 };
 
 export function InfoBadge({ label, value, tone = "muted", dot }: InfoBadgeProps) {
@@ -476,14 +475,20 @@ interface KanbanColumn {
     platform?: string;
     status?: string;
     scheduledFor?: string;
+    clientId?: string;
+    caption?: string;
+    contentType?: string;
+    priority?: string;
+    [key: string]: unknown;
   }>;
 }
 
 interface KanbanBoardProps {
   columns: KanbanColumn[];
+  renderItem?: (item: KanbanColumn["items"][number]) => ReactNode;
 }
 
-const STATUS_TONE: Record<string, "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted"> = {
+const STATUS_TONE: Record<string, "blue" | "violet" | "mint" | "amber" | "rose" | "cyan" | "muted" | "slate"> = {
   idea:              "muted",
   draft:             "muted",
   copywriting:       "blue",
@@ -497,7 +502,7 @@ const STATUS_TONE: Record<string, "blue" | "violet" | "mint" | "amber" | "rose" 
   published:         "mint",
 };
 
-export function KanbanBoard({ columns }: KanbanBoardProps) {
+export function KanbanBoard({ columns, renderItem }: KanbanBoardProps) {
   return (
     <div style={{
       display: "grid",
@@ -530,6 +535,9 @@ export function KanbanBoard({ columns }: KanbanBoardProps) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {col.items.map((item, idx) => (
+              renderItem ? (
+                <div key={item.id ?? idx}>{renderItem(item)}</div>
+              ) : (
               <div key={item.id ?? idx} style={{
                 background: "var(--panel)",
                 border: "1px solid var(--border)",
@@ -548,6 +556,7 @@ export function KanbanBoard({ columns }: KanbanBoardProps) {
                   )}
                 </div>
               </div>
+              )
             ))}
           </div>
         </div>

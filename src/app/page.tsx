@@ -193,7 +193,7 @@ export default function DashboardPage() {
           action={<InfoBadge label={isArabic ? `${dueNow} مستحق الآن` : `${dueNow} due now`} tone={dueNow > 0 ? "amber" : "mint"} />}
           className="lg:col-span-3">
           
-          <MiniAreaChart values={weeklySeries} tone="blue" />
+          <MiniAreaChart data={weeklySeries} />
           <div className="mt-4 grid grid-cols-3 gap-3">
             <QuickMetric label={isArabic ? "الفريق" : "Team"} value={members.length} />
             <QuickMetric label={isArabic ? "المحتوى" : "Content"} value={contentItems.length} />
