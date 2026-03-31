@@ -4,411 +4,296 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Users2, UserCircle, CheckSquare,
-  Settings2, Globe, FileText,
-  ImageIcon, BarChart2, PanelLeftClose, PanelLeftOpen,
-  Sun, Moon } from
-"lucide-react";
+  LayoutDashboard, Users2, CheckSquare, FileText,
+  ImageIcon, BarChart2, Settings2, UserCircle,
+  ChevronLeft, ChevronRight, Globe,
+  Sparkles
+} from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useTheme } from "@/components/layout/ThemeProvider";
 
+const NAV_ITEMS = [
+  { href: "/",          icon: LayoutDashboard, labelKey: "nav.dashboard",  section: "main" },
+  { href: "/clients",   icon: Users2,           labelKey: "nav.clients",    section: "main" },
+  { href: "/tasks",     icon: CheckSquare,      labelKey: "nav.tasks",      section: "main" },
+  { href: "/content",   icon: FileText,         labelKey: "nav.content",    section: "main" },
+  { href: "/team",      icon: UserCircle,       labelKey: "nav.team",       section: "resources" },
+  { href: "/assets",    icon: ImageIcon,        labelKey: "nav.assets",     section: "resources" },
+  { href: "/reports",   icon: BarChart2,        labelKey: "nav.reports",    section: "resources" },
+  { href: "/approvals", icon: Sparkles,         labelKey: "nav.approvals",  section: "resources" },
+  { href: "/settings",  icon: Settings2,        labelKey: "nav.settings",   section: "system" },
+];
 
+const SECTION_LABELS = {
+  main:      { en: "Workspace",  ar: "مساحة العمل" },
+  resources: { en: "Resources",  ar: "الموارد" },
+  system:    { en: "System",     ar: "النظام" },
+};
 
+interface SideNavProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
 
-
-
-
-
-
-
-
-
-
-const NAV_SECTIONS = [
-{
-  id: "workspace",
-  labelKey: null,
-  items: [
-  { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard }]
-
-},
-{
-  id: "manage",
-  labelKey: "nav.section.manage",
-  items: [
-  { href: "/clients", labelKey: "nav.clients", icon: Users2 },
-  { href: "/content", labelKey: "nav.content", icon: FileText },
-  { href: "/tasks", labelKey: "nav.tasks", icon: CheckSquare }]
-
-},
-{
-  id: "resources",
-  labelKey: "nav.section.resources",
-  items: [
-  { href: "/team", labelKey: "nav.team", icon: UserCircle },
-  { href: "/assets", labelKey: "nav.assets", icon: ImageIcon },
-  { href: "/reports", labelKey: "nav.reports", icon: BarChart2 }]
-
-},
-{
-  id: "settings",
-  labelKey: "nav.section.settings",
-  items: [
-  { href: "/settings", labelKey: "nav.settings", icon: Settings2 }]
-
-}];
-
-
-
-
-
-
-
-
-
-
-
-
-export function SideNav({ collapsed, onToggleCollapse }) {
+export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
   const pathname = usePathname();
   const { t, language, setLanguage, isRTL } = useLanguage();
-  const { theme, toggleTheme } = useTheme();
-  const [tooltip, setTooltip] = useState(null);
-  const tooltipTimeout = useRef(null);
+  const [tooltip, setTooltip] = useState<string | null>(null);
+  const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
-    };
-  }, []);
+  useEffect(() => () => { if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current); }, []);
 
-  const handleMouseEnterItem = (label, e) => {
-    if (!collapsed) return;
+  const showTooltip = (label: string) => {
+    if (collapsed) {
+      tooltipTimeout.current = setTimeout(() => setTooltip(label), 300);
+    }
+  };
+  const hideTooltip = () => {
     if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({ label, top: rect.top + rect.height / 2 - 12 });
+    setTooltip(null);
   };
 
-  const handleMouseLeaveItem = () => {
-    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
-    tooltipTimeout.current = setTimeout(() => setTooltip(null), 80);
-  };
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  const sidebarWidth = collapsed ? 72 : 240;
+  const sections = Array.from(new Set(NAV_ITEMS.map(i => i.section)));
 
   return (
-    <>
-      <motion.aside
-        animate={{ width: sidebarWidth }}
-        transition={{ type: "spring", stiffness: 380, damping: 32 }}
-        className="fixed top-0 h-full flex flex-col z-40 overflow-hidden"
-        style={{
-          background: "var(--glass-nav)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          borderInlineEnd: "1px solid var(--border)",
-          boxShadow: "var(--shadow-nav)",
-          [isRTL ? "right" : "left"]: 0
-        }}>
-        
-        {/* ── Workspace header ──────────────────────────────────── */}
-        <div
-          className="flex items-center justify-between px-3 pt-4 pb-3 flex-shrink-0"
-          style={{ minHeight: 64 }}>
-          
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            {/* OPENY Logo badge */}
-            <div
-              className="flex-shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
-              style={{
-                width: 36,
-                height: 36,
-                background: "var(--glass-nav-active)",
-                border: "1px solid var(--glass-nav-active-border)"
-              }}>
-              
-              <img
-                src="/assets/openy-logo.png"
-                alt="OPENY OS"
-                style={{
-                  height: 22,
-                  width: "auto",
-                  objectFit: "contain"
-                }} />
-              
-            </div>
-            <AnimatePresence initial={false}>
-              {!collapsed &&
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.18 }}
-                className="overflow-hidden whitespace-nowrap">
-                
-                  <p className="text-sm font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
-                    OPENY OS
-                  </p>
-                  <p className="text-[10px] font-medium tracking-wide" style={{ color: "var(--text-muted)" }}>
-                    {language === "ar" ? "مساحة العمل" : "Workspace"}
-                  </p>
-                </motion.div>
-              }
-            </AnimatePresence>
-          </div>
-
-          <motion.button
-            onClick={onToggleCollapse}
-            className="flex-shrink-0 rounded-lg p-1.5 transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            whileHover={{ background: "var(--surface-3)", color: "var(--text-primary)" }}
-            whileTap={{ scale: 0.92 }}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
-            
-            {collapsed ?
-            <PanelLeftOpen size={15} /> :
-            <PanelLeftClose size={15} />}
-          </motion.button>
-        </div>
-
-        <div className="mx-3 mb-1 flex-shrink-0" style={{ height: 1, background: "var(--border)" }} />
-
-        {/* ── Nav sections ──────────────────────────────────────── */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-0.5">
-          {NAV_SECTIONS.map((section) =>
-          <div key={section.id}>
-              <AnimatePresence initial={false}>
-                {!collapsed && section.labelKey &&
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.14 }}
-                className="sidebar-nav-section-label">
-                
-                    {t(section.labelKey)}
-                  </motion.p>
-              }
-              </AnimatePresence>
-
-              <div className="space-y-0.5">
-                {section.items.map(({ href, labelKey, icon: Icon }) => {
-                const label = t(labelKey);
-                const isActive =
-                pathname === href || href !== "/" && pathname.startsWith(href);
-
-                return (
-                  <motion.div
-                    key={href}
-                    whileHover={{ x: collapsed ? 0 : isRTL ? -2 : 2 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    onMouseEnter={(e) => handleMouseEnterItem(label, e)}
-                    onMouseLeave={handleMouseLeaveItem}>
-                    
-                      <Link
-                      href={href}
-                      className="relative flex items-center rounded-xl transition-colors duration-150"
-                      style={{
-                        gap: collapsed ? 0 : 10,
-                        padding: collapsed ? "9px 0" : "8px 10px",
-                        justifyContent: collapsed ? "center" : "flex-start",
-                        background: isActive ? "var(--glass-nav-active)" : "transparent",
-                        color: isActive ? "var(--accent)" : "var(--text-secondary)",
-                        boxShadow: isActive ?
-                        "inset 0 0 0 1px var(--glass-nav-active-border)" :
-                        "none"
-                      }}>
-                      
-                        {/* Active left border indicator */}
-                        {isActive && !collapsed &&
-                      <motion.span
-                        layoutId="nav-active-bar"
-                        className="absolute rounded-full"
-                        style={{
-                          [isRTL ? "right" : "left"]: -8,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 3,
-                          height: 20,
-                          background: "var(--accent)",
-                          borderRadius: 99
-                        }}
-                        transition={{ type: "spring", stiffness: 500, damping: 35 }} />
-
-                      }
-
-                        <Icon size={17} className="flex-shrink-0" />
-
-                        <AnimatePresence initial={false}>
-                          {!collapsed &&
-                        <motion.span
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: "auto" }}
-                          exit={{ opacity: 0, width: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="text-sm font-medium whitespace-nowrap overflow-hidden">
-                          
-                              {label}
-                            </motion.span>
-                        }
-                        </AnimatePresence>
-
-                        {isActive && !collapsed &&
-                      <motion.div
-                        className="ms-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ background: "var(--accent)" }}
-                        layoutId="nav-dot"
-                        transition={{ type: "spring", stiffness: 500, damping: 35 }} />
-
-                      }
-                      </Link>
-                    </motion.div>);
-
-              })}
-              </div>
-            </div>
+    <motion.aside
+      animate={{ width: collapsed ? 64 : 240 }}
+      transition={{ duration: 0.25, ease: "easeInOut" }}
+      style={{
+        width: collapsed ? 64 : 240,
+        background: "var(--sidebar-bg)",
+        borderRight: isRTL ? "none" : "1px solid var(--sidebar-border)",
+        borderLeft: isRTL ? "1px solid var(--sidebar-border)" : "none",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0,
+        left: isRTL ? "auto" : 0,
+        right: isRTL ? 0 : "auto",
+        zIndex: 100,
+        overflow: "hidden",
+        flexShrink: 0,
+      }}
+    >
+      {/* Logo */}
+      <div style={{
+        padding: collapsed ? "16px 0" : "16px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: collapsed ? "center" : "space-between",
+        borderBottom: "1px solid var(--border)",
+        minHeight: 60,
+        flexShrink: 0,
+      }}>
+        <AnimatePresence mode="wait">
+          {!collapsed && (
+            <motion.div
+              key="logo-full"
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.2 }}
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
+            >
+              <div style={{
+                width: 30, height: 30, borderRadius: 8,
+                background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, fontWeight: 700, color: "white",
+                boxShadow: "0 0 16px rgba(59,130,246,0.35)",
+                flexShrink: 0,
+              }}>O</div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                OPENY OS
+              </span>
+            </motion.div>
           )}
-        </nav>
-
-        {/* ── Bottom section ────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-2 pb-3 space-y-1.5">
-          <div className="flex-shrink-0" style={{ height: 1, background: "var(--border)", marginBottom: 8 }} />
-
-          {/* Language switcher */}
-          <motion.button
-            onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-            className="w-full flex items-center rounded-xl transition-colors"
-            style={{
-              gap: collapsed ? 0 : 10,
-              padding: collapsed ? "9px 0" : "8px 10px",
-              justifyContent: collapsed ? "center" : "flex-start",
-              background: "var(--glass-overlay)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--glass-overlay-border)"
-            }}
-            whileHover={{ background: "var(--surface-3)" }}
-            whileTap={{ scale: 0.97 }}
-            onMouseEnter={(e) =>
-            handleMouseEnterItem(language === "en" ? "العربية" : "English", e)
-            }
-            onMouseLeave={handleMouseLeaveItem}
-            title={language === "en" ? "Switch to Arabic" : "التبديل إلى الإنجليزية"}>
-            
-            <Globe size={15} className="flex-shrink-0" />
-            <AnimatePresence initial={false}>
-              {!collapsed &&
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-xs font-semibold whitespace-nowrap overflow-hidden">
-                
-                  {language === "en" ? "العربية" : "English"}
-                </motion.span>
-              }
-            </AnimatePresence>
-          </motion.button>
-
-          {/* Theme toggle */}
-          <motion.button
-            onClick={toggleTheme}
-            className="w-full flex items-center rounded-xl transition-colors"
-            style={{
-              gap: collapsed ? 0 : 10,
-              padding: collapsed ? "9px 0" : "8px 10px",
-              justifyContent: collapsed ? "center" : "flex-start",
-              background: "var(--glass-overlay)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--glass-overlay-border)"
-            }}
-            whileHover={{ background: "var(--surface-3)" }}
-            whileTap={{ scale: 0.97 }}
-            onMouseEnter={(e) =>
-            handleMouseEnterItem(theme === "dark" ? "Light Mode" : "Dark Mode", e)
-            }
-            onMouseLeave={handleMouseLeaveItem}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-            
-            {theme === "dark" ?
-            <Sun size={15} className="flex-shrink-0" /> :
-            <Moon size={15} className="flex-shrink-0" />}
-            <AnimatePresence initial={false}>
-              {!collapsed &&
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-xs font-semibold whitespace-nowrap overflow-hidden">
-                
-                  {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                </motion.span>
-              }
-            </AnimatePresence>
-          </motion.button>
-
-          {/* User card */}
-          <div
-            className="flex items-center rounded-xl overflow-hidden cursor-pointer"
-            style={{
-              gap: collapsed ? 0 : 10,
-              padding: collapsed ? "9px 0" : "9px 10px",
-              justifyContent: collapsed ? "center" : "flex-start",
-              background: "var(--glass-overlay)",
-              border: "1px solid var(--glass-overlay-border)"
-            }}>
-            
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+          {collapsed && (
+            <motion.div
+              key="logo-icon"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
               style={{
-                background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)"
-              }}>
-              
-              T
+                width: 30, height: 30, borderRadius: 8,
+                background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, fontWeight: 700, color: "white",
+                boxShadow: "0 0 16px rgba(59,130,246,0.35)",
+              }}>O</motion.div>
+          )}
+        </AnimatePresence>
+
+        {!collapsed && (
+          <button
+            onClick={onToggleCollapse}
+            style={{
+              width: 26, height: 26, borderRadius: 6,
+              background: "var(--glass-overlay)",
+              border: "1px solid var(--border)",
+              cursor: "pointer", color: "var(--text-muted)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
+            title={isRTL ? "توسيع" : "Collapse"}
+          >
+            {isRTL
+              ? (collapsed ? <ChevronLeft size={13} /> : <ChevronRight size={13} />)
+              : (collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />)
+            }
+          </button>
+        )}
+      </div>
+
+      {/* Nav items */}
+      <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
+        {sections.map(section => {
+          const items = NAV_ITEMS.filter(i => i.section === section);
+          const sectionLabel = SECTION_LABELS[section as keyof typeof SECTION_LABELS];
+          return (
+            <div key={section} style={{ marginBottom: 4 }}>
+              {!collapsed && (
+                <div style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: "var(--text-muted)",
+                  padding: "10px 20px 4px",
+                }}>
+                  {language === "ar" ? sectionLabel.ar : sectionLabel.en}
+                </div>
+              )}
+              {items.map(item => {
+                const active = isActive(item.href);
+                const label = t(item.labelKey);
+                return (
+                  <div key={item.href} style={{ position: "relative" }}>
+                    <Link
+                      href={item.href}
+                      onMouseEnter={() => showTooltip(label)}
+                      onMouseLeave={hideTooltip}
+                      style={{
+                        display: "flex", alignItems: "center",
+                        gap: 10, textDecoration: "none",
+                        margin: "1px 8px",
+                        padding: collapsed ? "10px 0" : "9px 12px",
+                        borderRadius: 10,
+                        justifyContent: collapsed ? "center" : "flex-start",
+                        background: active ? "var(--glass-nav-active)" : "transparent",
+                        border: active ? "1px solid var(--glass-nav-active-border)" : "1px solid transparent",
+                        color: active ? "var(--accent)" : "var(--text-secondary)",
+                        fontWeight: active ? 600 : 400,
+                        fontSize: 13.5,
+                        transition: "all 0.15s ease",
+                        position: "relative",
+                      }}
+                    >
+                      {active && (
+                        <span style={{
+                          position: "absolute",
+                          left: isRTL ? "auto" : -8,
+                          right: isRTL ? -8 : "auto",
+                          top: "50%", transform: "translateY(-50%)",
+                          width: 3, height: "60%",
+                          background: "var(--accent)",
+                          borderRadius: 2,
+                          boxShadow: "0 0 8px var(--accent)",
+                        }} />
+                      )}
+                      <item.icon
+                        size={17}
+                        style={{
+                          flexShrink: 0,
+                          color: active ? "var(--accent)" : "var(--text-muted)",
+                          filter: active ? "drop-shadow(0 0 4px rgba(59,130,246,0.5))" : "none",
+                        }}
+                      />
+                      {!collapsed && (
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {label}
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Tooltip when collapsed */}
+                    {collapsed && tooltip === label && (
+                      <div style={{
+                        position: "fixed",
+                        left: isRTL ? "auto" : 72,
+                        right: isRTL ? 72 : "auto",
+                        background: "var(--panel-strong)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: 8, padding: "5px 10px",
+                        fontSize: 12, fontWeight: 500,
+                        color: "var(--text)", whiteSpace: "nowrap",
+                        boxShadow: "var(--shadow)",
+                        zIndex: 9999,
+                        pointerEvents: "none",
+                        transform: "translateY(-50%)",
+                        top: "50%",
+                      }}>
+                        {label}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <AnimatePresence initial={false}>
-              {!collapsed &&
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap min-w-0">
-                
-                  <p className="text-xs font-semibold leading-tight truncate" style={{ color: "var(--text-primary)" }}>
-                    Thetaiseer
-                  </p>
-                  <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>
-                    thetaiseer@gmail.com
-                  </p>
-                </motion.div>
-              }
-            </AnimatePresence>
-          </div>
-        </div>
-      </motion.aside>
+          );
+        })}
+      </nav>
 
-      {/* ── Tooltip for collapsed mode ─────────────────────────── */}
-      <AnimatePresence>
-        {collapsed && tooltip &&
-        <motion.div
-          key={tooltip.label}
-          initial={{ opacity: 0, x: isRTL ? 4 : -4 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: isRTL ? 4 : -4 }}
-          transition={{ duration: 0.12 }}
-          className="sidebar-tooltip"
+      {/* Bottom section */}
+      <div style={{
+        borderTop: "1px solid var(--border)",
+        padding: collapsed ? "12px 0" : "12px 8px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        flexShrink: 0,
+      }}>
+        {/* Language toggle */}
+        <button
+          onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
           style={{
-            top: tooltip.top,
-            [isRTL ? "right" : "left"]: 80
-          }}>
-          
-            {tooltip.label}
-          </motion.div>
-        }
-      </AnimatePresence>
-    </>);
+            display: "flex", alignItems: "center", gap: 10,
+            padding: collapsed ? "9px 0" : "9px 12px",
+            borderRadius: 10, background: "transparent",
+            border: "1px solid transparent",
+            color: "var(--text-secondary)",
+            cursor: "pointer", fontSize: 13.5, fontWeight: 400,
+            justifyContent: collapsed ? "center" : "flex-start",
+            width: "100%",
+            transition: "all 0.15s",
+          }}
+          title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+        >
+          <Globe size={17} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+          {!collapsed && <span>{language === "ar" ? "English" : "العربية"}</span>}
+        </button>
 
+        {/* Collapse toggle (collapsed state) */}
+        {collapsed && (
+          <button
+            onClick={onToggleCollapse}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "9px 0",
+              borderRadius: 10, background: "transparent",
+              border: "1px solid transparent",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              width: "100%",
+              transition: "all 0.15s",
+            }}
+            title={isRTL ? "توسيع" : "Expand"}
+          >
+            {isRTL ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
+          </button>
+        )}
+      </div>
+    </motion.aside>
+  );
 }
