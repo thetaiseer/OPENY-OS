@@ -4,6 +4,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
   collection,
   type CollectionReference,
   type DocumentData,
@@ -29,12 +31,25 @@ const firebaseConfig = {
 // Prevent duplicate app initialisation in Next.js hot-reload and SSR environments.
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Use the default Firestore instance.  The app relies on onSnapshot() for
-// real-time sync so all changes are propagated to every connected device
-// without requiring IndexedDB persistence.  Keeping it simple avoids the
-// cross-tab lock-coordination problems that the persistentMultipleTabManager
-// used to cause (write operations hanging → timeouts → stuck modals).
-export const db = getFirestore(app);
+// Use an in-memory local cache so that Firestore write operations (addDoc,
+// deleteDoc, updateDoc) apply to the local cache immediately and resolve the
+// returned promise without waiting for server round-trip confirmation.  This
+// eliminates the "hanging write → withTimeout fires → stuck button" problem.
+// Unlike IndexedDB persistence, memoryLocalCache has no cross-tab lock
+// coordination, so it never causes operations to hang in multi-tab sessions.
+// Data is still synced to the Firestore server in the background; onSnapshot
+// listeners receive updates from memory cache and from the server as they arrive.
+function createFirestore() {
+  try {
+    return initializeFirestore(app, { localCache: memoryLocalCache() });
+  } catch {
+    // initializeFirestore throws when called a second time on the same app
+    // (e.g. Next.js hot-module replacement).  Fall back to the existing instance.
+    return getFirestore(app);
+  }
+}
+
+export const db = createFirestore();
 export const auth = getAuth(app);
 
 // ── Workspace collection helper ──────────────────────────────
