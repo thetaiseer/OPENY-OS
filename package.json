@@ -21,10 +21,14 @@
     "@babel/plugin-syntax-jsx": "^7.28.6",
     "@babel/plugin-transform-typescript": "^7.28.6",
     "@tailwindcss/postcss": "^4",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "sucrase": "^3.35.1",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^6.0.2"
   },
   "type": "module"
 }

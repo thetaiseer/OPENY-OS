@@ -79,7 +79,7 @@ export function PageHeader({
   eyebrow,
   title,
   description,
-  actions
+  actions = null
 
 
 
@@ -126,9 +126,9 @@ export function PageHeader({
 
 /* ── Panel / Card ── */
 export function Panel({
-  title,
-  description,
-  action,
+  title = null,
+  description = null,
+  action = null,
   children,
   className = "",
   noPadding = false
@@ -494,7 +494,7 @@ export function CalendarHeatmap({
       
       <div className="grid min-w-[280px] grid-cols-7 gap-1.5 px-1">
         {days.map((day) => {
-          const level = Math.min(day.value, 4);
+          const level = Math.min(day.value as number, 4);
           return (
             <div
               key={day.key}

@@ -97,7 +97,7 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
         const items = snap.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        }));
+        } as Record<string, any> & { id: string }));
         // Only expose client-safe content (not idea/draft/in_progress/internal_review stages)
         const clientVisible = items.
         filter((i) =>
@@ -127,7 +127,7 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
         const approvals = snap.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        }));
+        } as Record<string, any> & { id: string }));
         // Only show pending_client and resolved approvals
         const visible = approvals.
         filter((a) =>
@@ -173,7 +173,7 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
   const clientApprove = useCallback(
     async (approvalId, comment) => {
       const now = new Date().toISOString();
-      const updateData = {
+      const updateData: Record<string, any> = {
         status: "approved",
         updatedAt: now
       };

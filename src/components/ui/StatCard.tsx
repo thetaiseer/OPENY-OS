@@ -13,7 +13,7 @@ import { useTheme } from "@/components/layout/ThemeProvider";
 
 
 
-export function StatCard({ label, value, icon: Icon, change, positive = true, accent }) {
+export function StatCard({ label, value, icon: Icon, change, positive = true, accent = false }: { label?: string; value?: any; icon?: any; change?: string; positive?: boolean; accent?: boolean }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const numericValue = typeof value === "number" ? value : undefined;

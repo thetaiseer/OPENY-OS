@@ -1,11 +1,19 @@
 "use client";
 
 // ============================================================
-// OPENY OS – Invitation Acceptance Page (dynamic route)
+// OPENY OS – Accept Invitation Page (/accept-invite?token=...)
 // ============================================================
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, Clock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  ArrowRight,
+  Loader2 } from
+"lucide-react";
 import { useInvitations } from "@/lib/InvitationContext";
 
 
@@ -31,15 +39,20 @@ function formatDate(iso) {
   });
 }
 
-// ── Page ──────────────────────────────────────────────────────
+// ── Inner component (uses useSearchParams) ────────────────────
 
-export default function InvitePage({ params }) {
-  const { token } = use(params);
+function AcceptInviteContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   const { getInvitationByToken, acceptInvitation } = useInvitations();
-  const [state, setState] = useState({ phase: "loading" });
+  const [state, setState] = useState<{ phase: string; invitation?: any }>({ phase: "loading" });
 
   useEffect(() => {
     (async () => {
+      if (!token) {
+        setState({ phase: "invalid" });
+        return;
+      }
       try {
         const inv = await getInvitationByToken(token);
         if (!inv) {
@@ -60,7 +73,7 @@ export default function InvitePage({ params }) {
         }
         setState({ phase: "ready", invitation: inv });
       } catch (err) {
-        console.error("[OPENY] Invite page error:", err);
+        console.error("[OPENY] Accept-invite page error:", err);
         setState({ phase: "invalid" });
       }
     })();
@@ -75,7 +88,6 @@ export default function InvitePage({ params }) {
       if (result.success && result.invitation) {
         setState({ phase: "success", invitation: result.invitation });
       } else {
-        // Re-check status
         setState({ phase: "expired", invitation: result.invitation ?? inv });
       }
     } catch (err) {
@@ -215,6 +227,14 @@ export default function InvitePage({ params }) {
                   This invitation was already accepted. You are already a team member.
                 </p>
               </div>
+              <Link
+              href="/"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all"
+              style={{ background: "var(--accent)", color: "#fff" }}>
+              
+                Go to Dashboard
+                <ArrowRight size={15} />
+              </Link>
             </div>
           }
 
@@ -226,7 +246,8 @@ export default function InvitePage({ params }) {
                   You&apos;re Invited!
                 </p>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  <strong style={{ color: "var(--text-secondary)" }}>{state.invitation.invitedBy}</strong> has invited you to join{" "}
+                  <strong style={{ color: "var(--text-secondary)" }}>{state.invitation.invitedByName ?? state.invitation.invitedBy}</strong>{" "}
+                  has invited you to join{" "}
                   <strong style={{ color: "var(--text-secondary)" }}>OPENY OS</strong>
                 </p>
               </div>
@@ -241,20 +262,17 @@ export default function InvitePage({ params }) {
               
                 <DetailRow label="Email" value={state.invitation.email} />
                 <DetailRow label="Role" value={state.invitation.role} accent />
-                <DetailRow label="Invited by" value={state.invitation.invitedBy} />
                 <DetailRow
-                label="Expires"
-                value={formatDate(state.invitation.expiresAt)} />
+                label="Invited by"
+                value={state.invitation.invitedByName ?? state.invitation.invitedBy} />
               
+                <DetailRow label="Expires" value={formatDate(state.invitation.expiresAt)} />
               </div>
 
               <button
               onClick={handleAccept}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm transition-all"
-              style={{
-                background: "var(--accent)",
-                color: "#fff"
-              }}>
+              style={{ background: "var(--accent)", color: "#fff" }}>
               
                 Accept Invitation
                 <ArrowRight size={16} />
@@ -283,10 +301,7 @@ export default function InvitePage({ params }) {
               <Link
               href="/"
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all"
-              style={{
-                background: "var(--accent)",
-                color: "#fff"
-              }}>
+              style={{ background: "var(--accent)", color: "#fff" }}>
               
                 Go to Dashboard
                 <ArrowRight size={15} />
@@ -299,10 +314,12 @@ export default function InvitePage({ params }) {
 
 }
 
+// ── Detail row helper ─────────────────────────────────────────
+
 function DetailRow({
   label,
   value,
-  accent
+  accent = false
 
 
 
@@ -320,5 +337,33 @@ function DetailRow({
         {value}
       </span>
     </div>);
+
+}
+
+// ── Loading fallback ──────────────────────────────────────────
+
+function LoadingFallback() {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: "var(--surface-0)" }}>
+      
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} />
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Loading…
+        </p>
+      </div>
+    </div>);
+
+}
+
+// ── Page export (wraps in Suspense for useSearchParams) ───────
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AcceptInviteContent />
+    </Suspense>);
 
 }

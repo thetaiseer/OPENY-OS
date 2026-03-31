@@ -9,8 +9,8 @@
  * Default: 10 seconds.  Enough for a cold Firestore start on slow
  * connections, but short enough to give the user a clear error quickly.
  */
-export function withTimeout(promise, ms = 10000) {
-  return new Promise((resolve, reject) => {
+export function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`Operation timed out after ${ms}ms`)),
       ms

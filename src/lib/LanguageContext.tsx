@@ -42,7 +42,7 @@ function resolve(obj, path) {
 
 // ── Context ───────────────────────────────────────────────────
 
-const LanguageContext = createContext({
+const LanguageContext = createContext<{ language: string; setLanguage: (lang: string) => void; t: (k: string) => string; dir: string; isRTL: boolean }>({
   language: "en",
   setLanguage: () => {},
   t: (k) => k,

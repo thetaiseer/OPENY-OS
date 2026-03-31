@@ -8,7 +8,7 @@
 
 
 
-export function EmptyState({ icon: Icon, title, description, action }) {
+export function EmptyState({ icon: Icon, title, description, action = null }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
       <div

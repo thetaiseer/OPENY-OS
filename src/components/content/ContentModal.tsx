@@ -38,7 +38,7 @@ const APPROVAL_STATUSES = ["pending_internal", "pending_client", "approved", "re
 
 function Field({
   label,
-  required,
+  required = false,
   children
 
 
@@ -69,8 +69,8 @@ const focusStyle = {
 function TextInput({
   value,
   onChange,
-  placeholder,
-  required,
+  placeholder = "",
+  required = false,
   type = "text"
 
 
@@ -150,7 +150,7 @@ function SelectInput({
 
 // ── Main modal ────────────────────────────────────────────────
 
-export function ContentModal({ open, onClose, item, defaultStatus }) {
+export function ContentModal({ open, onClose, item, defaultStatus = null }) {
   const { t } = useLanguage();
   const { clients, members } = useAppStore();
   const { createContentItem, updateContentItem, addComment } = useContentItems();

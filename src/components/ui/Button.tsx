@@ -14,10 +14,25 @@
 
 
 
+import React from "react";
+
+interface ButtonProps {
+  children?: React.ReactNode;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  variant?: string;
+  size?: string;
+  icon?: React.ElementType;
+  iconPosition?: string;
+  disabled?: boolean;
+  type?: "button" | "reset" | "submit";
+  fullWidth?: boolean;
+  className?: string;
+}
+
 export function Button({
   children, onClick, variant = "primary", size = "md", icon: Icon,
   iconPosition = "left", disabled, type = "button", fullWidth, className = ""
-}) {
+}: ButtonProps) {
   const base = "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const sizes = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2.5 text-sm", lg: "px-6 py-3 text-sm" };

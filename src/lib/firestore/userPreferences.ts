@@ -35,7 +35,7 @@ function prefDoc(uid) {
 export function subscribeToUserPreferences(
   uid,
   callback,
-  onError
+  onError?
 ) {
   log("subscribing for uid:", uid);
   return onSnapshot(

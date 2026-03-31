@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 
-const ThemeContext = createContext({ theme: "light", toggleTheme: () => {}, setTheme: () => {} });
+const ThemeContext = createContext<{ theme: string; toggleTheme: () => void; setTheme: (next: string) => void }>({ theme: "light", toggleTheme: () => {}, setTheme: () => {} });
 
 export function useTheme() {return useContext(ThemeContext);}
 

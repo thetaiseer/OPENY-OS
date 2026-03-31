@@ -434,7 +434,7 @@ function PortalContentCard({ item }) {
 
 
 
-export default function PortalPage({ params }) {
+export default function PortalPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = use(params);
   const { clients } = useAppStore();
   const clientData = clients.find((c) => c.id === clientId) ?? null;

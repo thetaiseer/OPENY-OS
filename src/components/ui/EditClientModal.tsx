@@ -194,9 +194,9 @@ function Field({
   onChange,
   placeholder,
   type = "text",
-  required,
-  optional,
-  ltr
+  required = false,
+  optional = null,
+  ltr = false
 
 
 
