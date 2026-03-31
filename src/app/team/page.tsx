@@ -94,24 +94,24 @@ export default function TeamPage() {
         <StatCard label={pageText("Open assignments", "التكليفات المفتوحة")} value={tasks.filter((task) => task.status !== "done").length} hint={pageText("Tasks still in motion", "المهام التي ما زالت قيد التنفيذ")} icon={Workflow} tone="violet" />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title={pageText("Team directory", "دليل الفريق")} description={pageText("Fresh member cards with role and activity status.", "بطاقات أعضاء جديدة مع الدور والحالة.")}
-          action={<InfoBadge label={isArabic ? `${members.length} عضو` : `${members.length} members`} tone="blue" />}>
-          {members.length === 0 ? (
-            <EmptyPanel title={pageText("No team members yet", "لا يوجد أعضاء فريق بعد")} description={pageText("Invited or created team members will appear here automatically.", "أعضاء الفريق المدعوون أو المضافون سيظهرون هنا تلقائيًا.")} />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {members.map((member) => (
-                <article key={member.id} className="glass-panel rounded-[24px] border border-[var(--border)] p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white" style={{ background: member.color }}>
-                        {member.initials}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-[var(--text)]">{member.name}</h3>
-                        <p className="text-sm text-[var(--muted)]">{member.role}</p>
-                      </div>
+      <Panel
+        title={pageText("Team directory", "دليل الفريق")}
+        description={pageText("Member cards with role, status, and contact info.", "بطاقات الأعضاء مع الدور والحالة ومعلومات الاتصال.")}
+        action={<InfoBadge label={isArabic ? `${members.length} عضو` : `${members.length} members`} tone="blue" />}
+      >
+        {members.length === 0 ? (
+          <EmptyPanel title={pageText("No team members yet", "لا يوجد أعضاء فريق بعد")} description={pageText("Invited or created team members will appear here automatically.", "أعضاء الفريق المدعوون أو المضافون سيظهرون هنا تلقائيًا.")} />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {members.map((member) => {
+              const initials = member.initials ?? member.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+              const bgColor = member.color ?? "var(--accent)";
+              const activeTasks = tasks.filter((task) => task.assigneeId === member.id && task.status !== "done").length;
+              return (
+                <article key={member.id} className="glass-panel flex flex-col rounded-2xl border border-[var(--border)] p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-bold text-white" style={{ background: bgColor }}>
+                      {initials}
                     </div>
                     <ActionMenu
                       items={[
@@ -120,48 +120,55 @@ export default function TeamPage() {
                       ]}
                     />
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-3">
+                    <h3 className="text-sm font-semibold text-[var(--text)]">{member.name}</h3>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">{member.email}</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <InfoBadge label={member.role} tone="blue" />
                     <InfoBadge label={member.status} tone={member.status === "active" ? "mint" : member.status === "away" ? "amber" : "slate"} />
-                    <InfoBadge label={`${tasks.filter((task) => task.assigneeId === member.id && task.status !== "done").length} ${isArabic ? "نشط" : "active"}`} tone="violet" />
+                    <InfoBadge label={`${activeTasks} ${isArabic ? "مهمة" : "tasks"}`} tone="violet" />
                   </div>
                 </article>
-              ))}
-            </div>
-          )}
-        </Panel>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
 
-        <Panel title={pageText("Workload map", "خريطة عبء العمل")} description={pageText("Assignments by team member in real time.", "التكليفات حسب كل عضو في الزمن الحقيقي.")}>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <Panel title={pageText("Workload map", "خريطة عبء العمل")} description={pageText("Open task assignments by team member.", "التكليفات المفتوحة حسب كل عضو.")}>
           {workload.length === 0 ? <EmptyPanel title={pageText("No active workload", "لا يوجد عبء عمل نشط")} description={pageText("Assign tasks to team members and they will appear here instantly.", "عيّن المهام لأعضاء الفريق وستظهر هنا فورًا.")} /> : <BarListChart items={workload} tone="violet" />}
         </Panel>
-      </section>
 
-      <Panel title={pageText("Recent activity", "النشاط الأخير")} description={pageText("The latest operational events involving the team.", "أحدث الأحداث التشغيلية التي تخص الفريق.")}
-        action={
-          activities.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setConfirmClear(true)}
-              className="flex items-center gap-1.5 rounded-2xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--rose)] hover:border-[var(--rose)]"
-            >
-              <Trash2 size={13} />
-              {isArabic ? "مسح السجل" : "Clear history"}
-            </button>
-          ) : undefined
-        }>
-        <div className="space-y-3">
-          {activities.slice(0, 8).map((activity) => (
-            <article key={activity.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
-                <Sparkles size={14} className="text-[var(--accent)]" />
-                {new Date(activity.timestamp).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
-              </div>
-              <h3 className="mt-2 text-sm font-semibold text-[var(--text)]">{activity.message}</h3>
-              <p className="mt-1 text-sm text-[var(--muted)]">{activity.detail}</p>
-            </article>
-          ))}
-          {activities.length === 0 ? <EmptyPanel title={pageText("No activity available", "لا يوجد نشاط متاح")} description={pageText("Activity from tasks, members, and publishing will stream here once available.", "سيظهر النشاط من المهام والأعضاء والنشر هنا عند توفره.")} /> : null}
-        </div>
-      </Panel>
+        <Panel title={pageText("Recent activity", "النشاط الأخير")} description={pageText("The latest operational events involving the team.", "أحدث الأحداث التشغيلية التي تخص الفريق.")}
+          action={
+            activities.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setConfirmClear(true)}
+                className="flex items-center gap-1.5 rounded-2xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--rose)] hover:border-[var(--rose)]"
+              >
+                <Trash2 size={13} />
+                {isArabic ? "مسح السجل" : "Clear history"}
+              </button>
+            ) : undefined
+          }>
+          <div className="space-y-3">
+            {activities.slice(0, 8).map((activity) => (
+              <article key={activity.id} className="rounded-[22px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
+                  <Sparkles size={14} className="text-[var(--accent)]" />
+                  {new Date(activity.timestamp).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
+                </div>
+                <h3 className="mt-2 text-sm font-semibold text-[var(--text)]">{activity.message}</h3>
+                <p className="mt-1 text-sm text-[var(--muted)]">{activity.detail}</p>
+              </article>
+            ))}
+            {activities.length === 0 ? <EmptyPanel title={pageText("No activity available", "لا يوجد نشاط متاح")} description={pageText("Activity from tasks, members, and publishing will stream here once available.", "سيظهر النشاط من المهام والأعضاء والنشر هنا عند توفره.")} /> : null}
+          </div>
+        </Panel>
+      </section>
 
       <ConfirmDialog
         open={confirmClear}
