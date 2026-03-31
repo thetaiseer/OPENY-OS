@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, CalendarDays, Users2, CheckSquare, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Users2, CheckSquare, Globe } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 export function BottomNav() {
@@ -14,7 +14,7 @@ export function BottomNav() {
     { href: "/clients",   labelKey: "nav.clients",   icon: Users2 },
     { href: "/content",   labelKey: "nav.content",   icon: CalendarDays },
     { href: "/tasks",     labelKey: "nav.tasks",     icon: CheckSquare },
-    { href: "/approvals", labelKey: "nav.approvals", icon: ClipboardCheck },
+    { href: "/publishing", labelKey: "nav.publishing", icon: Globe },
   ];
 
   return (

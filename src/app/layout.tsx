@@ -8,7 +8,6 @@ import { ContentProvider } from "@/lib/ContentContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
 import { NotificationProvider } from "@/lib/NotificationContext";
 import { InvitationProvider } from "@/lib/InvitationContext";
-import { ApprovalProvider } from "@/lib/ApprovalContext";
 import { AssetsProvider } from "@/lib/AssetsContext";
 import { ClientNotesProvider } from "@/lib/ClientNotesContext";
 import { BankProvider } from "@/lib/BankContext";
@@ -48,7 +47,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <WorkspaceBootstrap />
                 <AppProvider>
                   <ContentProvider>
-                    <ApprovalProvider>
                       <NotificationProvider>
                         <InvitationProvider>
                           <AssetsProvider>
@@ -64,7 +62,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           </AssetsProvider>
                         </InvitationProvider>
                       </NotificationProvider>
-                    </ApprovalProvider>
                   </ContentProvider>
                 </AppProvider>
               </AuthProvider>

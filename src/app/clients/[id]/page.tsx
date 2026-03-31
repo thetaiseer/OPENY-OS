@@ -17,11 +17,10 @@ import {
   LayoutGrid,
   CheckSquare,
   Trash2,
-  ClipboardCheck,
+  FileArchive,
 } from "lucide-react";
 import { useClients, useTasks } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useApprovals } from "@/lib/ApprovalContext";
 import { useAssets } from "@/lib/AssetsContext";
 import { useClientNotes } from "@/lib/ClientNotesContext";
 import { useBank } from "@/lib/BankContext";
@@ -47,13 +46,13 @@ import {
   pageText,
 } from "@/components/redesign/ui";
 
-type Tab = "overview" | "content" | "tasks" | "approvals" | "notes";
+type Tab = "overview" | "content" | "tasks" | "assets" | "notes";
 
 const TABS: { id: Tab; labelEn: string; labelAr: string; icon: React.ElementType }[] = [
   { id: "overview",  labelEn: "Overview",  labelAr: "نظرة عامة",  icon: LayoutGrid },
   { id: "content",   labelEn: "Content",   labelAr: "المحتوى",    icon: CalendarDays },
   { id: "tasks",     labelEn: "Tasks",     labelAr: "المهام",     icon: CheckSquare },
-  { id: "approvals", labelEn: "Approvals", labelAr: "الموافقات",  icon: ClipboardCheck },
+  { id: "assets",    labelEn: "Assets",    labelAr: "الملفات",    icon: FileArchive },
   { id: "notes",     labelEn: "Notes",     labelAr: "الملاحظات",  icon: StickyNote },
 ];
 
@@ -62,7 +61,6 @@ export default function ClientWorkspacePage() {
   const { clients } = useClients();
   const { tasks, toggleTaskDone, deleteTask } = useTasks();
   const { contentItems } = useContentItems();
-  const { approvals } = useApprovals();
   const { filtered: assets, deleteAsset } = useAssets(params.id);
   const { filtered: notes } = useClientNotes(params.id);
   const { filtered: bankEntries } = useBank(params.id);
@@ -87,7 +85,6 @@ export default function ClientWorkspacePage() {
 
   const clientTasks = tasks.filter((task) => task.clientId === client.id);
   const clientContent = contentItems.filter((item) => item.clientId === client.id);
-  const clientApprovals = approvals.filter((approval) => approval.clientId === client.id);
   const published = clientContent.filter((item) => item.status === "published").length;
   const quota = 30;
 
@@ -199,8 +196,8 @@ export default function ClientWorkspacePage() {
         eyebrow={pageText("Client workspace", "مساحة العميل")}
         title={{ en: client.name, ar: client.name }}
         description={pageText(
-          "Delivery overview, content, tasks, approvals, and notes for this client.",
-          "نظرة عامة على التسليم والمحتوى والمهام والموافقات والملاحظات لهذا العميل."
+          "Delivery overview, content, tasks, assets, and notes for this client.",
+          "نظرة عامة على التسليم والمحتوى والمهام والملفات والملاحظات لهذا العميل."
         )}
       />
 
@@ -235,7 +232,7 @@ export default function ClientWorkspacePage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard label={pageText("Content", "المحتوى")} value={clientContent.length} hint={pageText("All items linked to this account", "كل العناصر المرتبطة بهذا الحساب")} icon={Sparkles} tone="blue" />
             <StatCard label={pageText("Open tasks", "المهام المفتوحة")} value={clientTasks.filter((task) => task.status !== "done").length} hint={pageText("Execution load for the team", "عبء التنفيذ على الفريق")} icon={Workflow} tone="amber" />
-            <StatCard label={pageText("Approvals", "الموافقات")} value={clientApprovals.length} hint={pageText("Workflow checkpoints", "نقاط التحقق في سير العمل")} icon={BarChart3} tone="violet" />
+            <StatCard label={pageText("Published", "المنشورات")} value={published} hint={pageText("Content published for this client", "المحتوى المنشور لهذا العميل")} icon={BarChart3} tone="violet" />
             <StatCard label={pageText("Assets", "الأصول")} value={assets.length} hint={pageText("Media and brand files", "الوسائط وملفات الهوية")} icon={ImageIcon} tone="mint" />
           </section>
 
@@ -345,49 +342,55 @@ export default function ClientWorkspacePage() {
         </Panel>
       )}
 
-      {/* ── Approvals Tab ── */}
-      {activeTab === "approvals" && (
+      {/* ── Assets Tab ── */}
+      {activeTab === "assets" && (
         <Panel
-          title={pageText("Client approvals", "موافقات العميل")}
-          description={pageText("Approval workflow checkpoints for this client's content.", "نقاط التحقق في سير الموافقات لمحتوى هذا العميل.")}
-          action={<InfoBadge label={isArabic ? `${clientApprovals.length} إجمالي` : `${clientApprovals.length} total`} tone="violet" />}
+          title={pageText("Client assets", "ملفات العميل")}
+          description={pageText("All media, brand files, and documents linked to this client.", "جميع الوسائط وملفات الهوية والمستندات المرتبطة بهذا العميل.")}
+          action={<InfoBadge label={isArabic ? `${assets.length} ملف` : `${assets.length} files`} tone="mint" />}
         >
-          {clientApprovals.length === 0 ? (
+          {assets.length === 0 ? (
             <EmptyPanel
-              title={pageText("No approvals yet", "لا توجد موافقات بعد")}
-              description={pageText("Approval requests for this client will appear here.", "طلبات الموافقة الخاصة بهذا العميل ستظهر هنا.")}
+              title={pageText("No assets yet", "لا توجد ملفات بعد")}
+              description={pageText("Assets uploaded and linked to this client will appear here automatically.", "الملفات التي يتم رفعها وربطها بهذا العميل ستظهر هنا تلقائياً.")}
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {clientApprovals.map((approval) => {
-                const contentItem = clientContent.find((c) => c.id === approval.contentItemId);
-                return (
-                  <article key={approval.id} className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-sm font-semibold text-[var(--text)]">
-                          {contentItem?.title || (isArabic ? "محتوى غير معروف" : "Unknown content")}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-[var(--muted)]">
-                          {isArabic ? "معيّن إلى:" : "Assigned to:"} {approval.assignedTo || (isArabic ? "غير معيّن" : "Unassigned")}
-                        </p>
-                      </div>
-                      <InfoBadge
-                        label={approval.status.replace(/_/g, " ")}
-                        tone={
-                          approval.status === "approved" ? "mint"
-                          : approval.status === "rejected" ? "rose"
-                          : approval.status === "revision_requested" ? "amber"
-                          : "slate"
-                        }
+              {assets.map((asset) => (
+                <article key={asset.id} className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-semibold text-[var(--text)]">{asset.name}</h3>
+                      <p className="mt-0.5 text-xs text-[var(--muted)]">
+                        {asset.format ? `${asset.type} · ${asset.format}` : asset.type}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <InfoBadge label={asset.type} tone="blue" />
+                      <ActionMenu
+                        items={[
+                          { label: isArabic ? "حذف" : "Delete", icon: Trash2, tone: "danger" as const, onClick: () => setConfirmDeleteAsset(asset.id) },
+                        ]}
+                        size={16}
                       />
                     </div>
-                    <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-                      {new Date(approval.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
-                    </p>
-                  </article>
-                );
-              })}
+                  </div>
+                  {asset.fileUrl && (
+                    <a
+                      href={asset.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:bg-[var(--bg)]"
+                    >
+                      <FolderOpen size={12} />
+                      {isArabic ? "فتح الملف" : "Open file"}
+                    </a>
+                  )}
+                  <p className="mt-2 text-[11px] text-[var(--muted)]">
+                    {new Date(asset.createdAt).toLocaleDateString(isArabic ? "ar-EG" : "en-US")}
+                  </p>
+                </article>
+              ))}
             </div>
           )}
         </Panel>
