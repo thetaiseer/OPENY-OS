@@ -2,17 +2,17 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type Theme = "dark" | "light";
-const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void; setTheme: (t: Theme) => void }>({ theme: "dark", toggleTheme: () => {}, setTheme: () => {} });
+const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void; setTheme: (t: Theme) => void }>({ theme: "light", toggleTheme: () => {}, setTheme: () => {} });
 
 export function useTheme() { return useContext(ThemeContext); }
 
 function applyTheme(t: Theme) {
-  if (t === "light") document.documentElement.classList.add("light");
-  else document.documentElement.classList.remove("light");
+  if (t === "dark") document.documentElement.classList.add("dark");
+  else document.documentElement.classList.remove("dark");
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
   const initialized = useRef(false);
 
   useEffect(() => {
