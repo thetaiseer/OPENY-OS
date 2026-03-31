@@ -9,7 +9,6 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { useToast } from "@/lib/ToastContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { AddClientModal } from "@/components/ui/AddClientModal";
 import { EditClientModal } from "@/components/ui/EditClientModal";
@@ -45,7 +44,6 @@ export default function ClientsPage() {
   const { clients, deleteClient } = useClients();
   const { tasks } = useTasks();
   const { contentItems } = useContentItems();
-  const { approvals } = useApprovals();
   const { language } = useLanguage();
   const isArabic = language === "ar";
   const { showToast } = useToast();
@@ -82,13 +80,11 @@ export default function ClientsPage() {
   const clientLoad = clients.map((client) => {
     const contentCount = contentItems.filter((item) => item.clientId === client.id).length;
     const openTasks = tasks.filter((task) => task.clientId === client.id && task.status !== "done").length;
-    const pendingApprovals = approvals.filter((approval) => approval.clientId === client.id && approval.status !== "approved").length;
     return {
       client,
       contentCount,
       openTasks,
-      pendingApprovals,
-      score: contentCount * 3 + openTasks * 2 + pendingApprovals * 4,
+      score: contentCount * 3 + openTasks * 2,
     };
   });
 
@@ -231,10 +227,9 @@ export default function ClientsPage() {
                       ]}
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="grid grid-cols-2 gap-2 mt-4">
                     <MiniStat label={isArabic ? "المحتوى" : "Content"} value={entry.contentCount} />
                     <MiniStat label={isArabic ? "المهام" : "Tasks"} value={entry.openTasks} />
-                    <MiniStat label={isArabic ? "الموافقات" : "Approvals"} value={entry.pendingApprovals} />
                   </div>
                 </motion.div>
               ))}
@@ -244,7 +239,7 @@ export default function ClientsPage() {
 
         <Panel
           title={pageText("Health leaderboard", "لوحة صحة الحسابات")}
-          description={pageText("A simple ranking based on content volume, open tasks, and approvals pressure.", "ترتيب مبسط يعتمد على حجم المحتوى والمهام المفتوحة وضغط الموافقات.")}
+          description={pageText("A simple ranking based on content volume and open tasks.", "ترتيب مبسط يعتمد على حجم المحتوى والمهام المفتوحة.")}
           action={<InfoBadge label={isArabic ? "تحليلات مباشرة" : "Live analytics"} tone="violet" />}
         >
           {healthiest.length === 0 ? (

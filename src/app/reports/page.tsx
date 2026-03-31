@@ -3,7 +3,6 @@
 import { BarChart3, BriefcaseBusiness, CheckCircle2, ListChecks, Sparkles, Target, TrendingUp } from "lucide-react";
 import { useAppStore } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useApprovals } from "@/lib/ApprovalContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import {
   BarListChart,
@@ -19,13 +18,11 @@ import {
 export default function ReportsPage() {
   const { clients, tasks, members, activities } = useAppStore();
   const { contentItems } = useContentItems();
-  const { approvals } = useApprovals();
   const { language } = useLanguage();
   const isArabic = language === "ar";
 
   const published = contentItems.filter((item) => item.status === "published").length;
   const scheduled = contentItems.filter((item) => item.status === "scheduled" || item.status === "publishing_ready").length;
-  const approvalRate = approvals.length ? approvals.filter((approval) => approval.status === "approved").length : 0;
   const completedTasks = tasks.filter((task) => task.status === "done").length;
   const trendValues = Array.from({ length: 8 }, (_, index) => {
     const edge = new Date();
@@ -57,8 +54,8 @@ export default function ReportsPage() {
         eyebrow={pageText("Analytics suite", "حزمة التحليلات")}
         title={pageText("Analytics", "التحليلات")}
         description={pageText(
-          "Data overview for delivery output, team workload, approvals, and client distribution.",
-          "نظرة عامة على بيانات التسليم وعبء الفريق والموافقات وتوزيع العملاء."
+          "Data overview for delivery output, team workload, and client distribution.",
+          "نظرة عامة على بيانات التسليم وعبء الفريق وتوزيع العملاء."
         )}
       />
 
@@ -78,10 +75,10 @@ export default function ReportsPage() {
           <MiniAreaChart values={trendValues} tone="blue" />
         </Panel>
         <Panel
-          title={pageText("Approval rate", "معدل الموافقة")}
-          description={pageText("Approved vs. total approval requests.", "الموافقات المعتمدة مقابل إجمالي الطلبات.")}
+          title={pageText("Publishing progress", "تقدم النشر")}
+          description={pageText("Published vs. total content items.", "المحتوى المنشور مقابل الإجمالي.")}
         >
-          <DonutChart value={approvalRate} total={approvals.length || 1} tone="mint" label={isArabic ? "اعتماد" : "Approval"} />
+          <DonutChart value={published} total={contentItems.length || 1} tone="mint" label={isArabic ? "منشور" : "Published"} />
         </Panel>
       </section>
 
@@ -108,11 +105,11 @@ export default function ReportsPage() {
 
       <Panel
         title={pageText("Operations scorecard", "بطاقة الأداء التشغيلية")}
-        description={pageText("Core outcome ratios across tasks, content, and approvals.", "نسب النتائج الأساسية عبر المهام والمحتوى والموافقات.")}
+        description={pageText("Core outcome ratios across tasks and content.", "نسب النتائج الأساسية عبر المهام والمحتوى.")}
       >
         <div className="grid gap-4 md:grid-cols-3">
           <ScoreCard label={isArabic ? "اكتمال المهام" : "Task completion"} value={`${completedTasks}/${tasks.length}`} icon={ListChecks} />
-          <ScoreCard label={isArabic ? "موافقة المحتوى" : "Approval progress"} value={`${approvalRate}/${approvals.length || 0}`} icon={CheckCircle2} />
+          <ScoreCard label={isArabic ? "المحتوى المنشور" : "Published content"} value={`${published}/${contentItems.length || 0}`} icon={CheckCircle2} />
           <ScoreCard label={isArabic ? "إجمالي المحتوى" : "Total content"} value={contentItems.length} icon={BarChart3} />
         </div>
       </Panel>

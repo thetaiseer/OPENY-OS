@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users2, UserCircle, CheckSquare,
-  Settings2, Globe, FileText, ClipboardCheck,
+  Settings2, Globe, FileText,
   ImageIcon, BarChart2, PanelLeftClose, PanelLeftOpen,
   Sun, Moon,
 } from "lucide-react";
@@ -39,7 +39,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/clients",   labelKey: "nav.clients",   icon: Users2 },
       { href: "/content",   labelKey: "nav.content",   icon: FileText },
       { href: "/tasks",     labelKey: "nav.tasks",     icon: CheckSquare },
-      { href: "/approvals", labelKey: "nav.approvals", icon: ClipboardCheck },
     ],
   },
   {

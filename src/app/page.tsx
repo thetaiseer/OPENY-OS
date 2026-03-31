@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { useAppStore, useActivities } from "@/lib/AppContext";
 import { useContentItems } from "@/lib/ContentContext";
-import { useApprovals } from "@/lib/ApprovalContext";
 import { usePublishing } from "@/lib/PublishingContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
@@ -44,7 +43,6 @@ export default function DashboardPage() {
   const { clients, tasks, members } = useAppStore();
   const { activities, clearActivities } = useActivities();
   const { contentItems } = useContentItems();
-  const { approvals } = useApprovals();
   const { getDueNowItems, getThisWeekItems } = usePublishing();
   const { language } = useLanguage();
   const isArabic = language === "ar";
@@ -55,9 +53,7 @@ export default function DashboardPage() {
   const completedTasks = tasks.filter((task) => task.status === "done").length;
   const scheduledThisWeek = getThisWeekItems(contentItems).length;
   const dueNow = getDueNowItems(contentItems).length;
-  const pendingApprovals = approvals.filter(
-    (a) => a.status === "pending_internal" || a.status === "pending_client"
-  ).length;
+  const publishedContent = contentItems.filter((item) => item.status === "published").length;
 
   const weeklySeries = Array.from({ length: 8 }, (_, index) => {
     const edge = new Date();
@@ -135,7 +131,7 @@ export default function DashboardPage() {
               style={{ background: "rgba(255,255,255,0.18)", color: "white" }}
             >
               <Clock3 size={14} />
-              {isArabic ? `${pendingApprovals} موافقات معلقة` : `${pendingApprovals} Pending Approval${pendingApprovals !== 1 ? "s" : ""}`}
+              {isArabic ? `${publishedContent} منشورات` : `${publishedContent} Published`}
             </span>
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold"
@@ -174,9 +170,9 @@ export default function DashboardPage() {
           tone="mint"
         />
         <StatCard
-          label={pageText("Pending approvals", "الموافقات المعلقة")}
-          value={pendingApprovals}
-          hint={pageText("Awaiting review", "بانتظار المراجعة")}
+          label={pageText("Published", "المنشورات")}
+          value={publishedContent}
+          hint={pageText("Published content items", "عناصر المحتوى المنشورة")}
           icon={Clock3}
           tone="amber"
         />

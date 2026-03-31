@@ -27,10 +27,10 @@ export function TopBar() {
     "/content": t("nav.content"),
     "/tasks": t("nav.tasks"),
     "/team": t("nav.team"),
-    "/approvals": t("nav.approvals"),
     "/assets": t("nav.assets"),
     "/reports": t("nav.reports"),
     "/settings": t("nav.settings"),
+    "/publishing": t("nav.publishing"),
   };
 
   const title = pageTitles[pathname] ?? "";
