@@ -37,11 +37,11 @@ export default function TeamPage() {
     setDeleting(true);
     try {
       await deleteMember(id);
-      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف العضو بنجاح" : "Team member deleted successfully", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف العضو" : "Failed to delete member"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDelete(null);
       setDeleting(false);
     }
   };

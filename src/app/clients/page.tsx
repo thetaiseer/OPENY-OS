@@ -41,11 +41,9 @@ export default function ClientsPage() {
     setDeleting(true);
     try {
       await deleteClient(id);
-      // Success path: close modal first, then show feedback
-      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف العميل بنجاح" : "Client deleted successfully", "success");
     } catch (err) {
-      // Failure path: keep modal open so the user can retry or cancel
+      // Failure path: show toast so the user knows what went wrong
       const msg = err instanceof Error ? err.message : String(err);
       showToast(
         isArabic
@@ -54,7 +52,8 @@ export default function ClientsPage() {
         "error"
       );
     } finally {
-      // Always reset loading so the confirm button becomes usable again
+      // Always close the modal and reset loading so the UI is never stuck
+      setConfirmDelete(null);
       setDeleting(false);
     }
   };

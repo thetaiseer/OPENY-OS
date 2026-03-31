@@ -35,11 +35,11 @@ export default function ApprovalsPage() {
     setDeleting(true);
     try {
       await deleteApproval(id);
-      setConfirmDelete(null);
       showToast(isArabic ? "تم حذف طلب الموافقة بنجاح" : "Approval deleted successfully", "success");
     } catch (err) {
       showToast(`${isArabic ? "فشل حذف طلب الموافقة" : "Failed to delete approval"}: ${parseFirestoreError(err, isArabic)}`, "error");
     } finally {
+      setConfirmDelete(null);
       setDeleting(false);
     }
   };
