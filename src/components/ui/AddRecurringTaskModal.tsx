@@ -7,6 +7,7 @@ import { useTeam, useClients } from "@/lib/AppContext";
 import { useRecurringTasks } from "@/lib/RecurringTaskContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 import type { RecurringTaskTemplate, WorkflowStep } from "@/lib/types";
 
 interface AddRecurringTaskModalProps {
@@ -20,6 +21,7 @@ export function AddRecurringTaskModal({ open, onClose }: AddRecurringTaskModalPr
   const { clients } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -88,10 +90,13 @@ export function AddRecurringTaskModal({ open, onClose }: AddRecurringTaskModalPr
         frequency,
         workflowSteps: steps.length > 0 ? steps : undefined,
       });
+      showToast(isAr ? "تمت إضافة القالب بنجاح" : "Template added successfully", "success");
       reset();
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

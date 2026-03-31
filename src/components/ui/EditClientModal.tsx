@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 import type { Client } from "@/lib/types";
 
 interface EditClientModalProps {
@@ -17,6 +18,7 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
   const { updateClient } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -65,9 +67,12 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
         website: website.trim() || undefined,
         status,
       });
+      showToast(isAr ? "تم حفظ التغييرات بنجاح" : "Changes saved successfully", "success");
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

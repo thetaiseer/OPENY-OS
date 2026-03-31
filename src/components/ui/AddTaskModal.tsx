@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useTasks, useTeam, useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 import type { Task } from "@/lib/types";
 
 interface AddTaskModalProps {
@@ -19,6 +20,7 @@ export function AddTaskModal({ open, onClose }: AddTaskModalProps) {
   const { clients } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -61,10 +63,13 @@ export function AddTaskModal({ open, onClose }: AddTaskModalProps) {
         priority,
         dueDate: dueDate || "TBD",
       });
+      showToast(isAr ? "تمت إضافة المهمة بنجاح" : "Task added successfully", "success");
       reset();
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

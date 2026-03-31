@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { useTasks, useTeam, useClients } from "@/lib/AppContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { parseFirestoreError } from "@/lib/utils/crud";
+import { useToast } from "@/lib/ToastContext";
 import type { Task } from "@/lib/types";
 
 interface EditTaskModalProps {
@@ -19,6 +20,7 @@ export function EditTaskModal({ task, onClose }: EditTaskModalProps) {
   const { clients } = useClients();
   const { language } = useLanguage();
   const isAr = language === "ar";
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -70,9 +72,12 @@ export function EditTaskModal({ task, onClose }: EditTaskModalProps) {
         status,
         dueDate: dueDate || "TBD",
       });
+      showToast(isAr ? "تم حفظ التغييرات بنجاح" : "Changes saved successfully", "success");
       onClose();
     } catch (err) {
-      setError(parseFirestoreError(err, isAr));
+      const msg = parseFirestoreError(err, isAr);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
