@@ -227,7 +227,7 @@ export default function DashboardPage() {
             <KanbanBoard
               columns={boardColumns}
               renderItem={(item) => (
-                <article className="rounded-[14px] border border-[var(--border)] bg-[var(--panel)] p-4">
+                <article className="border border-[var(--border)] bg-[var(--panel)] p-4" style={{ borderRadius: "var(--radius-card)" }}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
 
 function QuickMetric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3">
+    <div className="border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-3" style={{ borderRadius: "var(--radius-btn)" }}>
       <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">{label}</div>
       <div className="mt-1.5 text-2xl font-bold tracking-tight text-[var(--text)]">{value}</div>
     </div>
@@ -323,11 +323,12 @@ function Shortcut({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md block"
+      className="group border border-[var(--border)] bg-[var(--glass-overlay)] p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md block"
+      style={{ borderRadius: "var(--radius-card)" }}
     >
       <div
-        className="inline-flex h-11 w-11 items-center justify-center rounded-xl"
-        style={{ background: "linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-2-soft) 100%)", color: "var(--accent)" }}
+        className="inline-flex h-11 w-11 items-center justify-center"
+        style={{ background: "linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-2-soft) 100%)", color: "var(--accent)", borderRadius: "var(--radius-btn)" }}
       >
         <Icon size={20} />
       </div>
