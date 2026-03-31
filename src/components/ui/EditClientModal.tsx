@@ -78,12 +78,13 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
       open={client !== null}
       onClose={handleClose}
       title={isAr ? "تعديل بيانات العميل" : "Edit client"}
+      loading={loading}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field
           label={isAr ? "الاسم" : "Name"}
           required
-          placeholder={isAr ? "اسم العميل أو الشركة" : "Client or company name"}
+          placeholder={isAr ? "أدخل اسم العميل" : "Client or company name"}
           value={name}
           onChange={setName}
         />
@@ -97,20 +98,23 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
         />
         <Field
           label={isAr ? "رقم الهاتف" : "Phone"}
-          placeholder={isAr ? "اختياري" : "Optional"}
+          optional={isAr ? "(اختياري)" : "(Optional)"}
+          placeholder={isAr ? "01xxxxxxxxx" : "Optional"}
           value={phone}
           onChange={setPhone}
         />
         <Field
           label={isAr ? "الموقع الإلكتروني" : "Website"}
+          optional={isAr ? "(اختياري)" : "(Optional)"}
           placeholder="https://example.com"
           value={website}
           onChange={setWebsite}
+          ltr
         />
 
         {/* Status */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[var(--muted)]">
+          <label className="text-sm font-semibold text-[var(--text)]">
             {isAr ? "الحالة" : "Status"}
           </label>
           <div className="flex gap-2">
@@ -162,7 +166,7 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} />
             {loading
@@ -186,6 +190,8 @@ function Field({
   placeholder,
   type = "text",
   required,
+  optional,
+  ltr,
 }: {
   label: string;
   value: string;
@@ -193,12 +199,15 @@ function Field({
   placeholder?: string;
   type?: string;
   required?: boolean;
+  optional?: string;
+  ltr?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-[var(--muted)]">
+      <label className="text-sm font-semibold text-[var(--text)]">
         {label}
         {required ? <span className="text-[var(--rose)]"> *</span> : null}
+        {optional ? <span className="ms-1 text-xs font-normal text-[var(--muted)]">{optional}</span> : null}
       </label>
       <input
         type={type}
@@ -206,6 +215,8 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
+        dir={ltr ? "ltr" : undefined}
+        style={ltr ? { textAlign: "right" } : undefined}
         className="glass-input w-full rounded-2xl px-4 py-3 text-sm"
       />
     </div>
