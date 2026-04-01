@@ -81,7 +81,7 @@ export function AddMemberModal({ open, onClose }) {
           onChange={setName} />
 
         <Field
-          label={isAr ? "المسمى الوظيفي" : "Job title / Department"}
+          label={isAr ? "المسمى الوظيفي" : "Job title"}
           required
           placeholder={isAr ? "مثال: مصمم، مدير محتوى، مطور" : "e.g. Designer, Content Manager, Developer"}
           value={role}

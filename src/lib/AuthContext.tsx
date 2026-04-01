@@ -109,7 +109,7 @@ export function AuthProvider({ children }) {
             await addDoc(wsCol("team"), {
               name: "Admin",
               email: SUPER_ADMIN_EMAIL,
-              role: "Admin",
+              role: "System Administrator",
               teamRole: "admin",
               status: "active",
               createdAt: now,
