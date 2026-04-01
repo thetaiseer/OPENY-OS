@@ -19,7 +19,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead as fsMarkAllRead,
   deleteNotification as fsDeleteNotification } from
-"./firestore/notifications";
+"./supabase/notifications";
 
 // ── Context shape ─────────────────────────────────────────────
 

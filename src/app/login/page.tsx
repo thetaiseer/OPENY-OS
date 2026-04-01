@@ -51,10 +51,10 @@ export default function LoginPage() {
       await signIn(email.trim(), password);
       router.replace("/clients");
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+      const msg = ((err as { message?: string }).message ?? "").toLowerCase();
+      if (msg.includes("invalid login credentials") || msg.includes("invalid email or password") || msg.includes("user not found") || msg.includes("wrong password")) {
         setError(isAr ? "البريد الإلكتروني أو كلمة المرور غير صحيحة" : "Invalid email or password");
-      } else if (code === "auth/too-many-requests") {
+      } else if (msg.includes("too many") || (err as { status?: number }).status === 429) {
         setError(isAr ? "تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقًا" : "Too many attempts. Please try again later");
       } else {
         setError(isAr ? "حدث خطأ. حاول مرة أخرى" : "An error occurred. Please try again");
@@ -76,8 +76,8 @@ export default function LoginPage() {
       await resetPassword(resetEmail.trim());
       setResetSuccess(true);
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/too-many-requests") {
+      const msg = ((err as { message?: string }).message ?? "").toLowerCase();
+      if (msg.includes("too many") || (err as { status?: number }).status === 429) {
         setResetError(isAr ? "تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقًا" : "Too many attempts. Please try again later");
       } else {
         // Use a generic message to avoid exposing whether the email is registered

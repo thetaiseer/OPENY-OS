@@ -19,24 +19,24 @@ import {
   createClient as fsCreateClient,
   updateClient as fsUpdateClient,
   deleteClient as fsDeleteClient } from
-"./firestore/clients";
+"./supabase/clients";
 import {
   subscribeToTasks,
   createTask as fsCreateTask,
   updateTask as fsUpdateTask,
   deleteTask as fsDeleteTask } from
-"./firestore/tasks";
+"./supabase/tasks";
 import {
   subscribeToTeam,
   createTeamMember as fsCreateTeamMember,
   deleteTeamMember as fsDeleteTeamMember } from
-"./firestore/team";
+"./supabase/team";
 import {
   subscribeToActivities,
   createActivity as fsCreateActivity,
   clearAllActivities as fsClearAllActivities } from
-"./firestore/activities";
-import { pushNotification as fsPushNotification } from "./firestore/notifications";
+"./supabase/activities";
+import { pushNotification as fsPushNotification } from "./supabase/notifications";
 import { withTimeout, fireAndForget } from "./utils/crud";
 
 // ── Notification helper (writes to Firestore via service layer) ─

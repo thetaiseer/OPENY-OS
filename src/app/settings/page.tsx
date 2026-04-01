@@ -6,9 +6,8 @@ import { useNotificationPreferences } from "@/lib/useNotificationPreferences";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { useAuth } from "@/lib/AuthContext";
-import { auth } from "@/lib/firebase";
-import { signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { updateTeamMember } from "@/lib/firestore/team";
+import { updateTeamMember } from "@/lib/supabase/team";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   BellRing,
   Camera,
@@ -127,15 +126,23 @@ export default function SettingsPage() {
       return;
     }
     try {
-      const currentUser = auth.currentUser;
+      const sb = getSupabaseClient();
+      const { data: { user: currentUser } } = await sb.auth.getUser();
       if (!currentUser || !currentUser.email) {
         setPasswordError(isArabic ? "لم يتم تسجيل الدخول" : "Not signed in");
         return;
       }
-      // Re-authenticate then update password
-      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-      await reauthenticateWithCredential(currentUser, credential);
-      await updatePassword(currentUser, newPassword);
+      // Re-authenticate by signing in again with the current password
+      const { error: signInErr } = await sb.auth.signInWithPassword({
+        email: currentUser.email,
+        password: currentPassword,
+      });
+      if (signInErr) {
+        setPasswordError(isArabic ? "كلمة المرور الحالية غير صحيحة" : "Current password is incorrect");
+        return;
+      }
+      const { error: updateErr } = await sb.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
       setPasswordSaved(true);
       setCurrentPassword("");
       setNewPassword("");
@@ -148,11 +155,12 @@ export default function SettingsPage() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      const sb = getSupabaseClient();
+      await sb.auth.signOut();
     } catch {
-
       // signOut may fail if no user is signed in (unauthenticated mode)
-    }if (typeof window !== "undefined") {
+    }
+    if (typeof window !== "undefined") {
       localStorage.removeItem("openy-lang");
       localStorage.removeItem("openy-theme");
       window.location.href = "/";

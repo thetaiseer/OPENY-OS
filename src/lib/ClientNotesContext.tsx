@@ -15,7 +15,7 @@ import {
   createClientNote as fsCreateClientNote,
   updateClientNote as fsUpdateClientNote,
   deleteClientNote as fsDeleteClientNote } from
-"./firestore/clientNotes";
+"./supabase/clientNotes";
 import { withTimeout } from "./utils/crud";
 
 

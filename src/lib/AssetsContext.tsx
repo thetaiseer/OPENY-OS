@@ -15,7 +15,7 @@ import {
   createAsset as fsCreateAsset,
   updateAsset as fsUpdateAsset,
   deleteAsset as fsDeleteAsset } from
-"./firestore/assets";
+"./supabase/assets";
 import { withTimeout } from "./utils/crud";
 
 

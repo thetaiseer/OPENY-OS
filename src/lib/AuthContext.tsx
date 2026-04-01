@@ -1,8 +1,8 @@
 "use client";
 
 // ============================================================
-// OPENY OS – Firebase Auth Context
-// Wraps Firebase Authentication and exposes the current user,
+// OPENY OS – Supabase Auth Context
+// Wraps Supabase Authentication and exposes the current user,
 // their linked TeamMember record, and role-based helpers.
 // ============================================================
 import {
@@ -12,49 +12,15 @@ import {
   useEffect,
   useMemo,
   useState } from
-
 "react";
-import {
-  signInWithEmailAndPassword,
-  signOut as fbSignOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail as fbSendPasswordResetEmail } from
-
-"firebase/auth";
-import {
-  addDoc,
-  query,
-  where,
-  onSnapshot,
-  limit } from
-"firebase/firestore";
-import { auth, wsCol } from "@/lib/firebase";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { getTeamMemberByEmail, createTeamMember as sbCreateTeamMember } from "@/lib/supabase/team";
 
 // ── Super-admin email ────────────────────────────────────────
 // This email always receives the "admin" teamRole on first login.
 const SUPER_ADMIN_EMAIL = "thetaiseer@gmail.com";
-
-
-// ── Context shape ────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+const SUPER_ADMIN_INITIALS = "AD";
+const SUPER_ADMIN_COLOR = "#4f8ef7";
 
 const AuthContext = createContext(null);
 
@@ -65,22 +31,29 @@ export function AuthProvider({ children }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Listen for Firebase Auth state changes.
-  // Guard against null auth (happens when NEXT_PUBLIC_FIREBASE_* env vars are
-  // missing/invalid and createAuth() in firebase/client.ts returned null).
+  // 1. Listen for Supabase Auth state changes.
   useEffect(() => {
-    if (!auth) {
+    const sb = getSupabaseClient();
+    if (!sb) {
       setLoading(false);
       return;
     }
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      if (!firebaseUser) {
+
+    // Get initial session
+    sb.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setLoading(false);
+    });
+
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
         setMember(null);
         setLoading(false);
       }
     });
-    return unsub;
+
+    return () => { subscription.unsubscribe(); };
   }, []);
 
   // 2. When a user is signed in, look up their TeamMember record by email.
@@ -89,70 +62,76 @@ export function AuthProvider({ children }) {
     if (!user) return;
 
     const email = user.email ?? "";
+    let cancelled = false;
 
-    const q = query(
-      wsCol("team"),
-      where("email", "==", email),
-      limit(1)
-    );
+    async function syncMember() {
+      const existing = await getTeamMemberByEmail(email);
+      if (cancelled) return;
 
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        if (!snap.empty) {
-          const docSnap = snap.docs[0];
-          setMember({ id: docSnap.id, ...docSnap.data() });
-          setLoading(false);
-        } else if (email === SUPER_ADMIN_EMAIL) {
-          // Auto-bootstrap the super-admin TeamMember record
-          try {
-            const now = new Date().toISOString();
-            await addDoc(wsCol("team"), {
-              name: "Admin",
-              email: SUPER_ADMIN_EMAIL,
-              role: "System Administrator",
-              teamRole: "admin",
-              status: "active",
-              createdAt: now,
-              updatedAt: now,
-            });
-            // onSnapshot will fire again and pick up the new doc
-          } catch (err) {
-            console.error("[OPENY:AuthContext] Failed to bootstrap admin member:", err);
-            setLoading(false);
-          }
-        } else {
-          setMember(null);
-          setLoading(false);
+      if (existing) {
+        setMember(existing);
+        setLoading(false);
+      } else if (email === SUPER_ADMIN_EMAIL) {
+        // Auto-bootstrap the super-admin TeamMember record
+        try {
+          const now = new Date().toISOString();
+          await sbCreateTeamMember({
+            name: "Admin",
+            email: SUPER_ADMIN_EMAIL,
+            role: "System Administrator",
+            teamRole: "admin",
+            status: "active",
+            initials: SUPER_ADMIN_INITIALS,
+            color: SUPER_ADMIN_COLOR,
+            createdAt: now,
+            updatedAt: now,
+          });
+          // Re-fetch after creation
+          const created = await getTeamMemberByEmail(email);
+          if (!cancelled) { setMember(created); setLoading(false); }
+        } catch (err) {
+          console.error("[OPENY:AuthContext] Failed to bootstrap admin member:", err);
+          if (!cancelled) setLoading(false);
         }
-      },
-      () => setLoading(false)
-    );
+      } else {
+        setMember(null);
+        setLoading(false);
+      }
+    }
 
-    return unsub;
+    syncMember();
+    return () => { cancelled = true; };
   }, [user]);
 
   // ── Actions ───────────────────────────────────────────────
 
   const signIn = useCallback(async (email, password) => {
-    if (!auth) throw new Error("Firebase Auth is not initialised – check NEXT_PUBLIC_FIREBASE_* env vars.");
-    await signInWithEmailAndPassword(auth, email, password);
+    const sb = getSupabaseClient();
+    if (!sb) throw new Error("Supabase is not initialised – check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!auth) return;
-    await fbSignOut(auth);
+    const sb = getSupabaseClient();
+    if (!sb) return;
+    await sb.auth.signOut();
     setMember(null);
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    if (!auth) throw new Error("Firebase Auth is not initialised – check NEXT_PUBLIC_FIREBASE_* env vars.");
-    await fbSendPasswordResetEmail(auth, email);
+    const sb = getSupabaseClient();
+    if (!sb) throw new Error("Supabase is not initialised – check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    const redirectTo = typeof window !== "undefined"
+      ? `${window.location.origin}/login`
+      : undefined;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
   }, []);
 
   // ── Derived role ──────────────────────────────────────────
 
-  const role = member?.teamRole ?? null;
+  const role = (member as any)?.teamRole ?? null;
   const isAdmin = role === "admin";
   const isAccountManager = role === "account_manager";
   const isCreative = role === "creative";

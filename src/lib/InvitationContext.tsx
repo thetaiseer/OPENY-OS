@@ -13,24 +13,17 @@ import {
   useState } from
 
 "react";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs } from
-"firebase/firestore";
-import { db, wsCol } from "./firebase";
+import { getTeamMemberByEmail } from "./supabase/team";
 
 import {
   subscribeToInvitations,
   createInvitation as fsCreateInvitation,
   updateInvitation as fsUpdateInvitation,
   getInvitationByToken as fsGetInvitationByToken } from
-"./firestore/invitations";
-import { createActivity as fsCreateActivity } from "./firestore/activities";
-import { pushNotification as fsPushNotification } from "./firestore/notifications";
-import { createTeamMember as fsCreateTeamMember } from "./firestore/team";
+"./supabase/invitations";
+import { createActivity as fsCreateActivity } from "./supabase/activities";
+import { pushNotification as fsPushNotification } from "./supabase/notifications";
+import { createTeamMember as fsCreateTeamMember } from "./supabase/team";
 import { withTimeout } from "./utils/crud";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -190,24 +183,10 @@ export function InvitationProvider({ children }) {
 
       const recipientName = displayName;
 
-      await addDoc(collection(db, "mail"), {
-        to: data.email,
-        message: {
-          subject: `You're invited to join OPENY OS`,
-          html: buildInviteEmail({
-            recipientName,
-            role: data.role,
-            invitedBy: data.invitedByName ?? data.invitedBy,
-            acceptUrl: appUrl
-          }),
-          text: buildInviteEmailText({
-            recipientName,
-            role: data.role,
-            invitedBy: data.invitedByName ?? data.invitedBy,
-            acceptUrl: appUrl
-          })
-        }
-      });
+      // Email sending placeholder: connect a transactional email service
+      // (e.g. Resend, SendGrid) via a Supabase Edge Function or API route.
+      // The invitation link is available at the URL below for manual sharing.
+      console.info("[OPENY:invitations] Invitation link:", appUrl);
 
       return { token };
     },
@@ -247,7 +226,7 @@ export function InvitationProvider({ children }) {
 
   const acceptInvitation = useCallback(
     async (token) => {
-      const invitation = await getInvitationByToken(token);
+      const invitation = await getInvitationByToken(token) as any;
       if (!invitation) return { success: false };
 
       if (invitation.status === "accepted") return { success: false, invitation };
@@ -256,7 +235,7 @@ export function InvitationProvider({ children }) {
       const now = new Date();
       const nowISO = now.toISOString();
 
-      if (new Date(invitation.expiresAt) < now) {
+      if (new Date(invitation.expiresAt as string) < now) {
         await withTimeout(fsUpdateInvitation(invitation.id, {
           status: "expired"
         }));
@@ -282,10 +261,9 @@ export function InvitationProvider({ children }) {
       }));
 
       // Prevent duplicate team members by checking existing email
-      const teamQuery = query(wsCol("team"), where("email", "==", invitation.email));
-      const teamSnap = await withTimeout(getDocs(teamQuery));
+      const existingMember = await getTeamMemberByEmail(invitation.email);
 
-      if (teamSnap.empty) {
+      if (!existingMember) {
         const memberName = deriveMemberName(invitation);
 
         const memberId = await withTimeout(fsCreateTeamMember({

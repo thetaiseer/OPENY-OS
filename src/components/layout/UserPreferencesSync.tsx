@@ -2,9 +2,9 @@
 
 // ============================================================
 // OPENY OS – UserPreferencesSync
-// Invisible component that bridges Firebase Auth state with
+// Invisible component that bridges Supabase Auth state with
 // per-user UI preferences (theme, language) stored in
-// Firestore so that they sync across ALL devices automatically.
+// Supabase so that they sync across ALL devices automatically.
 //
 // Placement: must be a descendant of both AuthProvider AND
 // ThemeProvider/LanguageProvider (handled in layout.tsx).
@@ -16,7 +16,7 @@ import { useLanguage, } from "@/lib/LanguageContext";
 import {
   subscribeToUserPreferences,
   upsertUserPreferences,
-} from "@/lib/firestore/userPreferences";
+} from "@/lib/supabase/userPreferences";
 
 export function UserPreferencesSync() {
   const { user } = useAuth();
@@ -35,7 +35,7 @@ export function UserPreferencesSync() {
       return;
     }
 
-    const uid = user.uid;
+    const uid = user.id;
 
     const unsub = subscribeToUserPreferences(
       uid,
@@ -59,11 +59,11 @@ export function UserPreferencesSync() {
         // them (they came FROM Firestore, not from the user).
         if (prefs.theme && prefs.theme !== theme) {
           skipWrites.current += 1;
-          setTheme(prefs.theme);
+          setTheme(prefs.theme as string);
         }
         if (prefs.language && prefs.language !== language) {
           skipWrites.current += 1;
-          setLanguage(prefs.language );
+          setLanguage(prefs.language as string);
         }
       }
     );
@@ -80,7 +80,7 @@ export function UserPreferencesSync() {
   // ── Step 2: Write to Firestore when the user changes prefs ──
   useEffect(() => {
     // Not logged in → nothing to sync
-    if (!user || syncedForUid.current !== user.uid) return;
+    if (!user || syncedForUid.current !== user.id) return;
 
     // This change was initiated by an incoming Firestore update – skip.
     if (skipWrites.current > 0) {
@@ -88,7 +88,7 @@ export function UserPreferencesSync() {
       return;
     }
 
-    upsertUserPreferences(user.uid, { theme, language }).catch((err) => {
+    upsertUserPreferences(user.id, { theme, language }).catch((err) => {
       console.error("[OPENY:UserPreferencesSync] failed to write prefs:", err);
     });
   }, [theme, language, user]);

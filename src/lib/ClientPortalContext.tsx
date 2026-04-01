@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// OPENY OS – Client Portal Context (Firestore-backed)
+// OPENY OS – Client Portal Context (Supabase-backed)
 // Phase 4: Client Portal – Safe Data Layer
 // ============================================================
 import {
@@ -11,71 +11,26 @@ import {
   useEffect,
   useMemo,
   useState } from
-
 "react";
-import {
-  addDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  orderBy } from
-"firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
-
-
-
-
-
-
-
+import { getSupabaseClient } from "./supabase/client";
+import { rowToCamel } from "./supabase/helpers";
 
 // ── Client-safe content ───────────────────────────────────────
 
-/** Strip internal-only fields before exposing to client. */
-function sanitizeContentItem(item) {
+function sanitizeContentItem(item: Record<string, unknown>) {
   return {
     ...item,
-    // Remove any internal comments (only keep non-internal ones)
-    comments: (item.comments ?? []).filter(
-      (c) => !c.isInternal
-    )
+    comments: ((item.comments as unknown[]) ?? []).filter(
+      (c: unknown) => !(c as { isInternal?: boolean }).isInternal
+    ),
   };
 }
 
-function sanitizeApproval(approval) {
-  return {
-    ...approval,
-    // Clients should NOT see internal comments
-    internalComments: []
-  };
+function sanitizeApproval(approval: Record<string, unknown>) {
+  return { ...approval, internalComments: [] };
 }
-
-// ── Context shape ─────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 const ClientPortalContext = createContext(null);
-
-// ── Provider ──────────────────────────────────────────────────
-
-
-
-
-
-
 
 export function ClientPortalProvider({ clientId, clientData, children }) {
   const [pendingApprovals, setPendingApprovals] = useState([]);
@@ -85,100 +40,79 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
 
   useEffect(() => {
     if (!clientId) return;
+    const sb = getSupabaseClient();
 
-    // Content items for this client (only client-safe statuses)
-    const contentUnsub = onSnapshot(
-      query(
-        wsCol("contentItems"),
-        where("clientId", "==", clientId),
-        orderBy("createdAt", "desc")
-      ),
-      (snap) => {
-        const items = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data()
-        } as Record<string, any> & { id: string }));
-        // Only expose client-safe content (not idea/draft/in_progress/internal_review stages)
-        const clientVisible = items.
-        filter((i) =>
-        [
-        "client_review",
-        "approved",
-        "scheduled",
-        "publishing_ready",
-        "published"].
-        includes(i.status)
-        ).
-        map(sanitizeContentItem);
-        setContentItems(clientVisible);
-        setLoading(false);
-      },
-      (err) => console.error("[OPENY] ClientPortal content error:", err)
-    );
-
-    // Approvals for this client
-    const approvalsUnsub = onSnapshot(
-      query(
-        wsCol("approvals"),
-        where("clientId", "==", clientId),
-        orderBy("createdAt", "desc")
-      ),
-      (snap) => {
-        const approvals = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data()
-        } as Record<string, any> & { id: string }));
-        // Only show pending_client and resolved approvals
-        const visible = approvals.
-        filter((a) =>
-        ["pending_client", "approved", "rejected", "revision_requested"].includes(
-          a.status
+    const fetchContent = async () => {
+      const { data } = await sb
+        .from("content_items")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+      const items = (data ?? []).map((r) => rowToCamel(r));
+      const clientVisible = items
+        .filter((i) =>
+          ["client_review", "approved", "scheduled", "publishing_ready", "published"].includes(
+            (i as any).status
+          )
         )
-        ).
-        map(sanitizeApproval);
-        setPendingApprovals(visible);
-      },
-      (err) => console.error("[OPENY] ClientPortal approvals error:", err)
-    );
-
-    // Assets for this client
-    const assetsUnsub = onSnapshot(
-      query(
-        wsCol("assets"),
-        where("clientId", "==", clientId),
-        orderBy("createdAt", "desc")
-      ),
-      (snap) => {
-        setAssets(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-      },
-      (err) => console.error("[OPENY] ClientPortal assets error:", err)
-    );
-
-    return () => {
-      contentUnsub();
-      approvalsUnsub();
-      assetsUnsub();
+        .map(sanitizeContentItem);
+      setContentItems(clientVisible as any);
+      setLoading(false);
     };
+
+    const fetchApprovals = async () => {
+      const { data } = await sb
+        .from("approvals")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+      const approvals = (data ?? []).map((r) => rowToCamel(r));
+      const visible = approvals
+        .filter((a) =>
+          ["pending_client", "approved", "rejected", "revision_requested"].includes((a as any).status)
+        )
+        .map(sanitizeApproval);
+      setPendingApprovals(visible as any);
+    };
+
+    const fetchAssets = async () => {
+      const { data } = await sb
+        .from("assets")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+      setAssets(((data ?? []).map((r) => rowToCamel(r))) as any);
+    };
+
+    fetchContent();
+    fetchApprovals();
+    fetchAssets();
+
+    // Real-time subscriptions
+    const channel = sb
+      .channel(`portal-${clientId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_items" }, fetchContent)
+      .on("postgres_changes", { event: "*", schema: "public", table: "approvals" }, fetchApprovals)
+      .on("postgres_changes", { event: "*", schema: "public", table: "assets" }, fetchAssets)
+      .subscribe();
+
+    return () => { sb.removeChannel(channel); };
   }, [clientId]);
 
   const publishedItems = useMemo(
-    () => contentItems.filter((i) => i.status === "published"),
+    () => contentItems.filter((i: any) => i.status === "published"),
     [contentItems]
   );
 
   // ── Client Actions ────────────────────────────────────────
 
   const clientApprove = useCallback(
-    async (approvalId, comment) => {
+    async (approvalId: string, comment?: string) => {
+      const sb = getSupabaseClient();
       const now = new Date().toISOString();
-      const updateData: Record<string, any> = {
-        status: "approved",
-        updatedAt: now
-      };
+      const updateData: Record<string, unknown> = { status: "approved", updated_at: now };
       if (comment) {
-        const approval = pendingApprovals.find((a) => a.id === approvalId);
+        const approval = (pendingApprovals as any[]).find((a) => a.id === approvalId);
         const newComment = {
           id: crypto.randomUUID(),
           userId: `client_${clientId}`,
@@ -187,39 +121,35 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
           userColor: clientData?.color ?? "var(--accent)",
           text: comment,
           isInternal: false,
-          createdAt: now
+          createdAt: now,
         };
-        updateData.clientComments = [
-        ...(approval?.clientComments ?? []),
-        newComment];
-
+        updateData.client_comments = [...((approval?.clientComments as unknown[]) ?? []), newComment];
       }
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), updateData);
-      // Log activity
-      await addDoc(wsCol("activities"), {
+      await sb.from("approvals").update(updateData).eq("id", approvalId);
+      await sb.from("activities").insert({
         type: "post_approved_by_client",
         message: `Post approved by client: ${clientData?.name ?? "Client"}`,
         detail: `Approval ${approvalId}`,
-        entityId: approvalId,
-        timestamp: now
+        entity_id: approvalId,
+        timestamp: now,
       });
-      // Push notification
-      await addDoc(wsCol("notifications"), {
+      await sb.from("notifications").insert({
         type: "client_approved",
         title: "Client Approved",
         message: `${clientData?.name ?? "Client"} approved a content item`,
-        entityId: approvalId,
-        isRead: false,
-        createdAt: now
+        entity_id: approvalId,
+        is_read: false,
+        created_at: now,
       });
     },
     [clientId, clientData, pendingApprovals]
   );
 
   const clientReject = useCallback(
-    async (approvalId, reason) => {
+    async (approvalId: string, reason: string) => {
+      const sb = getSupabaseClient();
       const now = new Date().toISOString();
-      const approval = pendingApprovals.find((a) => a.id === approvalId);
+      const approval = (pendingApprovals as any[]).find((a) => a.id === approvalId);
       const newComment = {
         id: crypto.randomUUID(),
         userId: `client_${clientId}`,
@@ -228,36 +158,37 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
         userColor: clientData?.color ?? "var(--accent)",
         text: reason,
         isInternal: false,
-        createdAt: now
+        createdAt: now,
       };
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), {
+      await sb.from("approvals").update({
         status: "rejected",
-        clientComments: [...(approval?.clientComments ?? []), newComment],
-        updatedAt: now
-      });
-      await addDoc(wsCol("activities"), {
+        client_comments: [...((approval?.clientComments as unknown[]) ?? []), newComment],
+        updated_at: now,
+      }).eq("id", approvalId);
+      await sb.from("activities").insert({
         type: "publishing_failed",
         message: `Post rejected by client: ${clientData?.name ?? "Client"}`,
         detail: reason,
-        entityId: approvalId,
-        timestamp: now
+        entity_id: approvalId,
+        timestamp: now,
       });
-      await addDoc(wsCol("notifications"), {
+      await sb.from("notifications").insert({
         type: "client_rejected",
         title: "Client Rejected",
         message: `${clientData?.name ?? "Client"} rejected a content item`,
-        entityId: approvalId,
-        isRead: false,
-        createdAt: now
+        entity_id: approvalId,
+        is_read: false,
+        created_at: now,
       });
     },
     [clientId, clientData, pendingApprovals]
   );
 
   const clientRequestChanges = useCallback(
-    async (approvalId, note) => {
+    async (approvalId: string, note: string) => {
+      const sb = getSupabaseClient();
       const now = new Date().toISOString();
-      const approval = pendingApprovals.find((a) => a.id === approvalId);
+      const approval = (pendingApprovals as any[]).find((a) => a.id === approvalId);
       const newComment = {
         id: crypto.randomUUID(),
         userId: `client_${clientId}`,
@@ -266,27 +197,27 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
         userColor: clientData?.color ?? "var(--accent)",
         text: note,
         isInternal: false,
-        createdAt: now
+        createdAt: now,
       };
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "approvals", approvalId), {
+      await sb.from("approvals").update({
         status: "revision_requested",
-        clientComments: [...(approval?.clientComments ?? []), newComment],
-        updatedAt: now
-      });
-      await addDoc(wsCol("activities"), {
+        client_comments: [...((approval?.clientComments as unknown[]) ?? []), newComment],
+        updated_at: now,
+      }).eq("id", approvalId);
+      await sb.from("activities").insert({
         type: "client_requested_changes",
         message: `Client requested changes: ${clientData?.name ?? "Client"}`,
         detail: note,
-        entityId: approvalId,
-        timestamp: now
+        entity_id: approvalId,
+        timestamp: now,
       });
-      await addDoc(wsCol("notifications"), {
+      await sb.from("notifications").insert({
         type: "client_requested_changes",
         title: "Changes Requested",
         message: `${clientData?.name ?? "Client"} requested changes`,
-        entityId: approvalId,
-        isRead: false,
-        createdAt: now
+        entity_id: approvalId,
+        is_read: false,
+        created_at: now,
       });
     },
     [clientId, clientData, pendingApprovals]
@@ -302,33 +233,21 @@ export function ClientPortalProvider({ clientId, clientData, children }) {
       loading,
       clientApprove,
       clientReject,
-      clientRequestChanges
+      clientRequestChanges,
     }),
-    [
-    clientData,
-    pendingApprovals,
-    contentItems,
-    publishedItems,
-    assets,
-    loading,
-    clientApprove,
-    clientReject,
-    clientRequestChanges]
-
+    [clientData, pendingApprovals, contentItems, publishedItems, assets, loading, clientApprove, clientReject, clientRequestChanges]
   );
 
   return (
     <ClientPortalContext.Provider value={value}>
       {children}
-    </ClientPortalContext.Provider>);
-
+    </ClientPortalContext.Provider>
+  );
 }
 
 export function useClientPortal() {
   const ctx = useContext(ClientPortalContext);
   if (!ctx)
-  throw new Error(
-    "useClientPortal must be used inside <ClientPortalProvider>"
-  );
+    throw new Error("useClientPortal must be used inside <ClientPortalProvider>");
   return ctx;
 }

@@ -25,8 +25,8 @@ import {
   createPublishingEvent as fsCreatePublishingEvent,
   updatePublishingEvent as fsUpdatePublishingEvent,
   recordPublishingFailure as fsRecordPublishingFailure } from
-"./firestore/publishing";
-import { createActivity as fsCreateActivity } from "./firestore/activities";
+"./supabase/publishing";
+import { createActivity as fsCreateActivity } from "./supabase/activities";
 
 // ── Readiness check helper ────────────────────────────────────
 

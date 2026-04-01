@@ -27,7 +27,7 @@ import {
   updateContentItem as fsUpdateContentItem,
   deleteContentItem as fsDeleteContentItem,
   addContentComment as fsAddContentComment } from
-"./firestore/content";
+"./supabase/content";
 import { withTimeout } from "./utils/crud";
 
 // ── Context shape ─────────────────────────────────────────────

@@ -21,7 +21,7 @@ import {
   addApprovalInternalComment,
   addApprovalClientComment,
   deleteApproval as fsDeleteApproval } from
-"./firestore/approvals";
+"./supabase/approvals";
 import { withTimeout } from "./utils/crud";
 
 // ── Context shape ─────────────────────────────────────────────

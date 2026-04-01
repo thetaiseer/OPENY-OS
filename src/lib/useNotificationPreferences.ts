@@ -1,29 +1,13 @@
 "use client";
- function _nullishCoalesce(lhs, rhsFn) { if (lhs != null) { return lhs; } else { return rhsFn(); } } function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }// ============================================================
-// OPENY OS – Notification Preferences Hook (Firestore-backed)
-// Phase 4: Advanced Notifications
+
+// ============================================================
+// OPENY OS – Notification Preferences Hook (Supabase-backed)
 // ============================================================
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  addDoc,
-  updateDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import { db, wsCol, DEFAULT_WORKSPACE_ID } from "./firebase";
+import { getSupabaseClient } from "./supabase/client";
 import { useAuth } from "./AuthContext";
 
-
-
-
-
-const DEFAULT_CHANNEL = {
-  inApp: true,
-  push: false,
-  email: false,
-};
+const TABLE = "user_notification_preferences";
 
 const DEFAULT_PREFS = {
   approvals: { inApp: true, push: true, email: true },
@@ -34,89 +18,73 @@ const DEFAULT_PREFS = {
   clientActions: { inApp: true, push: true, email: true },
 };
 
-// The admin user id used to scope notification preferences.
-// const CURRENT_USER_ID = "thetaiseer@gmail.com"; // removed: now uses authenticated user
-
 export function useNotificationPreferences() {
   const { user } = useAuth();
-  const userId = _nullishCoalesce(_optionalChain([user, 'optionalAccess', _ => _.email]), () => ( ""));
-  const [prefs, setPrefs] = useState(null);
-  const [docId, setDocId] = useState(null);
-  // Internal loading flag — only meaningful when userId is set.
+  const userId = (user as any)?.email ?? "";
+  const [prefs, setPrefs] = useState<Record<string, unknown> | null>(null);
+  const [rowId, setRowId] = useState<string | null>(null);
   const [_loading, setLoading] = useState(true);
-  // When there's no authenticated user there's nothing to load.
   const loading = userId ? _loading : false;
 
   useEffect(() => {
-    // No user yet — return without calling setState in the effect body
-    // (avoids the react-hooks/set-state-in-effect lint rule).
     if (!userId) return;
+    const sb = getSupabaseClient();
+    let cancelled = false;
 
-    const q = query(
-      wsCol("userNotificationPreferences"),
-      where("userId", "==", userId)
-    );
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        if (snap.empty) {
-          // Create default preferences for this user
-          const now = new Date().toISOString();
-          const ref = await addDoc(
-            wsCol("userNotificationPreferences"),
-            {
-              userId,
-              ...DEFAULT_PREFS,
-              updatedAt: now,
-            }
-          );
-          setDocId(ref.id);
-        } else {
-          const d = snap.docs[0];
-          setDocId(d.id);
-          setPrefs({ id: d.id, ...d.data() } );
+    const fetchOrCreate = async () => {
+      const { data } = await sb.from(TABLE).select("*").eq("user_id", userId).limit(1);
+      if (cancelled) return;
+      if (data && data.length > 0) {
+        const row = data[0];
+        setRowId(row.id as string);
+        setPrefs({ id: row.id as string, userId: row.user_id as string, ...((row.preferences as Record<string, unknown>) ?? DEFAULT_PREFS) });
+        setLoading(false);
+      } else {
+        // Create default prefs row
+        const { data: created } = await sb
+          .from(TABLE)
+          .insert({
+            user_id: userId,
+            preferences: DEFAULT_PREFS,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (cancelled) return;
+        if (created) {
+          setRowId(created.id as string);
+          setPrefs({ id: created.id as string, userId, ...DEFAULT_PREFS });
         }
         setLoading(false);
-      },
-      (err) => {
-        console.error("[OPENY] NotificationPreferences listener error:", err);
-        setLoading(false);
       }
-    );
-    return unsub;
+    };
+
+    fetchOrCreate().catch((err) => {
+      console.error("[OPENY] NotificationPreferences error:", err);
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => { cancelled = true; };
   }, [userId]);
 
   const updateCategory = useCallback(
-    async (
-      category
-
-
-,
-      channel,
-      value
-    ) => {
-      if (!docId) return;
-      const currentCategoryPrefs =
-        _nullishCoalesce(_optionalChain([prefs, 'optionalAccess', _2 => _2[category]]), () => ( DEFAULT_CHANNEL));
-      await updateDoc(doc(db, "workspaces", DEFAULT_WORKSPACE_ID, "userNotificationPreferences", docId), {
-        [category]: {
-          ...currentCategoryPrefs,
-          [channel]: value,
-        },
-        updatedAt: new Date().toISOString(),
-      });
+    async (category: string, channel: string, value: boolean) => {
+      if (!rowId || !prefs) return;
+      const sb = getSupabaseClient();
+      const currentCategoryPrefs = (prefs[category] as Record<string, boolean>) ?? { inApp: true, push: false, email: false };
+      const updated = { ...prefs, [category]: { ...currentCategoryPrefs, [channel]: value } };
+      setPrefs(updated);
+      await sb.from(TABLE).update({
+        preferences: updated,
+        updated_at: new Date().toISOString(),
+      }).eq("id", rowId);
     },
-    [docId, prefs]
+    [rowId, prefs]
   );
 
   const effectivePrefs = useMemo(
-    () =>
-      _nullishCoalesce(prefs, () => ( {
-        id: "",
-        userId,
-        ...DEFAULT_PREFS,
-        updatedAt: "",
-      })),
+    () => prefs ?? { id: "", userId, ...DEFAULT_PREFS, updatedAt: "" },
     [prefs, userId]
   );
 
