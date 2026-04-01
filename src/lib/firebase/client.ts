@@ -48,7 +48,13 @@ function createFirestore() {
 }
 
 export const db = createFirestore();
-export const auth = getAuth(app);
+// Only initialise Auth on the client side. During SSR / static prerender the
+// NEXT_PUBLIC_FIREBASE_* env vars may be absent, which causes getAuth() to
+// throw auth/invalid-api-key and fail the build.
+export const auth =
+  typeof window !== "undefined"
+    ? getAuth(app)
+    : (null as unknown as ReturnType<typeof getAuth>);
 
 // ── Workspace collection helper ──────────────────────────────
 // Returns a CollectionReference scoped to the default workspace.
