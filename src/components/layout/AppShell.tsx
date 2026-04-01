@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -16,20 +15,12 @@ const EXPANDED_WIDTH = 240;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { isRTL } = useLanguage();
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isLoginPage = pathname === "/login";
-
-  // Redirect unauthenticated users to login (except the login page itself)
-  useEffect(() => {
-    if (!loading && !user && !isLoginPage) {
-      router.replace("/login");
-    }
-  }, [loading, user, isLoginPage, router]);
 
   // Show login page without shell
   if (isLoginPage) {
@@ -37,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // Show a spinner while auth state is resolving
-  if (loading || !user) {
+  if (loading) {
     return (
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "center",
