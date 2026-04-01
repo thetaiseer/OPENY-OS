@@ -51,10 +51,20 @@ export const db = createFirestore();
 // Only initialise Auth on the client side. During SSR / static prerender the
 // NEXT_PUBLIC_FIREBASE_* env vars may be absent, which causes getAuth() to
 // throw auth/invalid-api-key and fail the build.
-export const auth =
-  typeof window !== "undefined"
-    ? getAuth(app)
-    : (null as unknown as ReturnType<typeof getAuth>);
+// The try/catch also guards against an invalid/missing API key at runtime —
+// without it the thrown FirebaseError propagates at module-evaluation time and
+// crashes the entire client bundle, causing every page that transitively imports
+// this module (e.g. /clients) to show "This page couldn't load".
+function createAuth(): ReturnType<typeof getAuth> {
+  if (typeof window === "undefined") return null as unknown as ReturnType<typeof getAuth>;
+  try {
+    return getAuth(app);
+  } catch (err) {
+    console.error("[OPENY:firebase] Auth initialisation failed – check NEXT_PUBLIC_FIREBASE_* env vars:", err);
+    return null as unknown as ReturnType<typeof getAuth>;
+  }
+}
+export const auth = createAuth();
 
 // ── Workspace collection helper ──────────────────────────────
 // Returns a CollectionReference scoped to the default workspace.

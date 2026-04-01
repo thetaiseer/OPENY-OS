@@ -59,8 +59,14 @@ export function AuthProvider({ children }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Listen for Firebase Auth state changes
+  // 1. Listen for Firebase Auth state changes.
+  // Guard against null auth (happens when NEXT_PUBLIC_FIREBASE_* env vars are
+  // missing/invalid and createAuth() in firebase/client.ts returned null).
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (!firebaseUser) {
@@ -101,10 +107,12 @@ export function AuthProvider({ children }) {
   // ── Actions ───────────────────────────────────────────────
 
   const signIn = useCallback(async (email, password) => {
+    if (!auth) throw new Error("Firebase Auth is not initialised – check NEXT_PUBLIC_FIREBASE_* env vars.");
     await signInWithEmailAndPassword(auth, email, password);
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!auth) return;
     await fbSignOut(auth);
     setMember(null);
   }, []);
