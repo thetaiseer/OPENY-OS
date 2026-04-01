@@ -309,7 +309,7 @@ export function MiniAreaChart({ data, color = "var(--accent)", height = 160, fil
   const area = `${line} L ${w} ${h} L 0 ${h} Z`;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height, display: "block", minHeight: 160 }}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height, display: "block", minHeight: height }}>
       <defs>
         <linearGradient id={`fill-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
