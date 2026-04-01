@@ -30,12 +30,12 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
         height: "var(--topbar-height)",
         background: "var(--glass-topbar)",
         borderBottom: "1px solid var(--header-border)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         display: "flex",
         alignItems: "center",
         gap: 16,
-        padding: "0 24px",
+        padding: "0 28px",
         zIndex: 90,
         transition: "left 0.25s ease, right 0.25s ease",
       }}
@@ -45,7 +45,7 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
         onClick={onMobileMenuOpen}
         className="md:hidden"
         style={{
-          width: 36, height: 36, borderRadius: 8,
+          width: 38, height: 38, borderRadius: 10,
           background: "var(--glass-overlay)",
           border: "1px solid var(--border)",
           color: "var(--text-secondary)",
@@ -58,8 +58,8 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
 
       {/* Greeting */}
       <div className="hidden md:block" style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1 }}>{greeting}</p>
-        <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", marginTop: 2, lineHeight: 1 }}>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1, letterSpacing: "0.01em" }}>{greeting}</p>
+        <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginTop: 3, lineHeight: 1, letterSpacing: "-0.01em" }}>
           OPENY OS
         </p>
       </div>
@@ -67,7 +67,7 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
       {/* Search bar */}
       <div style={{
         position: "relative",
-        flex: "0 1 360px",
+        flex: "0 1 400px",
         display: "flex",
         alignItems: "center",
       }}>
@@ -75,8 +75,8 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
           size={15}
           style={{
             position: "absolute",
-            left: isRTL ? "auto" : 11,
-            right: isRTL ? 11 : "auto",
+            left: isRTL ? "auto" : 13,
+            right: isRTL ? 13 : "auto",
             color: "var(--text-muted)",
             pointerEvents: "none",
           }}
@@ -88,14 +88,14 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
           onBlur={() => setSearchFocused(false)}
           style={{
             width: "100%",
-            height: 36,
+            height: 40,
             background: searchFocused ? "rgba(255,255,255,0.07)" : "var(--glass-input)",
             border: `1px solid ${searchFocused ? "var(--border-focus)" : "var(--border-strong)"}`,
-            borderRadius: 10,
+            borderRadius: 12,
             color: "var(--text)",
             fontSize: 13,
-            paddingLeft: isRTL ? 10 : 32,
-            paddingRight: isRTL ? 32 : 10,
+            paddingLeft: isRTL ? 12 : 36,
+            paddingRight: isRTL ? 36 : 12,
             outline: "none",
             transition: "all 0.15s",
             boxShadow: searchFocused ? "0 0 0 3px rgba(59,130,246,0.1)" : "none",
@@ -104,18 +104,19 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {/* Notifications */}
         <NotificationCenter />
 
         {/* Avatar */}
         <div style={{
-          width: 32, height: 32, borderRadius: "50%",
+          width: 36, height: 36, borderRadius: "50%",
           background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 13, fontWeight: 700, color: "white",
           cursor: "pointer",
-          boxShadow: "0 0 12px rgba(59,130,246,0.3)",
+          boxShadow: "0 0 16px rgba(59,130,246,0.35)",
+          flexShrink: 0,
         }}>
           A
         </div>

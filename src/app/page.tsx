@@ -110,47 +110,57 @@ export default function DashboardPage() {
 
       {/* Hero Section */}
       <div
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 mb-6"
-        style={{ background: "linear-gradient(135deg, #4F6EF7 0%, #7C5CF6 100%)" }}>
-        
+        className="hero-gradient relative overflow-hidden mb-8"
+        style={{
+          background: "linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.05) 100%)",
+          border: "1px solid rgba(59,130,246,0.12)",
+          borderRadius: 24,
+          padding: "2.5rem 2.5rem 2rem",
+        }}>
         <div className="relative z-10">
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "13px", fontWeight: 500 }}>
-            {greeting} · {dateLabel}
+          <p style={{ color: "var(--text-muted)", fontSize: "12px", fontWeight: 500, letterSpacing: "0.02em", marginBottom: 8 }}>
+            {dateLabel}
           </p>
-          <h1 style={{ color: "white", fontSize: "24px", fontWeight: 700, marginTop: "4px" }}>
-            {isArabic ? "نظرة عامة على مساحة العمل" : "Workspace Overview"}
+          <h1 style={{
+            color: "var(--text)",
+            fontSize: "28px",
+            fontWeight: 800,
+            marginBottom: 6,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.2,
+          }}>
+            {greeting} 👋
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", marginTop: "6px", maxWidth: "480px" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: 1.6, maxWidth: "520px" }}>
             {isArabic ?
             "إليك ملخص نشاطك اليومي وحالة مشاريعك" :
             "Here's what's happening across your workspace today."}
           </p>
-          <div className="flex flex-wrap gap-3 mt-5">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold"
-              style={{ background: "rgba(255,255,255,0.18)", color: "white" }}>
-              
-              <Clock3 size={14} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 20 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              borderRadius: 9999, padding: "6px 14px",
+              fontSize: 12, fontWeight: 600,
+              background: "rgba(59,130,246,0.12)",
+              border: "1px solid rgba(59,130,246,0.2)",
+              color: "#60A5FA",
+            }}>
+              <Clock3 size={13} />
               {isArabic ? `${publishedContent} منشورات` : `${publishedContent} Published`}
             </span>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold"
-              style={{ background: "rgba(255,255,255,0.18)", color: "white" }}>
-              
-              <CalendarRange size={14} />
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              borderRadius: 9999, padding: "6px 14px",
+              fontSize: 12, fontWeight: 600,
+              background: "rgba(139,92,246,0.12)",
+              border: "1px solid rgba(139,92,246,0.2)",
+              color: "#A78BFA",
+            }}>
+              <CalendarRange size={13} />
               {isArabic ? `${scheduledThisWeek} مجدول هذا الأسبوع` : `${scheduledThisWeek} Scheduled This Week`}
             </span>
           </div>
         </div>
-        {/* Decorative circles */}
-        <div
-          className="pointer-events-none absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 bg-white"
-          style={{ transform: "translate(25%, -25%)" }} />
-        
-        <div
-          className="pointer-events-none absolute bottom-0 right-32 w-32 h-32 rounded-full opacity-10 bg-white"
-          style={{ transform: "translateY(30%)" }} />
-        
       </div>
 
       {/* Stat Cards Grid */}
