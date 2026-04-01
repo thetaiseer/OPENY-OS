@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "firebase:deploy": "firebase deploy",
+    "firebase:deploy:hosting": "firebase experiments:enable webframeworks && firebase deploy --only hosting",
+    "firebase:deploy:firestore": "firebase deploy --only firestore",
+    "firebase:deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
     "firebase": "^12.11.0",
