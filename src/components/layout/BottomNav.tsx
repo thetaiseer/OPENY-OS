@@ -24,10 +24,10 @@ export function BottomNav() {
       position: "fixed",
       bottom: 0, left: 0, right: 0,
       height: "var(--bottomnav-height)",
-      background: "var(--sidebar-bg, rgba(7,11,20,0.97))",
+      background: "var(--sidebar-bg, rgba(5,8,16,0.97))",
       borderTop: "1px solid var(--border)",
-      backdropFilter: "blur(16px)",
-      WebkitBackdropFilter: "blur(16px)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
       display: "flex",
       alignItems: "center",
       justifyContent: "space-around",
@@ -46,29 +46,41 @@ export function BottomNav() {
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 3,
-              padding: "6px 16px",
-              borderRadius: 12,
+              gap: 4,
+              padding: "8px 18px",
+              borderRadius: 14,
               textDecoration: "none",
               color: active ? "var(--accent)" : "var(--text-muted)",
               transition: "all 0.15s",
-              minWidth: 56,
+              minWidth: 60,
               background: active ? "var(--glass-nav-active)" : "transparent",
+              position: "relative",
             }}
           >
             <item.icon
-              size={20}
+              size={21}
               style={{
-                filter: active ? "drop-shadow(0 0 4px rgba(59,130,246,0.6))" : "none",
+                filter: active ? "drop-shadow(0 0 6px rgba(59,130,246,0.7))" : "none",
               }}
             />
             <span style={{
-              fontSize: 10, fontWeight: active ? 600 : 400,
+              fontSize: 10.5, fontWeight: active ? 600 : 400,
               letterSpacing: "0.02em",
               lineHeight: 1,
             }}>
               {label}
             </span>
+            {active && (
+              <span style={{
+                position: "absolute",
+                bottom: 4,
+                width: 4,
+                height: 4,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                boxShadow: "0 0 8px var(--accent)",
+              }} />
+            )}
           </Link>
         );
       })}

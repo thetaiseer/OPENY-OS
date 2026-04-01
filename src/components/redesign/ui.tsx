@@ -52,7 +52,7 @@ export function PageHeader({ eyebrow, title, description, actions }: PageHeaderP
       alignItems: "flex-start",
       justifyContent: "space-between",
       gap: 16,
-      marginBottom: 28,
+      marginBottom: 36,
       flexWrap: "wrap",
     }}>
       <div>
@@ -64,8 +64,8 @@ export function PageHeader({ eyebrow, title, description, actions }: PageHeaderP
           {pickLocalized(eyebrow, language)}
         </p>
         <h1 style={{
-          fontSize: "clamp(1.35rem, 3vw, 1.65rem)",
-          fontWeight: 700, letterSpacing: "-0.015em",
+          fontSize: "clamp(1.5rem, 3vw, 1.85rem)",
+          fontWeight: 800, letterSpacing: "-0.02em",
           color: "var(--text)", lineHeight: 1.25,
           margin: 0,
         }}>
@@ -123,14 +123,14 @@ export function Panel({ children, title, subtitle, description, actions, action,
       {(resolvedTitle || resolvedActions) && (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: `1rem ${resolvedPadding}`,
+          padding: "1.5rem 1.75rem",
           borderBottom: "1px solid var(--border)",
         }}>
           <div>
             {resolvedTitle && (
               <h3 style={{
-                fontSize: 14, fontWeight: 600, color: "var(--text)",
-                margin: 0,
+                fontSize: 15, fontWeight: 700, color: "var(--text)",
+                margin: 0, letterSpacing: "-0.01em",
               }}>
                 {resolvedTitle}
               </h3>
@@ -187,7 +187,7 @@ export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", t
         background: "var(--panel)",
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-card)",
-        padding: "1.25rem",
+        padding: "1.75rem 2rem",
       }}>
         <div className="skeleton" style={{ height: 12, width: "40%", marginBottom: 16 }} />
         <div className="skeleton" style={{ height: 28, width: "60%" }} />
@@ -200,10 +200,10 @@ export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", t
     background: "var(--panel)",
     border: "1px solid var(--border)",
     borderRadius: "var(--radius-card)",
-    padding: "1.25rem",
+    padding: "1.75rem 2rem",
     textDecoration: "none",
     cursor: href ? "pointer" as const : "default" as const,
-    transition: "border-color 0.15s, box-shadow 0.15s",
+    transition: "border-color 0.2s, box-shadow 0.2s, transform 0.2s",
     position: "relative" as const,
     overflow: "hidden" as const,
   };
@@ -227,21 +227,22 @@ export function StatCard({ label, value, sub, hint, icon: Icon, tone = "blue", t
         </p>
         {Icon && (
           <div style={{
-            width: 34, height: 34, borderRadius: 10,
+            width: 48, height: 48, borderRadius: 14,
             background: tc.bg,
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0,
+            boxShadow: `0 0 16px ${tc.glow}`,
           }}>
-            <Icon size={16} style={{ color: tc.color }} />
+            <Icon size={22} style={{ color: tc.color }} />
           </div>
         )}
       </div>
 
       <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
         <span style={{
-          fontSize: "clamp(1.5rem, 3vw, 2rem)",
-          fontWeight: 700, color: "var(--text)",
-          lineHeight: 1, letterSpacing: "-0.02em",
+          fontSize: "2.25rem",
+          fontWeight: 800, color: "var(--text)",
+          lineHeight: 1, letterSpacing: "-0.03em",
         }}>
           {value}
         </span>
@@ -291,7 +292,7 @@ interface MiniAreaChartProps {
   filled?: boolean;
 }
 
-export function MiniAreaChart({ data, color = "var(--accent)", height = 48, filled = true }: MiniAreaChartProps) {
+export function MiniAreaChart({ data, color = "var(--accent)", height = 160, filled = true }: MiniAreaChartProps) {
   if (!data || data.length < 2) return null;
 
   const max = Math.max(...data, 1);
@@ -308,7 +309,7 @@ export function MiniAreaChart({ data, color = "var(--accent)", height = 48, fill
   const area = `${line} L ${w} ${h} L 0 ${h} Z`;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height, display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height, display: "block", minHeight: 160 }}>
       <defs>
         <linearGradient id={`fill-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
@@ -345,7 +346,7 @@ export function BarListChart({ items, max, showValues = true, tone }: BarListCha
   const peak = max ?? Math.max(...items.map(i => i.value), 1);
   const defaultColor = tone ? TONE_COLORS[tone]?.color ?? "var(--accent)" : "var(--accent)";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {items.map((item, idx) => {
         const pct = Math.round((item.value / peak) * 100);
         const color = item.color ?? defaultColor;
@@ -366,7 +367,7 @@ export function BarListChart({ items, max, showValues = true, tone }: BarListCha
               )}
             </div>
             <div style={{
-              height: 5, borderRadius: 9999,
+              height: 10, borderRadius: 9999,
               background: "var(--glass-overlay-border)",
               overflow: "hidden",
             }}>
@@ -400,15 +401,15 @@ export function EmptyPanel({ icon: Icon = Inbox, title, description, action }: E
     <div style={{
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      gap: 12, padding: "3rem 1rem", textAlign: "center",
+      gap: 14, padding: "3rem 1.5rem", textAlign: "center",
     }}>
       <div style={{
-        width: 52, height: 52, borderRadius: 16,
+        width: 64, height: 64, borderRadius: 20,
         background: "var(--glass-overlay)",
         border: "1px solid var(--border)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <Icon size={22} style={{ color: "var(--text-muted)" }} />
+        <Icon size={28} style={{ color: "var(--text-muted)" }} />
       </div>
       {resolvedTitle && (
         <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", margin: 0 }}>{resolvedTitle}</p>
@@ -448,7 +449,7 @@ export function InfoBadge({ label, value, tone = "muted", dot }: InfoBadgeProps)
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       background: bs.bg, color: bs.color,
-      borderRadius: 6, padding: "3px 8px",
+      borderRadius: 6, padding: "4px 10px",
       fontSize: 11, fontWeight: 600,
       letterSpacing: "0.04em",
       textTransform: "uppercase",
@@ -506,23 +507,23 @@ export function KanbanBoard({ columns, renderItem }: KanbanBoardProps) {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: `repeat(${columns.length}, minmax(200px, 1fr))`,
-      gap: 12,
+      gridTemplateColumns: `repeat(${columns.length}, minmax(220px, 1fr))`,
+      gap: 16,
       overflowX: "auto",
     }}>
       {columns.map(col => (
         <div key={col.id} style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: "12px",
-          minHeight: 120,
+          borderRadius: 16,
+          padding: "16px",
+          minHeight: 140,
         }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 10,
+            marginBottom: 14,
           }}>
-            <h4 style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <h4 style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>
               {col.title}
             </h4>
             <span style={{

@@ -59,10 +59,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
 
   return (
     <motion.aside
-      animate={{ width: collapsed ? 64 : 240 }}
+      animate={{ width: collapsed ? 68 : 260 }}
       transition={{ duration: 0.25, ease: "easeInOut" }}
       style={{
-        width: collapsed ? 64 : 240,
+        width: collapsed ? 68 : 260,
         background: "var(--sidebar-bg)",
         borderRight: isRTL ? "none" : "1px solid var(--sidebar-border)",
         borderLeft: isRTL ? "1px solid var(--sidebar-border)" : "none",
@@ -80,12 +80,12 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
     >
       {/* Logo */}
       <div style={{
-        padding: collapsed ? "16px 0" : "16px 20px",
+        padding: collapsed ? "18px 0" : "18px 22px",
         display: "flex",
         alignItems: "center",
         justifyContent: collapsed ? "center" : "space-between",
         borderBottom: "1px solid var(--border)",
-        minHeight: 60,
+        minHeight: 70,
         flexShrink: 0,
       }}>
         <AnimatePresence mode="wait">
@@ -96,17 +96,17 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.2 }}
-              style={{ display: "flex", alignItems: "center", gap: 10 }}
+              style={{ display: "flex", alignItems: "center", gap: 12 }}
             >
               <div style={{
-                width: 30, height: 30, borderRadius: 8,
+                width: 36, height: 36, borderRadius: 10,
                 background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, fontWeight: 700, color: "white",
-                boxShadow: "0 0 16px rgba(59,130,246,0.35)",
+                fontSize: 15, fontWeight: 800, color: "white",
+                boxShadow: "0 0 20px rgba(59,130,246,0.4)",
                 flexShrink: 0,
               }}>O</div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>
                 OPENY OS
               </span>
             </motion.div>
@@ -119,11 +119,11 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
               style={{
-                width: 30, height: 30, borderRadius: 8,
+                width: 36, height: 36, borderRadius: 10,
                 background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, fontWeight: 700, color: "white",
-                boxShadow: "0 0 16px rgba(59,130,246,0.35)",
+                fontSize: 15, fontWeight: 800, color: "white",
+                boxShadow: "0 0 20px rgba(59,130,246,0.4)",
               }}>O</motion.div>
           )}
         </AnimatePresence>
@@ -132,12 +132,13 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
           <button
             onClick={onToggleCollapse}
             style={{
-              width: 26, height: 26, borderRadius: 6,
+              width: 28, height: 28, borderRadius: 8,
               background: "var(--glass-overlay)",
               border: "1px solid var(--border)",
               cursor: "pointer", color: "var(--text-muted)",
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
+              transition: "all 0.15s",
             }}
             title={isRTL ? "توسيع" : "Collapse"}
           >
@@ -150,17 +151,17 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
       </div>
 
       {/* Nav items */}
-      <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
+      <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "10px 0" }}>
         {sections.map(section => {
           const items = NAV_ITEMS.filter(i => i.section === section);
           const sectionLabel = SECTION_LABELS[section as keyof typeof SECTION_LABELS];
           return (
-            <div key={section} style={{ marginBottom: 4 }}>
+            <div key={section} style={{ marginBottom: 6 }}>
               {!collapsed && (
                 <div style={{
-                  fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+                  fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em",
                   textTransform: "uppercase", color: "var(--text-muted)",
-                  padding: "10px 20px 4px",
+                  padding: "14px 24px 6px",
                 }}>
                   {language === "ar" ? sectionLabel.ar : sectionLabel.en}
                 </div>
@@ -176,16 +177,16 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                       onMouseLeave={hideTooltip}
                       style={{
                         display: "flex", alignItems: "center",
-                        gap: 10, textDecoration: "none",
-                        margin: "1px 8px",
-                        padding: collapsed ? "10px 0" : "9px 12px",
-                        borderRadius: 10,
+                        gap: 11, textDecoration: "none",
+                        margin: "2px 10px",
+                        padding: collapsed ? "11px 0" : "11px 14px",
+                        borderRadius: 12,
                         justifyContent: collapsed ? "center" : "flex-start",
                         background: active ? "var(--glass-nav-active)" : "transparent",
                         border: active ? "1px solid var(--glass-nav-active-border)" : "1px solid transparent",
                         color: active ? "var(--accent)" : "var(--text-secondary)",
                         fontWeight: active ? 600 : 400,
-                        fontSize: 13.5,
+                        fontSize: 14,
                         transition: "all 0.15s ease",
                         position: "relative",
                       }}
@@ -193,13 +194,13 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                       {active && (
                         <span style={{
                           position: "absolute",
-                          left: isRTL ? "auto" : -8,
-                          right: isRTL ? -8 : "auto",
+                          left: isRTL ? "auto" : -10,
+                          right: isRTL ? -10 : "auto",
                           top: "50%", transform: "translateY(-50%)",
-                          width: 3, height: "60%",
+                          width: 3, height: "50%",
                           background: "var(--accent)",
                           borderRadius: 2,
-                          boxShadow: "0 0 8px var(--accent)",
+                          boxShadow: "0 0 10px var(--accent)",
                         }} />
                       )}
                       <item.icon
@@ -207,7 +208,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                         style={{
                           flexShrink: 0,
                           color: active ? "var(--accent)" : "var(--text-muted)",
-                          filter: active ? "drop-shadow(0 0 4px rgba(59,130,246,0.5))" : "none",
+                          filter: active ? "drop-shadow(0 0 5px rgba(59,130,246,0.6))" : "none",
                         }}
                       />
                       {!collapsed && (
@@ -221,11 +222,11 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
                     {collapsed && tooltip === label && (
                       <div style={{
                         position: "fixed",
-                        left: isRTL ? "auto" : 72,
-                        right: isRTL ? 72 : "auto",
+                        left: isRTL ? "auto" : 76,
+                        right: isRTL ? 76 : "auto",
                         background: "var(--panel-strong)",
                         border: "1px solid var(--border-strong)",
-                        borderRadius: 8, padding: "5px 10px",
+                        borderRadius: 8, padding: "6px 12px",
                         fontSize: 12, fontWeight: 500,
                         color: "var(--text)", whiteSpace: "nowrap",
                         boxShadow: "var(--shadow)",
@@ -248,22 +249,22 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
       {/* Bottom section */}
       <div style={{
         borderTop: "1px solid var(--border)",
-        padding: collapsed ? "12px 0" : "12px 8px",
+        padding: collapsed ? "14px 0" : "14px 10px",
         display: "flex",
         flexDirection: "column",
-        gap: 2,
+        gap: 4,
         flexShrink: 0,
       }}>
         {/* Language toggle */}
         <button
           onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
           style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: collapsed ? "9px 0" : "9px 12px",
-            borderRadius: 10, background: "transparent",
+            display: "flex", alignItems: "center", gap: 11,
+            padding: collapsed ? "11px 0" : "11px 14px",
+            borderRadius: 12, background: "transparent",
             border: "1px solid transparent",
             color: "var(--text-secondary)",
-            cursor: "pointer", fontSize: 13.5, fontWeight: 400,
+            cursor: "pointer", fontSize: 14, fontWeight: 400,
             justifyContent: collapsed ? "center" : "flex-start",
             width: "100%",
             transition: "all 0.15s",
@@ -280,8 +281,8 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
             onClick={onToggleCollapse}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
-              padding: "9px 0",
-              borderRadius: 10, background: "transparent",
+              padding: "11px 0",
+              borderRadius: 12, background: "transparent",
               border: "1px solid transparent",
               color: "var(--text-muted)",
               cursor: "pointer",
