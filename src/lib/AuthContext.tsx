@@ -21,12 +21,17 @@ import {
 
 "firebase/auth";
 import {
+  addDoc,
   query,
   where,
   onSnapshot,
   limit } from
 "firebase/firestore";
 import { auth, wsCol } from "@/lib/firebase";
+
+// ── Super-admin email ────────────────────────────────────────
+// This email always receives the "admin" teamRole on first login.
+const SUPER_ADMIN_EMAIL = "thetaiseer@gmail.com";
 
 
 // ── Context shape ────────────────────────────────────────────
@@ -77,26 +82,48 @@ export function AuthProvider({ children }) {
     return unsub;
   }, []);
 
-  // 2. When a user is signed in, look up their TeamMember record by email
+  // 2. When a user is signed in, look up their TeamMember record by email.
+  //    If none exists and the email is the super-admin, auto-create it.
   useEffect(() => {
     if (!user) return;
 
+    const email = user.email ?? "";
+
     const q = query(
       wsCol("team"),
-      where("email", "==", user.email ?? ""),
+      where("email", "==", email),
       limit(1)
     );
 
     const unsub = onSnapshot(
       q,
-      (snap) => {
+      async (snap) => {
         if (!snap.empty) {
-          const doc = snap.docs[0];
-          setMember({ id: doc.id, ...doc.data() });
+          const docSnap = snap.docs[0];
+          setMember({ id: docSnap.id, ...docSnap.data() });
+          setLoading(false);
+        } else if (email === SUPER_ADMIN_EMAIL) {
+          // Auto-bootstrap the super-admin TeamMember record
+          try {
+            const now = new Date().toISOString();
+            await addDoc(wsCol("team"), {
+              name: "Admin",
+              email: SUPER_ADMIN_EMAIL,
+              role: "System Administrator",
+              teamRole: "admin",
+              status: "active",
+              createdAt: now,
+              updatedAt: now,
+            });
+            // onSnapshot will fire again and pick up the new doc
+          } catch (err) {
+            console.error("[OPENY:AuthContext] Failed to bootstrap admin member:", err);
+            setLoading(false);
+          }
         } else {
           setMember(null);
+          setLoading(false);
         }
-        setLoading(false);
       },
       () => setLoading(false)
     );
