@@ -17,7 +17,8 @@ import {
 import {
   signInWithEmailAndPassword,
   signOut as fbSignOut,
-  onAuthStateChanged } from
+  onAuthStateChanged,
+  sendPasswordResetEmail as fbSendPasswordResetEmail } from
 
 "firebase/auth";
 import {
@@ -144,6 +145,11 @@ export function AuthProvider({ children }) {
     setMember(null);
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    if (!auth) throw new Error("Firebase Auth is not initialised – check NEXT_PUBLIC_FIREBASE_* env vars.");
+    await fbSendPasswordResetEmail(auth, email);
+  }, []);
+
   // ── Derived role ──────────────────────────────────────────
 
   const role = member?.teamRole ?? null;
@@ -152,8 +158,8 @@ export function AuthProvider({ children }) {
   const isCreative = role === "creative";
 
   const value = useMemo(
-    () => ({ user, member, role, loading, isAdmin, isAccountManager, isCreative, signIn, signOut }),
-    [user, member, role, loading, isAdmin, isAccountManager, isCreative, signIn, signOut]
+    () => ({ user, member, role, loading, isAdmin, isAccountManager, isCreative, signIn, signOut, resetPassword }),
+    [user, member, role, loading, isAdmin, isAccountManager, isCreative, signIn, signOut, resetPassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
