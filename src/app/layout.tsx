@@ -14,6 +14,7 @@ import { BankProvider } from "@/lib/BankContext";
 import { PublishingProvider } from "@/lib/PublishingContext";
 import { RecurringTaskProvider } from "@/lib/RecurringTaskContext";
 import { ToastProvider } from "@/lib/ToastContext";
+import { ApprovalProvider } from "@/lib/ApprovalContext";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { UserPreferencesSync } from "@/components/layout/UserPreferencesSync";
 import { WorkspaceBootstrap } from "@/components/layout/WorkspaceBootstrap";
@@ -54,7 +55,9 @@ export default function RootLayout({ children }) {
                               <BankProvider>
                                 <PublishingProvider>
                                   <RecurringTaskProvider>
-                                    <AppShell>{children}</AppShell>
+                                    <ApprovalProvider>
+                                      <AppShell>{children}</AppShell>
+                                    </ApprovalProvider>
                                   </RecurringTaskProvider>
                                 </PublishingProvider>
                               </BankProvider>

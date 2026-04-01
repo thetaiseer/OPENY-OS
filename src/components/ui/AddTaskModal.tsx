@@ -14,7 +14,7 @@ import { useToast } from "@/lib/ToastContext";
 
 
 
-export function AddTaskModal({ open, onClose }) {
+export function AddTaskModal({ open, onClose, defaultClientId = "" }: { open: boolean; onClose: () => void; defaultClientId?: string }) {
   const { addTask } = useTasks();
   const { members } = useTeam();
   const { clients } = useClients();
@@ -24,7 +24,7 @@ export function AddTaskModal({ open, onClose }) {
 
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(defaultClientId);
   const [priority, setPriority] = useState("medium");
   const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export function AddTaskModal({ open, onClose }) {
   const reset = () => {
     setTitle("");
     setAssigneeId("");
-    setClientId("");
+    setClientId(defaultClientId);
     setPriority("medium");
     setDueDate("");
     setError("");
