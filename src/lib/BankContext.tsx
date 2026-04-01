@@ -14,7 +14,7 @@ import {
   subscribeToBankEntries,
   createBankEntry as fsCreateBankEntry,
   deleteBankEntry as fsDeleteBankEntry } from
-"./firestore/bankEntries";
+"./supabase/bankEntries";
 import { withTimeout } from "./utils/crud";
 
 

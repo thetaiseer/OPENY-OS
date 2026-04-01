@@ -5,8 +5,6 @@
 // ============================================================
 import { useEffect, useRef, useState } from "react";
 import { Bell, CheckCheck, Trash2, X } from "lucide-react";
-import { writeBatch, doc as fbDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useNotifications } from "@/lib/NotificationContext";
 
 
@@ -280,11 +278,9 @@ export function NotificationCenter() {
               </span>
               <button
             onClick={async () => {
-              const read = notifications.filter((n) => n.isRead);
+              const read = notifications.filter((n: any) => n.isRead);
               if (read.length === 0) return;
-              const batch = writeBatch(db);
-              read.forEach((n) => batch.delete(fbDoc(db, "notifications", n.id)));
-              await batch.commit();
+              await Promise.all(read.map((n: any) => deleteNotification(n.id)));
             }}
             className="flex items-center gap-1 text-[11px]"
             style={{ color: "var(--text-muted)" }}>

@@ -19,8 +19,8 @@ import {
   createRecurringTaskTemplate as fsCreate,
   updateRecurringTaskTemplate as fsUpdate,
   deleteRecurringTaskTemplate as fsDelete } from
-"./firestore/recurringTasks";
-import { createTask as fsCreateTask } from "./firestore/tasks";
+"./supabase/recurringTasks";
+import { createTask as fsCreateTask } from "./supabase/tasks";
 import { withTimeout } from "./utils/crud";
 
 // ── Helpers ──────────────────────────────────────────────────
