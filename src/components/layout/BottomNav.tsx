@@ -1,23 +1,22 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users2, CheckSquare, FileText, Settings2 } from "lucide-react";
+import { Users2, CheckSquare, FileText, Settings2, BarChart2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const BOTTOM_NAV_ITEMS = [
-  { href: "/",         icon: LayoutDashboard, labelEn: "Home",     labelAr: "الرئيسية" },
-  { href: "/clients",  icon: Users2,           labelEn: "Clients",  labelAr: "العملاء" },
-  { href: "/tasks",    icon: CheckSquare,      labelEn: "Tasks",    labelAr: "المهام" },
-  { href: "/content",  icon: FileText,         labelEn: "Content",  labelAr: "المحتوى" },
-  { href: "/settings", icon: Settings2,        labelEn: "Settings", labelAr: "الإعدادات" },
+  { href: "/clients",  icon: Users2,      labelEn: "Clients",  labelAr: "العملاء"   },
+  { href: "/tasks",    icon: CheckSquare, labelEn: "Tasks",    labelAr: "المهام"    },
+  { href: "/content",  icon: FileText,    labelEn: "Content",  labelAr: "المحتوى"   },
+  { href: "/reports",  icon: BarChart2,   labelEn: "Reports",  labelAr: "التقارير"  },
+  { href: "/settings", icon: Settings2,   labelEn: "Settings", labelAr: "الإعدادات" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const { language } = useLanguage();
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (href: string) => pathname.startsWith(href);
 
   return (
     <nav style={{

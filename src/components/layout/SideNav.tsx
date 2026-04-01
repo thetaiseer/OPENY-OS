@@ -4,29 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Users2, CheckSquare, FileText,
+  Users2, CheckSquare, FileText,
   ImageIcon, BarChart2, Settings2, UserCircle,
   ChevronLeft, ChevronRight, Globe,
-  Sparkles
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const NAV_ITEMS = [
-  { href: "/",          icon: LayoutDashboard, labelKey: "nav.dashboard",  section: "main" },
   { href: "/clients",   icon: Users2,           labelKey: "nav.clients",    section: "main" },
-  { href: "/tasks",     icon: CheckSquare,      labelKey: "nav.tasks",      section: "main" },
-  { href: "/content",   icon: FileText,         labelKey: "nav.content",    section: "main" },
-  { href: "/team",      icon: UserCircle,       labelKey: "nav.team",       section: "resources" },
-  { href: "/assets",    icon: ImageIcon,        labelKey: "nav.assets",     section: "resources" },
-  { href: "/reports",   icon: BarChart2,        labelKey: "nav.reports",    section: "resources" },
-  { href: "/approvals", icon: Sparkles,         labelKey: "nav.approvals",  section: "resources" },
+  { href: "/tasks",     icon: CheckSquare,      labelKey: "nav.tasks",      section: "global" },
+  { href: "/content",   icon: FileText,         labelKey: "nav.content",    section: "global" },
+  { href: "/team",      icon: UserCircle,       labelKey: "nav.team",       section: "global" },
+  { href: "/assets",    icon: ImageIcon,        labelKey: "nav.assets",     section: "global" },
+  { href: "/reports",   icon: BarChart2,        labelKey: "nav.reports",    section: "global" },
   { href: "/settings",  icon: Settings2,        labelKey: "nav.settings",   section: "system" },
 ];
 
 const SECTION_LABELS = {
-  main:      { en: "Workspace",  ar: "مساحة العمل" },
-  resources: { en: "Resources",  ar: "الموارد" },
-  system:    { en: "System",     ar: "النظام" },
+  main:   { en: "Clients",       ar: "العملاء"       },
+  global: { en: "Global Views",  ar: "عرض عام"       },
+  system: { en: "System",        ar: "النظام"        },
 };
 
 interface SideNavProps {
@@ -52,8 +49,7 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
     setTooltip(null);
   };
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (href: string) => pathname.startsWith(href);
 
   const sections = Array.from(new Set(NAV_ITEMS.map(i => i.section)));
 

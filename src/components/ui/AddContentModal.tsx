@@ -34,7 +34,7 @@ const CONTENT_TYPES = [
 "ad"];
 
 
-export function AddContentModal({ open, onClose }) {
+export function AddContentModal({ open, onClose, defaultClientId = "" }: { open: boolean; onClose: () => void; defaultClientId?: string }) {
   const { createContentItem } = useContentItems();
   const { clients } = useClients();
   const { language } = useLanguage();
@@ -42,7 +42,7 @@ export function AddContentModal({ open, onClose }) {
   const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(defaultClientId);
   const [platform, setPlatform] = useState("Instagram");
   const [contentType, setContentType] = useState("post");
   const [caption, setCaption] = useState("");
@@ -52,7 +52,7 @@ export function AddContentModal({ open, onClose }) {
 
   const reset = () => {
     setTitle("");
-    setClientId("");
+    setClientId(defaultClientId);
     setPlatform("Instagram");
     setContentType("post");
     setCaption("");
