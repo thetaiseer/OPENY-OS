@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useAuth } from "@/lib/AuthContext";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
@@ -16,34 +15,8 @@ const EXPANDED_WIDTH = 240;
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isRTL } = useLanguage();
-  const { loading } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const isLoginPage = pathname === "/login";
-
-  // Show login page without shell
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
-
-  // Show a spinner while auth state is resolving
-  if (loading) {
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", background: "var(--bg)",
-      }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: "50%",
-          border: "3px solid var(--border)",
-          borderTopColor: "var(--accent)",
-          animation: "spin 0.7s linear infinite",
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
 
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
