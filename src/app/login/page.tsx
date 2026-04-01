@@ -77,12 +77,11 @@ export default function LoginPage() {
       setResetSuccess(true);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/user-not-found" || code === "auth/invalid-email") {
-        setResetError(isAr ? "البريد الإلكتروني غير مسجل" : "Email address not found");
-      } else if (code === "auth/too-many-requests") {
+      if (code === "auth/too-many-requests") {
         setResetError(isAr ? "تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقًا" : "Too many attempts. Please try again later");
       } else {
-        setResetError(isAr ? "حدث خطأ. حاول مرة أخرى" : "An error occurred. Please try again");
+        // Use a generic message to avoid exposing whether the email is registered
+        setResetError(isAr ? "حدث خطأ. تأكد من البريد الإلكتروني وحاول مرة أخرى" : "An error occurred. Check the email address and try again");
       }
     } finally {
       setResetSending(false);
