@@ -48,7 +48,7 @@ export default function AssetsPage() {
   const documents = assets.filter((asset) => asset.type === "document" || asset.type === "brand_file").length;
 
   const folders = Array.from(new Set(assets.map((asset) => asset.folder || (isArabic ? "غير مصنف" : "Unsorted")))).map((folder) => ({
-    label: folder,
+    label: folder as string,
     value: assets.filter((asset) => (asset.folder || (isArabic ? "غير مصنف" : "Unsorted")) === folder).length,
     meta: isArabic ? "أصول" : "assets"
   }));
@@ -143,9 +143,9 @@ export default function AssetsPage() {
                     <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{clientName}</p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <InfoBadge label={asset.type} tone="violet" />
-                      <InfoBadge label={asset.folder || (isArabic ? "غير مصنف" : "Unsorted")} tone="slate" />
+                      <InfoBadge label={asset.folder || (isArabic ? "غير مصنف" : "Unsorted")} tone="muted" />
                       {sizeLabel && <InfoBadge label={sizeLabel} tone="amber" />}
-                      {createdLabel && <InfoBadge label={createdLabel} tone="slate" />}
+                      {createdLabel && <InfoBadge label={createdLabel} tone="muted" />}
                     </div>
                   </article>);
 
