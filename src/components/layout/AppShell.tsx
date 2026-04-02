@@ -1,16 +1,15 @@
 "use client";
-
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { SideNav } from "./SideNav";
-import { TopBar } from "./TopBar";
-import { BottomNav } from "./BottomNav";
+import { SideNav } from "@/components/layout/SideNav";
+import { TopBar } from "@/components/layout/TopBar";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 const COLLAPSED_WIDTH = 64;
-const EXPANDED_WIDTH = 240;
+const EXPANDED_WIDTH = 256;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
       {/* Desktop sidebar */}
       <div className="hidden md:block">
-        <SideNav collapsed={collapsed} onToggleCollapse={() => setCollapsed(v => !v)} />
+        <SideNav collapsed={collapsed} onToggleCollapse={() => setCollapsed((v) => !v)} />
       </div>
 
       {/* Mobile drawer */}
@@ -38,8 +37,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             transition={{ duration: 0.18 }}
             onClick={() => setMobileOpen(false)}
             style={{
-              position: "fixed", inset: 0, zIndex: 200,
-              background: "rgba(5,8,16,0.7)",
+              position: "fixed",
+              inset: 0,
+              zIndex: 200,
+              background: "rgba(0,0,0,0.5)",
               backdropFilter: "blur(4px)",
             }}
           >
@@ -48,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               animate={{ x: 0 }}
               exit={{ x: isRTL ? "100%" : "-100%" }}
               transition={{ type: "spring", stiffness: 400, damping: 36 }}
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
                 top: 0,
@@ -62,15 +63,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => setMobileOpen(false)}
                 style={{
-                  position: "absolute", top: 12,
+                  position: "absolute",
+                  top: 12,
                   right: isRTL ? "auto" : 8,
                   left: isRTL ? 8 : "auto",
-                  width: 28, height: 28, borderRadius: 6,
-                  background: "var(--glass-overlay)",
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  background: "var(--surface-2)",
                   border: "1px solid var(--border)",
                   color: "var(--text-muted)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", zIndex: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  zIndex: 10,
                 }}
               >
                 <X size={14} />
@@ -80,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Top bar — offsets from sidebar on desktop */}
+      {/* Top bar */}
       <div className="hidden md:block">
         <TopBar sidebarWidth={sidebarWidth} onMobileMenuOpen={() => setMobileOpen(true)} />
       </div>
@@ -88,30 +95,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TopBar sidebarWidth={0} onMobileMenuOpen={() => setMobileOpen(true)} />
       </div>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div
         style={{
           paddingTop: "var(--topbar-height)",
           paddingBottom: "var(--bottomnav-height, 64px)",
         }}
-        className="md:pl-0 md:pr-0"
       >
-        {/* Desktop offset via inline style */}
-        <div
-          style={{
-            paddingLeft: isRTL ? 0 : undefined,
-            paddingRight: isRTL ? undefined : 0,
-          }}
-          className="hidden md:block"
-        >
+        {/* Desktop */}
+        <div className="hidden md:block">
           <div
             style={{
               marginLeft: isRTL ? 0 : sidebarWidth,
               marginRight: isRTL ? sidebarWidth : 0,
-              transition: "margin 0.25s ease",
+              transition: "margin 0.2s ease",
             }}
           >
-            <main style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
+            <main style={{ padding: "32px", maxWidth: 1280, margin: "0 auto" }}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={pathname}
@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Mobile content */}
+        {/* Mobile */}
         <div className="md:hidden">
           <main style={{ padding: "16px" }}>
             <AnimatePresence mode="wait">

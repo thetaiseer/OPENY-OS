@@ -1,30 +1,25 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users2, CheckSquare, FileText,
-  ImageIcon, BarChart2, Settings2, UserCircle,
-  ChevronLeft, ChevronRight, Globe,
+  LayoutDashboard,
+  Users2,
+  CheckSquare,
+  FolderOpen,
+  Settings2,
+  ChevronLeft,
+  ChevronRight,
+  Globe,
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const NAV_ITEMS = [
-  { href: "/clients",   icon: Users2,           labelKey: "nav.clients",    section: "main" },
-  { href: "/tasks",     icon: CheckSquare,      labelKey: "nav.tasks",      section: "global" },
-  { href: "/content",   icon: FileText,         labelKey: "nav.content",    section: "global" },
-  { href: "/team",      icon: UserCircle,       labelKey: "nav.team",       section: "global" },
-  { href: "/assets",    icon: ImageIcon,        labelKey: "nav.assets",     section: "global" },
-  { href: "/reports",   icon: BarChart2,        labelKey: "nav.reports",    section: "global" },
-  { href: "/settings",  icon: Settings2,        labelKey: "nav.settings",   section: "system" },
+  { href: "/dashboard", icon: LayoutDashboard, labelEn: "Dashboard", labelAr: "الرئيسية" },
+  { href: "/clients",   icon: Users2,          labelEn: "Clients",   labelAr: "العملاء" },
+  { href: "/tasks",     icon: CheckSquare,     labelEn: "Tasks",     labelAr: "المهام" },
+  { href: "/assets",    icon: FolderOpen,      labelEn: "Assets",    labelAr: "الملفات" },
+  { href: "/settings",  icon: Settings2,       labelEn: "Settings",  labelAr: "الإعدادات" },
 ];
-
-const SECTION_LABELS = {
-  main:   { en: "Clients",       ar: "العملاء"       },
-  global: { en: "Global Views",  ar: "عرض عام"       },
-  system: { en: "System",        ar: "النظام"        },
-};
 
 interface SideNavProps {
   collapsed: boolean;
@@ -33,32 +28,16 @@ interface SideNavProps {
 
 export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
   const pathname = usePathname();
-  const { t, language, setLanguage, isRTL } = useLanguage();
-  const [tooltip, setTooltip] = useState<string | null>(null);
-  const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { language, setLanguage, isRTL } = useLanguage();
+  const isAr = language === "ar";
 
-  useEffect(() => () => { if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current); }, []);
-
-  const showTooltip = (label: string) => {
-    if (collapsed) {
-      tooltipTimeout.current = setTimeout(() => setTooltip(label), 300);
-    }
-  };
-  const hideTooltip = () => {
-    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
-    setTooltip(null);
-  };
-
-  const isActive = (href: string) => pathname.startsWith(href);
-
-  const sections = Array.from(new Set(NAV_ITEMS.map(i => i.section)));
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 68 : 260 }}
-      transition={{ duration: 0.25, ease: "easeInOut" }}
+    <aside
       style={{
-        width: collapsed ? 68 : 260,
+        width: collapsed ? "var(--sidebar-collapsed-width)" : "var(--sidebar-width)",
         background: "var(--sidebar-bg)",
         borderRight: isRTL ? "none" : "1px solid var(--sidebar-border)",
         borderLeft: isRTL ? "1px solid var(--sidebar-border)" : "none",
@@ -70,227 +49,166 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
         left: isRTL ? "auto" : 0,
         right: isRTL ? 0 : "auto",
         zIndex: 100,
+        transition: "width 0.2s ease",
         overflow: "hidden",
-        flexShrink: 0,
       }}
     >
       {/* Logo */}
-      <div style={{
-        padding: collapsed ? "18px 0" : "18px 22px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: collapsed ? "center" : "space-between",
-        borderBottom: "1px solid var(--border)",
-        minHeight: 70,
-        flexShrink: 0,
-      }}>
-        <AnimatePresence mode="wait">
-          {!collapsed && (
-            <motion.div
-              key="logo-full"
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.2 }}
-              style={{ display: "flex", alignItems: "center", gap: 12 }}
-            >
-              <div style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 15, fontWeight: 800, color: "white",
-                boxShadow: "0 0 20px rgba(59,130,246,0.4)",
-                flexShrink: 0,
-              }}>O</div>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>
-                OPENY OS
-              </span>
-            </motion.div>
-          )}
-          {collapsed && (
-            <motion.div
-              key="logo-icon"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 15, fontWeight: 800, color: "white",
-                boxShadow: "0 0 20px rgba(59,130,246,0.4)",
-              }}>O</motion.div>
-          )}
-        </AnimatePresence>
-
+      <div
+        style={{
+          height: "60px",
+          display: "flex",
+          alignItems: "center",
+          padding: "0 16px",
+          borderBottom: "1px solid var(--border)",
+          flexShrink: 0,
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            background: "var(--accent)",
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontWeight: 700,
+            fontSize: 14,
+            flexShrink: 0,
+          }}
+        >
+          O
+        </div>
         {!collapsed && (
-          <button
-            onClick={onToggleCollapse}
+          <span
             style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: "var(--glass-overlay)",
-              border: "1px solid var(--border)",
-              cursor: "pointer", color: "var(--text-muted)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-              transition: "all 0.15s",
+              fontWeight: 700,
+              fontSize: 15,
+              color: "var(--text)",
+              letterSpacing: "-0.02em",
+              whiteSpace: "nowrap",
             }}
-            title={isRTL ? "توسيع" : "Collapse"}
           >
-            {isRTL
-              ? (collapsed ? <ChevronLeft size={13} /> : <ChevronRight size={13} />)
-              : (collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />)
-            }
-          </button>
+            OPENY OS
+          </span>
         )}
       </div>
 
       {/* Nav items */}
-      <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "10px 0" }}>
-        {sections.map(section => {
-          const items = NAV_ITEMS.filter(i => i.section === section);
-          const sectionLabel = SECTION_LABELS[section as keyof typeof SECTION_LABELS];
+      <nav
+        style={{
+          flex: 1,
+          padding: "12px 8px",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+        }}
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.href);
           return (
-            <div key={section} style={{ marginBottom: 6 }}>
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                gap: 10,
+                borderRadius: 8,
+                padding: "10px 12px",
+                fontSize: 14,
+                fontWeight: active ? 600 : 400,
+                transition: "all 0.15s",
+                background: active ? "var(--nav-active-bg)" : "transparent",
+                color: active ? "var(--nav-active-text)" : "var(--text-secondary)",
+                textDecoration: "none",
+                border: active ? "1px solid var(--nav-active-border)" : "1px solid transparent",
+              }}
+            >
+              <item.icon size={17} style={{ flexShrink: 0 }} />
               {!collapsed && (
-                <div style={{
-                  fontSize: 10.5, fontWeight: 600, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: "var(--text-muted)",
-                  padding: "14px 24px 6px",
-                }}>
-                  {language === "ar" ? sectionLabel.ar : sectionLabel.en}
-                </div>
+                <span style={{ whiteSpace: "nowrap" }}>
+                  {isAr ? item.labelAr : item.labelEn}
+                </span>
               )}
-              {items.map(item => {
-                const active = isActive(item.href);
-                const label = t(item.labelKey);
-                return (
-                  <div key={item.href} style={{ position: "relative" }}>
-                    <Link
-                      href={item.href}
-                      onMouseEnter={() => showTooltip(label)}
-                      onMouseLeave={hideTooltip}
-                      style={{
-                        display: "flex", alignItems: "center",
-                        gap: 11, textDecoration: "none",
-                        margin: "2px 10px",
-                        padding: collapsed ? "11px 0" : "11px 14px",
-                        borderRadius: 12,
-                        justifyContent: collapsed ? "center" : "flex-start",
-                        background: active ? "var(--glass-nav-active)" : "transparent",
-                        border: active ? "1px solid var(--glass-nav-active-border)" : "1px solid transparent",
-                        color: active ? "var(--accent)" : "var(--text-secondary)",
-                        fontWeight: active ? 600 : 400,
-                        fontSize: 14,
-                        transition: "all 0.15s ease",
-                        position: "relative",
-                      }}
-                    >
-                      {active && (
-                        <span style={{
-                          position: "absolute",
-                          left: isRTL ? "auto" : -10,
-                          right: isRTL ? -10 : "auto",
-                          top: "50%", transform: "translateY(-50%)",
-                          width: 3, height: "50%",
-                          background: "var(--accent)",
-                          borderRadius: 2,
-                          boxShadow: "0 0 10px var(--accent)",
-                        }} />
-                      )}
-                      <item.icon
-                        size={17}
-                        style={{
-                          flexShrink: 0,
-                          color: active ? "var(--accent)" : "var(--text-muted)",
-                          filter: active ? "drop-shadow(0 0 5px rgba(59,130,246,0.6))" : "none",
-                        }}
-                      />
-                      {!collapsed && (
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {label}
-                        </span>
-                      )}
-                    </Link>
-
-                    {/* Tooltip when collapsed */}
-                    {collapsed && tooltip === label && (
-                      <div style={{
-                        position: "fixed",
-                        left: isRTL ? "auto" : 76,
-                        right: isRTL ? 76 : "auto",
-                        background: "var(--panel-strong)",
-                        border: "1px solid var(--border-strong)",
-                        borderRadius: 8, padding: "6px 12px",
-                        fontSize: 12, fontWeight: 500,
-                        color: "var(--text)", whiteSpace: "nowrap",
-                        boxShadow: "var(--shadow)",
-                        zIndex: 9999,
-                        pointerEvents: "none",
-                        transform: "translateY(-50%)",
-                        top: "50%",
-                      }}>
-                        {label}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            </Link>
           );
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div style={{
-        borderTop: "1px solid var(--border)",
-        padding: collapsed ? "14px 0" : "14px 10px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        flexShrink: 0,
-      }}>
+      {/* Footer */}
+      <div
+        style={{
+          padding: "12px 8px",
+          borderTop: "1px solid var(--border)",
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+        }}
+      >
         {/* Language toggle */}
         <button
           onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
           style={{
-            display: "flex", alignItems: "center", gap: 11,
-            padding: collapsed ? "11px 0" : "11px 14px",
-            borderRadius: 12, background: "transparent",
-            border: "1px solid transparent",
-            color: "var(--text-secondary)",
-            cursor: "pointer", fontSize: 14, fontWeight: 400,
+            display: "flex",
+            alignItems: "center",
             justifyContent: collapsed ? "center" : "flex-start",
+            gap: 10,
             width: "100%",
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 13,
+            fontWeight: 400,
+            background: "transparent",
+            color: "var(--text-secondary)",
+            border: "1px solid transparent",
+            cursor: "pointer",
             transition: "all 0.15s",
           }}
           title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
         >
-          <Globe size={17} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-          {!collapsed && <span>{language === "ar" ? "English" : "العربية"}</span>}
+          <Globe size={16} style={{ flexShrink: 0 }} />
+          {!collapsed && (
+            <span>{isAr ? "English" : "العربية"}</span>
+          )}
         </button>
 
-        {/* Collapse toggle (collapsed state) */}
-        {collapsed && (
-          <button
-            onClick={onToggleCollapse}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              padding: "11px 0",
-              borderRadius: 12, background: "transparent",
-              border: "1px solid transparent",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              width: "100%",
-              transition: "all 0.15s",
-            }}
-            title={isRTL ? "توسيع" : "Expand"}
-          >
-            {isRTL ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
-          </button>
-        )}
+        {/* Collapse toggle */}
+        <button
+          onClick={onToggleCollapse}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: collapsed ? "center" : "flex-start",
+            gap: 10,
+            width: "100%",
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 13,
+            fontWeight: 400,
+            background: "transparent",
+            color: "var(--text-secondary)",
+            border: "1px solid transparent",
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isRTL
+            ? (collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />)
+            : (collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />)
+          }
+          {!collapsed && (
+            <span>{isAr ? "طي" : "Collapse"}</span>
+          )}
+        </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

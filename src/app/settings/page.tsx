@@ -3,30 +3,47 @@
 import { useNotificationPreferences } from "@/lib/useNotificationPreferences";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { BellRing, Globe, MoonStar, SunMedium } from "lucide-react";
+import { BellRing, Globe, Moon, Sun, Check } from "lucide-react";
 import {
   InfoBadge,
   PageHeader,
   PageMotion,
   Panel,
-  pageText } from
-"@/components/redesign/ui";
-// ── Notification categories ───────────────────────────────────
+  pageText,
+} from "@/components/redesign/ui";
 
-const NOTIFICATION_CATEGORIES =
-
-
-
-[
-{ key: "approvals", title: { en: "Approvals", ar: "الموافقات" }, description: { en: "Review and client decision updates", ar: "تحديثات المراجعة وقرارات العميل" } },
-{ key: "publishingReminders", title: { en: "Publishing reminders", ar: "تذكيرات النشر" }, description: { en: "Launch windows and publishing timing", ar: "نوافذ الإطلاق وتوقيت النشر" } },
-{ key: "taskAlerts", title: { en: "Task alerts", ar: "تنبيهات المهام" }, description: { en: "Assignments and task completion nudges", ar: "إشعارات التعيين وتذكيرات إكمال المهام" } },
-{ key: "invitationEmails", title: { en: "Invitations", ar: "الدعوات" }, description: { en: "Invite flow and acceptance events", ar: "أحداث الدعوات والقبول" } },
-{ key: "systemAlerts", title: { en: "System alerts", ar: "تنبيهات النظام" }, description: { en: "Workspace health and service signals", ar: "صحة مساحة العمل وإشارات الخدمة" } },
-{ key: "clientActions", title: { en: "Client actions", ar: "إجراءات العميل" }, description: { en: "Client approvals, changes, and follow-ups", ar: "موافقات العميل والتعديلات والمتابعات" } }];
-
-
-// ── Main Settings Page ───────────────────────────────────────
+const NOTIFICATION_CATEGORIES = [
+  {
+    key: "approvals",
+    title: { en: "Approvals", ar: "الموافقات" },
+    description: { en: "Review and client decision updates", ar: "تحديثات المراجعة وقرارات العميل" },
+  },
+  {
+    key: "publishingReminders",
+    title: { en: "Publishing reminders", ar: "تذكيرات النشر" },
+    description: { en: "Launch windows and publishing timing", ar: "نوافذ الإطلاق وتوقيت النشر" },
+  },
+  {
+    key: "taskAlerts",
+    title: { en: "Task alerts", ar: "تنبيهات المهام" },
+    description: { en: "Assignments and task completion nudges", ar: "إشعارات التعيين وتذكيرات إكمال المهام" },
+  },
+  {
+    key: "invitationEmails",
+    title: { en: "Invitations", ar: "الدعوات" },
+    description: { en: "Invite flow and acceptance events", ar: "أحداث الدعوات والقبول" },
+  },
+  {
+    key: "systemAlerts",
+    title: { en: "System alerts", ar: "تنبيهات النظام" },
+    description: { en: "Workspace health and service signals", ar: "صحة مساحة العمل وإشارات الخدمة" },
+  },
+  {
+    key: "clientActions",
+    title: { en: "Client actions", ar: "إجراءات العميل" },
+    description: { en: "Client approvals, changes, and follow-ups", ar: "موافقات العميل والتعديلات والمتابعات" },
+  },
+];
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -42,150 +59,202 @@ export default function SettingsPage() {
         description={pageText(
           "Manage your profile, security, notifications, and interface preferences.",
           "إدارة ملفك الشخصي والأمان والإشعارات وتفضيلات الواجهة."
-        )} />
-      
-
-      <section>
-        {/* Appearance + Language */}
-        <Panel
-          title={pageText("Interface preferences", "تفضيلات الواجهة")}
-          description={pageText("Theme and language — synced across all your devices.", "المظهر واللغة — تُزامَن عبر جميع أجهزتك.")}
-          action={<InfoBadge label={isArabic ? "مُزامَن" : "Synced"} tone="mint" />}>
-          
-          <div className="space-y-4">
-            <SettingRow
-              icon={theme === "dark" ? MoonStar : SunMedium}
-              title={isArabic ? "وضع المظهر" : "Theme mode"}
-              description={isArabic ? "التبديل بين الوضع الداكن والفاتح" : "Switch between dark and light appearance"}
-              control={
-              <ToggleButton
-                activeLabel={theme === "dark" ? isArabic ? "داكن" : "Dark" : isArabic ? "فاتح" : "Light"}
-                onClick={toggleTheme} />
-
-              } />
-            
-            <SettingRow
-              icon={Globe}
-              title={isArabic ? "لغة الواجهة" : "Interface language"}
-              description={isArabic ? "تبديل كامل بين العربية والإنجليزية مع دعم RTL" : "Full Arabic / English switch with RTL support"}
-              control={
-              <ToggleButton
-                activeLabel={language === "ar" ? "العربية" : "English"}
-                onClick={() => setLanguage(language === "ar" ? "en" : "ar")} />
-
-              } />
-            
-          </div>
-        </Panel>
-      </section>
-
-
-      {/* Notification preferences */}
-      <Panel
-        title={pageText("Notification preferences", "تفضيلات الإشعارات")}
-        description={pageText(
-          "Control which notifications you receive across all channels.",
-          "تحكم في الإشعارات التي تستقبلها عبر جميع القنوات."
         )}
-        action={
-        <InfoBadge
-          label={loading ? isArabic ? "جارٍ التحميل" : "Loading" : isArabic ? "محفوظ في Firebase" : "Saved to Firebase"}
-          tone={loading ? "amber" : "mint"} />
+      />
 
-        }>
-        
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {NOTIFICATION_CATEGORIES.map((category) => {
-            const value = prefs[category.key];
-            return (
-              <div key={category.key} className="rounded-[20px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <BellRing size={15} className="flex-shrink-0 text-[var(--accent)]" />
-                  <h3 className="text-sm font-semibold text-[var(--text)]">
-                    {isArabic ? category.title.ar : category.title.en}
-                  </h3>
-                </div>
-                <p className="mb-3 text-xs text-[var(--muted)]">
-                  {isArabic ? category.description.ar : category.description.en}
+      {/* Appearance */}
+      <Panel
+        title={pageText("Appearance", "المظهر")}
+        description={pageText("Customize the look and feel of the interface.", "تخصيص مظهر الواجهة وشكلها.")}
+        style={{ marginBottom: 20 }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Theme */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              background: "var(--surface-2)",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {theme === "dark" ? (
+                <Moon size={18} style={{ color: "var(--accent)" }} />
+              ) : (
+                <Sun size={18} style={{ color: "var(--warning)" }} />
+              )}
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: 0 }}>
+                  {isArabic ? "السمة" : "Theme"}
                 </p>
-                <div className="space-y-2">
-                  <PreferenceToggle label={isArabic ? "داخل التطبيق" : "In-app"} checked={value.inApp} onChange={(next) => updateCategory(category.key, "inApp", next)} />
-                  <PreferenceToggle label={isArabic ? "إشعارات دفع" : "Push"} checked={value.push} onChange={(next) => updateCategory(category.key, "push", next)} />
-                  <PreferenceToggle label={isArabic ? "البريد الإلكتروني" : "Email"} checked={value.email} onChange={(next) => updateCategory(category.key, "email", next)} />
-                </div>
-              </div>);
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+                  {theme === "dark"
+                    ? (isArabic ? "الوضع الداكن مفعّل" : "Dark mode is active")
+                    : (isArabic ? "الوضع الفاتح مفعّل" : "Light mode is active")}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={toggleTheme}
+              className="btn btn-secondary"
+              style={{ fontSize: 12 }}
+            >
+              {theme === "dark"
+                ? (isArabic ? "التبديل إلى الفاتح" : "Switch to light")
+                : (isArabic ? "التبديل إلى الداكن" : "Switch to dark")}
+            </button>
+          </div>
 
-          })}
+          {/* Language */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              background: "var(--surface-2)",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Globe size={18} style={{ color: "var(--accent)" }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: 0 }}>
+                  {isArabic ? "اللغة" : "Language"}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+                  {language === "ar" ? "العربية" : "English"}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["en", "ar"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  style={{
+                    borderRadius: 8,
+                    padding: "6px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    background: language === lang ? "var(--accent)" : "var(--surface)",
+                    color: language === lang ? "#fff" : "var(--text-secondary)",
+                    border: `1px solid ${language === lang ? "var(--accent)" : "var(--border-strong)"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  {language === lang && <Check size={12} />}
+                  {lang === "en" ? "English" : "العربية"}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </Panel>
-    </PageMotion>);
 
-}
-
-// ── Helpers ────────────────────────────────────────────────────
-
-function SettingRow({
-  icon: Icon,
-  title,
-  description,
-  control
-
-
-
-
-
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--border)] bg-[var(--glass-overlay)] p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(106,168,255,0.16),rgba(169,139,255,0.16))] text-[var(--accent)]">
-          <Icon size={18} />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
-          <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
-        </div>
-      </div>
-      {control}
-    </div>);
-
-}
-
-function ToggleButton({ activeLabel, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="touch-target rounded-2xl border border-[var(--border)] bg-[var(--glass-overlay)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:opacity-80 active:scale-95">
-      
-      {activeLabel}
-    </button>);
-
-}
-
-function PreferenceToggle({
-  label,
-  checked,
-  onChange
-
-
-
-
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="touch-target flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--glass-overlay)] px-3 py-2 text-xs text-[var(--text)] transition hover:opacity-80 active:scale-[0.98]">
-      
-      <span>{label}</span>
-      <span
-        className={`inline-flex h-6 w-10 items-center rounded-full p-0.5 transition ${checked ? "justify-end bg-[rgba(61,217,180,0.28)]" : "justify-start bg-[var(--glass-overlay)]"}`}>
-        
-        <span
-          className={`h-5 w-5 rounded-full transition-transform ${checked ? "bg-[var(--mint)]" : "bg-[var(--muted)]"}`} />
-        
-      </span>
-    </button>);
-
+      {/* Notifications */}
+      <Panel
+        title={pageText("Notifications", "الإشعارات")}
+        description={pageText(
+          "Control which notification types you receive.",
+          "تحكم في أنواع الإشعارات التي تتلقاها."
+        )}
+        action={
+          <InfoBadge
+            label={isArabic ? "في الوقت الفعلي" : "Real-time"}
+            tone="blue"
+          />
+        }
+      >
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="skeleton"
+                style={{ height: 56, borderRadius: 10 }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {NOTIFICATION_CATEGORIES.map(({ key, title, description }) => {
+              const catPrefs = prefs?.[key as string] as Record<string, boolean> | undefined;
+              const enabled = catPrefs?.inApp ?? true;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    padding: "14px 16px",
+                    background: "var(--surface-2)",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <BellRing
+                      size={16}
+                      style={{ color: enabled ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }}
+                    />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: 0 }}>
+                        {isArabic ? title.ar : title.en}
+                      </p>
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+                        {isArabic ? description.ar : description.en}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Toggle */}
+                  <button
+                    onClick={() => updateCategory(key, "inApp", !enabled)}
+                    aria-label={`Toggle ${title.en}`}
+                    style={{
+                      width: 44,
+                      height: 24,
+                      borderRadius: 999,
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                      background: enabled ? "var(--accent)" : "var(--border-strong)",
+                      position: "relative",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        left: enabled ? 23 : 3,
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: "#fff",
+                        transition: "left 0.2s",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+    </PageMotion>
+  );
 }
