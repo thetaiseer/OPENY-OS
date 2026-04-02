@@ -13,8 +13,13 @@ export interface DriveUploadResult {
 
 function getDriveClient() {
   const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const rawKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
+  const privateKey = rawKey?.replace(/\\n/g, '\n');
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+
+  console.log('[google-drive] init — client_email:', clientEmail ?? '(missing)');
+  console.log('[google-drive] init — private_key present:', !!privateKey, '| length:', privateKey?.length ?? 0);
+  console.log('[google-drive] init — folder_id:', folderId ?? '(missing)');
 
   if (!clientEmail || !privateKey || !folderId) {
     throw new Error(
@@ -27,6 +32,7 @@ function getDriveClient() {
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
 
+  console.log('[google-drive] GoogleAuth created successfully');
   return { drive: google.drive({ version: 'v3', auth }), folderId };
 }
 
@@ -43,6 +49,9 @@ export async function uploadToDrive(
 
   const readableStream = Readable.from(buffer);
 
+  console.log('[google-drive] uploading file:', fileName, '| mimeType:', mimeType, '| size (bytes):', buffer.length);
+  console.log('[google-drive] target folder_id:', folderId);
+
   const createRes = await drive.files.create({
     requestBody: {
       name: fileName,
@@ -55,19 +64,25 @@ export async function uploadToDrive(
     fields: 'id,webViewLink,webContentLink',
   });
 
+  console.log('[google-drive] create response status:', createRes.status);
+  console.log('[google-drive] create response data:', JSON.stringify(createRes.data));
+
   const fileId = createRes.data.id;
   if (!fileId) {
     throw new Error('Google Drive upload succeeded but returned no file ID');
   }
 
+  console.log('[google-drive] file ID:', fileId);
+
   // Grant anyone with the link read access (makes webContentLink usable)
-  await drive.permissions.create({
+  const permRes = await drive.permissions.create({
     fileId,
     requestBody: {
       role: 'reader',
       type: 'anyone',
     },
   });
+  console.log('[google-drive] permission create status:', permRes.status);
 
   // Fetch updated links after permission change
   const metaRes = await drive.files.get({
@@ -75,13 +90,18 @@ export async function uploadToDrive(
     fields: 'id,webViewLink,webContentLink',
   });
 
-  return {
+  const result = {
     drive_file_id: fileId,
     webViewLink: metaRes.data.webViewLink ?? `https://drive.google.com/file/d/${fileId}/view`,
     webContentLink:
       metaRes.data.webContentLink ??
       `https://drive.google.com/uc?id=${fileId}&export=download`,
   };
+
+  console.log('[google-drive] final links — webViewLink:', result.webViewLink);
+  console.log('[google-drive] final links — webContentLink:', result.webContentLink);
+
+  return result;
 }
 
 /**
