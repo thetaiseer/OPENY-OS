@@ -212,7 +212,9 @@ export default function ClientWorkspace() {
 
   const handleDeleteAsset = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
-    await supabase.storage.from('client-assets').remove([asset.file_path]);
+    if (asset.file_path) {
+      await supabase.storage.from('client-assets').remove([asset.file_path]);
+    }
     const { error } = await supabase.from('assets').delete().eq('id', asset.id);
     if (error) {
       if (process.env.NODE_ENV === 'development') console.error('[asset delete]', error);

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
-  Trash2, Eye, Download, Link, X, CheckCircle,
+  Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -112,6 +112,8 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  const downloadUrl = asset.download_url ?? asset.file_url;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -138,13 +140,24 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
         <p className="mt-3 text-white/70 text-sm truncate max-w-full px-4">{asset.name}</p>
         <div className="mt-3 flex gap-3">
           <a
-            href={asset.file_url}
+            href={downloadUrl}
             download={asset.name}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
             onClick={e => e.stopPropagation()}
           >
             <Download size={14} /> Download
           </a>
+          {asset.view_url && (
+            <a
+              href={asset.view_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+              onClick={e => e.stopPropagation()}
+            >
+              <ExternalLink size={14} /> Open in Drive
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -158,10 +171,13 @@ interface AssetCardProps {
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
+  onOpenInDrive: () => void;
 }
 
-function AssetCard({ asset, onView, onDelete, onCopyLink }: AssetCardProps) {
+function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: AssetCardProps) {
   const img = isImage(asset.name, asset.file_type);
+  const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
+  const downloadUrl = asset.download_url ?? asset.file_url;
   return (
     <div
       className="group rounded-2xl border overflow-hidden flex flex-col"
@@ -232,7 +248,7 @@ function AssetCard({ asset, onView, onDelete, onCopyLink }: AssetCardProps) {
           <span>View</span>
         </button>
         <a
-          href={asset.file_url}
+          href={downloadUrl}
           download={asset.name}
           title="Download"
           className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
@@ -248,6 +264,16 @@ function AssetCard({ asset, onView, onDelete, onCopyLink }: AssetCardProps) {
         >
           <Link size={14} />
         </button>
+        {hasDrive && (
+          <button
+            onClick={onOpenInDrive}
+            title="Open in Google Drive"
+            className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+          >
+            <ExternalLink size={14} />
+          </button>
+        )}
         <button
           onClick={onDelete}
           title="Delete"
@@ -263,24 +289,19 @@ function AssetCard({ asset, onView, onDelete, onCopyLink }: AssetCardProps) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const STORAGE_BUCKET = 'client-assets';
 const TOAST_DURATION_MS = 4500;
-const COMPLETION_DISPLAY_MS = 600;
-const DB_INSERT_TIMEOUT_MS = 8000;
 
-// Staged progress – timing (ms) for fake ticks during storage upload
-const STAGE_TICK_1_MS = 100;
-const STAGE_TICK_2_MS = 400;
-const STAGE_TICK_3_MS = 1200;
-
-// Progress reaches 100% after storage upload completes, not after DB insert
+// Staged progress steps matching server-side flow
 const UPLOAD_STAGES = [
-  { at: 0,   label: 'Preparing upload' },
-  { at: 10,  label: 'Preparing upload' },
-  { at: 35,  label: 'Uploading file' },
-  { at: 65,  label: 'Uploading file' },
+  { at: 10,  label: 'Preparing upload…' },
+  { at: 40,  label: 'Uploading to Google Drive…' },
+  { at: 75,  label: 'Creating public link…' },
+  { at: 90,  label: 'Saving metadata…' },
   { at: 100, label: 'Completed' },
 ] as const;
+
+// Timing (ms) for advancing through the first four stages while upload runs
+const STAGE_TIMINGS_MS = [0, 600, 2500, 5000];
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -338,93 +359,46 @@ export default function AssetsPage() {
 
     setUploading(true);
 
-    const safeFileName = file.name
-      .replace(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/[^a-zA-Z0-9._-]/g, '')
-      || `file-${Date.now()}`;
-
-    const bucket = STORAGE_BUCKET;
-    const filePath = `global/${Date.now()}-${safeFileName}`;
-
-    // Helper to advance progress stage
-    const setStage = (idx: number) => {
-      const s = UPLOAD_STAGES[idx];
-      setUploadProgress(s.at);
-      setUploadStatus(s.label);
-    };
+    // Advance fake progress stages while the real upload runs
+    const stageTimers: ReturnType<typeof setTimeout>[] = [];
+    STAGE_TIMINGS_MS.forEach((delay, idx) => {
+      const timer = setTimeout(() => {
+        setUploadProgress(UPLOAD_STAGES[idx].at);
+        setUploadStatus(UPLOAD_STAGES[idx].label);
+      }, delay);
+      stageTimers.push(timer);
+    });
 
     try {
-      setStage(0); // 0%  – start
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Kick off staged fake progress ticks while upload runs
-      const t1 = setTimeout(() => setStage(1), STAGE_TICK_1_MS);
-      const t2 = setTimeout(() => setStage(2), STAGE_TICK_2_MS);
-      const t3 = setTimeout(() => setStage(3), STAGE_TICK_3_MS);
-
-      // Step 1: Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, { upsert: false });
-
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      console.log('[asset upload] storage response:', uploadData, uploadError);
-
-      if (uploadError) {
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
-      }
-
-      // Step 2: Get public URL
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
-      const publicUrl = urlData?.publicUrl ?? '';
-      console.log('[asset upload] public URL:', publicUrl);
-
-      // Progress reaches 100% immediately after storage upload – not after DB insert
-      setStage(4); // 100% – completed
-      await new Promise(r => setTimeout(r, COMPLETION_DISPLAY_MS)); // briefly show 100%
-
-      addToast('File uploaded successfully', 'success');
-
-      // Step 3: Insert into assets table – non-blocking; UI already complete
-      const insertPromise = supabase.from('assets').insert({
-        name: file.name,
-        file_path: filePath,
-        file_url: publicUrl,
-        file_type: file.type || null,
-        file_size: file.size || null,
-        bucket_name: bucket,
+      const res = await fetch('/api/assets/upload', {
+        method: 'POST',
+        body: formData,
       });
 
-      void (async () => {
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const result = await Promise.race([
-            insertPromise,
-            new Promise<never>((_, reject) => {
-              timeoutId = setTimeout(() => reject(new Error('DB insert timed out')), DB_INSERT_TIMEOUT_MS);
-            }),
-          ]);
-          clearTimeout(timeoutId);
-          console.log('[asset upload] DB insert response:', result);
-          if (result.error) {
-            console.error('[asset upload] DB insert failed:', result.error);
-            addToast(`Warning: file saved but record not stored (${result.error.message})`, 'error');
-          } else {
-            // Activity log – fire and forget
-            void supabase.from('activities').insert({
-              type: 'asset',
-              description: `Asset "${file.name}" uploaded`,
-            });
-            void fetchAssets();
-          }
-        } catch (err: unknown) {
-          clearTimeout(timeoutId);
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error('[asset upload] DB insert error:', msg);
-          addToast(`Warning: file saved but record not stored (${msg})`, 'error');
-        }
-      })();
+      stageTimers.forEach(clearTimeout);
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error ?? `Upload failed (HTTP ${res.status})`);
+      }
+
+      // Show 90% (saving metadata) then complete
+      setUploadProgress(UPLOAD_STAGES[3].at);
+      setUploadStatus(UPLOAD_STAGES[3].label);
+      await new Promise(r => setTimeout(r, 400));
+
+      setUploadProgress(UPLOAD_STAGES[4].at);
+      setUploadStatus(UPLOAD_STAGES[4].label);
+      await new Promise(r => setTimeout(r, 500));
+
+      addToast('File uploaded to Google Drive', 'success');
+      void fetchAssets();
     } catch (err: unknown) {
+      stageTimers.forEach(clearTimeout);
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[asset upload] ❌', msg);
       addToast(`Upload failed: ${msg}`, 'error');
@@ -440,12 +414,15 @@ export default function AssetsPage() {
 
   const handleDelete = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
-    await supabase.storage.from(STORAGE_BUCKET).remove([asset.file_path]);
-    const { error } = await supabase.from('assets').delete().eq('id', asset.id);
-    if (error) {
-      addToast('Delete failed', 'error');
+
+    const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
+    const json = await res.json();
+
+    if (!res.ok) {
+      addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
       return;
     }
+
     setAssets(prev => prev.filter(a => a.id !== asset.id));
     addToast('File deleted', 'success');
   };
@@ -456,18 +433,27 @@ export default function AssetsPage() {
     if (isImage(asset.name, asset.file_type)) {
       setPreviewAsset(asset);
     } else {
-      window.open(asset.file_url, '_blank', 'noopener,noreferrer');
+      window.open(asset.view_url ?? asset.file_url, '_blank', 'noopener,noreferrer');
     }
   };
 
   // ── Copy link ───────────────────────────────────────────────────────────────
 
   const handleCopyLink = async (asset: Asset) => {
+    const link = asset.view_url ?? asset.file_url;
     try {
-      await navigator.clipboard.writeText(asset.file_url);
+      await navigator.clipboard.writeText(link);
       addToast('Link copied', 'success');
     } catch {
       addToast('Failed to copy link', 'error');
+    }
+  };
+
+  // ── Open in Drive ───────────────────────────────────────────────────────────
+
+  const handleOpenInDrive = (asset: Asset) => {
+    if (asset.view_url) {
+      window.open(asset.view_url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -538,6 +524,7 @@ export default function AssetsPage() {
                 onView={() => handleView(asset)}
                 onDelete={() => handleDelete(asset)}
                 onCopyLink={() => handleCopyLink(asset)}
+                onOpenInDrive={() => handleOpenInDrive(asset)}
               />
             ))}
           </div>
