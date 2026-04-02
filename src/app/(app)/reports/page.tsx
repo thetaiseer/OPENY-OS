@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BarChart2, Users2, CheckSquare, Clock, FolderOpen } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import StatCard from '@/components/ui/StatCard';
 
@@ -15,16 +15,16 @@ export default function ReportsPage() {
     const load = async () => {
       try {
         const [c, tk, a, ct] = await Promise.allSettled([
-          pb.collection('clients').getList(1, 1),
-          pb.collection('tasks').getList(1, 1),
-          pb.collection('assets').getList(1, 1),
-          pb.collection('content').getList(1, 1),
+          supabase.from('clients').select('id', { count: 'exact', head: true }),
+          supabase.from('tasks').select('id', { count: 'exact', head: true }),
+          supabase.from('assets').select('id', { count: 'exact', head: true }),
+          supabase.from('content_items').select('id', { count: 'exact', head: true }),
         ]);
         setStats({
-          clients: c.status  === 'fulfilled' ? c.value.totalItems  : 0,
-          tasks:   tk.status === 'fulfilled' ? tk.value.totalItems : 0,
-          assets:  a.status  === 'fulfilled' ? a.value.totalItems  : 0,
-          content: ct.status === 'fulfilled' ? ct.value.totalItems : 0,
+          clients: c.status  === 'fulfilled' ? (c.value.count  ?? 0) : 0,
+          tasks:   tk.status === 'fulfilled' ? (tk.value.count ?? 0) : 0,
+          assets:  a.status  === 'fulfilled' ? (a.value.count  ?? 0) : 0,
+          content: ct.status === 'fulfilled' ? (ct.value.count ?? 0) : 0,
         });
       } finally {
         setLoading(false);
@@ -48,10 +48,10 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label={t('clients')} value={stats.clients} icon={<Users2 size={20} />}    color="blue"  />
-          <StatCard label={t('tasks')}   value={stats.tasks}   icon={<CheckSquare size={20} />} color="green" />
-          <StatCard label={t('assets')}  value={stats.assets}  icon={<FolderOpen size={20} />}  color="amber" />
-          <StatCard label={t('content')} value={stats.content} icon={<Clock size={20} />}       color="red"   />
+          <StatCard label={t('clients')} value={stats.clients} icon={<Users2 size={20} />}      color="blue"  />
+          <StatCard label={t('tasks')}   value={stats.tasks}   icon={<CheckSquare size={20} />}  color="green" />
+          <StatCard label={t('assets')}  value={stats.assets}  icon={<FolderOpen size={20} />}   color="amber" />
+          <StatCard label={t('content')} value={stats.content} icon={<Clock size={20} />}         color="red"   />
         </div>
       )}
 
@@ -63,7 +63,7 @@ export default function ReportsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <BarChart2 size={40} className="mb-4 opacity-20" style={{ color: 'var(--text-secondary)' }} />
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Connect PocketBase and add data to see analytics
+            Add data to see analytics
           </p>
         </div>
       </div>

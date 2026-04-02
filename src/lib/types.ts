@@ -16,8 +16,8 @@ export interface Client {
   status: 'active' | 'inactive' | 'prospect';
   logo?: string;
   notes?: string;
-  created: string;
-  updated: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Task {
@@ -27,11 +27,11 @@ export interface Task {
   status: 'todo' | 'in_progress' | 'done' | 'overdue';
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
-  client?: string;
+  client_id?: string;
   assigned_to?: string;
-  expand?: { client?: Client; assigned_to?: User };
-  created: string;
-  updated: string;
+  client?: Client;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ContentItem {
@@ -40,29 +40,26 @@ export interface ContentItem {
   platform: string;
   status: 'draft' | 'scheduled' | 'published';
   schedule_date?: string;
-  client?: string;
-  expand?: { client?: Client };
-  created: string;
-  updated: string;
+  client_id?: string;
+  client?: Client;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Asset {
   id: string;
   name: string;
-  file: string;
-  client?: string;
-  expand?: { client?: Client };
-  created: string;
-  updated: string;
-  collectionId: string;
-  collectionName: string;
+  file_path: string;
+  file_url: string;
+  client_id?: string;
+  created_at: string;
 }
 
 export interface Activity {
   id: string;
   type: string;
   description: string;
-  user?: string;
-  client?: string;
-  created: string;
+  user_id?: string;
+  client_id?: string;
+  created_at: string;
 }
