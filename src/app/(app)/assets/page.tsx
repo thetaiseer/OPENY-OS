@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Upload, FolderOpen, File, Trash2 } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Asset } from '@/lib/types';
@@ -16,10 +16,17 @@ export default function AssetsPage() {
 
   const fetchAssets = useCallback(async () => {
     try {
-      const res = await pb.collection('assets').getList(1, 100, { sort: '-created' });
-      setAssets(res.items as unknown as Asset[]);
-    } catch {
-      setAssets([]);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) {
+        if (process.env.NODE_ENV === 'development') console.error('[assets fetch]', error);
+        setAssets([]);
+      } else {
+        setAssets((data ?? []) as Asset[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -32,12 +39,27 @@ export default function AssetsPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', file.name);
-      await pb.collection('assets').create(formData);
+      const filePath = `global/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('client-assets').getPublicUrl(filePath);
+      const { error: dbError } = await supabase.from('assets').insert({
+        name: file.name,
+        file_path: filePath,
+        file_url: urlData.publicUrl,
+      });
+      if (dbError) throw dbError;
+
+      await supabase.from('activities').insert({
+        type: 'asset',
+        description: `Asset "${file.name}" uploaded`,
+      });
       fetchAssets();
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') console.error('[asset upload]', err);
       alert(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
@@ -45,19 +67,15 @@ export default function AssetsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (asset: Asset) => {
     if (!confirm('Delete this asset?')) return;
-    try {
-      await pb.collection('assets').delete(id);
-      setAssets(prev => prev.filter(a => a.id !== id));
-    } catch { /* noop */ }
-  };
-
-  const getFileUrl = (asset: Asset) => {
-    return pb.files.getUrl(
-      { collectionId: asset.collectionId, collectionName: asset.collectionName, id: asset.id },
-      asset.file,
-    );
+    await supabase.storage.from('client-assets').remove([asset.file_path]);
+    const { error } = await supabase.from('assets').delete().eq('id', asset.id);
+    if (error) {
+      if (process.env.NODE_ENV === 'development') console.error('[asset delete]', error);
+      return;
+    }
+    setAssets(prev => prev.filter(a => a.id !== asset.id));
   };
 
   return (
@@ -103,7 +121,6 @@ export default function AssetsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {assets.map(asset => {
             const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(asset.name);
-            const url = getFileUrl(asset);
             return (
               <div
                 key={asset.id}
@@ -113,7 +130,7 @@ export default function AssetsPage() {
                 {isImage ? (
                   <div className="aspect-square overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={asset.name} className="w-full h-full object-cover" />
+                    <img src={asset.file_url} alt={asset.name} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="aspect-square flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
@@ -124,7 +141,7 @@ export default function AssetsPage() {
                   <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{asset.name}</p>
                 </div>
                 <button
-                  onClick={() => handleDelete(asset.id)}
+                  onClick={() => handleDelete(asset)}
                   className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 size={12} />

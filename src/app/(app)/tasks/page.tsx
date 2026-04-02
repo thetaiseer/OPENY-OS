@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, CheckSquare } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
@@ -31,18 +31,31 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [form, setForm] = useState({
-    title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client: '',
+    title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client_id: '',
   });
 
   const fetchTasks = useCallback(async () => {
     try {
-      const filter = statusFilter !== 'all' ? `status = "${statusFilter}"` : '';
+      let query = supabase
+        .from('tasks')
+        .select('*, client:clients(id,name)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+
       const [tasksRes, clientsRes] = await Promise.allSettled([
-        pb.collection('tasks').getList(1, 100, { sort: '-created', filter, expand: 'client' }),
-        pb.collection('clients').getList(1, 100, {}),
+        query,
+        supabase.from('clients').select('id,name').order('name'),
       ]);
-      if (tasksRes.status   === 'fulfilled') setTasks(tasksRes.value.items as unknown as Task[]);
-      if (clientsRes.status === 'fulfilled') setClients(clientsRes.value.items as unknown as Client[]);
+
+      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
+        setTasks((tasksRes.value.data ?? []) as Task[]);
+      } else if (tasksRes.status === 'fulfilled' && tasksRes.value.error) {
+        if (process.env.NODE_ENV === 'development') console.error('[tasks fetch]', tasksRes.value.error);
+      }
+      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
+        setClients((clientsRes.value.data ?? []) as Client[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -55,13 +68,20 @@ export default function TasksPage() {
     setSaving(true);
     try {
       const data: Record<string, unknown> = { ...form };
-      if (!data.client)   delete data.client;
-      if (!data.due_date) delete data.due_date;
-      await pb.collection('tasks').create(data);
+      if (!data.client_id) delete data.client_id;
+      if (!data.due_date)  delete data.due_date;
+      const { error } = await supabase.from('tasks').insert(data);
+      if (error) throw error;
+      await supabase.from('activities').insert({
+        type: 'task',
+        description: `Task "${form.title}" created`,
+        client_id: form.client_id || null,
+      });
       setModalOpen(false);
-      setForm({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client: '' });
+      setForm({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client_id: '' });
       fetchTasks();
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') console.error('[task create]', err);
       alert(err instanceof Error ? err.message : 'Failed to create task');
     } finally {
       setSaving(false);
@@ -135,9 +155,9 @@ export default function TasksPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{task.title}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {task.expand?.client && (
+                  {task.client && (
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {task.expand.client.name}
+                      {task.client.name}
                     </span>
                   )}
                   {task.due_date && (
@@ -216,8 +236,8 @@ export default function TasksPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')}</label>
               <select
-                value={form.client}
-                onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
+                value={form.client_id}
+                onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
                 className="w-full h-9 px-3 rounded-lg text-sm outline-none"
                 style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               >

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Search, Users2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
@@ -29,11 +29,21 @@ export default function ClientsPage() {
 
   const fetchClients = useCallback(async () => {
     try {
-      const filter = search ? `name ~ "${search}" || email ~ "${search}"` : '';
-      const res = await pb.collection('clients').getList(1, 50, { sort: '-created', filter });
-      setClients(res.items as unknown as Client[]);
-    } catch {
-      setClients([]);
+      let query = supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+      const { data, error } = await query;
+      if (error) {
+        if (process.env.NODE_ENV === 'development') console.error('[clients fetch]', error);
+        setClients([]);
+      } else {
+        setClients((data ?? []) as Client[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -41,15 +51,26 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
+  const logActivity = async (description: string, clientId?: string) => {
+    await supabase.from('activities').insert({
+      type: 'client',
+      description,
+      client_id: clientId ?? null,
+    });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await pb.collection('clients').create(form);
+      const { data, error } = await supabase.from('clients').insert(form).select().single();
+      if (error) throw error;
       setModalOpen(false);
       setForm({ name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '' });
+      await logActivity(`Client "${form.name}" created`, data?.id);
       fetchClients();
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') console.error('[client create]', err);
       alert(err instanceof Error ? err.message : 'Failed to create client');
     } finally {
       setSaving(false);

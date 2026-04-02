@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users2, CheckSquare, Clock, AlertTriangle, Activity } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import StatCard from '@/components/ui/StatCard';
@@ -30,21 +30,22 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clients, tasks, approvals, overdueRes, activityRes] = await Promise.allSettled([
-          pb.collection('clients').getList(1, 1, {}),
-          pb.collection('tasks').getList(1, 1, { filter: 'status != "done"' }),
-          pb.collection('approvals').getList(1, 1, { filter: 'status = "pending"' }),
-          pb.collection('tasks').getList(1, 1, { filter: 'status = "overdue"' }),
-          pb.collection('activities').getList(1, 10, { sort: '-created' }),
+        const [clients, tasks, approvals, overdue, activityRes] = await Promise.allSettled([
+          supabase.from('clients').select('id', { count: 'exact', head: true }),
+          supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
+          supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+          supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
         ]);
+
         setStats({
-          totalClients:    clients.status    === 'fulfilled' ? clients.value.totalItems    : 0,
-          activeTasks:     tasks.status      === 'fulfilled' ? tasks.value.totalItems      : 0,
-          pendingApprovals:approvals.status  === 'fulfilled' ? approvals.value.totalItems  : 0,
-          overdueTasks:    overdueRes.status === 'fulfilled' ? overdueRes.value.totalItems : 0,
+          totalClients:     clients.status    === 'fulfilled' ? (clients.value.count    ?? 0) : 0,
+          activeTasks:      tasks.status      === 'fulfilled' ? (tasks.value.count      ?? 0) : 0,
+          pendingApprovals: approvals.status  === 'fulfilled' ? (approvals.value.count  ?? 0) : 0,
+          overdueTasks:     overdue.status    === 'fulfilled' ? (overdue.value.count    ?? 0) : 0,
         });
-        if (activityRes.status === 'fulfilled') {
-          setActivities(activityRes.value.items as unknown as ActivityType[]);
+        if (activityRes.status === 'fulfilled' && !activityRes.value.error) {
+          setActivities((activityRes.value.data ?? []) as ActivityType[]);
         }
       } finally {
         setLoading(false);
@@ -74,10 +75,10 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label={t('totalClients')}    value={stats.totalClients}    icon={<Users2 size={20} />}        color="blue"  />
-          <StatCard label={t('activeTasks')}     value={stats.activeTasks}     icon={<CheckSquare size={20} />}   color="green" />
-          <StatCard label={t('pendingApprovals')}value={stats.pendingApprovals}icon={<Clock size={20} />}         color="amber" />
-          <StatCard label={t('overdueTasks')}    value={stats.overdueTasks}    icon={<AlertTriangle size={20} />} color="red"   />
+          <StatCard label={t('totalClients')}     value={stats.totalClients}     icon={<Users2 size={20} />}        color="blue"  />
+          <StatCard label={t('activeTasks')}      value={stats.activeTasks}      icon={<CheckSquare size={20} />}   color="green" />
+          <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} icon={<Clock size={20} />}         color="amber" />
+          <StatCard label={t('overdueTasks')}     value={stats.overdueTasks}     icon={<AlertTriangle size={20} />} color="red"   />
         </div>
       )}
 
@@ -97,7 +98,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm" style={{ color: 'var(--text)' }}>{a.description}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(a.created).toLocaleDateString()}
+                      {new Date(a.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -110,7 +111,7 @@ export default function DashboardPage() {
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Connect PocketBase to see analytics
+              Add content items to see analytics
             </p>
           </div>
         </div>

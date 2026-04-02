@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 
-interface Notification { id: string; description: string; created: string; }
+interface Notification { id: string; description: string; created_at: string; }
 
 export default function NotificationsPage() {
   const { t } = useLang();
@@ -16,10 +16,17 @@ export default function NotificationsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await pb.collection('activities').getList(1, 50, { sort: '-created' });
-        setNotifications(res.items as unknown as Notification[]);
-      } catch {
-        setNotifications([]);
+        const { data, error } = await supabase
+          .from('activities')
+          .select('id, description, created_at')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (error) {
+          if (process.env.NODE_ENV === 'development') console.error('[notifications fetch]', error);
+          setNotifications([]);
+        } else {
+          setNotifications((data ?? []) as Notification[]);
+        }
       } finally {
         setLoading(false);
       }
@@ -54,7 +61,7 @@ export default function NotificationsPage() {
               <div>
                 <p className="text-sm" style={{ color: 'var(--text)' }}>{n.description}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {new Date(n.created).toLocaleDateString()}
+                  {new Date(n.created_at).toLocaleDateString()}
                 </p>
               </div>
             </div>
