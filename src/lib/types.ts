@@ -62,11 +62,15 @@ export interface ContentItem {
 export interface Asset {
   id: string;
   name: string;
-  file_path: string;
+  file_path: string | null;
   file_url: string;
+  view_url?: string | null;
+  download_url?: string | null;
   file_type?: string;
   file_size?: number;
-  bucket_name: string;
+  bucket_name: string | null;
+  storage_provider?: string | null;
+  drive_file_id?: string | null;
   client_id?: string;
   created_at: string;
 }
