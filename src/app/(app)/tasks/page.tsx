@@ -27,15 +27,25 @@ const statusVariant = (s: string) => {
   return 'default' as const;
 };
 
+function todayMidnight() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function isOverdue(due_date?: string, status?: string) {
   if (!due_date || status === 'done') return false;
-  return new Date(due_date) < new Date(new Date().toDateString());
+  return new Date(due_date) < todayMidnight();
 }
 
 function isDueSoon(due_date?: string, status?: string) {
   if (!due_date || status === 'done') return false;
-  const diff = (new Date(due_date).getTime() - Date.now()) / 86400000;
+  const diff = (new Date(due_date).getTime() - todayMidnight().getTime()) / 86400000;
   return diff >= 0 && diff <= 3;
+}
+
+function parseTags(tags: string): string[] {
+  return tags ? tags.split(',').map(s => s.trim()).filter(Boolean) : [];
 }
 
 function fmtDate(d?: string) {
@@ -338,9 +348,6 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           )}
         </div>
         <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-        <Badge variant={statusVariant(task.status)}>
-          {t(task.status === 'in_progress' ? 'inProgress' : task.status)}
-        </Badge>
       </div>
     </div>
   );
@@ -493,7 +500,7 @@ export default function TasksPage() {
         assigned_to: createForm.assigned_to || null,
         created_by: createForm.created_by || null,
         mentions: createForm.mentions,
-        tags: createForm.tags ? createForm.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        tags: parseTags(createForm.tags),
       };
       const { error } = await supabase.from('tasks').insert(payload);
       if (error) throw error;
@@ -545,7 +552,7 @@ export default function TasksPage() {
         assigned_to: editForm.assigned_to || null,
         created_by: editForm.created_by || null,
         mentions: editForm.mentions,
-        tags: editForm.tags ? editForm.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        tags: parseTags(editForm.tags),
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase.from('tasks').update(payload).eq('id', editTask.id);
