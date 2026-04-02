@@ -1,78 +1,26 @@
+import type { Metadata } from 'next';
+import './globals.css';
+import { ThemeProvider } from '@/lib/theme-context';
+import { LangProvider } from '@/lib/lang-context';
+import { AuthProvider } from '@/lib/auth-context';
 
-import "./globals.css";
-import { AppShell } from "@/components/layout/AppShell";
-import { ThemeProvider } from "@/components/layout/ThemeProvider";
-import { AppProvider } from "@/lib/AppContext";
-import { AuthProvider } from "@/lib/AuthContext";
-import { ContentProvider } from "@/lib/ContentContext";
-import { LanguageProvider } from "@/lib/LanguageContext";
-import { NotificationProvider } from "@/lib/NotificationContext";
-import { InvitationProvider } from "@/lib/InvitationContext";
-import { AssetsProvider } from "@/lib/AssetsContext";
-import { ClientNotesProvider } from "@/lib/ClientNotesContext";
-import { BankProvider } from "@/lib/BankContext";
-import { PublishingProvider } from "@/lib/PublishingContext";
-import { RecurringTaskProvider } from "@/lib/RecurringTaskContext";
-import { ToastProvider } from "@/lib/ToastContext";
-import { ApprovalProvider } from "@/lib/ApprovalContext";
-import { ToastContainer } from "@/components/ui/ToastContainer";
-import { UserPreferencesSync } from "@/components/layout/UserPreferencesSync";
-import { WorkspaceBootstrap } from "@/components/layout/WorkspaceBootstrap";
-
-export const metadata = {
-  title: "OPENY OS",
-  description: "Premium Operations Management System",
-  icons: {
-    icon: "/assets/openy-logo.png",
-    apple: "/assets/openy-logo.png"
-  }
+export const metadata: Metadata = {
+  title: 'OPENY OS',
+  description: 'Modern SaaS workspace',
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet" />
-        
-      </head>
+    <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <LanguageProvider>
-            <ToastProvider>
-              <AuthProvider>
-                <UserPreferencesSync />
-                <WorkspaceBootstrap />
-                <AppProvider>
-                  <ContentProvider>
-                      <NotificationProvider>
-                        <InvitationProvider>
-                          <AssetsProvider>
-                            <ClientNotesProvider>
-                              <BankProvider>
-                                <PublishingProvider>
-                                  <RecurringTaskProvider>
-                                    <ApprovalProvider>
-                                      <AppShell>{children}</AppShell>
-                                    </ApprovalProvider>
-                                  </RecurringTaskProvider>
-                                </PublishingProvider>
-                              </BankProvider>
-                            </ClientNotesProvider>
-                          </AssetsProvider>
-                        </InvitationProvider>
-                      </NotificationProvider>
-                  </ContentProvider>
-                </AppProvider>
-              </AuthProvider>
-              <ToastContainer />
-            </ToastProvider>
-          </LanguageProvider>
+          <LangProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </LangProvider>
         </ThemeProvider>
       </body>
-    </html>);
-
+    </html>
+  );
 }
