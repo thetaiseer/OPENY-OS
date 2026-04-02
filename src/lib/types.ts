@@ -53,6 +53,7 @@ export interface Asset {
   file_url: string;
   file_type?: string;
   file_size?: number;
+  bucket_name: string;
   client_id?: string;
   created_at: string;
 }

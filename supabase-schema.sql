@@ -44,12 +44,15 @@ create table if not exists content_items (
 
 -- Assets
 create table if not exists assets (
-  id         uuid primary key default gen_random_uuid(),
-  name       text not null,
-  file_path  text not null,
-  file_url   text not null,
-  client_id  uuid references clients(id) on delete set null,
-  created_at timestamptz not null default now()
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  file_path   text not null,
+  file_url    text not null,
+  file_type   text,
+  file_size   bigint,
+  bucket_name text not null default 'client-assets',
+  client_id   uuid references clients(id) on delete set null,
+  created_at  timestamptz not null default now()
 );
 
 -- Approvals
