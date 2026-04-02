@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File } from 'lucide-react';
+import {
+  ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File,
+  Calendar, User, Users, Tag, AlertCircle, Plus,
+} from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
-import type { Client, Task, ContentItem, Asset, Activity } from '@/lib/types';
+import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 const tabs = ['overview', 'tasks', 'content', 'assets', 'approvals', 'activity'] as const;
 
@@ -20,8 +23,25 @@ const statusVariant = (s: string) => {
 const taskStatusVariant = (s: string) => {
   if (s === 'done') return 'success' as const;
   if (s === 'overdue') return 'danger' as const;
-  return 'info' as const;
+  if (s === 'in_progress') return 'info' as const;
+  return 'default' as const;
 };
+
+const taskPriorityVariant = (p: string) => {
+  if (p === 'high') return 'danger' as const;
+  if (p === 'medium') return 'warning' as const;
+  return 'default' as const;
+};
+
+function isOverdue(due_date?: string, status?: string) {
+  if (!due_date || status === 'done') return false;
+  return new Date(due_date) < new Date(new Date().toDateString());
+}
+
+function fmtDate(d?: string) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function ClientWorkspace() {
   const { id } = useParams<{ id: string }>();
@@ -36,8 +56,14 @@ export default function ClientWorkspace() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [approvals, setApprovals] = useState<{ id: string; title: string; status: string; created_at: string }[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+
+  // Task quick-create
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', due_date: '', assigned_to: '', status: 'todo' });
+  const [taskSaving, setTaskSaving] = useState(false);
 
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -49,13 +75,14 @@ export default function ClientWorkspace() {
   };
 
   const loadAll = useCallback(async () => {
-    const [c, tk, ct, a, act, appr] = await Promise.allSettled([
+    const [c, tk, ct, a, act, appr, tm] = await Promise.allSettled([
       supabase.from('clients').select('*').eq('id', id).single(),
       supabase.from('tasks').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
       supabase.from('content_items').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
       supabase.from('assets').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
       supabase.from('activities').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
       supabase.from('approvals').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+      supabase.from('team_members').select('*').order('name'),
     ]);
 
     if (c.status === 'fulfilled' && !c.value.error) setClient(c.value.data as Client);
@@ -64,6 +91,7 @@ export default function ClientWorkspace() {
     if (a.status === 'fulfilled' && !a.value.error) setAssets((a.value.data ?? []) as Asset[]);
     if (act.status === 'fulfilled' && !act.value.error) setActivities((act.value.data ?? []) as Activity[]);
     if (appr.status === 'fulfilled' && !appr.value.error) setApprovals((appr.value.data ?? []) as typeof approvals);
+    if (tm.status === 'fulfilled' && !tm.value.error) setTeam((tm.value.data ?? []) as TeamMember[]);
     setLoading(false);
   }, [id]);
 
@@ -161,6 +189,40 @@ export default function ClientWorkspace() {
     }
     setAssets(prev => prev.filter(a => a.id !== asset.id));
     await logActivity(`Asset "${asset.name}" deleted`);
+  };
+
+  const handleDeleteTask = async (taskId: string, taskTitle: string) => {
+    if (!confirm(`Delete task "${taskTitle}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+    if (error) { alert(error.message); return; }
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    await logActivity(`Task "${taskTitle}" deleted`);
+  };
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskForm.title.trim()) return;
+    setTaskSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        title: taskForm.title.trim(),
+        priority: taskForm.priority,
+        due_date: taskForm.due_date || null,
+        assigned_to: taskForm.assigned_to || null,
+        status: taskForm.status,
+        client_id: id,
+      });
+      if (error) throw error;
+      await logActivity(`Task "${taskForm.title}" created`);
+      setTaskModalOpen(false);
+      setTaskForm({ title: '', priority: 'medium', due_date: '', assigned_to: '', status: 'todo' });
+      loadAll();
+    } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') console.error('[task create]', err);
+      alert(err instanceof Error ? err.message : 'Failed to create task');
+    } finally {
+      setTaskSaving(false);
+    }
   };
 
   if (loading) {
@@ -299,21 +361,83 @@ export default function ClientWorkspace() {
         )}
 
         {activeTab === 'tasks' && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setTaskModalOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
+                style={{ background: 'var(--accent)' }}
+              >
+                <Plus size={14} />{t('newTask')}
+              </button>
+            </div>
             {tasks.length === 0 ? (
               <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>{t('noTasksYet')}</div>
-            ) : tasks.map(task => (
-              <div key={task.id} className="flex items-center gap-4 rounded-xl border px-5 py-3"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{task.title}</p>
-                  {task.due_date && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{task.due_date}</p>
-                  )}
-                </div>
-                <Badge variant={taskStatusVariant(task.status)}>{t(task.status)}</Badge>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map(task => {
+                  const overdue = isOverdue(task.due_date, task.status);
+                  const assignee = team.find(m => m.id === task.assigned_to);
+                  const creator = team.find(m => m.id === task.created_by);
+                  const mentionedMembers = (task.mentions ?? []).map(mid => team.find(m => m.id === mid)).filter(Boolean) as TeamMember[];
+                  return (
+                    <div
+                      key={task.id}
+                      className="rounded-xl border p-4 space-y-2"
+                      style={{ background: 'var(--surface)', borderColor: 'var(--border)', borderLeft: `3px solid ${overdue ? '#ef4444' : task.status === 'done' ? '#22c55e' : 'var(--border)'}` }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteTask(task.id, task.title)}
+                          className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {task.due_date && (
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
+                            style={{ background: overdue ? '#fef2f2' : 'var(--surface-2)' }}>
+                            {overdue ? <AlertCircle size={10} /> : <Calendar size={10} />}
+                            {fmtDate(task.due_date)}
+                          </span>
+                        )}
+                        {assignee && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+                            <User size={10} />{assignee.name}
+                          </span>
+                        )}
+                        {creator && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+                            by {creator.name}
+                          </span>
+                        )}
+                        {mentionedMembers.length > 0 && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+                            <Users size={10} />{mentionedMembers.map(m => `@${m.name}`).join(', ')}
+                          </span>
+                        )}
+                        {task.tags && task.tags.length > 0 && task.tags.map(tag => (
+                          <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+                            <Tag size={10} />{tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant={taskStatusVariant(task.status)}>{t(task.status === 'in_progress' ? 'inProgress' : task.status)}</Badge>
+                        <Badge variant={taskPriorityVariant(task.priority)}>{t(task.priority)}</Badge>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
           </div>
         )}
 
@@ -486,6 +610,58 @@ export default function ClientWorkspace() {
             >
               {saving ? t('loading') : t('save')}
             </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Quick create task modal */}
+      <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title={t('newTask')} size="sm">
+        <form onSubmit={handleCreateTask} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+            <input
+              required
+              value={taskForm.title}
+              onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+              className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              placeholder="Task title"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
+              <select value={taskForm.priority} onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value }))}
+                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+                <option value="low">{t('low')}</option>
+                <option value="medium">{t('medium')}</option>
+                <option value="high">{t('high')}</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')}</label>
+              <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
+                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }} />
+            </div>
+          </div>
+          {team.length > 0 && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')}</label>
+              <select value={taskForm.assigned_to} onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))}
+                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+                <option value="">{t('unassigned')}</option>
+                {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setTaskModalOpen(false)} className="h-9 px-4 rounded-lg text-sm font-medium"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
+            <button type="submit" disabled={taskSaving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60"
+              style={{ background: 'var(--accent)' }}>{taskSaving ? t('loading') : t('save')}</button>
           </div>
         </form>
       </Modal>
