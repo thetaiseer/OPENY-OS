@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
 
@@ -23,11 +23,11 @@ export default function SettingsPage() {
             className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white"
             style={{ background: 'var(--accent)' }}
           >
-            {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
+            {user.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium" style={{ color: 'var(--text)' }}>{user?.name}</p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{user?.email}</p>
+            <p className="font-medium" style={{ color: 'var(--text)' }}>{user.name}</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{user.role}</p>
           </div>
         </div>
       </div>
@@ -62,29 +62,6 @@ export default function SettingsPage() {
             Switch to {lang === 'en' ? 'Arabic' : 'English'}
           </button>
         </div>
-      </div>
-
-      <div className="rounded-2xl border p-6 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Backend</h2>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          PocketBase URL:{' '}
-          <code className="text-xs bg-[var(--surface-2)] px-1.5 py-0.5 rounded">
-            {process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090'}
-          </code>
-        </p>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Set NEXT_PUBLIC_POCKETBASE_URL environment variable to configure
-        </p>
-      </div>
-
-      <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Account</h2>
-        <button
-          onClick={logout}
-          className="h-9 px-4 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
-        >
-          {t('logout')}
-        </button>
       </div>
     </div>
   );
