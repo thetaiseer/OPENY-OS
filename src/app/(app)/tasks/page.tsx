@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, CheckSquare } from 'lucide-react';
+import {
+  Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
+  Calendar, User, Users, Tag, AlertCircle, Clock,
+} from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import type { Task, Client } from '@/lib/types';
+import type { Task, Client, TeamMember } from '@/lib/types';
+
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 const priorityVariant = (p: string) => {
   if (p === 'high')   return 'danger'  as const;
@@ -22,64 +27,491 @@ const statusVariant = (s: string) => {
   return 'default' as const;
 };
 
+function todayMidnight() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function isOverdue(due_date?: string, status?: string) {
+  if (!due_date || status === 'done') return false;
+  return new Date(due_date) < todayMidnight();
+}
+
+function isDueSoon(due_date?: string, status?: string) {
+  if (!due_date || status === 'done') return false;
+  const diff = (new Date(due_date).getTime() - todayMidnight().getTime()) / 86400000;
+  return diff >= 0 && diff <= 3;
+}
+
+function parseTags(tags: string): string[] {
+  return tags ? tags.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
+function fmtDate(d?: string) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
+
+// ─── blank form ─────────────────────────────────────────────────────────────
+
+const blankForm = {
+  title: '', description: '', status: 'todo', priority: 'medium',
+  due_date: '', client_id: '', assigned_to: '', created_by: '',
+  mentions: [] as string[], tags: '',
+};
+
+// ─── TaskForm ────────────────────────────────────────────────────────────────
+
+interface TaskFormProps {
+  form: typeof blankForm;
+  setForm: React.Dispatch<React.SetStateAction<typeof blankForm>>;
+  clients: Client[];
+  team: TeamMember[];
+  saving: boolean;
+  onCancel: () => void;
+  t: (k: string) => string;
+}
+
+function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFormProps) {
+  const toggleMention = (id: string) => {
+    setForm(f => ({
+      ...f,
+      mentions: f.mentions.includes(id) ? f.mentions.filter(m => m !== id) : [...f.mentions, id],
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Title */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+        <input
+          required
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          className={inputCls}
+          style={inputStyle}
+          placeholder="Task title"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('description')}</label>
+        <textarea
+          value={form.description}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
+          style={inputStyle}
+          placeholder="Detailed description..."
+        />
+      </div>
+
+      {/* Client + Deadline */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')}</label>
+          <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className={inputCls} style={inputStyle}>
+            <option value="">{t('none')}</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')}</label>
+          <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
+        </div>
+      </div>
+
+      {/* Priority + Status */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
+          <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className={inputCls} style={inputStyle}>
+            <option value="low">{t('low')}</option>
+            <option value="medium">{t('medium')}</option>
+            <option value="high">{t('high')}</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
+          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputCls} style={inputStyle}>
+            <option value="todo">{t('todo')}</option>
+            <option value="in_progress">{t('inProgress')}</option>
+            <option value="done">{t('done')}</option>
+            <option value="overdue">{t('overdue')}</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Assigned To + Created By */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')}</label>
+          <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))} className={inputCls} style={inputStyle}>
+            <option value="">{t('unassigned')}</option>
+            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('createdBy')}</label>
+          <select value={form.created_by} onChange={e => setForm(f => ({ ...f, created_by: e.target.value }))} className={inputCls} style={inputStyle}>
+            <option value="">{t('none')}</option>
+            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Mentions */}
+      {team.length > 0 && (
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('mentions')}</label>
+          <div className="flex flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            {team.map(m => {
+              const selected = form.mentions.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => toggleMention(m.id)}
+                  className="h-7 px-3 rounded-full text-xs font-medium transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'var(--surface)',
+                    color: selected ? '#fff' : 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  @{m.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('tags')}</label>
+        <input
+          value={form.tags}
+          onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+          className={inputCls}
+          style={inputStyle}
+          placeholder="design, urgent, review"
+        />
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+          {t('cancel')}
+        </button>
+        <button type="submit" disabled={saving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity" style={{ background: 'var(--accent)' }}>
+          {saving ? t('loading') : t('save')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TaskCard ────────────────────────────────────────────────────────────────
+
+interface TaskCardProps {
+  task: Task;
+  team: TeamMember[];
+  onView: (t: Task) => void;
+  onEdit: (t: Task) => void;
+  onDelete: (t: Task) => void;
+  onStatusChange: (t: Task, s: string) => void;
+  t: (k: string) => string;
+}
+
+function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: TaskCardProps) {
+  const [statusOpen, setStatusOpen] = useState(false);
+  const overdue = isOverdue(task.due_date, task.status);
+  const soon = isDueSoon(task.due_date, task.status);
+  const assignee = team.find(m => m.id === task.assigned_to);
+  const creator = team.find(m => m.id === task.created_by);
+  const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
+
+  const borderLeft = overdue ? '#ef4444' : soon ? '#f59e0b' : task.status === 'done' ? '#22c55e' : 'var(--border)';
+
+  return (
+    <div
+      className="rounded-xl border p-4 space-y-3 transition-shadow hover:shadow-sm"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', borderLeft: `3px solid ${borderLeft}` }}
+    >
+      {/* Header row */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
+          {task.description && (
+            <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+          )}
+        </div>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onView(task)} title="View" className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
+            <Eye size={14} />
+          </button>
+          <button onClick={() => onEdit(task)} title="Edit" className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
+            <Pencil size={14} />
+          </button>
+          <button onClick={() => onDelete(task)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Meta row */}
+      <div className="flex flex-wrap gap-2 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+        {task.client && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <User size={11} />{task.client.name}
+          </span>
+        )}
+        {task.due_date && (
+          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${overdue ? 'text-red-500' : soon ? 'text-amber-500' : ''}`}
+            style={{ background: overdue ? '#fef2f2' : soon ? '#fffbeb' : 'var(--surface-2)' }}>
+            {overdue ? <AlertCircle size={11} /> : <Calendar size={11} />}
+            {fmtDate(task.due_date)}
+          </span>
+        )}
+        {assignee && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <User size={11} />{assignee.name}
+          </span>
+        )}
+        {creator && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <Clock size={11} />by {creator.name}
+          </span>
+        )}
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+          <Calendar size={11} />{fmtDate(task.created_at)}
+        </span>
+      </div>
+
+      {/* Mentions */}
+      {mentionedMembers.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Users size={12} style={{ color: 'var(--text-secondary)' }} />
+          {mentionedMembers.map(m => (
+            <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>
+              @{m.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Tags */}
+      {task.tags && task.tags.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Tag size={12} style={{ color: 'var(--text-secondary)' }} />
+          {task.tags.map(tag => (
+            <span key={tag} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer: status + priority */}
+      <div className="flex items-center gap-2 pt-1">
+        <div className="relative">
+          <button
+            onClick={() => setStatusOpen(o => !o)}
+            className="flex items-center gap-1 text-xs rounded-full px-2.5 py-0.5 font-medium"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          >
+            {t(task.status === 'in_progress' ? 'inProgress' : task.status)}
+            <ChevronDown size={10} />
+          </button>
+          {statusOpen && (
+            <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              {['todo', 'in_progress', 'done', 'overdue'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
+                  className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--surface-2)] transition-colors"
+                  style={{ color: 'var(--text)' }}
+                >
+                  {t(s === 'in_progress' ? 'inProgress' : s)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+      </div>
+    </div>
+  );
+}
+
+// ─── TaskDetailModal ─────────────────────────────────────────────────────────
+
+function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; team: TeamMember[]; open: boolean; onClose: () => void; t: (k: string) => string }) {
+  if (!task) return null;
+  const assignee = team.find(m => m.id === task.assigned_to);
+  const creator = team.find(m => m.id === task.created_by);
+  const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
+  const overdue = isOverdue(task.due_date, task.status);
+
+  const row = (label: string, value: React.ReactNode) => (
+    <div className="flex items-start gap-3 py-2 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+      <span className="text-xs font-medium w-28 shrink-0 pt-0.5" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span className="text-sm flex-1" style={{ color: 'var(--text)' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <Modal open={open} onClose={onClose} title={t('taskDetails')} size="lg">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{task.title}</h3>
+          {task.description && (
+            <p className="mt-2 text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+          )}
+        </div>
+        <div className="rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+          {row(t('status'), <Badge variant={statusVariant(task.status)}>{t(task.status === 'in_progress' ? 'inProgress' : task.status)}</Badge>)}
+          {row(t('priority'), <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>)}
+          {task.client && row(t('clients'), task.client.name)}
+          {task.due_date && row(t('deadline'),
+            <span className={overdue ? 'text-red-500 font-medium' : ''}>{fmtDate(task.due_date)}{overdue ? ' (Overdue)' : ''}</span>
+          )}
+          {assignee && row(t('assignedTo'), assignee.name)}
+          {creator && row(t('createdBy'), creator.name)}
+          {row(t('createdOn'), fmtDate(task.created_at))}
+          {mentionedMembers.length > 0 && row(t('mentions'),
+            <div className="flex flex-wrap gap-1">
+              {mentionedMembers.map(m => (
+                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>@{m.name}</span>
+              ))}
+            </div>
+          )}
+          {task.tags && task.tags.length > 0 && row(t('tags'),
+            <div className="flex flex-wrap gap-1">
+              {task.tags.map(tag => <span key={tag} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{tag}</span>)}
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── DeleteConfirmModal ──────────────────────────────────────────────────────
+
+function DeleteConfirmModal({ task, open, onClose, onConfirm, t }: { task: Task | null; open: boolean; onClose: () => void; onConfirm: () => void; t: (k: string) => string }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('deleteTask')} size="sm">
+      <div className="space-y-4">
+        <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
+        {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+            {t('cancel')}
+          </button>
+          <button type="button" onClick={onConfirm} className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">
+            {t('deleteTask')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function TasksPage() {
   const { t } = useLang();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Modals
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [viewTask, setViewTask] = useState<Task | null>(null);
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null);
+
+  // Filters
   const [statusFilter, setStatusFilter] = useState('all');
-  const [form, setForm] = useState({
-    title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client_id: '',
-  });
+  const [clientFilter, setClientFilter] = useState('');
+  const [assignedFilter, setAssignedFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
 
-  const fetchTasks = useCallback(async () => {
+  // Forms
+  const [createForm, setCreateForm] = useState({ ...blankForm });
+  const [editForm, setEditForm] = useState({ ...blankForm });
+
+  // ── fetch ────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
     try {
-      let query = supabase
-        .from('tasks')
-        .select('*, client:clients(id,name)')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-
-      const [tasksRes, clientsRes] = await Promise.allSettled([
-        query,
+      const [tasksRes, clientsRes, teamRes] = await Promise.allSettled([
+        supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
         supabase.from('clients').select('id,name').order('name'),
+        supabase.from('team_members').select('*').order('name'),
       ]);
 
-      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
+      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
         setTasks((tasksRes.value.data ?? []) as Task[]);
-      } else if (tasksRes.status === 'fulfilled' && tasksRes.value.error) {
-        if (process.env.NODE_ENV === 'development') console.error('[tasks fetch]', tasksRes.value.error);
-      }
-      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
+      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error)
         setClients((clientsRes.value.data ?? []) as Client[]);
-      }
+      if (teamRes.status === 'fulfilled' && !teamRes.value.error)
+        setTeam((teamRes.value.data ?? []) as TeamMember[]);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
-  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  // ── filtered tasks ───────────────────────────────────────────────────────
+  const filtered = tasks.filter(task => {
+    if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+    if (clientFilter && task.client_id !== clientFilter) return false;
+    if (assignedFilter && task.assigned_to !== assignedFilter) return false;
+    if (priorityFilter && task.priority !== priorityFilter) return false;
+    return true;
+  });
+
+  // ── create ───────────────────────────────────────────────────────────────
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!createForm.title.trim()) return;
     setSaving(true);
     try {
-      const data: Record<string, unknown> = { ...form };
-      if (!data.client_id) delete data.client_id;
-      if (!data.due_date)  delete data.due_date;
-      const { error } = await supabase.from('tasks').insert(data);
+      const payload: Record<string, unknown> = {
+        title: createForm.title.trim(),
+        description: createForm.description || null,
+        status: createForm.status,
+        priority: createForm.priority,
+        due_date: createForm.due_date || null,
+        client_id: createForm.client_id || null,
+        assigned_to: createForm.assigned_to || null,
+        created_by: createForm.created_by || null,
+        mentions: createForm.mentions,
+        tags: parseTags(createForm.tags),
+      };
+      const { error } = await supabase.from('tasks').insert(payload);
       if (error) throw error;
       await supabase.from('activities').insert({
         type: 'task',
-        description: `Task "${form.title}" created`,
-        client_id: form.client_id || null,
+        description: `Task "${createForm.title}" created`,
+        client_id: createForm.client_id || null,
       });
-      setModalOpen(false);
-      setForm({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', client_id: '' });
-      fetchTasks();
+      setCreateOpen(false);
+      setCreateForm({ ...blankForm });
+      fetchAll();
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') console.error('[task create]', err);
       alert(err instanceof Error ? err.message : 'Failed to create task');
@@ -88,17 +520,93 @@ export default function TasksPage() {
     }
   };
 
+  // ── edit ─────────────────────────────────────────────────────────────────
+  const openEdit = (task: Task) => {
+    setEditForm({
+      title: task.title,
+      description: task.description ?? '',
+      status: task.status,
+      priority: task.priority,
+      due_date: task.due_date ?? '',
+      client_id: task.client_id ?? '',
+      assigned_to: task.assigned_to ?? '',
+      created_by: task.created_by ?? '',
+      mentions: task.mentions ?? [],
+      tags: (task.tags ?? []).join(', '),
+    });
+    setEditTask(task);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTask) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        title: editForm.title.trim(),
+        description: editForm.description || null,
+        status: editForm.status,
+        priority: editForm.priority,
+        due_date: editForm.due_date || null,
+        client_id: editForm.client_id || null,
+        assigned_to: editForm.assigned_to || null,
+        created_by: editForm.created_by || null,
+        mentions: editForm.mentions,
+        tags: parseTags(editForm.tags),
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('tasks').update(payload).eq('id', editTask.id);
+      if (error) throw error;
+      await supabase.from('activities').insert({
+        type: 'task',
+        description: `Task "${editForm.title}" updated`,
+        client_id: editForm.client_id || null,
+      });
+      setEditTask(null);
+      fetchAll();
+    } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') console.error('[task edit]', err);
+      alert(err instanceof Error ? err.message : 'Failed to update task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTask) return;
+    const { error } = await supabase.from('tasks').delete().eq('id', deleteTask.id);
+    if (error) { alert(error.message); return; }
+    await supabase.from('activities').insert({
+      type: 'task',
+      description: `Task "${deleteTask.title}" deleted`,
+      client_id: deleteTask.client_id || null,
+    });
+    setDeleteTask(null);
+    setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
+  };
+
+  // ── status change ─────────────────────────────────────────────────────────
+  const handleStatusChange = async (task: Task, newStatus: string) => {
+    const { error } = await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', task.id);
+    if (error) { alert(error.message); return; }
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus as Task['status'] } : t));
+  };
+
   const statuses = ['all', 'todo', 'in_progress', 'done', 'overdue'];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('tasks')}</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>All tasks across clients</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {filtered.length} task{filtered.length !== 1 ? 's' : ''} across all clients
+          </p>
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setCreateOpen(true)}
           className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
           style={{ background: 'var(--accent)' }}
         >
@@ -106,12 +614,13 @@ export default function TasksPage() {
         </button>
       </div>
 
+      {/* Status tabs */}
       <div className="flex gap-1 flex-wrap">
         {statuses.map(s => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className="h-8 px-3 rounded-lg text-xs font-medium transition-colors capitalize"
+            className="h-8 px-3 rounded-lg text-xs font-medium transition-colors"
             style={{
               background: statusFilter === s ? 'var(--accent)' : 'var(--surface)',
               color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
@@ -119,155 +628,111 @@ export default function TasksPage() {
             }}
           >
             {s === 'all' ? 'All' : t(s === 'in_progress' ? 'inProgress' : s)}
+            {s !== 'all' && (
+              <span className="ml-1.5 opacity-70">{tasks.filter(t => t.status === s).length}</span>
+            )}
           </button>
         ))}
       </div>
 
+      {/* Advanced filters */}
+      <div className="flex flex-wrap gap-3">
+        <select
+          value={clientFilter}
+          onChange={e => setClientFilter(e.target.value)}
+          className="h-8 px-3 rounded-lg text-xs outline-none"
+          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        >
+          <option value="">{t('allClients')}</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select
+          value={assignedFilter}
+          onChange={e => setAssignedFilter(e.target.value)}
+          className="h-8 px-3 rounded-lg text-xs outline-none"
+          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        >
+          <option value="">{t('allMembers')}</option>
+          {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={e => setPriorityFilter(e.target.value)}
+          className="h-8 px-3 rounded-lg text-xs outline-none"
+          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        >
+          <option value="">{t('allPriorities')}</option>
+          <option value="high">{t('high')}</option>
+          <option value="medium">{t('medium')}</option>
+          <option value="low">{t('low')}</option>
+        </select>
+        {(clientFilter || assignedFilter || priorityFilter) && (
+          <button
+            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); }}
+            className="h-8 px-3 rounded-lg text-xs"
+            style={{ color: 'var(--accent)' }}
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Task list */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
-      ) : tasks.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={CheckSquare}
           title={t('noTasksYet')}
           description={t('noTasksDesc')}
           action={
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'var(--accent)' }}
-            >
+            <button onClick={() => setCreateOpen(true)} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>
               <Plus size={16} />{t('newTask')}
             </button>
           }
         />
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-          {tasks.map(task => (
-            <div
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(task => (
+            <TaskCard
               key={task.id}
-              className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{task.title}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {task.client && (
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {task.client.name}
-                    </span>
-                  )}
-                  {task.due_date && (
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{task.due_date}</span>
-                  )}
-                </div>
-              </div>
-              <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-              <Badge variant={statusVariant(task.status)}>
-                {t(task.status === 'in_progress' ? 'inProgress' : task.status)}
-              </Badge>
-            </div>
+              task={task}
+              team={team}
+              onView={setViewTask}
+              onEdit={openEdit}
+              onDelete={setDeleteTask}
+              onStatusChange={handleStatusChange}
+              t={t}
+            />
           ))}
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t('newTask')}>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
-            <input
-              required
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('description')}</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={2}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-              <select
-                value={form.priority}
-                onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              >
-                <option value="low">{t('low')}</option>
-                <option value="medium">{t('medium')}</option>
-                <option value="high">{t('high')}</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-              <select
-                value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              >
-                <option value="todo">{t('todo')}</option>
-                <option value="in_progress">{t('inProgress')}</option>
-                <option value="done">{t('done')}</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('dueDate')}</label>
-              <input
-                type="date"
-                value={form.due_date}
-                onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')}</label>
-              <select
-                value={form.client_id}
-                onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              >
-                <option value="">None</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="h-9 px-4 rounded-lg text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity"
-              style={{ background: 'var(--accent)' }}
-            >
-              {saving ? t('loading') : t('save')}
-            </button>
-          </div>
+      {/* Create Modal */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('newTask')} size="lg">
+        <form onSubmit={handleCreate}>
+          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} team={team} saving={saving} onCancel={() => setCreateOpen(false)} t={t} />
         </form>
       </Modal>
+
+      {/* Edit Modal */}
+      <Modal open={!!editTask} onClose={() => setEditTask(null)} title={t('editTask')} size="lg">
+        <form onSubmit={handleEdit}>
+          <TaskForm form={editForm} setForm={setEditForm} clients={clients} team={team} saving={saving} onCancel={() => setEditTask(null)} t={t} />
+        </form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <TaskDetailModal task={viewTask} team={team} open={!!viewTask} onClose={() => setViewTask(null)} t={t} />
+
+      {/* Delete Modal */}
+      <DeleteConfirmModal task={deleteTask} open={!!deleteTask} onClose={() => setDeleteTask(null)} onConfirm={handleDelete} t={t} />
     </div>
   );
 }
+
+

@@ -20,6 +20,15 @@ export interface Client {
   updated_at: string;
 }
 
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+  avatar?: string;
+  created_at: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -27,9 +36,13 @@ export interface Task {
   status: 'todo' | 'in_progress' | 'done' | 'overdue';
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
+  task_date?: string;
   client_id?: string;
   assigned_to?: string;
-  client?: Client;
+  created_by?: string;
+  mentions?: string[];
+  tags?: string[];
+  client?: { id: string; name: string };
   created_at: string;
   updated_at: string;
 }
