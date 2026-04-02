@@ -85,6 +85,7 @@ export default function AssetsPage() {
         file_url: publicUrl,
         file_type: file.type || null,
         file_size: file.size || null,
+        bucket_name: bucket,
       }).select().single();
 
       console.log('[asset upload] Step C – result', { insertData, dbError });

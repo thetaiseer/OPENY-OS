@@ -134,9 +134,12 @@ export default function ClientWorkspace() {
         name: file.name,
         file_path: filePath,
         file_url: urlData.publicUrl,
+        file_type: file.type || null,
+        file_size: file.size || null,
+        bucket_name: 'client-assets',
         client_id: id,
       });
-      if (dbError) throw dbError;
+      if (dbError) throw new Error(`DB insert failed: ${dbError.message} (code: ${dbError.code}, details: ${dbError.details})`);
       await logActivity(`Asset "${file.name}" uploaded`);
       loadAll();
     } catch (err: unknown) {
