@@ -266,18 +266,19 @@ function AssetCard({ asset, onView, onDelete, onCopyLink }: AssetCardProps) {
 const STORAGE_BUCKET = 'client-assets';
 const TOAST_DURATION_MS = 4500;
 const COMPLETION_DISPLAY_MS = 600;
+const DB_INSERT_TIMEOUT_MS = 8000;
 
 // Staged progress – timing (ms) for fake ticks during storage upload
 const STAGE_TICK_1_MS = 100;
 const STAGE_TICK_2_MS = 400;
 const STAGE_TICK_3_MS = 1200;
 
+// Progress reaches 100% after storage upload completes, not after DB insert
 const UPLOAD_STAGES = [
   { at: 0,   label: 'Preparing upload' },
   { at: 10,  label: 'Preparing upload' },
   { at: 35,  label: 'Uploading file' },
   { at: 65,  label: 'Uploading file' },
-  { at: 90,  label: 'Saving record' },
   { at: 100, label: 'Completed' },
 ] as const;
 
@@ -361,48 +362,71 @@ export default function AssetsPage() {
       const t2 = setTimeout(() => setStage(2), STAGE_TICK_2_MS);
       const t3 = setTimeout(() => setStage(3), STAGE_TICK_3_MS);
 
-      const { error: uploadError } = await supabase.storage
+      // Step 1: Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, file, { upsert: false });
 
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      console.log('[asset upload] storage response:', uploadData, uploadError);
 
       if (uploadError) {
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
 
-      setStage(4); // 90% – saving record
-
+      // Step 2: Get public URL
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
       const publicUrl = urlData?.publicUrl ?? '';
+      console.log('[asset upload] public URL:', publicUrl);
 
-      const { error: dbError } = await supabase.from('assets').insert({
+      // Progress reaches 100% immediately after storage upload – not after DB insert
+      setStage(4); // 100% – completed
+      await new Promise(r => setTimeout(r, COMPLETION_DISPLAY_MS)); // briefly show 100%
+
+      addToast('File uploaded successfully', 'success');
+
+      // Step 3: Insert into assets table – non-blocking; UI already complete
+      const insertPromise = supabase.from('assets').insert({
         name: file.name,
         file_path: filePath,
         file_url: publicUrl,
         file_type: file.type || null,
         file_size: file.size || null,
         bucket_name: bucket,
-      }).select().single();
-
-      if (dbError) {
-        throw new Error(`DB insert failed: ${dbError.message} (code: ${dbError.code})`);
-      }
-
-      // Activity log – fire and forget
-      void supabase.from('activities').insert({
-        type: 'asset',
-        description: `Asset "${file.name}" uploaded`,
       });
 
-      setStage(5); // 100% – completed
-      await new Promise(r => setTimeout(r, COMPLETION_DISPLAY_MS)); // briefly show 100%
-
-      await fetchAssets();
-      addToast('File uploaded successfully', 'success');
+      void (async () => {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const result = await Promise.race([
+            insertPromise,
+            new Promise<never>((_, reject) => {
+              timeoutId = setTimeout(() => reject(new Error('DB insert timed out')), DB_INSERT_TIMEOUT_MS);
+            }),
+          ]);
+          clearTimeout(timeoutId);
+          console.log('[asset upload] DB insert response:', result);
+          if (result.error) {
+            console.error('[asset upload] DB insert failed:', result.error);
+            addToast(`Warning: file saved but record not stored (${result.error.message})`, 'error');
+          } else {
+            // Activity log – fire and forget
+            void supabase.from('activities').insert({
+              type: 'asset',
+              description: `Asset "${file.name}" uploaded`,
+            });
+            void fetchAssets();
+          }
+        } catch (err: unknown) {
+          clearTimeout(timeoutId);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[asset upload] DB insert error:', msg);
+          addToast(`Warning: file saved but record not stored (${msg})`, 'error');
+        }
+      })();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (process.env.NODE_ENV === 'development') console.error('[asset upload] ❌', msg);
+      console.error('[asset upload] ❌', msg);
       addToast(`Upload failed: ${msg}`, 'error');
     } finally {
       setUploading(false);
