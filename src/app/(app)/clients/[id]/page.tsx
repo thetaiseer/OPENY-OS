@@ -150,26 +150,57 @@ export default function ClientWorkspace() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    const filePath = `${id}/${Date.now()}-${file.name}`;
     try {
-      const filePath = `${id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
+      // Step 1: Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-assets')
         .upload(filePath, file);
+      console.log('[client upload] storage response:', uploadData, uploadError);
       if (uploadError) throw uploadError;
 
+      // Step 2: Get public URL
       const { data: urlData } = supabase.storage.from('client-assets').getPublicUrl(filePath);
-      const { error: dbError } = await supabase.from('assets').insert({
+      const publicUrl = urlData.publicUrl;
+      console.log('[client upload] public URL:', publicUrl);
+
+      // Upload complete – unblock UI before waiting on DB
+      void logActivity(`Asset "${file.name}" uploaded`);
+
+      // Step 3: Insert into assets table with timeout
+      const insertPromise = supabase.from('assets').insert({
         name: file.name,
         file_path: filePath,
-        file_url: urlData.publicUrl,
+        file_url: publicUrl,
         file_type: file.type || null,
         file_size: file.size || null,
         bucket_name: 'client-assets',
         client_id: id,
       });
-      if (dbError) throw new Error(`DB insert failed: ${dbError.message} (code: ${dbError.code}, details: ${dbError.details})`);
-      await logActivity(`Asset "${file.name}" uploaded`);
-      loadAll();
+      void (async () => {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const result = await Promise.race([
+            insertPromise,
+            new Promise<never>((_, reject) => {
+              timeoutId = setTimeout(() => reject(new Error('DB insert timed out')), 8000);
+            }),
+          ]);
+          clearTimeout(timeoutId);
+          console.log('[client upload] DB insert response:', result);
+          if (result.error) {
+            console.error('[client upload] DB insert failed:', result.error);
+            alert(`Warning: file saved but record not stored (${result.error.message})`);
+          } else {
+            loadAll();
+          }
+        } catch (err: unknown) {
+          clearTimeout(timeoutId);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[client upload] DB insert error:', msg);
+          alert(`Warning: file saved but record not stored (${msg})`);
+        }
+      })();
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') console.error('[asset upload]', err);
       alert(err instanceof Error ? err.message : 'Upload failed');
