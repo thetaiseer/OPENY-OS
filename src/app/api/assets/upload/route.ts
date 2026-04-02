@@ -5,8 +5,9 @@ import { uploadToDrive } from '@/lib/google-drive';
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
   return createClient(url, key);
 }
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       download_url: webContentLink,
       file_type: file.type || null,
       file_size: file.size || null,
-      bucket_name: 'google_drive',
+      bucket_name: null,
       storage_provider: 'google_drive',
       drive_file_id,
     };
