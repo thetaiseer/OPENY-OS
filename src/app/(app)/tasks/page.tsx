@@ -499,7 +499,7 @@ export default function TasksPage() {
         client_id: createForm.client_id || null,
         assigned_to: createForm.assigned_to || null,
         created_by: createForm.created_by || null,
-        mentions: createForm.mentions,
+        mentions: Array.isArray(createForm.mentions) ? createForm.mentions : [],
         tags: parseTags(createForm.tags),
       };
       const { error } = await supabase.from('tasks').insert(payload);
@@ -513,8 +513,11 @@ export default function TasksPage() {
       setCreateForm({ ...blankForm });
       fetchAll();
     } catch (err: unknown) {
-      if (process.env.NODE_ENV === 'development') console.error('[task create]', err);
-      alert(err instanceof Error ? err.message : 'Failed to create task');
+      console.error('[task create]', err);
+      const msg = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message ?? 'Failed to create task';
+      alert(msg);
     } finally {
       setSaving(false);
     }
@@ -551,7 +554,7 @@ export default function TasksPage() {
         client_id: editForm.client_id || null,
         assigned_to: editForm.assigned_to || null,
         created_by: editForm.created_by || null,
-        mentions: editForm.mentions,
+        mentions: Array.isArray(editForm.mentions) ? editForm.mentions : [],
         tags: parseTags(editForm.tags),
         updated_at: new Date().toISOString(),
       };
@@ -565,8 +568,11 @@ export default function TasksPage() {
       setEditTask(null);
       fetchAll();
     } catch (err: unknown) {
-      if (process.env.NODE_ENV === 'development') console.error('[task edit]', err);
-      alert(err instanceof Error ? err.message : 'Failed to update task');
+      console.error('[task update]', err);
+      const msg = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message ?? 'Failed to update task';
+      alert(msg);
     } finally {
       setSaving(false);
     }
