@@ -1,25 +1,24 @@
+import type { LucideIcon } from 'lucide-react';
 
+interface EmptyStateProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}
 
-
-
-
-
-
-
-
-
-export function EmptyState({ icon: Icon, title, description, action = null }) {
+export default function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
+    <div className="flex flex-col items-center justify-center py-20 text-center">
       <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-        style={{ background: 'var(--surface-3)' }}>
-        
-        <Icon size={24} style={{ color: 'var(--text-muted)' }} />
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+        style={{ background: 'var(--surface-2)' }}
+      >
+        <Icon size={28} style={{ color: 'var(--text-secondary)' }} />
       </div>
-      <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{title}</p>
-      <p className="text-xs max-w-[260px]" style={{ color: 'var(--text-muted)' }}>{description}</p>
-      {action && <div className="mt-5">{action}</div>}
-    </div>);
-
+      <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text)' }}>{title}</h3>
+      <p className="text-sm max-w-sm mb-6" style={{ color: 'var(--text-secondary)' }}>{description}</p>
+      {action}
+    </div>
+  );
 }

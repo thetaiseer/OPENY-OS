@@ -1,24 +1,19 @@
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info';
 
-
-
-
-
-const colors = {
-  blue: { background: 'rgba(79,142,247,0.15)', color: '#4f8ef7' },
-  green: { background: 'rgba(52,211,153,0.15)', color: '#34d399' },
-  yellow: { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  red: { background: 'rgba(248,113,113,0.15)', color: '#f87171' },
-  gray: { background: 'rgba(136,136,160,0.15)', color: '#8888a0' },
-  purple: { background: 'rgba(167,139,250,0.15)', color: '#a78bfa' }
+const variants: Record<BadgeVariant, string> = {
+  default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  success: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+  danger:  'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
+  info:    'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
 };
 
-export function Badge({ label, color = "gray" }) {
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium"
-      style={colors[color]}>
-      
-      {label}
-    </span>);
+interface BadgeProps { children: React.ReactNode; variant?: BadgeVariant; }
 
+export default function Badge({ children, variant = 'default' }: BadgeProps) {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]}`}>
+      {children}
+    </span>
+  );
 }
