@@ -197,7 +197,7 @@ export default function ClientsPage() {
           value={contentItems.length}
           hint={pageText("Content tied to clients", "المحتوى المرتبط بالعملاء")}
           icon={Sparkles}
-          tone="blue"
+          tone="violet"
         />
       </section>
 
@@ -398,7 +398,7 @@ export default function ClientsPage() {
               )}
             />
           ) : (
-            <BarListChart items={healthiest} tone="blue" />
+            <BarListChart items={healthiest} tone="violet" />
           )}
         </Panel>
       </div>

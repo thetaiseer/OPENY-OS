@@ -103,7 +103,7 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
             width: "100%",
             color: "var(--text)",
             outline: "none",
-            cursor: "pointer",
+            cursor: "default",
             fontFamily: "inherit",
           }}
         />

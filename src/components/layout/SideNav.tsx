@@ -198,10 +198,10 @@ export function SideNav({ collapsed, onToggleCollapse }: SideNavProps) {
             cursor: "pointer",
             transition: "all 0.15s",
           }}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isRTL ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isRTL
-            ? (collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />)
+            ? (collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />)
             : (collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />)
           }
           {!collapsed && (

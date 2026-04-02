@@ -97,7 +97,13 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
+          gap: 20,
+        }}
+      >
         {/* Recent clients */}
         <Panel
           title={pageText("Recent Clients", "أحدث العملاء")}
