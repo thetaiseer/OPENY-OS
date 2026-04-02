@@ -30,6 +30,8 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
   const { theme, toggleTheme } = useTheme();
   const { isRTL } = useLanguage();
   const { unreadCount } = useNotifications();
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent);
+  const kbdShortcut = isMac ? "⌘K" : "Ctrl K";
 
   const onEnter = (e: React.MouseEvent<HTMLElement>) => {
     e.currentTarget.style.background = "var(--surface-2)";
@@ -123,7 +125,7 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
             pointerEvents: "none",
           }}
         >
-          ⌘K
+          {kbdShortcut}
         </span>
       </div>
 

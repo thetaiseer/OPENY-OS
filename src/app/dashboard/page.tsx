@@ -22,8 +22,8 @@ export default function DashboardPage() {
   const isAr = language === "ar";
 
   const activeClients = clients.filter((c) => c.status === "active").length;
-  const recentClients = [...clients].slice(0, 5);
-  const recentTasks = [...tasks].slice(0, 5);
+  const recentClients = clients.slice(0, 5);
+  const recentTasks = tasks.slice(0, 5);
   const recentNotifications = notifications.slice(0, 5);
 
   return (
@@ -153,7 +153,7 @@ export default function DashboardPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {client.initials || client.name?.slice(0, 2).toUpperCase()}
+                    {client.initials || client.name?.slice(0, 2).toUpperCase() || "??"}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.3, margin: 0 }}>

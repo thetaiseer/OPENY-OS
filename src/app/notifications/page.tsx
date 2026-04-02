@@ -176,7 +176,7 @@ export default function NotificationsPage() {
                   )}
                   {n.createdAt && (
                     <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
-                      {formatTime(n.createdAt as number | string)}
+                      {formatTime(n.createdAt as string | number | undefined)}
                     </p>
                   )}
                 </div>
