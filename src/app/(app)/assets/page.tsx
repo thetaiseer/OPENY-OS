@@ -38,29 +38,72 @@ export default function AssetsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    try {
-      const filePath = `global/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from('client-assets').getPublicUrl(filePath);
-      const { error: dbError } = await supabase.from('assets').insert({
+    // Sanitize file name: remove Arabic characters, spaces, and special symbols
+    const safeFileName = file.name
+      .replace(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+/g, '')   // Arabic
+      .replace(/\s+/g, '-')                                           // spaces → dash
+      .replace(/[^a-zA-Z0-9._-]/g, '')                               // keep only safe chars
+      || `file-${Date.now()}`;
+
+    const bucket = 'client-assets';
+    const filePath = `global/${Date.now()}-${safeFileName}`;
+
+    console.log('[asset upload] Step 0 – file info', {
+      originalName: file.name,
+      safeFileName,
+      type: file.type,
+      size: file.size,
+      bucket,
+      filePath,
+    });
+
+    try {
+      // ── Step A: Upload file to Supabase Storage ──────────────────────────
+      console.log('[asset upload] Step A – uploading to storage…');
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, { upsert: false });
+
+      console.log('[asset upload] Step A – result', { uploadData, uploadError });
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message} (${JSON.stringify(uploadError)})`);
+      }
+
+      // ── Step B: Get public URL ────────────────────────────────────────────
+      console.log('[asset upload] Step B – getting public URL…');
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      console.log('[asset upload] Step B – result', { urlData });
+
+      const publicUrl = urlData?.publicUrl ?? '';
+
+      // ── Step C: Insert record into assets table ───────────────────────────
+      console.log('[asset upload] Step C – inserting into assets table…');
+      const { data: insertData, error: dbError } = await supabase.from('assets').insert({
         name: file.name,
         file_path: filePath,
-        file_url: urlData.publicUrl,
-      });
-      if (dbError) throw dbError;
+        file_url: publicUrl,
+        file_type: file.type || null,
+        file_size: file.size || null,
+      }).select().single();
 
+      console.log('[asset upload] Step C – result', { insertData, dbError });
+      if (dbError) {
+        throw new Error(`DB insert failed: ${dbError.message} (code: ${dbError.code}, details: ${dbError.details})`);
+      }
+
+      // ── Activity log (non-blocking) ───────────────────────────────────────
       await supabase.from('activities').insert({
         type: 'asset',
         description: `Asset "${file.name}" uploaded`,
       });
+
+      console.log('[asset upload] ✅ Upload complete');
       fetchAssets();
     } catch (err: unknown) {
-      if (process.env.NODE_ENV === 'development') console.error('[asset upload]', err);
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[asset upload] ❌ FAILED:', msg, err);
+      alert(`Upload failed:\n\n${msg}`);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
