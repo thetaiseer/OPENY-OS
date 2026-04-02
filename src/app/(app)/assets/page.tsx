@@ -290,6 +290,7 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TOAST_DURATION_MS = 4500;
+const UPLOAD_TIMEOUT_MS = 300_000; // 5-minute hard timeout
 
 // Staged progress steps matching server-side flow
 const UPLOAD_STAGES = [
@@ -373,11 +374,16 @@ export default function AssetsPage() {
       const formData = new FormData();
       formData.append('file', file);
 
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
       const res = await fetch('/api/assets/upload', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(fetchTimeout);
       stageTimers.forEach(clearTimeout);
 
       const json = await res.json();
@@ -399,7 +405,9 @@ export default function AssetsPage() {
       void fetchAssets();
     } catch (err: unknown) {
       stageTimers.forEach(clearTimeout);
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? 'Upload timed out after 5 minutes' : err.message)
+        : String(err);
       console.error('[asset upload] ❌', msg);
       addToast(`Upload failed: ${msg}`, 'error');
     } finally {

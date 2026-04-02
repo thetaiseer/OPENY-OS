@@ -5,12 +5,236 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File,
   Calendar, User, Users, Tag, AlertCircle, Plus,
+  FileText, FileImage, FileVideo, FileAudio, Eye, Download, Link, ExternalLink,
+  CheckCircle, X,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
+
+// ── Asset upload helpers ──────────────────────────────────────────────────────
+
+interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
+interface TempFile { name: string; type: string; previewUrl?: string }
+
+function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+      {toasts.map(toast => (
+        <div
+          key={toast.id}
+          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
+          style={{ background: toast.type === 'success' ? '#16a34a' : '#dc2626', minWidth: 240, animation: 'fadeSlideUp 0.2s ease' }}
+        >
+          {toast.type === 'success'
+            ? <CheckCircle size={16} className="shrink-0" />
+            : <X size={16} className="shrink-0" />}
+          <span className="flex-1">{toast.message}</span>
+          <button onClick={() => remove(toast.id)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatAssetSize(bytes?: number): string {
+  if (!bytes) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatAssetDate(iso?: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isImageFile(name: string, type?: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false);
+}
+
+function getFileTypeLabel(name: string, type?: string): string {
+  if (type) {
+    const sub = type.split('/')[1]?.toUpperCase();
+    if (sub) return sub;
+  }
+  return name.split('.').pop()?.toUpperCase() ?? 'FILE';
+}
+
+function AssetFileIcon({ name, type, size = 36 }: { name: string; type?: string; size?: number }) {
+  if (isImageFile(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
+  if (/\.pdf$/i.test(name) || type === 'application/pdf') return <FileText size={size} style={{ color: '#ef4444' }} />;
+  if (type?.startsWith('video/')) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
+  if (type?.startsWith('audio/')) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
+  return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
+}
+
+const UPLOAD_TIMEOUT_MS = 300_000; // 5-minute hard timeout
+
+const ASSET_UPLOAD_STAGES = [
+  { at: 10, label: 'Preparing upload…' },
+  { at: 40, label: 'Uploading to Google Drive…' },
+  { at: 75, label: 'Creating share links…' },
+  { at: 90, label: 'Saving metadata…' },
+  { at: 100, label: 'Completed' },
+] as const;
+
+const ASSET_STAGE_TIMINGS_MS = [0, 600, 2500, 5000];
+
+function ClientUploadProgress({ progress, status, file }: { progress: number; status: string; file: TempFile }) {
+  return (
+    <div
+      className="rounded-2xl border p-4 space-y-3"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+          style={{ background: 'var(--surface-2)' }}
+        >
+          {file.previewUrl
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover rounded-xl" />
+            : <AssetFileIcon name={file.name} type={file.type} size={20} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{file.name}</p>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{status}</span>
+            <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{progress}%</span>
+          </div>
+          <div className="w-full rounded-full h-1.5 mt-1" style={{ background: 'var(--surface-2)' }}>
+            <div
+              className="h-1.5 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%`, background: 'var(--accent)' }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientAssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: {
+  asset: Asset;
+  onView: () => void;
+  onDelete: () => void;
+  onCopyLink: () => void;
+  onOpenInDrive: () => void;
+}) {
+  const img = isImageFile(asset.name, asset.file_type);
+  const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
+  const downloadUrl = asset.download_url ?? asset.file_url;
+  return (
+    <div
+      className="group rounded-2xl border overflow-hidden flex flex-col"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div
+        className="relative overflow-hidden cursor-pointer"
+        style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }}
+        onClick={onView}
+      >
+        {img
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={asset.file_url} alt={asset.name} className="w-full h-full object-cover" />
+          : <div className="w-full h-full flex items-center justify-center"><AssetFileIcon name={asset.name} type={asset.file_type} size={32} /></div>}
+        <div
+          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+        >
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
+            <Eye size={18} className="text-white" />
+          </div>
+        </div>
+      </div>
+      <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          <span className="text-xs font-medium px-1.5 py-0.5 rounded"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+            {getFileTypeLabel(asset.name, asset.file_type)}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatAssetSize(asset.file_size)}</span>
+        </div>
+        <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatAssetDate(asset.created_at)}</span>
+      </div>
+      <div className="px-3 pb-3 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <button onClick={onView} title="View"
+          className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+          <Eye size={13} /><span>View</span>
+        </button>
+        <a href={downloadUrl} download={asset.name} title="Download"
+          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+          <Download size={14} />
+        </a>
+        <button onClick={onCopyLink} title="Copy link"
+          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+          <Link size={14} />
+        </button>
+        {hasDrive && (
+          <button onClick={onOpenInDrive} title="Open in Drive"
+            className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+            <ExternalLink size={14} />
+          </button>
+        )}
+        <button onClick={onDelete} title="Delete"
+          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
+          style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ClientPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+  const downloadUrl = asset.download_url ?? asset.file_url;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
+      <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center"
+        onClick={e => e.stopPropagation()}>
+        <button onClick={onClose}
+          className="absolute -top-10 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          <X size={18} />
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={asset.file_url} alt={asset.name}
+          className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl" />
+        <p className="mt-3 text-white/70 text-sm truncate max-w-full px-4">{asset.name}</p>
+        <div className="mt-3 flex gap-3">
+          <a href={downloadUrl} download={asset.name}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+            onClick={e => e.stopPropagation()}>
+            <Download size={14} /> Download
+          </a>
+          {asset.view_url && (
+            <a href={asset.view_url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+              onClick={e => e.stopPropagation()}>
+              <ExternalLink size={14} /> Open in Drive
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const tabs = ['overview', 'tasks', 'content', 'assets', 'approvals', 'activity'] as const;
 
@@ -59,6 +283,12 @@ export default function ClientWorkspace() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [tempUploadFile, setTempUploadFile] = useState<TempFile | null>(null);
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const toastIdRef = useRef(0);
 
   // Task quick-create
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -73,6 +303,16 @@ export default function ClientWorkspace() {
   const logActivity = async (description: string) => {
     await supabase.from('activities').insert({ type: 'client', description, client_id: id });
   };
+
+  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    const tid = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id: tid, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== tid)), 4500);
+  }, []);
+
+  const removeToast = useCallback((tid: number) => {
+    setToasts(prev => prev.filter(t => t.id !== tid));
+  }, []);
 
   const loadAll = useCallback(async () => {
     const [c, tk, ct, a, act, appr, tm] = await Promise.allSettled([
@@ -148,79 +388,82 @@ export default function ClientWorkspace() {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || uploading) return;
+    if (fileRef.current) fileRef.current.value = '';
+
+    // Generate local preview for images immediately
+    const previewUrl = /^image\//.test(file.type) ? URL.createObjectURL(file) : undefined;
+    setTempUploadFile({ name: file.name, type: file.type, previewUrl });
     setUploading(true);
-    const filePath = `${id}/${Date.now()}-${file.name}`;
+
+    // Advance fake progress stages while the real upload runs
+    const stageTimers: ReturnType<typeof setTimeout>[] = [];
+    ASSET_STAGE_TIMINGS_MS.forEach((delay, idx) => {
+      const timer = setTimeout(() => {
+        setUploadProgress(ASSET_UPLOAD_STAGES[idx].at);
+        setUploadStatus(ASSET_UPLOAD_STAGES[idx].label);
+      }, delay);
+      stageTimers.push(timer);
+    });
+
     try {
-      // Step 1: Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(filePath, file);
-      console.log('[client upload] storage response:', uploadData, uploadError);
-      if (uploadError) throw uploadError;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('client_id', id);
 
-      // Step 2: Get public URL
-      const { data: urlData } = supabase.storage.from('client-assets').getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl;
-      console.log('[client upload] public URL:', publicUrl);
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
-      // Upload complete – unblock UI before waiting on DB
-      void logActivity(`Asset "${file.name}" uploaded`);
-
-      // Step 3: Insert into assets table with timeout
-      const insertPromise = supabase.from('assets').insert({
-        name: file.name,
-        file_path: filePath,
-        file_url: publicUrl,
-        file_type: file.type || null,
-        file_size: file.size || null,
-        bucket_name: 'client-assets',
-        client_id: id,
+      const res = await fetch('/api/assets/upload', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
       });
-      void (async () => {
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const result = await Promise.race([
-            insertPromise,
-            new Promise<never>((_, reject) => {
-              timeoutId = setTimeout(() => reject(new Error('DB insert timed out')), 8000);
-            }),
-          ]);
-          clearTimeout(timeoutId);
-          console.log('[client upload] DB insert response:', result);
-          if (result.error) {
-            console.error('[client upload] DB insert failed:', result.error);
-            alert(`Warning: file saved but record not stored (${result.error.message})`);
-          } else {
-            loadAll();
-          }
-        } catch (err: unknown) {
-          clearTimeout(timeoutId);
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error('[client upload] DB insert error:', msg);
-          alert(`Warning: file saved but record not stored (${msg})`);
-        }
-      })();
+
+      clearTimeout(fetchTimeout);
+      stageTimers.forEach(clearTimeout);
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Upload failed (HTTP ${res.status})`);
+
+      // Show 90% → 100%
+      setUploadProgress(ASSET_UPLOAD_STAGES[3].at);
+      setUploadStatus(ASSET_UPLOAD_STAGES[3].label);
+      await new Promise(r => setTimeout(r, 400));
+      setUploadProgress(ASSET_UPLOAD_STAGES[4].at);
+      setUploadStatus(ASSET_UPLOAD_STAGES[4].label);
+      await new Promise(r => setTimeout(r, 500));
+
+      addToast('File uploaded to Google Drive', 'success');
+      setTempUploadFile(null);
+      void loadAll();
     } catch (err: unknown) {
-      if (process.env.NODE_ENV === 'development') console.error('[asset upload]', err);
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      stageTimers.forEach(clearTimeout);
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? 'Upload timed out after 5 minutes' : err.message)
+        : String(err);
+      console.error('[client upload] ❌', msg);
+      addToast(`Upload failed: ${msg}`, 'error');
+      setTempUploadFile(null);
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
+      setUploadProgress(0);
+      setUploadStatus('');
+      // Revoke the local object URL to free memory
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     }
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
-    if (asset.file_path) {
-      await supabase.storage.from('client-assets').remove([asset.file_path]);
-    }
-    const { error } = await supabase.from('assets').delete().eq('id', asset.id);
-    if (error) {
-      if (process.env.NODE_ENV === 'development') console.error('[asset delete]', error);
+    const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!res.ok) {
+      addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
       return;
     }
     setAssets(prev => prev.filter(a => a.id !== asset.id));
+    addToast('File deleted', 'success');
     await logActivity(`Asset "${asset.name}" deleted`);
   };
 
@@ -279,7 +522,9 @@ export default function ClientWorkspace() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <>
+      <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <div className="max-w-6xl mx-auto space-y-6">
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
@@ -495,49 +740,54 @@ export default function ClientWorkspace() {
           <div className="space-y-4">
             <div className="flex justify-end">
               <button
-                onClick={() => fileRef.current?.click()}
+                onClick={() => !uploading && fileRef.current?.click()}
                 disabled={uploading}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity"
                 style={{ background: 'var(--accent)' }}
               >
-                <Upload size={14} />{uploading ? t('loading') : t('uploadFile')}
+                <Upload size={14} />{uploading ? 'Uploading…' : t('uploadFile')}
               </button>
               <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} />
             </div>
-            {assets.length === 0 ? (
+
+            {/* Upload progress card */}
+            {uploading && tempUploadFile && (
+              <ClientUploadProgress
+                progress={uploadProgress}
+                status={uploadStatus}
+                file={tempUploadFile}
+              />
+            )}
+
+            {assets.length === 0 && !uploading ? (
               <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>{t('noAssetsYet')}</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {assets.map(a => {
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a.name);
-                  return (
-                    <div
-                      key={a.id}
-                      className="group relative rounded-2xl border overflow-hidden"
-                      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                    >
-                      {isImage ? (
-                        <div className="aspect-square overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={a.file_url} alt={a.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="aspect-square flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-                          <File size={32} style={{ color: 'var(--text-secondary)' }} />
-                        </div>
-                      )}
-                      <div className="p-3">
-                        <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteAsset(a)}
-                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
+                {assets.map(a => (
+                  <ClientAssetCard
+                    key={a.id}
+                    asset={a}
+                    onView={() => {
+                      if (isImageFile(a.name, a.file_type)) {
+                        setPreviewAsset(a);
+                      } else {
+                        window.open(a.view_url ?? a.file_url, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    onDelete={() => handleDeleteAsset(a)}
+                    onCopyLink={async () => {
+                      try {
+                        await navigator.clipboard.writeText(a.view_url ?? a.file_url);
+                        addToast('Link copied', 'success');
+                      } catch {
+                        addToast('Failed to copy link', 'error');
+                      }
+                    }}
+                    onOpenInDrive={() => {
+                      if (a.view_url) window.open(a.view_url, '_blank', 'noopener,noreferrer');
+                    }}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -699,5 +949,14 @@ export default function ClientWorkspace() {
         </form>
       </Modal>
     </div>
+
+    {/* Image preview lightbox */}
+    {previewAsset && (
+      <ClientPreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />
+    )}
+
+    {/* Toast notifications */}
+    <ClientToast toasts={toasts} remove={removeToast} />
+    </>
   );
 }
