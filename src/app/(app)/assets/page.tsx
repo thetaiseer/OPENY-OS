@@ -290,6 +290,7 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TOAST_DURATION_MS = 4500;
+const UPLOAD_TIMEOUT_MS = 300_000; // 5-minute hard timeout
 
 // Staged progress steps matching server-side flow
 const UPLOAD_STAGES = [
@@ -374,7 +375,7 @@ export default function AssetsPage() {
       formData.append('file', file);
 
       const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), 300_000); // 5-minute hard timeout
+      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
       const res = await fetch('/api/assets/upload', {
         method: 'POST',

@@ -74,6 +74,8 @@ function AssetFileIcon({ name, type, size = 36 }: { name: string; type?: string;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
+const UPLOAD_TIMEOUT_MS = 300_000; // 5-minute hard timeout
+
 const ASSET_UPLOAD_STAGES = [
   { at: 10, label: 'Preparing upload…' },
   { at: 40, label: 'Uploading to Google Drive…' },
@@ -410,7 +412,7 @@ export default function ClientWorkspace() {
       formData.append('client_id', id);
 
       const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), 300_000); // 5-minute hard timeout
+      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
       const res = await fetch('/api/assets/upload', {
         method: 'POST',
@@ -447,6 +449,8 @@ export default function ClientWorkspace() {
       setUploading(false);
       setUploadProgress(0);
       setUploadStatus('');
+      // Revoke the local object URL to free memory
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     }
   };
 
