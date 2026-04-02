@@ -25,7 +25,7 @@ interface SidebarProps { open?: boolean; onClose?: () => void; }
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLang();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <>
@@ -85,33 +85,24 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* User */}
-        {user && (
-          <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-3 mb-3">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-                style={{ background: 'var(--accent)' }}
-              >
-                {(user.name || user.email).charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                  {user.name}
-                </p>
-                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                  {user.email}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={logout}
-              className="w-full text-xs px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-2)]"
-              style={{ color: 'var(--text-secondary)' }}
+        <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
+              style={{ background: 'var(--accent)' }}
             >
-              {t('logout')}
-            </button>
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                {user.name}
+              </p>
+              <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                {user.role}
+              </p>
+            </div>
           </div>
-        )}
+        </div>
       </aside>
     </>
   );
