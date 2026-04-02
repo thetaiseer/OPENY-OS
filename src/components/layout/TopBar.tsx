@@ -1,24 +1,48 @@
 "use client";
-import { useMemo, useState } from "react";
-import { Search, Menu } from "lucide-react";
+import Link from "next/link";
+import { Search, Sun, Moon, Bell, UserCircle, Menu } from "lucide-react";
+import { useTheme } from "@/components/layout/ThemeProvider";
 import { useLanguage } from "@/lib/LanguageContext";
-import { NotificationCenter } from "@/components/ui/NotificationCenter";
+import { useNotifications } from "@/lib/NotificationContext";
 
 interface TopBarProps {
   sidebarWidth: number;
   onMobileMenuOpen?: () => void;
 }
 
-export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
-  const { language, isRTL } = useLanguage();
-  const [searchFocused, setSearchFocused] = useState(false);
+const iconBtnStyle: React.CSSProperties = {
+  width: 36,
+  height: 36,
+  borderRadius: 8,
+  background: "transparent",
+  border: "1px solid transparent",
+  color: "var(--text-secondary)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  transition: "all 0.15s",
+  position: "relative",
+  flexShrink: 0,
+};
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    return language === "ar"
-      ? hour < 12 ? "صباح الخير" : hour < 17 ? "مساء الخير" : "مساء النور"
-      : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  }, [language]);
+export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
+  const { theme, toggleTheme } = useTheme();
+  const { isRTL } = useLanguage();
+  const { unreadCount } = useNotifications();
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent);
+  const kbdShortcut = isMac ? "⌘K" : "Ctrl K";
+
+  const onEnter = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.background = "var(--surface-2)";
+    e.currentTarget.style.borderColor = "var(--border)";
+    e.currentTarget.style.color = "var(--text)";
+  };
+  const onLeave = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.borderColor = "transparent";
+    e.currentTarget.style.color = "var(--text-secondary)";
+  };
 
   return (
     <header
@@ -28,85 +52,130 @@ export function TopBar({ sidebarWidth, onMobileMenuOpen }: TopBarProps) {
         left: isRTL ? 0 : sidebarWidth,
         right: isRTL ? sidebarWidth : 0,
         height: "var(--topbar-height)",
-        background: "var(--glass-topbar)",
+        background: "var(--header-bg)",
         borderBottom: "1px solid var(--header-border)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        zIndex: 99,
         display: "flex",
         alignItems: "center",
-        gap: 16,
-        padding: "0 28px",
-        zIndex: 90,
-        transition: "left 0.25s ease, right 0.25s ease",
+        padding: "0 16px",
+        gap: 12,
+        transition: "left 0.2s ease, right 0.2s ease",
       }}
     >
       {/* Mobile menu button */}
       <button
-        onClick={onMobileMenuOpen}
         className="md:hidden"
-        style={{
-          width: 38, height: 38, borderRadius: 10,
-          background: "var(--glass-overlay)",
-          border: "1px solid var(--border)",
-          color: "var(--text-secondary)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", flexShrink: 0,
-        }}
+        onClick={onMobileMenuOpen}
+        style={iconBtnStyle}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+        title="Open menu"
       >
         <Menu size={18} />
       </button>
 
-      {/* Greeting */}
-      <div className="hidden md:block" style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1, letterSpacing: "0.01em" }}>{greeting}</p>
-        <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginTop: 3, lineHeight: 1, letterSpacing: "-0.01em" }}>
-          OPENY OS
-        </p>
-      </div>
-
-      {/* Search bar */}
-      <div style={{
-        position: "relative",
-        flex: "0 1 400px",
-        display: "flex",
-        alignItems: "center",
-      }}>
+      {/* Search */}
+      <div style={{ flex: 1, maxWidth: 400, position: "relative" }}>
         <Search
-          size={15}
+          size={14}
           style={{
             position: "absolute",
-            left: isRTL ? "auto" : 13,
-            right: isRTL ? 13 : "auto",
+            left: isRTL ? "auto" : 10,
+            right: isRTL ? 10 : "auto",
+            top: "50%",
+            transform: "translateY(-50%)",
             color: "var(--text-muted)",
             pointerEvents: "none",
           }}
         />
         <input
           type="text"
-          placeholder={language === "ar" ? "بحث سريع..." : "Quick search..."}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
+          placeholder="Search..."
+          readOnly
           style={{
-            width: "100%",
-            height: 40,
-            background: searchFocused ? "rgba(255,255,255,0.07)" : "var(--glass-input)",
-            border: `1px solid ${searchFocused ? "var(--border-focus)" : "var(--border-strong)"}`,
-            borderRadius: 12,
-            color: "var(--text)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            height: 36,
+            paddingLeft: isRTL ? 56 : 32,
+            paddingRight: isRTL ? 32 : 56,
             fontSize: 13,
-            paddingLeft: isRTL ? 12 : 36,
-            paddingRight: isRTL ? 36 : 12,
+            width: "100%",
+            color: "var(--text)",
             outline: "none",
-            transition: "all 0.15s",
-            boxShadow: searchFocused ? "0 0 0 3px rgba(59,130,246,0.1)" : "none",
+            cursor: "default",
+            fontFamily: "inherit",
           }}
         />
+        <span
+          style={{
+            position: "absolute",
+            right: isRTL ? "auto" : 8,
+            left: isRTL ? 8 : "auto",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            fontSize: 11,
+            color: "var(--text-muted)",
+            padding: "1px 5px",
+            pointerEvents: "none",
+          }}
+        >
+          {kbdShortcut}
+        </span>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+      {/* Right actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          style={iconBtnStyle}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+
         {/* Notifications */}
-        <NotificationCenter />
+        <Link
+          href="/notifications"
+          style={{ ...iconBtnStyle, display: "inline-flex" }}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          title="Notifications"
+        >
+          <Bell size={16} />
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: 7,
+                right: 7,
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "var(--danger)",
+                border: "1.5px solid var(--header-bg)",
+              }}
+            />
+          )}
+        </Link>
+
+        {/* Profile */}
+        <button
+          style={iconBtnStyle}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          title="Profile"
+        >
+          <UserCircle size={20} style={{ color: "var(--accent)" }} />
+        </button>
       </div>
     </header>
   );
