@@ -171,6 +171,34 @@ function escapeDriveQueryString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+// ── Month helpers ─────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+/**
+ * Split a YYYY-MM monthKey into the two Drive folder name components:
+ *   year       – e.g. "2026"
+ *   monthFolder – e.g. "04-April"
+ */
+function monthKeyToComponents(monthKey: string): { year: string; monthFolder: string } {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) {
+    throw new Error(`monthKeyToComponents: invalid monthKey format "${monthKey}" — expected YYYY-MM`);
+  }
+  const [year, mm] = monthKey.split('-') as [string, string];
+  const monthIndex = parseInt(mm, 10) - 1;
+  let monthName: string;
+  if (monthIndex >= 0 && monthIndex < MONTH_NAMES.length) {
+    monthName = MONTH_NAMES[monthIndex];
+  } else {
+    console.warn(`[google-drive] monthKeyToComponents: unexpected month index ${monthIndex} for monthKey "${monthKey}" — using raw mm value`);
+    monthName = mm;
+  }
+  return { year, monthFolder: `${mm}-${monthName}` };
+}
+
 // ── Folder helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -217,7 +245,7 @@ async function getOrCreateFolder(
 
 /**
  * Upload a file buffer to the structured path:
- *   OPENY_OS_STORAGE / CLIENT_FOLDER_NAME / CONTENT_TYPE / MONTH_KEY
+ *   root / Clients / clientFolderName / contentType / year / MM-MonthName
  *
  * Creates any missing folders along the way.
  * Returns drive_file_id, drive_folder_id (the month folder), and public links.
@@ -236,17 +264,24 @@ export async function uploadToStructuredPath(
   const email = await getAuthenticatedEmail(auth);
   console.log('[google-drive] authenticated as Google account:', email);
 
-  console.log(`[google-drive] structured upload: ${clientFolderName}/${contentType}/${monthKey}/${fileName}`);
+  const { year, monthFolder } = monthKeyToComponents(monthKey);
+  console.log(`[google-drive] structured upload: Clients/${clientFolderName}/${contentType}/${year}/${monthFolder}/${fileName}`);
 
-  // Build folder hierarchy: root → client → content_type → month
-  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, rootFolderId);
+  // Build folder hierarchy: root → Clients → client → content_type → year → month
+  const clientsFolderId = await getOrCreateFolder(drive, 'Clients', rootFolderId);
+  console.log('[google-drive] resolved Clients folder → id:', clientsFolderId);
+
+  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, clientsFolderId);
   console.log('[google-drive] resolved client folder:', clientFolderName, '→ id:', clientFolderId);
 
   const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
   console.log('[google-drive] resolved content type folder:', contentType, '→ id:', contentTypeFolderId);
 
-  const monthFolderId = await getOrCreateFolder(drive, monthKey, contentTypeFolderId);
-  console.log('[google-drive] resolved month folder:', monthKey, '→ id:', monthFolderId);
+  const yearFolderId = await getOrCreateFolder(drive, year, contentTypeFolderId);
+  console.log('[google-drive] resolved year folder:', year, '→ id:', yearFolderId);
+
+  const monthFolderId = await getOrCreateFolder(drive, monthFolder, yearFolderId);
+  console.log('[google-drive] resolved month folder:', monthFolder, '→ id:', monthFolderId);
 
   // Upload file into the month folder
   const readableStream = Readable.from(buffer);
@@ -334,7 +369,7 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
  * Build the Drive folder hierarchy for a structured upload and return the leaf
  * (month) folder ID.  Creates any missing folders along the way.
  *
- * Path: OPENY_OS_STORAGE / clientFolderName / contentType / monthKey
+ * Path: root / Clients / clientFolderName / contentType / year / MM-MonthName
  */
 export async function createFolderHierarchy(
   clientFolderName: string,
@@ -342,15 +377,22 @@ export async function createFolderHierarchy(
   monthKey: string,
 ): Promise<{ monthFolderId: string; clientFolderName: string }> {
   const { drive, rootFolderId } = getDriveClient();
+  const { year, monthFolder } = monthKeyToComponents(monthKey);
 
-  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, rootFolderId);
+  const clientsFolderId = await getOrCreateFolder(drive, 'Clients', rootFolderId);
+  console.log('[google-drive] folder hierarchy — Clients →', clientsFolderId);
+
+  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, clientsFolderId);
   console.log('[google-drive] folder hierarchy — client:', clientFolderName, '→', clientFolderId);
 
   const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
   console.log('[google-drive] folder hierarchy — contentType:', contentType, '→', contentTypeFolderId);
 
-  const monthFolderId = await getOrCreateFolder(drive, monthKey, contentTypeFolderId);
-  console.log('[google-drive] folder hierarchy — month:', monthKey, '→', monthFolderId);
+  const yearFolderId = await getOrCreateFolder(drive, year, contentTypeFolderId);
+  console.log('[google-drive] folder hierarchy — year:', year, '→', yearFolderId);
+
+  const monthFolderId = await getOrCreateFolder(drive, monthFolder, yearFolderId);
+  console.log('[google-drive] folder hierarchy — month:', monthFolder, '→', monthFolderId);
 
   return { monthFolderId, clientFolderName };
 }
