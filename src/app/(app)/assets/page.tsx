@@ -85,7 +85,8 @@ function formatSize(bytes?: number): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function formatDate(iso?: string): string {
@@ -207,7 +208,7 @@ function BatchUploadForm({
 // ── Upload Queue UI ───────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<FileStatus, string> = {
-  queued: 'Queued', preparing: 'Preparing', uploading: 'Uploading',
+  queued: 'Queued', preparing: 'Preparing…', uploading: 'Uploading to Drive',
   saving: 'Saving metadata', completed: 'Completed', failed: 'Failed',
 };
 
@@ -426,12 +427,123 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TOAST_DURATION_MS   = 4500;
-const UPLOAD_TIMEOUT_MS   = 300_000;
 const UPLOAD_CONCURRENCY  = 3;
+const CHUNK_SIZE          = 10 * 1024 * 1024; // 10 MB per chunk
+const MAX_CHUNK_RETRIES   = 3;
 
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null {
   return isImage(file.name, file.type) ? URL.createObjectURL(file) : null;
+}
+
+// ── Resumable upload helper ───────────────────────────────────────────────────
+
+/**
+ * Upload a File directly to Google Drive using the pre-authenticated resumable
+ * upload URL returned by /api/assets/upload-session.
+ *
+ * The file is split into CHUNK_SIZE chunks.  Each chunk is sent with a
+ * Content-Range header.  Google Drive responds with 308 Resume Incomplete for
+ * intermediate chunks and 200/201 for the final chunk (which carries the file
+ * metadata JSON including the Drive file ID).
+ *
+ * On transient network errors, the upload status is queried so we can resume
+ * from the last acknowledged byte, with up to MAX_CHUNK_RETRIES attempts per
+ * chunk.
+ */
+async function uploadFileResumable(
+  uploadUrl: string,
+  file: File,
+  onProgress: (pct: number) => void,
+  signal: AbortSignal,
+): Promise<string> {
+  const totalSize = file.size;
+  const mimeType  = file.type || 'application/octet-stream';
+  let offset = 0;
+
+  while (offset < totalSize) {
+    const end   = Math.min(offset + CHUNK_SIZE, totalSize);
+    const chunk = file.slice(offset, end);
+
+    let lastErr: Error | null = null;
+    let res: Response | null  = null;
+
+    for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
+      // On retries, query the upload status first to discover the server's
+      // acknowledged byte range before re-sending data.
+      if (attempt > 0) {
+        try {
+          const statusRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Range': `bytes */${totalSize}` },
+          });
+          if (statusRes.status === 200 || statusRes.status === 201) {
+            const data = await statusRes.json() as { id?: string };
+            onProgress(100);
+            if (!data.id) throw new Error('Drive returned no file ID on status check');
+            return data.id;
+          }
+          if (statusRes.status === 308) {
+            const range = statusRes.headers.get('Range');
+            if (range) {
+              const m = range.match(/bytes=\d+-(\d+)/);
+              if (m) offset = parseInt(m[1]) + 1;
+            }
+          }
+        } catch {
+          // Status query failed — retry the original offset
+        }
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+      }
+
+      try {
+        if (signal.aborted) throw new DOMException('Upload aborted by user', 'AbortError');
+        res = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Range': `bytes ${offset}-${end - 1}/${totalSize}`,
+            'Content-Type': mimeType,
+          },
+          body: chunk,
+          signal,
+        });
+        lastErr = null;
+        break;
+      } catch (err: unknown) {
+        if (signal.aborted) throw err;
+        lastErr = err instanceof Error ? err : new Error(String(err));
+      }
+    }
+
+    if (lastErr) throw lastErr;
+    if (!res) throw new Error('No response received from Drive after retries');
+
+    if (res.status === 200 || res.status === 201) {
+      const data = await res.json() as { id?: string };
+      onProgress(100);
+      if (!data.id) throw new Error('Drive did not return a file ID after upload');
+      return data.id;
+    }
+
+    if (res.status === 308) {
+      // Chunk acknowledged; advance offset
+      const range = res.headers.get('Range');
+      if (range) {
+        const m = range.match(/bytes=\d+-(\d+)/);
+        offset = m ? parseInt(m[1]) + 1 : end;
+      } else {
+        offset = end;
+      }
+      // Map byte progress to 10–95 % display range
+      onProgress(Math.round((offset / totalSize) * 85) + 10);
+      continue;
+    }
+
+    const body = await res.text().catch(() => '');
+    throw new Error(`Chunk upload failed (${res.status}): ${body.slice(0, 200)}`);
+  }
+
+  throw new Error('Upload loop ended without receiving a file ID from Drive');
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -533,32 +645,78 @@ export default function AssetsPage() {
     clientName: string, clientId: string, contentType: string, monthKey: string,
     patchItem: (id: string, p: Partial<FileUploadItem>) => void,
   ): Promise<Asset> {
-    patchItem(item.id, { status: 'preparing', progress: 10 });
-    await new Promise(r => setTimeout(r, 200));
-    patchItem(item.id, { status: 'uploading', progress: 30 });
-
-    const fd = new FormData();
-    fd.append('file',         item.file);
-    fd.append('client_name',  clientName);
-    fd.append('content_type', contentType);
-    fd.append('month_key',    monthKey);
-    if (clientId) fd.append('client_id', clientId);
-
     const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS);
+
     try {
-      patchItem(item.id, { progress: 55 });
-      const res  = await fetch('/api/assets/upload', { method: 'POST', body: fd, signal: ctrl.signal });
-      clearTimeout(tid);
-      patchItem(item.id, { status: 'saving', progress: 80 });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      await new Promise(r => setTimeout(r, 300));
+      // ── Step 1: Create resumable upload session (server creates Drive folders) ──
+      patchItem(item.id, { status: 'preparing', progress: 5 });
+
+      const sessionRes = await fetch('/api/assets/upload-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName:    item.file.name,
+          fileType:    item.file.type || 'application/octet-stream',
+          fileSize:    item.file.size,
+          clientName,
+          contentType,
+          monthKey,
+          ...(clientId ? { clientId } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+      const sessionJson = await sessionRes.json();
+      if (!sessionRes.ok) {
+        throw new Error(sessionJson.error ?? `Session creation failed: HTTP ${sessionRes.status}`);
+      }
+      const { uploadUrl, drive_folder_id, client_folder_name } = sessionJson as {
+        uploadUrl: string;
+        drive_folder_id: string;
+        client_folder_name: string;
+      };
+
+      // ── Step 2: Upload file bytes directly to Google Drive ──────────────────
+      patchItem(item.id, { status: 'uploading', progress: 10 });
+
+      const driveFileId = await uploadFileResumable(
+        uploadUrl,
+        item.file,
+        (pct) => patchItem(item.id, { progress: pct }),
+        ctrl.signal,
+      );
+
+      // ── Step 3: Finalize — set permissions + save metadata to Supabase ──────
+      patchItem(item.id, { status: 'saving', progress: 96 });
+
+      const completeRes = await fetch('/api/assets/upload-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driveFileId,
+          driveFolderId:    drive_folder_id,
+          clientFolderName: client_folder_name,
+          fileName:         item.file.name,
+          fileType:         item.file.type || null,
+          fileSize:         item.file.size || null,
+          contentType,
+          monthKey,
+          clientName,
+          clientId:         clientId || null,
+        }),
+        signal: ctrl.signal,
+      });
+      const completeJson = await completeRes.json();
+      if (!completeRes.ok) {
+        throw new Error(completeJson.error ?? `Finalize failed: HTTP ${completeRes.status}`);
+      }
+
       patchItem(item.id, { status: 'completed', progress: 100 });
-      return json.asset as Asset;
+      return completeJson.asset as Asset;
     } catch (err: unknown) {
-      clearTimeout(tid);
-      const msg = err instanceof Error ? (err.name === 'AbortError' ? 'Upload timed out' : err.message) : String(err);
+      ctrl.abort();
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? 'Upload cancelled' : err.message)
+        : String(err);
       patchItem(item.id, { status: 'failed', progress: 0, error: msg });
       throw err;
     }
