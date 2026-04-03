@@ -104,10 +104,12 @@ function getDriveClient() {
   const folderId = extractDriveId(rawFolderId);
   console.log('[google-drive] init — folder_id (after extractDriveId):', folderId);
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: { client_email: clientEmail, private_key: privateKey },
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.JWT(
+    process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
+    null,
+    process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    ['https://www.googleapis.com/auth/drive']
+  );
 
   console.log('[google-drive] GoogleAuth created successfully');
   return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId };
