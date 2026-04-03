@@ -495,8 +495,15 @@ export default function AssetsPage() {
       .from('clients')
       .select('id, name')
       .order('name', { ascending: true })
-      .then(({ data }) => { if (data) setClients(data as Client[]); });
-  }, []);
+      .then(({ data, error }) => {
+        if (error) {
+          if (process.env.NODE_ENV === 'development') console.error('[clients fetch]', error);
+          addToast('Failed to load clients list', 'error');
+        } else if (data) {
+          setClients(data as Client[]);
+        }
+      });
+  }, [addToast]);
 
   // ── Upload ──────────────────────────────────────────────────────────────────
 
