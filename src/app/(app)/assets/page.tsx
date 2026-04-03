@@ -9,7 +9,7 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import { contentTypeLabel } from '@/lib/asset-utils';
-import type { Asset } from '@/lib/types';
+import type { Asset, Client } from '@/lib/types';
 
 // ── Upload config ─────────────────────────────────────────────────────────────
 
@@ -125,8 +125,11 @@ interface UploadDetailsModalProps {
   fileName: string;
   contentType: string;
   month: string;
+  clientName: string;
+  clients: Client[];
   onContentTypeChange: (v: string) => void;
   onMonthChange: (v: string) => void;
+  onClientChange: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -135,8 +138,11 @@ function UploadDetailsModal({
   fileName,
   contentType,
   month,
+  clientName,
+  clients,
   onContentTypeChange,
   onMonthChange,
+  onClientChange,
   onConfirm,
   onCancel,
 }: UploadDetailsModalProps) {
@@ -160,6 +166,22 @@ function UploadDetailsModal({
 
         <div className="rounded-xl border px-3 py-2 text-sm truncate" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
           {fileName}
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Client
+          </label>
+          <select
+            className="input w-full"
+            value={clientName}
+            onChange={e => onClientChange(e.target.value)}
+          >
+            <option value="">— Select a client —</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="space-y-1">
@@ -198,7 +220,8 @@ function UploadDetailsModal({
           </button>
           <button
             onClick={onConfirm}
-            className="btn-primary flex-1 h-9 text-sm"
+            disabled={!clientName}
+            className="btn-primary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Upload
           </button>
@@ -428,6 +451,10 @@ export default function AssetsPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploadContentType, setUploadContentType] = useState<string>(ALLOWED_CONTENT_TYPES[0]);
   const [uploadMonth, setUploadMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [uploadClientName, setUploadClientName] = useState<string>('');
+
+  // Clients for the upload modal selector
+  const [clients, setClients] = useState<Client[]>([]);
 
   // ── Toast helpers ───────────────────────────────────────────────────────────
 
@@ -463,6 +490,14 @@ export default function AssetsPage() {
 
   useEffect(() => { fetchAssets(); }, [fetchAssets]);
 
+  useEffect(() => {
+    supabase
+      .from('clients')
+      .select('id, name')
+      .order('name', { ascending: true })
+      .then(({ data }) => { if (data) setClients(data as Client[]); });
+  }, []);
+
   // ── Upload ──────────────────────────────────────────────────────────────────
 
   // Step 1: file chosen → show details modal
@@ -472,6 +507,7 @@ export default function AssetsPage() {
     if (!file || uploading) return;
     setUploadContentType(ALLOWED_CONTENT_TYPES[0]);
     setUploadMonth(new Date().toISOString().slice(0, 7));
+    setUploadClientName('');
     setPendingFile(file);
   };
 
@@ -495,6 +531,7 @@ export default function AssetsPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('client_name', uploadClientName);
       formData.append('content_type', uploadContentType);
       formData.append('month_key', uploadMonth);
 
@@ -668,8 +705,11 @@ export default function AssetsPage() {
           fileName={pendingFile.name}
           contentType={uploadContentType}
           month={uploadMonth}
+          clientName={uploadClientName}
+          clients={clients}
           onContentTypeChange={setUploadContentType}
           onMonthChange={setUploadMonth}
+          onClientChange={setUploadClientName}
           onConfirm={handleUploadConfirm}
           onCancel={() => setPendingFile(null)}
         />

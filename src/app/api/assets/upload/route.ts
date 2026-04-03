@@ -42,12 +42,18 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Validate required metadata fields ──────────────────────────────────
     const clientId    = formData.get('client_id');
-    const clientName  = formData.get('client_name');
     const contentType = formData.get('content_type');
     const monthKey    = formData.get('month_key');
     const uploadedBy  = formData.get('uploaded_by');
 
-    if (!clientName || typeof clientName !== 'string' || !clientName.trim()) {
+    // Accept client_name, client, or clientId (normalize to clientName)
+    const rawClientName =
+      formData.get('client_name') ??
+      formData.get('client') ??
+      formData.get('clientId');
+    const clientName = rawClientName && typeof rawClientName === 'string' ? rawClientName.trim() : '';
+
+    if (!clientName) {
       return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
     }
     if (!contentType || typeof contentType !== 'string') {
@@ -131,7 +137,7 @@ export async function POST(req: NextRequest) {
       storage_provider:   'google_drive',
       drive_file_id,
       drive_folder_id,
-      client_name:        clientName.trim(),
+      client_name:        clientName,
       client_folder_name: client_folder_name ?? clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
