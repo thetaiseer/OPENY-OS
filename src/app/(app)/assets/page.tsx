@@ -377,10 +377,11 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TOAST_DURATION_MS = 4500;
-const UPLOAD_TIMEOUT_MS = 300_000;
-let _fileIdCounter = 0;
-function nextFileId() { return `file-${++_fileIdCounter}`; }
+const TOAST_DURATION_MS   = 4500;
+const UPLOAD_TIMEOUT_MS   = 300_000;
+const UPLOAD_CONCURRENCY  = 3;
+
+function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null {
   return isImage(file.name, file.type) ? URL.createObjectURL(file) : null;
 }
@@ -445,6 +446,11 @@ export default function AssetsPage() {
 
   const filesToItems = (files: File[]): FileUploadItem[] =>
     files.map(file => ({ id: nextFileId(), file, previewUrl: makePreviewUrl(file), status: 'queued' as FileStatus, progress: 0, error: null }));
+
+  // Revoke all object URLs for a list of items to prevent memory leaks
+  const revokeItemUrls = useCallback((items: FileUploadItem[]) => {
+    items.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+  }, []);
 
   const openPendingBatch = useCallback((files: File[]) => {
     if (!files.length || isUploading) return;
@@ -526,7 +532,7 @@ export default function AssetsPage() {
     let ok = 0, fail = 0;
     const newAssets: Asset[] = [];
 
-    const CONCURRENCY = 3;
+    const CONCURRENCY = UPLOAD_CONCURRENCY;
     for (let i = 0; i < items.length; i += CONCURRENCY) {
       await Promise.all(items.slice(i, i + CONCURRENCY).map(async item => {
         try { newAssets.push(await uploadOneFile(item, cName, cId, ct, mk, patch)); ok++; }
@@ -539,7 +545,9 @@ export default function AssetsPage() {
     if (!fail) addToast(`${ok} file${ok !== 1 ? 's' : ''} uploaded to Google Drive`, 'success');
     else addToast(`${ok} uploaded, ${fail} failed`, fail === items.length ? 'error' : 'success');
 
-    setTimeout(() => setUploadQueue([]), 4000);
+    setTimeout(() => {
+      setUploadQueue(prev => { revokeItemUrls(prev); return []; });
+    }, 4000);
   };
 
   // ── Delete ──────────────────────────────────────────────────────────────────
@@ -648,8 +656,13 @@ export default function AssetsPage() {
         <BatchUploadForm
           files={pendingItems} contentType={uploadContentType} month={uploadMonth} clientName={uploadClientName} clients={clients}
           onContentTypeChange={setUploadContentType} onMonthChange={setUploadMonth} onClientChange={handleClientChange}
-          onConfirm={handleUploadConfirm} onCancel={() => setPendingItems([])}
-          onRemoveFile={id => setPendingItems(prev => prev.filter(i => i.id !== id))}
+          onConfirm={handleUploadConfirm}
+          onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
+          onRemoveFile={id => setPendingItems(prev => {
+            const removed = prev.find(i => i.id === id);
+            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+            return prev.filter(i => i.id !== id);
+          })}
         />
       )}
 

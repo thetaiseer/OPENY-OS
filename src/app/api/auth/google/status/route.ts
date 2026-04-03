@@ -15,7 +15,7 @@ export async function GET() {
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
 
-  const ADMIN_EMAIL = 'thetaiseer@gmail.com';
+  const ADMIN_EMAIL = process.env.GOOGLE_ADMIN_EMAIL ?? 'thetaiseer@gmail.com';
 
   if (!clientId || !clientSecret || !refreshToken) {
     return NextResponse.json({ connected: false, email: null, isAdminAccount: false });

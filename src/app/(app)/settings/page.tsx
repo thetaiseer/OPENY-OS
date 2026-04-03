@@ -14,7 +14,7 @@ interface DriveStatus {
   isAdminAccount: boolean;
 }
 
-const ADMIN_EMAIL = 'thetaiseer@gmail.com';
+const ADMIN_EMAIL = 'thetaiseer@gmail.com'; // displayed as the expected admin account
 
 // ── Google Drive Admin Panel ──────────────────────────────────────────────────
 
