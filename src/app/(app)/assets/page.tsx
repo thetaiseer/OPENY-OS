@@ -10,6 +10,10 @@ import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Asset } from '@/lib/types';
 
+// ── Upload config ─────────────────────────────────────────────────────────────
+
+const ALLOWED_CONTENT_TYPES = ['design', 'video', 'photo', 'document', 'audio', 'other'] as const;
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
@@ -97,6 +101,95 @@ function UploadProgress({ progress, status }: { progress: number; status: string
           className="h-2 rounded-full transition-all duration-500 ease-out"
           style={{ width: `${progress}%`, background: 'var(--accent)' }}
         />
+      </div>
+    </div>
+  );
+}
+
+// ── Upload Details Modal ──────────────────────────────────────────────────────
+
+interface UploadDetailsModalProps {
+  fileName: string;
+  contentType: string;
+  month: string;
+  onContentTypeChange: (v: string) => void;
+  onMonthChange: (v: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function UploadDetailsModal({
+  fileName,
+  contentType,
+  month,
+  onContentTypeChange,
+  onMonthChange,
+  onConfirm,
+  onCancel,
+}: UploadDetailsModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border p-6 space-y-5 shadow-xl"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload Details</h3>
+          <button onClick={onCancel} className="text-sm opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="rounded-xl border px-3 py-2 text-sm truncate" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          {fileName}
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Content Type
+          </label>
+          <select
+            className="input w-full"
+            value={contentType}
+            onChange={e => onContentTypeChange(e.target.value)}
+          >
+            {ALLOWED_CONTENT_TYPES.map(t => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Month (YYYY-MM)
+          </label>
+          <input
+            type="month"
+            className="input w-full"
+            value={month}
+            onChange={e => onMonthChange(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="btn flex-1 h-9 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="btn-primary flex-1 h-9 text-sm"
+          >
+            Upload
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -318,6 +411,11 @@ export default function AssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const toastIdRef = useRef(0);
 
+  // Pending-upload state (file chosen but details not confirmed yet)
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadContentType, setUploadContentType] = useState<string>(ALLOWED_CONTENT_TYPES[0]);
+  const [uploadMonth, setUploadMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+
   // ── Toast helpers ───────────────────────────────────────────────────────────
 
   const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -354,10 +452,21 @@ export default function AssetsPage() {
 
   // ── Upload ──────────────────────────────────────────────────────────────────
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Step 1: file chosen → show details modal
+  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
     if (!file || uploading) return;
+    setUploadContentType(ALLOWED_CONTENT_TYPES[0]);
+    setUploadMonth(new Date().toISOString().slice(0, 7));
+    setPendingFile(file);
+  };
 
+  // Step 2: user confirmed details → run actual upload
+  const handleUploadConfirm = async () => {
+    const file = pendingFile;
+    if (!file) return;
+    setPendingFile(null);
     setUploading(true);
 
     // Advance fake progress stages while the real upload runs
@@ -373,6 +482,8 @@ export default function AssetsPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('content_type', uploadContentType);
+      formData.append('month', uploadMonth);
 
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
@@ -414,7 +525,6 @@ export default function AssetsPage() {
       setUploading(false);
       setUploadProgress(0);
       setUploadStatus('');
-      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -488,7 +598,7 @@ export default function AssetsPage() {
             <Upload size={16} />
             {uploading ? 'Uploading…' : t('uploadFile')}
           </button>
-          <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} />
+          <input ref={fileRef} type="file" className="hidden" onChange={handleFileChosen} />
         </div>
 
         {/* Upload progress */}
@@ -538,6 +648,19 @@ export default function AssetsPage() {
           </div>
         )}
       </div>
+
+      {/* Upload details modal */}
+      {pendingFile && (
+        <UploadDetailsModal
+          fileName={pendingFile.name}
+          contentType={uploadContentType}
+          month={uploadMonth}
+          onContentTypeChange={setUploadContentType}
+          onMonthChange={setUploadMonth}
+          onConfirm={handleUploadConfirm}
+          onCancel={() => setPendingFile(null)}
+        />
+      )}
 
       {/* Image preview lightbox */}
       {previewAsset && (
