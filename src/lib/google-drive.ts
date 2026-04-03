@@ -1,8 +1,10 @@
 /**
  * Server-only Google Drive utility.
+ * Uses Google OAuth 2.0 user-based authentication (not a service account).
  * Never import this file from client components.
  */
 import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
 import { clientToFolderName } from './asset-utils';
@@ -82,45 +84,77 @@ function assertValidUrl(url: string, label: string): void {
   }
 }
 
-// ── Drive client factory ──────────────────────────────────────────────────────
+// ── Drive client factory (Google OAuth 2.0 user-based) ───────────────────────
 
+/**
+ * Build a Drive client authenticated as the Google user who completed the
+ * OAuth 2.0 consent flow.  Credentials are supplied via env vars:
+ *   GOOGLE_OAUTH_CLIENT_ID      – OAuth 2.0 client ID
+ *   GOOGLE_OAUTH_CLIENT_SECRET  – OAuth 2.0 client secret
+ *   GOOGLE_OAUTH_REFRESH_TOKEN  – refresh token obtained after the first login
+ *   GOOGLE_DRIVE_FOLDER_ID      – root Drive folder ID (or full URL)
+ *
+ * To obtain the refresh token, visit /api/auth/google in your browser and
+ * complete the Google consent screen, then copy the refresh token shown into
+ * your GOOGLE_OAUTH_REFRESH_TOKEN env var.
+ */
 function getDriveClient() {
-  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  const rawFolderId  = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  // Resolve private key: prefer Base64-encoded form, fall back to raw PEM env var
-  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64
-    ? Buffer.from(process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64, 'base64').toString('utf8')
-    : (process.env.GOOGLE_DRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n').replace(/^"|"$/g, '');
-
-  console.log('[google-drive] init — client_email:', clientEmail ?? '(missing)');
-  console.log('[google-drive] init — private_key present:', !!privateKey, '| length:', privateKey?.length ?? 0);
+  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_ID present:', !!clientId);
+  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_SECRET present:', !!clientSecret);
+  console.log('[google-drive] init — GOOGLE_OAUTH_REFRESH_TOKEN present:', !!refreshToken);
   console.log('[google-drive] init — GOOGLE_DRIVE_FOLDER_ID raw value:', rawFolderId ?? '(missing)');
 
-  if (!clientEmail) {
-    throw new Error('Missing Google Drive env var: GOOGLE_DRIVE_CLIENT_EMAIL');
+  if (!clientId) {
+    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_ID');
   }
-  if (!privateKey) {
+  if (!clientSecret) {
+    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_SECRET');
+  }
+  if (!refreshToken) {
     throw new Error(
-      'Missing Google Drive env var: provide GOOGLE_DRIVE_PRIVATE_KEY_BASE64 (preferred) or GOOGLE_DRIVE_PRIVATE_KEY',
+      'Missing env var: GOOGLE_OAUTH_REFRESH_TOKEN — visit /api/auth/google to authorize your Google account',
     );
   }
   if (!rawFolderId) {
-    throw new Error('Missing Google Drive env var: GOOGLE_DRIVE_FOLDER_ID');
+    throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
   }
 
   // Always extract the bare folder ID, even if a full URL was stored in env
   const folderId = extractDriveId(rawFolderId);
   console.log('[google-drive] init — folder_id (after extractDriveId):', folderId);
 
-  const auth = new google.auth.JWT({
-    email: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
-    key: privateKey,
-    scopes: ['https://www.googleapis.com/auth/drive'],
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+  auth.setCredentials({ refresh_token: refreshToken });
+
+  // Propagate any new access tokens (auto-refresh) so callers can log them
+  auth.on('tokens', (tokens) => {
+    if (tokens.refresh_token) {
+      console.log('[google-drive] ⚠ New refresh token issued — update GOOGLE_OAUTH_REFRESH_TOKEN env var:', tokens.refresh_token);
+    }
+    console.log('[google-drive] Access token refreshed successfully');
   });
 
-  console.log('[google-drive] GoogleAuth created successfully');
-  return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId };
+  console.log('[google-drive] OAuth2 client created successfully');
+  return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId, auth };
+}
+
+/**
+ * Return the email address of the Google account that owns the OAuth token.
+ * Used for debug logging only; failures are non-fatal.
+ */
+async function getAuthenticatedEmail(auth: OAuth2Client): Promise<string> {
+  try {
+    const oauth2 = google.oauth2({ version: 'v2', auth });
+    const res = await oauth2.userinfo.get();
+    return res.data.email ?? '(unknown)';
+  } catch {
+    return '(could not retrieve — check OAuth scopes)';
+  }
 }
 
 /**
@@ -196,14 +230,23 @@ export async function uploadToStructuredPath(
   contentType: string,
   monthKey: string,
 ): Promise<DriveUploadResult> {
-  const { drive, rootFolderId } = getDriveClient();
+  const { drive, rootFolderId, auth } = getDriveClient();
+
+  // Log the authenticated Google account email
+  const email = await getAuthenticatedEmail(auth);
+  console.log('[google-drive] authenticated as Google account:', email);
 
   console.log(`[google-drive] structured upload: ${clientFolderName}/${contentType}/${monthKey}/${fileName}`);
 
   // Build folder hierarchy: root → client → content_type → month
   const clientFolderId = await getOrCreateFolder(drive, clientFolderName, rootFolderId);
+  console.log('[google-drive] resolved client folder:', clientFolderName, '→ id:', clientFolderId);
+
   const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
+  console.log('[google-drive] resolved content type folder:', contentType, '→ id:', contentTypeFolderId);
+
   const monthFolderId = await getOrCreateFolder(drive, monthKey, contentTypeFolderId);
+  console.log('[google-drive] resolved month folder:', monthKey, '→ id:', monthFolderId);
 
   // Upload file into the month folder
   const readableStream = Readable.from(buffer);
@@ -267,6 +310,7 @@ export async function uploadToStructuredPath(
     webContentLink,
   };
 
+  console.log('[google-drive] uploaded file id:', fileId, '| webViewLink:', webViewLink);
   console.log('[google-drive] final links — webViewLink:', result.webViewLink);
   console.log('[google-drive] final links — webContentLink:', result.webContentLink);
 
