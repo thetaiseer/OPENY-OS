@@ -65,6 +65,22 @@ function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) =>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Convert a Google Drive view URL to a direct-embed URL so browsers can render
+ * the image inline.  Non-Drive URLs are returned unchanged.
+ *
+ * Input:  https://drive.google.com/file/d/FILE_ID/view
+ * Output: https://drive.google.com/uc?export=view&id=FILE_ID
+ */
+function getPreviewUrl(url?: string | null): string {
+  if (!url) return '';
+  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m?.[1]) {
+    return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  }
+  return url;
+}
+
 function formatSize(bytes?: number): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -277,8 +293,23 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
         </button>
 
         {isImg && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={asset.file_url} alt={asset.name} className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getPreviewUrl(asset.file_url)}
+              alt={asset.name}
+              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                if (fb) fb.style.display = 'flex';
+              }}
+            />
+            <div className="flex flex-col items-center gap-4 py-12" style={{ display: 'none' }}>
+              <FileTypeIcon name={asset.name} type={asset.file_type} size={64} />
+              <p className="text-white/80 text-sm">{asset.name}</p>
+            </div>
+          </>
         )}
         {isVid && (
           <video src={asset.file_url} controls className="max-w-full max-h-[80vh] rounded-xl shadow-2xl" style={{ background: '#000' }} />
@@ -326,11 +357,28 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
   return (
     <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="relative overflow-hidden cursor-pointer" style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }} onClick={onView}>
-        {img
-          /* eslint-disable-next-line @next/next/no-img-element */
-          ? <img src={asset.file_url} alt={asset.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center"><FileTypeIcon name={asset.name} type={asset.file_type} size={36} /></div>
-        }
+        {img ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getPreviewUrl(asset.file_url)}
+              alt={asset.name}
+              className="w-full h-full object-cover"
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                if (fb) fb.style.display = 'flex';
+              }}
+            />
+            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+              <FileTypeIcon name={asset.name} type={asset.file_type} size={36} />
+            </div>
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <FileTypeIcon name={asset.name} type={asset.file_type} size={36} />
+          </div>
+        )}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.35)' }}>
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
             <Eye size={18} className="text-white" />
