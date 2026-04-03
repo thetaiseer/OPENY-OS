@@ -19,6 +19,10 @@ const CONTENT_TYPES = [
 ] as const;
 type ContentType = typeof CONTENT_TYPES[number];
 
+// ── Upload config ─────────────────────────────────────────────────────────────
+
+const ALLOWED_CONTENT_TYPES = ['design', 'video', 'photo', 'document', 'audio', 'other'] as const;
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
@@ -120,6 +124,95 @@ function UploadProgress({ progress, status }: { progress: number; status: string
             {s.label.replace('…', '')}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Upload Details Modal ──────────────────────────────────────────────────────
+
+interface UploadDetailsModalProps {
+  fileName: string;
+  contentType: string;
+  month: string;
+  onContentTypeChange: (v: string) => void;
+  onMonthChange: (v: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function UploadDetailsModal({
+  fileName,
+  contentType,
+  month,
+  onContentTypeChange,
+  onMonthChange,
+  onConfirm,
+  onCancel,
+}: UploadDetailsModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border p-6 space-y-5 shadow-xl"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload Details</h3>
+          <button onClick={onCancel} className="text-sm opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="rounded-xl border px-3 py-2 text-sm truncate" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          {fileName}
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Content Type
+          </label>
+          <select
+            className="input w-full"
+            value={contentType}
+            onChange={e => onContentTypeChange(e.target.value)}
+          >
+            {ALLOWED_CONTENT_TYPES.map(t => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Month (YYYY-MM)
+          </label>
+          <input
+            type="month"
+            className="input w-full"
+            value={month}
+            onChange={e => onMonthChange(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="btn flex-1 h-9 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="btn-primary flex-1 h-9 text-sm"
+          >
+            Upload
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -572,6 +665,11 @@ export default function AssetsPage() {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const toastIdRef = useRef(0);
 
+  // Pending-upload state (file chosen but details not confirmed yet)
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadContentType, setUploadContentType] = useState<string>(ALLOWED_CONTENT_TYPES[0]);
+  const [uploadMonth, setUploadMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+
   // ── Toast helpers ───────────────────────────────────────────────────────────
 
   const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -610,6 +708,85 @@ export default function AssetsPage() {
       setClients((data ?? []) as Client[]);
     });
   }, [fetchAssets]);
+  useEffect(() => { fetchAssets(); }, [fetchAssets]);
+
+  // ── Upload ──────────────────────────────────────────────────────────────────
+
+  // Step 1: file chosen → show details modal
+  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file || uploading) return;
+    setUploadContentType(ALLOWED_CONTENT_TYPES[0]);
+    setUploadMonth(new Date().toISOString().slice(0, 7));
+    setPendingFile(file);
+  };
+
+  // Step 2: user confirmed details → run actual upload
+  const handleUploadConfirm = async () => {
+    const file = pendingFile;
+    if (!file) return;
+    setPendingFile(null);
+    setUploading(true);
+
+    // Advance fake progress stages while the real upload runs
+    const stageTimers: ReturnType<typeof setTimeout>[] = [];
+    STAGE_TIMINGS_MS.forEach((delay, idx) => {
+      const timer = setTimeout(() => {
+        setUploadProgress(UPLOAD_STAGES[idx].at);
+        setUploadStatus(UPLOAD_STAGES[idx].label);
+      }, delay);
+      stageTimers.push(timer);
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('content_type', uploadContentType);
+      formData.append('month', uploadMonth);
+
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+      const res = await fetch('/api/assets/upload', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(fetchTimeout);
+      stageTimers.forEach(clearTimeout);
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error ?? `Upload failed (HTTP ${res.status})`);
+      }
+
+      // Show 90% (saving metadata) then complete
+      setUploadProgress(UPLOAD_STAGES[3].at);
+      setUploadStatus(UPLOAD_STAGES[3].label);
+      await new Promise(r => setTimeout(r, 400));
+
+      setUploadProgress(UPLOAD_STAGES[4].at);
+      setUploadStatus(UPLOAD_STAGES[4].label);
+      await new Promise(r => setTimeout(r, 500));
+
+      addToast('File uploaded to Google Drive', 'success');
+      void fetchAssets();
+    } catch (err: unknown) {
+      stageTimers.forEach(clearTimeout);
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? 'Upload timed out after 5 minutes' : err.message)
+        : String(err);
+      console.error('[asset upload] ❌', msg);
+      addToast(`Upload failed: ${msg}`, 'error');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      setUploadStatus('');
+    }
+  };
 
   // ── Delete ──────────────────────────────────────────────────────────────────
 
@@ -680,6 +857,7 @@ export default function AssetsPage() {
             <Upload size={16} />
             {t('uploadFile')}
           </button>
+          <input ref={fileRef} type="file" className="hidden" onChange={handleFileChosen} />
         </div>
 
         {/* Asset grid / empty state / skeleton */}
@@ -733,6 +911,16 @@ export default function AssetsPage() {
             addToast('File uploaded to Google Drive', 'success');
             void fetchAssets();
           }}
+      {/* Upload details modal */}
+      {pendingFile && (
+        <UploadDetailsModal
+          fileName={pendingFile.name}
+          contentType={uploadContentType}
+          month={uploadMonth}
+          onContentTypeChange={setUploadContentType}
+          onMonthChange={setUploadMonth}
+          onConfirm={handleUploadConfirm}
+          onCancel={() => setPendingFile(null)}
         />
       )}
 
