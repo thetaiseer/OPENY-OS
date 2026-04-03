@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createFolderHierarchy, initiateResumableSession } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
 
-// Fixed content type list — must stay in sync with the upload route
+// Fixed content type list — must stay in sync with upload-session and upload-complete routes
+// (consider moving to a shared constants module if the list changes frequently)
 const VALID_CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',

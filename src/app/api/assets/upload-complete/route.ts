@@ -149,6 +149,8 @@ export async function POST(req: NextRequest) {
       type: 'asset',
       description: `Asset "${fileName}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})`,
       ...(safeClientId ? { client_id: safeClientId } : {}),
+    }).then(({ error }) => {
+      if (error) console.warn('[upload-complete] activity log insert failed:', error.message);
     });
 
     return NextResponse.json({ asset: inserted }, { status: 201 });

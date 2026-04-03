@@ -487,7 +487,7 @@ async function uploadFileResumable(
             const range = statusRes.headers.get('Range');
             if (range) {
               const m = range.match(/bytes=\d+-(\d+)/);
-              if (m) offset = parseInt(m[1]) + 1;
+              if (m?.[1]) offset = parseInt(m[1]) + 1;
             }
           }
         } catch {
@@ -530,7 +530,7 @@ async function uploadFileResumable(
       const range = res.headers.get('Range');
       if (range) {
         const m = range.match(/bytes=\d+-(\d+)/);
-        offset = m ? parseInt(m[1]) + 1 : end;
+        offset = m?.[1] ? parseInt(m[1]) + 1 : end;
       } else {
         offset = end;
       }

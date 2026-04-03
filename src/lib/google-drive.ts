@@ -437,12 +437,14 @@ export async function finalizeFileAfterUpload(
   const rawDownload = metaRes.data.webContentLink ?? '';
 
   let webViewLink = rawView;
-  try { assertValidUrl(rawView, 'webViewLink'); } catch {
+  try { assertValidUrl(rawView, 'webViewLink'); } catch (e) {
+    console.warn('[google-drive] webViewLink from Drive is not a valid URL — using fallback:', (e as Error).message);
     webViewLink = `https://drive.google.com/file/d/${driveFileId}/view`;
   }
 
   let webContentLink = rawDownload;
-  try { assertValidUrl(rawDownload, 'webContentLink'); } catch {
+  try { assertValidUrl(rawDownload, 'webContentLink'); } catch (e) {
+    console.warn('[google-drive] webContentLink from Drive is not a valid URL — using fallback:', (e as Error).message);
     webContentLink = `https://drive.google.com/uc?id=${driveFileId}&export=download`;
   }
 
