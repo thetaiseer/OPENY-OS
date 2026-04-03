@@ -86,19 +86,27 @@ function assertValidUrl(url: string, label: string): void {
 
 function getDriveClient() {
   const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKey = (process.env.GOOGLE_DRIVE_PRIVATE_KEY || '')
-    .replace(/\\n/g, '\n')
-    .replace(/^"|"$/g, '');
   const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+
+  // Resolve private key: prefer Base64-encoded form, fall back to raw PEM env var
+  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64
+    ? Buffer.from(process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64, 'base64').toString('utf8')
+    : (process.env.GOOGLE_DRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n').replace(/^"|"$/g, '');
 
   console.log('[google-drive] init — client_email:', clientEmail ?? '(missing)');
   console.log('[google-drive] init — private_key present:', !!privateKey, '| length:', privateKey?.length ?? 0);
   console.log('[google-drive] init — GOOGLE_DRIVE_FOLDER_ID raw value:', rawFolderId ?? '(missing)');
 
-  if (!clientEmail || !privateKey || !rawFolderId) {
+  if (!clientEmail) {
+    throw new Error('Missing Google Drive env var: GOOGLE_DRIVE_CLIENT_EMAIL');
+  }
+  if (!privateKey) {
     throw new Error(
-      'Missing Google Drive env vars: GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY, GOOGLE_DRIVE_FOLDER_ID',
+      'Missing Google Drive env var: provide GOOGLE_DRIVE_PRIVATE_KEY_BASE64 (preferred) or GOOGLE_DRIVE_PRIVATE_KEY',
     );
+  }
+  if (!rawFolderId) {
+    throw new Error('Missing Google Drive env var: GOOGLE_DRIVE_FOLDER_ID');
   }
 
   // Always extract the bare folder ID, even if a full URL was stored in env
