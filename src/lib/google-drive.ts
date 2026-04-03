@@ -153,6 +153,8 @@ async function getOrCreateFolder(
     q: `name='${safeName}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`,
     fields: 'files(id,name)',
     spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   const existing = searchRes.data.files?.[0];
@@ -168,6 +170,7 @@ async function getOrCreateFolder(
       parents: [parentId],
     },
     fields: 'id',
+    supportsAllDrives: true,
   });
 
   const newId = createRes.data.id;
@@ -204,7 +207,7 @@ export async function uploadToStructuredPath(
 
   // Upload file into the month folder
   const readableStream = Readable.from(buffer);
-  console.log('[google-drive] uploading file:', fileName, '| mimeType:', mimeType, '| size (bytes):', buffer.length);
+  console.log('[google-drive] uploading file:', fileName, '| mimeType:', mimeType, '| size (bytes):', buffer.length, '| monthFolderId:', monthFolderId);
 
   const createRes = await drive.files.create({
     requestBody: {
@@ -216,9 +219,11 @@ export async function uploadToStructuredPath(
       body: readableStream,
     },
     fields: 'id,webViewLink,webContentLink',
+    supportsAllDrives: true,
   });
 
   console.log('[google-drive] create response status:', createRes.status);
+  console.log('[google-drive] create response data:', JSON.stringify(createRes.data));
 
   const fileId = createRes.data.id;
   if (!fileId) {
@@ -230,6 +235,7 @@ export async function uploadToStructuredPath(
   const permRes = await drive.permissions.create({
     fileId,
     requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true,
   });
   console.log('[google-drive] permission create status:', permRes.status);
 
@@ -237,6 +243,7 @@ export async function uploadToStructuredPath(
   const metaRes = await drive.files.get({
     fileId,
     fields: 'id,webViewLink,webContentLink',
+    supportsAllDrives: true,
   });
 
   const rawView = metaRes.data.webViewLink ?? '';
@@ -274,5 +281,5 @@ export async function uploadToStructuredPath(
  */
 export async function deleteFromDrive(fileId: string): Promise<void> {
   const { drive } = getDriveClient();
-  await drive.files.delete({ fileId });
+  await drive.files.delete({ fileId, supportsAllDrives: true });
 }
