@@ -8,6 +8,7 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
+import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Asset } from '@/lib/types';
 
 // ── Upload config ─────────────────────────────────────────────────────────────
@@ -25,10 +26,6 @@ const ALLOWED_CONTENT_TYPES = [
   'REPORTS',
   'OTHER',
 ] as const;
-
-function contentTypeLabel(ct: string): string {
-  return ct.replace(/_/g, ' ').replace(/\w+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
-}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 

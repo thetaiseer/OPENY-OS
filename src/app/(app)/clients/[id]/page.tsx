@@ -12,6 +12,7 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 // ── Asset upload helpers ──────────────────────────────────────────────────────
@@ -29,10 +30,6 @@ const ALLOWED_CONTENT_TYPES = [
   'REPORTS',
   'OTHER',
 ] as const;
-
-function contentTypeLabel(ct: string): string {
-  return ct.replace(/_/g, ' ').replace(/\w+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
-}
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
 interface TempFile { name: string; type: string; previewUrl?: string }
