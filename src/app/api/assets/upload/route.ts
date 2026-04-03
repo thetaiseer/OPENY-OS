@@ -6,7 +6,7 @@ import { clientToFolderName } from '@/lib/asset-utils';
 // Fixed content type list
 const VALID_CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
-  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATES', 'REPORTS', 'OTHER',
+  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
 ] as const;
 
 // ── Supabase service-role client (server only) ────────────────────────────────
@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
     const clientId    = formData.get('client_id');
     const contentType = formData.get('content_type');
     const monthKey    = formData.get('month_key');
-    const uploadedBy  = formData.get('uploaded_by');
 
     // Accept client_name, client, or clientId (normalize to clientName)
     const rawClientName =
@@ -141,7 +140,6 @@ export async function POST(req: NextRequest) {
       client_folder_name: client_folder_name ?? clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
-      uploaded_by:        (uploadedBy && typeof uploadedBy === 'string') ? uploadedBy : null,
     };
     if (safeClientId) {
       row.client_id = safeClientId;
