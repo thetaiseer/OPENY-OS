@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 4. Validate content_type ──────────────────────────────────────────────
-    const contentType = rawCType?.trim().toLowerCase() ?? '';
+    const contentType = rawCType?.trim().toUpperCase() ?? '';
     if (contentType && !(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
       console.error('[upload] ❌ Failed while validating content_type:', contentType);
       return NextResponse.json(
@@ -73,6 +73,10 @@ export async function POST(req: NextRequest) {
 
     // ── 5. Validate client_id ─────────────────────────────────────────────────
     const safeClientId = clientId && clientId.trim() ? clientId.trim() : null;
+    if (clientId !== null && !safeClientId) {
+      // client_id was explicitly sent but is empty/whitespace — reject to prevent orphaned assets
+      return NextResponse.json({ error: 'client_id is required when uploading to a client workspace' }, { status: 400 });
+    }
 
     // ── 6. Read file into buffer ──────────────────────────────────────────────
     let buffer: Buffer;
@@ -109,27 +113,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 502 });
     }
 
-    const { drive_file_id, webViewLink, webContentLink, folderPath } = driveResult;
+    const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink, folderPath } = driveResult;
     console.log('[upload] ✅ Google Drive upload success');
-    console.log('[upload] ── drive_file_id  :', drive_file_id);
-    console.log('[upload] ── webViewLink    :', webViewLink);
-    console.log('[upload] ── webContentLink :', webContentLink);
-    console.log('[upload] ── folderPath     :', folderPath);
+    console.log('[upload] ── drive_file_id   :', drive_file_id);
+    console.log('[upload] ── drive_folder_id :', drive_folder_id);
+    console.log('[upload] ── webViewLink     :', webViewLink);
+    console.log('[upload] ── webContentLink  :', webContentLink);
+    console.log('[upload] ── folderPath      :', folderPath);
 
     // ── 8. Insert metadata into assets table ──────────────────────────────────
     console.log('[upload] ── STAGE: insert asset metadata ════════════════════');
     const supabase = getSupabase();
     const row: Record<string, unknown> = {
-      name:             file.name,
-      file_path:        null,
-      file_url:         webViewLink,
-      view_url:         webViewLink,
-      download_url:     webContentLink,
-      file_type:        file.type || null,
-      file_size:        file.size || null,
-      bucket_name:      null,
-      storage_provider: 'google_drive',
+      name:               file.name,
+      file_path:          null,
+      file_url:           webViewLink,
+      view_url:           webViewLink,
+      download_url:       webContentLink,
+      file_type:          file.type || null,
+      file_size:          file.size || null,
+      bucket_name:        null,
+      storage_provider:   'google_drive',
       drive_file_id,
+      drive_folder_id,
+      client_folder_name: client_folder_name ?? null,
+      content_type:       contentType || null,
+      month_key:          month,
     };
     if (safeClientId) row.client_id = safeClientId;
 
@@ -146,7 +155,7 @@ export async function POST(req: NextRequest) {
       if (dbError) {
         console.error('[upload] ❌ Failed while inserting asset metadata:', dbError.message, dbError.details ?? '');
         return NextResponse.json(
-          { error: `Failed while inserting asset metadata: ${dbError.message}` },
+          { error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}` },
           { status: 500 },
         );
       }

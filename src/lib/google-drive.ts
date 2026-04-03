@@ -6,12 +6,26 @@ import { google } from 'googleapis';
 import { Readable } from 'stream';
 
 // ── Allowed content types ──────────────────────────────────────────────────────
-export const ALLOWED_CONTENT_TYPES = ['design', 'video', 'photo', 'document', 'audio', 'other'] as const;
+export const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
 export type AllowedContentType = typeof ALLOWED_CONTENT_TYPES[number];
 
 // ── Result / options types ────────────────────────────────────────────────────
 export interface DriveUploadResult {
   drive_file_id: string;
+  drive_folder_id: string;
+  client_folder_name: string | null;
   webViewLink: string;
   webContentLink: string;
   folderPath: string;
@@ -232,11 +246,12 @@ export async function uploadToDrive(
     );
   }
 
-  // Validate content type
-  const contentType = options.contentType?.trim().toLowerCase() ?? '';
+  // Validate content type (case-insensitive match against ALLOWED_CONTENT_TYPES)
+  const rawContentType = options.contentType?.trim() ?? '';
+  const contentType = rawContentType.toUpperCase();
   if (contentType && !(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
     throw new Error(
-      `Failed while validating content_type: "${contentType}" is not one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
+      `Failed while validating content_type: "${rawContentType}" is not one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
     );
   }
 
@@ -244,12 +259,14 @@ export async function uploadToDrive(
 
   // ── Stage 1: create/find client folder ────────────────────────────────────
   let parentId = rootFolderId;
+  let clientFolderName: string | null = null;
 
   if (options.clientName?.trim()) {
     console.log('[upload] ══ STAGE: create/find client folder ══════════════════');
     try {
+      clientFolderName = normalizeFolderName(options.clientName);
       parentId = await findOrCreateFolder(drive, options.clientName, rootFolderId);
-      folderPathParts.push(normalizeFolderName(options.clientName));
+      folderPathParts.push(clientFolderName);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed while creating client folder: ${msg}`);
@@ -278,6 +295,7 @@ export async function uploadToDrive(
     throw new Error(`Failed while creating month folder: ${msg}`);
   }
 
+  const driveFolderId = parentId;
   const folderPath = folderPathParts.join(' / ');
   console.log('[google-drive] generated folder path:', folderPath);
   console.log('[google-drive] target folder ID for file upload:', parentId);
@@ -362,7 +380,7 @@ export async function uploadToDrive(
     throw new Error(`Failed while generating Google Drive URLs: ${msg}`);
   }
 
-  return { drive_file_id: fileId, webViewLink, webContentLink, folderPath };
+  return { drive_file_id: fileId, drive_folder_id: driveFolderId, client_folder_name: clientFolderName, webViewLink, webContentLink, folderPath };
 }
 
 /**

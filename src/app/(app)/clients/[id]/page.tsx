@@ -16,7 +16,23 @@ import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/l
 
 // ── Asset upload helpers ──────────────────────────────────────────────────────
 
-const ALLOWED_CONTENT_TYPES = ['design', 'video', 'photo', 'document', 'audio', 'other'] as const;
+const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
+
+function contentTypeLabel(ct: string): string {
+  return ct.replace(/_/g, ' ').replace(/\w+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
+}
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
 interface TempFile { name: string; type: string; previewUrl?: string }
@@ -122,7 +138,7 @@ function ClientUploadDetailsModal({ fileName, contentType, month, onContentTypeC
           <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Content Type</label>
           <select className="input w-full" value={contentType} onChange={e => onContentTypeChange(e.target.value)}>
             {ALLOWED_CONTENT_TYPES.map(ct => (
-              <option key={ct} value={ct}>{ct.charAt(0).toUpperCase() + ct.slice(1)}</option>
+              <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
             ))}
           </select>
         </div>

@@ -12,7 +12,23 @@ import type { Asset } from '@/lib/types';
 
 // ── Upload config ─────────────────────────────────────────────────────────────
 
-const ALLOWED_CONTENT_TYPES = ['design', 'video', 'photo', 'document', 'audio', 'other'] as const;
+const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
+
+function contentTypeLabel(ct: string): string {
+  return ct.replace(/_/g, ' ').replace(/\w+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -159,7 +175,7 @@ function UploadDetailsModal({
             onChange={e => onContentTypeChange(e.target.value)}
           >
             {ALLOWED_CONTENT_TYPES.map(t => (
-              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              <option key={t} value={t}>{contentTypeLabel(t)}</option>
             ))}
           </select>
         </div>
