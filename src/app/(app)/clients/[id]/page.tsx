@@ -492,7 +492,7 @@ export default function ClientWorkspace() {
       formData.append('client_id', id);
       if (client?.name) formData.append('client_name', client.name);
       formData.append('content_type', uploadContentType);
-      formData.append('month', uploadMonth);
+      formData.append('month_key', uploadMonth);
 
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);

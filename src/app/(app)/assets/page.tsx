@@ -496,7 +496,7 @@ export default function AssetsPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('content_type', uploadContentType);
-      formData.append('month', uploadMonth);
+      formData.append('month_key', uploadMonth);
 
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
