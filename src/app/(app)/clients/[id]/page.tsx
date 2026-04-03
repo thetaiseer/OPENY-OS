@@ -12,11 +12,25 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import { contentTypeLabel } from '@/lib/asset-utils';
 import { clientToFolderName } from '@/lib/asset-utils';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 // ── Fixed content type list ───────────────────────────────────────────────────
 
+const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
 const CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATES', 'REPORTS', 'OTHER',
@@ -192,6 +206,31 @@ function ClientUploadModal({
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={e => e.stopPropagation()}
       >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload Details</h3>
+          <button onClick={onCancel} className="opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="rounded-xl border px-3 py-2 text-sm truncate"
+          style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          {fileName}
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Content Type</label>
+          <select className="input w-full" value={contentType} onChange={e => onContentTypeChange(e.target.value)}>
+            {ALLOWED_CONTENT_TYPES.map(ct => (
+              <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Month (YYYY-MM)</label>
+          <input type="month" className="input w-full" value={month} onChange={e => onMonthChange(e.target.value)} />
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button onClick={onCancel} className="btn flex-1 h-9 text-sm">Cancel</button>
+          <button onClick={onConfirm} className="btn-primary flex-1 h-9 text-sm">Upload</button>
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload File</h2>

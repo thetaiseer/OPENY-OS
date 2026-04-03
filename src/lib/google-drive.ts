@@ -7,11 +7,27 @@ import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
 import { clientToFolderName } from './asset-utils';
 
+// ── Allowed content types ──────────────────────────────────────────────────────
+export const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
+export type AllowedContentType = typeof ALLOWED_CONTENT_TYPES[number];
 // ── Result type ───────────────────────────────────────────────────────────────
 
 export interface DriveUploadResult {
   drive_file_id: string;
   drive_folder_id: string;
+  client_folder_name: string | null;
   webViewLink: string;
   webContentLink: string;
 }
@@ -70,8 +86,9 @@ function assertValidUrl(url: string, label: string): void {
 
 function getDriveClient() {
   const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const rawKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
-  const privateKey = rawKey?.replace(/\\n/g, '\n');
+  const privateKey = (process.env.GOOGLE_DRIVE_PRIVATE_KEY || '')
+    .replace(/\\n/g, '\n')
+    .replace(/^"|"$/g, '');
   const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   console.log('[google-drive] init — client_email:', clientEmail ?? '(missing)');
@@ -88,10 +105,12 @@ function getDriveClient() {
   const folderId = extractDriveId(rawFolderId);
   console.log('[google-drive] init — folder_id (after extractDriveId):', folderId);
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: { client_email: clientEmail, private_key: privateKey },
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.JWT(
+    process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
+    null,
+    privateKey,
+    ['https://www.googleapis.com/auth/drive']
+  );
 
   console.log('[google-drive] GoogleAuth created successfully');
   return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId };
@@ -169,6 +188,14 @@ export async function uploadToStructuredPath(
 ): Promise<DriveUploadResult> {
   const { drive, rootFolderId } = getDriveClient();
 
+  // Validate content type (case-insensitive match against ALLOWED_CONTENT_TYPES)
+  const rawContentType = options.contentType?.trim() ?? '';
+  const contentType = rawContentType.toUpperCase();
+  if (contentType && !(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+    throw new Error(
+      `Failed while validating content_type: "${rawContentType}" is not one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
+    );
+  }
   console.log(`[google-drive] structured upload: ${clientFolderName}/${contentType}/${monthKey}/${fileName}`);
 
   // Build folder hierarchy: root → client → content_type → month
@@ -176,6 +203,21 @@ export async function uploadToStructuredPath(
   const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
   const monthFolderId = await getOrCreateFolder(drive, monthKey, contentTypeFolderId);
 
+  // ── Stage 1: create/find client folder ────────────────────────────────────
+  let parentId = rootFolderId;
+  let clientFolderName: string | null = null;
+
+  if (options.clientName?.trim()) {
+    console.log('[upload] ══ STAGE: create/find client folder ══════════════════');
+    try {
+      clientFolderName = normalizeFolderName(options.clientName);
+      parentId = await findOrCreateFolder(drive, options.clientName, rootFolderId);
+      folderPathParts.push(clientFolderName);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed while creating client folder: ${msg}`);
+    }
+  }
   // Upload file into the month folder
   const readableStream = Readable.from(buffer);
   console.log('[google-drive] uploading file:', fileName, '| mimeType:', mimeType, '| size (bytes):', buffer.length);
@@ -200,6 +242,10 @@ export async function uploadToStructuredPath(
   }
   console.log('[google-drive] file ID:', fileId);
 
+  const driveFolderId = parentId;
+  const folderPath = folderPathParts.join(' / ');
+  console.log('[google-drive] generated folder path:', folderPath);
+  console.log('[google-drive] target folder ID for file upload:', parentId);
   // Grant anyone-with-link read access
   const permRes = await drive.permissions.create({
     fileId,
@@ -236,6 +282,7 @@ export async function uploadToStructuredPath(
   console.log('[google-drive] final links — webViewLink:', result.webViewLink);
   console.log('[google-drive] final links — webContentLink:', result.webContentLink);
 
+  return { drive_file_id: fileId, drive_folder_id: driveFolderId, client_folder_name: clientFolderName, webViewLink, webContentLink, folderPath };
   return result;
 }
 

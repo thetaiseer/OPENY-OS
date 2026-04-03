@@ -44,15 +44,26 @@ create table if not exists content_items (
 
 -- Assets
 create table if not exists assets (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  file_path   text not null,
-  file_url    text not null,
-  file_type   text,
-  file_size   bigint,
-  bucket_name text not null default 'client-assets',
-  client_id   uuid references clients(id) on delete set null,
-  created_at  timestamptz not null default now()
+  id                 uuid primary key default gen_random_uuid(),
+  name               text not null,
+  file_path          text,
+  file_url           text not null,
+  file_type          text,
+  file_size          bigint,
+  bucket_name        text,
+  client_id          uuid references clients(id) on delete set null,
+  storage_provider   text not null default 'supabase',
+  drive_file_id      text,
+  drive_folder_id    text,
+  view_url           text,
+  download_url       text,
+  content_type       text check (content_type is null or content_type in (
+                       'SOCIAL_POSTS','REELS','VIDEOS','LOGOS','BRAND_ASSETS',
+                       'PASSWORDS','DOCUMENTS','RAW_FILES','ADS_CREATIVES','REPORTS','OTHER'
+                     )),
+  month_key          text check (month_key is null or month_key ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  client_folder_name text,
+  created_at         timestamptz not null default now()
 );
 
 -- Approvals

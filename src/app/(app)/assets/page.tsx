@@ -8,11 +8,26 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
+import { contentTypeLabel } from '@/lib/asset-utils';
+import type { Asset } from '@/lib/types';
 import { clientToFolderName } from '@/lib/asset-utils';
 import type { Asset, Client } from '@/lib/types';
 
 // ── Fixed content type list ───────────────────────────────────────────────────
 
+const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS',
+  'REELS',
+  'VIDEOS',
+  'LOGOS',
+  'BRAND_ASSETS',
+  'PASSWORDS',
+  'DOCUMENTS',
+  'RAW_FILES',
+  'ADS_CREATIVES',
+  'REPORTS',
+  'OTHER',
+] as const;
 const CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATES', 'REPORTS', 'OTHER',
@@ -110,6 +125,90 @@ function UploadProgress({ progress, status }: { progress: number; status: string
           style={{ width: `${progress}%`, background: 'var(--accent)' }}
         />
       </div>
+    </div>
+  );
+}
+
+// ── Upload Details Modal ──────────────────────────────────────────────────────
+
+interface UploadDetailsModalProps {
+  fileName: string;
+  contentType: string;
+  month: string;
+  onContentTypeChange: (v: string) => void;
+  onMonthChange: (v: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function UploadDetailsModal({
+  fileName,
+  contentType,
+  month,
+  onContentTypeChange,
+  onMonthChange,
+  onConfirm,
+  onCancel,
+}: UploadDetailsModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border p-6 space-y-5 shadow-xl"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload Details</h3>
+          <button onClick={onCancel} className="text-sm opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="rounded-xl border px-3 py-2 text-sm truncate" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          {fileName}
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Content Type
+          </label>
+          <select
+            className="input w-full"
+            value={contentType}
+            onChange={e => onContentTypeChange(e.target.value)}
+          >
+            {ALLOWED_CONTENT_TYPES.map(t => (
+              <option key={t} value={t}>{contentTypeLabel(t)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Month (YYYY-MM)
+          </label>
+          <input
+            type="month"
+            className="input w-full"
+            value={month}
+            onChange={e => onMonthChange(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="btn flex-1 h-9 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="btn-primary flex-1 h-9 text-sm"
       <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
         {UPLOAD_STAGES.map((s, i) => (
           <span
