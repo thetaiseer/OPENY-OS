@@ -327,3 +327,127 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
   const { drive } = getDriveClient();
   await drive.files.delete({ fileId, supportsAllDrives: true });
 }
+
+// ── Resumable upload helpers ──────────────────────────────────────────────────
+
+/**
+ * Build the Drive folder hierarchy for a structured upload and return the leaf
+ * (month) folder ID.  Creates any missing folders along the way.
+ *
+ * Path: OPENY_OS_STORAGE / clientFolderName / contentType / monthKey
+ */
+export async function createFolderHierarchy(
+  clientFolderName: string,
+  contentType: string,
+  monthKey: string,
+): Promise<{ monthFolderId: string; clientFolderName: string }> {
+  const { drive, rootFolderId } = getDriveClient();
+
+  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, rootFolderId);
+  console.log('[google-drive] folder hierarchy — client:', clientFolderName, '→', clientFolderId);
+
+  const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
+  console.log('[google-drive] folder hierarchy — contentType:', contentType, '→', contentTypeFolderId);
+
+  const monthFolderId = await getOrCreateFolder(drive, monthKey, contentTypeFolderId);
+  console.log('[google-drive] folder hierarchy — month:', monthKey, '→', monthFolderId);
+
+  return { monthFolderId, clientFolderName };
+}
+
+/**
+ * Initiate a Google Drive resumable upload session.
+ *
+ * Calls POST https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable
+ * with the OAuth access token from the server's credential store.
+ *
+ * Returns the upload URL from the Location response header.  The caller
+ * (typically the browser) can then PUT file data directly to that URL in
+ * one or more chunks without exposing OAuth credentials.
+ */
+export async function initiateResumableSession(
+  fileName: string,
+  fileType: string,
+  fileSize: number,
+  monthFolderId: string,
+): Promise<string> {
+  const { auth } = getDriveClient();
+
+  const tokenResponse = await auth.getAccessToken();
+  const accessToken = tokenResponse?.token;
+  if (!accessToken) {
+    throw new Error('Failed to obtain Google OAuth access token for resumable session');
+  }
+
+  console.log('[google-drive] initiating resumable session — file:', fileName, '| size:', fileSize, '| folder:', monthFolderId);
+
+  const initRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': fileType,
+        'X-Upload-Content-Length': String(fileSize),
+      },
+      body: JSON.stringify({ name: fileName, parents: [monthFolderId] }),
+    },
+  );
+
+  if (!initRes.ok) {
+    const body = await initRes.text();
+    throw new Error(`Resumable session initiation failed (${initRes.status}): ${body}`);
+  }
+
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) {
+    throw new Error('Resumable session initiation did not return a Location header');
+  }
+
+  console.log('[google-drive] resumable session created successfully');
+  return uploadUrl;
+}
+
+/**
+ * After the browser has finished uploading a file directly to Google Drive,
+ * grant public read access and return the canonical view / download URLs.
+ */
+export async function finalizeFileAfterUpload(
+  driveFileId: string,
+): Promise<{ webViewLink: string; webContentLink: string }> {
+  const { drive } = getDriveClient();
+
+  // Grant anyone-with-link read access
+  await drive.permissions.create({
+    fileId: driveFileId,
+    requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true,
+  });
+  console.log('[google-drive] public read permission granted for file:', driveFileId);
+
+  // Fetch updated metadata
+  const metaRes = await drive.files.get({
+    fileId: driveFileId,
+    fields: 'id,webViewLink,webContentLink',
+    supportsAllDrives: true,
+  });
+
+  const rawView = metaRes.data.webViewLink ?? '';
+  const rawDownload = metaRes.data.webContentLink ?? '';
+
+  let webViewLink = rawView;
+  try { assertValidUrl(rawView, 'webViewLink'); } catch (e) {
+    console.warn('[google-drive] webViewLink from Drive is not a valid URL — using fallback:', (e as Error).message);
+    webViewLink = `https://drive.google.com/file/d/${driveFileId}/view`;
+  }
+
+  let webContentLink = rawDownload;
+  try { assertValidUrl(rawDownload, 'webContentLink'); } catch (e) {
+    console.warn('[google-drive] webContentLink from Drive is not a valid URL — using fallback:', (e as Error).message);
+    webContentLink = `https://drive.google.com/uc?id=${driveFileId}&export=download`;
+  }
+
+  console.log('[google-drive] finalized file:', driveFileId, '| view:', webViewLink);
+  return { webViewLink, webContentLink };
+}
