@@ -77,9 +77,6 @@ export interface Asset {
   month_key?: string | null;
   client_id?: string;
   client_name?: string | null;
-  client_folder_name?: string | null;
-  content_type?: string | null;
-  month_key?: string | null;
   uploaded_by?: string | null;
   created_at: string;
 }
