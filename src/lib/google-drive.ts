@@ -86,8 +86,9 @@ function assertValidUrl(url: string, label: string): void {
 
 function getDriveClient() {
   const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const rawKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
-  const privateKey = rawKey?.replace(/\\n/g, '\n');
+  const privateKey = (process.env.GOOGLE_DRIVE_PRIVATE_KEY || '')
+    .replace(/\\n/g, '\n')
+    .replace(/^"|"$/g, '');
   const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   console.log('[google-drive] init — client_email:', clientEmail ?? '(missing)');
@@ -107,7 +108,7 @@ function getDriveClient() {
   const auth = new google.auth.JWT(
     process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
     null,
-    process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    privateKey,
     ['https://www.googleapis.com/auth/drive']
   );
 
