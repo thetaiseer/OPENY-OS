@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { uploadToDrive } from '@/lib/google-drive';
+import { uploadToStructuredPath, toClientFolderName } from '@/lib/google-drive';
+
+// Fixed content type list
+const VALID_CONTENT_TYPES = [
+  'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
+  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATES', 'REPORTS', 'OTHER',
+] as const;
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -13,7 +19,7 @@ function getSupabase() {
 
 // ── POST /api/assets/upload ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  console.log('[upload] POST /api/assets/upload — storage provider: google_drive');
+  console.log('[upload] POST /api/assets/upload — structured Google Drive storage');
   try {
     // ── 1. Parse multipart form data ─────────────────────────────────────────
     let formData: FormData;
@@ -29,31 +35,59 @@ export async function POST(req: NextRequest) {
     }
     const file = rawFile as File;
 
+    // ── 2. Validate required metadata fields ──────────────────────────────────
     const clientId = formData.get('client_id');
-    console.log('[upload] file name:', file.name, '| type:', file.type, '| size:', file.size, '| client_id:', clientId ?? '(none)');
+    const clientName = formData.get('client_name');
+    const contentType = formData.get('content_type');
+    const monthKey = formData.get('month_key');
+    const uploadedBy = formData.get('uploaded_by');
 
-    // ── 2. Read file into buffer ──────────────────────────────────────────────
+    if (!clientName || typeof clientName !== 'string' || !clientName.trim()) {
+      return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
+    }
+    if (!contentType || typeof contentType !== 'string') {
+      return NextResponse.json({ error: 'content_type is required' }, { status: 400 });
+    }
+    if (!VALID_CONTENT_TYPES.includes(contentType as typeof VALID_CONTENT_TYPES[number])) {
+      return NextResponse.json(
+        { error: `Invalid content_type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
+        { status: 400 },
+      );
+    }
+    if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
+      return NextResponse.json({ error: 'month_key is required and must be in YYYY-MM format' }, { status: 400 });
+    }
+
+    const clientFolderName = toClientFolderName(clientName);
+    console.log('[upload] file:', file.name, '| client:', clientName, '| folder:', clientFolderName, '| type:', contentType, '| month:', monthKey);
+
+    // ── 3. Read file into buffer ──────────────────────────────────────────────
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     console.log('[upload] buffer length:', buffer.length);
 
-    // ── 3. Upload to Google Drive ─────────────────────────────────────────────
-    console.log('[upload] starting Google Drive upload…');
+    // ── 4. Upload to structured path in Google Drive ──────────────────────────
+    console.log('[upload] starting structured Google Drive upload…');
     let driveResult;
     try {
-      driveResult = await uploadToDrive(buffer, file.type || 'application/octet-stream', file.name);
+      driveResult = await uploadToStructuredPath(
+        buffer,
+        file.type || 'application/octet-stream',
+        file.name,
+        clientFolderName,
+        contentType,
+        monthKey,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ Google Drive upload failed:', msg);
       return NextResponse.json({ error: `Google Drive upload failed: ${msg}` }, { status: 502 });
     }
 
-    const { drive_file_id, webViewLink, webContentLink } = driveResult;
-    console.log('[upload] ✅ Google Drive upload success — file_id:', drive_file_id);
-    console.log('[upload] webViewLink:', webViewLink);
-    console.log('[upload] webContentLink:', webContentLink);
+    const { drive_file_id, drive_folder_id, webViewLink, webContentLink } = driveResult;
+    console.log('[upload] ✅ Google Drive upload success — file_id:', drive_file_id, '| folder_id:', drive_folder_id);
 
-    // ── 4. Insert metadata into assets table ──────────────────────────────────
+    // ── 5. Insert metadata into assets table ──────────────────────────────────
     console.log('[upload] inserting into assets table…');
     const supabase = getSupabase();
     const row: Record<string, unknown> = {
@@ -67,6 +101,12 @@ export async function POST(req: NextRequest) {
       bucket_name: null,
       storage_provider: 'google_drive',
       drive_file_id,
+      drive_folder_id,
+      client_name: clientName.trim(),
+      client_folder_name: clientFolderName,
+      content_type: contentType,
+      month_key: monthKey,
+      uploaded_by: (uploadedBy && typeof uploadedBy === 'string') ? uploadedBy : null,
     };
     if (clientId && typeof clientId === 'string') {
       row.client_id = clientId;
@@ -88,10 +128,11 @@ export async function POST(req: NextRequest) {
 
     console.log('[upload] ✅ DB insert success — asset id:', (inserted as Record<string, unknown>)?.id);
 
-    // ── 5. Log activity (fire and forget) ────────────────────────────────────
+    // ── 6. Log activity (fire and forget) ────────────────────────────────────
     void supabase.from('activities').insert({
       type: 'asset',
-      description: `Asset "${file.name}" uploaded to Google Drive`,
+      description: `Asset "${file.name}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})`,
+      client_id: (clientId && typeof clientId === 'string') ? clientId : undefined,
     });
 
     return NextResponse.json({ asset: inserted }, { status: 201 });
@@ -101,3 +142,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Unexpected server error: ${msg}` }, { status: 500 });
   }
 }
+

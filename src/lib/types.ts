@@ -71,7 +71,13 @@ export interface Asset {
   bucket_name: string | null;
   storage_provider?: string | null;
   drive_file_id?: string | null;
+  drive_folder_id?: string | null;
   client_id?: string;
+  client_name?: string | null;
+  client_folder_name?: string | null;
+  content_type?: string | null;
+  month_key?: string | null;
+  uploaded_by?: string | null;
   created_at: string;
 }
 
