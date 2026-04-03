@@ -12,6 +12,7 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import { clientToFolderName } from '@/lib/asset-utils';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 // ── Fixed content type list ───────────────────────────────────────────────────
@@ -176,7 +177,7 @@ function ClientUploadModal({
     }
   };
 
-  const clientFolderName = client.name.trim().toUpperCase().replace(/\s+/g, '_');
+  const clientFolderName = clientToFolderName(client.name);
 
   return (
     <div

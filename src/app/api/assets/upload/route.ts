@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { uploadToStructuredPath, toClientFolderName } from '@/lib/google-drive';
+import { uploadToStructuredPath } from '@/lib/google-drive';
+import { clientToFolderName } from '@/lib/asset-utils';
 
 // Fixed content type list
 const VALID_CONTENT_TYPES = [
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'month_key is required and must be in YYYY-MM format' }, { status: 400 });
     }
 
-    const clientFolderName = toClientFolderName(clientName);
+    const clientFolderName = clientToFolderName(clientName);
     console.log('[upload] file:', file.name, '| client:', clientName, '| folder:', clientFolderName, '| type:', contentType, '| month:', monthKey);
 
     // ── 3. Read file into buffer ──────────────────────────────────────────────

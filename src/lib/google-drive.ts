@@ -5,6 +5,7 @@
 import { google } from 'googleapis';
 import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
+import { clientToFolderName } from './asset-utils';
 
 export interface DriveUploadResult {
   drive_file_id: string;
@@ -40,10 +41,16 @@ function getDriveClient() {
 
 /**
  * Convert a client name to a normalized folder name.
- * Uppercases it and replaces spaces with underscores.
+ * Delegates to the shared clientToFolderName utility.
  */
-export function toClientFolderName(name: string): string {
-  return name.trim().toUpperCase().replace(/\s+/g, '_');
+export { clientToFolderName as toClientFolderName };
+
+/**
+ * Escape a string for use inside a Google Drive API query's single-quoted string literal.
+ * Escapes backslashes first, then single quotes.
+ */
+function escapeDriveQueryString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /**
@@ -56,8 +63,9 @@ async function getOrCreateFolder(
   parentId: string,
 ): Promise<string> {
   // Search for an existing folder with this exact name under the parent
+  const safeName = escapeDriveQueryString(name);
   const searchRes = await drive.files.list({
-    q: `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`,
+    q: `name='${safeName}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`,
     fields: 'files(id,name)',
     spaces: 'drive',
   });

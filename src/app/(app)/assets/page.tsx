@@ -8,6 +8,7 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
+import { clientToFolderName } from '@/lib/asset-utils';
 import type { Asset, Client } from '@/lib/types';
 
 // ── Fixed content type list ───────────────────────────────────────────────────
@@ -526,7 +527,7 @@ function UploadModal({ clients, initialClientId, onClose, onSuccess }: UploadMod
                   <span style={{ color: 'var(--accent)' }}>OPENY_OS_STORAGE</span>
                   {' / '}
                   <span style={{ color: 'var(--text)' }}>
-                    {selectedClient.name.trim().toUpperCase().replace(/\s+/g, '_')}
+                    {clientToFolderName(selectedClient.name)}
                   </span>
                   {' / '}
                   <span style={{ color: 'var(--text)' }}>{contentType}</span>
