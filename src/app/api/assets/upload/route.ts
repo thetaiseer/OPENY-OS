@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { uploadToDrive, ALLOWED_CONTENT_TYPES } from '@/lib/google-drive';
+import { uploadToStructuredPath } from '@/lib/google-drive';
+import { clientToFolderName } from '@/lib/asset-utils';
+
+// Fixed content type list
+const VALID_CONTENT_TYPES = [
+  'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
+  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATES', 'REPORTS', 'OTHER',
+] as const;
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -13,7 +20,7 @@ function getSupabase() {
 
 // ── POST /api/assets/upload ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  console.log('[upload] POST /api/assets/upload — storage provider: google_drive');
+  console.log('[upload] POST /api/assets/upload — structured Google Drive storage');
   try {
     // ── 1. Parse multipart form data ─────────────────────────────────────────
     let formData: FormData;
@@ -21,7 +28,6 @@ export async function POST(req: NextRequest) {
       formData = await req.formData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] ❌ Failed while parsing multipart form data:', msg);
       return NextResponse.json(
         { error: `Failed while parsing multipart form data: ${msg}` },
         { status: 400 },
@@ -34,27 +40,22 @@ export async function POST(req: NextRequest) {
     }
     const file = rawFile as File;
 
-    // ── 2. Read and log all form fields ──────────────────────────────────────
-    const clientId    = (formData.get('client_id')    as string | null) ?? null;
-    const clientName  = (formData.get('client_name')  as string | null) ?? null;
-    const rawMonth    = (formData.get('month')         as string | null) ?? null;
-    const rawCType    = (formData.get('content_type')  as string | null) ?? null;
+    // ── 2. Validate required metadata fields ──────────────────────────────────
+    const clientId    = formData.get('client_id');
+    const clientName  = formData.get('client_name');
+    const contentType = formData.get('content_type');
+    const monthKey    = formData.get('month_key');
+    const uploadedBy  = formData.get('uploaded_by');
 
-    console.log('[upload] ── selected file name      :', file.name);
-    console.log('[upload] ── selected client_id      :', clientId ?? '(none)');
-    console.log('[upload] ── selected client_name    :', clientName ?? '(none)');
-    console.log('[upload] ── selected month          :', rawMonth ?? '(none)');
-    console.log('[upload] ── selected content_type   :', rawCType ?? '(none)');
-    console.log('[upload] ── file mime type          :', file.type);
-    console.log('[upload] ── file size (bytes)       :', file.size);
-    console.log('[upload] ── GOOGLE_DRIVE_FOLDER_ID  :', process.env.GOOGLE_DRIVE_FOLDER_ID ?? '(missing)');
-
-    // ── 3. Validate month ─────────────────────────────────────────────────────
-    const month = rawMonth?.trim() || new Date().toISOString().slice(0, 7);
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      console.error('[upload] ❌ Failed while validating month: invalid value:', month);
+    if (!clientName || typeof clientName !== 'string' || !clientName.trim()) {
+      return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
+    }
+    if (!contentType || typeof contentType !== 'string') {
+      return NextResponse.json({ error: 'content_type is required' }, { status: 400 });
+    }
+    if (!VALID_CONTENT_TYPES.includes(contentType as typeof VALID_CONTENT_TYPES[number])) {
       return NextResponse.json(
-        { error: `Failed while validating month: "${month}" must be YYYY-MM` },
+        { error: `Invalid content_type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
         { status: 400 },
       );
     }
@@ -63,10 +64,9 @@ export async function POST(req: NextRequest) {
     const contentType = rawCType?.trim().toUpperCase() ?? '';
     if (contentType && !(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
       console.error('[upload] ❌ Failed while validating content_type:', contentType);
+    if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
       return NextResponse.json(
-        {
-          error: `Failed while validating content_type: "${contentType}" must be one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
-        },
+        { error: 'month_key is required and must be in YYYY-MM format' },
         { status: 400 },
       );
     }
@@ -77,8 +77,10 @@ export async function POST(req: NextRequest) {
       // client_id was explicitly sent but is empty/whitespace — reject to prevent orphaned assets
       return NextResponse.json({ error: 'client_id is required when uploading to a client workspace' }, { status: 400 });
     }
+    const clientFolderName = clientToFolderName(clientName);
+    console.log('[upload] file:', file.name, '| client:', clientName, '| folder:', clientFolderName, '| type:', contentType, '| month:', monthKey);
 
-    // ── 6. Read file into buffer ──────────────────────────────────────────────
+    // ── 3. Read file into buffer ──────────────────────────────────────────────
     let buffer: Buffer;
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -86,31 +88,28 @@ export async function POST(req: NextRequest) {
       console.log('[upload] buffer length:', buffer.length);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] ❌ Failed while reading file into buffer:', msg);
       return NextResponse.json(
         { error: `Failed while reading file into buffer: ${msg}` },
         { status: 500 },
       );
     }
 
-    // ── 7. Upload to Google Drive (all sub-stages handled inside uploadToDrive) ──
-    console.log('[upload] starting Google Drive upload…');
+    // ── 4. Upload to structured path in Google Drive ──────────────────────────
+    console.log('[upload] starting structured Google Drive upload…');
     let driveResult;
     try {
-      driveResult = await uploadToDrive(
+      driveResult = await uploadToStructuredPath(
         buffer,
         file.type || 'application/octet-stream',
         file.name,
-        {
-          clientName:  clientName ?? undefined,
-          contentType: contentType || undefined,
-          month,
-        },
+        clientFolderName,
+        contentType,
+        monthKey,
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] ❌', msg);
-      return NextResponse.json({ error: msg }, { status: 502 });
+      console.error('[upload] ❌ Google Drive upload failed:', msg);
+      return NextResponse.json({ error: `Google Drive upload failed: ${msg}` }, { status: 502 });
     }
 
     const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink, folderPath } = driveResult;
@@ -120,9 +119,11 @@ export async function POST(req: NextRequest) {
     console.log('[upload] ── webViewLink     :', webViewLink);
     console.log('[upload] ── webContentLink  :', webContentLink);
     console.log('[upload] ── folderPath      :', folderPath);
+    const { drive_file_id, drive_folder_id, webViewLink, webContentLink } = driveResult;
+    console.log('[upload] ✅ Google Drive upload success — file_id:', drive_file_id, '| folder_id:', drive_folder_id);
 
-    // ── 8. Insert metadata into assets table ──────────────────────────────────
-    console.log('[upload] ── STAGE: insert asset metadata ════════════════════');
+    // ── 5. Insert metadata into assets table ──────────────────────────────────
+    console.log('[upload] inserting into assets table…');
     const supabase = getSupabase();
     const row: Record<string, unknown> = {
       name:               file.name,
@@ -139,10 +140,21 @@ export async function POST(req: NextRequest) {
       client_folder_name: client_folder_name ?? null,
       content_type:       contentType || null,
       month_key:          month,
+      client_name:        clientName.trim(),
+      client_folder_name: clientFolderName,
+      content_type:       contentType,
+      month_key:          monthKey,
+      uploaded_by:        (uploadedBy && typeof uploadedBy === 'string') ? uploadedBy : null,
     };
-    if (safeClientId) row.client_id = safeClientId;
+    if (clientId && typeof clientId === 'string') {
+      row.client_id = clientId;
+    }
 
-    console.log('[upload] payload inserted into assets table:', JSON.stringify(row));
+    const { data: inserted, error: dbError } = await supabase
+      .from('assets')
+      .insert(row)
+      .select()
+      .single();
 
     let inserted: Record<string, unknown>;
     try {
@@ -163,19 +175,21 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ Failed while inserting asset metadata (exception):', msg);
+    if (dbError) {
+      console.error('[upload] ❌ DB insert failed:', dbError.message, dbError.details ?? '');
       return NextResponse.json(
-        { error: `Failed while inserting asset metadata: ${msg}` },
+        { error: `Database insert failed: ${dbError.message}` },
         { status: 500 },
       );
     }
 
-    console.log('[upload] ✅ DB insert success — asset id:', inserted?.id);
+    console.log('[upload] ✅ DB insert success — asset id:', (inserted as Record<string, unknown>)?.id);
 
-    // ── 9. Log activity (fire and forget) ────────────────────────────────────
+    // ── 6. Log activity (fire and forget) ────────────────────────────────────
     void supabase.from('activities').insert({
       type: 'asset',
-      description: `Asset "${file.name}" uploaded to Google Drive (${folderPath})`,
-      ...(safeClientId ? { client_id: safeClientId } : {}),
+      description: `Asset "${file.name}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})`,
+      ...(clientId && typeof clientId === 'string' ? { client_id: clientId } : {}),
     });
 
     return NextResponse.json({ asset: inserted }, { status: 201 });
