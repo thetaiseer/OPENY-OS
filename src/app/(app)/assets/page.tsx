@@ -4,12 +4,13 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Loader2, Search,
+  Loader2, Search, ThumbsUp, ThumbsDown, MessageSquare,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
+import CommentsPanel from '@/components/ui/CommentsPanel';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Asset, Client } from '@/lib/types';
 
@@ -349,13 +350,17 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
 interface AssetCardProps {
   asset: Asset;
   canDelete: boolean;
+  canApprove: boolean;
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
   onOpenInDrive: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  onComments: () => void;
 }
 
-function AssetCard({ asset, canDelete, onView, onDelete, onCopyLink, onOpenInDrive }: AssetCardProps) {
+function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments }: AssetCardProps) {
   const img      = isImage(asset.name, asset.file_type);
   const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
   const downloadUrl = asset.download_url ?? asset.file_url;
@@ -402,10 +407,18 @@ function AssetCard({ asset, canDelete, onView, onDelete, onCopyLink, onOpenInDri
         {asset.content_type && (
           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{contentTypeLabel(asset.content_type)}</span>
         )}
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <ApprovalBadge status={asset.approval_status} />
+          {asset.publish_date && (
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              📅 {new Date(asset.publish_date).toLocaleDateString()}
+            </span>
+          )}
+        </div>
         <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatDate(asset.created_at)}</span>
       </div>
 
-      <div className="px-3 pb-3 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+      <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
         <button onClick={onView} title="View" className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <Eye size={13} /><span>View</span>
         </button>
@@ -415,9 +428,22 @@ function AssetCard({ asset, canDelete, onView, onDelete, onCopyLink, onOpenInDri
         <button onClick={onCopyLink} title="Copy link" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <Link size={14} />
         </button>
+        <button onClick={onComments} title="Comments" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+          <MessageSquare size={14} />
+        </button>
         {hasDrive && (
           <button onClick={onOpenInDrive} title="Open in Google Drive" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
             <ExternalLink size={14} />
+          </button>
+        )}
+        {canApprove && asset.approval_status !== 'approved' && (
+          <button onClick={onApprove} title="Approve" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}>
+            <ThumbsUp size={14} />
+          </button>
+        )}
+        {canApprove && asset.approval_status !== 'rejected' && (
+          <button onClick={onReject} title="Reject" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}>
+            <ThumbsDown size={14} />
           </button>
         )}
         {canDelete && (
@@ -427,6 +453,29 @@ function AssetCard({ asset, canDelete, onView, onDelete, onCopyLink, onOpenInDri
         )}
       </div>
     </div>
+  );
+}
+
+// ── Approval badge ────────────────────────────────────────────────────────────
+
+const APPROVAL_COLORS: Record<string, { bg: string; text: string }> = {
+  pending:   { bg: 'rgba(107,114,128,0.12)', text: '#6b7280' },
+  approved:  { bg: 'rgba(22,163,74,0.12)',   text: '#16a34a' },
+  rejected:  { bg: 'rgba(220,38,38,0.12)',   text: '#dc2626' },
+  scheduled: { bg: 'rgba(124,58,237,0.12)',  text: '#7c3aed' },
+  published: { bg: 'rgba(8,145,178,0.12)',   text: '#0891b2' },
+};
+
+function ApprovalBadge({ status }: { status?: string | null }) {
+  const s = status ?? 'pending';
+  const c = APPROVAL_COLORS[s] ?? APPROVAL_COLORS.pending;
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded font-medium capitalize"
+      style={{ background: c.bg, color: c.text }}
+    >
+      {s}
+    </span>
   );
 }
 
@@ -514,6 +563,7 @@ export default function AssetsPage() {
   const [loading, setLoading]           = useState(true);
   const [fetchError, setFetchError]     = useState<string | null>(null);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [commentsAsset, setCommentsAsset] = useState<Asset | null>(null);
   const [toasts, setToasts]             = useState<ToastMsg[]>([]);
   const fileRef                         = useRef<HTMLInputElement>(null);
   const dropZoneRef                     = useRef<HTMLDivElement>(null);
@@ -528,6 +578,7 @@ export default function AssetsPage() {
   const [filterClient, setFilterClient]           = useState('');
   const [filterContentType, setFilterContentType] = useState('');
   const [filterYear, setFilterYear]               = useState('');
+  const [filterApproval, setFilterApproval]       = useState('');
   const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
 
   // Pending batch (waiting for metadata form confirmation)
@@ -609,15 +660,16 @@ export default function AssetsPage() {
 
   const filteredAssets = useMemo(() => {
     let result = [...deferredAssets];
-    if (searchQuery)       result = result.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (filterClient)      result = result.filter(a => a.client_name === filterClient);
+    if (searchQuery)     result = result.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (filterClient)    result = result.filter(a => a.client_name === filterClient);
     if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
-    if (filterYear)        result = result.filter(a => a.month_key?.startsWith(filterYear));
-    if (sortBy === 'oldest')        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    else if (sortBy === 'largest')  result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
-    else                            result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (filterYear)      result = result.filter(a => a.month_key?.startsWith(filterYear));
+    if (filterApproval)  result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
+    if (sortBy === 'oldest')       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
+    else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, sortBy]);
+  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, filterApproval, sortBy]);
 
   // ── File helpers ────────────────────────────────────────────────────────────
 
@@ -820,6 +872,37 @@ export default function AssetsPage() {
     if (asset.view_url) window.open(asset.view_url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleApprovalAction = async (asset: Asset, action: 'approved' | 'rejected') => {
+    const { error } = await supabase
+      .from('assets')
+      .update({ approval_status: action })
+      .eq('id', asset.id);
+    if (error) { addToast(`Failed to ${action}: ${error.message}`, 'error'); return; }
+
+    // Log to approval_history (best-effort)
+    void supabase.from('approval_history').insert({
+      asset_id:  asset.id,
+      action,
+      user_id:   user?.id,
+      user_name: user?.name,
+    }).then(({ error }) => {
+      if (error && process.env.NODE_ENV === 'development') console.error('[approval_history]', error);
+    });
+
+    // Log to activities (best-effort)
+    void supabase.from('activities').insert({
+      type:        action,
+      description: `Asset "${asset.name}" was ${action} by ${user?.name ?? 'user'}`,
+      user_id:     user?.id,
+      client_id:   asset.client_id ?? null,
+    }).then(({ error }) => {
+      if (error && process.env.NODE_ENV === 'development') console.error('[activities]', error);
+    });
+
+    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, approval_status: action } : a));
+    addToast(`Asset ${action}`, 'success');
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -872,6 +955,14 @@ export default function AssetsPage() {
             {Array.from({ length: new Date().getFullYear() - ASSETS_START_YEAR + 1 }, (_, i) => ASSETS_START_YEAR + i).reverse().map(y => (
               <option key={y} value={String(y)}>{y}</option>
             ))}
+          </select>
+          <select className="input h-9 text-sm" value={filterApproval} onChange={e => setFilterApproval(e.target.value)}>
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="published">Published</option>
           </select>
           <select className="input h-9 text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}>
             <option value="newest">Newest First</option>
@@ -935,9 +1026,13 @@ export default function AssetsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredAssets.map(asset => (
                 <AssetCard
-                  key={asset.id} asset={asset} canDelete={isAdmin}
+                  key={asset.id} asset={asset}
+                  canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'}
                   onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
                   onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                  onApprove={() => handleApprovalAction(asset, 'approved')}
+                  onReject={() => handleApprovalAction(asset, 'rejected')}
+                  onComments={() => setCommentsAsset(asset)}
                 />
               ))}
             </div>
@@ -967,6 +1062,31 @@ export default function AssetsPage() {
 
       {/* Preview modal */}
       {previewAsset && <PreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
+
+      {/* Comments modal */}
+      {commentsAsset && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setCommentsAsset(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-xl"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>
+                {commentsAsset.name}
+              </h3>
+              <button onClick={() => setCommentsAsset(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                <X size={16} />
+              </button>
+            </div>
+            <CommentsPanel assetId={commentsAsset.id} />
+          </div>
+        </div>
+      )}
 
       <Toast toasts={toasts} remove={removeToast} />
     </>

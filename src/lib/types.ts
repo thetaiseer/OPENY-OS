@@ -78,6 +78,9 @@ export interface Asset {
   client_id?: string;
   client_name?: string | null;
   uploaded_by?: string | null;
+  publish_date?: string | null;
+  approval_status?: 'pending' | 'approved' | 'rejected' | 'scheduled' | 'published' | null;
+  approval_notes?: string | null;
   created_at: string;
 }
 
@@ -87,5 +90,36 @@ export interface Activity {
   description: string;
   user_id?: string;
   client_id?: string;
+  created_at: string;
+}
+
+export interface Comment {
+  id: string;
+  content: string;
+  user_id: string;
+  user_name: string;
+  asset_id?: string | null;
+  task_id?: string | null;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  client_id?: string | null;
+  user_id?: string | null;
+  created_at: string;
+}
+
+export interface ApprovalHistory {
+  id: string;
+  asset_id: string;
+  action: 'approved' | 'rejected' | 'pending' | 'scheduled' | 'published';
+  user_id?: string | null;
+  user_name?: string | null;
+  notes?: string | null;
   created_at: string;
 }
