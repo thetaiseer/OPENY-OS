@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Loader2, Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw,
+  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import { contentTypeLabel } from '@/lib/asset-utils';
+import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import type { Asset, Client } from '@/lib/types';
 
 // ── Upload config ─────────────────────────────────────────────────────────────
@@ -23,17 +24,12 @@ const ALLOWED_CONTENT_TYPES = [
 
 const ASSETS_START_YEAR = 2020;
 
-// ── Per-file upload state ─────────────────────────────────────────────────────
-
-type FileStatus = 'queued' | 'preparing' | 'uploading' | 'saving' | 'completed' | 'failed';
+// ── Per-file pending-batch state (local — before upload starts) ───────────────
 
 interface FileUploadItem {
   id: string;
   file: File;
   previewUrl: string | null;
-  status: FileStatus;
-  progress: number;
-  error: string | null;
   uploadName: string; // user-editable name (without extension)
 }
 
@@ -44,7 +40,8 @@ interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
 function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+    // bottom-5 right-5 conflicts with GlobalUploadQueue — offset to the left of it
+    <div className="fixed bottom-6 right-[340px] z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map(toast => (
         <div
           key={toast.id}
@@ -256,78 +253,6 @@ function BatchUploadForm({
   );
 }
 
-// ── Upload Queue UI ───────────────────────────────────────────────────────────
-
-const STATUS_LABEL: Record<FileStatus, string> = {
-  queued: 'Queued', preparing: 'Preparing…', uploading: 'Uploading to Drive',
-  saving: 'Saving metadata', completed: 'Completed', failed: 'Failed',
-};
-
-function FileQueueItem({ item }: { item: FileUploadItem }) {
-  const isComplete = item.status === 'completed';
-  const isFailed   = item.status === 'failed';
-  const ext        = getFileExtension(item.file.name);
-  const trimmedName = item.uploadName.trim();
-  const displayName = trimmedName
-    ? (trimmedName.toLowerCase().endsWith(ext) ? trimmedName : `${trimmedName}${ext}`)
-    : item.file.name;
-  return (
-    <div className="rounded-xl border p-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-        {item.previewUrl
-          /* eslint-disable-next-line @next/next/no-img-element */
-          ? <img src={item.previewUrl} alt={item.file.name} className="w-full h-full object-cover" />
-          : <FileTypeIcon name={item.file.name} type={item.file.type} size={20} />}
-      </div>
-      <div className="flex-1 min-w-0 space-y-1">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{displayName}</p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
-          <span className="text-xs" style={{ color: isFailed ? '#ef4444' : isComplete ? '#16a34a' : 'var(--accent)' }}>
-            {STATUS_LABEL[item.status]}
-          </span>
-          {!isComplete && !isFailed && (
-            <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{item.progress}%</span>
-          )}
-        </div>
-        {!isComplete && !isFailed && (
-          <div className="w-full h-1.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${item.progress}%`, background: 'var(--accent)' }} />
-          </div>
-        )}
-        {isFailed && item.error && <p className="text-xs truncate" style={{ color: '#ef4444' }}>{item.error}</p>}
-      </div>
-      <div className="shrink-0">
-        {isComplete && <CheckCircle size={18} style={{ color: '#16a34a' }} />}
-        {isFailed && <AlertCircle size={18} style={{ color: '#ef4444' }} />}
-        {!isComplete && !isFailed && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent)' }} />}
-      </div>
-    </div>
-  );
-}
-
-function UploadQueue({ items }: { items: FileUploadItem[] }) {
-  if (items.length === 0) return null;
-  const completed = items.filter(i => i.status === 'completed').length;
-  const failed    = items.filter(i => i.status === 'failed').length;
-  const overall   = Math.round((completed / items.length) * 100);
-  return (
-    <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-semibold" style={{ color: 'var(--text)' }}>
-          Uploading {completed}/{items.length} files
-          {failed > 0 && <span style={{ color: '#ef4444' }}> · {failed} failed</span>}
-        </span>
-        <span className="font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{overall}%</span>
-      </div>
-      <div className="w-full h-2 rounded-full" style={{ background: 'var(--surface-2)' }}>
-        <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${overall}%`, background: 'var(--accent)' }} />
-      </div>
-      <div className="space-y-2">{items.map(item => <FileQueueItem key={item.id} item={item} />)}</div>
-    </div>
-  );
-}
-
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 
 function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
@@ -533,75 +458,11 @@ function ApprovalBadge({ status }: { status?: string | null }) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TOAST_DURATION_MS   = 4500;
-const UPLOAD_CONCURRENCY  = 3;
+const TOAST_DURATION_MS = 4500;
 
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null {
   return isImage(file.name, file.type) ? URL.createObjectURL(file) : null;
-}
-
-// ── Resumable upload helper ───────────────────────────────────────────────────
-
-/**
- * Upload a File directly to Google Drive using the pre-authenticated resumable
- * upload URL returned by /api/assets/upload-session.
- *
- * Sends the entire file in a single PUT request to the upload URL.
- * Google Drive responds with 200 or 201 and the file metadata JSON (including
- * the Drive file ID) on success.
- */
-async function uploadFileResumable(
-  uploadUrl: string,
-  file: File,
-  onProgress: (pct: number) => void,
-  signal: AbortSignal,
-): Promise<string> {
-  if (!uploadUrl) {
-    throw new Error('upload_url is missing — cannot proceed with upload');
-  }
-
-  const mimeType  = file.type || 'application/octet-stream';
-  const totalSize = file.size;
-
-  console.log('[upload] upload_url present:', !!uploadUrl);
-  console.log('[upload] file size:', totalSize, '| mimeType:', mimeType);
-
-  onProgress(10);
-
-  let res: Response;
-  try {
-    if (signal.aborted) throw new DOMException('Upload aborted by user', 'AbortError');
-    res = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': mimeType,
-      },
-      body: file,
-      signal,
-    });
-  } catch (err: unknown) {
-    if (signal.aborted) throw err;
-    // Network-level errors (CORS, offline, etc.) produce a generic message.
-    // Re-wrap with more context so the user knows where in the flow it failed.
-    const originalMsg = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `Direct upload to Google Drive failed (network error): ${originalMsg}. ` +
-      'Check that your Drive OAuth credentials are correct and the token has Drive access.',
-    );
-  }
-
-  if (res.status === 200 || res.status === 201) {
-    const data = await res.json() as { id?: string };
-    onProgress(100);
-    if (!data.id) throw new Error('Drive did not return a file ID after upload');
-    return data.id;
-  }
-
-  // Log full response on unexpected status
-  const body = await res.text().catch(() => '(could not read body)');
-  console.error('[upload] Upload failed — status:', res.status, '| statusText:', res.statusText, '| body:', body);
-  throw new Error(`Upload failed (${res.status}): ${body.slice(0, 300)}`);
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -622,6 +483,9 @@ export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+
+  // ── Global upload context ────────────────────────────────────────────────
+  const { startBatch, isUploading, latestAsset } = useUpload();
 
   const [assets, setAssets]             = useState<Asset[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -645,16 +509,12 @@ export default function AssetsPage() {
   const [filterApproval, setFilterApproval]       = useState('');
   const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
 
-  // Pending batch (waiting for metadata form confirmation)
+  // Pending batch (local — shown before upload starts, then handed to context)
   const [pendingItems, setPendingItems]               = useState<FileUploadItem[]>([]);
   const [uploadContentType, setUploadContentType]     = useState<string>(ALLOWED_CONTENT_TYPES[0]);
   const [uploadMonth, setUploadMonth]                 = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [uploadClientName, setUploadClientName]       = useState<string>('');
   const [uploadClientId, setUploadClientId]           = useState<string>('');
-
-  // Active upload queue
-  const [uploadQueue, setUploadQueue] = useState<FileUploadItem[]>([]);
-  const isUploading = uploadQueue.some(i => i.status !== 'completed' && i.status !== 'failed');
 
   const [isDragOver, setIsDragOver] = useState(false);
   const [clients, setClients]       = useState<Client[]>([]);
@@ -675,6 +535,17 @@ export default function AssetsPage() {
   }, []);
 
   const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
+
+  // ── Refresh asset list when a new upload completes ───────────────────────
+
+  useEffect(() => {
+    if (!latestAsset) return;
+    setAssets(prev => {
+      // Avoid duplicates if already in list
+      if (prev.some(a => a.id === latestAsset.id)) return prev;
+      return [latestAsset, ...prev];
+    });
+  }, [latestAsset]);
 
   // ── Data ────────────────────────────────────────────────────────────────────
 
@@ -787,9 +658,6 @@ export default function AssetsPage() {
       id: nextFileId(),
       file,
       previewUrl: makePreviewUrl(file),
-      status: 'queued' as FileStatus,
-      progress: 0,
-      error: null,
       uploadName: getFileBaseName(file.name),
     }));
 
@@ -799,14 +667,14 @@ export default function AssetsPage() {
   }, []);
 
   const openPendingBatch = useCallback((files: File[]) => {
-    if (!files.length || isUploading) return;
+    if (!files.length) return;
     setPendingItems(filesToItems(files));
     setUploadContentType(ALLOWED_CONTENT_TYPES[0]);
     setUploadMonth(new Date().toISOString().slice(0, 7));
     setUploadClientName('');
     setUploadClientId('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUploading]);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     openPendingBatch(Array.from(e.target.files ?? []));
@@ -828,143 +696,28 @@ export default function AssetsPage() {
   const onDragLeave = (e: React.DragEvent) => { if (!dropZoneRef.current?.contains(e.relatedTarget as Node)) setIsDragOver(false); };
   const onDrop      = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false); openPendingBatch(Array.from(e.dataTransfer.files)); };
 
-  // ── Upload single file ──────────────────────────────────────────────────────
+  // ── Confirm upload — hand off to global UploadContext ───────────────────────
 
-  async function uploadOneFile(
-    item: FileUploadItem,
-    clientName: string, clientId: string, contentType: string, monthKey: string,
-    uploadedBy: string | null,
-    patchItem: (id: string, p: Partial<FileUploadItem>) => void,
-  ): Promise<Asset> {
-    const ctrl = new AbortController();
-
-    try {
-      // ── Step 1: Create resumable upload session (server creates Drive folders) ──
-      patchItem(item.id, { status: 'preparing', progress: 5 });
-
-      // Build the custom file name (base + extension) if the user provided one
-      const customFileName = item.uploadName.trim() || null;
-
-      const sessionRes = await fetch('/api/assets/upload-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName:    item.file.name,
-          fileType:    item.file.type || 'application/octet-stream',
-          fileSize:    item.file.size,
-          clientName,
-          contentType,
-          monthKey,
-          ...(clientId      ? { clientId }      : {}),
-          ...(uploadedBy    ? { uploadedBy }    : {}),
-          ...(customFileName ? { customFileName } : {}),
-        }),
-        signal: ctrl.signal,
-      });
-      const sessionJson = await sessionRes.json();
-      if (!sessionRes.ok) {
-        throw new Error(sessionJson.error ?? `Session creation failed: HTTP ${sessionRes.status}`);
-      }
-      const { uploadUrl, drive_folder_id, client_folder_name, renamedFileName } = sessionJson as {
-        uploadUrl: string;
-        drive_folder_id: string;
-        client_folder_name: string;
-        renamedFileName?: string;
-      };
-
-      // ── Step 2: Upload file bytes directly to Google Drive ──────────────────
-      patchItem(item.id, { status: 'uploading', progress: 10 });
-
-      const driveFileId = await uploadFileResumable(
-        uploadUrl,
-        item.file,
-        (pct) => patchItem(item.id, { progress: pct }),
-        ctrl.signal,
-      );
-
-      // ── Step 3: Finalize — set permissions + save metadata to Supabase ──────
-      patchItem(item.id, { status: 'saving', progress: 96 });
-
-      const completeRes = await fetch('/api/assets/upload-complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driveFileId,
-          driveFolderId:    drive_folder_id,
-          clientFolderName: client_folder_name,
-          fileName:         renamedFileName ?? item.file.name,
-          fileType:         item.file.type || null,
-          fileSize:         item.file.size || null,
-          contentType,
-          monthKey,
-          clientName,
-          clientId:         clientId || null,
-          ...(uploadedBy ? { uploadedBy } : {}),
-        }),
-        signal: ctrl.signal,
-      });
-      const completeJson = await completeRes.json();
-      if (!completeRes.ok) {
-        throw new Error(completeJson.error ?? `Finalize failed: HTTP ${completeRes.status}`);
-      }
-
-      patchItem(item.id, { status: 'completed', progress: 100 });
-      return completeJson.asset as Asset;
-    } catch (err: unknown) {
-      ctrl.abort();
-      const msg = err instanceof Error
-        ? (err.name === 'AbortError' ? 'Upload cancelled' : err.message)
-        : String(err);
-      patchItem(item.id, { status: 'failed', progress: 0, error: msg });
-      throw err;
-    }
-  }
-
-  // ── Confirm upload ──────────────────────────────────────────────────────────
-
-  const handleUploadConfirm = async () => {
+  const handleUploadConfirm = () => {
     const items = [...pendingItems];
     if (!items.length) return;
+    revokeItemUrls([]); // nothing to revoke — previewUrls are handed to context
     setPendingItems([]);
-    setUploadQueue(items);
-
-    const patch = (id: string, p: Partial<FileUploadItem>) =>
-      setUploadQueue(prev => prev.map(i => i.id === id ? { ...i, ...p } : i));
-
-    const cName = uploadClientName, cId = uploadClientId,
-          ct    = uploadContentType, mk  = uploadMonth;
     const uploadedBy = user?.name || user?.email || null;
-    let ok = 0, fail = 0;
-    const newAssets: Asset[] = [];
-    // Collect per-file errors so we can surface the real backend message in the toast
-    const failedErrors: string[] = [];
-
-    const CONCURRENCY = UPLOAD_CONCURRENCY;
-    for (let i = 0; i < items.length; i += CONCURRENCY) {
-      await Promise.all(items.slice(i, i + CONCURRENCY).map(async item => {
-        try { newAssets.push(await uploadOneFile(item, cName, cId, ct, mk, uploadedBy, patch)); ok++; }
-        catch (err) {
-          fail++;
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg && msg !== 'Upload cancelled') failedErrors.push(msg);
-        }
-      }));
-    }
-
-    if (newAssets.length) setAssets(prev => [...newAssets.reverse(), ...prev]);
-
-    if (!fail) {
-      addToast(`${ok} file${ok !== 1 ? 's' : ''} uploaded to Google Drive`, 'success');
-    } else if (fail === items.length && failedErrors.length > 0) {
-      // All failed — show the first error message so the user can diagnose
-      addToast(`Upload failed: ${failedErrors[0]}`, 'error');
-    } else {
-      addToast(`${ok} uploaded, ${fail} failed — see queue for details`, fail === items.length ? 'error' : 'success');
-    }
-
-    setTimeout(() => {
-      setUploadQueue(prev => { revokeItemUrls(prev); return []; });
-    }, 4000);
+    const initialItems: InitialUploadItem[] = items.map(i => ({
+      id:         i.id,
+      file:       i.file,
+      previewUrl: i.previewUrl,
+      uploadName: i.uploadName,
+    }));
+    startBatch(initialItems, {
+      clientName:  uploadClientName,
+      clientId:    uploadClientId,
+      contentType: uploadContentType,
+      monthKey:    uploadMonth,
+      uploadedBy,
+    });
+    addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
   // ── Delete ──────────────────────────────────────────────────────────────────
@@ -1154,9 +907,6 @@ export default function AssetsPage() {
             </div>
           </div>
         )}
-
-        {/* Upload queue */}
-        {uploadQueue.length > 0 && <UploadQueue items={uploadQueue} />}
 
         {/* Fetch error banner */}
         {fetchError && !loading && (
