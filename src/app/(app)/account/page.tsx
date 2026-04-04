@@ -54,7 +54,7 @@ export default function AccountPage() {
       </div>
 
       {/* Details */}
-      <div className="rounded-2xl border divide-y" style={{ background: 'var(--surface)', borderColor: 'var(--border)', '--divide-color': 'var(--border)' } as React.CSSProperties}>
+      <div className="rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <Row icon={<User size={16} />} label="Name" value={user.name || '—'} />
         <Row icon={<Mail size={16} />} label="Email" value={user.email || '—'} />
         <Row
@@ -69,15 +69,18 @@ export default function AccountPage() {
             </span>
           }
         />
-        {(user as unknown as { created_at?: string }).created_at && (
-          <Row
-            icon={<Clock size={16} />}
-            label="Member since"
-            value={new Date((user as unknown as { created_at: string }).created_at).toLocaleDateString(undefined, {
-              year: 'numeric', month: 'long', day: 'numeric',
-            })}
-          />
-        )}
+        {(() => {
+          const createdAt = (user as unknown as { created_at?: string }).created_at;
+          return createdAt ? (
+            <Row
+              icon={<Clock size={16} />}
+              label="Member since"
+              value={new Date(createdAt).toLocaleDateString(undefined, {
+                year: 'numeric', month: 'long', day: 'numeric',
+              })}
+            />
+          ) : null;
+        })()}
       </div>
     </div>
   );
@@ -93,7 +96,10 @@ function Row({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-4 px-6 py-4">
+    <div
+      className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0"
+      style={{ borderColor: 'var(--border)' }}
+    >
       <span style={{ color: 'var(--text-secondary)' }}>{icon}</span>
       <p className="text-sm w-28 shrink-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
         {label}

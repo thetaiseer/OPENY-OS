@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     console.log('[auth] Sign out successful — redirecting to /login');
-    window.location.href = '/login';
+    window.location.replace('/login');
   };
 
   const role     = (user.role as UserRole) || 'client';
