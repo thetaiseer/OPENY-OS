@@ -347,6 +347,152 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
   }
 }
 
+// ── Folder cleanup helpers ────────────────────────────────────────────────────
+
+/**
+ * Return the parent folder ID of a Drive item, or null if none is found.
+ */
+async function getParentFolderId(
+  drive: drive_v3.Drive,
+  folderId: string,
+): Promise<string | null> {
+  try {
+    const res = await drive.files.get({
+      fileId: folderId,
+      fields: 'parents',
+      supportsAllDrives: true,
+    });
+    const parents = res.data.parents;
+    return parents?.[0] ?? null;
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 404 || /not found/i.test(message)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
+ * List all non-trashed children (files and folders) inside a Drive folder.
+ * Returns an array of file metadata objects.
+ */
+export async function listFolderChildren(
+  drive: drive_v3.Drive,
+  folderId: string,
+): Promise<drive_v3.Schema$File[]> {
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and trashed=false`,
+    fields: 'files(id,name,mimeType)',
+    spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  return res.data.files ?? [];
+}
+
+/**
+ * Return true when a Drive folder has no remaining children.
+ */
+export async function isFolderEmpty(
+  drive: drive_v3.Drive,
+  folderId: string,
+): Promise<boolean> {
+  const children = await listFolderChildren(drive, folderId);
+  return children.length === 0;
+}
+
+/**
+ * Delete a Drive folder only when it is empty.
+ * Silently ignores "File not found" so the function is safe to call multiple times.
+ * Returns true when the folder was deleted, false otherwise.
+ */
+export async function deleteFolderIfEmpty(
+  drive: drive_v3.Drive,
+  folderId: string,
+): Promise<boolean> {
+  const empty = await isFolderEmpty(drive, folderId);
+  if (!empty) {
+    console.log('[google-drive] deleteFolderIfEmpty: folder not empty — skipping', folderId);
+    return false;
+  }
+
+  try {
+    await drive.files.delete({ fileId: folderId, supportsAllDrives: true });
+    console.log('[google-drive] deleteFolderIfEmpty: deleted empty folder', folderId);
+    return true;
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 404 || /not found/i.test(message)) {
+      console.warn('[google-drive] deleteFolderIfEmpty: folder already gone', folderId);
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * After a file is deleted, walk up the folder hierarchy from the leaf (month)
+ * folder and delete each level that has become empty.
+ *
+ * Hierarchy levels checked (max 4, starting from leaf):
+ *   month folder → year folder → content-type folder → client folder
+ *
+ * Safety: never deletes the "Clients" folder or the Drive root.  The walk is
+ * capped at MAX_LEVELS = 4 so it can never climb higher than the client folder.
+ *
+ * Errors inside cleanup do NOT propagate — they are logged only, so that the
+ * caller's delete flow is unaffected.
+ */
+export async function cleanupEmptyFoldersFromLeaf(monthFolderId: string): Promise<void> {
+  const { drive } = getDriveClient();
+
+  // Maximum levels to walk upward: month(1) → year(2) → contentType(3) → client(4)
+  const MAX_LEVELS = 4;
+
+  let currentFolderId: string | null = monthFolderId;
+
+  for (let level = 1; level <= MAX_LEVELS; level++) {
+    if (!currentFolderId) break;
+
+    console.log(`[google-drive] cleanup level ${level}: checking folder`, currentFolderId);
+
+    // Capture the parent ID before potentially deleting the current folder
+    let parentId: string | null = null;
+    try {
+      parentId = await getParentFolderId(drive, currentFolderId);
+    } catch (err: unknown) {
+      console.error(`[google-drive] cleanup: failed to get parent of`, currentFolderId, err);
+      break;
+    }
+
+    let deleted = false;
+    try {
+      deleted = await deleteFolderIfEmpty(drive, currentFolderId);
+    } catch (err: unknown) {
+      console.error(`[google-drive] cleanup: error deleting folder`, currentFolderId, err);
+      break;
+    }
+
+    if (!deleted) {
+      // Folder is not empty — stop walking upward
+      break;
+    }
+
+    console.log(`[google-drive] cleanup level ${level}: deleted empty folder`, currentFolderId);
+    currentFolderId = parentId;
+  }
+
+  if (currentFolderId) {
+    // We stopped (either folder not empty or max levels reached) — log final state
+    console.log('[google-drive] cleanup: finished. Remaining folder (not deleted):', currentFolderId);
+  } else {
+    console.log('[google-drive] cleanup: all checked folders were removed or no parent found');
+  }
+}
+
 // ── Resumable upload helpers ──────────────────────────────────────────────────
 
 /**
