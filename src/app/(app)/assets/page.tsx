@@ -709,7 +709,7 @@ export default function AssetsPage() {
     const json = await res.json();
     if (!res.ok) { addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
     setAssets(prev => prev.filter(a => a.id !== asset.id));
-    addToast('File deleted', 'success');
+    addToast(json.warning ?? 'File deleted', 'success');
   };
 
   // ── View ────────────────────────────────────────────────────────────────────
