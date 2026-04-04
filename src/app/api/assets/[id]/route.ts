@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { deleteFromDrive, DriveFileNotFoundError } from '@/lib/google-drive';
+import { deleteFromDrive, DriveFileNotFoundError, cleanupEmptyFoldersFromLeaf } from '@/lib/google-drive';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -24,10 +24,10 @@ export async function DELETE(
 
   const supabase = getSupabase();
 
-  // ── 1. Fetch asset row to get drive_file_id ───────────────────────────────
+  // ── 1. Fetch asset row to get drive_file_id and drive_folder_id ─────────────
   const { data: asset, error: fetchError } = await supabase
     .from('assets')
-    .select('id, drive_file_id, name, storage_provider')
+    .select('id, drive_file_id, drive_folder_id, name, storage_provider')
     .eq('id', id)
     .single();
 
@@ -41,6 +41,7 @@ export async function DELETE(
   console.log('[asset-delete] starting delete', {
     assetId: asset.id,
     driveFileId: asset.drive_file_id ?? null,
+    driveFolderId: asset.drive_folder_id ?? null,
     storageProvider: asset.storage_provider,
   });
 
@@ -54,7 +55,7 @@ export async function DELETE(
     } catch (err: unknown) {
       if (err instanceof DriveFileNotFoundError) {
         // File already gone from Drive – treat as orphaned record and continue
-        warning = 'File was already missing from Google Drive. Database record removed.';
+        warning = 'Asset record deleted. Remote file was already missing.';
         console.warn('[asset-delete] Drive file not found – treating as orphaned', {
           assetId: asset.id,
           driveFileId: asset.drive_file_id,
@@ -83,5 +84,26 @@ export async function DELETE(
 
   console.log('[asset-delete] DB delete succeeded', { assetId: asset.id });
 
-  return NextResponse.json({ success: true, ...(warning ? { warning } : {}) });
+  // ── 4. Clean up empty parent folders in Google Drive ─────────────────────
+  // Errors here must not fail the overall delete — they are logged only.
+  if (asset.storage_provider === 'google_drive' && asset.drive_folder_id) {
+    try {
+      console.log('[asset-delete] starting folder cleanup from leaf', {
+        assetId: asset.id,
+        monthFolderId: asset.drive_folder_id,
+      });
+      await cleanupEmptyFoldersFromLeaf(asset.drive_folder_id);
+      console.log('[asset-delete] folder cleanup completed', { assetId: asset.id });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[asset-delete] folder cleanup error (non-fatal)', {
+        assetId: asset.id,
+        driveFolderId: asset.drive_folder_id,
+        error: msg,
+      });
+    }
+  }
+
+  const successMessage = warning ?? 'Asset deleted successfully.';
+  return NextResponse.json({ success: true, message: successMessage, ...(warning ? { warning } : {}) });
 }
