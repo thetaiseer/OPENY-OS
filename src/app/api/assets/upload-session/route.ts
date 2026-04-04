@@ -36,36 +36,36 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
     }
 
     const { fileName, fileType, fileSize, clientName, contentType, monthKey } = body;
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if (!fileName || typeof fileName !== 'string') {
-      return NextResponse.json({ error: 'fileName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fileName is required' }, { status: 400 });
     }
     if (!fileType || typeof fileType !== 'string') {
-      return NextResponse.json({ error: 'fileType is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fileType is required' }, { status: 400 });
     }
     if (typeof fileSize !== 'number' || fileSize <= 0) {
-      return NextResponse.json({ error: 'fileSize must be a positive number' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fileSize must be a positive number' }, { status: 400 });
     }
     if (!clientName || typeof clientName !== 'string' || !clientName.trim()) {
-      return NextResponse.json({ error: 'clientName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'clientName is required' }, { status: 400 });
     }
     if (!contentType || typeof contentType !== 'string') {
-      return NextResponse.json({ error: 'contentType is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'contentType is required' }, { status: 400 });
     }
     if (!VALID_CONTENT_TYPES.includes(contentType as typeof VALID_CONTENT_TYPES[number])) {
       return NextResponse.json(
-        { error: `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
+        { success: false, error: `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
         { status: 400 },
       );
     }
     if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
       return NextResponse.json(
-        { error: 'monthKey is required and must be in YYYY-MM format' },
+        { success: false, error: 'monthKey is required and must be in YYYY-MM format' },
         { status: 400 },
       );
     }
@@ -83,13 +83,14 @@ export async function POST(req: NextRequest) {
     console.log('[upload-session] ✅ session created — folder:', monthFolderId);
 
     return NextResponse.json({
+      success: true,
       uploadUrl,
       drive_folder_id: monthFolderId,
       client_folder_name: clientFolderName,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload-session] ❌', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[upload-session] UPLOAD ERROR:', err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
