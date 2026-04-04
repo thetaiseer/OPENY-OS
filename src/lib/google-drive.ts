@@ -494,6 +494,227 @@ export async function cleanupEmptyFoldersFromLeaf(monthFolderId: string): Promis
   }
 }
 
+// ── Drive Sync helpers ────────────────────────────────────────────────────────
+
+/**
+ * Metadata for a single file discovered during a Google Drive sync scan.
+ * The folder chain is parsed into structured fields.
+ *
+ * Folder path expected: root / Clients / {client_folder_name} / {CONTENT_TYPE} / {year} / {MM-MonthName} / file
+ */
+export interface DriveFileMeta {
+  drive_file_id: string;
+  name: string;
+  mime_type: string | null;
+  file_size: number | null;
+  created_time: string | null;
+  modified_time: string | null;
+  web_view_link: string | null;
+  web_content_link: string | null;
+  client_folder_name: string;
+  content_type: string;
+  year: string;
+  month_key: string;
+  drive_folder_id: string;
+}
+
+/**
+ * List all direct sub-folders of a Drive folder (non-recursive).
+ * Returns only folders (not regular files).
+ */
+async function listSubFolders(
+  drive: drive_v3.Drive,
+  parentId: string,
+): Promise<drive_v3.Schema$File[]> {
+  const safeId = escapeDriveQueryString(parentId);
+  const res = await drive.files.list({
+    q: `'${safeId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id,name)',
+    spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    pageSize: 1000,
+  });
+  return res.data.files ?? [];
+}
+
+/**
+ * List all non-folder files in a Drive folder with full metadata needed for sync.
+ */
+async function listSyncFiles(
+  drive: drive_v3.Drive,
+  parentId: string,
+): Promise<drive_v3.Schema$File[]> {
+  const safeId = escapeDriveQueryString(parentId);
+  const res = await drive.files.list({
+    q: `'${safeId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink)',
+    spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    pageSize: 1000,
+  });
+  return res.data.files ?? [];
+}
+
+/**
+ * Check whether a specific Drive file exists (returns false on 404, re-throws on other errors).
+ */
+export async function checkDriveFileExists(fileId: string): Promise<boolean> {
+  const { drive } = getDriveClient();
+  try {
+    await drive.files.get({ fileId, fields: 'id', supportsAllDrives: true });
+    return true;
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    if (status === 404) return false;
+    throw err;
+  }
+}
+
+/**
+ * Grant public read access to a Drive file and return its canonical links.
+ * Silently ignores permission-already-exists errors.
+ */
+export async function setFilePublicReadable(
+  fileId: string,
+): Promise<{ webViewLink: string; webContentLink: string }> {
+  const { drive } = getDriveClient();
+
+  try {
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role: 'reader', type: 'anyone' },
+      supportsAllDrives: true,
+    });
+  } catch (err: unknown) {
+    // Code 403 or 409 means permission already exists — ignore.
+    const status = (err as { code?: number })?.code;
+    if (status !== 403 && status !== 409) {
+      console.warn('[google-drive] setFilePublicReadable: could not set permission for', fileId, err);
+    }
+  }
+
+  const metaRes = await drive.files.get({
+    fileId,
+    fields: 'id,webViewLink,webContentLink',
+    supportsAllDrives: true,
+  });
+
+  const rawView = metaRes.data.webViewLink ?? '';
+  const rawDownload = metaRes.data.webContentLink ?? '';
+
+  let webViewLink = rawView;
+  try { assertValidUrl(rawView, 'webViewLink'); } catch {
+    webViewLink = `https://drive.google.com/file/d/${fileId}/view`;
+  }
+
+  let webContentLink = rawDownload;
+  try { assertValidUrl(rawDownload, 'webContentLink'); } catch {
+    webContentLink = `https://drive.google.com/uc?id=${fileId}&export=download`;
+  }
+
+  return { webViewLink, webContentLink };
+}
+
+/**
+ * Scan the entire Google Drive Clients folder hierarchy and return metadata for
+ * every file found.
+ *
+ * Expected Drive path: root / Clients / {clientFolder} / {CONTENT_TYPE} / {year} / {MM-MonthName} / file
+ *
+ * Files outside this structure are ignored.
+ */
+export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
+  const { drive, rootFolderId } = getDriveClient();
+  const results: DriveFileMeta[] = [];
+
+  // Locate the top-level "Clients" folder
+  const rootChildren = await listSubFolders(drive, rootFolderId);
+  const clientsFolder = rootChildren.find(f => f.name === 'Clients');
+  if (!clientsFolder?.id) {
+    console.log('[google-drive] scanDriveForSync: no "Clients" folder found — nothing to sync');
+    return results;
+  }
+
+  const clientFolders = await listSubFolders(drive, clientsFolder.id);
+  console.log(`[google-drive] scanDriveForSync: found ${clientFolders.length} client folder(s)`);
+
+  for (const clientFolder of clientFolders) {
+    if (!clientFolder.id || !clientFolder.name) continue;
+    const clientFolderName = clientFolder.name;
+
+    const contentTypeFolders = await listSubFolders(drive, clientFolder.id);
+
+    for (const ctFolder of contentTypeFolders) {
+      if (!ctFolder.id || !ctFolder.name) continue;
+      const contentType = ctFolder.name;
+
+      // Skip folders whose names don't match a known content type
+      if (!(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+        console.log(`[google-drive] scanDriveForSync: skipping unknown content type folder "${contentType}" under "${clientFolderName}"`);
+        continue;
+      }
+
+      const yearFolders = await listSubFolders(drive, ctFolder.id);
+
+      for (const yearFolder of yearFolders) {
+        if (!yearFolder.id || !yearFolder.name) continue;
+        const year = yearFolder.name;
+        if (!/^\d{4}$/.test(year)) {
+          console.log(`[google-drive] scanDriveForSync: skipping non-year folder "${year}"`);
+          continue;
+        }
+
+        const monthFolders = await listSubFolders(drive, yearFolder.id);
+
+        for (const monthFolder of monthFolders) {
+          if (!monthFolder.id || !monthFolder.name) continue;
+
+          // Parse MM from folder name like "04-April" and validate range
+          const mmMatch = monthFolder.name.match(/^(\d{2})-/);
+          if (!mmMatch) {
+            console.log(`[google-drive] scanDriveForSync: skipping unrecognised month folder "${monthFolder.name}"`);
+            continue;
+          }
+          const mm = mmMatch[1];
+          const mmNum = parseInt(mm, 10);
+          if (mmNum < 1 || mmNum > 12) {
+            console.log(`[google-drive] scanDriveForSync: skipping out-of-range month folder "${monthFolder.name}" (mm=${mm})`);
+            continue;
+          }
+          const monthKey = `${year}-${mm}`;
+
+          const files = await listSyncFiles(drive, monthFolder.id);
+          console.log(`[google-drive] scanDriveForSync: ${clientFolderName}/${contentType}/${year}/${monthFolder.name} — ${files.length} file(s)`);
+
+          for (const file of files) {
+            if (!file.id || !file.name) continue;
+            results.push({
+              drive_file_id: file.id,
+              name: file.name,
+              mime_type: file.mimeType ?? null,
+              file_size: file.size ? parseInt(file.size, 10) : null,
+              created_time: file.createdTime ?? null,
+              modified_time: file.modifiedTime ?? null,
+              web_view_link: file.webViewLink ?? null,
+              web_content_link: file.webContentLink ?? null,
+              client_folder_name: clientFolderName,
+              content_type: contentType,
+              year,
+              month_key: monthKey,
+              drive_folder_id: monthFolder.id,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  console.log(`[google-drive] scanDriveForSync: total files found: ${results.length}`);
+  return results;
+}
+
 // ── Resumable upload helpers ──────────────────────────────────────────────────
 
 /**

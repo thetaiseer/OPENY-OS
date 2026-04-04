@@ -34,6 +34,32 @@ function generateRenamedFile(
   return `${clientFolderName}-${contentType}-${year}-${month}-${Date.now()}-${sanitized}`;
 }
 
+/**
+ * Resolve the final upload file name from an optional user-supplied name or
+ * fall back to the auto-generated rename.
+ *
+ * - If `customFileName` is provided (non-empty after trim), it is sanitized and
+ *   the original file extension is appended if the user did not include one.
+ * - Otherwise the existing auto-rename logic is used.
+ */
+function resolveFileName(
+  originalName: string,
+  customFileName: string | null | undefined,
+  clientFolderName: string,
+  contentType: string,
+  monthKey: string,
+): string {
+  if (customFileName && customFileName.trim()) {
+    const base = sanitizeFileName(customFileName.trim());
+    const ext  = originalName.includes('.')
+      ? `.${originalName.split('.').pop()!.toLowerCase()}`
+      : '';
+    const hasExt = ext && base.toLowerCase().endsWith(ext);
+    return hasExt ? base : `${base}${ext}`;
+  }
+  return generateRenamedFile(originalName, clientFolderName, contentType, monthKey);
+}
+
 // Simple in-memory rate limiter: 30 requests per 60 seconds per IP
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -98,7 +124,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
     }
 
-    const { fileName, fileType, fileSize, clientName, contentType, monthKey, uploadedBy } = body;
+    const { fileName, fileType, fileSize, clientName, contentType, monthKey, uploadedBy, customFileName } = body;
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if (!fileName || typeof fileName !== 'string') {
@@ -140,7 +166,8 @@ export async function POST(req: NextRequest) {
     }
 
     const clientFolderName = clientToFolderName(clientName.trim());
-    const renamedFileName  = generateRenamedFile(fileName.trim(), clientFolderName, contentType as string, monthKey as string);
+    const safeCustomName   = customFileName && typeof customFileName === 'string' ? customFileName.trim() : null;
+    const renamedFileName  = resolveFileName(fileName.trim(), safeCustomName, clientFolderName, contentType as string, monthKey as string);
     const safeUploadedBy   = uploadedBy && typeof uploadedBy === 'string' ? uploadedBy.trim() : null;
     console.log('[upload-session] client:', clientName.trim(), '→ folder:', clientFolderName, '| type:', contentType, '| month:', monthKey, '| size:', fileSize, '| renamed:', renamedFileName);
 
