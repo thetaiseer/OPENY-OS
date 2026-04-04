@@ -382,8 +382,9 @@ export async function listFolderChildren(
   drive: drive_v3.Drive,
   folderId: string,
 ): Promise<drive_v3.Schema$File[]> {
+  const safeId = escapeDriveQueryString(folderId);
   const res = await drive.files.list({
-    q: `'${folderId}' in parents and trashed=false`,
+    q: `'${safeId}' in parents and trashed=false`,
     fields: 'files(id,name,mimeType)',
     spaces: 'drive',
     supportsAllDrives: true,

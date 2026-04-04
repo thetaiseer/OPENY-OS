@@ -92,7 +92,7 @@ export async function DELETE(
         assetId: asset.id,
         monthFolderId: asset.drive_folder_id,
       });
-      await cleanupEmptyFoldersFromLeaf(asset.drive_folder_id as string);
+      await cleanupEmptyFoldersFromLeaf(asset.drive_folder_id);
       console.log('[asset-delete] folder cleanup completed', { assetId: asset.id });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
