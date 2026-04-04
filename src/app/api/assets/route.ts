@@ -43,13 +43,11 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    // Client role: return empty list immediately if they have no linked client, or
-    // filter to only their client's assets.
-    if (profile.role === 'client' && !profile.client_id) {
+    // Client role: profiles no longer carry client_id, so we cannot scope
+    // results to a specific client — return an empty list to avoid exposing
+    // all assets until RLS policies are tightened.
+    if (profile.role === 'client') {
       return NextResponse.json({ success: true, assets: [], page, hasMore: false });
-    }
-    if (profile.role === 'client' && profile.client_id) {
-      query = query.eq('client_id', profile.client_id);
     }
 
     const { data, error } = await query;

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   const { data: profile, error: upsertError } = await admin
     .from('profiles')
     .upsert({ id: user.id, email, name, role }, { onConflict: 'id' })
-    .select('id, name, email, role, client_id')
+    .select('id, name, email, role')
     .single();
 
   if (upsertError || !profile) {
