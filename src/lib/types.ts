@@ -33,8 +33,9 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'done' | 'overdue';
+  status: 'todo' | 'in_progress' | 'review' | 'done' | 'delivered' | 'overdue';
   priority: 'low' | 'medium' | 'high';
+  start_date?: string;
   due_date?: string;
   task_date?: string;
   client_id?: string;
@@ -75,6 +76,7 @@ export interface Asset {
   client_folder_name?: string | null;
   content_type?: string | null;
   month_key?: string | null;
+  task_id?: string | null;
   client_id?: string;
   client_name?: string | null;
   uploaded_by?: string | null;
@@ -111,6 +113,7 @@ export interface Notification {
   read: boolean;
   client_id?: string | null;
   user_id?: string | null;
+  task_id?: string | null;
   created_at: string;
 }
 

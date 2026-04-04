@@ -14,6 +14,7 @@ interface Stats {
   activeTasks: number;
   pendingApprovals: number;
   overdueTasks: number;
+  tasksDueThisWeek: number;
 }
 
 interface AssetRow {
@@ -52,6 +53,7 @@ export default function DashboardPage() {
     activeTasks: 0,
     pendingApprovals: 0,
     overdueTasks: 0,
+    tasksDueThisWeek: 0,
   });
   const [activities, setActivities] = useState<ActivityType[]>([]);
   const [assetRows, setAssetRows]   = useState<AssetRow[]>([]);
@@ -62,7 +64,10 @@ export default function DashboardPage() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const fetchData = async () => {
       try {
-        const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes] = await Promise.allSettled([
+        const weekLater = new Date();
+        weekLater.setDate(weekLater.getDate() + 7);
+        const weekLaterStr = weekLater.toISOString().slice(0, 10);
+        const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes, dueThisWeek] = await Promise.allSettled([
           supabase.from('clients').select('id', { count: 'exact', head: true }),
           supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
           supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -75,6 +80,10 @@ export default function DashboardPage() {
             .gte('publish_date', todayStr)
             .order('publish_date', { ascending: true })
             .limit(5),
+          supabase.from('tasks').select('id', { count: 'exact', head: true })
+            .gte('due_date', todayStr)
+            .lte('due_date', weekLaterStr)
+            .not('status', 'in', '("done","delivered")'),
         ]);
 
         setStats({
@@ -82,6 +91,7 @@ export default function DashboardPage() {
           activeTasks:      tasks.status      === 'fulfilled' ? (tasks.value.count      ?? 0) : 0,
           pendingApprovals: approvals.status  === 'fulfilled' ? (approvals.value.count  ?? 0) : 0,
           overdueTasks:     overdue.status    === 'fulfilled' ? (overdue.value.count    ?? 0) : 0,
+          tasksDueThisWeek: dueThisWeek.status === 'fulfilled' ? (dueThisWeek.value.count ?? 0) : 0,
         });
         if (activityRes.status === 'fulfilled' && !activityRes.value.error) {
           setActivities((activityRes.value.data ?? []) as ActivityType[]);
@@ -124,18 +134,19 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label={t('totalClients')}     value={stats.totalClients}     icon={<Users2 size={20} />}        color="blue"  />
-          <StatCard label={t('activeTasks')}      value={stats.activeTasks}      icon={<CheckSquare size={20} />}   color="green" />
-          <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} icon={<Clock size={20} />}         color="amber" />
-          <StatCard label={t('overdueTasks')}     value={stats.overdueTasks}     icon={<AlertTriangle size={20} />} color="red"   />
-          <StatCard label="Total Assets"          value={assetRows.length}       icon={<FolderOpen size={20} />}    color="blue"  />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard label={t('totalClients')}     value={stats.totalClients}     icon={<Users2 size={20} />}        color="blue"   />
+          <StatCard label={t('activeTasks')}      value={stats.activeTasks}      icon={<CheckSquare size={20} />}   color="mint"   />
+          <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} icon={<Clock size={20} />}         color="amber"  />
+          <StatCard label={t('overdueTasks')}     value={stats.overdueTasks}     icon={<AlertTriangle size={20} />} color="rose"   />
+          <StatCard label={t('tasksDueThisWeek')} value={stats.tasksDueThisWeek} icon={<CalendarDays size={20} />}  color="violet" />
+          <StatCard label="Total Assets"          value={assetRows.length}       icon={<FolderOpen size={20} />}    color="cyan"   />
         </div>
       )}
 
