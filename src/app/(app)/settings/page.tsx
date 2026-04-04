@@ -13,6 +13,7 @@ import {
 
 interface DriveStatus {
   connected: boolean;
+  configured: boolean;
   email: string | null;
   isAdminAccount: boolean;
 }
@@ -76,9 +77,9 @@ function GoogleDriveSyncCard() {
     setLoadingConn(true);
     try {
       const res = await fetch('/api/auth/google/status');
-      setStatus(res.ok ? await res.json() : { connected: false, email: null, isAdminAccount: false });
+      setStatus(res.ok ? await res.json() : { connected: false, configured: false, email: null, isAdminAccount: false });
     } catch {
-      setStatus({ connected: false, email: null, isAdminAccount: false });
+      setStatus({ connected: false, configured: false, email: null, isAdminAccount: false });
     } finally {
       setLoadingConn(false);
     }
@@ -304,13 +305,14 @@ function GoogleDriveSyncCard() {
             : <><CloudLightning size={15} /> Sync Now</>}
         </button>
 
-        <a
-          href="/api/auth/google"
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
+        <button
+          onClick={fetchStatus}
+          disabled={loadingConn}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-40"
           style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
         >
-          <RotateCcw size={15} /> Reconnect Google Drive
-        </a>
+          <RotateCcw size={15} className={loadingConn ? 'animate-spin' : undefined} /> Reload Connection
+        </button>
 
         <a
           href="https://drive.google.com"
@@ -329,9 +331,9 @@ function GoogleDriveSyncCard() {
         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       >
         <p className="font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Diagnostics</p>
-        <DiagRow label="OAuth configured"  value={status?.connected ? 'Yes' : 'No'}   ok={!!status?.connected} />
+        <DiagRow label="OAuth configured"  value={status?.configured ? 'Yes' : 'No'}   ok={!!status?.configured} />
         <DiagRow label="Connected account" value={status?.email ?? '—'}               ok={!!status?.email} />
-        <DiagRow label="Upload enabled"    value={status?.connected ? 'Yes' : 'No'}   ok={!!status?.connected} />
+        <DiagRow label="Upload enabled"    value={status?.configured ? 'Yes' : 'No'}   ok={!!status?.configured} />
         <DiagRow label="Root folder ID"    value="(set GOOGLE_DRIVE_FOLDER_ID on server)" />
       </section>
     </div>
