@@ -482,7 +482,8 @@ interface SyncLog {
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin     = user?.role === 'admin';
+  const canUpload   = isAdmin || user?.role === 'team';
 
   // ── Global upload context ────────────────────────────────────────────────
   const { startBatch, isUploading, latestAsset } = useUpload();
@@ -692,9 +693,19 @@ export default function AssetsPage() {
 
   // ── Drag and drop ───────────────────────────────────────────────────────────
 
-  const onDragOver  = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
-  const onDragLeave = (e: React.DragEvent) => { if (!dropZoneRef.current?.contains(e.relatedTarget as Node)) setIsDragOver(false); };
-  const onDrop      = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false); openPendingBatch(Array.from(e.dataTransfer.files)); };
+  const onDragOver = (e: React.DragEvent) => {
+    if (!canUpload) return;
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!dropZoneRef.current?.contains(e.relatedTarget as Node)) setIsDragOver(false);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (canUpload) openPendingBatch(Array.from(e.dataTransfer.files));
+  };
 
   // ── Confirm upload — hand off to global UploadContext ───────────────────────
 
@@ -816,14 +827,16 @@ export default function AssetsPage() {
                 {isSyncing ? 'Syncing…' : 'Sync Drive'}
               </button>
             )}
-            <button
-              onClick={() => !isUploading && fileRef.current?.click()}
-              disabled={isUploading}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-              style={{ background: 'var(--accent)' }}
-            >
-              <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
-            </button>
+            {canUpload && (
+              <button
+                onClick={() => !isUploading && fileRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                style={{ background: 'var(--accent)' }}
+              >
+                <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
+              </button>
+            )}
           </div>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleInputChange} />
         </div>
@@ -939,7 +952,7 @@ export default function AssetsPage() {
             title={searchQuery || filterClient || filterContentType || filterYear ? 'No matching files' : t('noAssetsYet')}
             description={searchQuery || filterClient || filterContentType || filterYear ? 'Try adjusting your search or filters.' : t('noAssetsDesc')}
             action={
-              !searchQuery && !filterClient && !filterContentType && !filterYear ? (
+              !searchQuery && !filterClient && !filterContentType && !filterYear && canUpload ? (
                 <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                   <Upload size={16} />{t('uploadFile')}
                 </button>

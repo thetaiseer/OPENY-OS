@@ -5,6 +5,7 @@ import { Plus, Search, Users2, ExternalLink, AlertCircle, X } from 'lucide-react
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -20,6 +21,8 @@ const WARN_TOAST_BG = '#d97706';
 
 export default function ClientsPage() {
   const { t } = useLang();
+  const { role } = useAuth();
+  const canManageClients = role === 'admin' || role === 'team';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -80,6 +83,10 @@ export default function ClientsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageClients) {
+      setSaveError('Only admin or team members can create clients.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
 
@@ -153,13 +160,15 @@ export default function ClientsPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('clients')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Manage all your clients</p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-          style={{ background: 'var(--accent)' }}
-        >
-          <Plus size={16} />{t('newClient')}
-        </button>
+        {canManageClients && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--accent)' }}
+          >
+            <Plus size={16} />{t('newClient')}
+          </button>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -186,13 +195,15 @@ export default function ClientsPage() {
           title={t('noClientsYet')}
           description={t('noClientsDesc')}
           action={
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              <Plus size={16} />{t('newClient')}
-            </button>
+            canManageClients ? (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
+                style={{ background: 'var(--accent)' }}
+              >
+                <Plus size={16} />{t('newClient')}
+              </button>
+            ) : undefined
           }
         />
       ) : (
