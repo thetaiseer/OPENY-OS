@@ -1,10 +1,28 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { AlertTriangle, User, Mail, ShieldCheck, Clock } from 'lucide-react';
+import { AlertTriangle, User, Mail, ShieldCheck, Clock, Wrench } from 'lucide-react';
 
 export default function AccountPage() {
-  const { user, role, loading, profileMissing } = useAuth();
+  const { user, role, loading, profileMissing, repairProfile } = useAuth();
+  const [repairing, setRepairing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+  const [repairDone, setRepairDone] = useState(false);
+
+  async function handleRepair() {
+    setRepairing(true);
+    setRepairError(null);
+    setRepairDone(false);
+    try {
+      await repairProfile();
+      setRepairDone(true);
+    } catch (err: unknown) {
+      setRepairError(err instanceof Error ? err.message : 'Repair failed');
+    } finally {
+      setRepairing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -24,15 +42,41 @@ export default function AccountPage() {
       </div>
 
       {/* Profile missing warning */}
-      {profileMissing && (
+      {profileMissing && !repairDone && (
         <div
           className="flex items-start gap-3 rounded-xl p-4"
           style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)' }}
         >
           <AlertTriangle size={18} style={{ color: '#ca8a04' }} className="shrink-0 mt-0.5" />
-          <p className="text-sm" style={{ color: '#ca8a04' }}>
-            Your profile row was not found in the database. Role defaults to &quot;client&quot;.
-            Please contact your administrator.
+          <div className="flex-1 space-y-2">
+            <p className="text-sm" style={{ color: '#ca8a04' }}>
+              Your profile row was not found in the database. Role defaults to &quot;client&quot;.
+            </p>
+            {repairError && (
+              <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{repairError}</p>
+            )}
+            <button
+              onClick={handleRepair}
+              disabled={repairing}
+              className="flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
+              style={{ background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.35)' }}
+            >
+              <Wrench size={13} />
+              {repairing ? 'Repairing…' : 'Repair Profile'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Repair success */}
+      {repairDone && (
+        <div
+          className="flex items-start gap-3 rounded-xl p-4"
+          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}
+        >
+          <ShieldCheck size={18} style={{ color: '#16a34a' }} className="shrink-0 mt-0.5" />
+          <p className="text-sm" style={{ color: '#16a34a' }}>
+            Profile repaired successfully. Your role has been updated.
           </p>
         </div>
       )}
