@@ -123,7 +123,7 @@ function GoogleDrivePanel() {
 // ── Settings Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { user }          = useAuth();
+  const { user, role, setRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
 
@@ -185,6 +185,41 @@ export default function SettingsPage() {
 
       {/* Admin-only: Google Drive */}
       {isAdmin && <GoogleDrivePanel />}
+
+      {/* Role & Access demo switcher */}
+      <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Role & Access (Demo)</h2>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Switch roles to preview access levels. In production this would be controlled by real authentication.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {(['admin', 'team', 'client'] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setRole(r)}
+              className="rounded-xl border p-4 text-left transition-colors"
+              style={{
+                background:   role === r ? 'var(--accent-soft)' : 'var(--surface-2)',
+                borderColor:  role === r ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              <p className="text-sm font-semibold capitalize" style={{ color: role === r ? 'var(--accent)' : 'var(--text)' }}>
+                {r}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                {r === 'admin'  && 'Full access to all data'}
+                {r === 'team'   && 'Assigned clients only'}
+                {r === 'client' && 'Own assets & approvals'}
+              </p>
+            </button>
+          ))}
+        </div>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Current role: <span className="font-semibold capitalize" style={{ color: 'var(--accent)' }}>{role}</span>
+        </p>
+      </div>
     </div>
   );
 }

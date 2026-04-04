@@ -106,6 +106,7 @@ const translations: Record<string, Record<string, string>> = {
     unassigned: 'Unassigned',
     deadline: 'Deadline',
     createdOn: 'Created',
+    calendar: 'Calendar',
   },
   ar: {
     dashboard: 'لوحة التحكم',
@@ -202,6 +203,7 @@ const translations: Record<string, Record<string, string>> = {
     unassigned: 'غير مسند',
     deadline: 'الموعد النهائي',
     createdOn: 'تاريخ الإنشاء',
+    calendar: 'التقويم',
   },
 };
 

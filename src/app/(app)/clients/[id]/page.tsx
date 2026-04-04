@@ -6,12 +6,14 @@ import {
   ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File,
   Calendar, User, Users, Tag, AlertCircle, Plus,
   FileText, FileImage, FileVideo, FileAudio, Eye, Download, Link, ExternalLink,
-  CheckCircle, X,
+  CheckCircle, X, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/lib/auth-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import ActivityLog from '@/components/ui/ActivityLog';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
@@ -704,11 +706,12 @@ export default function ClientWorkspace() {
                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{client.notes}</p>
               </div>
             )}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: t('tasks'), value: tasks.length },
+                { label: t('tasks'),   value: tasks.length },
+                { label: t('assets'),  value: assets.length },
                 { label: t('content'), value: content.length },
-                { label: t('assets'), value: assets.length },
+                { label: t('pendingApprovals'), value: assets.filter(a => (a.approval_status ?? 'pending') === 'pending').length },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-2xl border p-5 text-center"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -877,36 +880,82 @@ export default function ClientWorkspace() {
 
         {activeTab === 'approvals' && (
           <div className="space-y-3">
-            {approvals.length === 0 ? (
-              <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>No approvals yet</div>
-            ) : approvals.map(a => (
-              <div key={a.id} className="flex items-center gap-4 rounded-xl border px-5 py-3"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{a.title}</p>
-                </div>
-                <Badge>{a.status}</Badge>
+            {/* Pending assets first */}
+            {assets.filter(a => (a.approval_status ?? 'pending') === 'pending').length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                  Assets Awaiting Approval
+                </p>
+                {assets
+                  .filter(a => (a.approval_status ?? 'pending') === 'pending')
+                  .map(a => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-4 rounded-xl border px-4 py-3"
+                      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          {a.content_type ? contentTypeLabel(a.content_type) : 'Asset'} · {new Date(a.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={async () => {
+                            await supabase.from('assets').update({ approval_status: 'approved' }).eq('id', a.id);
+                            await supabase.from('activities').insert({ type: 'approve', description: `Asset "${a.name}" approved`, client_id: id });
+                            void loadAll();
+                          }}
+                          className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+                          style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}
+                        >
+                          <ThumbsUp size={13} /> Approve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await supabase.from('assets').update({ approval_status: 'rejected' }).eq('id', a.id);
+                            await supabase.from('activities').insert({ type: 'reject', description: `Asset "${a.name}" rejected`, client_id: id });
+                            void loadAll();
+                          }}
+                          className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+                          style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}
+                        >
+                          <ThumbsDown size={13} /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
               </div>
-            ))}
+            )}
+
+            {/* Legacy approvals table */}
+            {approvals.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                  Approval Records
+                </p>
+                {approvals.map(a => (
+                  <div key={a.id} className="flex items-center gap-4 rounded-xl border px-5 py-3"
+                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{a.title}</p>
+                    </div>
+                    <Badge>{a.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {assets.filter(a => (a.approval_status ?? 'pending') === 'pending').length === 0 && approvals.length === 0 && (
+              <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>No approvals yet</div>
+            )}
           </div>
         )}
 
         {activeTab === 'activity' && (
-          <div className="space-y-3">
-            {activities.length === 0 ? (
-              <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>No activity yet</div>
-            ) : activities.map(a => (
-              <div key={a.id} className="flex gap-3 rounded-xl border px-5 py-3"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: 'var(--accent)' }} />
-                <div>
-                  <p className="text-sm" style={{ color: 'var(--text)' }}>{a.description}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    {new Date(a.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <ActivityLog clientId={id} limit={30} />
           </div>
         )}
       </div>
