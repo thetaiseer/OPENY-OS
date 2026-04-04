@@ -9,16 +9,13 @@ function getSupabase() {
 }
 
 function getDriveClient() {
-  const clientEmail   = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKeyB64 = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64;
-  if (!clientEmail || !privateKeyB64) return null;
-  const privateKey = Buffer.from(privateKeyB64, 'base64').toString('utf8');
-  const auth = new google.auth.JWT({
-    email:  clientEmail,
-    key:    privateKey,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
-  return google.drive({ version: 'v3', auth });
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  if (!clientId || !clientSecret || !refreshToken) return null;
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
 type AssetRow = { id: string; name: string; drive_file_id: string | null };
@@ -59,7 +56,7 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
 export async function GET(_req: NextRequest) {
   const supabase = getSupabase();
 
-  if (!process.env.GOOGLE_DRIVE_CLIENT_EMAIL || !process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64) {
+  if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
     return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });
   }
 
@@ -87,7 +84,7 @@ export async function GET(_req: NextRequest) {
 export async function DELETE(_req: NextRequest) {
   const supabase = getSupabase();
 
-  if (!process.env.GOOGLE_DRIVE_CLIENT_EMAIL || !process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64) {
+  if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
     return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });
   }
 

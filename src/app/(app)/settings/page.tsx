@@ -51,7 +51,7 @@ function GoogleDrivePanel() {
       </div>
 
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        All file uploads go to the admin Google Drive via a Service Account. No user login is required.
+        All file uploads go to the admin Google Drive via OAuth 2.0. No user login is required.
       </p>
 
       {/* Connection status */}
@@ -71,18 +71,19 @@ function GoogleDrivePanel() {
               : <AlertCircle size={18} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
             <div className="space-y-0.5">
               <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {status?.connected ? 'Service Account configured' : 'Service Account not configured'}
+                {status?.connected ? 'OAuth configured' : 'OAuth not configured'}
               </p>
               {status?.email && (
                 <p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{status.email}</p>
               )}
               {status?.connected && status.isAdminAccount && (
-                <p className="text-xs" style={{ color: '#16a34a' }}>✓ Configured as admin service account</p>
+                <p className="text-xs" style={{ color: '#16a34a' }}>✓ Connected via OAuth</p>
               )}
               {!status?.connected && (
                 <p className="text-xs" style={{ color: '#ef4444' }}>
-                  Set <code style={{ fontFamily: 'monospace' }}>GOOGLE_DRIVE_CLIENT_EMAIL</code> and{' '}
-                  <code style={{ fontFamily: 'monospace' }}>GOOGLE_DRIVE_PRIVATE_KEY</code> in your environment variables.
+                  Set <code style={{ fontFamily: 'monospace' }}>GOOGLE_OAUTH_CLIENT_ID</code>,{' '}
+                  <code style={{ fontFamily: 'monospace' }}>GOOGLE_OAUTH_CLIENT_SECRET</code>, and{' '}
+                  <code style={{ fontFamily: 'monospace' }}>GOOGLE_OAUTH_REFRESH_TOKEN</code> in your environment variables.
                 </p>
               )}
             </div>
@@ -103,14 +104,17 @@ function GoogleDrivePanel() {
 
           {/* Setup hint */}
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Authentication uses a Google Service Account.
-            Set{' '}
+            Authentication uses OAuth 2.0. Set{' '}
             <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--surface-2)', fontFamily: 'monospace' }}>
-              GOOGLE_DRIVE_CLIENT_EMAIL
+              GOOGLE_OAUTH_CLIENT_ID
             </code>
-            {' '}and{' '}
+            {', '}
             <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--surface-2)', fontFamily: 'monospace' }}>
-              GOOGLE_DRIVE_PRIVATE_KEY
+              GOOGLE_OAUTH_CLIENT_SECRET
+            </code>
+            {', and '}
+            <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--surface-2)', fontFamily: 'monospace' }}>
+              GOOGLE_OAUTH_REFRESH_TOKEN
             </code>
             {' '}in your environment variables.
           </p>

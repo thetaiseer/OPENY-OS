@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 /**
  * POST /api/auth/google/disconnect
  *
- * This endpoint is no longer applicable. Google Drive is now authenticated via
- * a Service Account (GOOGLE_DRIVE_CLIENT_EMAIL + GOOGLE_DRIVE_PRIVATE_KEY).
- * There is no OAuth token to revoke.
+ * This endpoint is not applicable. Google Drive is authenticated via a
+ * pre-configured OAuth 2.0 refresh token. To revoke access, remove the
+ * GOOGLE_OAUTH_REFRESH_TOKEN env var or revoke the token in Google Cloud Console.
  */
 export async function POST() {
   return NextResponse.json(
-    { error: 'Disconnect is not applicable. Google Drive uses a Service Account — no OAuth token to revoke.' },
+    { error: 'Disconnect is not applicable. Google Drive uses a pre-configured OAuth refresh token — remove the env var to disconnect.' },
     { status: 410 },
   );
 }
