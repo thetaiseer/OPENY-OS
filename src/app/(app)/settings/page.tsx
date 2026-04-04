@@ -130,6 +130,8 @@ export default function SettingsPage() {
   const { user, role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
 
@@ -138,6 +140,18 @@ export default function SettingsPage() {
     team:   'Access to assigned clients — can upload assets and create tasks',
     client: 'Can view own assets and submit approvals',
   };
+
+  async function handleSignOut() {
+    setSignOutError(null);
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Sign out failed. Please try again.';
+      setSignOutError(message);
+      setSigningOut(false);
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -233,12 +247,21 @@ export default function SettingsPage() {
       {/* Sign Out */}
       <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text)' }}>Session</h2>
+        {signOutError && (
+          <div
+            className="mb-3 px-3 py-2 rounded-lg text-sm"
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+          >
+            {signOutError}
+          </div>
+        )}
         <button
-          onClick={signOut}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
           style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
         >
-          <LogOut size={15} /> Sign out
+          <LogOut size={15} /> {signingOut ? 'Signing out…' : 'Sign out'}
         </button>
       </div>
     </div>
