@@ -1,14 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * Legacy re-export — prefer importing from '@/lib/supabase/client' directly.
+ * Kept so that existing code that imports from '@/lib/supabase' continues to work.
+ */
+import { createClient } from './supabase/client';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. ' +
-    'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.',
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient();
 export default supabase;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { scanDriveForSync, setFilePublicReadable, checkDriveFileExists } from '@/lib/google-drive';
 import type { DriveFileMeta } from '@/lib/google-drive';
+import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client ──────────────────────────────────────────────
 
@@ -239,8 +240,12 @@ async function logSyncResult(
 /**
  * GET /api/assets/sync
  * Returns the most recent sync log entry (last sync time + summary).
+ * Admin only.
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const auth = await requireRole(req, ['admin']);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -263,10 +268,12 @@ export async function GET(_req: NextRequest) {
 
 /**
  * POST /api/assets/sync
- * Triggers a manual Google Drive → DB sync.
- * Accepts an optional JSON body with `{ triggered_by: "manual" | "cron" }`.
+ * Triggers a manual Google Drive → DB sync. Admin only.
  */
 export async function POST(req: NextRequest) {
+  const auth = await requireRole(req, ['admin']);
+  if (auth instanceof NextResponse) return auth;
+
   let triggeredBy: 'manual' | 'cron' = 'manual';
   try {
     const body = await req.json() as { triggered_by?: string };

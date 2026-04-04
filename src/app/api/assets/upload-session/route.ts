@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createFolderHierarchy, initiateResumableSession } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
+import { requireRole } from '@/lib/api-auth';
 
 // Fixed content type list — must stay in sync with upload-session and upload-complete routes
 // (consider moving to a shared constants module if the list changes frequently)
@@ -104,6 +105,10 @@ function checkRateLimit(ip: string): boolean {
  */
 export async function POST(req: NextRequest) {
   console.log('[upload-session] POST /api/assets/upload-session');
+
+  // ── Auth: only admin and team members may initiate uploads ─────────────────
+  const auth = await requireRole(req, ['admin', 'team']);
+  if (auth instanceof NextResponse) return auth;
 
   // ── Rate limiting ───────────────────────────────────────────────────────────
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
