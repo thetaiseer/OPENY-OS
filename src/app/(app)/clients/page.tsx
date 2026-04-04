@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Users2, ExternalLink, AlertCircle } from 'lucide-react';
+import { Plus, Search, Users2, ExternalLink, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -24,11 +24,12 @@ export default function ClientsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [warnMsg, setWarnMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
 
-  const fetchClients = useCallback(async () => {
+  const fetchClients = useCallback(async (): Promise<boolean> => {
     try {
       let query = supabase
         .from('clients')
@@ -40,11 +41,17 @@ export default function ClientsPage() {
       }
       const { data, error } = await query;
       if (error) {
-        if (process.env.NODE_ENV === 'development') console.error('[clients fetch]', error);
+        console.error('[clients fetch]', error);
         setClients([]);
+        return false;
       } else {
         setClients((data ?? []) as Client[]);
+        return true;
       }
+    } catch (err: unknown) {
+      console.error('[clients fetch] unexpected error:', err);
+      setClients([]);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -53,16 +60,18 @@ export default function ClientsPage() {
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
   const logActivity = (description: string, clientId?: string) => {
+    console.log('[client create] before activity log:', description);
     void supabase.from('activities').insert({
       type: 'client',
       description,
       client_id: clientId ?? null,
     }).then(
       ({ error }) => {
-        if (error && process.env.NODE_ENV === 'development') console.warn('[logActivity]', error);
+        if (error) console.warn('[logActivity]', error);
+        else console.log('[client create] after activity log: success');
       },
       (err: unknown) => {
-        if (process.env.NODE_ENV === 'development') console.warn('[logActivity network]', err);
+        console.warn('[logActivity network]', err);
       },
     );
   };
@@ -71,15 +80,61 @@ export default function ClientsPage() {
     e.preventDefault();
     setSaving(true);
     setSaveError(null);
+
+    // Timeout-safe protection: fail gracefully if request hangs
+    const timeoutMs = 15_000;
+    const timeoutHandle = { id: 0 };
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle.id = window.setTimeout(
+        () => reject(new Error('Request timed out. Please try again.')),
+        timeoutMs,
+      );
+    });
+
     try {
-      const { data, error } = await supabase.from('clients').insert(form).select().single();
+      // Log auth user, profile, and resolved role for debugging
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[client create] auth user id:', user?.id ?? 'none');
+      if (user?.id) {
+        const { data: profile, error: profileErr } = await supabase
+          .from('users')
+          .select('role, client_id')
+          .eq('id', user.id)
+          .single();
+        if (profileErr) console.warn('[client create] profile fetch error:', profileErr);
+        else console.log('[client create] fetched profile:', profile, '| resolved role:', profile?.role ?? 'unknown');
+      }
+
+      console.log('[client create] before insert', { name: form.name });
+      const { data, error } = await Promise.race([
+        supabase.from('clients').insert(form).select().single(),
+        timeoutPromise,
+      ]);
+      clearTimeout(timeoutHandle.id);
       if (error) throw error;
+      console.log('[client create] after insert, id:', data?.id);
+
+      // Close modal and reset form immediately after successful insert
+      console.log('[client create] before modal close');
       setModalOpen(false);
       setForm({ name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '' });
+      console.log('[client create] after modal close');
+
+      // Fire-and-forget activity log — never blocks the UI
       logActivity(`Client "${form.name}" created`, data?.id);
-      fetchClients();
+
+      // Refresh list non-blocking — show warning if it fails but don't block modal
+      console.log('[client create] before fetchClients');
+      void fetchClients().then(ok => {
+        console.log('[client create] after fetchClients, ok:', ok);
+        if (!ok) {
+          setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
+          setTimeout(() => setWarnMsg(null), 6000);
+        }
+      });
     } catch (err: unknown) {
-      if (process.env.NODE_ENV === 'development') console.error('[client create]', err);
+      clearTimeout(timeoutHandle.id);
+      console.error('[client create] error:', err);
       const message = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to create client';
@@ -166,6 +221,16 @@ export default function ClientsPage() {
               <ExternalLink size={16} className="shrink-0 opacity-50" style={{ color: 'var(--text-secondary)' }} />
             </Link>
           ))}
+        </div>
+      )}
+
+      {warnMsg && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: '#d97706', minWidth: 280 }}>
+          <AlertCircle size={16} className="shrink-0" />
+          <span className="flex-1">{warnMsg}</span>
+          <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+            <X size={14} />
+          </button>
         </div>
       )}
 
