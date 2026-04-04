@@ -16,6 +16,8 @@ const statusVariant = (s: string) => {
   return 'info' as const;
 };
 
+const WARN_TOAST_BG = '#d97706';
+
 export default function ClientsPage() {
   const { t } = useLang();
   const [clients, setClients] = useState<Client[]>([]);
@@ -83,12 +85,12 @@ export default function ClientsPage() {
 
     // Timeout-safe protection: fail gracefully if request hangs
     const timeoutMs = 15_000;
-    const timeoutHandle = { id: 0 };
+    let timeoutHandle: number | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutHandle.id = window.setTimeout(
+      timeoutHandle = window.setTimeout(
         () => reject(new Error('Request timed out. Please try again.')),
         timeoutMs,
-      );
+      ) as unknown as number;
     });
 
     try {
@@ -110,7 +112,7 @@ export default function ClientsPage() {
         supabase.from('clients').insert(form).select().single(),
         timeoutPromise,
       ]);
-      clearTimeout(timeoutHandle.id);
+      clearTimeout(timeoutHandle);
       if (error) throw error;
       console.log('[client create] after insert, id:', data?.id);
 
@@ -133,7 +135,7 @@ export default function ClientsPage() {
         }
       });
     } catch (err: unknown) {
-      clearTimeout(timeoutHandle.id);
+      clearTimeout(timeoutHandle);
       console.error('[client create] error:', err);
       const message = err instanceof Error
         ? err.message
@@ -225,7 +227,7 @@ export default function ClientsPage() {
       )}
 
       {warnMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: '#d97706', minWidth: 280 }}>
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: WARN_TOAST_BG, minWidth: 280 }}>
           <AlertCircle size={16} className="shrink-0" />
           <span className="flex-1">{warnMsg}</span>
           <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
