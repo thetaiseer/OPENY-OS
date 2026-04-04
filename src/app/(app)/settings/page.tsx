@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
-import { CheckCircle, AlertCircle, RefreshCw, Link2, Link2Off, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 
 // ── Google Drive status types ─────────────────────────────────────────────────
 
@@ -14,15 +14,11 @@ interface DriveStatus {
   isAdminAccount: boolean;
 }
 
-const ADMIN_EMAIL = 'thetaiseer@gmail.com'; // displayed as the expected admin account
-
 // ── Google Drive Admin Panel ──────────────────────────────────────────────────
 
 function GoogleDrivePanel() {
-  const [status, setStatus]       = useState<DriveStatus | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [actionBusy, setActionBusy] = useState(false);
-  const [message, setMessage]     = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [status, setStatus]   = useState<DriveStatus | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -38,30 +34,6 @@ function GoogleDrivePanel() {
   };
 
   useEffect(() => { fetchStatus(); }, []);
-
-  const handleConnect = () => {
-    window.open('/api/auth/google', '_blank', 'noopener,noreferrer');
-  };
-
-  const handleDisconnect = async () => {
-    if (!confirm('Revoke Google Drive access? You will need to reconnect and update the GOOGLE_OAUTH_REFRESH_TOKEN env var.')) return;
-    setActionBusy(true);
-    setMessage(null);
-    try {
-      const res  = await fetch('/api/auth/google/disconnect', { method: 'POST' });
-      const json = await res.json();
-      if (res.ok) {
-        setMessage({ text: json.message ?? 'Token revoked. Update GOOGLE_OAUTH_REFRESH_TOKEN in your env vars and restart the server.', type: 'success' });
-        await fetchStatus();
-      } else {
-        setMessage({ text: json.error ?? 'Disconnect failed', type: 'error' });
-      }
-    } catch (err: unknown) {
-      setMessage({ text: err instanceof Error ? err.message : 'Unexpected error', type: 'error' });
-    } finally {
-      setActionBusy(false);
-    }
-  };
 
   return (
     <div className="rounded-2xl border p-6 space-y-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -79,8 +51,7 @@ function GoogleDrivePanel() {
       </div>
 
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        All file uploads go to the admin Google Drive account. Only the admin can connect or disconnect.
-        Employees do <strong>not</strong> need their own Google accounts.
+        All file uploads go to the admin Google Drive via a Service Account. No user login is required.
       </p>
 
       {/* Connection status */}
@@ -100,85 +71,48 @@ function GoogleDrivePanel() {
               : <AlertCircle size={18} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
             <div className="space-y-0.5">
               <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {status?.connected ? 'Connected' : 'Not connected'}
+                {status?.connected ? 'Service Account configured' : 'Service Account not configured'}
               </p>
               {status?.email && (
                 <p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{status.email}</p>
               )}
-              {/* Warn if connected to a non-admin account */}
-              {status?.connected && !status.isAdminAccount && (
-                <p className="text-xs font-medium mt-1" style={{ color: '#f59e0b' }}>
-                  ⚠ Connected account is not {ADMIN_EMAIL}. Please reconnect with the admin account.
-                </p>
-              )}
               {status?.connected && status.isAdminAccount && (
-                <p className="text-xs" style={{ color: '#16a34a' }}>✓ Connected as admin account</p>
+                <p className="text-xs" style={{ color: '#16a34a' }}>✓ Configured as admin service account</p>
+              )}
+              {!status?.connected && (
+                <p className="text-xs" style={{ color: '#ef4444' }}>
+                  Set <code style={{ fontFamily: 'monospace' }}>GOOGLE_DRIVE_CLIENT_EMAIL</code> and{' '}
+                  <code style={{ fontFamily: 'monospace' }}>GOOGLE_DRIVE_PRIVATE_KEY</code> in your environment variables.
+                </p>
               )}
             </div>
           </div>
 
-          {/* Action message */}
-          {message && (
-            <div
-              className="rounded-xl px-4 py-3 text-sm"
-              style={{
-                background: message.type === 'success' ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)',
-                color: message.type === 'success' ? '#15803d' : '#dc2626',
-                border: `1px solid ${message.type === 'success' ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
-              }}
-            >
-              {message.text}
-            </div>
-          )}
-
-          {/* Buttons */}
+          {/* Open Drive shortcut */}
           <div className="flex flex-wrap gap-3">
-            {!status?.connected ? (
-              <button
-                onClick={handleConnect}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Link2 size={15} /> Connect Google Drive
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={handleConnect}
-                  className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                >
-                  <RefreshCw size={15} /> Reconnect
-                </button>
-                <a
-                  href="https://drive.google.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                >
-                  <ExternalLink size={15} /> Open Drive
-                </a>
-                <button
-                  onClick={handleDisconnect}
-                  disabled={actionBusy}
-                  className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
-                >
-                  {actionBusy ? <Loader2 size={15} className="animate-spin" /> : <Link2Off size={15} />}
-                  Disconnect
-                </button>
-              </>
-            )}
+            <a
+              href="https://drive.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              <ExternalLink size={15} /> Open Drive
+            </a>
           </div>
 
           {/* Setup hint */}
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            After connecting, copy the refresh token shown and set it as{' '}
+            Authentication uses a Google Service Account.
+            Set{' '}
             <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--surface-2)', fontFamily: 'monospace' }}>
-              GOOGLE_OAUTH_REFRESH_TOKEN
-            </code>{' '}
-            in your environment variables, then restart the server.
+              GOOGLE_DRIVE_CLIENT_EMAIL
+            </code>
+            {' '}and{' '}
+            <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--surface-2)', fontFamily: 'monospace' }}>
+              GOOGLE_DRIVE_PRIVATE_KEY
+            </code>
+            {' '}in your environment variables.
           </p>
         </div>
       )}
