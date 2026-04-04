@@ -29,14 +29,14 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
-        { error: `Failed while parsing multipart form data: ${msg}` },
+        { success: false, error: `Failed while parsing multipart form data: ${msg}` },
         { status: 400 },
       );
     }
 
     const rawFile = formData.get('file');
     if (!rawFile || typeof rawFile === 'string') {
-      return NextResponse.json({ error: 'No file provided in request' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'No file provided in request' }, { status: 400 });
     }
     const file = rawFile as File;
 
@@ -53,20 +53,20 @@ export async function POST(req: NextRequest) {
     const clientName = rawClientName && typeof rawClientName === 'string' ? rawClientName.trim() : '';
 
     if (!clientName) {
-      return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'client_name is required' }, { status: 400 });
     }
     if (!contentType || typeof contentType !== 'string') {
-      return NextResponse.json({ error: 'content_type is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'content_type is required' }, { status: 400 });
     }
     if (!VALID_CONTENT_TYPES.includes(contentType as typeof VALID_CONTENT_TYPES[number])) {
       return NextResponse.json(
-        { error: `Invalid content_type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
+        { success: false, error: `Invalid content_type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
         { status: 400 },
       );
     }
     if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
       return NextResponse.json(
-        { error: 'month_key is required and must be in YYYY-MM format' },
+        { success: false, error: 'month_key is required and must be in YYYY-MM format' },
         { status: 400 },
       );
     }
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         : null;
     if (clientId !== null && !safeClientId) {
       return NextResponse.json(
-        { error: 'client_id is required when uploading to a client workspace' },
+        { success: false, error: 'client_id is required when uploading to a client workspace' },
         { status: 400 },
       );
     }
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
-        { error: `Failed while reading file into buffer: ${msg}` },
+        { success: false, error: `Failed while reading file into buffer: ${msg}` },
         { status: 500 },
       );
     }
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ Google Drive upload failed:', msg);
-      return NextResponse.json({ error: `Google Drive upload failed: ${msg}` }, { status: 502 });
+      return NextResponse.json({ success: false, error: `Google Drive upload failed: ${msg}` }, { status: 502 });
     }
 
     const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink } = driveResult;
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
       if (dbError) {
         console.error('[upload] ❌ Failed while inserting asset metadata:', dbError.message, dbError.details ?? '');
         return NextResponse.json(
-          { error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}` },
+          { success: false, error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}` },
           { status: 500 },
         );
       }
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ Failed while inserting asset metadata (exception):', msg);
       return NextResponse.json(
-        { error: `Failed while inserting asset metadata: ${msg}` },
+        { success: false, error: `Failed while inserting asset metadata: ${msg}` },
         { status: 500 },
       );
     }
@@ -179,10 +179,10 @@ export async function POST(req: NextRequest) {
       ...(safeClientId ? { client_id: safeClientId } : {}),
     });
 
-    return NextResponse.json({ asset: inserted }, { status: 201 });
+    return NextResponse.json({ success: true, asset: inserted }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload] ❌ Unexpected server error:', msg);
-    return NextResponse.json({ error: `Unexpected server error: ${msg}` }, { status: 500 });
+    console.error('[upload] UPLOAD ERROR:', err);
+    return NextResponse.json({ success: false, error: `Unexpected server error: ${msg}` }, { status: 500 });
   }
 }

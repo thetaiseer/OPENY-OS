@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
     }
 
     const {
@@ -58,28 +58,28 @@ export async function POST(req: NextRequest) {
 
     // ── Validate required fields ──────────────────────────────────────────────
     if (!driveFileId || typeof driveFileId !== 'string') {
-      return NextResponse.json({ error: 'driveFileId is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'driveFileId is required' }, { status: 400 });
     }
     if (!driveFolderId || typeof driveFolderId !== 'string') {
-      return NextResponse.json({ error: 'driveFolderId is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'driveFolderId is required' }, { status: 400 });
     }
     if (!clientFolderName || typeof clientFolderName !== 'string') {
-      return NextResponse.json({ error: 'clientFolderName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'clientFolderName is required' }, { status: 400 });
     }
     if (!fileName || typeof fileName !== 'string') {
-      return NextResponse.json({ error: 'fileName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fileName is required' }, { status: 400 });
     }
     if (!contentType || typeof contentType !== 'string') {
-      return NextResponse.json({ error: 'contentType is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'contentType is required' }, { status: 400 });
     }
     if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
       return NextResponse.json(
-        { error: 'monthKey is required and must be in YYYY-MM format' },
+        { success: false, error: 'monthKey is required and must be in YYYY-MM format' },
         { status: 400 },
       );
     }
     if (!clientName || typeof clientName !== 'string') {
-      return NextResponse.json({ error: 'clientName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'clientName is required' }, { status: 400 });
     }
 
     const safeClientId =
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ finalizeFileAfterUpload failed:', msg);
-      return NextResponse.json({ error: `Failed to finalize Drive file: ${msg}` }, { status: 502 });
+      return NextResponse.json({ success: false, error: `Failed to finalize Drive file: ${msg}` }, { status: 502 });
     }
 
     // ── Insert asset record in Supabase ───────────────────────────────────────
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       if (dbError) {
         console.error('[upload-complete] ❌ DB insert failed:', dbError.message);
         return NextResponse.json(
-          { error: `Failed to save asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}` },
+          { success: false, error: `Failed to save asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}` },
           { status: 500 },
         );
       }
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ DB insert exception:', msg);
-      return NextResponse.json({ error: `Failed to save asset metadata: ${msg}` }, { status: 500 });
+      return NextResponse.json({ success: false, error: `Failed to save asset metadata: ${msg}` }, { status: 500 });
     }
 
     console.log('[upload-complete] ✅ asset saved — id:', inserted?.id);
@@ -153,10 +153,10 @@ export async function POST(req: NextRequest) {
       if (error) console.warn('[upload-complete] activity log insert failed:', error.message);
     });
 
-    return NextResponse.json({ asset: inserted }, { status: 201 });
+    return NextResponse.json({ success: true, asset: inserted }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload-complete] ❌ Unexpected error:', msg);
-    return NextResponse.json({ error: `Unexpected server error: ${msg}` }, { status: 500 });
+    console.error('[upload-complete] UPLOAD ERROR:', err);
+    return NextResponse.json({ success: false, error: `Unexpected server error: ${msg}` }, { status: 500 });
   }
 }
