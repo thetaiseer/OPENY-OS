@@ -166,8 +166,8 @@ function persistQueue(queue: UploadQueueItem[]): void {
         fileName:         i.file?.name ?? i.renamedFileName ?? 'Unknown',
         fileSize:         i.file?.size ?? 0,
         fileType:         i.file?.type ?? '',
-        // Active → mark as paused so it's resumable on next load
-        status:           (['failed'].includes(i.status) ? 'failed' : 'paused') as 'paused' | 'failed',
+        // Active items are saved as paused so they can be retried on next load
+        status:           i.status === 'failed' ? 'failed' : 'paused' as 'paused' | 'failed',
         progress:         0,
         error:            i.error,
         uploadName:       i.uploadName,
@@ -199,7 +199,7 @@ function restoreQueue(): UploadQueueItem[] {
       previewUrl:       null,
       status:           i.status,
       progress:         0,
-      error:            i.status === 'failed' ? (i.error ?? 'Upload failed') : 'Page was refreshed. Click retry to restart.',
+      error:            i.status === 'failed' ? (i.error ?? 'Upload failed') : 'Upload was interrupted. Click retry to restart.',
       uploadName:       i.uploadName,
       uploadUrl:        i.uploadUrl,
       bytesUploaded:    i.bytesUploaded,

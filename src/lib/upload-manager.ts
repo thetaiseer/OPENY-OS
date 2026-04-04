@@ -39,7 +39,7 @@ export interface ChunkUploadOptions {
 /**
  * Query Google Drive to find out how many bytes it has received so far.
  *
- * Sends an empty PUT with Content-Range: bytes * /fileSize (no space in real request).
+ * Sends an empty PUT with header: Content-Range: bytes * /{fileSize}
  * - 308 Incomplete -> reads the Range response header (bytes=0-N) -> returns N+1
  * - 200/201         -> upload already complete -> returns totalBytes
  * - anything else   -> returns 0 (treat as start from zero)
@@ -212,9 +212,8 @@ export async function uploadFileChunked(
  * After all chunks are sent, attempt to retrieve the Drive file ID by querying
  * the upload session status.  Returns null if Drive doesn't provide it.
  *
- * Sends a zero-byte PUT with Content-Range: bytes * /total (no space in real request)
- * and reads the JSON body
- * on 200/201 for the file ID.
+ * Sends a zero-byte PUT with header: Content-Range: bytes * /{fileSize}
+ * and reads the JSON body on 200/201 for the file ID.
  */
 async function resolveCompletedFileId(
   uploadUrl: string,

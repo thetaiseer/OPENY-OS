@@ -701,7 +701,8 @@ export default function AssetsPage() {
   const handleUploadConfirm = () => {
     const items = [...pendingItems];
     if (!items.length) return;
-    revokeItemUrls([]); // nothing to revoke — previewUrls are handed to context
+    // previewUrl object URLs are transferred to the context which owns their lifecycle.
+    // Clear pendingItems WITHOUT revoking — the context will revoke them on removeItem/clearCompleted.
     setPendingItems([]);
     const uploadedBy = user?.name || user?.email || null;
     const initialItems: InitialUploadItem[] = items.map(i => ({
