@@ -49,8 +49,14 @@ export async function POST(req: NextRequest) {
   console.log('[upload] POST /api/assets/upload — structured Google Drive storage');
   try {
     // ── 0. Auth: only admin and team members may upload ───────────────────────
+    console.log('[upload] running auth check…');
     const auth = await requireRole(req, ['admin', 'team']);
-    if (auth instanceof NextResponse) return auth;
+    if (auth instanceof NextResponse) {
+      // Forward the exact backend reason so the client UI can surface it.
+      console.warn('[upload] auth denied — forwarding 403 response');
+      return auth;
+    }
+    console.log('[upload] auth OK — user:', auth.profile.email, '| role:', auth.profile.role);
 
     // ── 1. Parse multipart form data ─────────────────────────────────────────
     let formData: FormData;
