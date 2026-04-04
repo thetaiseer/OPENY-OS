@@ -17,11 +17,12 @@ export async function GET(req: NextRequest) {
 
   const ADMIN_EMAIL = process.env.GOOGLE_ADMIN_EMAIL ?? 'thetaiseer@gmail.com';
 
-  const connected = !!(clientId && clientSecret && refreshToken);
+  const configured = !!(clientId && clientSecret && refreshToken);
 
   return NextResponse.json({
-    connected,
-    email: connected ? (ADMIN_EMAIL) : null,
-    isAdminAccount: connected,
+    connected: configured,
+    configured,
+    email: configured ? ADMIN_EMAIL : null,
+    isAdminAccount: configured,
   });
 }
