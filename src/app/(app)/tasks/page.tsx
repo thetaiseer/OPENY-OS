@@ -468,7 +468,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t 
             {/* Cards */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-280px)]">
               {colTasks.length === 0 ? (
-                <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>No tasks</p>
+                <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
               ) : (
                 colTasks.map(task => {
                   const overdue = isOverdue(task.due_date, task.status);
@@ -619,9 +619,9 @@ export default function TasksPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
-    if (!createForm.client_id) { alert('Please select a client'); return; }
-    if (!createForm.assigned_to) { alert('Please assign to a team member'); return; }
-    if (!createForm.due_date) { alert('Please set a due date'); return; }
+    if (!createForm.client_id) { alert(t('pleaseSelectClient')); return; }
+    if (!createForm.assigned_to) { alert(t('pleaseAssignMember')); return; }
+    if (!createForm.due_date) { alert(t('pleaseSetDueDate')); return; }
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {

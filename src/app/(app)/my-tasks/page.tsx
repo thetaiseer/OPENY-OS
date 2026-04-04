@@ -176,7 +176,7 @@ export default function MyTasksPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           {selectedMemberName} &mdash; {memberTasks.length} tasks total
           {overdueCount > 0 && (
-            <span className="ml-2 text-red-500 font-medium">{overdueCount} overdue</span>
+            <span className="ml-2 text-red-500 font-medium">{overdueCount} {t('overdueCount')}</span>
           )}
         </p>
       </div>
@@ -190,7 +190,7 @@ export default function MyTasksPage() {
           className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
           style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
         >
-          <option value="">All Team Members</option>
+          <option value="">{t('allTeamMembers')}</option>
           {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
@@ -244,7 +244,7 @@ export default function MyTasksPage() {
         <div className="flex items-center gap-2">
           <LayoutList size={16} style={{ color: 'var(--accent)' }} />
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            {activeSection === 'all' ? 'All Tasks' : t(SECTIONS.find(s => s.key === activeSection)?.labelKey ?? '')}
+            {activeSection === 'all' ? t('allTasks') : t(SECTIONS.find(s => s.key === activeSection)?.labelKey ?? '')}
             <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>({visibleTasks.length})</span>
           </h2>
         </div>
@@ -258,7 +258,7 @@ export default function MyTasksPage() {
         ) : visibleTasks.length === 0 ? (
           <div className="rounded-2xl border p-10 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <CheckSquare size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No tasks in this section</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('noTasksInSection')}</p>
           </div>
         ) : (
           <div className="space-y-2">
