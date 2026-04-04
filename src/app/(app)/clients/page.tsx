@@ -51,11 +51,15 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
-  const logActivity = async (description: string, clientId?: string) => {
-    await supabase.from('activities').insert({
+  const logActivity = (description: string, clientId?: string) => {
+    supabase.from('activities').insert({
       type: 'client',
       description,
       client_id: clientId ?? null,
+    }).then(({ error }) => {
+      if (error && process.env.NODE_ENV === 'development') console.warn('[logActivity]', error);
+    }).catch((err) => {
+      if (process.env.NODE_ENV === 'development') console.warn('[logActivity network]', err);
     });
   };
 
@@ -67,11 +71,14 @@ export default function ClientsPage() {
       if (error) throw error;
       setModalOpen(false);
       setForm({ name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '' });
-      await logActivity(`Client "${form.name}" created`, data?.id);
+      logActivity(`Client "${form.name}" created`, data?.id);
       fetchClients();
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') console.error('[client create]', err);
-      alert(err instanceof Error ? err.message : 'Failed to create client');
+      const message = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message ?? 'Failed to create client';
+      alert(message);
     } finally {
       setSaving(false);
     }
