@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { deleteFromDrive } from '@/lib/google-drive';
+import { deleteFromDrive, DriveFileNotFoundError } from '@/lib/google-drive';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -38,27 +38,50 @@ export async function DELETE(
     );
   }
 
+  console.log('[asset-delete] starting delete', {
+    assetId: asset.id,
+    driveFileId: asset.drive_file_id ?? null,
+    storageProvider: asset.storage_provider,
+  });
+
   // ── 2. Delete from Google Drive (only if stored there) ───────────────────
+  let warning: string | undefined;
+
   if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
     try {
       await deleteFromDrive(asset.drive_file_id as string);
+      console.log('[asset-delete] Drive delete succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json(
-        { error: `Google Drive delete failed: ${msg}` },
-        { status: 502 },
-      );
+      if (err instanceof DriveFileNotFoundError) {
+        // File already gone from Drive – treat as orphaned record and continue
+        warning = 'File was already missing from Google Drive. Database record removed.';
+        console.warn('[asset-delete] Drive file not found – treating as orphaned', {
+          assetId: asset.id,
+          driveFileId: asset.drive_file_id,
+          driveError: err.message,
+        });
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[asset-delete] Drive delete failed', { assetId: asset.id, driveFileId: asset.drive_file_id, error: msg });
+        return NextResponse.json(
+          { error: `Google Drive delete failed: ${msg}` },
+          { status: 502 },
+        );
+      }
     }
   }
 
   // ── 3. Delete row from assets table ──────────────────────────────────────
   const { error: dbError } = await supabase.from('assets').delete().eq('id', id);
   if (dbError) {
+    console.error('[asset-delete] DB delete failed', { assetId: asset.id, error: dbError.message });
     return NextResponse.json(
       { error: `Database delete failed: ${dbError.message}` },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ success: true });
+  console.log('[asset-delete] DB delete succeeded', { assetId: asset.id });
+
+  return NextResponse.json({ success: true, ...(warning ? { warning } : {}) });
 }

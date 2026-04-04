@@ -318,13 +318,33 @@ export async function uploadToStructuredPath(
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 
+/** Thrown when the Drive file is already gone (404 / notFound). */
+export class DriveFileNotFoundError extends Error {
+  constructor(fileId: string) {
+    super(`File not found: ${fileId}`);
+    this.name = 'DriveFileNotFoundError';
+  }
+}
+
 /**
  * Delete a file from Google Drive by its file ID.
- * Throws on failure so the caller can surface the exact error.
+ * Throws DriveFileNotFoundError when the file is missing (404).
+ * Throws on any other failure so the caller can surface the exact error.
  */
 export async function deleteFromDrive(fileId: string): Promise<void> {
   const { drive } = getDriveClient();
-  await drive.files.delete({ fileId, supportsAllDrives: true });
+  try {
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+  } catch (err: unknown) {
+    // Treat a 404 / "File not found" response as a missing-remote signal
+    // so callers can decide to proceed with DB cleanup instead of hard-failing.
+    const status = (err as { code?: number })?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 404 || /not found/i.test(message)) {
+      throw new DriveFileNotFoundError(fileId);
+    }
+    throw err;
+  }
 }
 
 // ── Resumable upload helpers ──────────────────────────────────────────────────
