@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
+  LayoutGrid, List, Search,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -22,8 +23,10 @@ const priorityVariant = (p: string) => {
 
 const statusVariant = (s: string) => {
   if (s === 'done')        return 'success' as const;
+  if (s === 'delivered')   return 'success' as const;
   if (s === 'overdue')     return 'danger'  as const;
   if (s === 'in_progress') return 'info'    as const;
+  if (s === 'review')      return 'warning' as const;
   return 'default' as const;
 };
 
@@ -56,11 +59,18 @@ function fmtDate(d?: string) {
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
+function statusLabel(s: string, t: (k: string) => string): string {
+  if (s === 'in_progress') return t('inProgress');
+  if (s === 'review')      return t('review');
+  if (s === 'delivered')   return t('delivered');
+  return t(s);
+}
+
 // ─── blank form ─────────────────────────────────────────────────────────────
 
 const blankForm = {
   title: '', description: '', status: 'todo', priority: 'medium',
-  due_date: '', client_id: '', assigned_to: '', created_by: '',
+  start_date: '', due_date: '', client_id: '', assigned_to: '', created_by: '',
   mentions: [] as string[], tags: '',
 };
 
@@ -112,19 +122,25 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
         />
       </div>
 
-      {/* Client + Deadline */}
+      {/* Client + Start Date + Deadline */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')}</label>
-          <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className={inputCls} style={inputStyle}>
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')} *</label>
+          <select required value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className={inputCls} style={inputStyle}>
             <option value="">{t('none')}</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')}</label>
-          <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
+          <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} style={inputStyle} />
         </div>
+      </div>
+
+      {/* Deadline */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')} *</label>
+        <input required type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
       </div>
 
       {/* Priority + Status */}
@@ -142,8 +158,9 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
           <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputCls} style={inputStyle}>
             <option value="todo">{t('todo')}</option>
             <option value="in_progress">{t('inProgress')}</option>
+            <option value="review">{t('review')}</option>
             <option value="done">{t('done')}</option>
-            <option value="overdue">{t('overdue')}</option>
+            <option value="delivered">{t('delivered')}</option>
           </select>
         </div>
       </div>
@@ -151,8 +168,8 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
       {/* Assigned To + Created By */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')}</label>
-          <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))} className={inputCls} style={inputStyle}>
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')} *</label>
+          <select required value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))} className={inputCls} style={inputStyle}>
             <option value="">{t('unassigned')}</option>
             {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
@@ -328,20 +345,20 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             className="flex items-center gap-1 text-xs rounded-full px-2.5 py-0.5 font-medium"
             style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
-            {t(task.status === 'in_progress' ? 'inProgress' : task.status)}
+            {statusLabel(task.status, t)}
             <ChevronDown size={10} />
           </button>
           {statusOpen && (
             <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              {['todo', 'in_progress', 'done', 'overdue'].map(s => (
+              {['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => (
                 <button
                   key={s}
                   onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--surface-2)] transition-colors"
                   style={{ color: 'var(--text)' }}
                 >
-                  {t(s === 'in_progress' ? 'inProgress' : s)}
+                  {statusLabel(s, t)}
                 </button>
               ))}
             </div>
@@ -379,11 +396,12 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
           )}
         </div>
         <div className="rounded-xl border" style={{ borderColor: 'var(--border)' }}>
-          {row(t('status'), <Badge variant={statusVariant(task.status)}>{t(task.status === 'in_progress' ? 'inProgress' : task.status)}</Badge>)}
+          {row(t('status'), <Badge variant={statusVariant(task.status)}>{statusLabel(task.status, t)}</Badge>)}
           {row(t('priority'), <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>)}
           {task.client && row(t('clients'), task.client.name)}
+          {task.start_date && row(t('startDate'), fmtDate(task.start_date))}
           {task.due_date && row(t('deadline'),
-            <span className={overdue ? 'text-red-500 font-medium' : ''}>{fmtDate(task.due_date)}{overdue ? ' (Overdue)' : ''}</span>
+            <span className={overdue ? 'text-red-500 font-medium' : ''}>{fmtDate(task.due_date)}{overdue ? ` (${t('overdue')})` : ''}</span>
           )}
           {assignee && row(t('assignedTo'), assignee.name)}
           {creator && row(t('createdBy'), creator.name)}
@@ -403,6 +421,116 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
         </div>
       </div>
     </Modal>
+  );
+}
+
+// ─── KanbanBoard ─────────────────────────────────────────────────────────────
+
+const KANBAN_COLS: { key: Task['status']; label: string }[] = [
+  { key: 'todo',        label: 'todo'        },
+  { key: 'in_progress', label: 'inProgress'  },
+  { key: 'review',      label: 'review'      },
+  { key: 'done',        label: 'done'        },
+  { key: 'delivered',   label: 'delivered'   },
+];
+
+interface KanbanBoardProps {
+  tasks: Task[];
+  team: TeamMember[];
+  onView: (t: Task) => void;
+  onEdit: (t: Task) => void;
+  onDelete: (t: Task) => void;
+  onStatusChange: (t: Task, s: string) => void;
+  t: (k: string) => string;
+}
+
+function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t }: KanbanBoardProps) {
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-4">
+      {KANBAN_COLS.map(col => {
+        const colTasks = tasks.filter(task => task.status === col.key);
+        return (
+          <div
+            key={col.key}
+            className="flex-shrink-0 w-72 rounded-2xl border flex flex-col"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            {/* Column header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t(col.label)}</span>
+              <span
+                className="text-xs font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
+                {colTasks.length}
+              </span>
+            </div>
+            {/* Cards */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-280px)]">
+              {colTasks.length === 0 ? (
+                <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>No tasks</p>
+              ) : (
+                colTasks.map(task => {
+                  const overdue = isOverdue(task.due_date, task.status);
+                  const assignee = team.find(m => m.id === task.assigned_to);
+                  return (
+                    <div
+                      key={task.id}
+                      className="rounded-xl border p-3 space-y-2 transition-shadow hover:shadow-sm cursor-pointer"
+                      style={{
+                        background: 'var(--surface-2)',
+                        borderColor: 'var(--border)',
+                        borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
+                      }}
+                    >
+                      <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
+                      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {task.client && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+                            <User size={10} />{task.client.name}
+                          </span>
+                        )}
+                        {assignee && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+                            <User size={10} />{assignee.name}
+                          </span>
+                        )}
+                        {task.due_date && (
+                          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
+                            style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
+                            <Calendar size={10} />{fmtDate(task.due_date)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => onView(task)} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Eye size={13} /></button>
+                          <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Pencil size={13} /></button>
+                          <button onClick={() => onDelete(task)} className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={13} /></button>
+                        </div>
+                      </div>
+                      {/* Quick status change */}
+                      <select
+                        value={task.status}
+                        onChange={e => onStatusChange(task, e.target.value)}
+                        className="w-full h-7 px-2 rounded-lg text-xs outline-none"
+                        style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => (
+                          <option key={s} value={s}>{statusLabel(s, t)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -448,6 +576,8 @@ export default function TasksPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [view, setView] = useState<'list' | 'kanban'>('list');
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
@@ -481,6 +611,7 @@ export default function TasksPage() {
     if (clientFilter && task.client_id !== clientFilter) return false;
     if (assignedFilter && task.assigned_to !== assignedFilter) return false;
     if (priorityFilter && task.priority !== priorityFilter) return false;
+    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -488,6 +619,9 @@ export default function TasksPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
+    if (!createForm.client_id) { alert('Please select a client'); return; }
+    if (!createForm.assigned_to) { alert('Please assign to a team member'); return; }
+    if (!createForm.due_date) { alert('Please set a due date'); return; }
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
@@ -495,6 +629,7 @@ export default function TasksPage() {
         description: createForm.description || null,
         status: createForm.status,
         priority: createForm.priority,
+        start_date: createForm.start_date || null,
         due_date: createForm.due_date || null,
         client_id: createForm.client_id || null,
         assigned_to: createForm.assigned_to || null,
@@ -530,6 +665,7 @@ export default function TasksPage() {
       description: task.description ?? '',
       status: task.status,
       priority: task.priority,
+      start_date: task.start_date ?? '',
       due_date: task.due_date ?? '',
       client_id: task.client_id ?? '',
       assigned_to: task.assigned_to ?? '',
@@ -550,6 +686,7 @@ export default function TasksPage() {
         description: editForm.description || null,
         status: editForm.status,
         priority: editForm.priority,
+        start_date: editForm.start_date || null,
         due_date: editForm.due_date || null,
         client_id: editForm.client_id || null,
         assigned_to: editForm.assigned_to || null,
@@ -599,7 +736,7 @@ export default function TasksPage() {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus as Task['status'] } : t));
   };
 
-  const statuses = ['all', 'todo', 'in_progress', 'done', 'overdue'];
+  const statuses = ['all', 'todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -611,13 +748,51 @@ export default function TasksPage() {
             {filtered.length} task{filtered.length !== 1 ? 's' : ''} across all clients
           </p>
         </div>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-          style={{ background: 'var(--accent)' }}
-        >
-          <Plus size={16} />{t('newTask')}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View switcher */}
+          <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+            <button
+              onClick={() => setView('list')}
+              className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium transition-colors"
+              style={{
+                background: view === 'list' ? 'var(--accent)' : 'var(--surface)',
+                color: view === 'list' ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              <List size={14} />{t('list')}
+            </button>
+            <button
+              onClick={() => setView('kanban')}
+              className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium transition-colors"
+              style={{
+                background: view === 'kanban' ? 'var(--accent)' : 'var(--surface)',
+                color: view === 'kanban' ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              <LayoutGrid size={14} />{t('kanban')}
+            </button>
+          </div>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--accent)' }}
+          >
+            <Plus size={16} />{t('newTask')}
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder={t('searchTasks')}
+          className="w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+        />
       </div>
 
       {/* Status tabs */}
@@ -633,9 +808,9 @@ export default function TasksPage() {
               border: '1px solid var(--border)',
             }}
           >
-            {s === 'all' ? 'All' : t(s === 'in_progress' ? 'inProgress' : s)}
+            {s === 'all' ? 'All' : statusLabel(s, t)}
             {s !== 'all' && (
-              <span className="ml-1.5 opacity-70">{tasks.filter(t => t.status === s).length}</span>
+              <span className="ml-1.5 opacity-70">{tasks.filter(tk => tk.status === s).length}</span>
             )}
           </button>
         ))}
@@ -672,9 +847,9 @@ export default function TasksPage() {
           <option value="medium">{t('medium')}</option>
           <option value="low">{t('low')}</option>
         </select>
-        {(clientFilter || assignedFilter || priorityFilter) && (
+        {(clientFilter || assignedFilter || priorityFilter || searchQuery) && (
           <button
-            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); }}
+            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setSearchQuery(''); }}
             className="h-8 px-3 rounded-lg text-xs"
             style={{ color: 'var(--accent)' }}
           >
@@ -683,7 +858,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* Task list */}
+      {/* Task list / kanban */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -700,6 +875,16 @@ export default function TasksPage() {
               <Plus size={16} />{t('newTask')}
             </button>
           }
+        />
+      ) : view === 'kanban' ? (
+        <KanbanBoard
+          tasks={filtered}
+          team={team}
+          onView={setViewTask}
+          onEdit={openEdit}
+          onDelete={setDeleteTask}
+          onStatusChange={handleStatusChange}
+          t={t}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
