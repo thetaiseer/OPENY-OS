@@ -100,7 +100,7 @@ export default function ClientsPage() {
       if (user?.id) {
         const { data: profile, error: profileErr } = await supabase
           .from('profiles')
-          .select('role, client_id')
+          .select('role')
           .eq('id', user.id)
           .single();
         if (profileErr) console.warn('[client create] profile fetch error:', profileErr);

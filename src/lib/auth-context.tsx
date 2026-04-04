@@ -50,7 +50,7 @@ async function fetchUserProfile(
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, email, role, client_id')
+    .select('id, name, email, role')
     .eq('id', supabaseUser.id)
     .single();
 
@@ -62,11 +62,10 @@ async function fetchUserProfile(
     return {
       profileMissing: false,
       user: {
-        id:        data.id,
-        name:      data.name || supabaseUser.email?.split('@')[0] || '',
-        email:     data.email || supabaseUser.email || '',
-        role:      resolvedRole,
-        client_id: data.client_id ?? null,
+        id:    data.id,
+        name:  data.name || supabaseUser.email?.split('@')[0] || '',
+        email: data.email || supabaseUser.email || '',
+        role:  resolvedRole,
       },
     };
   }
@@ -178,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const role     = (user.role as UserRole) || 'client';
-  const clientId = (user as User & { client_id?: string | null }).client_id ?? null;
+  const clientId = null;
 
   return (
     <AuthContext.Provider value={{ user, role, clientId, loading, profileMissing, signOut, repairProfile, setRole: () => {} }}>

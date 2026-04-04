@@ -30,12 +30,11 @@ export interface UserProfile {
   name: string;
   email: string;
   role: UserRole;
-  client_id: string | null;
 }
 
 /**
  * Reads the session from the request cookies, validates it with Supabase,
- * and fetches the caller's profile row (role, client_id) from `public.profiles`.
+ * and fetches the caller's profile row (role) from `public.profiles`.
  *
  * Returns null if the caller is not authenticated.
  */
@@ -79,7 +78,7 @@ export async function getApiUser(
 
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .select('id, name, email, role, client_id')
+    .select('id, name, email, role')
     .eq('id', user.id)
     .single();
 
@@ -92,11 +91,10 @@ export async function getApiUser(
     const email = user.email ?? '';
     const autoRole: UserRole = ADMIN_EMAIL && email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'client';
     const fallback: UserProfile = {
-      id:        user.id,
-      name:      user.user_metadata?.name ?? email.split('@')[0] ?? '',
+      id:    user.id,
+      name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
       email,
-      role:      autoRole,
-      client_id: null,
+      role:  autoRole,
     };
 
     console.warn('[api-auth] Profile row not found for user', user.id, '| email:', email, '| inserting fallback with role:', autoRole);
@@ -118,11 +116,10 @@ export async function getApiUser(
   }
 
   const resolved: UserProfile = {
-    id:        profile.id,
-    name:      profile.name,
-    email:     profile.email,
-    role:      profile.role as UserRole,
-    client_id: profile.client_id ?? null,
+    id:    profile.id,
+    name:  profile.name,
+    email: profile.email,
+    role:  profile.role as UserRole,
   };
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
