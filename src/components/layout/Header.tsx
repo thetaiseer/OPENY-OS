@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import AccountMenu from './AccountMenu';
 
 interface HeaderProps { onMenuClick?: () => void; }
 
@@ -70,12 +71,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <Bell size={18} />
         </Link>
 
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-2"
-          style={{ background: 'var(--accent)' }}
-        >
-          {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
-        </div>
+        <AccountMenu placement="header">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-2 cursor-pointer hover:opacity-80 transition-opacity"
+            style={{ background: 'var(--accent)' }}
+          >
+            {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
+          </div>
+        </AccountMenu>
       </div>
     </header>
   );
