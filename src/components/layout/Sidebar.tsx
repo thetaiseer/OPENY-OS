@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 
 const navItems = [
@@ -88,22 +89,24 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* User */}
         <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-              style={{ background: 'var(--accent)' }}
-            >
-              {user.name.charAt(0).toUpperCase()}
+          <AccountMenu placement="sidebar">
+            <div className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--surface-2)] transition-colors cursor-pointer">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
+                style={{ background: 'var(--accent)' }}
+              >
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                  {user.name}
+                </p>
+                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                  {user.role}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                {user.name}
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                {user.role}
-              </p>
-            </div>
-          </div>
+          </AccountMenu>
         </div>
       </aside>
     </>
