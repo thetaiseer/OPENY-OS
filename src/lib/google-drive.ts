@@ -415,23 +415,24 @@ export async function initiateResumableSession(
 ): Promise<string> {
   const { auth } = getDriveClient();
 
+  // Use the OAuth access_token (NOT the refresh token)
   const tokenResponse = await auth.getAccessToken();
   const accessToken = tokenResponse?.token;
   if (!accessToken) {
     throw new Error('Failed to obtain Google OAuth access token for resumable session');
   }
 
-  console.log('[google-drive] initiating resumable session — file:', fileName, '| size:', fileSize, '| folder:', monthFolderId);
+  console.log('[google-drive] access_token present:', !!accessToken);
+  console.log('[google-drive] initiating resumable session — file:', fileName);
+  console.log('[google-drive] mimeType:', fileType, '| fileSize:', fileSize, '| folder:', monthFolderId);
 
   const initRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-        'X-Upload-Content-Type': fileType,
-        'X-Upload-Content-Length': String(fileSize),
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ name: fileName, parents: [monthFolderId] }),
     },
@@ -439,6 +440,7 @@ export async function initiateResumableSession(
 
   if (!initRes.ok) {
     const body = await initRes.text();
+    console.error('[google-drive] resumable session initiation failed — status:', initRes.status, '| body:', body);
     throw new Error(`Resumable session initiation failed (${initRes.status}): ${body}`);
   }
 
@@ -447,6 +449,7 @@ export async function initiateResumableSession(
     throw new Error('Resumable session initiation did not return a Location header');
   }
 
+  console.log('[google-drive] upload_url obtained successfully');
   console.log('[google-drive] resumable session created successfully');
   return uploadUrl;
 }

@@ -428,8 +428,6 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
 
 const TOAST_DURATION_MS   = 4500;
 const UPLOAD_CONCURRENCY  = 3;
-const CHUNK_SIZE          = 10 * 1024 * 1024; // 10 MB per chunk
-const MAX_CHUNK_RETRIES   = 3;
 
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null {
@@ -442,14 +440,9 @@ function makePreviewUrl(file: File): string | null {
  * Upload a File directly to Google Drive using the pre-authenticated resumable
  * upload URL returned by /api/assets/upload-session.
  *
- * The file is split into CHUNK_SIZE chunks.  Each chunk is sent with a
- * Content-Range header.  Google Drive responds with 308 Resume Incomplete for
- * intermediate chunks and 200/201 for the final chunk (which carries the file
- * metadata JSON including the Drive file ID).
- *
- * On transient network errors, the upload status is queried so we can resume
- * from the last acknowledged byte, with up to MAX_CHUNK_RETRIES attempts per
- * chunk.
+ * Sends the entire file in a single PUT request to the upload URL.
+ * Google Drive responds with 200 or 201 and the file metadata JSON (including
+ * the Drive file ID) on success.
  */
 async function uploadFileResumable(
   uploadUrl: string,
@@ -457,93 +450,45 @@ async function uploadFileResumable(
   onProgress: (pct: number) => void,
   signal: AbortSignal,
 ): Promise<string> {
-  const totalSize = file.size;
-  const mimeType  = file.type || 'application/octet-stream';
-  let offset = 0;
-
-  while (offset < totalSize) {
-    const end   = Math.min(offset + CHUNK_SIZE, totalSize);
-    const chunk = file.slice(offset, end);
-
-    let lastErr: Error | null = null;
-    let res: Response | null  = null;
-
-    for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
-      // On retries, query the upload status first to discover the server's
-      // acknowledged byte range before re-sending data.
-      if (attempt > 0) {
-        try {
-          const statusRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Range': `bytes */${totalSize}` },
-          });
-          if (statusRes.status === 200 || statusRes.status === 201) {
-            const data = await statusRes.json() as { id?: string };
-            onProgress(100);
-            if (!data.id) throw new Error('Drive returned no file ID on status check');
-            return data.id;
-          }
-          if (statusRes.status === 308) {
-            const range = statusRes.headers.get('Range');
-            if (range) {
-              const m = range.match(/bytes=\d+-(\d+)/);
-              if (m?.[1]) offset = parseInt(m[1]) + 1;
-            }
-          }
-        } catch {
-          // Status query failed — retry the original offset
-        }
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
-      }
-
-      try {
-        if (signal.aborted) throw new DOMException('Upload aborted by user', 'AbortError');
-        res = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Range': `bytes ${offset}-${end - 1}/${totalSize}`,
-            'Content-Type': mimeType,
-          },
-          body: chunk,
-          signal,
-        });
-        lastErr = null;
-        break;
-      } catch (err: unknown) {
-        if (signal.aborted) throw err;
-        lastErr = err instanceof Error ? err : new Error(String(err));
-      }
-    }
-
-    if (lastErr) throw lastErr;
-    if (!res) throw new Error('No response received from Drive after retries');
-
-    if (res.status === 200 || res.status === 201) {
-      const data = await res.json() as { id?: string };
-      onProgress(100);
-      if (!data.id) throw new Error('Drive did not return a file ID after upload');
-      return data.id;
-    }
-
-    if (res.status === 308) {
-      // Chunk acknowledged; advance offset
-      const range = res.headers.get('Range');
-      if (range) {
-        const m = range.match(/bytes=\d+-(\d+)/);
-        offset = m?.[1] ? parseInt(m[1]) + 1 : end;
-      } else {
-        offset = end;
-      }
-      // Map byte progress to 10–95 % display range
-      onProgress(Math.round((offset / totalSize) * 85) + 10);
-      continue;
-    }
-
-    const body = await res.text().catch(() => '');
-    throw new Error(`Chunk upload failed (${res.status}): ${body.slice(0, 200)}`);
+  if (!uploadUrl) {
+    throw new Error('upload_url is missing — cannot proceed with upload');
   }
 
-  throw new Error('Upload loop ended without receiving a file ID from Drive');
+  const mimeType  = file.type || 'application/octet-stream';
+  const totalSize = file.size;
+
+  console.log('[upload] upload_url present:', !!uploadUrl);
+  console.log('[upload] file size:', totalSize, '| mimeType:', mimeType);
+
+  onProgress(10);
+
+  let res: Response;
+  try {
+    if (signal.aborted) throw new DOMException('Upload aborted by user', 'AbortError');
+    res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': mimeType,
+      },
+      body: file,
+      signal,
+    });
+  } catch (err: unknown) {
+    if (signal.aborted) throw err;
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+
+  if (res.status === 200 || res.status === 201) {
+    const data = await res.json() as { id?: string };
+    onProgress(100);
+    if (!data.id) throw new Error('Drive did not return a file ID after upload');
+    return data.id;
+  }
+
+  // Log full response on unexpected status
+  const body = await res.text().catch(() => '(could not read body)');
+  console.error('[upload] Upload failed — status:', res.status, '| statusText:', res.statusText, '| body:', body);
+  throw new Error(`Upload failed (${res.status}): ${body.slice(0, 300)}`);
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
