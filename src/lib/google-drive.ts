@@ -88,24 +88,24 @@ function assertValidUrl(url: string, label: string): void {
 /**
  * Build a Drive client authenticated as a Google Service Account.
  * Credentials are supplied via env vars:
- *   GOOGLE_DRIVE_CLIENT_EMAIL  – service account email
- *   GOOGLE_DRIVE_PRIVATE_KEY   – PEM private key (newlines may be escaped as \n)
- *   GOOGLE_DRIVE_FOLDER_ID     – root Drive folder ID (or full URL)
+ *   GOOGLE_DRIVE_CLIENT_EMAIL        – service account email
+ *   GOOGLE_DRIVE_PRIVATE_KEY_BASE64  – Base64-encoded PEM private key
+ *   GOOGLE_DRIVE_FOLDER_ID           – root Drive folder ID (or full URL)
  */
 function getDriveClient() {
-  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKey  = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
-  const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const clientEmail     = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
+  const privateKeyB64   = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64;
+  const rawFolderId     = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   console.log('[google-drive] init — GOOGLE_DRIVE_CLIENT_EMAIL present:', !!clientEmail);
-  console.log('[google-drive] init — GOOGLE_DRIVE_PRIVATE_KEY present:', !!privateKey);
+  console.log('[google-drive] init — GOOGLE_DRIVE_PRIVATE_KEY_BASE64 present:', !!privateKeyB64);
   console.log('[google-drive] init — GOOGLE_DRIVE_FOLDER_ID raw value:', rawFolderId ?? '(missing)');
 
   if (!clientEmail) {
     throw new Error('Missing env var: GOOGLE_DRIVE_CLIENT_EMAIL');
   }
-  if (!privateKey) {
-    throw new Error('Missing env var: GOOGLE_DRIVE_PRIVATE_KEY');
+  if (!privateKeyB64) {
+    throw new Error('Missing env var: GOOGLE_DRIVE_PRIVATE_KEY_BASE64');
   }
   if (!rawFolderId) {
     throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
@@ -117,7 +117,7 @@ function getDriveClient() {
 
   const auth = new google.auth.JWT({
     email: clientEmail,
-    key: privateKey.replace(/\\n/g, '\n'),
+    key: Buffer.from(privateKeyB64, 'base64').toString('utf-8'),
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
 
