@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Users2, CheckSquare, Clock, AlertTriangle, Activity } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import StatCard from '@/components/ui/StatCard';
+import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType } from '@/lib/types';
 
 interface Stats {
@@ -13,6 +14,34 @@ interface Stats {
   activeTasks: number;
   pendingApprovals: number;
   overdueTasks: number;
+}
+
+interface AssetRow {
+  content_type: string | null;
+  file_size: number | null;
+}
+
+function ContentDistribution({ items }: { items: { label: string; count: number }[] }) {
+  if (!items.length) {
+    return <p className="text-sm py-10 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>;
+  }
+  const max = Math.max(...items.map(i => i.count), 1);
+  return (
+    <div className="space-y-3">
+      {items.map(item => (
+        <div key={item.label} className="flex items-center gap-3">
+          <span className="text-xs w-28 shrink-0 truncate" title={item.label} style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+          <div className="flex-1 h-2 rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <div
+              className="h-2 rounded-full transition-all duration-500"
+              style={{ width: `${(item.count / max) * 100}%`, background: 'var(--accent)' }}
+            />
+          </div>
+          <span className="text-xs font-semibold tabular-nums w-8 text-right" style={{ color: 'var(--text)' }}>{item.count}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -25,17 +54,19 @@ export default function DashboardPage() {
     overdueTasks: 0,
   });
   const [activities, setActivities] = useState<ActivityType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [assetRows, setAssetRows]   = useState<AssetRow[]>([]);
+  const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clients, tasks, approvals, overdue, activityRes] = await Promise.allSettled([
+        const [clients, tasks, approvals, overdue, activityRes, assetsRes] = await Promise.allSettled([
           supabase.from('clients').select('id', { count: 'exact', head: true }),
           supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
           supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
           supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
           supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('assets').select('content_type, file_size'),
         ]);
 
         setStats({
@@ -47,6 +78,9 @@ export default function DashboardPage() {
         if (activityRes.status === 'fulfilled' && !activityRes.value.error) {
           setActivities((activityRes.value.data ?? []) as ActivityType[]);
         }
+        if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
+          setAssetRows((assetsRes.value.data ?? []) as AssetRow[]);
+        }
       } finally {
         setLoading(false);
       }
@@ -55,6 +89,17 @@ export default function DashboardPage() {
   }, []);
 
   const firstName = user?.name?.split(' ')[0] || 'there';
+
+  const contentDistItems = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const row of assetRows) {
+      const key = row.content_type ?? 'OTHER';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([key, count]) => ({ label: contentTypeLabel(key), count }))
+      .sort((a, b) => b.count - a.count);
+  }, [assetRows]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -68,17 +113,18 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label={t('totalClients')}     value={stats.totalClients}     icon={<Users2 size={20} />}        color="blue"  />
           <StatCard label={t('activeTasks')}      value={stats.activeTasks}      icon={<CheckSquare size={20} />}   color="green" />
           <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} icon={<Clock size={20} />}         color="amber" />
           <StatCard label={t('overdueTasks')}     value={stats.overdueTasks}     icon={<AlertTriangle size={20} />} color="red"   />
+          <StatCard label="Total Assets"          value={assetRows.length}       icon={<FolderOpen size={20} />}    color="blue"  />
         </div>
       )}
 
@@ -109,11 +155,7 @@ export default function DashboardPage() {
 
         <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Add content items to see analytics
-            </p>
-          </div>
+          <ContentDistribution items={contentDistItems} />
         </div>
       </div>
     </div>
