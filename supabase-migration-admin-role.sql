@@ -7,7 +7,7 @@
 -- This migration is SAFE to re-run (uses INSERT ... ON CONFLICT UPDATE).
 
 -- ── 1. Promote admin email to admin role (upsert) ─────────────────────────────
-INSERT INTO public.users (id, email, name, role)
+INSERT INTO public.profiles (id, email, name, role)
 SELECT
   au.id,
   au.email,
@@ -38,7 +38,7 @@ BEGIN
     v_role := coalesce(new.raw_user_meta_data ->> 'role', 'client');
   END IF;
 
-  INSERT INTO public.users (id, email, name, role)
+  INSERT INTO public.profiles (id, email, name, role)
   VALUES (
     new.id,
     coalesce(new.email, ''),

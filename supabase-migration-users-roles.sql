@@ -2,12 +2,12 @@
 -- Run this in your Supabase SQL editor AFTER the base schema (supabase-schema.sql).
 --
 -- Creates:
---   public.users       — one row per auth.users entry, stores name / role / client_id
+--   public.profiles    — one row per auth.users entry, stores name / role / client_id
 --   RLS policies       — each user can read their own row; admins can read all
---   Trigger            — auto-inserts a row into public.users on new sign-up
+--   Trigger            — auto-inserts a row into public.profiles on new sign-up
 
--- ── 1. users table ────────────────────────────────────────────────────────────
-create table if not exists public.users (
+-- ── 1. profiles table ─────────────────────────────────────────────────────────
+create table if not exists public.profiles (
   id          uuid primary key references auth.users (id) on delete cascade,
   name        text        not null default '',
   email       text        not null default '',
@@ -18,50 +18,50 @@ create table if not exists public.users (
 );
 
 -- ── 2. Row Level Security ─────────────────────────────────────────────────────
-alter table public.users enable row level security;
+alter table public.profiles enable row level security;
 
 -- A user can always read their own profile row.
-create policy "users_read_own"
-  on public.users
+create policy "profiles_read_own"
+  on public.profiles
   for select
   using (auth.uid() = id);
 
--- Admins can read every user row (needed for admin dashboards / team management).
-create policy "users_admin_read_all"
-  on public.users
+-- Admins can read every profile row (needed for admin dashboards / team management).
+create policy "profiles_admin_read_all"
+  on public.profiles
   for select
   using (
     exists (
       select 1
-      from public.users u
-      where u.id = auth.uid()
-        and u.role = 'admin'
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'admin'
     )
   );
 
--- Only admins can insert / update / delete user rows directly.
+-- Only admins can insert / update / delete profile rows directly.
 -- Normal sign-up rows are created via the trigger below (security definer).
-create policy "users_admin_write"
-  on public.users
+create policy "profiles_admin_write"
+  on public.profiles
   for all
   using (
     exists (
       select 1
-      from public.users u
-      where u.id = auth.uid()
-        and u.role = 'admin'
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'admin'
     )
   )
   with check (
     exists (
       select 1
-      from public.users u
-      where u.id = auth.uid()
-        and u.role = 'admin'
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'admin'
     )
   );
 
--- ── 3. Trigger: auto-create user profile on sign-up ──────────────────────────
+-- ── 3. Trigger: auto-create profile on sign-up ────────────────────────────────
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -69,7 +69,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (id, email, name, role)
+  insert into public.profiles (id, email, name, role)
   values (
     new.id,
     coalesce(new.email, ''),

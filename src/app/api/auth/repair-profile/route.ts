@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/repair-profile
  *
- * Creates or upserts a profile row in public.users for the currently
+ * Creates or upserts a profile row in public.profiles for the currently
  * authenticated user. Called automatically by the client when no profile
  * row is found (e.g. the user was created before the trigger existed, or
  * the trigger failed for another reason).
@@ -21,9 +21,11 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Admin email: when a profile row is created via this endpoint, a user whose
 // email matches ADMIN_EMAIL receives the 'admin' role instead of 'client'.
-// Intentionally has no hardcoded default — if the env var is unset, no
-// automatic admin promotion occurs.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? '').toLowerCase();
+// Checks ADMIN_EMAIL first, then GOOGLE_ADMIN_EMAIL as a fallback (matching
+// the same precedence used in src/lib/api-auth.ts). Intentionally has no
+// hardcoded default — if neither env var is set, no automatic admin promotion
+// occurs.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? process.env.GOOGLE_ADMIN_EMAIL ?? '').toLowerCase();
 
 export async function POST(request: NextRequest) {
   // Guard: ensure required environment variables are configured.
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
   const admin = createServiceClient(supabaseUrl, serviceRoleKey);
 
   const { data: profile, error: upsertError } = await admin
-    .from('users')
+    .from('profiles')
     .upsert({ id: user.id, email, name, role }, { onConflict: 'id' })
     .select('id, name, email, role, client_id')
     .single();
