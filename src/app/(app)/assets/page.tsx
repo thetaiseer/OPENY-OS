@@ -481,7 +481,13 @@ async function uploadFileResumable(
     });
   } catch (err: unknown) {
     if (signal.aborted) throw err;
-    throw err instanceof Error ? err : new Error(String(err));
+    // Network-level errors (CORS, offline, etc.) produce a generic message.
+    // Re-wrap with more context so the user knows where in the flow it failed.
+    const originalMsg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Direct upload to Google Drive failed (network error): ${originalMsg}. ` +
+      'Check that your Drive credentials are correct and the service account has access.',
+    );
   }
 
   if (res.status === 200 || res.status === 201) {
@@ -506,6 +512,7 @@ export default function AssetsPage() {
 
   const [assets, setAssets]             = useState<Asset[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [fetchError, setFetchError]     = useState<string | null>(null);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [toasts, setToasts]             = useState<ToastMsg[]>([]);
   const fileRef                         = useRef<HTMLInputElement>(null);
@@ -552,23 +559,35 @@ export default function AssetsPage() {
 
   const fetchAssets = useCallback(async (pageNum: number = 0) => {
     try {
-      const from = pageNum * 100;
-      const to   = from + 99;
-      const { data, error } = await supabase
-        .from('assets')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      if (error) {
-        if (process.env.NODE_ENV === 'development') console.error('[assets]', error);
+      setFetchError(null);
+      const res = await fetch(`/api/assets?page=${pageNum}`);
+      const json = await res.json() as {
+        success: boolean;
+        assets?: Asset[];
+        hasMore?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok || !json.success) {
+        const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
+        console.error('[assets] fetch error:', msg);
+        setFetchError(msg);
         if (pageNum === 0) setAssets([]);
-      } else {
-        const newAssets = (data ?? []) as Asset[];
-        if (pageNum === 0) setAssets(newAssets);
-        else setAssets(prev => [...prev, ...newAssets]);
-        setHasMore(newAssets.length === 100);
+        return;
       }
-    } finally { setLoading(false); }
+
+      const newAssets = json.assets ?? [];
+      if (pageNum === 0) setAssets(newAssets);
+      else setAssets(prev => [...prev, ...newAssets]);
+      setHasMore(json.hasMore ?? false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[assets] unexpected fetch error:', msg);
+      setFetchError(`Could not reach server: ${msg}`);
+      if (pageNum === 0) setAssets([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const loadMore = useCallback(() => {
@@ -740,19 +759,31 @@ export default function AssetsPage() {
     const uploadedBy = user?.name || user?.email || null;
     let ok = 0, fail = 0;
     const newAssets: Asset[] = [];
+    // Collect per-file errors so we can surface the real backend message in the toast
+    const failedErrors: string[] = [];
 
     const CONCURRENCY = UPLOAD_CONCURRENCY;
     for (let i = 0; i < items.length; i += CONCURRENCY) {
       await Promise.all(items.slice(i, i + CONCURRENCY).map(async item => {
         try { newAssets.push(await uploadOneFile(item, cName, cId, ct, mk, uploadedBy, patch)); ok++; }
-        catch { fail++; }
+        catch (err) {
+          fail++;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg && msg !== 'Upload cancelled') failedErrors.push(msg);
+        }
       }));
     }
 
     if (newAssets.length) setAssets(prev => [...newAssets.reverse(), ...prev]);
 
-    if (!fail) addToast(`${ok} file${ok !== 1 ? 's' : ''} uploaded to Google Drive`, 'success');
-    else addToast(`${ok} uploaded, ${fail} failed`, fail === items.length ? 'error' : 'success');
+    if (!fail) {
+      addToast(`${ok} file${ok !== 1 ? 's' : ''} uploaded to Google Drive`, 'success');
+    } else if (fail === items.length && failedErrors.length > 0) {
+      // All failed — show the first error message so the user can diagnose
+      addToast(`Upload failed: ${failedErrors[0]}`, 'error');
+    } else {
+      addToast(`${ok} uploaded, ${fail} failed — see queue for details`, fail === items.length ? 'error' : 'success');
+    }
 
     setTimeout(() => {
       setUploadQueue(prev => { revokeItemUrls(prev); return []; });
@@ -861,6 +892,23 @@ export default function AssetsPage() {
 
         {/* Upload queue */}
         {uploadQueue.length > 0 && <UploadQueue items={uploadQueue} />}
+
+        {/* Fetch error banner */}
+        {fetchError && !loading && (
+          <div className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444', color: '#ef4444' }}>
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">Failed to load assets</p>
+              <p className="opacity-80 break-all">{fetchError}</p>
+            </div>
+            <button
+              onClick={() => fetchAssets(0)}
+              className="shrink-0 underline opacity-80 hover:opacity-100 transition-opacity font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Grid / empty / skeleton */}
         {loading ? (
