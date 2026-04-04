@@ -558,12 +558,18 @@ export async function initiateResumableSession(
   console.log('[google-drive] mimeType:', fileType, '| fileSize:', fileSize, '| folder:', monthFolderId);
 
   const initRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    // supportsAllDrives=true is required when the target folder lives in a
+    // Shared Drive; harmless for My Drive.
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        // Required by the Drive resumable-upload protocol so Google can
+        // correctly negotiate the upload session for browser clients.
+        'X-Upload-Content-Type': fileType,
+        'X-Upload-Content-Length': String(fileSize),
       },
       body: JSON.stringify({ name: fileName, parents: [monthFolderId] }),
     },
