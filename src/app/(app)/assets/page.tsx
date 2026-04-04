@@ -587,7 +587,7 @@ async function uploadFileResumable(
     const originalMsg = err instanceof Error ? err.message : String(err);
     throw new Error(
       `Direct upload to Google Drive failed (network error): ${originalMsg}. ` +
-      'Check that your Drive credentials are correct and the service account has access.',
+      'Check that your Drive OAuth credentials are correct and the token has Drive access.',
     );
   }
 

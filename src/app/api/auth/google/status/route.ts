@@ -3,24 +3,25 @@ import { NextResponse } from 'next/server';
 /**
  * GET /api/auth/google/status
  *
- * Returns the configuration status of the Google Drive Service Account.
- * Checks that GOOGLE_DRIVE_CLIENT_EMAIL and GOOGLE_DRIVE_PRIVATE_KEY_BASE64 are set.
+ * Returns the configuration status of the Google Drive OAuth connection.
+ * Checks that GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and
+ * GOOGLE_OAUTH_REFRESH_TOKEN are set.
  *
  * Response shape:
  *   { connected: boolean; email: string | null; isAdminAccount: boolean }
  */
 export async function GET() {
-  const clientEmail  = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKeyB64 = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64;
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
 
   const ADMIN_EMAIL = process.env.GOOGLE_ADMIN_EMAIL ?? 'thetaiseer@gmail.com';
 
-  const connected = !!(clientEmail && privateKeyB64);
-  const email = clientEmail ?? null;
+  const connected = !!(clientId && clientSecret && refreshToken);
 
   return NextResponse.json({
     connected,
-    email,
-    isAdminAccount: connected && !!email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+    email: connected ? (ADMIN_EMAIL) : null,
+    isAdminAccount: connected,
   });
 }

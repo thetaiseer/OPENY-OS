@@ -1,6 +1,6 @@
 /**
  * Server-only Google Drive utility.
- * Uses a Google Service Account (JWT) — no user OAuth required.
+ * Uses OAuth 2.0 (refresh token) — no Service Account required.
  * Never import this file from client components.
  */
 import { google } from 'googleapis';
@@ -83,29 +83,35 @@ function assertValidUrl(url: string, label: string): void {
   }
 }
 
-// ── Drive client factory (Google Service Account / JWT) ───────────────────────
+// ── Drive client factory (OAuth 2.0) ─────────────────────────────────────────
 
 /**
- * Build a Drive client authenticated as a Google Service Account.
+ * Build a Drive client authenticated via OAuth 2.0 (refresh token).
  * Credentials are supplied via env vars:
- *   GOOGLE_DRIVE_CLIENT_EMAIL        – service account email
- *   GOOGLE_DRIVE_PRIVATE_KEY_BASE64  – Base64-encoded PEM private key
- *   GOOGLE_DRIVE_FOLDER_ID           – root Drive folder ID (or full URL)
+ *   GOOGLE_OAUTH_CLIENT_ID      – OAuth client ID
+ *   GOOGLE_OAUTH_CLIENT_SECRET  – OAuth client secret
+ *   GOOGLE_OAUTH_REFRESH_TOKEN  – long-lived refresh token
+ *   GOOGLE_DRIVE_FOLDER_ID      – root Drive folder ID (or full URL)
  */
 function getDriveClient() {
-  const clientEmail     = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKeyB64   = process.env.GOOGLE_DRIVE_PRIVATE_KEY_BASE64;
-  const rawFolderId     = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  const rawFolderId  = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  console.log('[google-drive] init — GOOGLE_DRIVE_CLIENT_EMAIL present:', !!clientEmail);
-  console.log('[google-drive] init — GOOGLE_DRIVE_PRIVATE_KEY_BASE64 present:', !!privateKeyB64);
+  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_ID present:', !!clientId);
+  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_SECRET present:', !!clientSecret);
+  console.log('[google-drive] init — GOOGLE_OAUTH_REFRESH_TOKEN present:', !!refreshToken);
   console.log('[google-drive] init — GOOGLE_DRIVE_FOLDER_ID raw value:', rawFolderId ?? '(missing)');
 
-  if (!clientEmail) {
-    throw new Error('Missing env var: GOOGLE_DRIVE_CLIENT_EMAIL');
+  if (!clientId) {
+    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_ID');
   }
-  if (!privateKeyB64) {
-    throw new Error('Missing env var: GOOGLE_DRIVE_PRIVATE_KEY_BASE64');
+  if (!clientSecret) {
+    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_SECRET');
+  }
+  if (!refreshToken) {
+    throw new Error('Missing env var: GOOGLE_OAUTH_REFRESH_TOKEN');
   }
   if (!rawFolderId) {
     throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
@@ -115,14 +121,11 @@ function getDriveClient() {
   const folderId = extractDriveId(rawFolderId);
   console.log('[google-drive] init — folder_id (after extractDriveId):', folderId);
 
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: Buffer.from(privateKeyB64, 'base64').toString('utf-8'),
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
 
-  console.log('[google-drive] Service Account JWT client created successfully');
-  return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId, auth };
+  console.log('[google-drive] OAuth2 client created successfully');
+  return { drive: google.drive({ version: 'v3', auth: oauth2Client }), rootFolderId: folderId, auth: oauth2Client };
 }
 
 /**
@@ -767,11 +770,11 @@ export async function initiateResumableSession(
 ): Promise<string> {
   const { auth } = getDriveClient();
 
-  // Obtain a short-lived access token from the service account JWT
+  // Obtain a short-lived access token via the OAuth2 refresh token
   const tokenResponse = await auth.getAccessToken();
   const accessToken = tokenResponse?.token;
   if (!accessToken) {
-    throw new Error('Failed to obtain Google service account access token for resumable session');
+    throw new Error('Failed to obtain Google OAuth access token for resumable session');
   }
 
   console.log('[google-drive] access_token present:', !!accessToken);
