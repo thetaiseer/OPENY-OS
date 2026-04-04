@@ -594,9 +594,9 @@ export default function AssetsPage() {
     if (filterClient)      result = result.filter(a => a.client_name === filterClient);
     if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
     if (filterYear)        result = result.filter(a => a.month_key?.startsWith(filterYear));
-    if (sortBy === 'newest')  result = result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    if (sortBy === 'oldest')  result = result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    if (sortBy === 'largest') result = result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
+    if (sortBy === 'oldest')        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    else if (sortBy === 'largest')  result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
+    else                            result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
   }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, sortBy]);
 
