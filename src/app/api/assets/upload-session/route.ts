@@ -9,6 +9,53 @@ const VALID_CONTENT_TYPES = [
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
 ] as const;
 
+// Security: blocked file extensions (executables & scripts)
+const BLOCKED_EXTENSIONS = new Set([
+  'exe','bat','cmd','sh','bash','ps1','msi','vbs',
+  'php','py','rb','pl','cgi','app','com','scr','pif','reg','dll','so',
+]);
+
+function getFileExtension(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._\-]/g, '');
+}
+
+function generateRenamedFile(
+  originalName: string,
+  clientFolderName: string,
+  contentType: string,
+  monthKey: string,
+): string {
+  const [year, month] = monthKey.split('-');
+  const sanitized = sanitizeFileName(originalName);
+  return `${clientFolderName}-${contentType}-${year}-${month}-${Date.now()}-${sanitized}`;
+}
+
+// Simple in-memory rate limiter: 30 requests per 60 seconds per IP
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || entry.resetAt < now) {
+    // Opportunistically prune a few expired entries to prevent unbounded growth
+    if (rateLimitMap.size > 1000) {
+      for (const [k, v] of rateLimitMap.entries()) {
+        if (v.resetAt < now) rateLimitMap.delete(k);
+        if (rateLimitMap.size <= 800) break;
+      }
+    }
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 30) return false;
+  entry.count++;
+  return true;
+}
+
 /**
  * POST /api/assets/upload-session
  *
@@ -31,6 +78,18 @@ const VALID_CONTENT_TYPES = [
  */
 export async function POST(req: NextRequest) {
   console.log('[upload-session] POST /api/assets/upload-session');
+
+  // ── Rate limiting ───────────────────────────────────────────────────────────
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+    ?? req.headers.get('x-real-ip')
+    ?? 'unknown';
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: 'Too many uploads. Please wait a minute before uploading again.' },
+      { status: 429 },
+    );
+  }
+
   try {
     let body: Record<string, unknown>;
     try {
@@ -39,12 +98,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
     }
 
-    const { fileName, fileType, fileSize, clientName, contentType, monthKey } = body;
+    const { fileName, fileType, fileSize, clientName, contentType, monthKey, uploadedBy } = body;
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if (!fileName || typeof fileName !== 'string') {
       return NextResponse.json({ success: false, error: 'fileName is required' }, { status: 400 });
     }
+
+    // ── Security: block dangerous file types ──────────────────────────────────
+    const ext = getFileExtension(fileName);
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        { success: false, error: 'File type not allowed: security policy blocks executable and script files' },
+        { status: 400 },
+      );
+    }
+
     if (!fileType || typeof fileType !== 'string') {
       return NextResponse.json({ success: false, error: 'fileType is required' }, { status: 400 });
     }
@@ -71,22 +140,26 @@ export async function POST(req: NextRequest) {
     }
 
     const clientFolderName = clientToFolderName(clientName.trim());
-    console.log('[upload-session] client:', clientName.trim(), '→ folder:', clientFolderName, '| type:', contentType, '| month:', monthKey, '| size:', fileSize);
+    const renamedFileName  = generateRenamedFile(fileName.trim(), clientFolderName, contentType as string, monthKey as string);
+    const safeUploadedBy   = uploadedBy && typeof uploadedBy === 'string' ? uploadedBy.trim() : null;
+    console.log('[upload-session] client:', clientName.trim(), '→ folder:', clientFolderName, '| type:', contentType, '| month:', monthKey, '| size:', fileSize, '| renamed:', renamedFileName);
 
     // ── Build folder hierarchy ─────────────────────────────────────────────────
     const { monthFolderId } = await createFolderHierarchy(clientFolderName, contentType, monthKey);
 
     // ── Initiate resumable upload session ─────────────────────────────────────
     const mimeType = fileType || 'application/octet-stream';
-    const uploadUrl = await initiateResumableSession(fileName.trim(), mimeType, fileSize, monthFolderId);
+    const uploadUrl = await initiateResumableSession(renamedFileName, mimeType, fileSize as number, monthFolderId);
 
     console.log('[upload-session] ✅ session created — folder:', monthFolderId);
 
     return NextResponse.json({
       success: true,
       uploadUrl,
-      drive_folder_id: monthFolderId,
+      drive_folder_id:    monthFolderId,
       client_folder_name: clientFolderName,
+      renamedFileName,
+      ...(safeUploadedBy ? { uploadedBy: safeUploadedBy } : {}),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

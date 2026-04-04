@@ -9,6 +9,31 @@ const VALID_CONTENT_TYPES = [
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
 ] as const;
 
+// Security: blocked file extensions (executables & scripts)
+const BLOCKED_EXTENSIONS = new Set([
+  'exe','bat','cmd','sh','bash','ps1','msi','vbs',
+  'php','py','rb','pl','cgi','app','com','scr','pif','reg','dll','so',
+]);
+
+function getFileExtension(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._\-]/g, '');
+}
+
+function generateRenamedFile(
+  originalName: string,
+  clientFolderName: string,
+  contentType: string,
+  monthKey: string,
+): string {
+  const [year, month] = monthKey.split('-');
+  const sanitized = sanitizeFileName(originalName);
+  return `${clientFolderName}-${contentType}-${year}-${month}-${Date.now()}-${sanitized}`;
+}
+
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,6 +65,15 @@ export async function POST(req: NextRequest) {
     }
     const file = rawFile as File;
 
+    // ── Security: block dangerous file types ──────────────────────────────────
+    const ext = getFileExtension(file.name);
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        { success: false, error: 'File type not allowed: security policy blocks executable and script files' },
+        { status: 400 },
+      );
+    }
+
     // ── 2. Validate required metadata fields ──────────────────────────────────
     const clientId    = formData.get('client_id');
     const contentType = formData.get('content_type');
@@ -51,6 +85,8 @@ export async function POST(req: NextRequest) {
       formData.get('client') ??
       formData.get('clientId');
     const clientName = rawClientName && typeof rawClientName === 'string' ? rawClientName.trim() : '';
+    const uploadedBy = formData.get('uploaded_by');
+    const safeUploadedBy = uploadedBy && typeof uploadedBy === 'string' ? uploadedBy.trim() : null;
 
     if (!clientName) {
       return NextResponse.json({ success: false, error: 'client_name is required' }, { status: 400 });
@@ -84,7 +120,8 @@ export async function POST(req: NextRequest) {
     }
 
     const clientFolderName = clientToFolderName(clientName);
-    console.log('[upload] file:', file.name, '| client:', clientName, '| folder:', clientFolderName, '| type:', contentType, '| month:', monthKey);
+    const renamedFileName  = generateRenamedFile(file.name, clientFolderName, contentType, monthKey as string);
+    console.log('[upload] file:', file.name, '→ renamed:', renamedFileName, '| client:', clientName, '| folder:', clientFolderName, '| type:', contentType, '| month:', monthKey);
 
     // ── 4. Read file into buffer ──────────────────────────────────────────────
     let buffer: Buffer;
@@ -107,7 +144,7 @@ export async function POST(req: NextRequest) {
       driveResult = await uploadToStructuredPath(
         buffer,
         file.type || 'application/octet-stream',
-        file.name,
+        renamedFileName,
         clientFolderName,
         contentType,
         monthKey,
@@ -125,7 +162,7 @@ export async function POST(req: NextRequest) {
     console.log('[upload] inserting into assets table…');
     const supabase = getSupabase();
     const row: Record<string, unknown> = {
-      name:               file.name,
+      name:               renamedFileName,
       file_path:          null,
       file_url:           webViewLink,
       view_url:           webViewLink,
@@ -140,6 +177,7 @@ export async function POST(req: NextRequest) {
       client_folder_name: client_folder_name ?? clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
+      ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
     if (safeClientId) {
       row.client_id = safeClientId;
@@ -175,7 +213,7 @@ export async function POST(req: NextRequest) {
     // ── 7. Log activity (fire and forget) ────────────────────────────────────
     void supabase.from('activities').insert({
       type: 'asset',
-      description: `Asset "${file.name}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})`,
+      description: `Asset "${renamedFileName}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})${safeUploadedBy ? ` by ${safeUploadedBy}` : ''}`,
       ...(safeClientId ? { client_id: safeClientId } : {}),
     });
 

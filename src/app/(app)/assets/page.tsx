@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useDeferredValue } from 'react';
+import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Loader2,
+  Loader2, Search,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Asset, Client } from '@/lib/types';
@@ -18,6 +19,8 @@ const ALLOWED_CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
 ] as const;
+
+const ASSETS_START_YEAR = 2020;
 
 // ── Per-file upload state ─────────────────────────────────────────────────────
 
@@ -345,13 +348,14 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
 
 interface AssetCardProps {
   asset: Asset;
+  canDelete: boolean;
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
   onOpenInDrive: () => void;
 }
 
-function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: AssetCardProps) {
+function AssetCard({ asset, canDelete, onView, onDelete, onCopyLink, onOpenInDrive }: AssetCardProps) {
   const img      = isImage(asset.name, asset.file_type);
   const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
   const downloadUrl = asset.download_url ?? asset.file_url;
@@ -416,9 +420,11 @@ function AssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: Asset
             <ExternalLink size={14} />
           </button>
         )}
-        <button onClick={onDelete} title="Delete" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
-          <Trash2 size={14} />
-        </button>
+        {canDelete && (
+          <button onClick={onDelete} title="Delete" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -495,6 +501,9 @@ async function uploadFileResumable(
 
 export default function AssetsPage() {
   const { t } = useLang();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [assets, setAssets]             = useState<Asset[]>([]);
   const [loading, setLoading]           = useState(true);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
@@ -502,6 +511,17 @@ export default function AssetsPage() {
   const fileRef                         = useRef<HTMLInputElement>(null);
   const dropZoneRef                     = useRef<HTMLDivElement>(null);
   const toastIdRef                      = useRef(0);
+
+  // Pagination
+  const [page, setPage]       = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Filters
+  const [searchQuery, setSearchQuery]             = useState('');
+  const [filterClient, setFilterClient]           = useState('');
+  const [filterContentType, setFilterContentType] = useState('');
+  const [filterYear, setFilterYear]               = useState('');
+  const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
 
   // Pending batch (waiting for metadata form confirmation)
   const [pendingItems, setPendingItems]               = useState<FileUploadItem[]>([]);
@@ -530,15 +550,34 @@ export default function AssetsPage() {
 
   // ── Data ────────────────────────────────────────────────────────────────────
 
-  const fetchAssets = useCallback(async () => {
+  const fetchAssets = useCallback(async (pageNum: number = 0) => {
     try {
-      const { data, error } = await supabase.from('assets').select('*').order('created_at', { ascending: false }).limit(200);
-      if (error) { if (process.env.NODE_ENV === 'development') console.error('[assets]', error); setAssets([]); }
-      else setAssets((data ?? []) as Asset[]);
+      const from = pageNum * 100;
+      const to   = from + 99;
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) {
+        if (process.env.NODE_ENV === 'development') console.error('[assets]', error);
+        if (pageNum === 0) setAssets([]);
+      } else {
+        const newAssets = (data ?? []) as Asset[];
+        if (pageNum === 0) setAssets(newAssets);
+        else setAssets(prev => [...prev, ...newAssets]);
+        setHasMore(newAssets.length === 100);
+      }
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchAssets(); }, [fetchAssets]);
+  const loadMore = useCallback(() => {
+    const next = page + 1;
+    setPage(next);
+    fetchAssets(next);
+  }, [page, fetchAssets]);
+
+  useEffect(() => { fetchAssets(0); }, [fetchAssets]);
 
   useEffect(() => {
     supabase.from('clients').select('id, name').order('name').then(({ data, error }) => {
@@ -546,6 +585,20 @@ export default function AssetsPage() {
       else if (data) setClients(data as Client[]);
     });
   }, []);
+
+  // ── Filtered / sorted assets ─────────────────────────────────────────────────
+
+  const filteredAssets = useMemo(() => {
+    let result = [...deferredAssets];
+    if (searchQuery)       result = result.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (filterClient)      result = result.filter(a => a.client_name === filterClient);
+    if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
+    if (filterYear)        result = result.filter(a => a.month_key?.startsWith(filterYear));
+    if (sortBy === 'oldest')        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    else if (sortBy === 'largest')  result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
+    else                            result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result;
+  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, sortBy]);
 
   // ── File helpers ────────────────────────────────────────────────────────────
 
@@ -588,6 +641,7 @@ export default function AssetsPage() {
   async function uploadOneFile(
     item: FileUploadItem,
     clientName: string, clientId: string, contentType: string, monthKey: string,
+    uploadedBy: string | null,
     patchItem: (id: string, p: Partial<FileUploadItem>) => void,
   ): Promise<Asset> {
     const ctrl = new AbortController();
@@ -606,7 +660,8 @@ export default function AssetsPage() {
           clientName,
           contentType,
           monthKey,
-          ...(clientId ? { clientId } : {}),
+          ...(clientId   ? { clientId }   : {}),
+          ...(uploadedBy ? { uploadedBy } : {}),
         }),
         signal: ctrl.signal,
       });
@@ -614,10 +669,11 @@ export default function AssetsPage() {
       if (!sessionRes.ok) {
         throw new Error(sessionJson.error ?? `Session creation failed: HTTP ${sessionRes.status}`);
       }
-      const { uploadUrl, drive_folder_id, client_folder_name } = sessionJson as {
+      const { uploadUrl, drive_folder_id, client_folder_name, renamedFileName } = sessionJson as {
         uploadUrl: string;
         drive_folder_id: string;
         client_folder_name: string;
+        renamedFileName?: string;
       };
 
       // ── Step 2: Upload file bytes directly to Google Drive ──────────────────
@@ -640,13 +696,14 @@ export default function AssetsPage() {
           driveFileId,
           driveFolderId:    drive_folder_id,
           clientFolderName: client_folder_name,
-          fileName:         item.file.name,
+          fileName:         renamedFileName ?? item.file.name,
           fileType:         item.file.type || null,
           fileSize:         item.file.size || null,
           contentType,
           monthKey,
           clientName,
           clientId:         clientId || null,
+          ...(uploadedBy ? { uploadedBy } : {}),
         }),
         signal: ctrl.signal,
       });
@@ -680,13 +737,14 @@ export default function AssetsPage() {
 
     const cName = uploadClientName, cId = uploadClientId,
           ct    = uploadContentType, mk  = uploadMonth;
+    const uploadedBy = user?.name || user?.email || null;
     let ok = 0, fail = 0;
     const newAssets: Asset[] = [];
 
     const CONCURRENCY = UPLOAD_CONCURRENCY;
     for (let i = 0; i < items.length; i += CONCURRENCY) {
       await Promise.all(items.slice(i, i + CONCURRENCY).map(async item => {
-        try { newAssets.push(await uploadOneFile(item, cName, cId, ct, mk, patch)); ok++; }
+        try { newAssets.push(await uploadOneFile(item, cName, cId, ct, mk, uploadedBy, patch)); ok++; }
         catch { fail++; }
       }));
     }
@@ -758,6 +816,39 @@ export default function AssetsPage() {
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleInputChange} />
         </div>
 
+        {/* Filter bar */}
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-48">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              placeholder="Search files…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="input h-9 text-sm pl-8 w-full"
+            />
+          </div>
+          <select className="input h-9 text-sm" value={filterClient} onChange={e => setFilterClient(e.target.value)}>
+            <option value="">All clients</option>
+            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          <select className="input h-9 text-sm" value={filterContentType} onChange={e => setFilterContentType(e.target.value)}>
+            <option value="">All types</option>
+            {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
+          </select>
+          <select className="input h-9 text-sm" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
+            <option value="">All years</option>
+            {Array.from({ length: new Date().getFullYear() - ASSETS_START_YEAR + 1 }, (_, i) => ASSETS_START_YEAR + i).reverse().map(y => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+          <select className="input h-9 text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="largest">Largest First</option>
+          </select>
+        </div>
+
         {/* Drag-over overlay */}
         {isDragOver && (
           <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(99,102,241,0.12)', outline: '3px dashed var(--accent)' }}>
@@ -778,27 +869,36 @@ export default function AssetsPage() {
               <div key={i} className="rounded-2xl animate-pulse" style={{ background: 'var(--surface)', aspectRatio: '1' }} />
             ))}
           </div>
-        ) : deferredAssets.length === 0 ? (
+        ) : filteredAssets.length === 0 ? (
           <EmptyState
             icon={FolderOpen}
-            title={t('noAssetsYet')}
-            description={t('noAssetsDesc')}
+            title={searchQuery || filterClient || filterContentType || filterYear ? 'No matching files' : t('noAssetsYet')}
+            description={searchQuery || filterClient || filterContentType || filterYear ? 'Try adjusting your search or filters.' : t('noAssetsDesc')}
             action={
-              <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
-                <Upload size={16} />{t('uploadFile')}
-              </button>
+              !searchQuery && !filterClient && !filterContentType && !filterYear ? (
+                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
+                  <Upload size={16} />{t('uploadFile')}
+                </button>
+              ) : undefined
             }
           />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {deferredAssets.map(asset => (
-              <AssetCard
-                key={asset.id} asset={asset}
-                onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
-                onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredAssets.map(asset => (
+                <AssetCard
+                  key={asset.id} asset={asset} canDelete={isAdmin}
+                  onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
+                  onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                />
+              ))}
+            </div>
+            {hasMore && !loading && (
+              <div className="flex justify-center pt-2">
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

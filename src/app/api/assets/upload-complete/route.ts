@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       monthKey,
       clientName,
       clientId,
+      uploadedBy,
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────────
@@ -84,6 +85,8 @@ export async function POST(req: NextRequest) {
 
     const safeClientId =
       clientId && typeof clientId === 'string' && clientId.trim() ? clientId.trim() : null;
+    const safeUploadedBy =
+      uploadedBy && typeof uploadedBy === 'string' && uploadedBy.trim() ? uploadedBy.trim() : null;
 
     console.log('[upload-complete] file:', fileName, '| drive_file_id:', driveFileId, '| client:', clientName);
 
@@ -117,6 +120,7 @@ export async function POST(req: NextRequest) {
       client_folder_name: clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
+      ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
     if (safeClientId) row.client_id = safeClientId;
 
@@ -147,7 +151,7 @@ export async function POST(req: NextRequest) {
     // ── Activity log (fire-and-forget) ────────────────────────────────────────
     void supabase.from('activities').insert({
       type: 'asset',
-      description: `Asset "${fileName}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})`,
+      description: `Asset "${fileName}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})${safeUploadedBy ? ` by ${safeUploadedBy}` : ''}`,
       ...(safeClientId ? { client_id: safeClientId } : {}),
     }).then(({ error }) => {
       if (error) console.warn('[upload-complete] activity log insert failed:', error.message);
