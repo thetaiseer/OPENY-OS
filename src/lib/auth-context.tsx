@@ -49,7 +49,7 @@ async function fetchUserProfile(
   console.log('[auth] Fetching profile for auth user id:', supabaseUser.id, '| email:', supabaseUser.email);
 
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .select('id, name, email, role, client_id')
     .eq('id', supabaseUser.id)
     .single();

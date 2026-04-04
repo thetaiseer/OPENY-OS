@@ -99,7 +99,7 @@ export default function ClientsPage() {
       console.log('[client create] auth user id:', user?.id ?? 'none');
       if (user?.id) {
         const { data: profile, error: profileErr } = await supabase
-          .from('users')
+          .from('profiles')
           .select('role, client_id')
           .eq('id', user.id)
           .single();

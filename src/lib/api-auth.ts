@@ -35,7 +35,7 @@ export interface UserProfile {
 
 /**
  * Reads the session from the request cookies, validates it with Supabase,
- * and fetches the caller's profile row (role, client_id) from `public.users`.
+ * and fetches the caller's profile row (role, client_id) from `public.profiles`.
  *
  * Returns null if the caller is not authenticated.
  */
@@ -68,7 +68,7 @@ export async function getApiUser(
     return null;
   }
 
-  // 3. Fetch the role from public.users using the service-role key so that
+  // 3. Fetch the role from public.profiles using the service-role key so that
   //    Row Level Security does not block the read.
   if (!supabaseServiceRoleKey) {
     console.error('[api-auth] SUPABASE_SERVICE_ROLE_KEY is not set — cannot verify role');
@@ -78,7 +78,7 @@ export async function getApiUser(
   const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
 
   const { data: profile, error: profileError } = await admin
-    .from('users')
+    .from('profiles')
     .select('id, name, email, role, client_id')
     .eq('id', user.id)
     .single();
@@ -102,7 +102,7 @@ export async function getApiUser(
     console.warn('[api-auth] Profile row not found for user', user.id, '| email:', email, '| inserting fallback with role:', autoRole);
 
     // INSERT only — never update if the row already exists.
-    const { error: insertError } = await admin.from('users').insert({
+    const { error: insertError } = await admin.from('profiles').insert({
       id:    fallback.id,
       name:  fallback.name,
       email: fallback.email,
