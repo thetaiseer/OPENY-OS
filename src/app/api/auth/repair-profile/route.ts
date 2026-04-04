@@ -58,32 +58,51 @@ export async function POST(request: NextRequest) {
 
   console.log('[repair-profile] Repairing profile for auth user:', user.id, user.email);
 
-  // 2. Determine the appropriate role.
+  // 2. Determine the appropriate role for a NEW profile row only.
+  //    An existing row's role is NEVER overwritten — we preserve whatever is
+  //    already in the database (e.g. 'admin' set by a previous migration).
   const email = user.email ?? '';
-  const role  = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'client';
+  const newRole = (ADMIN_EMAIL.trim().length > 0 && email.toLowerCase() === ADMIN_EMAIL) ? 'admin' : 'client';
   const name  =
     user.user_metadata?.name ??
     user.user_metadata?.full_name ??
     email.split('@')[0] ??
     '';
 
-  // 3. Upsert the profile row using the service-role client (bypasses RLS).
+  // 3. Use the service-role client (bypasses RLS) so the operation always works.
   const admin = createServiceClient(supabaseUrl, serviceRoleKey);
 
-  const { data: profile, error: upsertError } = await admin
+  // INSERT only — never update if the row already exists.
+  // This ensures an existing role (e.g. 'admin') is never downgraded to 'client'.
+  const { error: insertError } = await admin
     .from('profiles')
-    .upsert({ id: user.id, email, name, role }, { onConflict: 'id' })
-    .select('id, name, email, role')
-    .single();
+    .insert({ id: user.id, email, name, role: newRole });
 
-  if (upsertError || !profile) {
-    console.error('[repair-profile] Upsert failed:', upsertError?.message);
+  if (insertError && insertError.code !== '23505') {
+    // 23505 = unique_violation — row already exists, which is fine.
+    console.error('[repair-profile] Insert failed:', insertError.message);
     return NextResponse.json(
-      { error: upsertError?.message ?? 'Upsert failed' },
+      { error: insertError.message },
       { status: 500 },
     );
   }
 
-  console.log('[repair-profile] Profile created/updated:', profile);
+  // Return the actual profile row from the database (may differ from newRole
+  // if the row already existed with a different role, e.g. 'admin').
+  const { data: profile, error: selectError } = await admin
+    .from('profiles')
+    .select('id, name, email, role')
+    .eq('id', user.id)
+    .single();
+
+  if (selectError || !profile) {
+    console.error('[repair-profile] Select after insert failed:', selectError?.message);
+    return NextResponse.json(
+      { error: selectError?.message ?? 'Profile not found after insert' },
+      { status: 500 },
+    );
+  }
+
+  console.log('[repair-profile] Profile resolved — id:', profile.id, '| role:', profile.role);
   return NextResponse.json({ profile });
 }

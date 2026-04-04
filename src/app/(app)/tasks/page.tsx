@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -559,11 +560,14 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, t }: { task: Task 
 
 export default function TasksPage() {
   const { t } = useLang();
+  const { role } = useAuth();
+  const canManageTasks = role === 'admin' || role === 'team';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -618,10 +622,12 @@ export default function TasksPage() {
   // ── create ───────────────────────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError(null);
+    if (!canManageTasks) { setCreateError('Only admin or team members can create tasks.'); return; }
     if (!createForm.title.trim()) return;
-    if (!createForm.client_id) { alert(t('pleaseSelectClient')); return; }
-    if (!createForm.assigned_to) { alert(t('pleaseAssignMember')); return; }
-    if (!createForm.due_date) { alert(t('pleaseSetDueDate')); return; }
+    if (!createForm.client_id) { setCreateError(t('pleaseSelectClient')); return; }
+    if (!createForm.assigned_to) { setCreateError(t('pleaseAssignMember')); return; }
+    if (!createForm.due_date) { setCreateError(t('pleaseSetDueDate')); return; }
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
@@ -652,7 +658,7 @@ export default function TasksPage() {
       const msg = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to create task';
-      alert(msg);
+      setCreateError(msg);
     } finally {
       setSaving(false);
     }
@@ -772,13 +778,15 @@ export default function TasksPage() {
               <LayoutGrid size={14} />{t('kanban')}
             </button>
           </div>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Plus size={16} />{t('newTask')}
-          </button>
+          {canManageTasks && (
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+              style={{ background: 'var(--accent)' }}
+            >
+              <Plus size={16} />{t('newTask')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -871,9 +879,11 @@ export default function TasksPage() {
           title={t('noTasksYet')}
           description={t('noTasksDesc')}
           action={
-            <button onClick={() => setCreateOpen(true)} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>
-              <Plus size={16} />{t('newTask')}
-            </button>
+            canManageTasks ? (
+              <button onClick={() => setCreateOpen(true)} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>
+                <Plus size={16} />{t('newTask')}
+              </button>
+            ) : undefined
           }
         />
       ) : view === 'kanban' ? (
@@ -904,9 +914,15 @@ export default function TasksPage() {
       )}
 
       {/* Create Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('newTask')} size="lg">
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError(null); }} title={t('newTask')} size="lg">
         <form onSubmit={handleCreate}>
-          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} team={team} saving={saving} onCancel={() => setCreateOpen(false)} t={t} />
+          {createError && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <span>{createError}</span>
+            </div>
+          )}
+          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} team={team} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
         </form>
       </Modal>
 
