@@ -118,7 +118,7 @@ export default function NotificationsPage() {
       ) : (
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
           {notifications.map(n => {
-            const Icon  = TYPE_ICON[n.type] ?? Info;
+            const Icon = TYPE_ICON[n.type] ?? Info;
             const color = TYPE_COLOR[n.type] ?? '#3b82f6';
             return (
               <div

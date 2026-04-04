@@ -885,6 +885,8 @@ export default function AssetsPage() {
       action,
       user_id:   user?.id,
       user_name: user?.name,
+    }).then(({ error }) => {
+      if (error && process.env.NODE_ENV === 'development') console.error('[approval_history]', error);
     });
 
     // Log to activities (best-effort)
@@ -893,6 +895,8 @@ export default function AssetsPage() {
       description: `Asset "${asset.name}" was ${action} by ${user?.name ?? 'user'}`,
       user_id:     user?.id,
       client_id:   asset.client_id ?? null,
+    }).then(({ error }) => {
+      if (error && process.env.NODE_ENV === 'development') console.error('[activities]', error);
     });
 
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, approval_status: action } : a));

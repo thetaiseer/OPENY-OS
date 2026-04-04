@@ -92,7 +92,7 @@ export default function CalendarPage() {
     const map: Record<number, Task[]> = {};
     for (const t of tasks) {
       if (!t.due_date) continue;
-      const d = new Date(t.due_date).getUTCDate();
+      const d = new Date(t.due_date).getDate();
       if (!map[d]) map[d] = [];
       map[d].push(t);
     }
@@ -103,7 +103,7 @@ export default function CalendarPage() {
     const map: Record<number, Asset[]> = {};
     for (const a of assets) {
       if (!a.publish_date) continue;
-      const d = new Date(a.publish_date).getUTCDate();
+      const d = new Date(a.publish_date).getDate();
       if (!map[d]) map[d] = [];
       map[d].push(a);
     }

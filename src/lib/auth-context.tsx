@@ -34,11 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setRole = (newRole: UserRole, newClientId?: string) => {
     setRoleState(newRole);
     setClientId(newClientId ?? null);
-    setUser({
-      ...DEFAULT_USER,
-      role: newRole,
-      name: newRole === 'client' ? 'Client User' : newRole === 'team' ? 'Team Member' : 'Admin',
-    });
+    const nameByRole: Record<UserRole, string> = {
+      admin:  'Admin',
+      team:   'Team Member',
+      client: 'Client User',
+    };
+    setUser({ ...DEFAULT_USER, role: newRole, name: nameByRole[newRole] });
   };
 
   return (

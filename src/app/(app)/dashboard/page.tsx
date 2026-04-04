@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     const fetchData = async () => {
       try {
         const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes] = await Promise.allSettled([
@@ -71,7 +72,7 @@ export default function DashboardPage() {
           supabase.from('assets')
             .select('id, name, publish_date, approval_status, client_name, content_type')
             .eq('approval_status', 'scheduled')
-            .gte('publish_date', new Date().toISOString().slice(0, 10))
+            .gte('publish_date', todayStr)
             .order('publish_date', { ascending: true })
             .limit(5),
         ]);
