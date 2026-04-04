@@ -1,10 +1,9 @@
 /**
  * Server-only Google Drive utility.
- * Uses Google OAuth 2.0 user-based authentication (not a service account).
+ * Uses a Google Service Account (JWT) — no user OAuth required.
  * Never import this file from client components.
  */
 import { google } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
 import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
 import { clientToFolderName } from './asset-utils';
@@ -84,41 +83,29 @@ function assertValidUrl(url: string, label: string): void {
   }
 }
 
-// ── Drive client factory (Google OAuth 2.0 user-based) ───────────────────────
+// ── Drive client factory (Google Service Account / JWT) ───────────────────────
 
 /**
- * Build a Drive client authenticated as the Google user who completed the
- * OAuth 2.0 consent flow.  Credentials are supplied via env vars:
- *   GOOGLE_OAUTH_CLIENT_ID      – OAuth 2.0 client ID
- *   GOOGLE_OAUTH_CLIENT_SECRET  – OAuth 2.0 client secret
- *   GOOGLE_OAUTH_REFRESH_TOKEN  – refresh token obtained after the first login
- *   GOOGLE_DRIVE_FOLDER_ID      – root Drive folder ID (or full URL)
- *
- * To obtain the refresh token, visit /api/auth/google in your browser and
- * complete the Google consent screen, then copy the refresh token shown into
- * your GOOGLE_OAUTH_REFRESH_TOKEN env var.
+ * Build a Drive client authenticated as a Google Service Account.
+ * Credentials are supplied via env vars:
+ *   GOOGLE_DRIVE_CLIENT_EMAIL  – service account email
+ *   GOOGLE_DRIVE_PRIVATE_KEY   – PEM private key (newlines may be escaped as \n)
+ *   GOOGLE_DRIVE_FOLDER_ID     – root Drive folder ID (or full URL)
  */
 function getDriveClient() {
-  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-  const rawFolderId  = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
+  const privateKey  = process.env.GOOGLE_DRIVE_PRIVATE_KEY;
+  const rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_ID present:', !!clientId);
-  console.log('[google-drive] init — GOOGLE_OAUTH_CLIENT_SECRET present:', !!clientSecret);
-  console.log('[google-drive] init — GOOGLE_OAUTH_REFRESH_TOKEN present:', !!refreshToken);
+  console.log('[google-drive] init — GOOGLE_DRIVE_CLIENT_EMAIL present:', !!clientEmail);
+  console.log('[google-drive] init — GOOGLE_DRIVE_PRIVATE_KEY present:', !!privateKey);
   console.log('[google-drive] init — GOOGLE_DRIVE_FOLDER_ID raw value:', rawFolderId ?? '(missing)');
 
-  if (!clientId) {
-    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_ID');
+  if (!clientEmail) {
+    throw new Error('Missing env var: GOOGLE_DRIVE_CLIENT_EMAIL');
   }
-  if (!clientSecret) {
-    throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_SECRET');
-  }
-  if (!refreshToken) {
-    throw new Error(
-      'Missing env var: GOOGLE_OAUTH_REFRESH_TOKEN — visit /api/auth/google to authorize your Google account',
-    );
+  if (!privateKey) {
+    throw new Error('Missing env var: GOOGLE_DRIVE_PRIVATE_KEY');
   }
   if (!rawFolderId) {
     throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
@@ -128,33 +115,14 @@ function getDriveClient() {
   const folderId = extractDriveId(rawFolderId);
   console.log('[google-drive] init — folder_id (after extractDriveId):', folderId);
 
-  const auth = new google.auth.OAuth2(clientId, clientSecret);
-  auth.setCredentials({ refresh_token: refreshToken });
-
-  // Propagate any new access tokens (auto-refresh) so callers can log them
-  auth.on('tokens', (tokens) => {
-    if (tokens.refresh_token) {
-      console.log('[google-drive] ⚠ New refresh token issued — update GOOGLE_OAUTH_REFRESH_TOKEN env var:', tokens.refresh_token);
-    }
-    console.log('[google-drive] Access token refreshed successfully');
+  const auth = new google.auth.JWT({
+    email: clientEmail,
+    key: privateKey.replace(/\\n/g, '\n'),
+    scopes: ['https://www.googleapis.com/auth/drive'],
   });
 
-  console.log('[google-drive] OAuth2 client created successfully');
+  console.log('[google-drive] Service Account JWT client created successfully');
   return { drive: google.drive({ version: 'v3', auth }), rootFolderId: folderId, auth };
-}
-
-/**
- * Return the email address of the Google account that owns the OAuth token.
- * Used for debug logging only; failures are non-fatal.
- */
-async function getAuthenticatedEmail(auth: OAuth2Client): Promise<string> {
-  try {
-    const oauth2 = google.oauth2({ version: 'v2', auth });
-    const res = await oauth2.userinfo.get();
-    return res.data.email ?? '(unknown)';
-  } catch {
-    return '(could not retrieve — check OAuth scopes)';
-  }
 }
 
 /**
@@ -258,11 +226,7 @@ export async function uploadToStructuredPath(
   contentType: string,
   monthKey: string,
 ): Promise<DriveUploadResult> {
-  const { drive, rootFolderId, auth } = getDriveClient();
-
-  // Log the authenticated Google account email
-  const email = await getAuthenticatedEmail(auth);
-  console.log('[google-drive] authenticated as Google account:', email);
+  const { drive, rootFolderId } = getDriveClient();
 
   const { year, monthFolder } = monthKeyToComponents(monthKey);
   console.log(`[google-drive] structured upload: Clients/${clientFolderName}/${contentType}/${year}/${monthFolder}/${fileName}`);
@@ -415,11 +379,11 @@ export async function initiateResumableSession(
 ): Promise<string> {
   const { auth } = getDriveClient();
 
-  // Use the OAuth access_token (NOT the refresh token)
+  // Obtain a short-lived access token from the service account JWT
   const tokenResponse = await auth.getAccessToken();
   const accessToken = tokenResponse?.token;
   if (!accessToken) {
-    throw new Error('Failed to obtain Google OAuth access token for resumable session');
+    throw new Error('Failed to obtain Google service account access token for resumable session');
   }
 
   console.log('[google-drive] access_token present:', !!accessToken);
