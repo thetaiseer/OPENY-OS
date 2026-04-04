@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Loader2, Search, ThumbsUp, ThumbsDown, MessageSquare,
+  Loader2, Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -34,6 +34,7 @@ interface FileUploadItem {
   status: FileStatus;
   progress: number;
   error: string | null;
+  uploadName: string; // user-editable name (without extension)
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -123,6 +124,29 @@ function fileTypeLabel(name: string, type?: string): string {
   return name.split('.').pop()?.toUpperCase() ?? 'FILE';
 }
 
+// ── Filename validation helpers ───────────────────────────────────────────────
+
+const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00]/;
+
+function validateUploadName(name: string): string | null {
+  const t = name.trim();
+  if (!t) return 'Name cannot be empty';
+  if (INVALID_FILENAME_CHARS.test(t)) return 'Name contains invalid characters (< > : " / \\ | ? *)';
+  if (t.startsWith('.')) return 'Name cannot start with a period';
+  if (t.length > 200) return 'Name is too long (max 200 characters)';
+  return null;
+}
+
+function getFileExtension(name: string): string {
+  const parts = name.split('.');
+  return parts.length > 1 ? `.${parts.pop()!.toLowerCase()}` : '';
+}
+
+function getFileBaseName(name: string): string {
+  const ext = getFileExtension(name);
+  return ext ? name.slice(0, name.length - ext.length) : name;
+}
+
 // ── Batch Metadata Form ───────────────────────────────────────────────────────
 
 interface BatchUploadFormProps {
@@ -137,13 +161,16 @@ interface BatchUploadFormProps {
   onConfirm: () => void;
   onCancel: () => void;
   onRemoveFile: (id: string) => void;
+  onUploadNameChange: (id: string, name: string) => void;
 }
 
 function BatchUploadForm({
   files, contentType, month, clientName, clients,
   onContentTypeChange, onMonthChange, onClientChange,
-  onConfirm, onCancel, onRemoveFile,
+  onConfirm, onCancel, onRemoveFile, onUploadNameChange,
 }: BatchUploadFormProps) {
+  const hasErrors = files.some(f => validateUploadName(f.uploadName) !== null);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -151,7 +178,7 @@ function BatchUploadForm({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-xl"
+        className="w-full max-w-lg rounded-2xl border p-6 space-y-5 shadow-xl"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
@@ -162,16 +189,36 @@ function BatchUploadForm({
           <button onClick={onCancel} className="opacity-60 hover:opacity-100 transition-opacity"><X size={16} /></button>
         </div>
 
-        {/* File list */}
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {files.map(item => (
-            <div key={item.id} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2" style={{ background: 'var(--surface-2)' }}>
-              <FileTypeIcon name={item.file.name} type={item.file.type} size={16} />
-              <span className="flex-1 truncate" style={{ color: 'var(--text)' }}>{item.file.name}</span>
-              <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
-              <button onClick={() => onRemoveFile(item.id)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"><X size={14} /></button>
-            </div>
-          ))}
+        {/* Per-file name editor */}
+        <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+          {files.map(item => {
+            const ext = getFileExtension(item.file.name);
+            const nameError = validateUploadName(item.uploadName);
+            return (
+              <div key={item.id} className="rounded-xl border p-3 space-y-2" style={{ background: 'var(--surface-2)', borderColor: nameError ? '#ef4444' : 'var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  <FileTypeIcon name={item.file.name} type={item.file.type} size={16} />
+                  <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)' }}>{item.file.name}</span>
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
+                  <button onClick={() => onRemoveFile(item.id)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"><X size={14} /></button>
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    Upload name{ext && <span className="ml-1 opacity-60">(extension <code>{ext}</code> will be added)</span>}
+                  </label>
+                  <input
+                    type="text"
+                    className="input w-full h-8 text-sm"
+                    value={item.uploadName}
+                    onChange={e => onUploadNameChange(item.id, e.target.value)}
+                    placeholder={getFileBaseName(item.file.name)}
+                    style={nameError ? { borderColor: '#ef4444' } : {}}
+                  />
+                  {nameError && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{nameError}</p>}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="space-y-1">
@@ -198,7 +245,7 @@ function BatchUploadForm({
           <button onClick={onCancel} className="btn flex-1 h-9 text-sm">Cancel</button>
           <button
             onClick={onConfirm}
-            disabled={!clientName || files.length === 0}
+            disabled={!clientName || files.length === 0 || hasErrors}
             className="btn-primary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Upload {files.length} {files.length === 1 ? 'File' : 'Files'}
@@ -219,6 +266,11 @@ const STATUS_LABEL: Record<FileStatus, string> = {
 function FileQueueItem({ item }: { item: FileUploadItem }) {
   const isComplete = item.status === 'completed';
   const isFailed   = item.status === 'failed';
+  const ext        = getFileExtension(item.file.name);
+  const trimmedName = item.uploadName.trim();
+  const displayName = trimmedName
+    ? (trimmedName.toLowerCase().endsWith(ext) ? trimmedName : `${trimmedName}${ext}`)
+    : item.file.name;
   return (
     <div className="rounded-xl border p-3 flex items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
@@ -228,7 +280,7 @@ function FileQueueItem({ item }: { item: FileUploadItem }) {
           : <FileTypeIcon name={item.file.name} type={item.file.type} size={20} />}
       </div>
       <div className="flex-1 min-w-0 space-y-1">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{item.file.name}</p>
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{displayName}</p>
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
           <span className="text-xs" style={{ color: isFailed ? '#ef4444' : isComplete ? '#16a34a' : 'var(--accent)' }}>
@@ -554,6 +606,18 @@ async function uploadFileResumable(
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+interface SyncLog {
+  id: string;
+  synced_at: string;
+  files_added: number;
+  files_updated: number;
+  files_removed: number;
+  errors_count: number;
+  error_details: string[];
+  duration_ms: number | null;
+  triggered_by: 'manual' | 'cron';
+}
+
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
@@ -595,6 +659,12 @@ export default function AssetsPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [clients, setClients]       = useState<Client[]>([]);
   const deferredAssets              = useDeferredValue(assets);
+
+  // Google Drive sync state
+  const [isSyncing, setIsSyncing]         = useState(false);
+  const [lastSync, setLastSync]           = useState<SyncLog | null>(null);
+  const [syncResult, setSyncResult]       = useState<SyncLog | null>(null);
+  const [showSyncResult, setShowSyncResult] = useState(false);
 
   // ── Toast ───────────────────────────────────────────────────────────────────
 
@@ -656,6 +726,45 @@ export default function AssetsPage() {
     });
   }, []);
 
+  // Fetch last sync info on mount
+  useEffect(() => {
+    fetch('/api/assets/sync')
+      .then(r => r.json())
+      .then((json: { success: boolean; last_sync?: SyncLog | null }) => {
+        if (json.success && json.last_sync) setLastSync(json.last_sync);
+      })
+      .catch(() => {/* sync log table may not exist yet */});
+  }, []);
+
+  // ── Drive Sync ───────────────────────────────────────────────────────────────
+
+  const handleSyncDrive = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncResult(null);
+    setShowSyncResult(false);
+    try {
+      const res = await fetch('/api/assets/sync', { method: 'POST' });
+      const json = await res.json() as SyncLog & { success: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        addToast(`Sync failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
+      } else {
+        setSyncResult(json);
+        setLastSync(json);
+        setShowSyncResult(true);
+        const summary = `Sync complete — +${json.files_added} added, ${json.files_updated} updated, ${json.files_removed} removed`;
+        addToast(summary, json.errors_count > 0 ? 'error' : 'success');
+        // Refresh the asset list
+        setPage(0);
+        fetchAssets(0);
+      }
+    } catch (err: unknown) {
+      addToast(`Sync error: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, addToast, fetchAssets]);
+
   // ── Filtered / sorted assets ─────────────────────────────────────────────────
 
   const filteredAssets = useMemo(() => {
@@ -674,7 +783,15 @@ export default function AssetsPage() {
   // ── File helpers ────────────────────────────────────────────────────────────
 
   const filesToItems = (files: File[]): FileUploadItem[] =>
-    files.map(file => ({ id: nextFileId(), file, previewUrl: makePreviewUrl(file), status: 'queued' as FileStatus, progress: 0, error: null }));
+    files.map(file => ({
+      id: nextFileId(),
+      file,
+      previewUrl: makePreviewUrl(file),
+      status: 'queued' as FileStatus,
+      progress: 0,
+      error: null,
+      uploadName: getFileBaseName(file.name),
+    }));
 
   // Revoke all object URLs for a list of items to prevent memory leaks
   const revokeItemUrls = useCallback((items: FileUploadItem[]) => {
@@ -701,6 +818,10 @@ export default function AssetsPage() {
     setUploadClientId(clients.find(c => c.name === name)?.id ?? '');
   };
 
+  const handleUploadNameChange = (id: string, name: string) => {
+    setPendingItems(prev => prev.map(i => i.id === id ? { ...i, uploadName: name } : i));
+  };
+
   // ── Drag and drop ───────────────────────────────────────────────────────────
 
   const onDragOver  = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
@@ -721,6 +842,9 @@ export default function AssetsPage() {
       // ── Step 1: Create resumable upload session (server creates Drive folders) ──
       patchItem(item.id, { status: 'preparing', progress: 5 });
 
+      // Build the custom file name (base + extension) if the user provided one
+      const customFileName = item.uploadName.trim() || null;
+
       const sessionRes = await fetch('/api/assets/upload-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -731,8 +855,9 @@ export default function AssetsPage() {
           clientName,
           contentType,
           monthKey,
-          ...(clientId   ? { clientId }   : {}),
-          ...(uploadedBy ? { uploadedBy } : {}),
+          ...(clientId      ? { clientId }      : {}),
+          ...(uploadedBy    ? { uploadedBy }    : {}),
+          ...(customFileName ? { customFileName } : {}),
         }),
         signal: ctrl.signal,
       });
@@ -912,23 +1037,72 @@ export default function AssetsPage() {
       <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Manage uploaded files · Drag &amp; drop or click Upload
+              {lastSync && (
+                <span className="ml-2">
+                  · Last synced: <span className="font-medium">{new Date(lastSync.synced_at).toLocaleString()}</span>
+                </span>
+              )}
             </p>
           </div>
-          <button
-            onClick={() => !isUploading && fileRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity shrink-0"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin && (
+              <button
+                onClick={handleSyncDrive}
+                disabled={isSyncing || isUploading}
+                title="Sync Google Drive → DB"
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity border"
+                style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface)' }}
+              >
+                <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? 'Syncing…' : 'Sync Drive'}
+              </button>
+            )}
+            <button
+              onClick={() => !isUploading && fileRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+              style={{ background: 'var(--accent)' }}
+            >
+              <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
+            </button>
+          </div>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleInputChange} />
         </div>
+
+        {/* Sync result banner */}
+        {showSyncResult && syncResult && (
+          <div
+            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
+            style={{
+              background: syncResult.errors_count > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(22,163,74,0.08)',
+              borderColor: syncResult.errors_count > 0 ? '#ef4444' : '#16a34a',
+              color: syncResult.errors_count > 0 ? '#ef4444' : '#16a34a',
+            }}
+          >
+            <CheckCircle size={16} className="shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">Sync complete</p>
+              <p className="opacity-80">
+                {syncResult.files_added} added · {syncResult.files_updated} updated · {syncResult.files_removed} removed
+                {syncResult.errors_count > 0 && ` · ${syncResult.errors_count} error(s)`}
+                {syncResult.duration_ms != null && ` · ${(syncResult.duration_ms / 1000).toFixed(1)}s`}
+              </p>
+              {syncResult.error_details && syncResult.error_details.length > 0 && (
+                <ul className="mt-1 text-xs opacity-80 list-disc list-inside space-y-0.5">
+                  {syncResult.error_details.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+            </div>
+            <button onClick={() => setShowSyncResult(false)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Filter bar */}
         <div className="flex flex-wrap gap-2">
@@ -1052,6 +1226,7 @@ export default function AssetsPage() {
           onContentTypeChange={setUploadContentType} onMonthChange={setUploadMonth} onClientChange={handleClientChange}
           onConfirm={handleUploadConfirm}
           onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
+          onUploadNameChange={handleUploadNameChange}
           onRemoveFile={id => setPendingItems(prev => {
             const removed = prev.find(i => i.id === id);
             if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
