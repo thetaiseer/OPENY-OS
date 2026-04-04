@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { uploadToStructuredPath } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
+import { requireRole } from '@/lib/api-auth';
 
 // Fixed content type list
 const VALID_CONTENT_TYPES = [
@@ -47,6 +48,10 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   console.log('[upload] POST /api/assets/upload — structured Google Drive storage');
   try {
+    // ── 0. Auth: only admin and team members may upload ───────────────────────
+    const auth = await requireRole(req, ['admin', 'team']);
+    if (auth instanceof NextResponse) return auth;
+
     // ── 1. Parse multipart form data ─────────────────────────────────────────
     let formData: FormData;
     try {

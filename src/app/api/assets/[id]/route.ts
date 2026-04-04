@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { deleteFromDrive, DriveFileNotFoundError, cleanupEmptyFoldersFromLeaf } from '@/lib/google-drive';
+import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -13,9 +14,13 @@ function getSupabase() {
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Auth: only admin and team members may delete assets.
+  const auth = await requireRole(req, ['admin', 'team']);
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   if (!id) {

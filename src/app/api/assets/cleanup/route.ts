@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { google } from 'googleapis';
+import { requireRole } from '@/lib/api-auth';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -52,8 +53,12 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
 /**
  * GET /api/assets/cleanup
  * Find DB asset records whose Google Drive file is confirmed missing (404).
+ * Admin only.
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const auth = await requireRole(req, ['admin']);
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = getSupabase();
 
   if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
@@ -80,8 +85,12 @@ export async function GET(_req: NextRequest) {
 /**
  * DELETE /api/assets/cleanup
  * Delete DB records whose Google Drive file is confirmed missing (404).
+ * Admin only.
  */
-export async function DELETE(_req: NextRequest) {
+export async function DELETE(req: NextRequest) {
+  const auth = await requireRole(req, ['admin']);
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = getSupabase();
 
   if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {

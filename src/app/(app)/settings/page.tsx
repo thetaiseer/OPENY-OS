@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
-import { CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2, LogOut, ShieldCheck } from 'lucide-react';
 
 // ── Google Drive status types ─────────────────────────────────────────────────
 
@@ -127,11 +127,17 @@ function GoogleDrivePanel() {
 // ── Settings Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { user, role, setRole } = useAuth();
+  const { user, role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = role === 'admin';
+
+  const roleDescriptions: Record<string, string> = {
+    admin:  'Full access to all data and settings',
+    team:   'Access to assigned clients — can upload assets and create tasks',
+    client: 'Can view own assets and submit approvals',
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -190,39 +196,50 @@ export default function SettingsPage() {
       {/* Admin-only: Google Drive */}
       {isAdmin && <GoogleDrivePanel />}
 
-      {/* Role & Access demo switcher */}
+      {/* Role & Access */}
       <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Role & Access (Demo)</h2>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Switch roles to preview access levels. In production this would be controlled by real authentication.
-          </p>
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={18} style={{ color: 'var(--accent)' }} />
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Role & Access</h2>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {(['admin', 'team', 'client'] as const).map(r => (
-            <button
-              key={r}
-              onClick={() => setRole(r)}
-              className="rounded-xl border p-4 text-left transition-colors"
-              style={{
-                background:   role === r ? 'var(--accent-soft)' : 'var(--surface-2)',
-                borderColor:  role === r ? 'var(--accent)' : 'var(--border)',
-              }}
+        <div
+          className="flex items-start gap-3 rounded-xl p-4"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+            style={{ background: 'var(--accent)' }}
+          >
+            {(user.name || user.email).charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+              {user.name || user.email}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
+            <span
+              className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-semibold capitalize"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
-              <p className="text-sm font-semibold capitalize" style={{ color: role === r ? 'var(--accent)' : 'var(--text)' }}>
-                {r}
-              </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {r === 'admin'  && 'Full access to all data'}
-                {r === 'team'   && 'Assigned clients only'}
-                {r === 'client' && 'Own assets & approvals'}
-              </p>
-            </button>
-          ))}
+              {role}
+            </span>
+          </div>
         </div>
         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Current role: <span className="font-semibold capitalize" style={{ color: 'var(--accent)' }}>{role}</span>
+          {roleDescriptions[role] ?? 'Your access level is managed by your administrator.'}
         </p>
+      </div>
+
+      {/* Sign Out */}
+      <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text)' }}>Session</h2>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+        >
+          <LogOut size={15} /> Sign out
+        </button>
       </div>
     </div>
   );

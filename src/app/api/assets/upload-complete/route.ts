@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { finalizeFileAfterUpload } from '@/lib/google-drive';
+import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -36,6 +37,10 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   console.log('[upload-complete] POST /api/assets/upload-complete');
   try {
+    // ── Auth: only admin and team members may complete uploads ─────────────────
+    const auth = await requireRole(req, ['admin', 'team']);
+    if (auth instanceof NextResponse) return auth;
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();

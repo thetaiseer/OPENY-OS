@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getApiUser } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only, bypasses RLS) ──────────────────
 function getSupabase() {
@@ -15,26 +16,43 @@ const PAGE_SIZE = 100;
 /**
  * GET /api/assets
  *
- * Returns paginated assets from the database using the service-role key so
- * that Row Level Security cannot block the read.  This is intentional: all
- * authenticated app users should be able to list assets.
+ * Returns paginated assets from the database.
+ * - admin / team: all assets
+ * - client: only assets belonging to their client_id
  *
  * Query params:
  *   page – 0-indexed page number (default: 0)
  */
 export async function GET(req: NextRequest) {
   try {
+    const auth = await getApiUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { profile } = auth;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
     const from = page * PAGE_SIZE;
     const to   = from + PAGE_SIZE - 1;
 
     const supabase = getSupabase();
-    const { data, error } = await supabase
+    let query = supabase
       .from('assets')
       .select('*')
       .order('created_at', { ascending: false })
       .range(from, to);
+
+    // Client role: return empty list immediately if they have no linked client, or
+    // filter to only their client's assets.
+    if (profile.role === 'client' && !profile.client_id) {
+      return NextResponse.json({ success: true, assets: [], page, hasMore: false });
+    }
+    if (profile.role === 'client' && profile.client_id) {
+      query = query.eq('client_id', profile.client_id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');

@@ -1,16 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/api-auth';
 
 /**
  * GET /api/auth/google/status
  *
  * Returns the configuration status of the Google Drive OAuth connection.
- * Checks that GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and
- * GOOGLE_OAUTH_REFRESH_TOKEN are set.
- *
- * Response shape:
- *   { connected: boolean; email: string | null; isAdminAccount: boolean }
+ * Admin only.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireRole(req, ['admin']);
+  if (auth instanceof NextResponse) return auth;
+
   const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;

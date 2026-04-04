@@ -3,7 +3,8 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  role?: string;
+  role: string;
+  client_id?: string | null;
 }
 
 export interface Client {
