@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Users2, ExternalLink } from 'lucide-react';
+import { Plus, Search, Users2, ExternalLink, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -23,6 +23,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
@@ -52,20 +53,24 @@ export default function ClientsPage() {
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
   const logActivity = (description: string, clientId?: string) => {
-    supabase.from('activities').insert({
+    void supabase.from('activities').insert({
       type: 'client',
       description,
       client_id: clientId ?? null,
-    }).then(({ error }) => {
-      if (error && process.env.NODE_ENV === 'development') console.warn('[logActivity]', error);
-    }).catch((err) => {
-      if (process.env.NODE_ENV === 'development') console.warn('[logActivity network]', err);
-    });
+    }).then(
+      ({ error }) => {
+        if (error && process.env.NODE_ENV === 'development') console.warn('[logActivity]', error);
+      },
+      (err: unknown) => {
+        if (process.env.NODE_ENV === 'development') console.warn('[logActivity network]', err);
+      },
+    );
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveError(null);
     try {
       const { data, error } = await supabase.from('clients').insert(form).select().single();
       if (error) throw error;
@@ -78,7 +83,7 @@ export default function ClientsPage() {
       const message = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to create client';
-      alert(message);
+      setSaveError(message);
     } finally {
       setSaving(false);
     }
@@ -164,8 +169,14 @@ export default function ClientsPage() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t('newClient')}>
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setSaveError(null); }} title={t('newClient')}>
         <form onSubmit={handleSave} className="space-y-4">
+          {saveError && (
+            <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{saveError}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: t('companyName') + ' *', key: 'name', type: 'text', required: true },
