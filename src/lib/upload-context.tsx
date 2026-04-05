@@ -300,11 +300,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       let { uploadUrl, driveFolderId, clientFolderName, renamedFileName } = item;
 
       if (!uploadUrl) {
+        // Sanitize file name: replace spaces and keep only safe characters
+        const safeFileName = item.file.name.replace(/\s+/g, '_');
+
         const sessionRes = await fetch('/api/assets/upload-session', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fileName:       item.file.name,
+            fileName:       safeFileName,
             fileType:       item.file.type || 'application/octet-stream',
             fileSize:       item.file.size,
             clientName:     item.clientName,
@@ -317,7 +320,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           signal: ctrl.signal,
         });
 
-        const sessionJson = await sessionRes.json() as {
+        console.log('[upload] session response — status:', sessionRes.status, '| ok:', sessionRes.ok);
+
+        let sessionJson: {
           success: boolean;
           error?: string;
           uploadUrl?: string;
@@ -325,6 +330,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           client_folder_name?: string;
           renamedFileName?: string;
         };
+        try {
+          sessionJson = await sessionRes.json();
+          console.log('[upload] session json:', sessionJson);
+        } catch (parseErr) {
+          throw new Error(`Invalid response from server when creating upload session (HTTP ${sessionRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+        }
 
         if (!sessionRes.ok || !sessionJson.success) {
           throw new Error(sessionJson.error ?? `Session creation failed (HTTP ${sessionRes.status})`);
@@ -381,7 +392,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           driveFileId,
           driveFolderId,
           clientFolderName,
-          fileName:    renamedFileName ?? item.file.name,
+          fileName:    renamedFileName ?? item.file.name.replace(/\s+/g, '_'),
           fileType:    item.file.type  || null,
           fileSize:    item.file.size  || null,
           contentType: item.contentType,
@@ -393,7 +404,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         signal: ctrl.signal,
       });
 
-      const completeJson = await completeRes.json() as {
+      console.log('[upload] finalize response — status:', completeRes.status, '| ok:', completeRes.ok);
+
+      let completeJson: {
         success: boolean;
         error?: string;
         asset?: Asset;
@@ -401,8 +414,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         drive_success?: boolean;
         drive_file_id?: string;
       };
-
-      console.log('[upload] finalize response — ok:', completeRes.ok, '| status:', completeRes.status, '| success:', completeJson.success, '| drive_success:', completeJson.drive_success ?? false, '| assetId:', completeJson.asset?.id ?? 'none');
+      try {
+        completeJson = await completeRes.json();
+        console.log('[upload] finalize json — success:', completeJson.success, '| drive_success:', completeJson.drive_success ?? false, '| assetId:', completeJson.asset?.id ?? 'none');
+      } catch (parseErr) {
+        throw new Error(`Invalid response from server when finalizing upload (HTTP ${completeRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+      }
 
       if (!completeRes.ok || !completeJson.success) {
         if (completeJson.drive_success) {
