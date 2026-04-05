@@ -558,7 +558,43 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, t }: { task: Task 
 
 const FETCH_TIMEOUT_MS = 15_000;
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
+// Accent-soft fallback color for filter active states (matches --accent-soft CSS var)
+const ACCENT_SOFT = 'var(--accent-soft, #ede9fe)';
+
+// ─── FilterSelect ─────────────────────────────────────────────────────────────
+// Styled chip-like select wrapper used for the dropdown filter controls.
+
+interface FilterSelectProps {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}
+
+function FilterSelect({ value, onChange, children }: FilterSelectProps) {
+  const isActive = !!value;
+  return (
+    <div className="relative inline-flex items-center">
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="h-8 pl-3 pr-7 rounded-full text-xs appearance-none outline-none cursor-pointer transition-all"
+        style={{
+          background: isActive ? ACCENT_SOFT : 'var(--surface)',
+          color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+          border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+        }}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        size={12}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)' }}
+      />
+    </div>
+  );
+}
+
 
 export default function TasksPage() {
   const { t } = useLang();
@@ -591,22 +627,29 @@ export default function TasksPage() {
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── fetch ────────────────────────────────────────────────────────────────
-  const fetchAll = useCallback(async () => {
-    setFetchError(null);
+  // silent=true → background refresh after mutations; no loading spinner,
+  // no error banner, and existing data is NOT cleared on failure.
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setFetchError(null);
+    }
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-      });
-
-      const settled = await Promise.race([
-        Promise.allSettled([
-          supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
-          supabase.from('clients').select('id,name').order('name'),
-          supabase.from('team_members').select('*').order('name'),
-        ]),
-        timeoutPromise,
+      const dataPromise = Promise.allSettled([
+        supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
+        supabase.from('clients').select('id,name').order('name'),
+        supabase.from('team_members').select('*').order('name'),
       ]);
+
+      const settled = silent
+        ? await dataPromise
+        : await Promise.race([
+            dataPromise,
+            new Promise<never>((_, reject) => {
+              timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+            }),
+          ]);
 
       const [tasksRes, clientsRes, teamRes] = settled;
 
@@ -614,33 +657,37 @@ export default function TasksPage() {
         setTasks((tasksRes.value.data ?? []) as Task[]);
       } else {
         console.error('[tasks] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
-        setTasks([]);
+        if (!silent) setTasks([]);
       }
       if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
         setClients((clientsRes.value.data ?? []) as Client[]);
       } else {
         console.error('[tasks] clients fetch error:', clientsRes.status === 'rejected' ? clientsRes.reason : clientsRes.value.error);
-        setClients([]);
+        if (!silent) setClients([]);
       }
       if (teamRes.status === 'fulfilled' && !teamRes.value.error) {
         setTeam((teamRes.value.data ?? []) as TeamMember[]);
       } else {
         console.error('[tasks] team fetch error:', teamRes.status === 'rejected' ? teamRes.reason : teamRes.value.error);
-        setTeam([]);
+        if (!silent) setTeam([]);
       }
     } catch (err) {
-      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-      const msg = isTimeout
-        ? 'Tasks data took too long to load. Please refresh the page.'
-        : 'Failed to load tasks. Please try again.';
-      console.error('[tasks] fetchAll error:', err);
-      setFetchError(msg);
-      setTasks([]);
-      setClients([]);
-      setTeam([]);
+      if (!silent) {
+        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+        const msg = isTimeout
+          ? 'Tasks data took too long to load. Please refresh the page.'
+          : 'Failed to load tasks. Please try again.';
+        console.error('[tasks] fetchAll error:', err);
+        setFetchError(msg);
+        setTasks([]);
+        setClients([]);
+        setTeam([]);
+      } else {
+        console.warn('[tasks] silent refresh failed (ignored):', err);
+      }
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -689,7 +736,7 @@ export default function TasksPage() {
       });
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
-      fetchAll();
+      fetchAll(true);
     } catch (err: unknown) {
       console.error('[task create]', err);
       const msg = err instanceof Error
@@ -746,7 +793,7 @@ export default function TasksPage() {
         client_id: editForm.client_id || null,
       });
       setEditTask(null);
-      fetchAll();
+      fetchAll(true);
     } catch (err: unknown) {
       console.error('[task update]', err);
       const msg = err instanceof Error
@@ -850,63 +897,61 @@ export default function TasksPage() {
         />
       </div>
 
-      {/* Status tabs */}
-      <div className="flex gap-1 flex-wrap">
-        {statuses.map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className="h-8 px-3 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: statusFilter === s ? 'var(--accent)' : 'var(--surface)',
-              color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            {s === 'all' ? 'All' : statusLabel(s, t)}
-            {s !== 'all' && (
-              <span className="ml-1.5 opacity-70">{tasks.filter(tk => tk.status === s).length}</span>
-            )}
-          </button>
-        ))}
+      {/* Status chips */}
+      <div className="flex gap-2 flex-wrap items-center">
+        {statuses.map(s => {
+          const isActive = statusFilter === s;
+          const count = s !== 'all' ? tasks.filter(tk => tk.status === s).length : null;
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-xs font-medium transition-all"
+              style={{
+                background: isActive ? 'var(--accent)' : 'var(--surface)',
+                color: isActive ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
+              }}
+            >
+              {s === 'all' ? 'All' : statusLabel(s, t)}
+              {count !== null && (
+                <span
+                  className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold"
+                  style={{
+                    background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Advanced filters */}
-      <div className="flex flex-wrap gap-3">
-        <select
-          value={clientFilter}
-          onChange={e => setClientFilter(e.target.value)}
-          className="h-8 px-3 rounded-lg text-xs outline-none"
-          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-        >
+      {/* Dropdown filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <FilterSelect value={clientFilter} onChange={setClientFilter}>
           <option value="">{t('allClients')}</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select
-          value={assignedFilter}
-          onChange={e => setAssignedFilter(e.target.value)}
-          className="h-8 px-3 rounded-lg text-xs outline-none"
-          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-        >
+        </FilterSelect>
+        <FilterSelect value={assignedFilter} onChange={setAssignedFilter}>
           <option value="">{t('allMembers')}</option>
           {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-        <select
-          value={priorityFilter}
-          onChange={e => setPriorityFilter(e.target.value)}
-          className="h-8 px-3 rounded-lg text-xs outline-none"
-          style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-        >
+        </FilterSelect>
+        <FilterSelect value={priorityFilter} onChange={setPriorityFilter}>
           <option value="">{t('allPriorities')}</option>
           <option value="high">{t('high')}</option>
           <option value="medium">{t('medium')}</option>
           <option value="low">{t('low')}</option>
-        </select>
+        </FilterSelect>
         {(clientFilter || assignedFilter || priorityFilter || searchQuery) && (
           <button
             onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setSearchQuery(''); }}
-            className="h-8 px-3 rounded-lg text-xs"
-            style={{ color: 'var(--accent)' }}
+            className="inline-flex items-center h-8 px-3.5 rounded-full text-xs font-medium transition-all"
+            style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
           >
             Clear filters
           </button>
@@ -920,7 +965,7 @@ export default function TasksPage() {
             <div key={i} className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : fetchError ? null : filtered.length === 0 ? (
         <EmptyState
           icon={CheckSquare}
           title={t('noTasksYet')}
