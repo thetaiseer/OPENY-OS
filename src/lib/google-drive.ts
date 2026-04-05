@@ -564,6 +564,8 @@ export interface DriveFileMeta {
   modified_time: string | null;
   web_view_link: string | null;
   web_content_link: string | null;
+  /** Drive thumbnail URL returned by the list API (may be null for private/new files). */
+  thumbnail_link: string | null;
   client_folder_name: string;
   content_type: string;
   year: string;
@@ -601,7 +603,7 @@ async function listSyncFiles(
   const safeId = escapeDriveQueryString(parentId);
   const res = await drive.files.list({
     q: `'${safeId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink)',
+    fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,thumbnailLink)',
     spaces: 'drive',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
@@ -752,6 +754,7 @@ export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
               modified_time: file.modifiedTime ?? null,
               web_view_link: file.webViewLink ?? null,
               web_content_link: file.webContentLink ?? null,
+              thumbnail_link: file.thumbnailLink ?? null,
               client_folder_name: clientFolderName,
               content_type: contentType,
               year,

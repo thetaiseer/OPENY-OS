@@ -393,10 +393,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         success: boolean;
         error?: string;
         asset?: Asset;
+        /** true when Drive upload succeeded but DB insert failed */
+        drive_success?: boolean;
+        drive_file_id?: string;
       };
 
       if (!completeRes.ok || !completeJson.success) {
-        throw new Error(completeJson.error ?? `Finalize failed (HTTP ${completeRes.status})`);
+        // If the file reached Drive but the DB insert failed, surface a clear
+        // message so the user knows to run "Sync Drive" to recover it.
+        const errorMsg = completeJson.error ?? `Finalize failed (HTTP ${completeRes.status})`;
+        if (completeJson.drive_success) {
+          throw new Error(errorMsg);
+        }
+        throw new Error(errorMsg);
       }
 
       d({ type: 'UPDATE', id: item.id, patch: { status: 'completed', progress: 100 } });
