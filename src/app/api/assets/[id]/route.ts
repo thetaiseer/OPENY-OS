@@ -53,6 +53,13 @@ export async function DELETE(
   // ── 2. Delete from Google Drive (only if stored there) ───────────────────
   let warning: string | undefined;
 
+  if (asset.storage_provider === 'google_drive' && !asset.drive_file_id) {
+    console.warn('[asset-delete] drive_file_id is missing for a google_drive asset – skipping Drive deletion and proceeding with DB delete', {
+      assetId: asset.id,
+      storageProvider: asset.storage_provider,
+    });
+  }
+
   if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
     try {
       await deleteFromDrive(asset.drive_file_id as string);
