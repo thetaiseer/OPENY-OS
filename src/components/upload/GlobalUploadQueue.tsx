@@ -83,7 +83,8 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
 function QueueRow({ item }: { item: UploadQueueItem }) {
   const { pauseItem, resumeItem, retryItem, removeItem } = useUpload();
   const isActive   = ['preparing', 'uploading', 'retrying', 'saving'].includes(item.status);
-  const isComplete = item.status === 'completed';
+  const isComplete = item.status === 'completed' && !item.error;
+  const isWarning  = item.status === 'completed' && !!item.error;
   const isFailed   = item.status === 'failed';
   const isPaused   = item.status === 'paused';
   const fileSize   = item.file?.size ?? 0;
@@ -115,6 +116,7 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
             {getDisplayName(item)}
           </p>
           {isComplete && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
+          {isWarning   && <AlertCircle size={13} style={{ color: '#f59e0b', flexShrink: 0 }} />}
           {isFailed    && <AlertCircle size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
           {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
         </div>
@@ -145,7 +147,12 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
           </div>
         )}
 
-        {/* Error */}
+        {/* Error / warning message */}
+        {isWarning && item.error && (
+          <p className="text-xs leading-tight line-clamp-3" style={{ color: '#f59e0b', opacity: 0.9 }}>
+            {item.error}
+          </p>
+        )}
         {isFailed && item.error && (
           <p className="text-xs leading-tight line-clamp-2" style={{ color: '#ef4444', opacity: 0.85 }}>
             {item.error}
@@ -195,7 +202,8 @@ export default function GlobalUploadQueue() {
 
   if (queue.length === 0) return null;
 
-  const completed  = queue.filter(i => i.status === 'completed').length;
+  const completed  = queue.filter(i => i.status === 'completed' && !i.error).length;
+  const warned     = queue.filter(i => i.status === 'completed' && !!i.error).length;
   const failed     = queue.filter(i => i.status === 'failed').length;
   const active     = queue.filter(i => ['preparing', 'uploading', 'retrying', 'saving'].includes(i.status)).length;
   const overallPct = queue.length > 0
@@ -207,8 +215,12 @@ export default function GlobalUploadQueue() {
   const titleText = active > 0
     ? `Uploading ${active} file${active !== 1 ? 's' : ''}…`
     : allDone
-    ? `${completed} uploaded${failed > 0 ? ` · ${failed} failed` : ' ✓'}`
-    : `${completed}/${queue.length} files`;
+    ? [
+        completed + warned > 0 && `${completed + warned} uploaded`,
+        warned > 0 && `${warned} saved to Drive only`,
+        failed > 0 && `${failed} failed`,
+      ].filter(Boolean).join(' · ') || 'Done'
+    : `${completed + warned}/${queue.length} files`;
 
   return (
     <div
@@ -235,15 +247,19 @@ export default function GlobalUploadQueue() {
           style={{
             background: active > 0
               ? 'var(--accent-soft)'
-              : allDone && failed === 0
+              : allDone && failed === 0 && warned === 0
               ? 'rgba(22,163,74,0.10)'
+              : allDone && failed === 0 && warned > 0
+              ? 'rgba(245,158,11,0.12)'
               : 'var(--surface)',
           }}
         >
           {active > 0
             ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-            : allDone && failed === 0
+            : allDone && failed === 0 && warned === 0
             ? <CheckCircle size={14} style={{ color: '#16a34a' }} />
+            : allDone && failed === 0 && warned > 0
+            ? <AlertCircle size={14} style={{ color: '#f59e0b' }} />
             : <Upload size={14} style={{ color: 'var(--accent)' }} />
           }
         </div>
