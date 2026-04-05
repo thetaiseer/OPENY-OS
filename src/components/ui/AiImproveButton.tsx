@@ -19,25 +19,48 @@ import { Sparkles, Loader2, ChevronDown } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ImproveAction = 'improve' | 'professional' | 'shorten' | 'expand';
+export type ImproveAction = 'improve' | 'professional' | 'shorten' | 'expand' | 'name';
 
-const ACTION_LABELS: Record<ImproveAction, string> = {
+const ACTION_LABELS: Record<Exclude<ImproveAction, 'name'>, string> = {
   improve:      'Improve writing',
   professional: 'Make professional',
   shorten:      'Shorten',
   expand:       'Expand',
 };
 
+/** Count whitespace-separated words. */
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Resolve the action to send based on the mode and text length.
+ *  - 'name' mode → always send 'name' action (spelling + title case)
+ *  - 'auto' mode → send 'name' for short text (≤5 words), 'improve' otherwise
+ *  - explicit action → send as-is
+ */
+function resolveAction(
+  text: string,
+  mode: 'auto' | 'name',
+  action: ImproveAction,
+): ImproveAction {
+  if (mode === 'name') return 'name';
+  if (mode === 'auto' && action === 'improve' && countWords(text) <= 5) return 'name';
+  return action;
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAiImprove() {
-  const [improving, setImproving] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const [improving, setImproving]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   const improve = async (text: string, action: ImproveAction = 'improve'): Promise<string | null> => {
     if (!text.trim()) return null;
     setImproving(true);
     setError(null);
+    setUnavailable(false);
     try {
       const res = await fetch('/api/ai/improve', {
         method:  'POST',
@@ -46,6 +69,11 @@ export function useAiImprove() {
       });
       const json = await res.json() as { success: boolean; improved?: string; error?: string };
       if (!json.success) {
+        if (res.status === 503) {
+          // AI not configured — mark as unavailable instead of showing error popup
+          setUnavailable(true);
+          return null;
+        }
         setError(json.error ?? `AI improvement failed (HTTP ${res.status})`);
         return null;
       }
@@ -58,7 +86,7 @@ export function useAiImprove() {
     }
   };
 
-  return { improve, improving, error, clearError: () => setError(null) };
+  return { improve, improving, error, clearError: () => setError(null), unavailable };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -70,6 +98,12 @@ interface AiImproveButtonProps {
   onImproved: (improved: string) => void;
   /** Show full action menu instead of single button (default: false) */
   showMenu?: boolean;
+  /**
+   * Controls which AI action is used.
+   *  - 'auto' (default): uses 'name' for short text (≤5 words), 'improve' for longer
+   *  - 'name': always use the short-text action (spelling fix + title case + light polish)
+   */
+  mode?: 'auto' | 'name';
   /** Extra class names for the button */
   className?: string;
 }
@@ -78,18 +112,40 @@ export default function AiImproveButton({
   value,
   onImproved,
   showMenu = false,
+  mode = 'auto',
   className = '',
 }: AiImproveButtonProps) {
-  const { improve, improving, error, clearError } = useAiImprove();
+  const { improve, improving, error, clearError, unavailable } = useAiImprove();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleAction = async (action: ImproveAction) => {
     setMenuOpen(false);
-    const result = await improve(value, action);
+    const resolved = resolveAction(value, mode, action);
+    const result = await improve(value, resolved);
     if (result) onImproved(result);
   };
 
   const disabled = improving || !value.trim();
+
+  // When AI is not configured, show a clearly disabled button with a tooltip.
+  if (unavailable) {
+    return (
+      <button
+        type="button"
+        disabled
+        title="AI writing is not configured (OPENAI_API_KEY is not set)"
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium opacity-30 cursor-not-allowed ${className}`}
+        style={{
+          background: 'var(--accent-soft)',
+          color: 'var(--accent)',
+          border: '1px solid transparent',
+        }}
+      >
+        <Sparkles size={12} />
+        AI
+      </button>
+    );
+  }
 
   if (showMenu) {
     return (
@@ -139,7 +195,7 @@ export default function AiImproveButton({
               className="absolute top-full right-0 mt-1 z-50 rounded-xl border overflow-hidden shadow-xl min-w-36"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
-              {(Object.entries(ACTION_LABELS) as [ImproveAction, string][]).map(([action, label]) => (
+              {(Object.entries(ACTION_LABELS) as [Exclude<ImproveAction, 'name'>, string][]).map(([action, label]) => (
                 <button
                   key={action}
                   type="button"

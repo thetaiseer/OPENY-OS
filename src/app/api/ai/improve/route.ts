@@ -5,9 +5,22 @@ export type ImproveAction =
   | 'improve'
   | 'professional'
   | 'shorten'
-  | 'expand';
+  | 'expand'
+  | 'name';
 
 const ACTION_INSTRUCTION: Record<ImproveAction, string> = {
+  /**
+   * Smart short-text action: fix spelling, apply Title Case, clean formatting.
+   * Keeps acronyms uppercase, preserves language, never translates.
+   */
+  name:
+    'You are a professional proofreader and formatter for short names and labels. ' +
+    'Fix any spelling mistakes, apply proper Title Case capitalization, clean up formatting, ' +
+    'and make the text polished and professional. ' +
+    'Keep well-known acronyms (like QR, SEO, UI, UX, PDF, API, HR) in UPPERCASE. ' +
+    'For Arabic text, improve wording and fix obvious writing issues without changing the meaning. ' +
+    'Preserve the original language — do NOT translate under any circumstances. ' +
+    'Return ONLY the improved text, nothing else.',
   improve:
     'Improve the writing to make it clearer, more polished, and better structured. Preserve the original meaning and language. Do not translate.',
   professional:
@@ -17,6 +30,11 @@ const ACTION_INSTRUCTION: Record<ImproveAction, string> = {
   expand:
     'Expand the text with more detail and context while preserving the original meaning and language.',
 };
+
+/** Count whitespace-separated words in a string. */
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
 
 /**
  * POST /api/ai/improve
@@ -65,7 +83,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const instruction = ACTION_INSTRUCTION[action as ImproveAction];
+    // Auto-upgrade short text: when action is 'improve' and text is ≤5 words,
+    // use the 'name' prompt (spelling + title case + light polish) instead of the
+    // full rewrite prompt, which would over-generate for short names and labels.
+    const resolvedAction: ImproveAction =
+      (action as ImproveAction) === 'improve' && countWords(text as string) <= 5
+        ? 'name'
+        : (action as ImproveAction);
+
+    const instruction = ACTION_INSTRUCTION[resolvedAction];
 
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
