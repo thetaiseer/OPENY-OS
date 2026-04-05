@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: `Google Drive upload failed: ${msg}` }, { status: 502 });
     }
 
-    const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink } = driveResult;
+    const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType, fileSize: driveFileSize } = driveResult;
     console.log('[upload] ✅ Google Drive upload success — file_id:', drive_file_id, '| folder_id:', drive_folder_id);
 
     // ── 6. Insert metadata into assets table ──────────────────────────────────
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       view_url:           webViewLink,
       download_url:       webContentLink,
       file_type:          file.type || null,
-      file_size:          file.size || null,
+      file_size:          (driveFileSize ?? file.size) || null,
       bucket_name:        null,
       storage_provider:   'google_drive',
       drive_file_id,
@@ -188,6 +188,10 @@ export async function POST(req: NextRequest) {
       client_folder_name: client_folder_name ?? clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
+      mime_type:          (driveMimeType ?? file.type) || null,
+      preview_url:        `https://drive.google.com/uc?export=view&id=${drive_file_id}`,
+      thumbnail_url:      thumbnailLink ?? `https://drive.google.com/thumbnail?id=${drive_file_id}&sz=w1000`,
+      web_view_link:      webViewLink,
       ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
     if (safeClientId) {

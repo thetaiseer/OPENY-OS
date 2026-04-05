@@ -263,9 +263,16 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
   }, [onClose]);
 
   const downloadUrl = asset.download_url ?? asset.file_url;
-  const isImg  = isImage(asset.name, asset.file_type);
-  const isVid  = isVideo(asset.name, asset.file_type);
-  const isPdf_ = isPdf(asset.name, asset.file_type);
+  const isImg  = isImage(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
+  const isVid  = isVideo(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
+  const isPdf_ = isPdf(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
+
+  // Prefer dedicated preview_url for inline rendering; fall back to converting file_url
+  const inlinePreviewUrl = asset.preview_url || getPreviewUrl(asset.file_url);
+  // Thumbnail for card: prefer thumbnail_url, fall back to preview_url or drive uc embed
+  const thumbnailSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
+  // Link to open file in Drive
+  const driveOpenUrl = asset.web_view_link || asset.view_url;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
@@ -278,7 +285,7 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={getPreviewUrl(asset.file_url)}
+              src={inlinePreviewUrl}
               alt={asset.name}
               className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
               onError={e => {
@@ -294,10 +301,10 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           </>
         )}
         {isVid && (
-          <video src={asset.file_url} controls className="max-w-full max-h-[80vh] rounded-xl shadow-2xl" style={{ background: '#000' }} />
+          <video src={inlinePreviewUrl || asset.file_url} controls className="max-w-full max-h-[80vh] rounded-xl shadow-2xl" style={{ background: '#000' }} />
         )}
         {isPdf_ && (
-          <iframe src={asset.view_url ?? asset.file_url} title={asset.name} className="w-full rounded-xl shadow-2xl" style={{ height: '75vh', background: '#fff' }} />
+          <iframe src={inlinePreviewUrl || asset.view_url || asset.file_url} title={asset.name} className="w-full rounded-xl shadow-2xl" style={{ height: '75vh', background: '#fff' }} />
         )}
         {!isImg && !isVid && !isPdf_ && (
           <div className="flex flex-col items-center gap-4 py-12">
@@ -311,8 +318,8 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           <a href={downloadUrl} download={asset.name} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
             <Download size={14} /> Download
           </a>
-          {asset.view_url && (
-            <a href={asset.view_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
+          {driveOpenUrl && (
+            <a href={driveOpenUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
               <ExternalLink size={14} /> Open in Drive
             </a>
           )}
@@ -338,9 +345,12 @@ interface AssetCardProps {
 }
 
 function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments }: AssetCardProps) {
-  const img      = isImage(asset.name, asset.file_type);
-  const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
+  const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
+  const img      = isImage(asset.name, effectiveMime);
+  const hasDrive = asset.storage_provider === 'google_drive' && !!(asset.web_view_link || asset.view_url);
   const downloadUrl = asset.download_url ?? asset.file_url;
+  // Use thumbnail_url for card previews (faster/lighter); fall back to preview_url then Drive uc embed
+  const cardThumbSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
   return (
     <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="relative overflow-hidden cursor-pointer" style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }} onClick={onView}>
@@ -348,7 +358,7 @@ function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink,
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={getPreviewUrl(asset.file_url)}
+              src={cardThumbSrc}
               alt={asset.name}
               className="w-full h-full object-cover"
               onError={e => {
@@ -358,12 +368,12 @@ function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink,
               }}
             />
             <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
-              <FileTypeIcon name={asset.name} type={asset.file_type} size={36} />
+              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
             </div>
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <FileTypeIcon name={asset.name} type={asset.file_type} size={36} />
+            <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
           </div>
         )}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.35)' }}>
@@ -377,7 +387,7 @@ function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink,
         <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-            {fileTypeLabel(asset.name, asset.file_type)}
+            {fileTypeLabel(asset.name, effectiveMime)}
           </span>
           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatSize(asset.file_size)}</span>
         </div>

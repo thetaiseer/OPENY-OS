@@ -84,6 +84,10 @@ export interface Asset {
   publish_date?: string | null;
   approval_status?: 'pending' | 'approved' | 'rejected' | 'scheduled' | 'published' | null;
   approval_notes?: string | null;
+  mime_type?: string | null;
+  preview_url?: string | null;
+  thumbnail_url?: string | null;
+  web_view_link?: string | null;
   created_at: string;
 }
 
