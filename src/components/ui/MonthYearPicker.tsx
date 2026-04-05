@@ -14,7 +14,7 @@
  *   className   – extra class names for the trigger button
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -45,7 +45,7 @@ export default function MonthYearPicker({
   className = '',
   clearable = false,
 }: MonthYearPickerProps) {
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const [open, setOpen] = useState(false);
 
   // Parse value into year/month

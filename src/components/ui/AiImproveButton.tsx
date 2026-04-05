@@ -46,7 +46,7 @@ export function useAiImprove() {
       });
       const json = await res.json() as { success: boolean; improved?: string; error?: string };
       if (!json.success) {
-        setError(json.error ?? 'AI improvement failed');
+        setError(json.error ?? `AI improvement failed (HTTP ${res.status})`);
         return null;
       }
       return json.improved ?? null;

@@ -681,7 +681,14 @@ export default function ClientWorkspace() {
               >
                 <Upload size={14} />{t('uploadFile')}
               </button>
-              <input ref={fileRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                aria-label="Upload files"
+                className="hidden"
+                onChange={handleFileChosen}
+              />
             </div>
 
 
