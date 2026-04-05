@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('assets')
       .select('*')
+      .neq('is_deleted', true)
       .order('created_at', { ascending: false })
       .range(from, to);
 
