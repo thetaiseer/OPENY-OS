@@ -113,7 +113,18 @@ ALTER TABLE public.assets
   ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
   ADD COLUMN IF NOT EXISTS web_view_link TEXT;
 
--- ── 8. Ensure nullable columns that were originally NOT NULL are relaxed ──────
+-- ── 8. Bidirectional-sync tracking columns ───────────────────────────────────
+-- Added by supabase-migration-bidirectional-sync.sql.
+-- Repeated here so the comprehensive migration covers them too.
+ALTER TABLE public.assets
+  ADD COLUMN IF NOT EXISTS last_synced_at    TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS is_deleted        BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS assets_is_deleted_idx   ON public.assets (is_deleted);
+CREATE INDEX IF NOT EXISTS assets_last_synced_at_idx ON public.assets (last_synced_at);
+
+-- ── 9. Ensure nullable columns that were originally NOT NULL are relaxed ──────
 -- Needed if the table was created from the old supabase-schema.sql where
 -- file_url was NOT NULL and bucket_name had a DEFAULT (later dropped to nullable).
 ALTER TABLE public.assets
