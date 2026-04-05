@@ -17,7 +17,8 @@ const statusVariant = (s: string) => {
   return 'info' as const;
 };
 
-const WARN_TOAST_BG = '#d97706';
+const WARN_TOAST_BG    = '#d97706';
+const SUCCESS_TOAST_BG = '#16a34a';
 
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -33,6 +34,7 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [warnMsg, setWarnMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
@@ -105,65 +107,75 @@ export default function ClientsPage() {
     setSaving(true);
     setSaveError(null);
 
-    // Timeout-safe protection: fail gracefully if request hangs
+    // Timeout-safe protection: fail gracefully if the API call hangs.
+    // NOTE: clearTimeout is in the finally block so it always runs.
     const timeoutMs = 15_000;
-    let timeoutHandle: number | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutHandle = window.setTimeout(
-        () => reject(new Error('Request timed out. Please try again.')),
-        timeoutMs,
-      ) as unknown as number;
-    });
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
     try {
-      // Log auth user, profile, and resolved role for debugging
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('[client create] auth user id:', user?.id ?? 'none');
-      if (user?.id) {
-        const { data: profile, error: profileErr } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profileErr) console.warn('[client create] profile fetch error:', profileErr);
-        else console.log('[client create] fetched profile:', profile, '| resolved role:', profile?.role ?? 'unknown');
+      console.log('[client create] form submit started', { name: form.name });
+      console.log('[client create] request payload:', JSON.stringify(form));
+
+      const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('Request timed out. Please try again.')),
+          timeoutMs,
+        );
+        fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        }).then(resolve, reject);
+      });
+
+      const res = await fetchWithTimeout;
+      let result: { success: boolean; client?: { id?: string }; step?: string; error?: string };
+      try {
+        result = await res.json() as typeof result;
+      } catch {
+        throw new Error(`Server returned status ${res.status} with non-JSON body`);
       }
 
-      console.log('[client create] before insert', { name: form.name });
-      const { data, error } = await Promise.race([
-        supabase.from('clients').insert(form).select().single(),
-        timeoutPromise,
-      ]);
-      clearTimeout(timeoutHandle);
-      if (error) throw error;
-      console.log('[client create] after insert, id:', data?.id);
+      console.log('[client create] API response:', JSON.stringify(result));
 
-      // Close modal and reset form immediately after successful insert
-      console.log('[client create] before modal close');
+      if (!result.success) {
+        const step  = result.step  ? ` [${result.step}]` : '';
+        const msg   = result.error ?? 'Failed to create client';
+        throw new Error(`${msg}${step}`);
+      }
+
+      console.log('[client create] insert success, id:', result.client?.id);
+
+      // — SUCCESS PATH —
+      // Close modal and reset form immediately; the list refresh is non-blocking.
       setModalOpen(false);
       setForm({ name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '' });
-      console.log('[client create] after modal close');
+
+      // Show success toast (auto-dismiss after 4 s)
+      setSuccessMsg(`Client "${form.name}" created successfully.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
 
       // Fire-and-forget activity log — never blocks the UI
-      logActivity(`Client "${form.name}" created`, data?.id);
+      logActivity(`Client "${form.name}" created`, result.client?.id);
 
-      // Refresh list non-blocking — show warning if it fails but don't block modal
-      console.log('[client create] before fetchClients');
+      // Refresh list non-blocking — show warning if it fails, but never block modal
+      console.log('[client create] triggering list refetch');
       void fetchClients().then(ok => {
-        console.log('[client create] after fetchClients, ok:', ok);
+        console.log('[client create] list refetch result, ok:', ok);
         if (!ok) {
           setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
           setTimeout(() => setWarnMsg(null), 6000);
         }
       });
     } catch (err: unknown) {
-      clearTimeout(timeoutHandle);
       console.error('[client create] error:', err);
       const message = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to create client';
       setSaveError(message);
     } finally {
+      // Always clear the timeout and reset loading — no matter what happened above.
+      clearTimeout(timeoutHandle);
       setSaving(false);
     }
   };
@@ -267,6 +279,16 @@ export default function ClientsPage() {
           <AlertCircle size={16} className="shrink-0" />
           <span className="flex-1">{warnMsg}</span>
           <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: SUCCESS_TOAST_BG, minWidth: 280 }}>
+          <AlertCircle size={16} className="shrink-0" />
+          <span className="flex-1">{successMsg}</span>
+          <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
             <X size={14} />
           </button>
         </div>
