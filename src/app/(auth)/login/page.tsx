@@ -32,6 +32,9 @@ function LoginForm() {
       return;
     }
 
+    // Register session asynchronously (non-blocking — don't fail login on error)
+    fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => {});
+
     const next = searchParams.get('next') ?? '/dashboard';
     router.push(next);
     router.refresh();
