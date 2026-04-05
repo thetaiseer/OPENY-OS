@@ -174,7 +174,7 @@ function FileRow({
           <AiImproveButton
             value={item.uploadName}
             onImproved={onChangeName}
-            showMenu={false}
+            mode="name"
           />
         </div>
         <input
