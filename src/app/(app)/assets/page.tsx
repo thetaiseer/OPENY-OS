@@ -354,6 +354,11 @@ function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, 
   const [renaming, setRenaming]   = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Keep editName in sync when the asset name is updated externally (e.g. after sync).
+  useEffect(() => {
+    if (!isEditing) setEditName(asset.name);
+  }, [asset.name, isEditing]);
+
   const startEdit = () => {
     setEditName(asset.name);
     setIsEditing(true);

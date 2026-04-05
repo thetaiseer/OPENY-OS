@@ -94,6 +94,9 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 
   const dbAssets = (dbRows ?? []) as DbAsset[];
 
+  // Single timestamp for this entire sync pass — all touched records share it.
+  const syncNow = new Date().toISOString();
+
   // Build lookup maps
   const driveMap = new Map<string, DriveFileMeta>();
   for (const f of driveFiles) driveMap.set(f.drive_file_id, f);
@@ -111,7 +114,6 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       // Grant public read access so the file is viewable in the UI
       const { webViewLink, webContentLink } = await setFilePublicReadable(driveId);
 
-      const now = new Date().toISOString();
       const { error: insertError } = await supabase.from('assets').insert({
         name:               meta.name,
         file_path:          null,
@@ -129,7 +131,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         content_type:       meta.content_type,
         month_key:          meta.month_key,
         is_deleted:         false,
-        last_synced_at:     now,
+        last_synced_at:     syncNow,
         source_updated_at:  meta.modified_time ?? null,
       });
 
@@ -149,9 +151,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     const dbAsset = dbMap.get(driveId);
     if (!dbAsset) continue;
 
-    const now = new Date().toISOString();
     const updates: Record<string, unknown> = {
-      last_synced_at: now,
+      last_synced_at: syncNow,
     };
 
     let hasDataChanges = false;
@@ -216,7 +217,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       // Soft-delete: mark as deleted rather than hard-removing the DB record.
       const { error: softDeleteError } = await supabase
         .from('assets')
-        .update({ is_deleted: true, last_synced_at: new Date().toISOString() })
+        .update({ is_deleted: true, last_synced_at: syncNow })
         .eq('id', dbAsset.id);
 
       if (softDeleteError) {
