@@ -283,18 +283,20 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
 
         {isImg && (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={inlinePreviewUrl}
-              alt={asset.name}
-              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
-              onError={e => {
-                e.currentTarget.style.display = 'none';
-                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                if (fb) fb.style.display = 'flex';
-              }}
-            />
-            <div className="flex flex-col items-center gap-4 py-12" style={{ display: 'none' }}>
+            {inlinePreviewUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={inlinePreviewUrl}
+                alt={asset.name}
+                className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+                onError={e => {
+                  e.currentTarget.style.display = 'none';
+                  const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (fb) fb.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div className="flex flex-col items-center gap-4 py-12" style={{ display: inlinePreviewUrl ? 'none' : 'flex' }}>
               <FileTypeIcon name={asset.name} type={asset.file_type} size={64} />
               <p className="text-white/80 text-sm">{asset.name}</p>
             </div>
@@ -349,12 +351,13 @@ function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink,
   const img      = isImage(asset.name, effectiveMime);
   const hasDrive = asset.storage_provider === 'google_drive' && !!(asset.web_view_link || asset.view_url);
   const downloadUrl = asset.download_url ?? asset.file_url;
-  // Use thumbnail_url for card previews (faster/lighter); fall back to preview_url then Drive uc embed
+  // Use thumbnail_url for card previews (faster/lighter); fall back to preview_url then Drive uc embed.
+  // If all are empty we skip the <img> entirely and go straight to the icon fallback.
   const cardThumbSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
   return (
     <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="relative overflow-hidden cursor-pointer" style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }} onClick={onView}>
-        {img ? (
+        {img && cardThumbSrc ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

@@ -111,7 +111,9 @@ export async function POST(req: NextRequest) {
     // ── Insert asset record in Supabase ───────────────────────────────────────
     console.log('[upload-complete] inserting into assets table…');
     const supabase = getSupabase();
-    const row: Record<string, unknown> = {
+
+    // Required fields — upload must not succeed without these.
+    const requiredRow: Record<string, unknown> = {
       name:               fileName,
       file_path:          null,
       file_url:           webViewLink,
@@ -127,30 +129,56 @@ export async function POST(req: NextRequest) {
       client_folder_name: clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
-      mime_type:          driveMimeType ?? (typeof fileType === 'string' && fileType ? fileType : null),
-      preview_url:        buildPreviewUrl(driveFileId),
-      thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
-      web_view_link:      webViewLink,
       ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
-    if (safeClientId) row.client_id = safeClientId;
+    if (safeClientId) requiredRow.client_id = safeClientId;
+
+    // Optional preview metadata — if these columns are missing from the DB
+    // schema (error code 42703) we retry without them so the upload still
+    // succeeds.  Run supabase-migration-missing-columns.sql to add them.
+    const previewFields: Record<string, unknown> = {
+      mime_type:     driveMimeType ?? (typeof fileType === 'string' && fileType ? fileType : null),
+      preview_url:   buildPreviewUrl(driveFileId),
+      thumbnail_url: buildThumbnailUrl(driveFileId, thumbnailLink),
+      web_view_link: webViewLink,
+    };
 
     let inserted: Record<string, unknown>;
     try {
       const { data, error: dbError } = await supabase
         .from('assets')
-        .insert(row)
+        .insert({ ...requiredRow, ...previewFields })
         .select()
         .single();
 
-      if (dbError) {
+      if (dbError?.code === '42703') {
+        console.warn(
+          '[upload-complete] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
+          ' Run supabase-migration-missing-columns.sql to add the missing columns.',
+        );
+        const { data: retryData, error: retryError } = await supabase
+          .from('assets')
+          .insert(requiredRow)
+          .select()
+          .single();
+
+        if (retryError) {
+          console.error('[upload-complete] ❌ DB insert failed (retry):', retryError.message);
+          return NextResponse.json(
+            { success: false, error: `Failed to save asset metadata: ${retryError.message}${retryError.details ? ` — ${retryError.details}` : ''}` },
+            { status: 500 },
+          );
+        }
+        inserted = retryData as Record<string, unknown>;
+      } else if (dbError) {
         console.error('[upload-complete] ❌ DB insert failed:', dbError.message);
         return NextResponse.json(
           { success: false, error: `Failed to save asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}` },
           { status: 500 },
         );
+      } else {
+        inserted = data as Record<string, unknown>;
       }
-      inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ DB insert exception:', msg);

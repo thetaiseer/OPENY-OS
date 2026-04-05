@@ -172,7 +172,9 @@ export async function POST(req: NextRequest) {
     // ── 6. Insert metadata into assets table ──────────────────────────────────
     console.log('[upload] inserting into assets table…');
     const supabase = getSupabase();
-    const row: Record<string, unknown> = {
+
+    // Required fields — upload must not succeed without these.
+    const requiredRow: Record<string, unknown> = {
       name:               renamedFileName,
       file_path:          null,
       file_url:           webViewLink,
@@ -188,23 +190,44 @@ export async function POST(req: NextRequest) {
       client_folder_name: client_folder_name ?? clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
-      mime_type:          (driveMimeType ?? file.type) || null,
-      preview_url:        buildPreviewUrl(drive_file_id),
-      thumbnail_url:      buildThumbnailUrl(drive_file_id, thumbnailLink),
-      web_view_link:      webViewLink,
       ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
     if (safeClientId) {
-      row.client_id = safeClientId;
+      requiredRow.client_id = safeClientId;
     }
+
+    // Optional preview metadata — if these columns are missing from the DB
+    // schema (error code 42703) we retry without them so the upload still
+    // succeeds.  Run supabase-migration-missing-columns.sql to add them.
+    const previewFields: Record<string, unknown> = {
+      mime_type:     (driveMimeType ?? file.type) || null,
+      preview_url:   buildPreviewUrl(drive_file_id),
+      thumbnail_url: buildThumbnailUrl(drive_file_id, thumbnailLink),
+      web_view_link: webViewLink,
+    };
 
     let inserted: Record<string, unknown>;
     try {
-      const { data, error: dbError } = await supabase
+      let row = { ...requiredRow, ...previewFields };
+      let { data, error: dbError } = await supabase
         .from('assets')
         .insert(row)
         .select()
         .single();
+
+      // Retry without optional preview columns if the schema is outdated
+      // (PostgreSQL error 42703 = undefined_column).
+      if (dbError?.code === '42703') {
+        console.warn(
+          '[upload] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
+          ' Run supabase-migration-missing-columns.sql to add the missing columns.',
+        );
+        ({ data, error: dbError } = await supabase
+          .from('assets')
+          .insert(requiredRow)
+          .select()
+          .single());
+      }
 
       if (dbError) {
         console.error('[upload] ❌ Failed while inserting asset metadata:', dbError.message, dbError.details ?? '');
