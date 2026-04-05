@@ -14,18 +14,19 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const supabase = createClient();
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    const supabaseClient = createClient();
+
     // ── 1. Check if the current session has been revoked ─────────────────────
     async function checkRevocation() {
       try {
         const res = await fetch('/api/auth/sessions/check', { credentials: 'include' });
         if (res.status === 401) {
           // Session revoked — sign out and redirect
-          await supabase.auth.signOut();
+          await supabaseClient.auth.signOut();
           window.location.replace('/login');
         }
       } catch { /* ignore network errors */ }
@@ -49,7 +50,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       if (checkTimer.current)    clearInterval(checkTimer.current);
       if (activityTimer.current) clearInterval(activityTimer.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
