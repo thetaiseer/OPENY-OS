@@ -4,14 +4,14 @@
  * GlobalUploadQueue — Fixed-position upload progress panel.
  *
  * Mounted once in the app layout so it stays visible across all routes.
- * Shows the current upload queue, per-file progress, and action buttons
+ * Shows the current upload queue with per-file progress and action buttons
  * (pause, resume, retry, remove).  The panel can be minimised to a compact
  * status bar.
  */
 
 import { useState } from 'react';
 import {
-  Upload, X, ChevronDown, ChevronUp, CheckCircle, AlertCircle,
+  Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle,
   Loader2, Pause, Play, RotateCcw, Trash2, File, FileImage,
   FileText, FileVideo, FileAudio,
 } from 'lucide-react';
@@ -28,7 +28,7 @@ function formatSize(bytes: number): string {
 
 function isImageFile(name: string, type?: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) ||
-         (type?.startsWith('image/') ?? false);
+    (type?.startsWith('image/') ?? false);
 }
 
 function getDisplayName(item: UploadQueueItem): string {
@@ -41,11 +41,12 @@ function getDisplayName(item: UploadQueueItem): string {
   return base.toLowerCase().endsWith(ext.toLowerCase()) ? base : `${base}${ext}`;
 }
 
-function FileIcon({ item }: { item: UploadQueueItem }) {
+function FileTypeIcon({ item }: { item: UploadQueueItem }) {
   const name = item.file?.name ?? item.renamedFileName ?? '';
   const type = item.file?.type;
-  const sz   = 14;
-  if (isImageFile(name, type)) return <FileImage size={sz} style={{ color: '#3b82f6' }} />;
+  const sz = 13;
+  if (isImageFile(name, type))
+    return <FileImage size={sz} style={{ color: '#3b82f6' }} />;
   if (/\.pdf$/i.test(name) || type === 'application/pdf')
     return <FileText size={sz} style={{ color: '#ef4444' }} />;
   if (/\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type?.startsWith('video/'))
@@ -62,16 +63,20 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
   paused:    'Paused',
   retrying:  'Retrying…',
   saving:    'Saving…',
-  completed: 'Done',
+  completed: 'Complete',
   failed:    'Failed',
 };
 
-function statusColor(s: UploadStatus): string {
-  if (s === 'completed') return '#16a34a';
-  if (s === 'failed')    return '#ef4444';
-  if (s === 'paused')    return '#f59e0b';
-  return 'var(--accent)';
-}
+const STATUS_COLOR: Record<UploadStatus, string> = {
+  queued:    'var(--text-secondary)',
+  preparing: 'var(--accent)',
+  uploading: 'var(--accent)',
+  paused:    '#f59e0b',
+  retrying:  '#f59e0b',
+  saving:    'var(--accent)',
+  completed: '#16a34a',
+  failed:    '#ef4444',
+};
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
 
@@ -83,106 +88,99 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
   const isPaused   = item.status === 'paused';
   const fileSize   = item.file?.size ?? 0;
 
+  const barColor = isFailed ? '#ef4444' : isPaused ? '#f59e0b' : 'var(--accent)';
+
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 rounded-xl"
+      className="flex items-start gap-2.5 p-3 rounded-xl"
       style={{ background: 'var(--surface-2)' }}
     >
       {/* Thumbnail / icon */}
       <div
-        className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg overflow-hidden"
+        className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden mt-0.5"
         style={{ background: 'var(--surface)' }}
       >
         {item.previewUrl
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={item.previewUrl} alt="" className="w-full h-full object-cover" />
-          : <FileIcon item={item} />
+          : <FileTypeIcon item={item} />
         }
       </div>
 
-      {/* Name + progress */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>
-          {getDisplayName(item)}
-        </p>
+      {/* Main content */}
+      <div className="flex-1 min-w-0 space-y-1">
+        {/* Name + status icon */}
         <div className="flex items-center gap-1.5">
+          <p className="text-xs font-semibold truncate flex-1" style={{ color: 'var(--text)' }}>
+            {getDisplayName(item)}
+          </p>
+          {isComplete && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
+          {isFailed    && <AlertCircle size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
+          {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
+        </div>
+
+        {/* Size · status · progress% */}
+        <div className="flex items-center gap-1.5 text-xs">
           {fileSize > 0 && (
-            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {formatSize(fileSize)}
-            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>{formatSize(fileSize)}</span>
           )}
-          <span
-            className="text-xs font-medium"
-            style={{ color: statusColor(item.status) }}
-          >
+          {fileSize > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
+          <span style={{ color: STATUS_COLOR[item.status], fontWeight: 600 }}>
             {STATUS_LABEL[item.status]}
           </span>
           {isActive && (
-            <span className="text-xs tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
+            <span className="tabular-nums font-bold ml-auto" style={{ color: 'var(--accent)' }}>
               {item.progress}%
             </span>
           )}
         </div>
+
         {/* Progress bar */}
         {(isActive || isPaused) && (
-          <div className="w-full h-1 rounded-full" style={{ background: 'var(--border)' }}>
+          <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'var(--border)' }}>
             <div
-              className="h-1 rounded-full transition-all duration-300"
-              style={{
-                width: `${item.progress}%`,
-                background: isPaused ? '#f59e0b' : 'var(--accent)',
-              }}
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${item.progress}%`, background: barColor }}
             />
           </div>
         )}
+
+        {/* Error */}
         {isFailed && item.error && (
-          <p className="text-xs truncate" style={{ color: '#ef4444' }}>{item.error}</p>
+          <p className="text-xs leading-tight line-clamp-2" style={{ color: '#ef4444', opacity: 0.85 }}>
+            {item.error}
+          </p>
         )}
       </div>
 
-      {/* Action icons */}
-      <div className="flex items-center gap-1 shrink-0">
+      {/* Action buttons */}
+      <div className="flex flex-col gap-1 shrink-0 mt-0.5">
         {isActive && (
-          <button
-            onClick={() => pauseItem(item.id)}
-            title="Pause"
+          <button onClick={() => pauseItem(item.id)} title="Pause"
             className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: 'var(--text)' }}
-          >
-            <Pause size={11} />
+            style={{ background: 'var(--surface)', color: 'var(--text)' }}>
+            <Pause size={10} />
           </button>
         )}
         {isPaused && item.file && (
-          <button
-            onClick={() => resumeItem(item.id)}
-            title="Resume"
+          <button onClick={() => resumeItem(item.id)} title="Resume"
             className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: 'var(--accent)' }}
-          >
-            <Play size={11} />
+            style={{ background: 'var(--surface)', color: 'var(--accent)' }}>
+            <Play size={10} />
           </button>
         )}
         {(isFailed || (isPaused && !item.file)) && (
-          <button
-            onClick={() => retryItem(item.id)}
-            title="Retry"
+          <button onClick={() => retryItem(item.id)} title="Retry"
             className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: '#f59e0b' }}
-          >
-            <RotateCcw size={11} />
+            style={{ background: 'var(--surface)', color: '#f59e0b' }}>
+            <RotateCcw size={10} />
           </button>
         )}
-        {isComplete && <CheckCircle size={14} style={{ color: '#16a34a' }} />}
-        {isFailed && <AlertCircle size={14} style={{ color: '#ef4444' }} />}
-        {isActive && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />}
-        <button
-          onClick={() => removeItem(item.id)}
-          title="Remove"
+        <button onClick={() => removeItem(item.id)} title="Remove"
           disabled={isActive}
-          className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-        >
-          <Trash2 size={11} />
+          className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
+          style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}>
+          <Trash2 size={10} />
         </button>
       </div>
     </div>
@@ -197,71 +195,100 @@ export default function GlobalUploadQueue() {
 
   if (queue.length === 0) return null;
 
-  const completed   = queue.filter(i => i.status === 'completed').length;
-  const failed      = queue.filter(i => i.status === 'failed').length;
-  const active      = queue.filter(i => ['preparing', 'uploading', 'retrying', 'saving'].includes(i.status)).length;
-  const overallPct  = queue.length > 0
+  const completed  = queue.filter(i => i.status === 'completed').length;
+  const failed     = queue.filter(i => i.status === 'failed').length;
+  const active     = queue.filter(i => ['preparing', 'uploading', 'retrying', 'saving'].includes(i.status)).length;
+  const overallPct = queue.length > 0
     ? Math.round(queue.reduce((sum, i) => sum + i.progress, 0) / queue.length)
     : 0;
 
+  const allDone = active === 0 && queue.every(i => i.status === 'completed' || i.status === 'failed');
+
   const titleText = active > 0
     ? `Uploading ${active} file${active !== 1 ? 's' : ''}…`
-    : `${completed}/${queue.length} uploaded${failed > 0 ? ` · ${failed} failed` : ''}`;
+    : allDone
+    ? `${completed} uploaded${failed > 0 ? ` · ${failed} failed` : ' ✓'}`
+    : `${completed}/${queue.length} files`;
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-50 w-80 rounded-2xl shadow-2xl border overflow-hidden"
+      className="fixed bottom-5 right-5 z-50 rounded-2xl border overflow-hidden"
       style={{
-        background:   'var(--surface)',
-        borderColor:  'var(--border)',
-        maxHeight:    minimised ? 'auto' : '420px',
+        background:  'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow:   '0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10)',
+        width:       320,
+        maxHeight:   minimised ? 'auto' : 460,
       }}
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <div
-        className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none"
-        style={{ background: 'var(--surface-2)', borderBottom: minimised ? 'none' : '1px solid var(--border)' }}
+        className="flex items-center gap-2.5 px-4 py-3 cursor-pointer select-none"
+        style={{
+          background:   'var(--surface-2)',
+          borderBottom: minimised ? 'none' : '1px solid var(--border)',
+        }}
         onClick={() => setMinimised(m => !m)}
       >
-        <Upload size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-        <span className="flex-1 text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
-          {titleText}
-        </span>
-        {!minimised && active > 0 && (
-          <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
-            {overallPct}%
-          </span>
-        )}
+        <div
+          className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+          style={{
+            background: active > 0
+              ? 'var(--accent-soft)'
+              : allDone && failed === 0
+              ? 'rgba(22,163,74,0.10)'
+              : 'var(--surface)',
+          }}
+        >
+          {active > 0
+            ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
+            : allDone && failed === 0
+            ? <CheckCircle size={14} style={{ color: '#16a34a' }} />
+            : <Upload size={14} style={{ color: 'var(--accent)' }} />
+          }
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold truncate" style={{ color: 'var(--text)' }}>
+            {titleText}
+          </p>
+          {!minimised && active > 0 && (
+            <p className="text-xs tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
+              {overallPct}% overall
+            </p>
+          )}
+        </div>
+
         <button
-          className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+          className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-opacity hover:opacity-70"
           style={{ color: 'var(--text-secondary)' }}
           aria-label={minimised ? 'Expand upload queue' : 'Minimise upload queue'}
+          onClick={e => { e.stopPropagation(); setMinimised(m => !m); }}
         >
-          {minimised ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          {minimised ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
-      {/* Overall progress bar (always visible when not minimised) */}
+      {/* ── Overall progress bar ── */}
       {!minimised && active > 0 && (
-        <div className="px-4 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-full h-1.5 rounded-full" style={{ background: 'var(--border)' }}>
+        <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: 'var(--border)' }}>
             <div
-              className="h-1.5 rounded-full transition-all duration-500"
+              className="h-full rounded-full transition-all duration-500"
               style={{ width: `${overallPct}%`, background: 'var(--accent)' }}
             />
           </div>
         </div>
       )}
 
-      {/* Queue list */}
+      {/* ── Queue list ── */}
       {!minimised && (
-        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 320 }}>
+        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 340 }}>
           {queue.map(item => <QueueRow key={item.id} item={item} />)}
-
           {completed > 0 && (
             <button
               onClick={e => { e.stopPropagation(); clearCompleted(); }}
-              className="w-full text-xs py-1.5 rounded-lg hover:opacity-70 transition-opacity font-medium"
+              className="w-full text-xs py-2 rounded-xl font-medium transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
             >
               Clear {completed} completed

@@ -11,6 +11,8 @@ import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
+import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import UploadModal from '@/components/upload/UploadModal';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import type { Asset, Client } from '@/lib/types';
@@ -20,23 +22,6 @@ import type { Asset, Client } from '@/lib/types';
 const ALLOWED_CONTENT_TYPES = [
   'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
   'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
-] as const;
-
-const ASSETS_START_YEAR = 2020;
-
-const MONTHS = [
-  { value: '01', label: 'January' },
-  { value: '02', label: 'February' },
-  { value: '03', label: 'March' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'May' },
-  { value: '06', label: 'June' },
-  { value: '07', label: 'July' },
-  { value: '08', label: 'August' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
 ] as const;
 
 // ── Filter badge ──────────────────────────────────────────────────────────────
@@ -202,115 +187,6 @@ function getFileExtension(name: string): string {
 function getFileBaseName(name: string): string {
   const ext = getFileExtension(name);
   return ext ? name.slice(0, name.length - ext.length) : name;
-}
-
-// ── Batch Metadata Form ───────────────────────────────────────────────────────
-
-interface BatchUploadFormProps {
-  files: FileUploadItem[];
-  contentType: string;
-  month: string;
-  clientName: string;
-  clients: Client[];
-  onContentTypeChange: (v: string) => void;
-  onMonthChange: (v: string) => void;
-  onClientChange: (v: string) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-  onRemoveFile: (id: string) => void;
-  onUploadNameChange: (id: string, name: string) => void;
-}
-
-function BatchUploadForm({
-  files, contentType, month, clientName, clients,
-  onContentTypeChange, onMonthChange, onClientChange,
-  onConfirm, onCancel, onRemoveFile, onUploadNameChange,
-}: BatchUploadFormProps) {
-  const hasErrors = files.some(f => validateUploadName(f.uploadName) !== null);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-lg rounded-2xl border p-6 space-y-5 shadow-xl"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Upload {files.length} {files.length === 1 ? 'File' : 'Files'}
-          </h3>
-          <button onClick={onCancel} className="opacity-60 hover:opacity-100 transition-opacity"><X size={16} /></button>
-        </div>
-
-        {/* Per-file name editor */}
-        <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-          {files.map(item => {
-            const ext = getFileExtension(item.file.name);
-            const nameError = validateUploadName(item.uploadName);
-            return (
-              <div key={item.id} className="rounded-xl border p-3 space-y-2" style={{ background: 'var(--surface-2)', borderColor: nameError ? '#ef4444' : 'var(--border)' }}>
-                <div className="flex items-center gap-2">
-                  <FileTypeIcon name={item.file.name} type={item.file.type} size={16} />
-                  <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)' }}>{item.file.name}</span>
-                  <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
-                  <button onClick={() => onRemoveFile(item.id)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"><X size={14} /></button>
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    Upload name{ext && <span className="ml-1 opacity-60">(extension <code>{ext}</code> will be added)</span>}
-                  </label>
-                  <input
-                    type="text"
-                    className="input w-full h-8 text-sm"
-                    value={item.uploadName}
-                    onChange={e => onUploadNameChange(item.id, e.target.value)}
-                    placeholder={getFileBaseName(item.file.name)}
-                    style={nameError ? { borderColor: '#ef4444' } : {}}
-                  />
-                  {nameError && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{nameError}</p>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Client *</label>
-          <select className="input w-full" value={clientName} onChange={e => onClientChange(e.target.value)}>
-            <option value="">— Select a client —</option>
-            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Content Type *</label>
-          <select className="input w-full" value={contentType} onChange={e => onContentTypeChange(e.target.value)}>
-            {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Month (YYYY-MM) *</label>
-          <input type="month" className="input w-full" value={month} onChange={e => onMonthChange(e.target.value)} />
-        </div>
-
-        <div className="flex gap-3 pt-1">
-          <button onClick={onCancel} className="btn flex-1 h-9 text-sm">Cancel</button>
-          <button
-            onClick={onConfirm}
-            disabled={!clientName || files.length === 0 || hasErrors}
-            className="btn-primary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Upload {files.length} {files.length === 1 ? 'File' : 'Files'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
@@ -754,8 +630,7 @@ export default function AssetsPage() {
   const [searchQuery, setSearchQuery]             = useState('');
   const [filterClient, setFilterClient]           = useState('');
   const [filterContentType, setFilterContentType] = useState('');
-  const [filterYear, setFilterYear]               = useState('');
-  const [filterMonth, setFilterMonth]             = useState('');
+  const [filterMonthKey, setFilterMonthKey]       = useState(''); // "YYYY-MM" or ""
   const [filterApproval, setFilterApproval]       = useState('');
   const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
 
@@ -892,14 +767,13 @@ export default function AssetsPage() {
 
   // ── Filtered / sorted assets ─────────────────────────────────────────────────
 
-  const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterYear || filterMonth || filterApproval);
+  const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterMonthKey || filterApproval);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setFilterClient('');
     setFilterContentType('');
-    setFilterYear('');
-    setFilterMonth('');
+    setFilterMonthKey('');
     setFilterApproval('');
   }, []);
 
@@ -914,19 +788,15 @@ export default function AssetsPage() {
         (a.file_type?.toLowerCase().includes(q) ?? false),
       );
     }
-    if (filterClient)    result = result.filter(a => a.client_name === filterClient);
+    if (filterClient)      result = result.filter(a => a.client_name === filterClient);
     if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
-    if (filterYear)      result = result.filter(a => a.month_key?.startsWith(filterYear));
-    if (filterMonth)     result = result.filter(a => {
-      if (!a.month_key || a.month_key.length !== 7) return false;
-      return a.month_key.slice(5) === filterMonth;
-    });
-    if (filterApproval)  result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
+    if (filterMonthKey)    result = result.filter(a => a.month_key === filterMonthKey);
+    if (filterApproval)    result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
     if (sortBy === 'oldest')       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
     else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, filterMonth, filterApproval, sortBy]);
+  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterMonthKey, filterApproval, sortBy]);
 
   // ── Grouped view ─────────────────────────────────────────────────────────────
 
@@ -1184,41 +1054,24 @@ export default function AssetsPage() {
           className="rounded-2xl border p-4 space-y-3"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          {/* Browse row — client · year · month */}
+          {/* Browse row — client · month/year */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide shrink-0 w-14" style={{ color: 'var(--text-secondary)' }}>Browse</span>
             <select
-              className="input h-8 text-sm"
+              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+              style={{ background: 'var(--surface-2)', color: filterClient ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
               value={filterClient}
               onChange={e => setFilterClient(e.target.value)}
             >
               <option value="">All clients</option>
               {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
-            <select
-              className="input h-8 text-sm"
-              value={filterYear}
-              onChange={e => { setFilterYear(e.target.value); if (!e.target.value) setFilterMonth(''); }}
-            >
-              <option value="">All years</option>
-              {Array.from(
-                { length: new Date().getFullYear() - ASSETS_START_YEAR + 1 },
-                (_, i) => ASSETS_START_YEAR + i,
-              ).reverse().map(y => (
-                <option key={y} value={String(y)}>{y}</option>
-              ))}
-            </select>
-            <select
-              className="input h-8 text-sm"
-              value={filterMonth}
-              onChange={e => setFilterMonth(e.target.value)}
-              disabled={!filterYear}
-              title={filterYear ? undefined : 'Select a year first'}
-              style={{ opacity: filterYear ? 1 : 0.5 }}
-            >
-              <option value="">All months</option>
-              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+            <MonthYearPicker
+              value={filterMonthKey}
+              onChange={setFilterMonthKey}
+              placeholder="All months"
+              clearable
+            />
           </div>
 
           {/* Search + secondary filters */}
@@ -1230,14 +1083,25 @@ export default function AssetsPage() {
                 placeholder="Search files, clients, types…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="input h-9 text-sm pl-8 w-full"
+                className="h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               />
             </div>
-            <select className="input h-9 text-sm" value={filterContentType} onChange={e => setFilterContentType(e.target.value)}>
+            <select
+              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+              style={{ background: 'var(--surface-2)', color: filterContentType ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              value={filterContentType}
+              onChange={e => setFilterContentType(e.target.value)}
+            >
               <option value="">All types</option>
               {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
             </select>
-            <select className="input h-9 text-sm" value={filterApproval} onChange={e => setFilterApproval(e.target.value)}>
+            <select
+              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+              style={{ background: 'var(--surface-2)', color: filterApproval ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              value={filterApproval}
+              onChange={e => setFilterApproval(e.target.value)}
+            >
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
@@ -1245,7 +1109,12 @@ export default function AssetsPage() {
               <option value="scheduled">Scheduled</option>
               <option value="published">Published</option>
             </select>
-            <select className="input h-9 text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}>
+            <select
+              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}
+            >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
               <option value="largest">Largest First</option>
@@ -1265,8 +1134,7 @@ export default function AssetsPage() {
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-1.5">
               {filterClient && <FilterBadge label={filterClient} onRemove={() => setFilterClient('')} />}
-              {filterYear && <FilterBadge label={filterYear} onRemove={() => { setFilterYear(''); setFilterMonth(''); }} />}
-              {filterMonth && <FilterBadge label={MONTHS.find(m => m.value === filterMonth)?.label ?? filterMonth} onRemove={() => setFilterMonth('')} />}
+              {filterMonthKey && <FilterBadge label={filterMonthKey} onRemove={() => setFilterMonthKey('')} />}
               {filterContentType && <FilterBadge label={contentTypeLabel(filterContentType)} onRemove={() => setFilterContentType('')} />}
               {filterApproval && <FilterBadge label={filterApproval} onRemove={() => setFilterApproval('')} />}
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
@@ -1403,9 +1271,16 @@ export default function AssetsPage() {
 
       {/* Batch metadata modal */}
       {pendingItems.length > 0 && (
-        <BatchUploadForm
-          files={pendingItems} contentType={uploadContentType} month={uploadMonth} clientName={uploadClientName} clients={clients}
-          onContentTypeChange={setUploadContentType} onMonthChange={setUploadMonth} onClientChange={handleClientChange}
+        <UploadModal
+          files={pendingItems}
+          contentType={uploadContentType}
+          monthKey={uploadMonth}
+          clientName={uploadClientName}
+          clientId={uploadClientId}
+          clients={clients}
+          onContentTypeChange={setUploadContentType}
+          onMonthChange={setUploadMonth}
+          onClientChange={(name, id) => { setUploadClientName(name); setUploadClientId(id); }}
           onConfirm={handleUploadConfirm}
           onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
           onUploadNameChange={handleUploadNameChange}

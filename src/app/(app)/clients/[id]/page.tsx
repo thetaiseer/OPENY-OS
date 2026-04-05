@@ -14,27 +14,16 @@ import { useAuth } from '@/lib/auth-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import ActivityLog from '@/components/ui/ActivityLog';
+import AiImproveButton from '@/components/ui/AiImproveButton';
+import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
+import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
-// ── Asset upload helpers ──────────────────────────────────────────────────────
 
-const ALLOWED_CONTENT_TYPES = [
-  'SOCIAL_POSTS',
-  'REELS',
-  'VIDEOS',
-  'LOGOS',
-  'BRAND_ASSETS',
-  'PASSWORDS',
-  'DOCUMENTS',
-  'RAW_FILES',
-  'ADS_CREATIVES',
-  'REPORTS',
-  'OTHER',
-] as const;
+// ── Toast ─────────────────────────────────────────────────────────────────────
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
-interface TempFile { name: string; type: string; previewUrl?: string }
 
 function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
@@ -89,103 +78,6 @@ function AssetFileIcon({ name, type, size = 36 }: { name: string; type?: string;
   if (type?.startsWith('video/')) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
   if (type?.startsWith('audio/')) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
-}
-
-const UPLOAD_TIMEOUT_MS = 300_000; // 5-minute hard timeout
-
-const ASSET_UPLOAD_STAGES = [
-  { at: 10, label: 'Preparing upload…' },
-  { at: 40, label: 'Uploading to Google Drive…' },
-  { at: 75, label: 'Creating share links…' },
-  { at: 90, label: 'Saving metadata…' },
-  { at: 100, label: 'Completed' },
-] as const;
-
-const ASSET_STAGE_TIMINGS_MS = [0, 600, 2500, 5000];
-
-function ClientUploadDetailsModal({ fileName, contentType, month, onContentTypeChange, onMonthChange, onConfirm, onCancel }: {
-  fileName: string;
-  contentType: string;
-  month: string;
-  onContentTypeChange: (v: string) => void;
-  onMonthChange: (v: string) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border p-6 space-y-5 shadow-xl"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upload Details</h3>
-          <button onClick={onCancel} className="opacity-60 hover:opacity-100 transition-opacity">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="rounded-xl border px-3 py-2 text-sm truncate"
-          style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-          {fileName}
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Content Type</label>
-          <select className="input w-full" value={contentType} onChange={e => onContentTypeChange(e.target.value)}>
-            {ALLOWED_CONTENT_TYPES.map(ct => (
-              <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Month (YYYY-MM)</label>
-          <input type="month" className="input w-full" value={month} onChange={e => onMonthChange(e.target.value)} />
-        </div>
-        <div className="flex gap-3 pt-1">
-          <button onClick={onCancel} className="btn flex-1 h-9 text-sm">Cancel</button>
-          <button onClick={onConfirm} className="btn-primary flex-1 h-9 text-sm">Upload</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ClientUploadProgress({ progress, status, file }: { progress: number; status: string; file: TempFile }) {
-  return (
-    <div
-      className="rounded-2xl border p-4 space-y-3"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
-          style={{ background: 'var(--surface-2)' }}
-        >
-          {file.previewUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover rounded-xl" />
-            : <AssetFileIcon name={file.name} type={file.type} size={20} />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{file.name}</p>
-          <div className="flex items-center justify-between gap-2 mt-1">
-            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{status}</span>
-            <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{progress}%</span>
-          </div>
-          <div className="w-full rounded-full h-1.5 mt-1" style={{ background: 'var(--surface-2)' }}>
-            <div
-              className="h-1.5 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%`, background: 'var(--accent)' }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function ClientAssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: {
@@ -339,7 +231,11 @@ export default function ClientWorkspace() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useLang();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Global upload context — uploads run in background via GlobalUploadQueue
+  const { startBatch } = useUpload();
 
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>('overview');
@@ -350,18 +246,14 @@ export default function ClientWorkspace() {
   const [approvals, setApprovals] = useState<{ id: string; title: string; status: string; created_at: string }[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState('');
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
-  const [tempUploadFile, setTempUploadFile] = useState<TempFile | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const toastIdRef = useRef(0);
 
-  // Pending-upload state (file chosen but details not confirmed yet)
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [uploadContentType, setUploadContentType] = useState<string>(ALLOWED_CONTENT_TYPES[0]);
-  const [uploadMonth, setUploadMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  // Pending upload batch — shown in UploadModal before handing off to UploadContext
+  const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
+  const [uploadContentType, setUploadContentType] = useState<string>('SOCIAL_POSTS');
+  const [uploadMonthKey, setUploadMonthKey] = useState<string>(() => new Date().toISOString().slice(0, 7));
 
   // Task quick-create
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -459,83 +351,41 @@ export default function ClientWorkspace() {
     router.push('/clients');
   };
 
-  // Step 1: file chosen → show details modal
+  // ── File upload using global UploadContext ────────────────────────────────
+
   const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     if (fileRef.current) fileRef.current.value = '';
-    if (!file || uploading) return;
-    setUploadContentType(ALLOWED_CONTENT_TYPES[0]);
-    setUploadMonth(new Date().toISOString().slice(0, 7));
-    setPendingFile(file);
+    if (!files.length) return;
+    const items: UploadFileItem[] = files.map(file => ({
+      id:         crypto.randomUUID(),
+      file,
+      previewUrl: /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
+      uploadName: file.name.replace(/\.[^.]+$/, ''), // base name without extension
+    }));
+    setPendingItems(items);
+    setUploadContentType('SOCIAL_POSTS');
+    setUploadMonthKey(new Date().toISOString().slice(0, 7));
   };
 
-  // Step 2: user confirmed details → run actual upload
-  const handleUploadConfirm = async () => {
-    const file = pendingFile;
-    if (!file) return;
-    setPendingFile(null);
-
-    const previewUrl = /^image\//.test(file.type) ? URL.createObjectURL(file) : undefined;
-    setTempUploadFile({ name: file.name, type: file.type, previewUrl });
-    setUploading(true);
-
-    const stageTimers: ReturnType<typeof setTimeout>[] = [];
-    ASSET_STAGE_TIMINGS_MS.forEach((delay, idx) => {
-      const timer = setTimeout(() => {
-        setUploadProgress(ASSET_UPLOAD_STAGES[idx].at);
-        setUploadStatus(ASSET_UPLOAD_STAGES[idx].label);
-      }, delay);
-      stageTimers.push(timer);
+  const handleUploadConfirm = () => {
+    if (!pendingItems.length || !client) return;
+    const initialItems: InitialUploadItem[] = pendingItems.map(i => ({
+      id:         i.id,
+      file:       i.file,
+      previewUrl: i.previewUrl,
+      uploadName: i.uploadName,
+    }));
+    startBatch(initialItems, {
+      clientName:  client.name,
+      clientId:    id,
+      contentType: uploadContentType,
+      monthKey:    uploadMonthKey,
+      uploadedBy:  user?.name ?? user?.email ?? null,
     });
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('client_id', id);
-      if (client?.name) formData.append('client_name', client.name);
-      formData.append('content_type', uploadContentType);
-      formData.append('month_key', uploadMonth);
-
-      const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-
-      const res = await fetch('/api/assets/upload', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
-
-      clearTimeout(fetchTimeout);
-      stageTimers.forEach(clearTimeout);
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `Upload failed (HTTP ${res.status})`);
-
-      // Show 90% → 100%
-      setUploadProgress(ASSET_UPLOAD_STAGES[3].at);
-      setUploadStatus(ASSET_UPLOAD_STAGES[3].label);
-      await new Promise(r => setTimeout(r, 400));
-      setUploadProgress(ASSET_UPLOAD_STAGES[4].at);
-      setUploadStatus(ASSET_UPLOAD_STAGES[4].label);
-      await new Promise(r => setTimeout(r, 500));
-
-      addToast('File uploaded to Google Drive', 'success');
-      setTempUploadFile(null);
-      void loadAll();
-    } catch (err: unknown) {
-      stageTimers.forEach(clearTimeout);
-      const msg = err instanceof Error
-        ? (err.name === 'AbortError' ? 'Upload timed out after 5 minutes' : err.message)
-        : String(err);
-      console.error('[client upload] ❌', msg);
-      addToast(`Upload failed: ${msg}`, 'error');
-      setTempUploadFile(null);
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      setUploadStatus('');
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    }
+    // Clear pending items without revoking — UploadContext owns the lifecycle
+    setPendingItems([]);
+    addToast(`${initialItems.length} file${initialItems.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
@@ -825,26 +675,17 @@ export default function ClientWorkspace() {
           <div className="space-y-4">
             <div className="flex justify-end">
               <button
-                onClick={() => !uploading && fileRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity"
+                onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
                 style={{ background: 'var(--accent)' }}
               >
-                <Upload size={14} />{uploading ? 'Uploading…' : t('uploadFile')}
+                <Upload size={14} />{t('uploadFile')}
               </button>
-              <input ref={fileRef} type="file" className="hidden" onChange={handleFileChosen} />
+              <input ref={fileRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
             </div>
 
-            {/* Upload progress card */}
-            {uploading && tempUploadFile && (
-              <ClientUploadProgress
-                progress={uploadProgress}
-                status={uploadStatus}
-                file={tempUploadFile}
-              />
-            )}
 
-            {assets.length === 0 && !uploading ? (
+            {assets.length === 0 ? (
               <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>{t('noAssetsYet')}</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -998,7 +839,14 @@ export default function ClientWorkspace() {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('notes')}</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('notes')}</label>
+              <AiImproveButton
+                value={editForm.notes}
+                onImproved={v => setEditForm(f => ({ ...f, notes: v }))}
+                showMenu
+              />
+            </div>
             <textarea
               value={editForm.notes}
               onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
@@ -1032,7 +880,13 @@ export default function ClientWorkspace() {
       <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title={t('newTask')} size="sm">
         <form onSubmit={handleCreateTask} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+              <AiImproveButton
+                value={taskForm.title}
+                onImproved={v => setTaskForm(f => ({ ...f, title: v }))}
+              />
+            </div>
             <input
               required
               value={taskForm.title}
@@ -1086,16 +940,31 @@ export default function ClientWorkspace() {
       <ClientPreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />
     )}
 
-    {/* Upload details modal */}
-    {pendingFile && (
-      <ClientUploadDetailsModal
-        fileName={pendingFile.name}
+    {/* Upload modal — shared component, client locked */}
+    {pendingItems.length > 0 && client && (
+      <UploadModal
+        files={pendingItems}
         contentType={uploadContentType}
-        month={uploadMonth}
+        monthKey={uploadMonthKey}
+        clientName={client.name}
+        clientId={id}
+        clients={[]}
+        lockClient
         onContentTypeChange={setUploadContentType}
-        onMonthChange={setUploadMonth}
+        onMonthChange={setUploadMonthKey}
+        onUploadNameChange={(itemId, name) =>
+          setPendingItems(prev => prev.map(i => i.id === itemId ? { ...i, uploadName: name } : i))
+        }
+        onRemoveFile={itemId => {
+          const removed = pendingItems.find(i => i.id === itemId);
+          if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+          setPendingItems(prev => prev.filter(i => i.id !== itemId));
+        }}
         onConfirm={handleUploadConfirm}
-        onCancel={() => setPendingFile(null)}
+        onCancel={() => {
+          pendingItems.forEach(i => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
+          setPendingItems([]);
+        }}
       />
     )}
 
