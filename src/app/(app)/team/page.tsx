@@ -26,10 +26,22 @@ export default function TeamPage() {
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   const fetchMembers = useCallback(async () => {
+    const FETCH_TIMEOUT_MS = 15_000;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { data, error } = await supabase.from('team_members').select('*').order('name');
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
+      const { data, error } = await Promise.race([
+        supabase.from('team_members').select('*').order('name'),
+        timeoutPromise,
+      ]);
       if (!error) setMembers((data ?? []) as TeamMember[]);
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      console.error('[team] fetch error:', isTimeout ? 'timeout' : err);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

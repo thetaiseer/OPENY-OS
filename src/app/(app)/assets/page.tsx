@@ -582,6 +582,7 @@ function ApprovalBadge({ status }: { status?: string | null }) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS  = 15_000;
 const TOAST_DURATION_MS = 4500;
 
 function nextFileId() { return crypto.randomUUID(); }
@@ -653,26 +654,37 @@ export default function AssetsPage() {
 
   // ── Toast ───────────────────────────────────────────────────────────────────
 
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), TOAST_DURATION_MS);
+    const timer = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimersRef.current = toastTimersRef.current.filter(t => t !== timer);
+    }, TOAST_DURATION_MS);
+    toastTimersRef.current.push(timer);
   }, []);
+
+  // Clean up any pending toast timers when the component unmounts
+  useEffect(() => () => { toastTimersRef.current.forEach(clearTimeout); }, []);
 
   const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const fetchAssets = useCallback(async (pageNum: number = 0) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       setFetchError(null);
-      const res = await fetch(`/api/assets?page=${pageNum}`);
-      const json = await res.json() as {
-        success: boolean;
-        assets?: Asset[];
-        hasMore?: boolean;
-        error?: string;
-      };
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
+      const fetchPromise = fetch(`/api/assets?page=${pageNum}`).then(res =>
+        res.json().then((json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string }) =>
+          ({ res, json }))
+      );
+      const { res, json } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!res.ok || !json.success) {
         const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
@@ -687,11 +699,15 @@ export default function AssetsPage() {
       else setAssets(prev => [...prev, ...newAssets]);
       setHasMore(json.hasMore ?? false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[assets] unexpected fetch error:', msg);
-      setFetchError(`Could not reach server: ${msg}`);
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      const msg = isTimeout
+        ? 'Assets took too long to load. Please try again.'
+        : (err instanceof Error ? err.message : String(err));
+      console.error('[assets] fetch error:', isTimeout ? 'timeout' : err);
+      setFetchError(isTimeout ? msg : `Could not reach server: ${msg}`);
       if (pageNum === 0) setAssets([]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

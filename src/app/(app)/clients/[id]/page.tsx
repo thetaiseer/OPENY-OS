@@ -269,35 +269,59 @@ export default function ClientWorkspace() {
     await supabase.from('activities').insert({ type: 'client', description, client_id: id });
   };
 
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const tid = ++toastIdRef.current;
     setToasts(prev => [...prev, { id: tid, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== tid)), 4500);
+    const timer = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== tid));
+      toastTimersRef.current = toastTimersRef.current.filter(t => t !== timer);
+    }, 4500);
+    toastTimersRef.current.push(timer);
   }, []);
+
+  // Clean up any pending toast timers when the component unmounts
+  useEffect(() => () => { toastTimersRef.current.forEach(clearTimeout); }, []);
 
   const removeToast = useCallback((tid: number) => {
     setToasts(prev => prev.filter(t => t.id !== tid));
   }, []);
 
   const loadAll = useCallback(async () => {
-    const [c, tk, ct, a, act, appr, tm] = await Promise.allSettled([
-      supabase.from('clients').select('*').eq('id', id).single(),
-      supabase.from('tasks').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('content_items').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('assets').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('activities').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('approvals').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('team_members').select('*').order('name'),
-    ]);
+    const FETCH_TIMEOUT_MS = 15_000;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
+      const [c, tk, ct, a, act, appr, tm] = await Promise.race([
+        Promise.allSettled([
+          supabase.from('clients').select('*').eq('id', id).single(),
+          supabase.from('tasks').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('content_items').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('assets').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('activities').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('approvals').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('team_members').select('*').order('name'),
+        ]),
+        timeoutPromise,
+      ]);
 
-    if (c.status === 'fulfilled' && !c.value.error) setClient(c.value.data as Client);
-    if (tk.status === 'fulfilled' && !tk.value.error) setTasks((tk.value.data ?? []) as Task[]);
-    if (ct.status === 'fulfilled' && !ct.value.error) setContent((ct.value.data ?? []) as ContentItem[]);
-    if (a.status === 'fulfilled' && !a.value.error) setAssets((a.value.data ?? []) as Asset[]);
-    if (act.status === 'fulfilled' && !act.value.error) setActivities((act.value.data ?? []) as Activity[]);
-    if (appr.status === 'fulfilled' && !appr.value.error) setApprovals((appr.value.data ?? []) as typeof approvals);
-    if (tm.status === 'fulfilled' && !tm.value.error) setTeam((tm.value.data ?? []) as TeamMember[]);
-    setLoading(false);
+      if (c.status === 'fulfilled' && !c.value.error) setClient(c.value.data as Client);
+      if (tk.status === 'fulfilled' && !tk.value.error) setTasks((tk.value.data ?? []) as Task[]);
+      if (ct.status === 'fulfilled' && !ct.value.error) setContent((ct.value.data ?? []) as ContentItem[]);
+      if (a.status === 'fulfilled' && !a.value.error) setAssets((a.value.data ?? []) as Asset[]);
+      if (act.status === 'fulfilled' && !act.value.error) setActivities((act.value.data ?? []) as Activity[]);
+      if (appr.status === 'fulfilled' && !appr.value.error) setApprovals((appr.value.data ?? []) as typeof approvals);
+      if (tm.status === 'fulfilled' && !tm.value.error) setTeam((tm.value.data ?? []) as TeamMember[]);
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      console.error('[client workspace] load error:', isTimeout ? 'timeout' : err);
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
