@@ -377,6 +377,29 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
   }
 }
 
+/**
+ * Rename a file in Google Drive.
+ * Throws DriveFileNotFoundError when the file is missing (404).
+ * Throws on any other failure.
+ */
+export async function renameInDrive(fileId: string, newName: string): Promise<void> {
+  const { drive } = getDriveClient();
+  try {
+    await drive.files.update({
+      fileId,
+      supportsAllDrives: true,
+      requestBody: { name: newName },
+    });
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 404 || /not found/i.test(message)) {
+      throw new DriveFileNotFoundError(fileId);
+    }
+    throw err;
+  }
+}
+
 // ── Folder cleanup helpers ────────────────────────────────────────────────────
 
 /**

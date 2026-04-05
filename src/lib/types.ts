@@ -88,6 +88,9 @@ export interface Asset {
   preview_url?: string | null;
   thumbnail_url?: string | null;
   web_view_link?: string | null;
+  last_synced_at?: string | null;
+  source_updated_at?: string | null;
+  is_deleted?: boolean;
   created_at: string;
 }
 

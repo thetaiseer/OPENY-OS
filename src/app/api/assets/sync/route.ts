@@ -26,6 +26,7 @@ interface DbAsset {
   client_folder_name: string | null;
   content_type: string | null;
   month_key: string | null;
+  is_deleted: boolean | null;
 }
 
 interface SyncResult {
@@ -80,7 +81,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   // ── 2. Load DB assets ────────────────────────────────────────────────────
   const { data: dbRows, error: fetchError } = await supabase
     .from('assets')
-    .select('id, name, drive_file_id, file_size, file_type, view_url, client_folder_name, content_type, month_key')
+    .select('id, name, drive_file_id, file_size, file_type, view_url, client_folder_name, content_type, month_key, is_deleted')
     .eq('storage_provider', 'google_drive')
     .not('drive_file_id', 'is', null);
 
@@ -110,6 +111,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       // Grant public read access so the file is viewable in the UI
       const { webViewLink, webContentLink } = await setFilePublicReadable(driveId);
 
+      const now = new Date().toISOString();
       const { error: insertError } = await supabase.from('assets').insert({
         name:               meta.name,
         file_path:          null,
@@ -126,6 +128,9 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         client_folder_name: meta.client_folder_name,
         content_type:       meta.content_type,
         month_key:          meta.month_key,
+        is_deleted:         false,
+        last_synced_at:     now,
+        source_updated_at:  meta.modified_time ?? null,
       });
 
       if (insertError) {
@@ -144,19 +149,33 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     const dbAsset = dbMap.get(driveId);
     if (!dbAsset) continue;
 
-    const updates: Record<string, unknown> = {};
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = {
+      last_synced_at: now,
+    };
+
+    let hasDataChanges = false;
 
     if (dbAsset.name !== meta.name) {
       updates.name = meta.name;
+      hasDataChanges = true;
     }
     if (meta.file_size !== null && dbAsset.file_size !== meta.file_size) {
       updates.file_size = meta.file_size;
+      hasDataChanges = true;
     }
     if (meta.mime_type && dbAsset.file_type !== meta.mime_type) {
       updates.file_type = meta.mime_type;
+      hasDataChanges = true;
     }
-
-    if (Object.keys(updates).length === 0) continue;
+    if (meta.modified_time) {
+      updates.source_updated_at = meta.modified_time;
+    }
+    // Re-activate a previously soft-deleted record that has reappeared in Drive
+    if (dbAsset.is_deleted) {
+      updates.is_deleted = false;
+      hasDataChanges = true;
+    }
 
     try {
       const { error: updateError } = await supabase
@@ -167,8 +186,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       if (updateError) {
         recordError(`Update "${meta.name}"`, updateError);
       } else {
-        updated++;
-        console.log('[sync] updated:', meta.name, '| driveId:', driveId, '| fields:', Object.keys(updates).join(', '));
+        if (hasDataChanges) {
+          updated++;
+          console.log('[sync] updated:', meta.name, '| driveId:', driveId, '| fields:', Object.keys(updates).join(', '));
+        }
       }
     } catch (err: unknown) {
       recordError(`Update "${meta.name}"`, err);
@@ -178,6 +199,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   // ── 5. REMOVE: DB assets not found in Drive scan ─────────────────────────
   for (const [driveId, dbAsset] of dbMap) {
     if (driveMap.has(driveId)) continue;
+    // Already soft-deleted — nothing more to do.
+    if (dbAsset.is_deleted) continue;
 
     // Verify by calling Drive directly — avoids false positives if the scan
     // missed a file (e.g. a path edge-case or transient API error).
@@ -185,21 +208,22 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       const exists = await checkDriveFileExists(driveId);
       if (exists) {
         // File still exists in Drive — just not under the expected path.
-        // Do not delete from DB; it may have been moved.
+        // Do not remove from DB; it may have been moved.
         console.log('[sync] skipping removal — file still exists in Drive (possibly moved):', dbAsset.name);
         continue;
       }
 
-      const { error: deleteError } = await supabase
+      // Soft-delete: mark as deleted rather than hard-removing the DB record.
+      const { error: softDeleteError } = await supabase
         .from('assets')
-        .delete()
+        .update({ is_deleted: true, last_synced_at: new Date().toISOString() })
         .eq('id', dbAsset.id);
 
-      if (deleteError) {
-        recordError(`Remove "${dbAsset.name}"`, deleteError);
+      if (softDeleteError) {
+        recordError(`Remove "${dbAsset.name}"`, softDeleteError);
       } else {
         removed++;
-        console.log('[sync] removed:', dbAsset.name, '| driveId:', driveId);
+        console.log('[sync] soft-deleted:', dbAsset.name, '| driveId:', driveId);
       }
     } catch (err: unknown) {
       // Transient Drive API error — skip to avoid accidental data loss

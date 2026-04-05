@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw,
+  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -337,6 +337,7 @@ interface AssetCardProps {
   asset: Asset;
   canDelete: boolean;
   canApprove: boolean;
+  canRename: boolean;
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
@@ -344,9 +345,43 @@ interface AssetCardProps {
   onApprove: () => void;
   onReject: () => void;
   onComments: () => void;
+  onRename: (newName: string) => Promise<void>;
 }
 
-function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments }: AssetCardProps) {
+function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments, onRename }: AssetCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName]   = useState(asset.name);
+  const [renaming, setRenaming]   = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setEditName(asset.name);
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditName(asset.name);
+  };
+
+  const commitEdit = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === asset.name) { cancelEdit(); return; }
+    setRenaming(true);
+    try {
+      await onRename(trimmed);
+      setIsEditing(false);
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); void commitEdit(); }
+    if (e.key === 'Escape') { cancelEdit(); }
+  };
+
   const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
   const img      = isImage(asset.name, effectiveMime);
   const hasDrive = asset.storage_provider === 'google_drive' && !!(asset.web_view_link || asset.view_url);
@@ -387,7 +422,39 @@ function AssetCard({ asset, canDelete, canApprove, onView, onDelete, onCopyLink,
       </div>
 
       <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
+        {isEditing ? (
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <input
+              ref={inputRef}
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={renaming}
+              className="flex-1 text-sm font-medium rounded px-1 py-0.5 min-w-0 outline-none border"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', borderColor: 'var(--accent)' }}
+            />
+            <button onClick={() => void commitEdit()} disabled={renaming} title="Save" className="flex items-center justify-center h-6 w-6 rounded transition-opacity hover:opacity-70" style={{ color: '#16a34a' }}>
+              <Check size={13} />
+            </button>
+            <button onClick={cancelEdit} disabled={renaming} title="Cancel" className="flex items-center justify-center h-6 w-6 rounded transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
+              <X size={13} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 group/name min-w-0">
+            <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
+            {canRename && (
+              <button
+                onClick={e => { e.stopPropagation(); startEdit(); }}
+                title="Rename"
+                className="opacity-0 group-hover/name:opacity-100 flex items-center justify-center h-5 w-5 rounded transition-opacity hover:opacity-70 shrink-0"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Pencil size={11} />
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
             {fileTypeLabel(asset.name, effectiveMime)}
@@ -760,6 +827,23 @@ export default function AssetsPage() {
     addToast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
   };
 
+  // ── Rename ──────────────────────────────────────────────────────────────────
+
+  const handleRename = async (asset: Asset, newName: string) => {
+    const res  = await fetch(`/api/assets/${asset.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+    const json = await res.json() as { success?: boolean; error?: string; name?: string };
+    if (!res.ok) {
+      addToast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
+      throw new Error(json.error ?? `HTTP ${res.status}`);
+    }
+    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, name: json.name ?? newName } : a));
+    addToast('Asset renamed successfully.', 'success');
+  };
+
   // ── View ────────────────────────────────────────────────────────────────────
 
   const handleView = (asset: Asset) => {
@@ -982,12 +1066,13 @@ export default function AssetsPage() {
               {filteredAssets.map(asset => (
                 <AssetCard
                   key={asset.id} asset={asset}
-                  canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'}
+                  canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
                   onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
                   onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
                   onApprove={() => handleApprovalAction(asset, 'approved')}
                   onReject={() => handleApprovalAction(asset, 'rejected')}
                   onComments={() => setCommentsAsset(asset)}
+                  onRename={(newName) => handleRename(asset, newName)}
                 />
               ))}
             </div>
