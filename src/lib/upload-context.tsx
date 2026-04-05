@@ -393,9 +393,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         success: boolean;
         error?: string;
         asset?: Asset;
+        /** true when Drive upload succeeded but DB insert failed */
+        drive_success?: boolean;
+        drive_file_id?: string;
       };
 
       if (!completeRes.ok || !completeJson.success) {
+        // The error message from upload-complete already includes recovery guidance
+        // (e.g. "Use Sync Drive to recover it.") when drive_success=true.
         throw new Error(completeJson.error ?? `Finalize failed (HTTP ${completeRes.status})`);
       }
 

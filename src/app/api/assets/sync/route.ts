@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { scanDriveForSync, setFilePublicReadable, checkDriveFileExists } from '@/lib/google-drive';
+import { scanDriveForSync, setFilePublicReadable, checkDriveFileExists, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import type { DriveFileMeta } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
@@ -137,6 +137,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       // Grant public read access so the file is viewable in the UI
       const { webViewLink, webContentLink } = await setFilePublicReadable(driveId);
 
+      // Build preview/thumbnail URLs from the Drive file ID (no extra API calls needed)
+      const previewUrl   = buildPreviewUrl(driveId);
+      const thumbnailUrl = buildThumbnailUrl(driveId, meta.thumbnail_link);
+
       // Use insertWithColumnFallback so missing columns (e.g. is_deleted,
       // last_synced_at) are stripped automatically and the insert still succeeds.
       const insertRow: Record<string, unknown> = {
@@ -146,6 +150,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         view_url:           webViewLink,
         download_url:       webContentLink,
         file_type:          meta.mime_type,
+        mime_type:          meta.mime_type,
         file_size:          meta.file_size,
         bucket_name:        null,
         storage_provider:   'google_drive',
@@ -155,6 +160,9 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         client_folder_name: meta.client_folder_name,
         content_type:       meta.content_type,
         month_key:          meta.month_key,
+        preview_url:        previewUrl,
+        thumbnail_url:      thumbnailUrl,
+        web_view_link:      webViewLink,
         ...(hasIsDeleted ? { is_deleted: false } : {}),
         last_synced_at:     syncNow,
         source_updated_at:  meta.modified_time ?? null,
@@ -187,6 +195,21 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     // Only include last_synced_at if the column is known to exist
     if (hasIsDeleted) {
       updates.last_synced_at = syncNow;
+      // Always refresh preview/thumbnail URLs and permissions metadata on each
+      // sync pass so stale or missing values are repaired automatically.
+      updates.preview_url   = buildPreviewUrl(driveId);
+      updates.thumbnail_url = buildThumbnailUrl(driveId, meta.thumbnail_link);
+    }
+
+    // Always refresh canonical Drive URLs when we have them from the scan.
+    // All three target different DB columns: view_url, file_url, and web_view_link.
+    if (meta.web_view_link) {
+      updates.view_url      = meta.web_view_link;  // legacy view_url column
+      updates.file_url      = meta.web_view_link;  // primary file_url column
+      updates.web_view_link = meta.web_view_link;  // dedicated web_view_link column
+    }
+    if (meta.web_content_link) {
+      updates.download_url = meta.web_content_link;
     }
 
     let hasDataChanges = false;
@@ -201,6 +224,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     }
     if (meta.mime_type && dbAsset.file_type !== meta.mime_type) {
       updates.file_type = meta.mime_type;
+      updates.mime_type = meta.mime_type;
       hasDataChanges = true;
     }
     // source_updated_at is added by the same migration as is_deleted
@@ -226,7 +250,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         // If the update fails because a migration column is still missing,
         // strip all migration-added columns and retry with the safe subset.
         if (updateError.code === '42703') {
-          const migrationColumns = new Set(['is_deleted', 'last_synced_at', 'source_updated_at']);
+          const migrationColumns = new Set([
+            'is_deleted', 'last_synced_at', 'source_updated_at',
+            'preview_url', 'thumbnail_url', 'mime_type', 'web_view_link',
+          ]);
           const safeUpdates: Record<string, unknown> = {};
           for (const [k, v] of Object.entries(updates)) {
             if (!migrationColumns.has(k)) safeUpdates[k] = v;

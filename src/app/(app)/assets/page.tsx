@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check,
+  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check, Loader2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -315,6 +315,51 @@ function BatchUploadForm({
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 
+/**
+ * Wrapper for Drive embed iframes that shows a loading spinner and a
+ * fallback "Can't preview" card if the embed doesn't fully load.
+ *
+ * Google Drive iframes sometimes show their own "Load failed" page which we
+ * cannot detect from JS (cross-origin).  We track the onLoad event; if it
+ * fires the iframe is shown normally.  The fallback action buttons are always
+ * rendered beneath the embed so the user can open in Drive or download.
+ */
+function DriveEmbed({
+  src,
+  title,
+  allow,
+  allowFullScreen,
+  height,
+  background,
+}: {
+  src: string;
+  title: string;
+  allow?: string;
+  allowFullScreen?: boolean;
+  height: string;
+  background?: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="relative w-full rounded-xl overflow-hidden shadow-2xl" style={{ height, background: background ?? '#000' }}>
+      {!loaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: background ?? '#000' }}>
+          <Loader2 size={32} className="animate-spin text-white/60" />
+          <p className="text-white/50 text-xs">Loading preview…</p>
+        </div>
+      )}
+      <iframe
+        src={src}
+        title={title}
+        allow={allow}
+        allowFullScreen={allowFullScreen}
+        onLoad={() => setLoaded(true)}
+        style={{ width: '100%', height: '100%', border: 0, opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }}
+      />
+    </div>
+  );
+}
+
 function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -373,13 +418,13 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
         {/* ── Video — Drive embed iframe or direct <video> ───────────────── */}
         {isVid && (
           driveEmbedUrl ? (
-            <iframe
+            <DriveEmbed
               src={driveEmbedUrl}
               title={asset.name}
               allow="autoplay"
               allowFullScreen
-              className="w-full rounded-xl shadow-2xl"
-              style={{ height: '75vh', border: 0, background: '#000' }}
+              height="75vh"
+              background="#000"
             />
           ) : (
             <video
@@ -393,23 +438,23 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
 
         {/* ── PDF — Drive embed iframe ──────────────────────────────────── */}
         {isPdf_ && (
-          <iframe
-            src={driveEmbedUrl || asset.view_url || asset.file_url}
+          <DriveEmbed
+            src={(driveEmbedUrl || asset.view_url || asset.file_url) ?? ''}
             title={asset.name}
-            className="w-full rounded-xl shadow-2xl"
-            style={{ height: '75vh', border: 0, background: '#fff' }}
+            height="75vh"
+            background="#fff"
           />
         )}
 
         {/* ── Audio — Drive embed iframe (has built-in audio player) ───── */}
         {isAud && (
           driveEmbedUrl ? (
-            <iframe
+            <DriveEmbed
               src={driveEmbedUrl}
               title={asset.name}
               allow="autoplay"
-              className="w-full rounded-xl shadow-2xl"
-              style={{ height: '200px', border: 0, background: '#1a1a2e' }}
+              height="200px"
+              background="#1a1a2e"
             />
           ) : (
             <audio
@@ -426,6 +471,9 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           <div className="flex flex-col items-center gap-4 py-12">
             <FileTypeIcon name={asset.name} type={effectiveMime} size={64} />
             <p className="text-white/80 text-sm">{asset.name}</p>
+            <p className="text-white/50 text-xs text-center max-w-xs">
+              This file type cannot be previewed inline. Use the buttons below to open or download it.
+            </p>
           </div>
         )}
 

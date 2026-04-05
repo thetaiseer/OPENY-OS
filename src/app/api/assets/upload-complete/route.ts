@@ -161,10 +161,14 @@ export async function POST(req: NextRequest) {
         console.error('[upload-complete] ❌ code:', dbError.code);
         console.error('[upload-complete] ❌ details:', dbError.details ?? '(none)');
         console.error('[upload-complete] ❌ hint:', dbError.hint ?? '(none)');
+        console.error('[upload-complete] ❌ drive_file_id:', driveFileId, '— file IS in Google Drive, use Sync Drive to recover it');
         return NextResponse.json(
           {
             success: false,
-            error: `Failed to save asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}`,
+            // drive_success=true tells the UI that the file exists in Drive even though DB save failed
+            drive_success: true,
+            drive_file_id: driveFileId,
+            error: `File uploaded to Google Drive but database save failed: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}. Use "Sync Drive" to recover it.`,
             supabase_error: {
               message: dbError.message,
               code:    dbError.code,
@@ -180,7 +184,13 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ DB insert exception:', msg);
-      return NextResponse.json({ success: false, error: `Failed to save asset metadata: ${msg}` }, { status: 500 });
+      console.error('[upload-complete] ❌ drive_file_id:', driveFileId, '— file IS in Google Drive, use Sync Drive to recover it');
+      return NextResponse.json({
+        success: false,
+        drive_success: true,
+        drive_file_id: driveFileId,
+        error: `File uploaded to Google Drive but database save failed: ${msg}. Use "Sync Drive" to recover it.`,
+      }, { status: 500 });
     }
 
     console.log('[upload-complete] ✅ asset saved — id:', inserted?.id);
