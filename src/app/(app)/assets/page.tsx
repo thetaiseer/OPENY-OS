@@ -674,17 +674,18 @@ export default function AssetsPage() {
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const fetchAssets = useCallback(async (pageNum: number = 0) => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    // Use AbortController so the in-flight request is cancelled when the timeout fires
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       setFetchError(null);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-      });
-      const fetchPromise = fetch(`/api/assets?page=${pageNum}`).then(res =>
-        res.json().then((json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string }) =>
-          ({ res, json }))
-      );
-      const { res, json } = await Promise.race([fetchPromise, timeoutPromise]);
+      const res = await fetch(`/api/assets?page=${pageNum}`, { signal: controller.signal });
+      let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error(`Server returned non-JSON response (HTTP ${res.status})`);
+      }
 
       if (!res.ok || !json.success) {
         const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
@@ -699,12 +700,12 @@ export default function AssetsPage() {
       else setAssets(prev => [...prev, ...newAssets]);
       setHasMore(json.hasMore ?? false);
     } catch (err: unknown) {
-      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-      const msg = isTimeout
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      const msg = isAbort
         ? 'Assets took too long to load. Please try again.'
         : (err instanceof Error ? err.message : String(err));
-      console.error('[assets] fetch error:', isTimeout ? 'timeout' : err);
-      setFetchError(isTimeout ? msg : `Could not reach server: ${msg}`);
+      console.error('[assets] fetch error:', isAbort ? 'timeout' : err);
+      setFetchError(isAbort ? msg : `Could not reach server: ${msg}`);
       if (pageNum === 0) setAssets([]);
     } finally {
       clearTimeout(timeoutId);
