@@ -54,14 +54,15 @@ export default function CalendarPage() {
     const load = async () => {
       setLoading(true);
       setError(null);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         const pad = (n: number) => String(n).padStart(2, '0');
         const startDate = `${year}-${pad(month + 1)}-01`;
         const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
-        );
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+        });
 
         const settled = await Promise.race([
           Promise.allSettled([
@@ -100,6 +101,7 @@ export default function CalendarPage() {
         setTasks([]);
         setAssets([]);
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };

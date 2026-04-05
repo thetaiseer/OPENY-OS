@@ -38,9 +38,10 @@ export default function ClientsPage() {
   const fetchClients = useCallback(async (): Promise<boolean> => {
     setFetchError(null);
     const timeoutMs = 15_000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs),
-    );
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs);
+    });
     try {
       let query = supabase
         .from('clients')
@@ -70,6 +71,7 @@ export default function ClientsPage() {
       setClients([]);
       return false;
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [search]);

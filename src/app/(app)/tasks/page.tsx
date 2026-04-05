@@ -592,10 +592,11 @@ export default function TasksPage() {
   const FETCH_TIMEOUT_MS = 15_000;
   const fetchAll = useCallback(async () => {
     setFetchError(null);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
-      );
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
 
       const settled = await Promise.race([
         Promise.allSettled([
@@ -637,6 +638,7 @@ export default function TasksPage() {
       setClients([]);
       setTeam([]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

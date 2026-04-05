@@ -66,14 +66,15 @@ export default function DashboardPage() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const fetchData = async () => {
       setError(null);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         const weekLater = new Date();
         weekLater.setDate(weekLater.getDate() + 7);
         const weekLaterStr = weekLater.toISOString().slice(0, 10);
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
-        );
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+        });
 
         const settled = await Promise.race([
           Promise.allSettled([
@@ -129,6 +130,7 @@ export default function DashboardPage() {
         console.error('[dashboard] load error:', err);
         setError(msg);
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };

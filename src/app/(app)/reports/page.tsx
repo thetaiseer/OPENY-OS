@@ -16,10 +16,11 @@ export default function ReportsPage() {
     const FETCH_TIMEOUT_MS = 15_000;
     const load = async () => {
       setError(null);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
-        );
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+        });
 
         const settled = await Promise.race([
           Promise.allSettled([
@@ -46,6 +47,7 @@ export default function ReportsPage() {
         console.error('[reports] load error:', err);
         setError(msg);
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
