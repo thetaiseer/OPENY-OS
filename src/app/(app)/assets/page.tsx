@@ -24,6 +24,41 @@ const ALLOWED_CONTENT_TYPES = [
 
 const ASSETS_START_YEAR = 2020;
 
+const MONTHS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+] as const;
+
+// ── Filter badge ──────────────────────────────────────────────────────────────
+
+function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+    >
+      {label}
+      <button
+        onClick={onRemove}
+        className="hover:opacity-70 transition-opacity leading-none"
+        title="Remove filter"
+      >
+        <X size={11} />
+      </button>
+    </span>
+  );
+}
+
 // ── Per-file pending-batch state (local — before upload starts) ───────────────
 
 interface FileUploadItem {
@@ -593,6 +628,7 @@ export default function AssetsPage() {
   const [filterClient, setFilterClient]           = useState('');
   const [filterContentType, setFilterContentType] = useState('');
   const [filterYear, setFilterYear]               = useState('');
+  const [filterMonth, setFilterMonth]             = useState('');
   const [filterApproval, setFilterApproval]       = useState('');
   const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
 
@@ -729,18 +765,56 @@ export default function AssetsPage() {
 
   // ── Filtered / sorted assets ─────────────────────────────────────────────────
 
+  const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterYear || filterMonth || filterApproval);
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterClient('');
+    setFilterContentType('');
+    setFilterYear('');
+    setFilterMonth('');
+    setFilterApproval('');
+  }, []);
+
   const filteredAssets = useMemo(() => {
     let result = [...deferredAssets];
-    if (searchQuery)     result = result.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        (a.client_name?.toLowerCase().includes(q) ?? false) ||
+        (a.content_type?.toLowerCase().includes(q) ?? false) ||
+        (a.file_type?.toLowerCase().includes(q) ?? false),
+      );
+    }
     if (filterClient)    result = result.filter(a => a.client_name === filterClient);
     if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
     if (filterYear)      result = result.filter(a => a.month_key?.startsWith(filterYear));
+    if (filterMonth)     result = result.filter(a => {
+      if (!a.month_key || a.month_key.length !== 7) return false;
+      return a.month_key.slice(5) === filterMonth;
+    });
     if (filterApproval)  result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
     if (sortBy === 'oldest')       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
     else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, filterApproval, sortBy]);
+  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterYear, filterMonth, filterApproval, sortBy]);
+
+  // ── Grouped view ─────────────────────────────────────────────────────────────
+
+  // When no specific client is selected, produce an ordered list of [clientName, assets[]] groups
+  const groupedByClient = useMemo(() => {
+    if (filterClient) return null;
+    const map = new Map<string, Asset[]>();
+    for (const asset of filteredAssets) {
+      const key = asset.client_name ?? 'No client';
+      const list = map.get(key);
+      if (list) list.push(asset);
+      else map.set(key, [asset]);
+    }
+    return map.size > 1 ? map : null;
+  }, [filteredAssets, filterClient]);
 
   // ── File helpers ────────────────────────────────────────────────────────────
 
@@ -979,44 +1053,98 @@ export default function AssetsPage() {
         )}
 
         {/* Filter bar */}
-        <div className="flex flex-wrap gap-2">
-          <div className="relative flex-1 min-w-48">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
-            <input
-              type="text"
-              placeholder="Search files…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="input h-9 text-sm pl-8 w-full"
-            />
+        <div
+          className="rounded-2xl border p-4 space-y-3"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          {/* Browse row — client · year · month */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide shrink-0 w-14" style={{ color: 'var(--text-secondary)' }}>Browse</span>
+            <select
+              className="input h-8 text-sm"
+              value={filterClient}
+              onChange={e => setFilterClient(e.target.value)}
+            >
+              <option value="">All clients</option>
+              {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+            <select
+              className="input h-8 text-sm"
+              value={filterYear}
+              onChange={e => { setFilterYear(e.target.value); if (!e.target.value) setFilterMonth(''); }}
+            >
+              <option value="">All years</option>
+              {Array.from(
+                { length: new Date().getFullYear() - ASSETS_START_YEAR + 1 },
+                (_, i) => ASSETS_START_YEAR + i,
+              ).reverse().map(y => (
+                <option key={y} value={String(y)}>{y}</option>
+              ))}
+            </select>
+            <select
+              className="input h-8 text-sm"
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+              disabled={!filterYear}
+              title={filterYear ? undefined : 'Select a year first'}
+              style={{ opacity: filterYear ? 1 : 0.5 }}
+            >
+              <option value="">All months</option>
+              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
           </div>
-          <select className="input h-9 text-sm" value={filterClient} onChange={e => setFilterClient(e.target.value)}>
-            <option value="">All clients</option>
-            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-          </select>
-          <select className="input h-9 text-sm" value={filterContentType} onChange={e => setFilterContentType(e.target.value)}>
-            <option value="">All types</option>
-            {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
-          </select>
-          <select className="input h-9 text-sm" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-            <option value="">All years</option>
-            {Array.from({ length: new Date().getFullYear() - ASSETS_START_YEAR + 1 }, (_, i) => ASSETS_START_YEAR + i).reverse().map(y => (
-              <option key={y} value={String(y)}>{y}</option>
-            ))}
-          </select>
-          <select className="input h-9 text-sm" value={filterApproval} onChange={e => setFilterApproval(e.target.value)}>
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="published">Published</option>
-          </select>
-          <select className="input h-9 text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}>
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="largest">Largest First</option>
-          </select>
+
+          {/* Search + secondary filters */}
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-48">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
+              <input
+                type="text"
+                placeholder="Search files, clients, types…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="input h-9 text-sm pl-8 w-full"
+              />
+            </div>
+            <select className="input h-9 text-sm" value={filterContentType} onChange={e => setFilterContentType(e.target.value)}>
+              <option value="">All types</option>
+              {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
+            </select>
+            <select className="input h-9 text-sm" value={filterApproval} onChange={e => setFilterApproval(e.target.value)}>
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="published">Published</option>
+            </select>
+            <select className="input h-9 text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="largest">Largest First</option>
+            </select>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+              >
+                <X size={13} /> Clear filters
+              </button>
+            )}
+          </div>
+
+          {/* Active filter badges */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap gap-1.5">
+              {filterClient && <FilterBadge label={filterClient} onRemove={() => setFilterClient('')} />}
+              {filterYear && <FilterBadge label={filterYear} onRemove={() => { setFilterYear(''); setFilterMonth(''); }} />}
+              {filterMonth && <FilterBadge label={MONTHS.find(m => m.value === filterMonth)?.label ?? filterMonth} onRemove={() => setFilterMonth('')} />}
+              {filterContentType && <FilterBadge label={contentTypeLabel(filterContentType)} onRemove={() => setFilterContentType('')} />}
+              {filterApproval && <FilterBadge label={filterApproval} onRemove={() => setFilterApproval('')} />}
+              {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
+            </div>
+          )}
         </div>
 
         {/* Drag-over overlay */}
@@ -1056,17 +1184,72 @@ export default function AssetsPage() {
         ) : filteredAssets.length === 0 ? (
           <EmptyState
             icon={FolderOpen}
-            title={searchQuery || filterClient || filterContentType || filterYear ? 'No matching files' : t('noAssetsYet')}
-            description={searchQuery || filterClient || filterContentType || filterYear ? 'Try adjusting your search or filters.' : t('noAssetsDesc')}
+            title={hasActiveFilters ? 'No matching files' : t('noAssetsYet')}
+            description={
+              hasActiveFilters
+                ? 'Try adjusting your search or filters.'
+                : t('noAssetsDesc')
+            }
             action={
-              !searchQuery && !filterClient && !filterContentType && !filterYear && canUpload ? (
+              !hasActiveFilters && canUpload ? (
                 <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                   <Upload size={16} />{t('uploadFile')}
+                </button>
+              ) : hasActiveFilters ? (
+                <button onClick={clearFilters} className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  <X size={14} /> Clear filters
                 </button>
               ) : undefined
             }
           />
+        ) : groupedByClient ? (
+          /* ── Grouped by client ── */
+          <div className="space-y-8">
+            {Array.from(groupedByClient.entries()).map(([clientName, clientAssets]) => (
+              <div key={clientName}>
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{clientName}</h3>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                  >
+                    {clientAssets.length}
+                  </span>
+                  {/* Only show the filter shortcut when clientName corresponds to a real client */}
+                  {clientAssets[0]?.client_name && (
+                    <button
+                      className="text-xs underline opacity-60 hover:opacity-100 transition-opacity"
+                      style={{ color: 'var(--accent)' }}
+                      onClick={() => setFilterClient(clientAssets[0].client_name!)}
+                    >
+                      View all →
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {clientAssets.map(asset => (
+                    <AssetCard
+                      key={asset.id} asset={asset}
+                      canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
+                      onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
+                      onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                      onApprove={() => handleApprovalAction(asset, 'approved')}
+                      onReject={() => handleApprovalAction(asset, 'rejected')}
+                      onComments={() => setCommentsAsset(asset)}
+                      onRename={(newName) => handleRename(asset, newName)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {hasMore && !loading && (
+              <div className="flex justify-center pt-2">
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
+              </div>
+            )}
+          </div>
         ) : (
+          /* ── Flat grid ── */
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredAssets.map(asset => (
