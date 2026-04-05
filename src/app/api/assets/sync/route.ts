@@ -203,6 +203,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       updates.file_type = meta.mime_type;
       hasDataChanges = true;
     }
+    // source_updated_at is added by the same migration as is_deleted
     if (hasIsDeleted && meta.modified_time) {
       updates.source_updated_at = meta.modified_time;
     }
@@ -222,12 +223,14 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         .eq('id', dbAsset.id);
 
       if (updateError) {
-        // If the update fails because a column is still missing, strip it and retry
+        // If the update fails because a migration column is still missing,
+        // strip all migration-added columns and retry with the safe subset.
         if (updateError.code === '42703') {
+          const migrationColumns = new Set(['is_deleted', 'last_synced_at', 'source_updated_at']);
           const safeUpdates: Record<string, unknown> = {};
-          if (updates.name !== undefined) safeUpdates.name = updates.name;
-          if (updates.file_size !== undefined) safeUpdates.file_size = updates.file_size;
-          if (updates.file_type !== undefined) safeUpdates.file_type = updates.file_type;
+          for (const [k, v] of Object.entries(updates)) {
+            if (!migrationColumns.has(k)) safeUpdates[k] = v;
+          }
           if (Object.keys(safeUpdates).length > 0) {
             const { error: retryError } = await supabase.from('assets').update(safeUpdates).eq('id', dbAsset.id);
             if (retryError) {
