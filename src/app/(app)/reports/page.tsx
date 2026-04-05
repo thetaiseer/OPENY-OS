@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart2, Users2, CheckSquare, Clock, FolderOpen } from 'lucide-react';
+import { BarChart2, Users2, CheckSquare, Clock, FolderOpen, AlertCircle } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import StatCard from '@/components/ui/StatCard';
@@ -10,23 +10,44 @@ export default function ReportsPage() {
   const { t } = useLang();
   const [stats, setStats] = useState({ clients: 0, tasks: 0, assets: 0, content: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const FETCH_TIMEOUT_MS = 15_000;
     const load = async () => {
+      setError(null);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        const [c, tk, a, ct] = await Promise.allSettled([
-          supabase.from('clients').select('id', { count: 'exact', head: true }),
-          supabase.from('tasks').select('id', { count: 'exact', head: true }),
-          supabase.from('assets').select('id', { count: 'exact', head: true }),
-          supabase.from('content_items').select('id', { count: 'exact', head: true }),
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+        });
+
+        const settled = await Promise.race([
+          Promise.allSettled([
+            supabase.from('clients').select('id', { count: 'exact', head: true }),
+            supabase.from('tasks').select('id', { count: 'exact', head: true }),
+            supabase.from('assets').select('id', { count: 'exact', head: true }),
+            supabase.from('content_items').select('id', { count: 'exact', head: true }),
+          ]),
+          timeoutPromise,
         ]);
+
+        const [c, tk, a, ct] = settled;
         setStats({
           clients: c.status  === 'fulfilled' ? (c.value.count  ?? 0) : 0,
           tasks:   tk.status === 'fulfilled' ? (tk.value.count ?? 0) : 0,
           assets:  a.status  === 'fulfilled' ? (a.value.count  ?? 0) : 0,
           content: ct.status === 'fulfilled' ? (ct.value.count ?? 0) : 0,
         });
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+        const msg = isTimeout
+          ? 'Reports data took too long to load. Please refresh the page.'
+          : 'Failed to load reports data. Please try again.';
+        console.error('[reports] load error:', err);
+        setError(msg);
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
@@ -39,6 +60,16 @@ export default function ReportsPage() {
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('reports')}</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Overview of your workspace</p>
       </div>
+
+      {error && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
