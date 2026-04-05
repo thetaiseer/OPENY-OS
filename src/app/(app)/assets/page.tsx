@@ -582,6 +582,7 @@ function ApprovalBadge({ status }: { status?: string | null }) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS  = 15_000;
 const TOAST_DURATION_MS = 4500;
 
 function nextFileId() { return crypto.randomUUID(); }
@@ -653,26 +654,38 @@ export default function AssetsPage() {
 
   // ── Toast ───────────────────────────────────────────────────────────────────
 
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), TOAST_DURATION_MS);
+    const timer = setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimersRef.current = toastTimersRef.current.filter(t => t !== timer);
+    }, TOAST_DURATION_MS);
+    toastTimersRef.current.push(timer);
   }, []);
+
+  // Clean up any pending toast timers when the component unmounts
+  useEffect(() => () => { toastTimersRef.current.forEach(clearTimeout); }, []);
 
   const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const fetchAssets = useCallback(async (pageNum: number = 0) => {
+    // Use AbortController so the in-flight request is cancelled when the timeout fires
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       setFetchError(null);
-      const res = await fetch(`/api/assets?page=${pageNum}`);
-      const json = await res.json() as {
-        success: boolean;
-        assets?: Asset[];
-        hasMore?: boolean;
-        error?: string;
-      };
+      const res = await fetch(`/api/assets?page=${pageNum}`, { signal: controller.signal });
+      let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error(`Server returned non-JSON response (HTTP ${res.status})`);
+      }
 
       if (!res.ok || !json.success) {
         const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
@@ -687,11 +700,15 @@ export default function AssetsPage() {
       else setAssets(prev => [...prev, ...newAssets]);
       setHasMore(json.hasMore ?? false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[assets] unexpected fetch error:', msg);
-      setFetchError(`Could not reach server: ${msg}`);
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      const msg = isAbort
+        ? 'Assets took too long to load. Please try again.'
+        : (err instanceof Error ? err.message : String(err));
+      console.error('[assets] fetch error:', isAbort ? 'timeout' : err);
+      setFetchError(isAbort ? msg : `Could not reach server: ${msg}`);
       if (pageNum === 0) setAssets([]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

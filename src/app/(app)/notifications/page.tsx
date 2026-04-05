@@ -32,12 +32,20 @@ export default function NotificationsPage() {
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
+    const FETCH_TIMEOUT_MS = 15_000;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
+      const { data, error } = await Promise.race([
+        supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        timeoutPromise,
+      ]);
       if (error) {
         // Table may not exist yet — fall back to activities
         setUsesFallback(true);
@@ -50,7 +58,11 @@ export default function NotificationsPage() {
       } else {
         setNotifications((data ?? []) as Notification[]);
       }
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      console.error('[notifications] load error:', isTimeout ? 'timeout' : err);
     } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

@@ -121,17 +121,29 @@ export default function MyTasksPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>('all');
 
   useEffect(() => {
+    const FETCH_TIMEOUT_MS = 15_000;
     const fetchData = async () => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        const [tasksRes, teamRes] = await Promise.allSettled([
-          supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
-          supabase.from('team_members').select('*').order('name'),
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+        });
+        const [tasksRes, teamRes] = await Promise.race([
+          Promise.allSettled([
+            supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
+            supabase.from('team_members').select('*').order('name'),
+          ]),
+          timeoutPromise,
         ]);
         if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
           setTasks((tasksRes.value.data ?? []) as Task[]);
         if (teamRes.status === 'fulfilled' && !teamRes.value.error)
           setTeam((teamRes.value.data ?? []) as TeamMember[]);
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+        console.error('[my-tasks] fetch error:', isTimeout ? 'timeout' : err);
       } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         setLoading(false);
       }
     };
