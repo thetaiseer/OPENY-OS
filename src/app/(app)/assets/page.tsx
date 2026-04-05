@@ -356,8 +356,9 @@ function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, 
 
   // Keep editName in sync when the asset name is updated externally (e.g. after sync).
   useEffect(() => {
-    if (!isEditing) setEditName(asset.name);
-  }, [asset.name, isEditing]);
+    setEditName(asset.name);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset.name]);
 
   const startEdit = () => {
     setEditName(asset.name);

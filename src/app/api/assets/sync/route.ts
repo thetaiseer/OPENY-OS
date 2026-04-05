@@ -190,6 +190,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         if (hasDataChanges) {
           updated++;
           console.log('[sync] updated:', meta.name, '| driveId:', driveId, '| fields:', Object.keys(updates).join(', '));
+        } else {
+          console.debug('[sync] last_synced_at refreshed (no data change):', meta.name, '| driveId:', driveId);
         }
       }
     } catch (err: unknown) {
