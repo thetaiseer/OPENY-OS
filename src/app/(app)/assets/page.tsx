@@ -554,11 +554,17 @@ export default function AssetsPage() {
 
   useEffect(() => {
     if (!latestAsset) return;
+    // Immediately prepend the new asset for instant feedback
     setAssets(prev => {
       // Avoid duplicates if already in list
       if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
+    // Also schedule a full refresh from the DB so the list stays consistent
+    // (correct ordering, any concurrently uploaded assets appear, etc.)
+    fetchAssets(0);
+  // fetchAssets is stable (empty useCallback deps); including it satisfies the linter
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestAsset]);
 
   // ── Data ────────────────────────────────────────────────────────────────────

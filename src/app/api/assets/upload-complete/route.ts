@@ -13,6 +13,54 @@ function getSupabase() {
 }
 
 /**
+ * Extract the column name from a PostgreSQL 42703 "undefined_column" error.
+ * The message typically reads: column "xyz" of relation "table" does not exist
+ */
+function extractMissingColumn(err: { message?: string; details?: string }): string | null {
+  const text = `${err.message ?? ''} ${err.details ?? ''}`;
+  const m = text.match(/column "([^"]+)"/);
+  return m?.[1] ?? null;
+}
+
+/**
+ * Insert a row into the assets table, automatically retrying without any
+ * column that PostgreSQL reports as undefined (error code 42703).
+ * This makes uploads robust against schema migrations not yet applied to the DB.
+ */
+const MAX_COLUMN_RETRIES = 10;
+
+async function insertWithColumnFallback(
+  supabase: ReturnType<typeof getSupabase>,
+  row: Record<string, unknown>,
+  logPrefix: string,
+): Promise<{ data: Record<string, unknown> | null; error: { message: string; code: string; details?: string; hint?: string } | null; finalRow: Record<string, unknown> }> {
+  let currentRow = { ...row };
+  let result = await supabase.from('assets').insert(currentRow).select().single();
+  let attempts = 0;
+
+  while (result.error?.code === '42703' && attempts < MAX_COLUMN_RETRIES) {
+    const col = extractMissingColumn(result.error as { message?: string; details?: string });
+    if (!col || !(col in currentRow)) break;
+    console.warn(
+      `${logPrefix} ⚠️  Column "${col}" does not exist in the assets table — ` +
+      'removing from insert payload and retrying. ' +
+      'Run supabase-migration-missing-columns.sql to add the missing column.',
+    );
+    const stripped = { ...currentRow };
+    delete stripped[col];
+    currentRow = stripped;
+    result = await supabase.from('assets').insert(currentRow).select().single();
+    attempts++;
+  }
+
+  return {
+    data:     result.data as Record<string, unknown> | null,
+    error:    result.error as { message: string; code: string; details?: string; hint?: string } | null,
+    finalRow: currentRow,
+  };
+}
+
+/**
  * POST /api/assets/upload-complete
  *
  * Called by the browser after it has finished uploading a file directly to
@@ -147,47 +195,14 @@ export async function POST(req: NextRequest) {
     try {
       const fullRow = { ...requiredRow, ...previewFields };
       console.log('[upload-complete] insert payload:', JSON.stringify(fullRow, null, 2));
-      const { data, error: dbError } = await supabase
-        .from('assets')
-        .insert(fullRow)
-        .select()
-        .single();
 
-      if (dbError?.code === '42703') {
-        console.warn(
-          '[upload-complete] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
-          ' Run supabase-migration-missing-columns.sql to add the missing columns.',
-        );
-        console.log('[upload-complete] retry payload (required only):', JSON.stringify(requiredRow, null, 2));
-        const { data: retryData, error: retryError } = await supabase
-          .from('assets')
-          .insert(requiredRow)
-          .select()
-          .single();
+      const { data, error: dbError, finalRow } = await insertWithColumnFallback(
+        supabase,
+        fullRow,
+        '[upload-complete]',
+      );
 
-        if (retryError) {
-          console.error('[upload-complete] ❌ Supabase insert error (retry) — full error object:', JSON.stringify(retryError, null, 2));
-          console.error('[upload-complete] ❌ message:', retryError.message);
-          console.error('[upload-complete] ❌ code:', retryError.code);
-          console.error('[upload-complete] ❌ details:', retryError.details ?? '(none)');
-          console.error('[upload-complete] ❌ hint:', retryError.hint ?? '(none)');
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Failed to save asset metadata: ${retryError.message}${retryError.details ? ` — ${retryError.details}` : ''}${retryError.hint ? ` (hint: ${retryError.hint})` : ''}`,
-              supabase_error: {
-                message: retryError.message,
-                code:    retryError.code,
-                details: retryError.details,
-                hint:    retryError.hint,
-              },
-              insert_payload: requiredRow,
-            },
-            { status: 500 },
-          );
-        }
-        inserted = retryData as Record<string, unknown>;
-      } else if (dbError) {
+      if (dbError) {
         console.error('[upload-complete] ❌ Supabase insert error — full error object:', JSON.stringify(dbError, null, 2));
         console.error('[upload-complete] ❌ message:', dbError.message);
         console.error('[upload-complete] ❌ code:', dbError.code);
@@ -203,13 +218,12 @@ export async function POST(req: NextRequest) {
               details: dbError.details,
               hint:    dbError.hint,
             },
-            insert_payload: fullRow,
+            insert_payload: finalRow,
           },
           { status: 500 },
         );
-      } else {
-        inserted = data as Record<string, unknown>;
       }
+      inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ DB insert exception:', msg);
