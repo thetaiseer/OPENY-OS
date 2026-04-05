@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { scanDriveForSync, setFilePublicReadable, checkDriveFileExists } from '@/lib/google-drive';
 import type { DriveFileMeta } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
+import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // ── Supabase service-role client ──────────────────────────────────────────────
 
@@ -79,11 +80,33 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   }
 
   // ── 2. Load DB assets ────────────────────────────────────────────────────
-  const { data: dbRows, error: fetchError } = await supabase
+  // Try with is_deleted in SELECT; fall back without it if the column is
+  // missing (error code 42703 = undefined_column).  The root fix is to run
+  // supabase-migration-missing-columns.sql.
+  let hasIsDeleted = true;
+
+  const primaryFetch = await supabase
     .from('assets')
     .select('id, name, drive_file_id, file_size, file_type, view_url, client_folder_name, content_type, month_key, is_deleted')
     .eq('storage_provider', 'google_drive')
     .not('drive_file_id', 'is', null);
+
+  let dbRows: DbAsset[] | null = null;
+  let fetchError = primaryFetch.error;
+
+  if (primaryFetch.error?.code === '42703') {
+    console.warn('[sync] Column "is_deleted" (or another sync column) missing — retrying without it. Run supabase-migration-missing-columns.sql.');
+    hasIsDeleted = false;
+    const fallback = await supabase
+      .from('assets')
+      .select('id, name, drive_file_id, file_size, file_type, view_url, client_folder_name, content_type, month_key')
+      .eq('storage_provider', 'google_drive')
+      .not('drive_file_id', 'is', null);
+    dbRows = (fallback.data ?? []) as DbAsset[];
+    fetchError = fallback.error;
+  } else {
+    dbRows = (primaryFetch.data ?? []) as DbAsset[];
+  }
 
   if (fetchError) {
     recordError('DB fetch failed', fetchError);
@@ -92,7 +115,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     return { success: false, added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
   }
 
-  const dbAssets = (dbRows ?? []) as DbAsset[];
+  const dbAssets = dbRows ?? [];
 
   // Single timestamp for this entire sync pass — all touched records share it.
   const syncNow = new Date().toISOString();
@@ -114,7 +137,9 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       // Grant public read access so the file is viewable in the UI
       const { webViewLink, webContentLink } = await setFilePublicReadable(driveId);
 
-      const { error: insertError } = await supabase.from('assets').insert({
+      // Use insertWithColumnFallback so missing columns (e.g. is_deleted,
+      // last_synced_at) are stripped automatically and the insert still succeeds.
+      const insertRow: Record<string, unknown> = {
         name:               meta.name,
         file_path:          null,
         file_url:           webViewLink,
@@ -130,10 +155,16 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         client_folder_name: meta.client_folder_name,
         content_type:       meta.content_type,
         month_key:          meta.month_key,
-        is_deleted:         false,
+        ...(hasIsDeleted ? { is_deleted: false } : {}),
         last_synced_at:     syncNow,
         source_updated_at:  meta.modified_time ?? null,
-      });
+      };
+
+      const { error: insertError } = await insertWithColumnFallback(
+        (row) => supabase.from('assets').insert(row).select().single(),
+        insertRow,
+        '[sync:insert]',
+      );
 
       if (insertError) {
         recordError(`Insert "${meta.name}"`, insertError);
@@ -151,9 +182,12 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     const dbAsset = dbMap.get(driveId);
     if (!dbAsset) continue;
 
-    const updates: Record<string, unknown> = {
-      last_synced_at: syncNow,
-    };
+    const updates: Record<string, unknown> = {};
+
+    // Only include last_synced_at if the column is known to exist
+    if (hasIsDeleted) {
+      updates.last_synced_at = syncNow;
+    }
 
     let hasDataChanges = false;
 
@@ -169,14 +203,17 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       updates.file_type = meta.mime_type;
       hasDataChanges = true;
     }
-    if (meta.modified_time) {
+    if (hasIsDeleted && meta.modified_time) {
       updates.source_updated_at = meta.modified_time;
     }
     // Re-activate a previously soft-deleted record that has reappeared in Drive
-    if (dbAsset.is_deleted) {
+    if (hasIsDeleted && dbAsset.is_deleted) {
       updates.is_deleted = false;
       hasDataChanges = true;
     }
+
+    // Skip update if there is nothing to write
+    if (Object.keys(updates).length === 0) continue;
 
     try {
       const { error: updateError } = await supabase
@@ -185,7 +222,23 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         .eq('id', dbAsset.id);
 
       if (updateError) {
-        recordError(`Update "${meta.name}"`, updateError);
+        // If the update fails because a column is still missing, strip it and retry
+        if (updateError.code === '42703') {
+          const safeUpdates: Record<string, unknown> = {};
+          if (updates.name !== undefined) safeUpdates.name = updates.name;
+          if (updates.file_size !== undefined) safeUpdates.file_size = updates.file_size;
+          if (updates.file_type !== undefined) safeUpdates.file_type = updates.file_type;
+          if (Object.keys(safeUpdates).length > 0) {
+            const { error: retryError } = await supabase.from('assets').update(safeUpdates).eq('id', dbAsset.id);
+            if (retryError) {
+              recordError(`Update "${meta.name}"`, retryError);
+            } else if (hasDataChanges) {
+              updated++;
+            }
+          }
+        } else {
+          recordError(`Update "${meta.name}"`, updateError);
+        }
       } else {
         if (hasDataChanges) {
           updated++;
@@ -203,7 +256,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   for (const [driveId, dbAsset] of dbMap) {
     if (driveMap.has(driveId)) continue;
     // Already soft-deleted — nothing more to do.
-    if (dbAsset.is_deleted) continue;
+    if (hasIsDeleted && dbAsset.is_deleted) continue;
 
     // Verify by calling Drive directly — avoids false positives if the scan
     // missed a file (e.g. a path edge-case or transient API error).
@@ -216,17 +269,32 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         continue;
       }
 
-      // Soft-delete: mark as deleted rather than hard-removing the DB record.
-      const { error: softDeleteError } = await supabase
-        .from('assets')
-        .update({ is_deleted: true, last_synced_at: syncNow })
-        .eq('id', dbAsset.id);
+      if (hasIsDeleted) {
+        // Soft-delete: mark as deleted rather than hard-removing the DB record.
+        const { error: softDeleteError } = await supabase
+          .from('assets')
+          .update({ is_deleted: true, last_synced_at: syncNow })
+          .eq('id', dbAsset.id);
 
-      if (softDeleteError) {
-        recordError(`Remove "${dbAsset.name}"`, softDeleteError);
+        if (softDeleteError) {
+          recordError(`Remove "${dbAsset.name}"`, softDeleteError);
+        } else {
+          removed++;
+          console.log('[sync] soft-deleted:', dbAsset.name, '| driveId:', driveId);
+        }
       } else {
-        removed++;
-        console.log('[sync] soft-deleted:', dbAsset.name, '| driveId:', driveId);
+        // is_deleted column not available — hard-delete as fallback
+        const { error: hardDeleteError } = await supabase
+          .from('assets')
+          .delete()
+          .eq('id', dbAsset.id);
+
+        if (hardDeleteError) {
+          recordError(`Remove "${dbAsset.name}"`, hardDeleteError);
+        } else {
+          removed++;
+          console.log('[sync] hard-deleted (is_deleted unavailable):', dbAsset.name, '| driveId:', driveId);
+        }
       }
     } catch (err: unknown) {
       // Transient Drive API error — skip to avoid accidental data loss

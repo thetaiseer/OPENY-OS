@@ -36,14 +36,6 @@ export async function GET(req: NextRequest) {
     const from = page * PAGE_SIZE;
     const to   = from + PAGE_SIZE - 1;
 
-    const supabase = getSupabase();
-    let query = supabase
-      .from('assets')
-      .select('*')
-      .neq('is_deleted', true)
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
     // Client role: profiles no longer carry client_id, so we cannot scope
     // results to a specific client — return an empty list to avoid exposing
     // all assets until RLS policies are tightened.
@@ -51,7 +43,31 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, assets: [], page, hasMore: false });
     }
 
-    const { data, error } = await query;
+    const supabase = getSupabase();
+
+    // Try with is_deleted filter first; if the column doesn't exist yet (error
+    // code 42703) fall back to a query without it so the page still loads.
+    // The root fix is to run supabase-migration-missing-columns.sql.
+    let result = await supabase
+      .from('assets')
+      .select('*')
+      .neq('is_deleted', true)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (result.error?.code === '42703') {
+      console.warn(
+        '[GET /api/assets] Column "is_deleted" does not exist — falling back to unfiltered query. ' +
+        'Run supabase-migration-missing-columns.sql to add the missing column.',
+      );
+      result = await supabase
+        .from('assets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+    }
+
+    const { data, error } = result;
 
     if (error) {
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');
