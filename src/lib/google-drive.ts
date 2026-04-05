@@ -31,6 +31,26 @@ export interface DriveUploadResult {
   client_folder_name: string | null;
   webViewLink: string;
   webContentLink: string;
+  thumbnailLink: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+}
+
+// ── Preview URL helpers ───────────────────────────────────────────────────────
+
+/** Direct embed URL for inline image/video rendering (no Drive redirect). */
+export function buildPreviewUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=view&id=${fileId}`;
+}
+
+/** Thumbnail URL; falls back to Drive thumbnail endpoint if Drive didn't return one. */
+export function buildThumbnailUrl(fileId: string, thumbnailLink?: string | null): string {
+  return thumbnailLink ?? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+}
+
+/** Direct download URL. */
+export function buildDownloadUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
 // ── String helpers ────────────────────────────────────────────────────────────
@@ -263,7 +283,7 @@ export async function uploadToStructuredPath(
       mimeType,
       body: readableStream,
     },
-    fields: 'id,webViewLink,webContentLink',
+    fields: 'id',
     supportsAllDrives: true,
   });
 
@@ -284,10 +304,10 @@ export async function uploadToStructuredPath(
   });
   console.log('[google-drive] permission create status:', permRes.status);
 
-  // Fetch updated links after permission change
+  // Fetch updated links and metadata after permission change
   const metaRes = await drive.files.get({
     fileId,
-    fields: 'id,webViewLink,webContentLink',
+    fields: 'id,mimeType,size,webViewLink,webContentLink,thumbnailLink',
     supportsAllDrives: true,
   });
 
@@ -304,12 +324,19 @@ export async function uploadToStructuredPath(
     webContentLink = `https://drive.google.com/uc?id=${fileId}&export=download`;
   }
 
+  const thumbnailLink = metaRes.data.thumbnailLink ?? null;
+  const fileMimeType = metaRes.data.mimeType ?? null;
+  const fileSize = metaRes.data.size ? Number(metaRes.data.size) : null;
+
   const result: DriveUploadResult = {
     drive_file_id: fileId,
     drive_folder_id: monthFolderId,
     client_folder_name: clientFolderName,
     webViewLink,
     webContentLink,
+    thumbnailLink,
+    mimeType: fileMimeType,
+    fileSize,
   };
 
   console.log('[google-drive] uploaded file id:', fileId, '| webViewLink:', webViewLink);
@@ -821,7 +848,7 @@ export async function initiateResumableSession(
  */
 export async function finalizeFileAfterUpload(
   driveFileId: string,
-): Promise<{ webViewLink: string; webContentLink: string }> {
+): Promise<{ webViewLink: string; webContentLink: string; thumbnailLink: string | null; mimeType: string | null }> {
   const { drive } = getDriveClient();
 
   // Grant anyone-with-link read access
@@ -835,7 +862,7 @@ export async function finalizeFileAfterUpload(
   // Fetch updated metadata
   const metaRes = await drive.files.get({
     fileId: driveFileId,
-    fields: 'id,webViewLink,webContentLink',
+    fields: 'id,mimeType,webViewLink,webContentLink,thumbnailLink',
     supportsAllDrives: true,
   });
 
@@ -854,6 +881,9 @@ export async function finalizeFileAfterUpload(
     webContentLink = `https://drive.google.com/uc?id=${driveFileId}&export=download`;
   }
 
+  const thumbnailLink = metaRes.data.thumbnailLink ?? null;
+  const mimeType = metaRes.data.mimeType ?? null;
+
   console.log('[google-drive] finalized file:', driveFileId, '| view:', webViewLink);
-  return { webViewLink, webContentLink };
+  return { webViewLink, webContentLink, thumbnailLink, mimeType };
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { finalizeFileAfterUpload } from '@/lib/google-drive';
+import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
@@ -98,8 +98,10 @@ export async function POST(req: NextRequest) {
     // ── Finalise: set permissions + fetch links ───────────────────────────────
     let webViewLink: string;
     let webContentLink: string;
+    let thumbnailLink: string | null;
+    let driveMimeType: string | null;
     try {
-      ({ webViewLink, webContentLink } = await finalizeFileAfterUpload(driveFileId));
+      ({ webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType } = await finalizeFileAfterUpload(driveFileId));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ finalizeFileAfterUpload failed:', msg);
@@ -125,6 +127,10 @@ export async function POST(req: NextRequest) {
       client_folder_name: clientFolderName,
       content_type:       contentType,
       month_key:          monthKey,
+      mime_type:          driveMimeType ?? (typeof fileType === 'string' && fileType ? fileType : null),
+      preview_url:        buildPreviewUrl(driveFileId),
+      thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
+      web_view_link:      webViewLink,
       ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
     if (safeClientId) row.client_id = safeClientId;
