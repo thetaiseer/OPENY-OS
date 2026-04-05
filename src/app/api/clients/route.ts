@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.warn('[POST /api/clients] body parse error:', err);
     return NextResponse.json(
-      { success: false, step: 'response_parse', error: 'Invalid JSON body' },
+      { success: false, step: 'validation', error: 'Invalid JSON body' },
       { status: 400 },
     );
   }
