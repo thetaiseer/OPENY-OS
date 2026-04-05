@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Task, Asset } from '@/lib/types';
 
@@ -38,6 +38,8 @@ function approvalColor(s?: string | null): string {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 export default function CalendarPage() {
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
@@ -45,30 +47,61 @@ export default function CalendarPage() {
   const [tasks,  setTasks]  = useState<Task[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const startDate = `${year}-${pad(month + 1)}-01`;
-      const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
+      setError(null);
+      try {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const startDate = `${year}-${pad(month + 1)}-01`;
+        const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
 
-      const [tasksRes, assetsRes] = await Promise.allSettled([
-        supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
-        supabase.from('assets')
-          .select('id, name, publish_date, approval_status, content_type, client_name')
-          .gte('publish_date', startDate)
-          .lte('publish_date', endDate),
-      ]);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
+        );
 
-      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
-        setTasks((tasksRes.value.data ?? []) as Task[]);
+        const settled = await Promise.race([
+          Promise.allSettled([
+            supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
+            supabase.from('assets')
+              .select('id, name, publish_date, approval_status, content_type, client_name')
+              .gte('publish_date', startDate)
+              .lte('publish_date', endDate),
+          ]),
+          timeoutPromise,
+        ]);
+
+        const [tasksRes, assetsRes] = settled;
+
+        if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
+          setTasks((tasksRes.value.data ?? []) as Task[]);
+        } else {
+          const err = tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error;
+          console.error('[calendar] tasks fetch error:', err);
+          setTasks([]);
+        }
+        if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
+          setAssets((assetsRes.value.data ?? []) as Asset[]);
+        } else {
+          const err = assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error;
+          console.error('[calendar] assets fetch error:', err);
+          setAssets([]);
+        }
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+        const msg = isTimeout
+          ? 'Calendar data took too long to load. Please try again.'
+          : 'Failed to load calendar data.';
+        console.error('[calendar] load error:', err);
+        setError(msg);
+        setTasks([]);
+        setAssets([]);
+      } finally {
+        setLoading(false);
       }
-      if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
-        setAssets((assetsRes.value.data ?? []) as Asset[]);
-      }
-      setLoading(false);
     };
     load();
   }, [year, month]);
@@ -148,6 +181,17 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Error banner */}
+        {error && (
+          <div
+            className="lg:col-span-3 flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          >
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Calendar grid */}
         <div className="lg:col-span-2">
           <div

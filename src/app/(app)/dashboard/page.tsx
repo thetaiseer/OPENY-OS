@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays } from 'lucide-react';
+import { Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, AlertCircle } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
@@ -59,32 +59,45 @@ export default function DashboardPage() {
   const [assetRows, setAssetRows]   = useState<AssetRow[]>([]);
   const [scheduled, setScheduled]   = useState<Asset[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
 
   useEffect(() => {
+    const FETCH_TIMEOUT_MS = 15_000;
     const todayStr = new Date().toISOString().slice(0, 10);
     const fetchData = async () => {
+      setError(null);
       try {
         const weekLater = new Date();
         weekLater.setDate(weekLater.getDate() + 7);
         const weekLaterStr = weekLater.toISOString().slice(0, 10);
-        const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes, dueThisWeek] = await Promise.allSettled([
-          supabase.from('clients').select('id', { count: 'exact', head: true }),
-          supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
-          supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-          supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
-          supabase.from('assets').select('content_type, file_size'),
-          supabase.from('assets')
-            .select('id, name, publish_date, approval_status, client_name, content_type')
-            .eq('approval_status', 'scheduled')
-            .gte('publish_date', todayStr)
-            .order('publish_date', { ascending: true })
-            .limit(5),
-          supabase.from('tasks').select('id', { count: 'exact', head: true })
-            .gte('due_date', todayStr)
-            .lte('due_date', weekLaterStr)
-            .not('status', 'in', '("done","delivered")'),
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
+        );
+
+        const settled = await Promise.race([
+          Promise.allSettled([
+            supabase.from('clients').select('id', { count: 'exact', head: true }),
+            supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
+            supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+            supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+            supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
+            supabase.from('assets').select('content_type, file_size'),
+            supabase.from('assets')
+              .select('id, name, publish_date, approval_status, client_name, content_type')
+              .eq('approval_status', 'scheduled')
+              .gte('publish_date', todayStr)
+              .order('publish_date', { ascending: true })
+              .limit(5),
+            supabase.from('tasks').select('id', { count: 'exact', head: true })
+              .gte('due_date', todayStr)
+              .lte('due_date', weekLaterStr)
+              .not('status', 'in', '("done","delivered")'),
+          ]),
+          timeoutPromise,
         ]);
+
+        const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes, dueThisWeek] = settled;
 
         setStats({
           totalClients:     clients.status    === 'fulfilled' ? (clients.value.count    ?? 0) : 0,
@@ -95,13 +108,26 @@ export default function DashboardPage() {
         });
         if (activityRes.status === 'fulfilled' && !activityRes.value.error) {
           setActivities((activityRes.value.data ?? []) as ActivityType[]);
+        } else {
+          console.error('[dashboard] activities fetch error:', activityRes.status === 'rejected' ? activityRes.reason : activityRes.value.error);
         }
         if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
           setAssetRows((assetsRes.value.data ?? []) as AssetRow[]);
+        } else {
+          console.error('[dashboard] assets fetch error:', assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error);
         }
         if (scheduledRes.status === 'fulfilled' && !scheduledRes.value.error) {
           setScheduled((scheduledRes.value.data ?? []) as Asset[]);
+        } else {
+          console.error('[dashboard] scheduled fetch error:', scheduledRes.status === 'rejected' ? scheduledRes.reason : scheduledRes.value.error);
         }
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+        const msg = isTimeout
+          ? 'Dashboard data took too long to load. Please refresh the page.'
+          : 'Failed to load dashboard data. Please try again.';
+        console.error('[dashboard] load error:', err);
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -132,6 +158,16 @@ export default function DashboardPage() {
           Here&apos;s what&apos;s happening today
         </p>
       </div>
+
+      {error && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -567,6 +567,7 @@ export default function TasksPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
   // Modals
@@ -588,20 +589,53 @@ export default function TasksPage() {
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── fetch ────────────────────────────────────────────────────────────────
+  const FETCH_TIMEOUT_MS = 15_000;
   const fetchAll = useCallback(async () => {
+    setFetchError(null);
     try {
-      const [tasksRes, clientsRes, teamRes] = await Promise.allSettled([
-        supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
-        supabase.from('clients').select('id,name').order('name'),
-        supabase.from('team_members').select('*').order('name'),
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS),
+      );
+
+      const settled = await Promise.race([
+        Promise.allSettled([
+          supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
+          supabase.from('clients').select('id,name').order('name'),
+          supabase.from('team_members').select('*').order('name'),
+        ]),
+        timeoutPromise,
       ]);
 
-      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
+      const [tasksRes, clientsRes, teamRes] = settled;
+
+      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
         setTasks((tasksRes.value.data ?? []) as Task[]);
-      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error)
+      } else {
+        console.error('[tasks] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
+        setTasks([]);
+      }
+      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
         setClients((clientsRes.value.data ?? []) as Client[]);
-      if (teamRes.status === 'fulfilled' && !teamRes.value.error)
+      } else {
+        console.error('[tasks] clients fetch error:', clientsRes.status === 'rejected' ? clientsRes.reason : clientsRes.value.error);
+        setClients([]);
+      }
+      if (teamRes.status === 'fulfilled' && !teamRes.value.error) {
         setTeam((teamRes.value.data ?? []) as TeamMember[]);
+      } else {
+        console.error('[tasks] team fetch error:', teamRes.status === 'rejected' ? teamRes.reason : teamRes.value.error);
+        setTeam([]);
+      }
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      const msg = isTimeout
+        ? 'Tasks data took too long to load. Please refresh the page.'
+        : 'Failed to load tasks. Please try again.';
+      console.error('[tasks] fetchAll error:', err);
+      setFetchError(msg);
+      setTasks([]);
+      setClients([]);
+      setTeam([]);
     } finally {
       setLoading(false);
     }
@@ -746,6 +780,16 @@ export default function TasksPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Fetch error banner */}
+      {fetchError && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{fetchError}</span>
+        </div>
+      )}
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div>

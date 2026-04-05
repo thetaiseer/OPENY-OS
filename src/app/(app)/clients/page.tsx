@@ -25,6 +25,7 @@ export default function ClientsPage() {
   const canManageClients = role === 'admin' || role === 'team';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,6 +36,11 @@ export default function ClientsPage() {
   });
 
   const fetchClients = useCallback(async (): Promise<boolean> => {
+    setFetchError(null);
+    const timeoutMs = 15_000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs),
+    );
     try {
       let query = supabase
         .from('clients')
@@ -44,9 +50,10 @@ export default function ClientsPage() {
       if (search) {
         query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
       }
-      const { data, error } = await query;
+      const { data, error } = await Promise.race([query, timeoutPromise]);
       if (error) {
         console.error('[clients fetch]', error);
+        setFetchError('Failed to load clients. Please try again.');
         setClients([]);
         return false;
       } else {
@@ -54,7 +61,12 @@ export default function ClientsPage() {
         return true;
       }
     } catch (err: unknown) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      const msg = isTimeout
+        ? 'Clients took too long to load. Please try again.'
+        : 'Failed to load clients. Please try again.';
       console.error('[clients fetch] unexpected error:', err);
+      setFetchError(msg);
       setClients([]);
       return false;
     } finally {
@@ -182,6 +194,16 @@ export default function ClientsPage() {
           style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
         />
       </div>
+
+      {fetchError && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{fetchError}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
