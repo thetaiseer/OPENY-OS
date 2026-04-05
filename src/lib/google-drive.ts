@@ -36,6 +36,23 @@ export interface DriveUploadResult {
   fileSize: number | null;
 }
 
+// ── Preview URL helpers ───────────────────────────────────────────────────────
+
+/** Direct embed URL for inline image/video rendering (no Drive redirect). */
+export function buildPreviewUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=view&id=${fileId}`;
+}
+
+/** Thumbnail URL; falls back to Drive thumbnail endpoint if Drive didn't return one. */
+export function buildThumbnailUrl(fileId: string, thumbnailLink?: string | null): string {
+  return thumbnailLink ?? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+}
+
+/** Direct download URL. */
+export function buildDownloadUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+}
+
 // ── String helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -266,7 +283,7 @@ export async function uploadToStructuredPath(
       mimeType,
       body: readableStream,
     },
-    fields: 'id,name,mimeType,size,webViewLink,webContentLink',
+    fields: 'id',
     supportsAllDrives: true,
   });
 
@@ -290,7 +307,7 @@ export async function uploadToStructuredPath(
   // Fetch updated links and metadata after permission change
   const metaRes = await drive.files.get({
     fileId,
-    fields: 'id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink',
+    fields: 'id,mimeType,size,webViewLink,webContentLink,thumbnailLink',
     supportsAllDrives: true,
   });
 
@@ -845,7 +862,7 @@ export async function finalizeFileAfterUpload(
   // Fetch updated metadata
   const metaRes = await drive.files.get({
     fileId: driveFileId,
-    fields: 'id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink',
+    fields: 'id,mimeType,webViewLink,webContentLink,thumbnailLink',
     supportsAllDrives: true,
   });
 

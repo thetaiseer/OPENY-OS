@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { finalizeFileAfterUpload } from '@/lib/google-drive';
+import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
@@ -128,8 +128,8 @@ export async function POST(req: NextRequest) {
       content_type:       contentType,
       month_key:          monthKey,
       mime_type:          driveMimeType ?? (typeof fileType === 'string' && fileType ? fileType : null),
-      preview_url:        `https://drive.google.com/uc?export=view&id=${driveFileId}`,
-      thumbnail_url:      thumbnailLink ?? `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w1000`,
+      preview_url:        buildPreviewUrl(driveFileId),
+      thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
       web_view_link:      webViewLink,
       ...(safeUploadedBy ? { uploaded_by: safeUploadedBy } : {}),
     };
