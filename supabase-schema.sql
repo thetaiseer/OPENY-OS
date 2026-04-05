@@ -63,6 +63,22 @@ create table if not exists assets (
                      )),
   month_key          text check (month_key is null or month_key ~ '^\d{4}-(0[1-9]|1[0-2])$'),
   client_folder_name text,
+  -- Drive / content organisation columns (added by supabase-migration-drive-structure.sql)
+  client_name        text,
+  uploaded_by        text,
+  -- Preview / thumbnail metadata (added by supabase-migration-asset-preview.sql)
+  mime_type          text,
+  preview_url        text,
+  thumbnail_url      text,
+  web_view_link      text,
+  -- Approval workflow columns (added by supabase-migration-saas-v1.sql)
+  publish_date       date,
+  approval_notes     text,
+  approval_status    text default 'pending' check (approval_status is null or approval_status in (
+                       'pending','approved','rejected','scheduled','published'
+                     )),
+  -- Task link (added by supabase-migration-agency-v1.sql)
+  task_id            uuid references tasks(id) on delete set null,
   created_at         timestamptz not null default now()
 );
 

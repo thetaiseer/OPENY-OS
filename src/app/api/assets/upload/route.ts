@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { uploadToStructuredPath, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
 import { requireRole } from '@/lib/api-auth';
+import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // Fixed content type list
 const VALID_CONTENT_TYPES = [
@@ -208,28 +209,14 @@ export async function POST(req: NextRequest) {
 
     let inserted: Record<string, unknown>;
     try {
-      const row = { ...requiredRow, ...previewFields };
-      console.log('[upload] insert payload:', JSON.stringify(row, null, 2));
-      let { data, error: dbError } = await supabase
-        .from('assets')
-        .insert(row)
-        .select()
-        .single();
+      const fullRow = { ...requiredRow, ...previewFields };
+      console.log('[upload] insert payload:', JSON.stringify(fullRow, null, 2));
 
-      // Retry without optional preview columns if the schema is outdated
-      // (PostgreSQL error 42703 = undefined_column).
-      if (dbError?.code === '42703') {
-        console.warn(
-          '[upload] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
-          ' Run supabase-migration-missing-columns.sql to add the missing columns.',
-        );
-        console.log('[upload] retry payload (required only):', JSON.stringify(requiredRow, null, 2));
-        ({ data, error: dbError } = await supabase
-          .from('assets')
-          .insert(requiredRow)
-          .select()
-          .single());
-      }
+      const { data, error: dbError, finalRow } = await insertWithColumnFallback(
+        (row) => supabase.from('assets').insert(row).select().single(),
+        fullRow,
+        '[upload]',
+      );
 
       if (dbError) {
         console.error('[upload] ❌ Supabase insert error — full error object:', JSON.stringify(dbError, null, 2));
@@ -247,7 +234,7 @@ export async function POST(req: NextRequest) {
               details: dbError.details,
               hint:    dbError.hint,
             },
-            insert_payload: row,
+            insert_payload: finalRow,
           },
           { status: 500 },
         );

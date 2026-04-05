@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
+import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -147,47 +148,14 @@ export async function POST(req: NextRequest) {
     try {
       const fullRow = { ...requiredRow, ...previewFields };
       console.log('[upload-complete] insert payload:', JSON.stringify(fullRow, null, 2));
-      const { data, error: dbError } = await supabase
-        .from('assets')
-        .insert(fullRow)
-        .select()
-        .single();
 
-      if (dbError?.code === '42703') {
-        console.warn(
-          '[upload-complete] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
-          ' Run supabase-migration-missing-columns.sql to add the missing columns.',
-        );
-        console.log('[upload-complete] retry payload (required only):', JSON.stringify(requiredRow, null, 2));
-        const { data: retryData, error: retryError } = await supabase
-          .from('assets')
-          .insert(requiredRow)
-          .select()
-          .single();
+      const { data, error: dbError, finalRow } = await insertWithColumnFallback(
+        (row) => supabase.from('assets').insert(row).select().single(),
+        fullRow,
+        '[upload-complete]',
+      );
 
-        if (retryError) {
-          console.error('[upload-complete] ❌ Supabase insert error (retry) — full error object:', JSON.stringify(retryError, null, 2));
-          console.error('[upload-complete] ❌ message:', retryError.message);
-          console.error('[upload-complete] ❌ code:', retryError.code);
-          console.error('[upload-complete] ❌ details:', retryError.details ?? '(none)');
-          console.error('[upload-complete] ❌ hint:', retryError.hint ?? '(none)');
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Failed to save asset metadata: ${retryError.message}${retryError.details ? ` — ${retryError.details}` : ''}${retryError.hint ? ` (hint: ${retryError.hint})` : ''}`,
-              supabase_error: {
-                message: retryError.message,
-                code:    retryError.code,
-                details: retryError.details,
-                hint:    retryError.hint,
-              },
-              insert_payload: requiredRow,
-            },
-            { status: 500 },
-          );
-        }
-        inserted = retryData as Record<string, unknown>;
-      } else if (dbError) {
+      if (dbError) {
         console.error('[upload-complete] ❌ Supabase insert error — full error object:', JSON.stringify(dbError, null, 2));
         console.error('[upload-complete] ❌ message:', dbError.message);
         console.error('[upload-complete] ❌ code:', dbError.code);
@@ -203,13 +171,12 @@ export async function POST(req: NextRequest) {
               details: dbError.details,
               hint:    dbError.hint,
             },
-            insert_payload: fullRow,
+            insert_payload: finalRow,
           },
           { status: 500 },
         );
-      } else {
-        inserted = data as Record<string, unknown>;
       }
+      inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload-complete] ❌ DB insert exception:', msg);
