@@ -19,6 +19,8 @@ const statusVariant = (s: string) => {
 
 const WARN_TOAST_BG = '#d97706';
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
@@ -37,12 +39,11 @@ export default function ClientsPage() {
 
   const fetchClients = useCallback(async (): Promise<boolean> => {
     setFetchError(null);
-    const timeoutMs = 15_000;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs);
-    });
     try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
       let query = supabase
         .from('clients')
         .select('*')

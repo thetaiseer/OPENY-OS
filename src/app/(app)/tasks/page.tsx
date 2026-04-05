@@ -556,6 +556,8 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, t }: { task: Task 
   );
 }
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function TasksPage() {
@@ -589,7 +591,6 @@ export default function TasksPage() {
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── fetch ────────────────────────────────────────────────────────────────
-  const FETCH_TIMEOUT_MS = 15_000;
   const fetchAll = useCallback(async () => {
     setFetchError(null);
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
