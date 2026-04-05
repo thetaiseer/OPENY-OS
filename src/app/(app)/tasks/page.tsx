@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import AiImproveButton from '@/components/ui/AiImproveButton';
 import type { Task, Client, TeamMember } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -99,7 +100,13 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
     <div className="space-y-4">
       {/* Title */}
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+          <AiImproveButton
+            value={form.title}
+            onImproved={v => setForm(f => ({ ...f, title: v }))}
+          />
+        </div>
         <input
           required
           value={form.title}
@@ -112,7 +119,14 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
 
       {/* Description */}
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('description')}</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('description')}</label>
+          <AiImproveButton
+            value={form.description}
+            onImproved={v => setForm(f => ({ ...f, description: v }))}
+            showMenu
+          />
+        </div>
         <textarea
           value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}

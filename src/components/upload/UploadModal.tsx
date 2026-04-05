@@ -1,0 +1,371 @@
+'use client';
+
+/**
+ * UploadModal — shared upload metadata modal used by both the Assets page
+ * and individual Client workspace pages.
+ *
+ * Features:
+ *  - Per-file name editor with validation
+ *  - Client selection (lockable when uploading from a client workspace)
+ *  - Content-type selector
+ *  - MonthYearPicker (modern calendar-style month/year picker)
+ *  - AI writing improvement on file names
+ *  - Consistent design system styling
+ */
+
+import { X, FileImage, FileText, FileVideo, FileAudio, File, Sparkles, Loader2 } from 'lucide-react';
+import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import AiImproveButton from '@/components/ui/AiImproveButton';
+import { contentTypeLabel } from '@/lib/asset-utils';
+import type { Client } from '@/lib/types';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface UploadFileItem {
+  id:         string;
+  file:       File;
+  previewUrl: string | null;
+  uploadName: string; // user-editable base name (without extension)
+}
+
+export interface UploadModalProps {
+  files:         UploadFileItem[];
+  contentType:   string;
+  monthKey:      string;
+  clientName:    string;
+  clientId:      string;
+  clients:       Client[];
+  /** When true the client field is hidden (uploading from a client workspace) */
+  lockClient?:   boolean;
+  onContentTypeChange: (v: string) => void;
+  onMonthChange:       (v: string) => void;
+  onClientChange?:     (name: string, id: string) => void;
+  onUploadNameChange:  (id: string, name: string) => void;
+  onRemoveFile:        (id: string) => void;
+  onConfirm:           () => void;
+  onCancel:            () => void;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const ALLOWED_CONTENT_TYPES = [
+  'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
+  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
+] as const;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00]/;
+
+export function validateUploadName(name: string): string | null {
+  const t = name.trim();
+  if (!t) return 'Name cannot be empty';
+  if (INVALID_FILENAME_CHARS.test(t)) return 'Invalid characters (< > : " / \\ | ? *)';
+  if (t.startsWith('.')) return 'Name cannot start with a period';
+  if (t.length > 200) return 'Too long (max 200 characters)';
+  return null;
+}
+
+function getFileExtension(name: string): string {
+  const parts = name.split('.');
+  return parts.length > 1 ? `.${parts.pop()!.toLowerCase()}` : '';
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function FileIcon({ name, type, size = 16 }: { name: string; type?: string; size?: number }) {
+  const isImg = /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || type?.startsWith('image/');
+  const isPdf = /\.pdf$/i.test(name) || type === 'application/pdf';
+  const isVid = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type?.startsWith('video/');
+  const isAud = type?.startsWith('audio/');
+  if (isImg) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
+  if (isPdf) return <FileText  size={size} style={{ color: '#ef4444' }} />;
+  if (isVid) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
+  if (isAud) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
+  return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
+}
+
+// ── Field label helper ────────────────────────────────────────────────────────
+
+function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label
+      className="block text-xs font-semibold mb-1.5 tracking-wide"
+      style={{ color: 'var(--text-secondary)' }}
+    >
+      {children}
+      {required && <span className="ml-0.5 text-red-400">*</span>}
+    </label>
+  );
+}
+
+// ── Per-file row ──────────────────────────────────────────────────────────────
+
+function FileRow({
+  item,
+  onChangeName,
+  onRemove,
+}: {
+  item:         UploadFileItem;
+  onChangeName: (name: string) => void;
+  onRemove:     () => void;
+}) {
+  const ext   = getFileExtension(item.file.name);
+  const error = validateUploadName(item.uploadName);
+
+  return (
+    <div
+      className="rounded-xl border p-3 space-y-2.5 transition-colors"
+      style={{
+        background:   'var(--surface-2)',
+        borderColor:  error ? 'rgba(239,68,68,0.5)' : 'var(--border)',
+      }}
+    >
+      {/* Top row: icon + original name + size + remove */}
+      <div className="flex items-center gap-2">
+        {item.previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.previewUrl}
+            alt=""
+            className="w-8 h-8 rounded-lg object-cover shrink-0"
+          />
+        ) : (
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'var(--surface)' }}
+          >
+            <FileIcon name={item.file.name} type={item.file.type} size={15} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+            {item.file.name}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
+            {formatSize(item.file.size)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+          style={{ color: 'var(--text-secondary)' }}
+          title="Remove file"
+        >
+          <X size={13} />
+        </button>
+      </div>
+
+      {/* Name input row */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            File name
+            {ext && (
+              <span className="ml-1 opacity-50 font-normal">(ext: {ext})</span>
+            )}
+          </label>
+          <AiImproveButton
+            value={item.uploadName}
+            onImproved={onChangeName}
+            showMenu={false}
+          />
+        </div>
+        <input
+          type="text"
+          value={item.uploadName}
+          onChange={e => onChangeName(e.target.value)}
+          placeholder="Enter file name…"
+          className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+          style={{
+            background:  'var(--surface)',
+            color:       'var(--text)',
+            border:      `1.5px solid ${error ? 'rgba(239,68,68,0.6)' : 'var(--border)'}`,
+          }}
+        />
+        {error && (
+          <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{error}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Modal ────────────────────────────────────────────────────────────────
+
+export default function UploadModal({
+  files,
+  contentType,
+  monthKey,
+  clientName,
+  clientId,
+  clients,
+  lockClient = false,
+  onContentTypeChange,
+  onMonthChange,
+  onClientChange,
+  onUploadNameChange,
+  onRemoveFile,
+  onConfirm,
+  onCancel,
+}: UploadModalProps) {
+  const hasErrors    = files.some(f => validateUploadName(f.uploadName) !== null);
+  const canConfirm   = files.length > 0 && !hasErrors && (lockClient || !!clientName);
+
+  const handleClientSelect = (name: string) => {
+    if (!onClientChange) return;
+    const found = clients.find(c => c.name === name);
+    onClientChange(name, found?.id ?? '');
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.65)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col"
+        style={{
+          background:   'var(--surface)',
+          borderColor:  'var(--border)',
+          maxHeight:    '92vh',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div>
+            <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
+              Upload {files.length === 1 ? 'File' : `${files.length} Files`}
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+              Review details before uploading to Google Drive
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            title="Cancel"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* File list */}
+          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            {files.map(item => (
+              <FileRow
+                key={item.id}
+                item={item}
+                onChangeName={name => onUploadNameChange(item.id, name)}
+                onRemove={() => onRemoveFile(item.id)}
+              />
+            ))}
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+          >
+            {/* Client selector */}
+            {!lockClient && (
+              <div>
+                <Label required>Client</Label>
+                <select
+                  className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                  style={{
+                    background: 'var(--surface)',
+                    color:      clientName ? 'var(--text)' : 'var(--text-secondary)',
+                    border:     '1.5px solid var(--border)',
+                  }}
+                  value={clientName}
+                  onChange={e => handleClientSelect(e.target.value)}
+                >
+                  <option value="">— Select a client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Content Type */}
+            <div>
+              <Label required>Content Type</Label>
+              <select
+                className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                style={{
+                  background: 'var(--surface)',
+                  color:      'var(--text)',
+                  border:     '1.5px solid var(--border)',
+                }}
+                value={contentType}
+                onChange={e => onContentTypeChange(e.target.value)}
+              >
+                {ALLOWED_CONTENT_TYPES.map(ct => (
+                  <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Month / Year picker */}
+            <div>
+              <Label required>Month & Year</Label>
+              <MonthYearPicker
+                value={monthKey}
+                onChange={onMonthChange}
+                placeholder="Pick a month…"
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div
+          className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+            style={{
+              background: 'var(--surface-2)',
+              color:      'var(--text)',
+              border:     '1px solid var(--border)',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!canConfirm}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'var(--accent)' }}
+          >
+            {files.length === 1
+              ? 'Upload File'
+              : `Upload ${files.length} Files`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
