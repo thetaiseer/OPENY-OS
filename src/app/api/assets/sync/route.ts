@@ -201,11 +201,12 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       updates.thumbnail_url = buildThumbnailUrl(driveId, meta.thumbnail_link);
     }
 
-    // Always refresh canonical Drive URLs when we have them from the scan
+    // Always refresh canonical Drive URLs when we have them from the scan.
+    // All three target different DB columns: view_url, file_url, and web_view_link.
     if (meta.web_view_link) {
-      updates.view_url      = meta.web_view_link;
-      updates.file_url      = meta.web_view_link;
-      updates.web_view_link = meta.web_view_link;
+      updates.view_url      = meta.web_view_link;  // legacy view_url column
+      updates.file_url      = meta.web_view_link;  // primary file_url column
+      updates.web_view_link = meta.web_view_link;  // dedicated web_view_link column
     }
     if (meta.web_content_link) {
       updates.download_url = meta.web_content_link;
