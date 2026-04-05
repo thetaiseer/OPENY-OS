@@ -143,11 +143,36 @@ function isVideo(name: string, type?: string): boolean {
   return /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || (type?.startsWith('video/') ?? false);
 }
 
+function isAudio(name: string, type?: string): boolean {
+  return /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(name) || (type?.startsWith('audio/') ?? false);
+}
+
+/**
+ * Build the Google Drive embedded player URL for in-app preview of videos,
+ * PDFs, and audio files.  Falls back to null if no Drive file ID is available.
+ *
+ * Input (any):  drive_file_id, /file/d/FILE_ID/view, uc?id=FILE_ID, etc.
+ * Output:       https://drive.google.com/file/d/FILE_ID/preview
+ */
+function getDriveEmbedUrl(asset: Asset): string | null {
+  // Prefer the explicit Drive file ID stored on the asset record
+  if (asset.drive_file_id) {
+    return `https://drive.google.com/file/d/${asset.drive_file_id}/preview`;
+  }
+  // Fall back to extracting from view URLs
+  const candidate = asset.file_url || asset.view_url || asset.web_view_link;
+  const m = candidate?.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m?.[1]) {
+    return `https://drive.google.com/file/d/${m[1]}/preview`;
+  }
+  return null;
+}
+
 function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string; size?: number }) {
   if (isImage(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
   if (isPdf(name, type)) return <FileText size={size} style={{ color: '#ef4444' }} />;
   if (isVideo(name, type)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (type?.startsWith('audio/')) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
+  if (isAudio(name, type)) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
@@ -297,15 +322,21 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  const isImg  = isImage(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
-  const isVid  = isVideo(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
-  const isPdf_ = isPdf(asset.name, asset.file_type ?? asset.mime_type ?? undefined);
+  const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
+  const downloadUrl  = asset.download_url ?? asset.file_url;
+  const isImg   = isImage(asset.name, effectiveMime);
+  const isVid   = isVideo(asset.name, effectiveMime);
+  const isPdf_  = isPdf(asset.name, effectiveMime);
+  const isAud   = isAudio(asset.name, effectiveMime);
+  const isDrive = asset.storage_provider === 'google_drive';
 
-  // Prefer dedicated preview_url for inline rendering; fall back to converting file_url
-  const inlinePreviewUrl = asset.preview_url || getPreviewUrl(asset.file_url);
-  // Thumbnail for card: prefer thumbnail_url, fall back to preview_url or drive uc embed
-  const thumbnailSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
+  // Image: use uc?export=view for direct inline rendering (best quality)
+  const imgSrc = asset.preview_url || getPreviewUrl(asset.file_url);
+
+  // Video / PDF / audio from Drive: use the /preview embed URL (Drive's built-in player)
+  // For non-Drive video files, try to play the file_url directly.
+  const driveEmbedUrl = isDrive ? getDriveEmbedUrl(asset) : null;
+
   // Link to open file in Drive
   const driveOpenUrl = asset.web_view_link || asset.view_url;
 
@@ -316,12 +347,13 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           <X size={18} />
         </button>
 
+        {/* ── Image ──────────────────────────────────────────────────────── */}
         {isImg && (
           <>
-            {inlinePreviewUrl ? (
+            {imgSrc ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={inlinePreviewUrl}
+                src={imgSrc}
                 alt={asset.name}
                 className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
                 onError={e => {
@@ -331,21 +363,68 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
                 }}
               />
             ) : null}
-            <div className="flex flex-col items-center gap-4 py-12" style={{ display: inlinePreviewUrl ? 'none' : 'flex' }}>
-              <FileTypeIcon name={asset.name} type={asset.file_type} size={64} />
+            <div className="flex flex-col items-center gap-4 py-12" style={{ display: imgSrc ? 'none' : 'flex' }}>
+              <FileTypeIcon name={asset.name} type={effectiveMime} size={64} />
               <p className="text-white/80 text-sm">{asset.name}</p>
             </div>
           </>
         )}
+
+        {/* ── Video — Drive embed iframe or direct <video> ───────────────── */}
         {isVid && (
-          <video src={inlinePreviewUrl || asset.file_url} controls className="max-w-full max-h-[80vh] rounded-xl shadow-2xl" style={{ background: '#000' }} />
+          driveEmbedUrl ? (
+            <iframe
+              src={driveEmbedUrl}
+              title={asset.name}
+              allow="autoplay"
+              allowFullScreen
+              className="w-full rounded-xl shadow-2xl"
+              style={{ height: '75vh', border: 0, background: '#000' }}
+            />
+          ) : (
+            <video
+              src={asset.file_url}
+              controls
+              className="max-w-full max-h-[80vh] rounded-xl shadow-2xl"
+              style={{ background: '#000' }}
+            />
+          )
         )}
+
+        {/* ── PDF — Drive embed iframe ──────────────────────────────────── */}
         {isPdf_ && (
-          <iframe src={inlinePreviewUrl || asset.view_url || asset.file_url} title={asset.name} className="w-full rounded-xl shadow-2xl" style={{ height: '75vh', background: '#fff' }} />
+          <iframe
+            src={driveEmbedUrl || asset.view_url || asset.file_url}
+            title={asset.name}
+            className="w-full rounded-xl shadow-2xl"
+            style={{ height: '75vh', border: 0, background: '#fff' }}
+          />
         )}
-        {!isImg && !isVid && !isPdf_ && (
+
+        {/* ── Audio — Drive embed iframe (has built-in audio player) ───── */}
+        {isAud && (
+          driveEmbedUrl ? (
+            <iframe
+              src={driveEmbedUrl}
+              title={asset.name}
+              allow="autoplay"
+              className="w-full rounded-xl shadow-2xl"
+              style={{ height: '200px', border: 0, background: '#1a1a2e' }}
+            />
+          ) : (
+            <audio
+              src={asset.file_url}
+              controls
+              className="w-full rounded-xl"
+              style={{ background: '#1a1a2e', padding: '1rem' }}
+            />
+          )
+        )}
+
+        {/* ── Unsupported file type fallback ────────────────────────────── */}
+        {!isImg && !isVid && !isPdf_ && !isAud && (
           <div className="flex flex-col items-center gap-4 py-12">
-            <FileTypeIcon name={asset.name} type={asset.file_type} size={64} />
+            <FileTypeIcon name={asset.name} type={effectiveMime} size={64} />
             <p className="text-white/80 text-sm">{asset.name}</p>
           </div>
         )}
@@ -927,7 +1006,7 @@ export default function AssetsPage() {
   // ── View ────────────────────────────────────────────────────────────────────
 
   const handleView = (asset: Asset) => {
-    if (isImage(asset.name, asset.file_type) || isVideo(asset.name, asset.file_type) || isPdf(asset.name, asset.file_type)) {
+    if (isImage(asset.name, asset.file_type) || isVideo(asset.name, asset.file_type) || isPdf(asset.name, asset.file_type) || isAudio(asset.name, asset.file_type)) {
       setPreviewAsset(asset);
     } else {
       window.open(asset.view_url ?? asset.file_url, '_blank', 'noopener,noreferrer');

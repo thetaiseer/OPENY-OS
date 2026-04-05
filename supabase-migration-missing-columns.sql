@@ -14,9 +14,12 @@
 -- Repeated here as a safety net.
 ALTER TABLE public.assets
   ADD COLUMN IF NOT EXISTS view_url         TEXT,
+  ADD COLUMN IF NOT EXISTS file_url         TEXT,
   ADD COLUMN IF NOT EXISTS download_url     TEXT,
   ADD COLUMN IF NOT EXISTS drive_file_id    TEXT,
-  ADD COLUMN IF NOT EXISTS drive_folder_id  TEXT;
+  ADD COLUMN IF NOT EXISTS drive_folder_id  TEXT,
+  ADD COLUMN IF NOT EXISTS file_size        BIGINT,
+  ADD COLUMN IF NOT EXISTS file_type        TEXT;
 
 -- storage_provider defaults to 'supabase' to keep old rows valid.
 ALTER TABLE public.assets
