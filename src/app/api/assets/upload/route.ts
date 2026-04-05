@@ -208,7 +208,8 @@ export async function POST(req: NextRequest) {
 
     let inserted: Record<string, unknown>;
     try {
-      let row = { ...requiredRow, ...previewFields };
+      const row = { ...requiredRow, ...previewFields };
+      console.log('[upload] insert payload:', JSON.stringify(row, null, 2));
       let { data, error: dbError } = await supabase
         .from('assets')
         .insert(row)
@@ -222,6 +223,7 @@ export async function POST(req: NextRequest) {
           '[upload] ⚠️  Preview metadata columns missing from schema — retrying without them.' +
           ' Run supabase-migration-missing-columns.sql to add the missing columns.',
         );
+        console.log('[upload] retry payload (required only):', JSON.stringify(requiredRow, null, 2));
         ({ data, error: dbError } = await supabase
           .from('assets')
           .insert(requiredRow)
@@ -230,9 +232,23 @@ export async function POST(req: NextRequest) {
       }
 
       if (dbError) {
-        console.error('[upload] ❌ Failed while inserting asset metadata:', dbError.message, dbError.details ?? '');
+        console.error('[upload] ❌ Supabase insert error — full error object:', JSON.stringify(dbError, null, 2));
+        console.error('[upload] ❌ message:', dbError.message);
+        console.error('[upload] ❌ code:', dbError.code);
+        console.error('[upload] ❌ details:', dbError.details ?? '(none)');
+        console.error('[upload] ❌ hint:', dbError.hint ?? '(none)');
         return NextResponse.json(
-          { success: false, error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}` },
+          {
+            success: false,
+            error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}`,
+            supabase_error: {
+              message: dbError.message,
+              code:    dbError.code,
+              details: dbError.details,
+              hint:    dbError.hint,
+            },
+            insert_payload: row,
+          },
           { status: 500 },
         );
       }
