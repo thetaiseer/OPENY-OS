@@ -32,10 +32,10 @@ interface DbAsset {
 
 interface SyncResult {
   success: boolean;
-  added: number;
-  updated: number;
-  removed: number;
-  errors: number;
+  files_added: number;
+  files_updated: number;
+  files_removed: number;
+  errors_count: number;
   error_details?: string[];
   duration_ms: number;
   triggered_by: 'manual' | 'cron';
@@ -76,7 +76,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     recordError('Drive scan failed', err);
     const duration = Date.now() - start;
     await logSyncResult(supabase, { added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy });
-    return { success: false, added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
+    return { success: false, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
   }
 
   // ── 2. Load DB assets ────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     recordError('DB fetch failed', fetchError);
     const duration = Date.now() - start;
     await logSyncResult(supabase, { added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy });
-    return { success: false, added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
+    return { success: false, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
   }
 
   const dbAssets = dbRows ?? [];
@@ -339,7 +339,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 
   console.log(`[sync] ✅ done — added:${added} updated:${updated} removed:${removed} errors:${errors} (${duration}ms)`);
 
-  return { success: true, added, updated, removed, errors, ...(errorDetails.length > 0 ? { error_details: errorDetails } : {}), duration_ms: duration, triggered_by: triggeredBy };
+  return { success: true, files_added: added, files_updated: updated, files_removed: removed, errors_count: errors, ...(errorDetails.length > 0 ? { error_details: errorDetails } : {}), duration_ms: duration, triggered_by: triggeredBy };
 }
 
 async function logSyncResult(

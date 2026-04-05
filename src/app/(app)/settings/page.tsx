@@ -118,11 +118,11 @@ function GoogleDriveSyncCard() {
     setSyncMsg(null);
     try {
       const res  = await fetch('/api/assets/sync', { method: 'POST' });
-      const body = await res.json() as { success: boolean; added?: number; updated?: number; removed?: number; errors?: number; error?: string };
+      const body = await res.json() as { success: boolean; files_added?: number; files_updated?: number; files_removed?: number; errors_count?: number; error?: string };
       if (!res.ok || !body.success) {
         setSyncError(body.error ?? `Sync failed (HTTP ${res.status})`);
       } else {
-        setSyncMsg(`Sync complete — added ${body.added ?? 0}, updated ${body.updated ?? 0}, removed ${body.removed ?? 0}${(body.errors ?? 0) > 0 ? `, ${body.errors} error(s)` : ''}`);
+        setSyncMsg(`Sync complete — added ${body.files_added ?? 0}, updated ${body.files_updated ?? 0}, removed ${body.files_removed ?? 0}${(body.errors_count ?? 0) > 0 ? `, ${body.errors_count} error(s)` : ''}`);
         void fetchSyncLog();
       }
     } catch (err: unknown) {
