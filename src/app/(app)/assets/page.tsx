@@ -550,23 +550,6 @@ export default function AssetsPage() {
 
   const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
-  // ── Refresh asset list when a new upload completes ───────────────────────
-
-  useEffect(() => {
-    if (!latestAsset) return;
-    // Immediately prepend the new asset for instant feedback
-    setAssets(prev => {
-      // Avoid duplicates if already in list
-      if (prev.some(a => a.id === latestAsset.id)) return prev;
-      return [latestAsset, ...prev];
-    });
-    // Also schedule a full refresh from the DB so the list stays consistent
-    // (correct ordering, any concurrently uploaded assets appear, etc.)
-    fetchAssets(0);
-  // fetchAssets is stable (empty useCallback deps); including it satisfies the linter
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestAsset]);
-
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const fetchAssets = useCallback(async (pageNum: number = 0) => {
@@ -609,6 +592,21 @@ export default function AssetsPage() {
   }, [page, fetchAssets]);
 
   useEffect(() => { fetchAssets(0); }, [fetchAssets]);
+
+  // ── Refresh asset list when a new upload completes ───────────────────────
+
+  useEffect(() => {
+    if (!latestAsset) return;
+    // Immediately prepend the new asset for instant feedback
+    setAssets(prev => {
+      // Avoid duplicates if already in list
+      if (prev.some(a => a.id === latestAsset.id)) return prev;
+      return [latestAsset, ...prev];
+    });
+    // Also do a full refresh from the DB so the list stays consistent
+    // (correct ordering, any concurrently uploaded assets appear, etc.)
+    fetchAssets(0);
+  }, [latestAsset, fetchAssets]);
 
   useEffect(() => {
     supabase.from('clients').select('id, name').order('name').then(({ data, error }) => {

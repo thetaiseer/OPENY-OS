@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { uploadToStructuredPath, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
 import { requireRole } from '@/lib/api-auth';
+import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // Fixed content type list
 const VALID_CONTENT_TYPES = [
@@ -42,57 +43,6 @@ function getSupabase() {
   if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
   if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
   return createClient(url, key);
-}
-
-/**
- * Extract the column name from a PostgreSQL 42703 "undefined_column" error.
- * The message typically reads: column "xyz" of relation "table" does not exist
- */
-function extractMissingColumn(err: { message?: string; details?: string }): string | null {
-  const text = `${err.message ?? ''} ${err.details ?? ''}`;
-  const m = text.match(/column "([^"]+)"/);
-  return m?.[1] ?? null;
-}
-
-/**
- * Insert a row into `table`, automatically retrying without any column that
- * PostgreSQL reports as undefined (error code 42703).  This makes the upload
- * robust against incremental schema migrations not yet applied to the DB.
- *
- * Each missing column is logged with a hint to run the migration file, and up
- * to MAX_COLUMN_RETRIES columns can be stripped before the function gives up.
- */
-const MAX_COLUMN_RETRIES = 10;
-
-async function insertWithColumnFallback(
-  supabase: ReturnType<typeof getSupabase>,
-  row: Record<string, unknown>,
-  logPrefix: string,
-): Promise<{ data: Record<string, unknown> | null; error: { message: string; code: string; details?: string; hint?: string } | null; finalRow: Record<string, unknown> }> {
-  let currentRow = { ...row };
-  let result = await supabase.from('assets').insert(currentRow).select().single();
-  let attempts = 0;
-
-  while (result.error?.code === '42703' && attempts < MAX_COLUMN_RETRIES) {
-    const col = extractMissingColumn(result.error as { message?: string; details?: string });
-    if (!col || !(col in currentRow)) break; // unrecognisable error — stop retrying
-    console.warn(
-      `${logPrefix} ⚠️  Column "${col}" does not exist in the assets table — ` +
-      'removing from insert payload and retrying. ' +
-      'Run supabase-migration-missing-columns.sql to add the missing column.',
-    );
-    const stripped = { ...currentRow };
-    delete stripped[col];
-    currentRow = stripped;
-    result = await supabase.from('assets').insert(currentRow).select().single();
-    attempts++;
-  }
-
-  return {
-    data:     result.data as Record<string, unknown> | null,
-    error:    result.error as { message: string; code: string; details?: string; hint?: string } | null,
-    finalRow: currentRow,
-  };
 }
 
 // ── POST /api/assets/upload ───────────────────────────────────────────────────
@@ -263,7 +213,7 @@ export async function POST(req: NextRequest) {
       console.log('[upload] insert payload:', JSON.stringify(fullRow, null, 2));
 
       const { data, error: dbError, finalRow } = await insertWithColumnFallback(
-        supabase,
+        (row) => supabase.from('assets').insert(row).select().single(),
         fullRow,
         '[upload]',
       );
