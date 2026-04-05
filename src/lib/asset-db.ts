@@ -10,7 +10,7 @@
  * retries automatically — up to MAX_COLUMN_RETRIES times.
  */
 
-/** Maximum number of missing-column strips before giving up. */
+/** Maximum number of columns that can be stripped per insert attempt. */
 export const MAX_COLUMN_RETRIES = 10;
 
 /** Return type shared by both upload route files. */
@@ -73,8 +73,9 @@ export async function insertWithColumnFallback(
       'removing from insert payload and retrying. ' +
       'Run supabase-migration-missing-columns.sql to add the missing column.',
     );
-    const stripped = { ...currentRow };
-    delete stripped[col];
+    // Strip the missing column using destructuring (avoids mutating a shared object)
+    const { [col]: _dropped, ...stripped } = currentRow;
+    void _dropped; // suppress unused-variable lint
     currentRow = stripped;
     result = await attemptInsert(currentRow);
     attempts++;
