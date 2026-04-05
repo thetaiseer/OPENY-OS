@@ -143,7 +143,7 @@ export default function MyTasksPage() {
         const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
         console.error('[my-tasks] fetch error:', isTimeout ? 'timeout' : err);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         setLoading(false);
       }
     };

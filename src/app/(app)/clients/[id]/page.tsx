@@ -319,7 +319,7 @@ export default function ClientWorkspace() {
       const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
       console.error('[client workspace] load error:', isTimeout ? 'timeout' : err);
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [id]);

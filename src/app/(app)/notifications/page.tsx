@@ -62,7 +62,7 @@ export default function NotificationsPage() {
       const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
       console.error('[notifications] load error:', isTimeout ? 'timeout' : err);
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

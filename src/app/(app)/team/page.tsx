@@ -41,7 +41,7 @@ export default function TeamPage() {
       const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
       console.error('[team] fetch error:', isTimeout ? 'timeout' : err);
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);
