@@ -294,6 +294,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // ── Step 1: Create or reuse the resumable upload session ──────────────
+      console.log('[upload] started —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
       d({ type: 'UPDATE', id: item.id, patch: { status: 'preparing', progress: 2 } });
 
       let { uploadUrl, driveFolderId, clientFolderName, renamedFileName } = item;
@@ -335,6 +336,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         renamedFileName  = sessionJson.renamedFileName  ?? null;
 
         if (!uploadUrl) throw new Error('Server did not return an upload URL');
+        console.log('[upload] session ready — folder:', driveFolderId);
 
         // Persist session URL immediately so we can recover on refresh
         d({ type: 'UPDATE', id: item.id, patch: { uploadUrl, driveFolderId, clientFolderName, renamedFileName } });
@@ -367,6 +369,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
+      console.log('[upload] Drive upload complete — driveFileId:', driveFileId);
+
       // ── Step 3: Finalize — grant permissions & save to Supabase ──────────
       d({ type: 'UPDATE', id: item.id, patch: { status: 'saving', progress: 94 } });
 
@@ -398,11 +402,27 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         drive_file_id?: string;
       };
 
+      console.log('[upload] finalize response — ok:', completeRes.ok, '| status:', completeRes.status, '| success:', completeJson.success, '| drive_success:', completeJson.drive_success ?? false, '| assetId:', completeJson.asset?.id ?? 'none');
+
       if (!completeRes.ok || !completeJson.success) {
+        if (completeJson.drive_success) {
+          // Drive upload succeeded but DB metadata save failed.
+          // DO NOT mark as failed — the file exists in Google Drive.
+          // Show it as completed with a warning so the user knows to use Sync Drive.
+          console.warn('[upload] ⚠️ Drive upload succeeded but DB save failed — driveFileId:', completeJson.drive_file_id, '| reason:', completeJson.error);
+          d({ type: 'UPDATE', id: item.id, patch: {
+            status:   'completed',
+            progress: 100,
+            error:    completeJson.error ?? 'File saved to Google Drive but database metadata save failed. Use "Sync Drive" to recover.',
+          }});
+          return; // skip SET_LATEST_ASSET since no DB record was created
+        }
         // The error message from upload-complete already includes recovery guidance
         // (e.g. "Use Sync Drive to recover it.") when drive_success=true.
         throw new Error(completeJson.error ?? `Finalize failed (HTTP ${completeRes.status})`);
       }
+
+      console.log('[upload] ✅ upload completed — assetId:', completeJson.asset?.id);
 
       d({ type: 'UPDATE', id: item.id, patch: { status: 'completed', progress: 100 } });
 
@@ -416,6 +436,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         d({ type: 'UPDATE', id: item.id, patch: { status: 'paused', progress: item.bytesUploaded > 0 ? item.progress : 0 } });
       } else {
         const msg = err instanceof Error ? err.message : String(err);
+        console.error('[upload] ❌ upload failed —', item.file?.name ?? item.renamedFileName ?? 'unknown', '| error:', msg);
         d({ type: 'UPDATE', id: item.id, patch: { status: 'failed', error: msg } });
       }
     } finally {
