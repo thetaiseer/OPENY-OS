@@ -188,6 +188,13 @@ export async function POST(request: NextRequest) {
   }
 
   console.log('[sessions] ✓ Session created — id:', (session as Record<string, unknown>).id, '| user:', auth.profile.id);
+  console.log(
+    '[sessions] Session created:', session.id,
+    '| user:', auth.profile.email,
+    '| browser:', browser, '| os:', os,
+    '| country:', country ?? 'Unknown',
+    '| risk:', riskFlag,
+  );
 
   const response = NextResponse.json({ session, risk_flag: riskFlag });
   response.cookies.set('openy-sid', session.id as string, {
