@@ -290,7 +290,7 @@ export default function GlobalUploadQueue() {
               className="w-full text-xs py-2 rounded-xl font-medium transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
             >
-              Clear {completed} {completed === 1 ? 'completed' : 'completed'}
+              Clear {completed} completed
             </button>
           )}
         </div>
