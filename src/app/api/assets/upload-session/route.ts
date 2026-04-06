@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     ?? 'unknown';
   if (!checkRateLimit(ip)) {
     return NextResponse.json(
-      { error: 'Too many uploads. Please wait a minute before uploading again.' },
+      { success: false, step: 'validation', error: 'Too many uploads. Please wait a minute before uploading again.' },
       { status: 429 },
     );
   }

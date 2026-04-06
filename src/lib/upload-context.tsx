@@ -156,7 +156,15 @@ type PersistedItem = Omit<
 function persistQueue(queue: UploadQueueItem[]): void {
   try {
     const items: PersistedItem[] = queue
-      .filter(i => i.status !== 'success')
+      // Only persist items that have an active Drive session (uploadUrl set) or are
+      // already failed.  Skip 'queued' (no session yet — can't resume without file)
+      // and 'saving' (DB save is in-flight — we don't know if it completed; persisting
+      // would let the user re-upload the same file as a duplicate).  'success' items
+      // are also excluded because they're complete.
+      .filter(i =>
+        i.status === 'failed' ||
+        ((i.status === 'paused' || i.status === 'uploading') && !!i.uploadUrl),
+      )
       .map(i => ({
         id:               i.id,
         fileName:         i.file?.name ?? i.renamedFileName ?? 'Unknown',
@@ -295,6 +303,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 2 } });
 
       let { uploadUrl, driveFolderId, clientFolderName, renamedFileName } = item;
+      // Mutable start offset — updated in the resume path after querying Drive.
+      let startByte = item.bytesUploaded || 0;
 
       if (!uploadUrl) {
         const safeFileName = item.file.name.replace(/\s+/g, '_');
@@ -349,10 +359,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         // Persist session URL immediately so we can recover on refresh
         d({ type: 'UPDATE', id: item.id, patch: { uploadUrl, driveFolderId, clientFolderName, renamedFileName } });
       } else {
-        // Existing session: query Drive for confirmed offset to resume smoothly
+        // Existing session: query Drive for confirmed offset to resume smoothly.
+        // IMPORTANT: use the queried offset as startByte, NOT the stale item snapshot.
         try {
           const confirmedBytes = await queryResumeOffset(uploadUrl, item.file.size);
-          if (confirmedBytes > item.bytesUploaded) {
+          if (confirmedBytes > startByte) {
+            startByte = confirmedBytes;
             d({ type: 'UPDATE', id: item.id, patch: { bytesUploaded: confirmedBytes } });
           }
         } catch {
@@ -362,8 +374,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       // ── Step 2: Upload file bytes directly to Google Drive (chunked) ──────
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 5 } });
-
-      const startByte = item.bytesUploaded || 0;
 
       const driveFileId = await uploadFileChunked(uploadUrl!, item.file, {
         signal: ctrl.signal,
@@ -415,6 +425,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         completeJson = await completeRes.json();
         console.log('[upload] save json — success:', completeJson.success, '| step:', completeJson.step ?? 'n/a', '| assetId:', completeJson.asset?.id ?? 'none');
       } catch (parseErr) {
+        // HTTP 201 means the server created the asset in Drive + DB even if the
+        // response body can't be parsed (e.g. connection dropped after headers).
+        // Treat this as success to prevent a false-failure state.
+        if (completeRes.status === 201) {
+          console.warn('[upload] ⚠️ 201 response but JSON parse failed — marking as success to prevent false failure');
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
+          return;
+        }
         throw new Error(`Server returned invalid response when saving asset (HTTP ${completeRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
       }
 
@@ -425,11 +443,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[upload] ✅ upload success — assetId:', completeJson.asset?.id);
 
-      d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
-
       if (completeJson.asset) {
         d({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
       }
+      d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
 
     } catch (err: unknown) {
       const isAbort = (err as Error)?.name === 'AbortError';
