@@ -85,7 +85,6 @@ export default function ClientsPage() {
       clearTimeout(timeoutId);
       if (!silent) setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
