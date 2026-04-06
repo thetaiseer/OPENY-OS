@@ -118,45 +118,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Load the initial session.
-    supabase.auth.getUser().then(async ({ data: { user: sbUser } }) => {
-      if (sbUser) {
-        await loadProfile(sbUser);
-      }
-      setLoading(false);
-    });
+    // `onAuthStateChange` fires `INITIAL_SESSION` as its very first event
+    // (immediately, from the locally-cached token) — so we rely on it for both
+    // the initial load and subsequent auth state changes.
+    //
+    // Previously there was an additional `getUser()` call here that caused two
+    // concurrent `loadProfile` DB queries on every page load:
+    //   1. from `getUser()` → `loadProfile`
+    //   2. from `onAuthStateChange` `INITIAL_SESSION` → `loadProfile`
+    // Removing the `getUser()` call eliminates that double fetch while keeping
+    // the initial loading behaviour intact.
+    let mounted = true;
 
-    // Subscribe to auth state changes (sign-in, sign-out, token refresh).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         if (session?.user) {
           await loadProfile(session.user);
         } else {
-          setUser(LOADING_USER);
-          setProfileMissing(false);
+          if (mounted) {
+            setUser(LOADING_USER);
+            setProfileMissing(false);
+          }
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
       },
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [supabase, loadProfile]);
 
   const signOut = async () => {
     console.log('[auth] Signing out…');
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('[auth] Sign out failed:', error.message);
-      throw error;
-    }
-    console.log('[auth] Sign out successful — redirecting to /login');
-    // Clear Supabase auth entries from localStorage before hard-navigating.
+    // Race the Supabase sign-out against a 5-second safety timeout so the user
+    // is never left stuck on a "loading" sign-out if the network is unavailable.
     try {
-      Object.keys(localStorage)
-        .filter(k => k.startsWith('sb-'))
-        .forEach(k => localStorage.removeItem(k));
-    } catch { /* ignore — storage may be unavailable */ }
-    window.location.replace('/login');
+      const result = await Promise.race([
+        supabase.auth.signOut(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('sign-out-timeout')), 5_000),
+        ),
+      ]);
+      if (result.error) {
+        console.error('[auth] Sign out error:', result.error.message);
+      } else {
+        console.log('[auth] Sign out successful');
+      }
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'sign-out-timeout';
+      if (isTimeout) {
+        console.warn('[auth] Sign out timed out — redirecting anyway');
+      } else {
+        console.error('[auth] Sign out failed:', err);
+      }
+    } finally {
+      // Always clear Supabase auth entries and redirect, even if sign-out failed.
+      try {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('sb-'))
+          .forEach(k => localStorage.removeItem(k));
+      } catch { /* ignore — storage may be unavailable */ }
+      console.log('[auth] Redirecting to /login');
+      window.location.replace('/login');
+    }
   };
 
   const repairProfile = async () => {
