@@ -551,12 +551,18 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t 
 
 // ─── DeleteConfirmModal ──────────────────────────────────────────────────────
 
-function DeleteConfirmModal({ task, open, onClose, onConfirm, t }: { task: Task | null; open: boolean; onClose: () => void; onConfirm: () => void; t: (k: string) => string }) {
+function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task: Task | null; open: boolean; onClose: () => void; onConfirm: () => void; error: string | null; t: (k: string) => string }) {
   return (
     <Modal open={open} onClose={onClose} title={t('deleteTask')} size="sm">
       <div className="space-y-4">
         <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
         {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
             {t('cancel')}
@@ -621,6 +627,8 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -639,6 +647,16 @@ export default function TasksPage() {
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
+
+  // ── Fire-and-forget activity logger ─────────────────────────────────────
+  // Never blocks the UI — call after the main mutation succeeds.
+  const logTaskActivity = useCallback((description: string, clientId?: string | null) => {
+    void supabase.from('activities').insert({
+      type: 'task',
+      description,
+      client_id: clientId ?? null,
+    }).then(({ error }) => { if (error) console.warn('[task] activity log:', error); });
+  }, []);
 
   // ── fetch ────────────────────────────────────────────────────────────────
   // silent=true → background refresh after mutations; no loading spinner,
@@ -743,11 +761,7 @@ export default function TasksPage() {
       };
       const { error } = await supabase.from('tasks').insert(payload);
       if (error) throw error;
-      await supabase.from('activities').insert({
-        type: 'task',
-        description: `Task "${createForm.title}" created`,
-        client_id: createForm.client_id || null,
-      });
+      logTaskActivity(`Task "${createForm.title}" created`, createForm.client_id || null);
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
       fetchAll(true);
@@ -784,6 +798,7 @@ export default function TasksPage() {
     e.preventDefault();
     if (!editTask) return;
     setSaving(true);
+    setEditError(null);
     try {
       const payload: Record<string, unknown> = {
         title: editForm.title.trim(),
@@ -801,11 +816,7 @@ export default function TasksPage() {
       };
       const { error } = await supabase.from('tasks').update(payload).eq('id', editTask.id);
       if (error) throw error;
-      await supabase.from('activities').insert({
-        type: 'task',
-        description: `Task "${editForm.title}" updated`,
-        client_id: editForm.client_id || null,
-      });
+      logTaskActivity(`Task "${editForm.title}" updated`, editForm.client_id || null);
       setEditTask(null);
       fetchAll(true);
     } catch (err: unknown) {
@@ -813,7 +824,7 @@ export default function TasksPage() {
       const msg = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to update task';
-      alert(msg);
+      setEditError(msg);
     } finally {
       setSaving(false);
     }
@@ -822,13 +833,10 @@ export default function TasksPage() {
   // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTask) return;
+    setDeleteError(null);
     const { error } = await supabase.from('tasks').delete().eq('id', deleteTask.id);
-    if (error) { alert(error.message); return; }
-    await supabase.from('activities').insert({
-      type: 'task',
-      description: `Task "${deleteTask.title}" deleted`,
-      client_id: deleteTask.client_id || null,
-    });
+    if (error) { setDeleteError(error.message); return; }
+    logTaskActivity(`Task "${deleteTask.title}" deleted`, deleteTask.client_id || null);
     setDeleteTask(null);
     setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
   };
@@ -836,7 +844,10 @@ export default function TasksPage() {
   // ── status change ─────────────────────────────────────────────────────────
   const handleStatusChange = async (task: Task, newStatus: string) => {
     const { error } = await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', task.id);
-    if (error) { alert(error.message); return; }
+    if (error) {
+      console.error('[task status change]', error);
+      return;
+    }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus as Task['status'] } : t));
   };
 
@@ -1033,9 +1044,15 @@ export default function TasksPage() {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal open={!!editTask} onClose={() => setEditTask(null)} title={t('editTask')} size="lg">
+      <Modal open={!!editTask} onClose={() => { setEditTask(null); setEditError(null); }} title={t('editTask')} size="lg">
         <form onSubmit={handleEdit}>
-          <TaskForm form={editForm} setForm={setEditForm} clients={clients} team={team} saving={saving} onCancel={() => setEditTask(null)} t={t} />
+          {editError && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <span>{editError}</span>
+            </div>
+          )}
+          <TaskForm form={editForm} setForm={setEditForm} clients={clients} team={team} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
         </form>
       </Modal>
 
@@ -1043,7 +1060,7 @@ export default function TasksPage() {
       <TaskDetailModal task={viewTask} team={team} open={!!viewTask} onClose={() => setViewTask(null)} t={t} />
 
       {/* Delete Modal */}
-      <DeleteConfirmModal task={deleteTask} open={!!deleteTask} onClose={() => setDeleteTask(null)} onConfirm={handleDelete} t={t} />
+      <DeleteConfirmModal task={deleteTask} open={!!deleteTask} onClose={() => { setDeleteTask(null); setDeleteError(null); }} onConfirm={handleDelete} error={deleteError} t={t} />
     </div>
   );
 }

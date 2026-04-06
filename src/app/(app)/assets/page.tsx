@@ -731,10 +731,10 @@ export default function AssetsPage() {
       if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
-    // Also do a full refresh from the DB so the list stays consistent
-    // (correct ordering, any concurrently uploaded assets appear, etc.)
-    fetchAssets(0);
-  }, [latestAsset, fetchAssets]);
+    // No full DB refresh here — the prepend is sufficient for immediate feedback.
+    // A full refresh would fire once per uploaded file in a batch, causing N
+    // redundant round-trips. The list stays consistent; duplicates are guarded above.
+  }, [latestAsset]);
 
   useEffect(() => {
     supabase.from('clients').select('id, name').order('name').then(({ data, error }) => {

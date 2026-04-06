@@ -39,8 +39,10 @@ export default function ClientsPage() {
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
 
-  const fetchClients = useCallback(async (): Promise<boolean> => {
-    setFetchError(null);
+  // silent=true → background refresh after mutations; does not touch the error
+  // banner, does not clear existing data, and does not flip the loading spinner.
+  const fetchClients = useCallback(async (silent = false): Promise<boolean> => {
+    if (!silent) setFetchError(null);
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -57,8 +59,10 @@ export default function ClientsPage() {
       const { data, error } = await Promise.race([query, timeoutPromise]);
       if (error) {
         console.error('[clients fetch]', error);
-        setFetchError('Failed to load clients. Please try again.');
-        setClients([]);
+        if (!silent) {
+          setFetchError('Failed to load clients. Please try again.');
+          setClients([]);
+        }
         return false;
       } else {
         setClients((data ?? []) as Client[]);
@@ -70,12 +74,14 @@ export default function ClientsPage() {
         ? 'Clients took too long to load. Please try again.'
         : 'Failed to load clients. Please try again.';
       console.error('[clients fetch] unexpected error:', err);
-      setFetchError(msg);
-      setClients([]);
+      if (!silent) {
+        setFetchError(msg);
+        setClients([]);
+      }
       return false;
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [search]);
 
@@ -160,7 +166,7 @@ export default function ClientsPage() {
 
       // Refresh list non-blocking — show warning if it fails, but never block modal
       console.log('[client create] triggering list refetch');
-      void fetchClients().then(ok => {
+      void fetchClients(true).then(ok => {
         console.log('[client create] list refetch result, ok:', ok);
         if (!ok) {
           setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
