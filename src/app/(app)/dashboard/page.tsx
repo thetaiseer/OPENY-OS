@@ -62,40 +62,34 @@ export default function DashboardPage() {
   const [error, setError]           = useState<string | null>(null);
 
   useEffect(() => {
-    const FETCH_TIMEOUT_MS = 15_000;
     const todayStr = new Date().toISOString().slice(0, 10);
     const fetchData = async () => {
       setError(null);
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         const weekLater = new Date();
         weekLater.setDate(weekLater.getDate() + 7);
         const weekLaterStr = weekLater.toISOString().slice(0, 10);
 
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-        });
-
-        const settled = await Promise.race([
-          Promise.allSettled([
-            supabase.from('clients').select('id', { count: 'exact', head: true }),
-            supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
-            supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-            supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-            supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
-            supabase.from('assets').select('content_type, file_size'),
-            supabase.from('assets')
-              .select('id, name, publish_date, approval_status, client_name, content_type')
-              .eq('approval_status', 'scheduled')
-              .gte('publish_date', todayStr)
-              .order('publish_date', { ascending: true })
-              .limit(5),
-            supabase.from('tasks').select('id', { count: 'exact', head: true })
-              .gte('due_date', todayStr)
-              .lte('due_date', weekLaterStr)
-              .not('status', 'in', '("done","delivered")'),
-          ]),
-          timeoutPromise,
+        // Use Promise.allSettled so each query can fail independently.
+        // A single slow or missing table (e.g. approvals) will NOT block or
+        // timeout the whole dashboard — it just shows 0 for that stat.
+        const settled = await Promise.allSettled([
+          supabase.from('clients').select('id', { count: 'exact', head: true }),
+          supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
+          supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+          supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('assets').select('content_type, file_size'),
+          supabase.from('assets')
+            .select('id, name, publish_date, approval_status, client_name, content_type')
+            .eq('approval_status', 'scheduled')
+            .gte('publish_date', todayStr)
+            .order('publish_date', { ascending: true })
+            .limit(5),
+          supabase.from('tasks').select('id', { count: 'exact', head: true })
+            .gte('due_date', todayStr)
+            .lte('due_date', weekLaterStr)
+            .not('status', 'in', '("done","delivered")'),
         ]);
 
         const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes, dueThisWeek] = settled;
@@ -123,14 +117,9 @@ export default function DashboardPage() {
           console.error('[dashboard] scheduled fetch error:', scheduledRes.status === 'rejected' ? scheduledRes.reason : scheduledRes.value.error);
         }
       } catch (err) {
-        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-        const msg = isTimeout
-          ? 'Dashboard data took too long to load. Please refresh the page.'
-          : 'Failed to load dashboard data. Please try again.';
         console.error('[dashboard] load error:', err);
-        setError(msg);
+        setError('Failed to load dashboard data. Please try again.');
       } finally {
-        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
