@@ -165,13 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch {
       console.warn('[auth] Session deactivation request failed — continuing with sign-out');
-    // Deactivate the current session in user_sessions before Supabase invalidates the token.
-    // We still hold a valid JWT at this point so the API can authenticate the request.
-    try {
-      await fetch('/api/auth/sessions/logout', { method: 'POST', credentials: 'include' });
-      console.log('[auth] Session deactivated on logout');
-    } catch (err) {
-      console.warn('[auth] Could not deactivate session — continuing logout:', err);
     }
 
     // Race the Supabase sign-out against a 5-second safety timeout so the user
