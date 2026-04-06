@@ -144,6 +144,17 @@ export async function POST(request: NextRequest) {
     if (!knownCountries.has(country)) riskFlag = true;
   }
 
+  console.log(
+    '[sessions] Creating session — user:', auth.profile.id,
+    '| email:', auth.profile.email,
+    '| ip:', ip || '(none)',
+    '| browser:', browser,
+    '| os:', os,
+    '| deviceType:', deviceType,
+    '| country:', country ?? '(none)',
+    '| riskFlag:', riskFlag,
+  );
+
   const { data: session, error } = await admin
     .from('user_sessions')
     .insert({
@@ -164,10 +175,14 @@ export async function POST(request: NextRequest) {
   if (error) {
     // Table not yet created — skip session creation silently
     if (error.code === PG_UNDEFINED_TABLE) {
+      console.warn('[sessions] user_sessions table not found — skipping session creation (run supabase-migration-sessions.sql)');
       return NextResponse.json({ session: null, risk_flag: false });
     }
+    console.error('[sessions] ✗ Failed to create session for user:', auth.profile.id, '| error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  console.log('[sessions] ✓ Session created — id:', (session as Record<string, unknown>).id, '| user:', auth.profile.id);
 
   const response = NextResponse.json({ session, risk_flag: riskFlag });
   response.cookies.set('openy-sid', session.id as string, {

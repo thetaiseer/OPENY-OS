@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     // table not yet created, nothing to update
   } else if (error) {
     console.warn('[sessions/activity] update error:', error.message);
+  } else {
+    console.log('[sessions/activity] ✓ Updated last_seen_at for session:', currentSid);
   }
 
   return NextResponse.json({ ok: true });

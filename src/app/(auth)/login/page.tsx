@@ -33,7 +33,15 @@ function LoginForm() {
     }
 
     // Register session asynchronously (non-blocking — don't fail login on error)
-    fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => {});
+    fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' })
+      .then(res => {
+        if (res.ok) {
+          console.log('[login] ✓ Session registered');
+        } else {
+          console.warn('[login] Session registration returned', res.status);
+        }
+      })
+      .catch(err => console.warn('[login] Session registration failed:', err));
 
     const next = searchParams.get('next') ?? '/dashboard';
     router.push(next);

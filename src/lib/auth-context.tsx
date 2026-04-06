@@ -153,6 +153,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     console.log('[auth] Signing out…');
+
+    // Deactivate the current session in user_sessions before signing out so
+    // the security page reflects the correct is_active = false state.
+    // Non-blocking: a failure here must never prevent the user from signing out.
+    try {
+      console.log('[auth] Deactivating current session…');
+      await fetch('/api/auth/sessions/deactivate-current', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      console.warn('[auth] Session deactivation request failed — continuing with sign-out');
+    }
+
     // Race the Supabase sign-out against a 5-second safety timeout so the user
     // is never left stuck on a "loading" sign-out if the network is unavailable.
     try {
