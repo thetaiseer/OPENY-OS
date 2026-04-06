@@ -364,7 +364,9 @@ export default function SecurityPage() {
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <Shield size={32} className="mx-auto mb-2" style={{ color: 'var(--text-secondary)', opacity: 0.4 }} />
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No other active sessions. You&apos;re only logged in from this device.
+                {sessions.length === 0
+                  ? 'No sessions found.'
+                  : 'No other active sessions. You\u2019re only logged in from this device.'}
               </p>
             </div>
           )}

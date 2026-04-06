@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getApiUser } from '@/lib/api-auth';
+import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -69,6 +70,8 @@ async function resolveGeo(
   return { country: null, city: null };
 }
 
+
+
 // ── GET — list sessions ────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -83,7 +86,13 @@ export async function GET(request: NextRequest) {
     .order('last_seen_at', { ascending: false })
     .limit(50);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Table not yet created — return empty list so the UI degrades gracefully
+    if (error.code === PG_UNDEFINED_TABLE) {
+      return NextResponse.json({ sessions: [] });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const currentSid = request.cookies.get('openy-sid')?.value;
   const sessionsWithCurrent = (sessions ?? []).map((s: Record<string, unknown>) => ({
@@ -152,7 +161,13 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Table not yet created — skip session creation silently
+    if (error.code === PG_UNDEFINED_TABLE) {
+      return NextResponse.json({ session: null, risk_flag: false });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const response = NextResponse.json({ session, risk_flag: riskFlag });
   response.cookies.set('openy-sid', session.id as string, {

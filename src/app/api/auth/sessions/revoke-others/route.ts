@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getApiUser } from '@/lib/api-auth';
+import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -28,7 +29,14 @@ export async function POST(request: NextRequest) {
   }
 
   const { error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (error) {
+    // Table not yet created — nothing to revoke
+    if (error.code === PG_UNDEFINED_TABLE) {
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }

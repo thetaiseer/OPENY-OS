@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getApiUser } from '@/lib/api-auth';
+import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -18,12 +19,17 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
-  const { data } = await admin
+  const { data, error } = await admin
     .from('user_sessions')
     .select('is_active')
     .eq('id', currentSid)
     .eq('user_id', auth.profile.id)
     .single();
+
+  // Table not yet created — session cannot be revoked, treat as active
+  if (error && error.code === PG_UNDEFINED_TABLE) {
+    return NextResponse.json({ ok: true });
+  }
 
   if (data && data.is_active === false) {
     const response = NextResponse.json({ error: 'Session revoked' }, { status: 401 });
