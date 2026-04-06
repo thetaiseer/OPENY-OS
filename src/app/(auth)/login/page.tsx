@@ -32,8 +32,18 @@ function LoginForm() {
       return;
     }
 
-    // Register session asynchronously (non-blocking — don't fail login on error)
-    fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => {});
+    // Register session — awaited so the openy-sid cookie is set before navigation
+    try {
+      const res = await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { session?: { id: string } };
+        console.log('[login] Session created:', data.session?.id ?? 'no id');
+      } else {
+        console.warn('[login] Session creation returned', res.status);
+      }
+    } catch (err) {
+      console.warn('[login] Session creation error (login still succeeds):', err);
+    }
 
     const next = searchParams.get('next') ?? '/dashboard';
     router.push(next);

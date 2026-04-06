@@ -169,6 +169,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  console.log(
+    '[sessions] Session created:', session.id,
+    '| user:', auth.profile.email,
+    '| browser:', browser, '| os:', os,
+    '| country:', country ?? 'Unknown',
+    '| risk:', riskFlag,
+  );
+
   const response = NextResponse.json({ session, risk_flag: riskFlag });
   response.cookies.set('openy-sid', session.id as string, {
     httpOnly: true,
