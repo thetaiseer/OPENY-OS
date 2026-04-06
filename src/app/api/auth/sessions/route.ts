@@ -144,10 +144,15 @@ export async function POST(request: NextRequest) {
     if (!knownCountries.has(country)) riskFlag = true;
   }
 
+  // Redact IP for logs — show only first two octets of IPv4 (e.g. 203.0.xxx.xxx)
+  const ipForLog = ip
+    ? ip.replace(/^(\d+\.\d+)\.\d+\.\d+$/, '$1.xxx.xxx').replace(/:[0-9a-f]{1,4}(:[0-9a-f]{0,4}){4,}$/i, ':…')
+    : '(none)';
+
   console.log(
     '[sessions] Creating session — user:', auth.profile.id,
     '| email:', auth.profile.email,
-    '| ip:', ip || '(none)',
+    '| ip:', ipForLog,
     '| browser:', browser,
     '| os:', os,
     '| deviceType:', deviceType,
