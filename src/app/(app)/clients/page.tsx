@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Plus, Search, Users2, ExternalLink, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
@@ -41,6 +41,11 @@ export default function ClientsPage() {
 
   // silent=true → background refresh after mutations; does not touch the error
   // banner, does not clear existing data, and does not flip the loading spinner.
+  //
+  // NOTE: search is intentionally NOT in the dependency array. All clients are
+  // fetched once (up to 200) and filtered client-side via `filteredClients`.
+  // Putting `search` here would cause a new DB round-trip on every keystroke,
+  // creating race conditions where stale results overwrite newer ones.
   const fetchClients = useCallback(async (silent = false): Promise<boolean> => {
     if (!silent) setFetchError(null);
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -48,14 +53,11 @@ export default function ClientsPage() {
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
       });
-      let query = supabase
+      const query = supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50);
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
-      }
+        .limit(200);
       const { data, error } = await Promise.race([query, timeoutPromise]);
       if (error) {
         console.error('[clients fetch]', error);
@@ -83,9 +85,20 @@ export default function ClientsPage() {
       clearTimeout(timeoutId);
       if (!silent) setLoading(false);
     }
-  }, [search]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  // Client-side search filter — no extra round-trips, no race conditions.
+  const filteredClients = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter(c =>
+      c.name?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q),
+    );
+  }, [clients, search]);
 
   const logActivity = (description: string, clientId?: string) => {
     console.log('[client create] before activity log:', description);
@@ -232,7 +245,7 @@ export default function ClientsPage() {
             <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
-      ) : clients.length === 0 ? (
+      ) : filteredClients.length === 0 ? (
         <EmptyState
           icon={Users2}
           title={t('noClientsYet')}
@@ -251,7 +264,7 @@ export default function ClientsPage() {
         />
       ) : (
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-          {clients.map(client => (
+          {filteredClients.map(client => (
             <Link
               key={client.id}
               href={`/clients/${client.id}`}

@@ -22,21 +22,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     // ── 1. Check if the current session has been revoked ─────────────────────
     async function checkRevocation() {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 5_000);
       try {
-        const res = await fetch('/api/auth/sessions/check', { credentials: 'include' });
+        const res = await fetch('/api/auth/sessions/check', {
+          credentials: 'include',
+          signal: controller.signal,
+        });
         if (res.status === 401) {
           // Session revoked — sign out and redirect
           await supabaseClient.auth.signOut();
           window.location.replace('/login');
         }
-      } catch { /* ignore network errors */ }
+      } catch { /* ignore network errors / abort */ } finally {
+        clearTimeout(tid);
+      }
     }
 
     // ── 2. Ping last_seen_at so the session stays "active" ───────────────────
     async function pingActivity() {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 5_000);
       try {
-        await fetch('/api/auth/sessions/activity', { method: 'POST', credentials: 'include' });
-      } catch { /* ignore */ }
+        await fetch('/api/auth/sessions/activity', {
+          method: 'POST',
+          credentials: 'include',
+          signal: controller.signal,
+        });
+      } catch { /* ignore */ } finally {
+        clearTimeout(tid);
+      }
     }
 
     // Run checks immediately on mount, then on intervals
