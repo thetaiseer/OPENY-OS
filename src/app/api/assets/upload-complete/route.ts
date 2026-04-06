@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[upload-complete] ❌ Unexpected error:', msg);
     return NextResponse.json(
-      { success: false, step: 'finalize', error: `Unexpected server error: ${msg}` },
+      { success: false, step: 'server_error', error: `Unexpected server error: ${msg}` },
       { status: 500 },
     );
   }

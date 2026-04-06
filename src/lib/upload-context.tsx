@@ -220,6 +220,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       // ── Phase 2: database_insert ──────────────────────────────────────────
       // Drive upload succeeded. Any error from here → 'warning', NOT 'failed'.
+      const DB_SAVE_WARNING = 'File uploaded to Drive but metadata not saved';
       d({ type: 'UPDATE', id: item.id, patch: { status: 'saving', progress: 94 } });
 
       try {
@@ -258,7 +259,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
           } else {
             console.warn('[upload] ⚠️ database_insert: unreadable response (HTTP', completeRes.status, ') — Drive file exists');
-            d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: 'File uploaded to Drive but metadata not saved (unreadable response)' } });
+            d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: DB_SAVE_WARNING } });
           }
           return;
         }
@@ -268,14 +269,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         if (completeJson.success && completeJson.dbSaved === false) {
           // Partial success: Drive file exists, DB metadata not saved.
           console.warn('[upload] ⚠️ partial success — driveUploaded: true, dbSaved: false:', completeJson.warning);
-          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.warning ?? 'File uploaded but metadata not saved' } });
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.warning ?? DB_SAVE_WARNING } });
           return;
         }
 
         if (!completeJson.success) {
           // upload-complete failed, but Drive upload already succeeded → warning.
           console.warn('[upload] ⚠️ database_insert failed (HTTP', completeRes.status, ') — Drive file exists:', completeJson.error);
-          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.error ?? 'File uploaded to Drive but metadata save failed' } });
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.error ?? DB_SAVE_WARNING } });
           return;
         }
 
@@ -291,7 +292,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         if ((saveErr as Error)?.name === 'AbortError') throw saveErr;
         const saveMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
         console.warn('[upload] ⚠️ database_insert exception — Drive file exists:', saveMsg);
-        d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: 'File uploaded to Drive but metadata not saved' } });
+        d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: DB_SAVE_WARNING } });
       }
 
     } catch (err: unknown) {
