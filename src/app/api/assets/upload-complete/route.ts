@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl, deleteFromDrive } from '@/lib/google-drive';
+import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 
@@ -18,14 +18,18 @@ function getSupabase() {
  *
  * Called by the browser after it has finished uploading a file directly to
  * Google Drive via the resumable upload URL.  This endpoint:
- *   1. Grants public read access to the uploaded file.
+ *   1. Grants public read access to the uploaded file (drive_upload finalize).
  *   2. Fetches the canonical view / download URLs from Drive.
- *   3. Inserts an asset record in the Supabase `assets` table.
- *   4. Rolls back the Drive file if DB insert fails.
- *   5. Logs an activity entry (fire-and-forget).
+ *   3. Inserts an asset record in the Supabase `assets` table (database_insert).
+ *   4. Logs an activity entry (fire-and-forget).
  *
- * Success response:  { success: true, asset: { id, name, ... } }
- * Failure response:  { success: false, step: "finalize"|"db_insert", error: "..." }
+ * NOTE: Drive upload is already complete when this endpoint is called.
+ *       drive_upload failures do not originate here.
+ *       If DB insert fails the Drive file is preserved (no rollback).
+ *
+ * Full success:    { success: true, driveUploaded: true, dbSaved: true,  asset: {...} }
+ * Partial success: { success: true, driveUploaded: true, dbSaved: false, warning: "..." }
+ * Failure:         { success: false, step: "validation"|"finalize", error: "..." }
  *
  * Request body (JSON):
  *   driveFileId       – Google Drive file ID returned by the upload
@@ -84,25 +88,26 @@ export async function POST(req: NextRequest) {
 
     console.log('[upload-complete] file:', fileName, '| drive_file_id:', driveFileId, '| client:', clientName);
 
-    // ── Step 1: Finalize — set permissions + fetch canonical links ────────────
-    let webViewLink: string;
-    let webContentLink: string;
-    let thumbnailLink: string | null;
-    let driveMimeType: string | null;
+    // ── Step 1: drive_upload finalize — set permissions + fetch canonical links ─
+    // If this step fails we fall back to constructed URLs and continue.
+    let webViewLink    = `https://drive.google.com/file/d/${driveFileId}/view`;
+    let webContentLink = `https://drive.google.com/uc?id=${driveFileId}&export=download`;
+    let thumbnailLink: string | null = null;
+    let driveMimeType: string | null = null;
     try {
-      ({ webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType } = await finalizeFileAfterUpload(driveFileId));
-      console.log('[upload-complete] ✅ Drive finalize OK — view:', webViewLink);
+      ({ webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType } =
+        await finalizeFileAfterUpload(driveFileId));
+      console.log('[upload-complete] ✅ drive_upload finalize OK — view:', webViewLink);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload-complete] ❌ finalizeFileAfterUpload failed:', msg);
-      return NextResponse.json(
-        { success: false, step: 'finalize', error: `Failed to finalize Drive file: ${msg}` },
-        { status: 502 },
-      );
+      console.warn('[upload-complete] ⚠️ finalizeFileAfterUpload failed — using fallback URLs:', msg);
+      // Fallback URLs are already set above; proceed to database_insert.
     }
 
-    // ── Step 2: Insert asset record in Supabase ───────────────────────────────
-    console.log('[upload-complete] inserting into assets table…');
+    // ── Step 2: database_insert ───────────────────────────────────────────────
+    // Drive upload already succeeded. If DB insert fails we return partial
+    // success — the Drive file is preserved (no rollback).
+    console.log('[upload-complete] database_insert — inserting into assets table…');
     const supabase = getSupabase();
 
     const requiredRow: Record<string, unknown> = {
@@ -145,44 +150,36 @@ export async function POST(req: NextRequest) {
       );
 
       if (dbError) {
-        // DB insert failed after Drive upload succeeded — roll back Drive file
-        console.error('[upload-complete] ❌ DB insert failed — code:', dbError.code, '| msg:', dbError.message);
-        console.error('[upload-complete] ❌ Rolling back Drive file:', driveFileId);
-        try {
-          await deleteFromDrive(driveFileId);
-          console.log('[upload-complete] ✅ Drive rollback succeeded — file deleted:', driveFileId);
-        } catch (rollbackErr) {
-          const rbMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
-          console.error('[upload-complete] ⚠️ Drive rollback failed — file may remain in Drive:', driveFileId, '|', rbMsg);
-        }
+        // database_insert failed — Drive file is preserved (no rollback).
+        console.error('[upload-complete] ❌ database_insert failed — code:', dbError.code, '| msg:', dbError.message);
+        console.warn('[upload-complete] ⚠️ Drive file preserved — returning partial success for:', driveFileId);
         return NextResponse.json(
           {
-            success: false,
-            step: 'db_insert',
-            error: `Database save failed: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}`,
+            success: true,
+            driveUploaded: true,
+            dbSaved: false,
+            warning: 'File uploaded but metadata not saved',
           },
-          { status: 500 },
+          { status: 200 },
         );
       }
       inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload-complete] ❌ DB insert exception:', msg);
-      console.error('[upload-complete] ❌ Rolling back Drive file:', driveFileId);
-      try {
-        await deleteFromDrive(driveFileId);
-        console.log('[upload-complete] ✅ Drive rollback succeeded:', driveFileId);
-      } catch (rollbackErr) {
-        const rbMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
-        console.error('[upload-complete] ⚠️ Drive rollback failed:', rbMsg);
-      }
+      console.error('[upload-complete] ❌ database_insert exception:', msg);
+      console.warn('[upload-complete] ⚠️ Drive file preserved — returning partial success for:', driveFileId);
       return NextResponse.json(
-        { success: false, step: 'db_insert', error: `Database save failed: ${msg}` },
-        { status: 500 },
+        {
+          success: true,
+          driveUploaded: true,
+          dbSaved: false,
+          warning: 'File uploaded but metadata not saved',
+        },
+        { status: 200 },
       );
     }
 
-    console.log('[upload-complete] ✅ Upload complete — asset id:', inserted?.id);
+    console.log('[upload-complete] ✅ database_insert OK — asset id:', inserted?.id);
 
     // ── Activity log (fire-and-forget) ────────────────────────────────────────
     void supabase.from('activities').insert({
@@ -193,12 +190,13 @@ export async function POST(req: NextRequest) {
       if (error) console.warn('[upload-complete] activity log insert failed:', error.message);
     });
 
-    return NextResponse.json({ success: true, asset: inserted }, { status: 201 });
+    console.log('[upload-complete] ✅ response_return — driveUploaded: true, dbSaved: true, assetId:', inserted?.id);
+    return NextResponse.json({ success: true, driveUploaded: true, dbSaved: true, asset: inserted }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[upload-complete] ❌ Unexpected error:', msg);
     return NextResponse.json(
-      { success: false, step: 'db_insert', error: `Unexpected server error: ${msg}` },
+      { success: false, step: 'finalize', error: `Unexpected server error: ${msg}` },
       { status: 500 },
     );
   }
