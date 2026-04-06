@@ -1,18 +1,17 @@
 'use client';
 
 /**
- * Global upload context — rebuilt for simplicity and reliability.
+ * Global upload context — clean, minimal rebuild.
  *
  * Upload state machine:
  *   queued → uploading → saving → success
  *                              ↘ failed
- *   (pause) → paused → queued (resume/retry)
  *
  * Rules:
- *  - success ONLY when both Drive upload + DB save succeeded
+ *  - success ONLY when both Drive upload + DB save succeed
  *  - failed ONLY on a real upload/save error
- *  - list refresh failure never affects upload state
- *  - the upload-complete request is NOT abortable (prevents false state on pause during DB save)
+ *  - asset list refresh failure never affects upload state
+ *  - the upload-complete request is NOT abortable (prevents orphaned Drive files)
  */
 
 import React, {
@@ -23,7 +22,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { uploadFileChunked, queryResumeOffset } from './upload-manager';
+import { uploadFileChunked } from './upload-manager';
 import type { Asset } from './types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,38 +32,27 @@ export type UploadStatus =
   | 'uploading'
   | 'saving'
   | 'success'
-  | 'failed'
-  | 'paused';
+  | 'failed';
 
-export interface UploadQueueItem {
-  id:       string;
-  /** Null when the item was restored from localStorage (file object is lost). */
-  file:     File | null;
-  /** Object URL for image previews; null for non-images or after restore. */
-  previewUrl:       string | null;
-  status:           UploadStatus;
-  /** 0-100 */
-  progress:         number;
-  error:            string | null;
+export interface UploadItem {
+  id:         string;
+  file:       File;
+  previewUrl: string | null;
   /** User-editable base name (no extension). */
-  uploadName:       string;
-
-  // ── Upload session metadata ──────────────────────────────────────────────
-  /** Resumable session URL from Google Drive (persisted to localStorage). */
-  uploadUrl:        string | null;
-  /** Bytes already confirmed by Drive (for in-session pause/resume). */
-  bytesUploaded:    number;
-  clientName:       string;
-  clientId:         string;
-  contentType:      string;
-  monthKey:         string;
-  uploadedBy:       string | null;
-  renamedFileName:  string | null;
-  driveFolderId:    string | null;
-  clientFolderName: string | null;
+  uploadName: string;
+  status:     UploadStatus;
+  /** 0–100 */
+  progress:   number;
+  error:      string | null;
+  // metadata
+  clientName:  string;
+  clientId:    string;
+  contentType: string;
+  monthKey:    string;
+  uploadedBy:  string | null;
 }
 
-/** Minimal shape submitted by the Assets page when confirming a batch. */
+/** Minimal shape submitted when confirming a batch. */
 export interface BatchMeta {
   clientName:  string;
   clientId:    string;
@@ -73,7 +61,7 @@ export interface BatchMeta {
   uploadedBy:  string | null;
 }
 
-/** Item passed by the Assets page when opening a batch (before metadata). */
+/** Item shape passed when opening a batch (before upload starts). */
 export interface InitialUploadItem {
   id:         string;
   file:       File;
@@ -81,14 +69,15 @@ export interface InitialUploadItem {
   uploadName: string;
 }
 
+// Keep legacy alias so the pages don't need changes
+export type UploadQueueItem = UploadItem;
+
 interface UploadContextValue {
-  queue: UploadQueueItem[];
-  isUploading: boolean;
-  /** The most recently completed asset (used by Assets page to prepend to list). */
-  latestAsset: Asset | null;
+  queue:         UploadItem[];
+  isUploading:   boolean;
+  /** Most recently completed asset — used by the Assets page to prepend instantly. */
+  latestAsset:   Asset | null;
   startBatch:    (items: InitialUploadItem[], meta: BatchMeta) => void;
-  pauseItem:     (id: string) => void;
-  resumeItem:    (id: string) => void;
   retryItem:     (id: string) => void;
   removeItem:    (id: string) => void;
   clearCompleted: () => void;
@@ -97,16 +86,15 @@ interface UploadContextValue {
 // ── State & reducer ───────────────────────────────────────────────────────────
 
 interface UploadState {
-  queue: UploadQueueItem[];
+  queue: UploadItem[];
   latestAsset: Asset | null;
 }
 
 type UploadAction =
-  | { type: 'ENQUEUE';  items: UploadQueueItem[] }
-  | { type: 'UPDATE';   id: string; patch: Partial<UploadQueueItem> }
-  | { type: 'REMOVE';   id: string }
+  | { type: 'ENQUEUE';  items: UploadItem[] }
+  | { type: 'UPDATE';   id: string; patch: Partial<UploadItem> }
+  | { type: 'REMOVE';          id: string }
   | { type: 'CLEAR_COMPLETED' }
-  | { type: 'RESTORE';  items: UploadQueueItem[] }
   | { type: 'SET_LATEST_ASSET'; asset: Asset };
 
 function reducer(state: UploadState, action: UploadAction): UploadState {
@@ -128,95 +116,11 @@ function reducer(state: UploadState, action: UploadAction): UploadState {
     case 'CLEAR_COMPLETED':
       return { ...state, queue: state.queue.filter(i => i.status !== 'success') };
 
-    case 'RESTORE':
-      return {
-        ...state,
-        queue: [...state.queue, ...action.items.filter(
-          r => !state.queue.some(q => q.id === r.id),
-        )],
-      };
-
     case 'SET_LATEST_ASSET':
       return { ...state, latestAsset: action.asset };
 
     default:
       return state;
-  }
-}
-
-// ── LocalStorage helpers ──────────────────────────────────────────────────────
-
-const LS_KEY = 'openy_upload_queue';
-
-type PersistedItem = Omit<
-  UploadQueueItem,
-  'file' | 'previewUrl' | 'status'
-> & { status: 'paused' | 'failed'; fileName: string; fileSize: number; fileType: string };
-
-function persistQueue(queue: UploadQueueItem[]): void {
-  try {
-    const items: PersistedItem[] = queue
-      // Only persist items that have an active Drive session (uploadUrl set) or are
-      // already failed.  Skip 'queued' (no session yet — can't resume without file)
-      // and 'saving' (DB save is in-flight — we don't know if it completed; persisting
-      // would let the user re-upload the same file as a duplicate).  'success' items
-      // are also excluded because they're complete.
-      .filter(i =>
-        i.status === 'failed' ||
-        ((i.status === 'paused' || i.status === 'uploading') && !!i.uploadUrl),
-      )
-      .map(i => ({
-        id:               i.id,
-        fileName:         i.file?.name ?? i.renamedFileName ?? 'Unknown',
-        fileSize:         i.file?.size ?? 0,
-        fileType:         i.file?.type ?? '',
-        status:           i.status === 'failed' ? 'failed' : 'paused' as 'paused' | 'failed',
-        progress:         0,
-        error:            i.error,
-        uploadName:       i.uploadName,
-        uploadUrl:        i.uploadUrl,
-        bytesUploaded:    i.bytesUploaded,
-        clientName:       i.clientName,
-        clientId:         i.clientId,
-        contentType:      i.contentType,
-        monthKey:         i.monthKey,
-        uploadedBy:       i.uploadedBy,
-        renamedFileName:  i.renamedFileName,
-        driveFolderId:    i.driveFolderId,
-        clientFolderName: i.clientFolderName,
-      }));
-    localStorage.setItem(LS_KEY, JSON.stringify(items));
-  } catch {
-    // localStorage not available (SSR, private mode)
-  }
-}
-
-function restoreQueue(): UploadQueueItem[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return [];
-    const items = JSON.parse(raw) as PersistedItem[];
-    return items.map(i => ({
-      id:               i.id,
-      file:             null,
-      previewUrl:       null,
-      status:           i.status,
-      progress:         0,
-      error:            i.status === 'failed' ? (i.error ?? 'Upload failed') : 'Upload was interrupted. Click retry to restart.',
-      uploadName:       i.uploadName,
-      uploadUrl:        i.uploadUrl,
-      bytesUploaded:    i.bytesUploaded,
-      clientName:       i.clientName,
-      clientId:         i.clientId,
-      contentType:      i.contentType,
-      monthKey:         i.monthKey,
-      uploadedBy:       i.uploadedBy,
-      renamedFileName:  i.renamedFileName,
-      driveFolderId:    i.driveFolderId,
-      clientFolderName: i.clientFolderName,
-    }));
-  } catch {
-    return [];
   }
 }
 
@@ -231,8 +135,6 @@ const UploadContext = createContext<UploadContextValue>({
   isUploading:    false,
   latestAsset:    null,
   startBatch:     () => {},
-  pauseItem:      () => {},
-  resumeItem:     () => {},
   retryItem:      () => {},
   removeItem:     () => {},
   clearCompleted: () => {},
@@ -247,154 +149,77 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const dispatchRef         = useRef(dispatch);
   dispatchRef.current = dispatch;
 
-  // ── Restore from localStorage on mount ───────────────────────────────────
-
-  useEffect(() => {
-    const restored = restoreQueue();
-    if (restored.length > 0) {
-      dispatch({ type: 'RESTORE', items: restored });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Persist queue to localStorage on every change ────────────────────────
-
-  useEffect(() => {
-    persistQueue(state.queue);
-  }, [state.queue]);
-
-  // ── beforeunload warning ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      const active = state.queue.some(i => i.status === 'uploading' || i.status === 'saving');
-      if (active) {
-        e.preventDefault();
-        e.returnValue = 'Files are still uploading. Are you sure you want to leave?';
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [state.queue]);
-
   // ── Core upload function (runs per item) ──────────────────────────────────
 
-  const doUploadItem = useCallback(async (item: UploadQueueItem) => {
+  const doUploadItem = useCallback(async (item: UploadItem) => {
     const d = dispatchRef.current;
 
-    if (!item.file) {
-      d({
-        type: 'UPDATE', id: item.id,
-        patch: { status: 'failed', error: 'File is no longer available. Please start a new upload.' },
-      });
-      runningRef.current.delete(item.id);
-      return;
-    }
-
-    // The abort controller is only used for the Drive upload (chunked PUT).
-    // The upload-complete request is intentionally NOT abortable to prevent
-    // false failed/paused states when the user pauses during the DB-save step.
+    // Each upload gets its own AbortController so removeItem can cancel it.
     const ctrl = new AbortController();
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
-      // ── Step 1: Create or reuse the resumable upload session ──────────────
+      // ── Step 1: Create resumable upload session ───────────────────────────
       console.log('[upload] start —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 2 } });
 
-      let { uploadUrl, driveFolderId, clientFolderName, renamedFileName } = item;
-      // Mutable start offset — updated in the resume path after querying Drive.
-      let startByte = item.bytesUploaded || 0;
+      const safeFileName = item.file.name.replace(/\s+/g, '_');
 
-      if (!uploadUrl) {
-        const safeFileName = item.file.name.replace(/\s+/g, '_');
+      const sessionRes = await fetch('/api/assets/upload-session', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName:    safeFileName,
+          fileType:    item.file.type || 'application/octet-stream',
+          fileSize:    item.file.size,
+          clientName:  item.clientName,
+          contentType: item.contentType,
+          monthKey:    item.monthKey,
+          ...(item.clientId    ? { clientId:       item.clientId }    : {}),
+          ...(item.uploadedBy  ? { uploadedBy:     item.uploadedBy }  : {}),
+          ...(item.uploadName.trim() ? { customFileName: item.uploadName.trim() } : {}),
+        }),
+        signal: ctrl.signal,
+      });
 
-        const sessionRes = await fetch('/api/assets/upload-session', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName:    safeFileName,
-            fileType:    item.file.type || 'application/octet-stream',
-            fileSize:    item.file.size,
-            clientName:  item.clientName,
-            contentType: item.contentType,
-            monthKey:    item.monthKey,
-            ...(item.clientId   ? { clientId:       item.clientId }   : {}),
-            ...(item.uploadedBy ? { uploadedBy:     item.uploadedBy } : {}),
-            ...(item.uploadName.trim() ? { customFileName: item.uploadName.trim() } : {}),
-          }),
-          signal: ctrl.signal,
-        });
-
-        console.log('[upload] session response — status:', sessionRes.status);
-
-        let sessionJson: {
-          success: boolean;
-          step?: string;
-          error?: string;
-          uploadUrl?: string;
-          drive_folder_id?: string;
-          client_folder_name?: string;
-          renamedFileName?: string;
-        };
-        try {
-          sessionJson = await sessionRes.json();
-        } catch (parseErr) {
-          throw new Error(`Server returned invalid response for upload session (HTTP ${sessionRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
-        }
-
-        if (!sessionRes.ok || !sessionJson.success) {
-          throw new Error(sessionJson.error ?? `Upload session creation failed (HTTP ${sessionRes.status})`);
-        }
-
-        uploadUrl        = sessionJson.uploadUrl        ?? null;
-        driveFolderId    = sessionJson.drive_folder_id  ?? null;
-        clientFolderName = sessionJson.client_folder_name ?? null;
-        renamedFileName  = sessionJson.renamedFileName  ?? null;
-
-        if (!uploadUrl) throw new Error('Server did not return an upload URL');
-
-        console.log('[upload] session ready — folder:', driveFolderId, '| file:', renamedFileName);
-
-        // Persist session URL immediately so we can recover on refresh
-        d({ type: 'UPDATE', id: item.id, patch: { uploadUrl, driveFolderId, clientFolderName, renamedFileName } });
-      } else {
-        // Existing session: query Drive for confirmed offset to resume smoothly.
-        // IMPORTANT: use the queried offset as startByte, NOT the stale item snapshot.
-        try {
-          const confirmedBytes = await queryResumeOffset(uploadUrl, item.file.size);
-          if (confirmedBytes > startByte) {
-            startByte = confirmedBytes;
-            d({ type: 'UPDATE', id: item.id, patch: { bytesUploaded: confirmedBytes } });
-          }
-        } catch {
-          // Non-fatal: proceed with stored bytesUploaded
-        }
+      let sessionJson: {
+        success: boolean; error?: string;
+        uploadUrl?: string; drive_folder_id?: string;
+        client_folder_name?: string; renamedFileName?: string;
+      };
+      try {
+        sessionJson = await sessionRes.json();
+      } catch (parseErr) {
+        throw new Error(`Failed to parse upload session response (HTTP ${sessionRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
       }
+      if (!sessionRes.ok || !sessionJson.success) {
+        throw new Error(sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})`);
+      }
+
+      const uploadUrl        = sessionJson.uploadUrl;
+      const driveFolderId    = sessionJson.drive_folder_id    ?? null;
+      const clientFolderName = sessionJson.client_folder_name ?? null;
+      const renamedFileName  = sessionJson.renamedFileName    ?? null;
+
+      if (!uploadUrl) throw new Error('Server did not return an upload URL');
+      console.log('[upload] session ready — folder:', driveFolderId, '| file:', renamedFileName);
 
       // ── Step 2: Upload file bytes directly to Google Drive (chunked) ──────
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 5 } });
 
-      const driveFileId = await uploadFileChunked(uploadUrl!, item.file, {
+      const driveFileId = await uploadFileChunked(uploadUrl, item.file, {
         signal: ctrl.signal,
-        startByte,
         onProgress: (bytesUploaded, total) => {
-          const pct = 5 + Math.round((bytesUploaded / total) * 88); // 5→93
-          d({ type: 'UPDATE', id: item.id, patch: { progress: pct, bytesUploaded, status: 'uploading' } });
-        },
-        onRetrying: () => {
-          // Keep status as 'uploading' — retrying is still an upload in progress
-          d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading' } });
+          const pct = 5 + Math.round((bytesUploaded / total) * 88); // 5 → 93
+          d({ type: 'UPDATE', id: item.id, patch: { progress: pct } });
         },
       });
 
       console.log('[upload] Drive upload complete — driveFileId:', driveFileId);
 
-      // ── Step 3: Save to Supabase (NOT abortable — must complete or fail cleanly) ──
+      // ── Step 3: Save metadata to DB (NOT abortable — prevents orphaned Drive files) ──
       d({ type: 'UPDATE', id: item.id, patch: { status: 'saving', progress: 94 } });
 
-      // Intentionally no signal here: if the user pauses after Drive upload is done,
-      // we still complete the DB save so the asset is not left orphaned in Drive.
       const completeRes = await fetch('/api/assets/upload-complete', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -402,7 +227,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           driveFileId,
           driveFolderId,
           clientFolderName,
-          fileName:    renamedFileName ?? item.file.name.replace(/\s+/g, '_'),
+          fileName:    renamedFileName ?? safeFileName,
           fileType:    item.file.type  || null,
           fileSize:    item.file.size  || null,
           contentType: item.contentType,
@@ -413,58 +238,43 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      console.log('[upload] save response — status:', completeRes.status);
-
-      let completeJson: {
-        success: boolean;
-        step?: string;
-        error?: string;
-        asset?: Asset;
-      };
+      let completeJson: { success: boolean; error?: string; asset?: Asset };
       try {
         completeJson = await completeRes.json();
-        console.log('[upload] save json — success:', completeJson.success, '| step:', completeJson.step ?? 'n/a', '| assetId:', completeJson.asset?.id ?? 'none');
-      } catch (parseErr) {
-        // HTTP 201 means the server created the asset in Drive + DB even if the
-        // response body can't be parsed (e.g. connection dropped after headers).
-        // Treat this as success to prevent a false-failure state.
+      } catch {
+        // HTTP 201 = asset was created even if response body is unreadable.
+        // Treat as success to avoid a false-failure state.
         if (completeRes.status === 201) {
-          console.warn('[upload] ⚠️ 201 response but JSON parse failed — marking as success to prevent false failure');
           d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
           return;
         }
-        throw new Error(`Server returned invalid response when saving asset (HTTP ${completeRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+        throw new Error(`Save failed: unexpected response (HTTP ${completeRes.status})`);
       }
 
       if (!completeRes.ok || !completeJson.success) {
-        // Real failure — Drive file was already rolled back by the server
-        throw new Error(completeJson.error ?? `Asset save failed (HTTP ${completeRes.status})`);
+        // Drive file was already rolled back by the server on DB failure.
+        throw new Error(completeJson.error ?? `Save failed (HTTP ${completeRes.status})`);
       }
 
       console.log('[upload] ✅ upload success — assetId:', completeJson.asset?.id);
-
       if (completeJson.asset) {
         d({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
       }
       d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
 
     } catch (err: unknown) {
-      const isAbort = (err as Error)?.name === 'AbortError';
-      if (isAbort) {
-        // User paused during the Drive upload step
-        d({ type: 'UPDATE', id: item.id, patch: { status: 'paused', progress: item.bytesUploaded > 0 ? item.progress : 0 } });
-      } else {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[upload] ❌ failed —', item.file?.name ?? item.renamedFileName ?? 'unknown', '| error:', msg);
-        d({ type: 'UPDATE', id: item.id, patch: { status: 'failed', error: msg } });
-      }
+      // Ignore abort errors from removeItem (item is already gone from queue)
+      if ((err as Error)?.name === 'AbortError') return;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[upload] ❌ failed —', item.file.name, '| error:', msg);
+      d({ type: 'UPDATE', id: item.id, patch: { status: 'failed', error: msg } });
     } finally {
       abortControllersRef.current.delete(item.id);
       runningRef.current.delete(item.id);
     }
   }, []);
 
-  // ── Queue runner — triggered whenever queue changes ───────────────────────
+  // ── Queue runner — starts uploads whenever slots are free ─────────────────
 
   useEffect(() => {
     const queued = state.queue.filter(
@@ -484,65 +294,29 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const startBatch = useCallback((items: InitialUploadItem[], meta: BatchMeta) => {
-    const queueItems: UploadQueueItem[] = items.map(i => ({
-      id:               i.id,
-      file:             i.file,
-      previewUrl:       i.previewUrl,
-      status:           'queued',
-      progress:         0,
-      error:            null,
-      uploadName:       i.uploadName,
-      uploadUrl:        null,
-      bytesUploaded:    0,
-      clientName:       meta.clientName,
-      clientId:         meta.clientId,
-      contentType:      meta.contentType,
-      monthKey:         meta.monthKey,
-      uploadedBy:       meta.uploadedBy,
-      renamedFileName:  null,
-      driveFolderId:    null,
-      clientFolderName: null,
+    const queueItems: UploadItem[] = items.map(i => ({
+      id:          i.id,
+      file:        i.file,
+      previewUrl:  i.previewUrl,
+      status:      'queued',
+      progress:    0,
+      error:       null,
+      uploadName:  i.uploadName,
+      clientName:  meta.clientName,
+      clientId:    meta.clientId,
+      contentType: meta.contentType,
+      monthKey:    meta.monthKey,
+      uploadedBy:  meta.uploadedBy,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
   }, []);
 
-  const pauseItem = useCallback((id: string) => {
-    const ctrl = abortControllersRef.current.get(id);
-    if (ctrl) ctrl.abort();
-    // Status update happens in doUploadItem's catch block
+  const retryItem = useCallback((id: string) => {
+    dispatch({ type: 'UPDATE', id, patch: { status: 'queued', error: null, progress: 0 } });
   }, []);
 
-  const resumeItem = useCallback((id: string) => {
-    const item = state.queue.find(i => i.id === id && i.status === 'paused');
-    if (!item) return;
-    if (!item.file) {
-      dispatch({
-        type: 'UPDATE', id,
-        patch: { status: 'failed', error: 'File is no longer available. Please start a new upload.' },
-      });
-      return;
-    }
-    dispatch({ type: 'UPDATE', id, patch: { status: 'queued', error: null } });
-  }, [state.queue]);
-
-  const retryItem = useCallback((id: string) => {
-    const item = state.queue.find(i => i.id === id);
-    if (!item) return;
-    if (!item.file) {
-      dispatch({
-        type: 'UPDATE', id,
-        patch: { status: 'failed', error: 'File is no longer available. Please start a new upload.' },
-      });
-      return;
-    }
-    // Reset from scratch: clear session URL so a fresh Drive session is created
-    dispatch({
-      type: 'UPDATE', id,
-      patch: { status: 'queued', error: null, progress: 0, bytesUploaded: 0, uploadUrl: null },
-    });
-  }, [state.queue]);
-
   const removeItem = useCallback((id: string) => {
+    // Abort any in-flight upload for this item
     abortControllersRef.current.get(id)?.abort();
     const item = state.queue.find(i => i.id === id);
     if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
@@ -567,8 +341,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         isUploading,
         latestAsset:    state.latestAsset,
         startBatch,
-        pauseItem,
-        resumeItem,
         retryItem,
         removeItem,
         clearCompleted,

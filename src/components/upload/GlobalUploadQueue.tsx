@@ -5,17 +5,16 @@
  *
  * Mounted once in the app layout so it stays visible across all routes.
  * Shows the current upload queue with per-file progress and action buttons
- * (pause, resume, retry, remove).  The panel can be minimised to a compact
- * status bar.
+ * (retry, remove).  The panel can be minimised to a compact status bar.
  */
 
 import { useState } from 'react';
 import {
   Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle,
-  Loader2, Pause, Play, RotateCcw, Trash2, File, FileImage,
+  Loader2, RotateCcw, Trash2, File, FileImage,
   FileText, FileVideo, FileAudio,
 } from 'lucide-react';
-import { useUpload, type UploadQueueItem, type UploadStatus } from '@/lib/upload-context';
+import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,32 +25,29 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function isImageFile(name: string, type?: string): boolean {
-  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) ||
-    (type?.startsWith('image/') ?? false);
+function isImageFile(name: string, type: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || type.startsWith('image/');
 }
 
-function getDisplayName(item: UploadQueueItem): string {
+function getDisplayName(item: UploadItem): string {
   const base = item.uploadName.trim();
-  const originalName = item.file?.name ?? item.renamedFileName ?? 'Unknown file';
-  const ext = originalName.includes('.')
-    ? `.${originalName.split('.').pop()!.toLowerCase()}`
+  const ext  = item.file.name.includes('.')
+    ? `.${item.file.name.split('.').pop()!.toLowerCase()}`
     : '';
-  if (!base) return originalName;
+  if (!base) return item.file.name;
   return base.toLowerCase().endsWith(ext.toLowerCase()) ? base : `${base}${ext}`;
 }
 
-function FileTypeIcon({ item }: { item: UploadQueueItem }) {
-  const name = item.file?.name ?? item.renamedFileName ?? '';
-  const type = item.file?.type;
+function FileTypeIcon({ item }: { item: UploadItem }) {
+  const { name, type } = item.file;
   const sz = 13;
   if (isImageFile(name, type))
     return <FileImage size={sz} style={{ color: '#3b82f6' }} />;
   if (/\.pdf$/i.test(name) || type === 'application/pdf')
-    return <FileText size={sz} style={{ color: '#ef4444' }} />;
-  if (/\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type?.startsWith('video/'))
+    return <FileText  size={sz} style={{ color: '#ef4444' }} />;
+  if (/\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type.startsWith('video/'))
     return <FileVideo size={sz} style={{ color: '#8b5cf6' }} />;
-  if (type?.startsWith('audio/'))
+  if (type.startsWith('audio/'))
     return <FileAudio size={sz} style={{ color: '#06b6d4' }} />;
   return <File size={sz} style={{ color: 'var(--text-secondary)' }} />;
 }
@@ -59,7 +55,6 @@ function FileTypeIcon({ item }: { item: UploadQueueItem }) {
 const STATUS_LABEL: Record<UploadStatus, string> = {
   queued:    'Queued',
   uploading: 'Uploading',
-  paused:    'Paused',
   saving:    'Saving…',
   success:   'Complete',
   failed:    'Failed',
@@ -68,7 +63,6 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
 const STATUS_COLOR: Record<UploadStatus, string> = {
   queued:    'var(--text-secondary)',
   uploading: 'var(--accent)',
-  paused:    '#f59e0b',
   saving:    'var(--accent)',
   success:   '#16a34a',
   failed:    '#ef4444',
@@ -76,15 +70,11 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
 
-function QueueRow({ item }: { item: UploadQueueItem }) {
-  const { pauseItem, resumeItem, retryItem, removeItem } = useUpload();
+function QueueRow({ item }: { item: UploadItem }) {
+  const { retryItem, removeItem } = useUpload();
   const isActive   = item.status === 'uploading' || item.status === 'saving';
   const isComplete = item.status === 'success';
   const isFailed   = item.status === 'failed';
-  const isPaused   = item.status === 'paused';
-  const fileSize   = item.file?.size ?? 0;
-
-  const barColor = isFailed ? '#ef4444' : isPaused ? '#f59e0b' : 'var(--accent)';
 
   return (
     <div
@@ -117,10 +107,10 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
 
         {/* Size · status · progress% */}
         <div className="flex items-center gap-1.5 text-xs">
-          {fileSize > 0 && (
-            <span style={{ color: 'var(--text-secondary)' }}>{formatSize(fileSize)}</span>
+          {item.file.size > 0 && (
+            <span style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
           )}
-          {fileSize > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
+          {item.file.size > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
           <span style={{ color: STATUS_COLOR[item.status], fontWeight: 600 }}>
             {STATUS_LABEL[item.status]}
           </span>
@@ -132,11 +122,11 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
         </div>
 
         {/* Progress bar */}
-        {(isActive || isPaused) && (
+        {isActive && (
           <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'var(--border)' }}>
             <div
               className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${item.progress}%`, background: barColor }}
+              style={{ width: `${item.progress}%`, background: 'var(--accent)' }}
             />
           </div>
         )}
@@ -151,21 +141,7 @@ function QueueRow({ item }: { item: UploadQueueItem }) {
 
       {/* Action buttons */}
       <div className="flex flex-col gap-1 shrink-0 mt-0.5">
-        {isActive && (
-          <button onClick={() => pauseItem(item.id)} title="Pause"
-            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: 'var(--text)' }}>
-            <Pause size={10} />
-          </button>
-        )}
-        {isPaused && item.file && (
-          <button onClick={() => resumeItem(item.id)} title="Resume"
-            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: 'var(--accent)' }}>
-            <Play size={10} />
-          </button>
-        )}
-        {(isFailed || (isPaused && !item.file)) && (
+        {isFailed && (
           <button onClick={() => retryItem(item.id)} title="Retry"
             className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
             style={{ background: 'var(--surface)', color: '#f59e0b' }}>
@@ -205,7 +181,7 @@ export default function GlobalUploadQueue() {
     : allDone
     ? [
         completed > 0 && `${completed} uploaded`,
-        failed > 0 && `${failed} failed`,
+        failed    > 0 && `${failed} failed`,
       ].filter(Boolean).join(' · ') || 'Done'
     : `${completed}/${queue.length} files`;
 
