@@ -126,46 +126,42 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
+      return NextResponse.json({ success: false, step: 'validation', error: 'Request body must be valid JSON' }, { status: 400 });
     }
 
     const { fileName, fileType, fileSize, clientName, contentType, monthKey, uploadedBy, customFileName } = body;
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if (!fileName || typeof fileName !== 'string') {
-      return NextResponse.json({ success: false, error: 'fileName is required' }, { status: 400 });
+      return NextResponse.json({ success: false, step: 'validation', error: 'fileName is required' }, { status: 400 });
     }
 
     // ── Security: block dangerous file types ──────────────────────────────────
     const ext = getFileExtension(fileName);
     if (BLOCKED_EXTENSIONS.has(ext)) {
       return NextResponse.json(
-        { success: false, error: 'File type not allowed: security policy blocks executable and script files' },
+        { success: false, step: 'validation', error: 'File type not allowed: security policy blocks executable and script files' },
         { status: 400 },
       );
     }
 
-    if (!fileType || typeof fileType !== 'string') {
-      return NextResponse.json({ success: false, error: 'fileType is required' }, { status: 400 });
-    }
-    if (typeof fileSize !== 'number' || fileSize <= 0) {
-      return NextResponse.json({ success: false, error: 'fileSize must be a positive number' }, { status: 400 });
-    }
-    if (!clientName || typeof clientName !== 'string' || !clientName.trim()) {
-      return NextResponse.json({ success: false, error: 'clientName is required' }, { status: 400 });
-    }
-    if (!contentType || typeof contentType !== 'string') {
-      return NextResponse.json({ success: false, error: 'contentType is required' }, { status: 400 });
-    }
+    if (!fileType || typeof fileType !== 'string')
+      return NextResponse.json({ success: false, step: 'validation', error: 'fileType is required' }, { status: 400 });
+    if (typeof fileSize !== 'number' || fileSize <= 0)
+      return NextResponse.json({ success: false, step: 'validation', error: 'fileSize must be a positive number' }, { status: 400 });
+    if (!clientName || typeof clientName !== 'string' || !clientName.trim())
+      return NextResponse.json({ success: false, step: 'validation', error: 'clientName is required' }, { status: 400 });
+    if (!contentType || typeof contentType !== 'string')
+      return NextResponse.json({ success: false, step: 'validation', error: 'contentType is required' }, { status: 400 });
     if (!VALID_CONTENT_TYPES.includes(contentType as typeof VALID_CONTENT_TYPES[number])) {
       return NextResponse.json(
-        { success: false, error: `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
+        { success: false, step: 'validation', error: `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}` },
         { status: 400 },
       );
     }
     if (!monthKey || typeof monthKey !== 'string' || !/^\d{4}-\d{2}$/.test(monthKey)) {
       return NextResponse.json(
-        { success: false, error: 'monthKey is required and must be in YYYY-MM format' },
+        { success: false, step: 'validation', error: 'monthKey must be in YYYY-MM format' },
         { status: 400 },
       );
     }
@@ -195,7 +191,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload-session] UPLOAD ERROR:', err);
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    console.error('[upload-session] ❌ error:', msg);
+    return NextResponse.json({ success: false, step: 'drive_upload', error: msg }, { status: 500 });
   }
 }
