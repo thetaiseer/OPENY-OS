@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
   } else if (error) {
     console.warn('[sessions/activity] update error:', error.message);
   } else {
+    console.log('[sessions/activity] ✓ Updated last_seen_at for session:', currentSid);
     console.log('[sessions/activity] last_seen_at updated for session:', currentSid);
   }
 
