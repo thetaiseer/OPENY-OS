@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { uploadToStructuredPath, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
+import { uploadToStructuredPath, buildPreviewUrl, buildThumbnailUrl, deleteFromDrive } from '@/lib/google-drive';
 import { clientToFolderName } from '@/lib/asset-utils';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
@@ -149,7 +149,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 5. Upload to structured path in Google Drive ──────────────────────────
     console.log('[upload] starting structured Google Drive upload…');
     let driveResult;
     try {
@@ -164,7 +163,10 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ Google Drive upload failed:', msg);
-      return NextResponse.json({ success: false, error: `Google Drive upload failed: ${msg}` }, { status: 502 });
+      return NextResponse.json(
+        { success: false, step: 'drive_upload', error: `Google Drive upload failed: ${msg}` },
+        { status: 502 },
+      );
     }
 
     const { drive_file_id, drive_folder_id, client_folder_name, webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType, fileSize: driveFileSize } = driveResult;
@@ -174,7 +176,6 @@ export async function POST(req: NextRequest) {
     console.log('[upload] inserting into assets table…');
     const supabase = getSupabase();
 
-    // Required fields — upload must not succeed without these.
     const requiredRow: Record<string, unknown> = {
       name:               renamedFileName,
       file_path:          null,
@@ -197,9 +198,7 @@ export async function POST(req: NextRequest) {
       requiredRow.client_id = safeClientId;
     }
 
-    // Optional preview metadata — if these columns are missing from the DB
-    // schema (error code 42703) we retry without them so the upload still
-    // succeeds.  Run supabase-migration-missing-columns.sql to add them.
+    // Optional preview columns — stripped automatically on 42703 (missing column) errors
     const previewFields: Record<string, unknown> = {
       mime_type:     (driveMimeType ?? file.type) || null,
       preview_url:   buildPreviewUrl(drive_file_id),
@@ -210,31 +209,29 @@ export async function POST(req: NextRequest) {
     let inserted: Record<string, unknown>;
     try {
       const fullRow = { ...requiredRow, ...previewFields };
-      console.log('[upload] insert payload:', JSON.stringify(fullRow, null, 2));
+      console.log('[upload] insert payload keys:', Object.keys(fullRow).join(', '));
 
-      const { data, error: dbError, finalRow } = await insertWithColumnFallback(
+      const { data, error: dbError } = await insertWithColumnFallback(
         (row) => supabase.from('assets').insert(row).select().single(),
         fullRow,
         '[upload]',
       );
 
       if (dbError) {
-        console.error('[upload] ❌ Supabase insert error — full error object:', JSON.stringify(dbError, null, 2));
-        console.error('[upload] ❌ message:', dbError.message);
-        console.error('[upload] ❌ code:', dbError.code);
-        console.error('[upload] ❌ details:', dbError.details ?? '(none)');
-        console.error('[upload] ❌ hint:', dbError.hint ?? '(none)');
+        console.error('[upload] ❌ DB insert failed — code:', dbError.code, '| msg:', dbError.message);
+        console.error('[upload] ❌ Rolling back Drive file:', drive_file_id);
+        try {
+          await deleteFromDrive(drive_file_id);
+          console.log('[upload] ✅ Drive rollback succeeded:', drive_file_id);
+        } catch (rollbackErr) {
+          const rbMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+          console.error('[upload] ⚠️ Drive rollback failed:', rbMsg);
+        }
         return NextResponse.json(
           {
             success: false,
-            error: `Failed while inserting asset metadata: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}`,
-            supabase_error: {
-              message: dbError.message,
-              code:    dbError.code,
-              details: dbError.details,
-              hint:    dbError.hint,
-            },
-            insert_payload: finalRow,
+            step: 'db_insert',
+            error: `Database save failed: ${dbError.message}${dbError.details ? ` — ${dbError.details}` : ''}${dbError.hint ? ` (hint: ${dbError.hint})` : ''}`,
           },
           { status: 500 },
         );
@@ -242,14 +239,22 @@ export async function POST(req: NextRequest) {
       inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] ❌ Failed while inserting asset metadata (exception):', msg);
+      console.error('[upload] ❌ DB insert exception:', msg);
+      console.error('[upload] ❌ Rolling back Drive file:', drive_file_id);
+      try {
+        await deleteFromDrive(drive_file_id);
+        console.log('[upload] ✅ Drive rollback succeeded:', drive_file_id);
+      } catch (rollbackErr) {
+        const rbMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+        console.error('[upload] ⚠️ Drive rollback failed:', rbMsg);
+      }
       return NextResponse.json(
-        { success: false, error: `Failed while inserting asset metadata: ${msg}` },
+        { success: false, step: 'db_insert', error: `Database save failed: ${msg}` },
         { status: 500 },
       );
     }
 
-    console.log('[upload] ✅ DB insert success — asset id:', inserted?.id);
+    console.log('[upload] ✅ Upload complete — asset id:', inserted?.id);
 
     // ── 7. Log activity (fire and forget) ────────────────────────────────────
     void supabase.from('activities').insert({
@@ -261,7 +266,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, asset: inserted }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload] UPLOAD ERROR:', err);
-    return NextResponse.json({ success: false, error: `Unexpected server error: ${msg}` }, { status: 500 });
+    console.error('[upload] ❌ Unexpected error:', msg);
+    return NextResponse.json(
+      { success: false, step: 'drive_upload', error: `Unexpected server error: ${msg}` },
+      { status: 500 },
+    );
   }
 }
