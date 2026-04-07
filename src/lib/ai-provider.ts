@@ -5,7 +5,7 @@
  *
  * Provider priority:
  *   1. OPENAI_API_KEY  → OpenAI gpt-4o-mini
- *   2. GEMINI_API_KEY  → Google Gemini gemini-1.5-flash
+ *   2. GEMINI_API_KEY  → Google Gemini gemini-2.5-flash
  *
  * If neither key is set, throws AiUnconfiguredError (callers return HTTP 503).
  *
@@ -124,7 +124,7 @@ async function callGemini({
   maxTokens: number;
   temperature: number;
 }): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
 
   const res = await fetch(url, {
     method: 'POST',
