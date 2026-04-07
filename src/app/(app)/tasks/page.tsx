@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
-  LayoutGrid, List, Search, X,
+  LayoutGrid, List, Search, X, CheckCircle,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -989,6 +989,10 @@ export default function TasksPage() {
 
     console.log('[task status] change — id:', task.id, '| from:', task.status, '| to:', newStatus);
 
+    // Helper to revert the optimistic update on any failure.
+    const revertStatus = () =>
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+
     try {
       const res = await fetch(`/api/tasks/${task.id}`, {
         method:  'PATCH',
@@ -998,8 +1002,7 @@ export default function TasksPage() {
       const result = await res.json() as { success: boolean; error?: string };
       if (!result.success) {
         console.error('[task status] update failed:', result.error);
-        // Revert optimistic update on failure
-        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+        revertStatus();
         setWarnMsg(`Failed to update status: ${result.error ?? 'Unknown error'}`);
         setTimeout(() => setWarnMsg(null), 5000);
       } else {
@@ -1007,8 +1010,7 @@ export default function TasksPage() {
       }
     } catch (err) {
       console.error('[task status] network error:', err);
-      // Revert optimistic update
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+      revertStatus();
       setWarnMsg('Failed to update task status. Please try again.');
       setTimeout(() => setWarnMsg(null), 5000);
     }
@@ -1228,7 +1230,7 @@ export default function TasksPage() {
       {/* Success toast */}
       {successMsg && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: SUCCESS_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
+          <CheckCircle size={16} className="shrink-0" />
           <span className="flex-1">{successMsg}</span>
           <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
             <X size={14} />

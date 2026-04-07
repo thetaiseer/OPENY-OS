@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
   void db.from('activities').insert({
     type:        'task',
     description: `Task "${title}" created`,
-    client_id:   clientId || null,
+    client_id:   clientId,
   }).then(({ error: actErr }) => {
     if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
   });
