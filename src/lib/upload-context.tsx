@@ -32,6 +32,7 @@ export type UploadStatus =
   | 'uploading'
   | 'saving'
   | 'success'
+  | 'warning'
   | 'failed';
 
 export interface UploadItem {
@@ -114,7 +115,7 @@ function reducer(state: UploadState, action: UploadAction): UploadState {
       return { ...state, queue: state.queue.filter(i => i.id !== action.id) };
 
     case 'CLEAR_COMPLETED':
-      return { ...state, queue: state.queue.filter(i => i.status !== 'success') };
+      return { ...state, queue: state.queue.filter(i => i.status !== 'success' && i.status !== 'warning') };
 
     case 'SET_LATEST_ASSET':
       return { ...state, latestAsset: action.asset };
@@ -159,8 +160,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
-      // ── Step 1: Create resumable upload session ───────────────────────────
-      console.log('[upload] start —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
+      // ── Phase 1: drive_upload ─────────────────────────────────────────────
+      // Errors in this phase mark the item as 'failed'.
+      console.log('[upload] drive_upload start —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 2 } });
 
       const safeFileName = item.file.name.replace(/\s+/g, '_');
@@ -202,9 +204,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const renamedFileName  = sessionJson.renamedFileName    ?? null;
 
       if (!uploadUrl) throw new Error('Server did not return an upload URL');
-      console.log('[upload] session ready — folder:', driveFolderId, '| file:', renamedFileName);
+      console.log('[upload] drive_upload session ready — folder:', driveFolderId, '| file:', renamedFileName);
 
-      // ── Step 2: Upload file bytes directly to Google Drive (chunked) ──────
       d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 5 } });
 
       const driveFileId = await uploadFileChunked(uploadUrl, item.file, {
@@ -215,58 +216,90 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      console.log('[upload] Drive upload complete — driveFileId:', driveFileId);
+      console.log('[upload] ✅ drive_upload complete — driveFileId:', driveFileId);
 
-      // ── Step 3: Save metadata to DB (NOT abortable — prevents orphaned Drive files) ──
+      // ── Phase 2: database_insert ──────────────────────────────────────────
+      // Drive upload succeeded. Any error from here → 'warning', NOT 'failed'.
+      const DB_SAVE_WARNING = 'File uploaded to Drive but metadata not saved';
       d({ type: 'UPDATE', id: item.id, patch: { status: 'saving', progress: 94 } });
 
-      const completeRes = await fetch('/api/assets/upload-complete', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driveFileId,
-          driveFolderId,
-          clientFolderName,
-          fileName:    renamedFileName ?? safeFileName,
-          fileType:    item.file.type  || null,
-          fileSize:    item.file.size  || null,
-          contentType: item.contentType,
-          monthKey:    item.monthKey,
-          clientName:  item.clientName,
-          clientId:    item.clientId   || null,
-          ...(item.uploadedBy ? { uploadedBy: item.uploadedBy } : {}),
-        }),
-      });
-
-      let completeJson: { success: boolean; error?: string; asset?: Asset };
       try {
-        completeJson = await completeRes.json();
-      } catch {
-        // HTTP 201 = asset was created even if response body is unreadable.
-        // Treat as success to avoid a false-failure state.
-        if (completeRes.status === 201) {
-          d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
+        const completeRes = await fetch('/api/assets/upload-complete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driveFileId,
+            driveFolderId,
+            clientFolderName,
+            fileName:    renamedFileName ?? safeFileName,
+            fileType:    item.file.type  || null,
+            fileSize:    item.file.size  || null,
+            contentType: item.contentType,
+            monthKey:    item.monthKey,
+            clientName:  item.clientName,
+            clientId:    item.clientId   || null,
+            ...(item.uploadedBy ? { uploadedBy: item.uploadedBy } : {}),
+          }),
+        });
+
+        let completeJson: {
+          success: boolean;
+          driveUploaded?: boolean;
+          dbSaved?: boolean;
+          warning?: string;
+          error?: string;
+          asset?: Asset;
+        };
+        try {
+          completeJson = await completeRes.json();
+        } catch {
+          // Unreadable body — treat 2xx as full success, anything else as warning.
+          if (completeRes.status === 200 || completeRes.status === 201) {
+            console.log('[upload] ✅ database_insert OK (unreadable body, HTTP', completeRes.status, ')');
+            d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
+          } else {
+            console.warn('[upload] ⚠️ database_insert: unreadable response (HTTP', completeRes.status, ') — Drive file exists');
+            d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: DB_SAVE_WARNING } });
+          }
           return;
         }
-        throw new Error(`Save failed: unexpected response (HTTP ${completeRes.status})`);
-      }
 
-      if (!completeRes.ok || !completeJson.success) {
-        // Drive file was already rolled back by the server on DB failure.
-        throw new Error(completeJson.error ?? `Save failed (HTTP ${completeRes.status})`);
-      }
+        console.log('[upload] database_insert result — success:', completeJson.success, '| driveUploaded:', completeJson.driveUploaded, '| dbSaved:', completeJson.dbSaved);
 
-      console.log('[upload] ✅ upload success — assetId:', completeJson.asset?.id);
-      if (completeJson.asset) {
-        d({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
+        if (completeJson.success && completeJson.dbSaved === false) {
+          // Partial success: Drive file exists, DB metadata not saved.
+          console.warn('[upload] ⚠️ partial success — driveUploaded: true, dbSaved: false:', completeJson.warning);
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.warning ?? DB_SAVE_WARNING } });
+          return;
+        }
+
+        if (!completeJson.success) {
+          // upload-complete failed, but Drive upload already succeeded → warning.
+          console.warn('[upload] ⚠️ database_insert failed (HTTP', completeRes.status, ') — Drive file exists:', completeJson.error);
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.error ?? DB_SAVE_WARNING } });
+          return;
+        }
+
+        // Full success.
+        console.log('[upload] ✅ response_return — upload success, assetId:', completeJson.asset?.id);
+        if (completeJson.asset) {
+          d({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
+        }
+        d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
+
+      } catch (saveErr: unknown) {
+        // Re-throw AbortErrors so the outer catch handles removal correctly.
+        if ((saveErr as Error)?.name === 'AbortError') throw saveErr;
+        const saveMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+        console.warn('[upload] ⚠️ database_insert exception — Drive file exists:', saveMsg);
+        d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: DB_SAVE_WARNING } });
       }
-      d({ type: 'UPDATE', id: item.id, patch: { status: 'success', progress: 100 } });
 
     } catch (err: unknown) {
-      // Ignore abort errors from removeItem (item is already gone from queue)
+      // Catch errors from Phase 1 (drive_upload failures) and re-thrown AbortErrors.
       if ((err as Error)?.name === 'AbortError') return;
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] ❌ failed —', item.file.name, '| error:', msg);
+      console.error('[upload] ❌ drive_upload failed —', item.file.name, '| error:', msg);
       d({ type: 'UPDATE', id: item.id, patch: { status: 'failed', error: msg } });
     } finally {
       abortControllersRef.current.delete(item.id);
@@ -325,7 +358,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   const clearCompleted = useCallback(() => {
     state.queue
-      .filter(i => i.status === 'success' && i.previewUrl)
+      .filter(i => (i.status === 'success' || i.status === 'warning') && i.previewUrl)
       .forEach(i => URL.revokeObjectURL(i.previewUrl!));
     dispatch({ type: 'CLEAR_COMPLETED' });
   }, [state.queue]);
