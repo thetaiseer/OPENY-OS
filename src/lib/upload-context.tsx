@@ -22,7 +22,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { uploadFileChunked } from './upload-manager';
+import { uploadFileChunked, DriveUploadedNoIdError } from './upload-manager';
 import type { Asset } from './types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -298,6 +298,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     } catch (err: unknown) {
       // Catch errors from Phase 1 (drive_upload failures) and re-thrown AbortErrors.
       if ((err as Error)?.name === 'AbortError') return;
+
+      // DriveUploadedNoIdError means the file WAS uploaded to Drive but we
+      // could not retrieve its ID.  Treat this as a Phase 2 warning (the same
+      // as a database_insert failure) — the file exists on Drive so we must
+      // NOT show "Failed" to the user.
+      if (err instanceof DriveUploadedNoIdError) {
+        const warnMsg = err.message;
+        console.warn('[upload] ⚠️ drive_upload_no_id — Drive upload completed but file ID could not be confirmed:', warnMsg);
+        d({ type: 'UPDATE', id: item.id, patch: {
+          status:   'warning',
+          progress: 100,
+          error:    'File uploaded to Google Drive but the file ID could not be confirmed. Check Google Drive manually.',
+        }});
+        return;
+      }
+
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] ❌ drive_upload failed —', item.file.name, '| error:', msg);
       d({ type: 'UPDATE', id: item.id, patch: { status: 'failed', error: msg } });

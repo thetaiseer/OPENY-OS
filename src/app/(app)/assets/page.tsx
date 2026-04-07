@@ -645,6 +645,7 @@ export default function AssetsPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [clients, setClients]       = useState<Client[]>([]);
   const deferredAssets              = useDeferredValue(assets);
+  const deferredSearchQuery         = useDeferredValue(searchQuery);
 
   // Google Drive sync state
   const [isSyncing, setIsSyncing]         = useState(false);
@@ -796,8 +797,8 @@ export default function AssetsPage() {
 
   const filteredAssets = useMemo(() => {
     let result = [...deferredAssets];
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearchQuery) {
+      const q = deferredSearchQuery.toLowerCase();
       result = result.filter(a =>
         a.name.toLowerCase().includes(q) ||
         (a.client_name?.toLowerCase().includes(q) ?? false) ||
@@ -813,7 +814,7 @@ export default function AssetsPage() {
     else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
     else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [deferredAssets, searchQuery, filterClient, filterContentType, filterMonthKey, filterApproval, sortBy]);
+  }, [deferredAssets, deferredSearchQuery, filterClient, filterContentType, filterMonthKey, filterApproval, sortBy]);
 
   // ── Grouped view ─────────────────────────────────────────────────────────────
 
