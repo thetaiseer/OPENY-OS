@@ -30,13 +30,22 @@ interface DbAsset {
   is_deleted: boolean | null;
 }
 
+interface InsertFailure {
+  step: 'database_insert';
+  file: string;
+  payload: Record<string, unknown>;
+  db_error: { message?: string; code?: string; details?: string; hint?: string };
+}
+
 interface SyncResult {
   success: boolean;
+  drive_connected: boolean;
   files_added: number;
   files_updated: number;
   files_removed: number;
   errors_count: number;
   error_details?: string[];
+  insert_failures?: InsertFailure[];
   duration_ms: number;
   triggered_by: 'manual' | 'cron';
 }
@@ -59,10 +68,25 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 
   let added = 0, updated = 0, removed = 0, errors = 0;
   const errorDetails: string[] = [];
+  const insertFailures: InsertFailure[] = [];
+  let driveConnected = false;
+
+  /**
+   * Serialize any error value — including Supabase PostgrestError plain objects
+   * ({ message, code, details, hint }) — into a readable string.
+   * This prevents the "[object Object]" output that occurs when String() is
+   * called on a non-Error object.
+   */
+  function formatErr(err: unknown): string {
+    if (!err) return 'unknown error';
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'object') return JSON.stringify(err, null, 2);
+    return String(err);
+  }
 
   function recordError(label: string, err: unknown) {
     errors++;
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = formatErr(err);
     const entry = `${label}: ${msg}`;
     console.error('[sync]', entry);
     if (errorDetails.length < MAX_ERROR_DETAILS) errorDetails.push(entry);
@@ -72,11 +96,12 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   let driveFiles: DriveFileMeta[];
   try {
     driveFiles = await scanDriveForSync();
+    driveConnected = true;
   } catch (err: unknown) {
     recordError('Drive scan failed', err);
     const duration = Date.now() - start;
     await logSyncResult(supabase, { added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy });
-    return { success: false, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
+    return { success: false, drive_connected: false, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
   }
 
   // ── 2. Load DB assets ────────────────────────────────────────────────────
@@ -112,7 +137,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     recordError('DB fetch failed', fetchError);
     const duration = Date.now() - start;
     await logSyncResult(supabase, { added: 0, updated: 0, removed: 0, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy });
-    return { success: false, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
+    return { success: false, drive_connected: driveConnected, files_added: 0, files_updated: 0, files_removed: 0, errors_count: errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy };
   }
 
   const dbAssets = dbRows ?? [];
@@ -168,14 +193,34 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         source_updated_at:  meta.modified_time ?? null,
       };
 
-      const { error: insertError } = await insertWithColumnFallback(
+      // Log the exact payload so the DB error can be matched to a specific field.
+      console.log('[sync] inserting payload:', meta.name, JSON.stringify(insertRow));
+
+      const { error: insertError, finalRow } = await insertWithColumnFallback(
         (row) => supabase.from('assets').insert(row).select().single(),
         insertRow,
         '[sync:insert]',
       );
 
       if (insertError) {
-        recordError(`Insert "${meta.name}"`, insertError);
+        errors++;
+        const dbErr = {
+          message: insertError.message,
+          code:    insertError.code,
+          details: insertError.details,
+          hint:    insertError.hint,
+        };
+        const failure: InsertFailure = {
+          step:     'database_insert',
+          file:     meta.name,
+          payload:  finalRow,
+          db_error: dbErr,
+        };
+        insertFailures.push(failure);
+        // Single consolidated log with step/file/payload/db_error for easy debugging.
+        console.error('[sync] DB insert failed:', JSON.stringify(failure));
+        const errorEntry = `Insert "${meta.name}": ${dbErr.code ? `[${dbErr.code}] ` : ''}${dbErr.message}${dbErr.details ? ` — ${dbErr.details}` : ''}`;
+        if (errorDetails.length < MAX_ERROR_DETAILS) errorDetails.push(errorEntry);
       } else {
         added++;
         console.log('[sync] inserted:', meta.name, '| driveId:', driveId);
@@ -337,9 +382,26 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   // ── 6. Persist sync log ──────────────────────────────────────────────────
   await logSyncResult(supabase, { added, updated, removed, errors, error_details: errorDetails, duration_ms: duration, triggered_by: triggeredBy });
 
-  console.log(`[sync] ✅ done — added:${added} updated:${updated} removed:${removed} errors:${errors} (${duration}ms)`);
+  // Distinguish "Drive OK, DB failed" from a total sync failure.
+  if (driveConnected && errors > 0) {
+    console.warn(`[sync] ⚠️  Drive connected but database sync had errors — added:${added} updated:${updated} removed:${removed} errors:${errors} (${duration}ms)`);
+  } else {
+    console.log(`[sync] ✅ done — added:${added} updated:${updated} removed:${removed} errors:${errors} (${duration}ms)`);
+  }
 
-  return { success: true, files_added: added, files_updated: updated, files_removed: removed, errors_count: errors, ...(errorDetails.length > 0 ? { error_details: errorDetails } : {}), duration_ms: duration, triggered_by: triggeredBy };
+  const result: SyncResult = {
+    success:        errors === 0,
+    drive_connected: driveConnected,
+    files_added:    added,
+    files_updated:  updated,
+    files_removed:  removed,
+    errors_count:   errors,
+    duration_ms:    duration,
+    triggered_by:   triggeredBy,
+  };
+  if (errorDetails.length > 0) result.error_details = errorDetails;
+  if (insertFailures.length > 0) result.insert_failures = insertFailures;
+  return result;
 }
 
 async function logSyncResult(
@@ -410,10 +472,12 @@ export async function POST(req: NextRequest) {
   console.log(`[sync] POST /api/assets/sync — ${triggeredBy} sync triggered`);
   try {
     const result = await runSync(triggeredBy);
-    return NextResponse.json(result, { status: result.success ? 200 : 500 });
+    // 200 = fully successful; 207 = Drive connected but some DB errors; 500 = Drive or fatal failure
+    const status = result.success ? 200 : result.drive_connected ? 207 : 500;
+    return NextResponse.json(result, { status });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[sync] unexpected error:', msg);
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return NextResponse.json({ success: false, drive_connected: false, error: msg }, { status: 500 });
   }
 }
