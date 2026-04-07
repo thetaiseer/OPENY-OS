@@ -148,12 +148,14 @@ export async function POST(request: NextRequest) {
   console.log('[POST /api/tasks] insert success — id:', data?.id);
 
   // Activity log (fire-and-forget — never blocks response)
-  void db.from('activities').insert({
+  void Promise.resolve(db.from('activities').insert({
     type:        'task',
     description: `Task "${title}" created`,
     client_id:   clientId,
-  }).then(({ error: actErr }) => {
+  })).then(({ error: actErr }) => {
     if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
+  }).catch((err: unknown) => {
+    console.warn('[POST /api/tasks] activity log network error:', err instanceof Error ? err.message : String(err));
   });
 
   return NextResponse.json({ success: true, task: data }, { status: 201 });

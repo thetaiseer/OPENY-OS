@@ -810,6 +810,8 @@ export default function TasksPage() {
         if (!ok) {
           toast('Task was created but the list failed to refresh. Please reload the page.', 'warning', 6000);
         }
+      }).catch((err: unknown) => {
+        console.warn('[task create] list refetch threw unexpectedly:', err);
       });
     } catch (err: unknown) {
       console.error('[task create] error:', err);
@@ -909,6 +911,8 @@ export default function TasksPage() {
         if (!ok) {
           toast('Task was updated but the list failed to refresh. Please reload the page.', 'warning', 6000);
         }
+      }).catch((err: unknown) => {
+        console.warn('[task edit] list refetch threw unexpectedly:', err);
       });
     } catch (err: unknown) {
       console.error('[task edit] error:', err);

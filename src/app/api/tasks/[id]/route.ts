@@ -178,11 +178,13 @@ export async function DELETE(
   console.log('[DELETE /api/tasks/[id]] delete success — id:', id);
 
   // Activity log (fire-and-forget)
-  void db.from('activities').insert({
+  void Promise.resolve(db.from('activities').insert({
     type:        'task',
     description: `Task deleted (id: ${id})`,
-  }).then(({ error: actErr }) => {
+  })).then(({ error: actErr }) => {
     if (actErr) console.warn('[DELETE /api/tasks/[id]] activity log failed:', actErr.message);
+  }).catch((err: unknown) => {
+    console.warn('[DELETE /api/tasks/[id]] activity log network error:', err instanceof Error ? err.message : String(err));
   });
 
   return NextResponse.json({ success: true });
