@@ -186,6 +186,9 @@ export default function DashboardPage() {
   const { data: assetRows } = useQuery<AssetRow[]>({
     queryKey: ['asset-content-types'],
     queryFn: async () => {
+      // Limit to 500 rows to prevent fetching potentially thousands of records
+      // for the content-type distribution chart.  This is a representative
+      // sample — for exact aggregation move to a server-side GROUP BY endpoint.
       const { data } = await supabase.from('assets').select('content_type').limit(500);
       return (data ?? []) as AssetRow[];
     },
