@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
-  LayoutGrid, List, Search, X, CheckCircle,
+  LayoutGrid, List, Search,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -581,8 +582,6 @@ const MUTATION_TIMEOUT_MS = 15_000;
 
 // Accent-soft fallback color for filter active states (matches --accent-soft CSS var)
 const ACCENT_SOFT = 'var(--accent-soft, #ede9fe)';
-const SUCCESS_TOAST_BG = '#16a34a';
-const WARN_TOAST_BG    = '#d97706';
 
 // ─── FilterSelect ─────────────────────────────────────────────────────────────
 // Styled chip-like select wrapper used for the dropdown filter controls.
@@ -622,6 +621,7 @@ function FilterSelect({ value, onChange, children }: FilterSelectProps) {
 export default function TasksPage() {
   const { t } = useLang();
   const { role } = useAuth();
+  const { toast } = useToast();
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -632,8 +632,6 @@ export default function TasksPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [warnMsg, setWarnMsg] = useState<string | null>(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -803,16 +801,14 @@ export default function TasksPage() {
       // — SUCCESS PATH —
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
-      setSuccessMsg(`Task "${createForm.title}" created successfully.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
+      toast(`Task "${createForm.title}" created successfully.`, 'success');
 
       // Refresh list non-blocking — warn if it fails
       console.log('[task create] triggering list refetch');
       void fetchAll(true).then(ok => {
         console.log('[task create] list refetch result, ok:', ok);
         if (!ok) {
-          setWarnMsg('Task was created but the list failed to refresh. Please reload the page.');
-          setTimeout(() => setWarnMsg(null), 6000);
+          toast('Task was created but the list failed to refresh. Please reload the page.', 'warning', 6000);
         }
       });
     } catch (err: unknown) {
@@ -902,18 +898,16 @@ export default function TasksPage() {
       // Update local state immediately with the returned task so the list
       // reflects the change without waiting for a round-trip fetch.
       if (result.task) {
-        setTasks(prev => prev.map(tk => tk.id === editTask.id ? result.task! : tk));
+        setTasks(prev => prev.map(tk => tk.id === editTask.id ? (result.task ?? tk) : tk));
       }
 
       setEditTask(null);
-      setSuccessMsg(`Task "${editForm.title}" updated successfully.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
+      toast(`Task "${editForm.title}" updated successfully.`, 'success');
 
       // Background refresh
       void fetchAll(true).then(ok => {
         if (!ok) {
-          setWarnMsg('Task was updated but the list failed to refresh. Please reload the page.');
-          setTimeout(() => setWarnMsg(null), 6000);
+          toast('Task was updated but the list failed to refresh. Please reload the page.', 'warning', 6000);
         }
       });
     } catch (err: unknown) {
@@ -969,8 +963,7 @@ export default function TasksPage() {
       const deletedTitle = deleteTask.title;
       setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
       setDeleteTask(null);
-      setSuccessMsg(`Task "${deletedTitle}" deleted.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
+      toast(`Task "${deletedTitle}" deleted.`, 'success');
     } catch (err: unknown) {
       console.error('[task delete] error:', err);
       const message = err instanceof Error
@@ -1003,16 +996,14 @@ export default function TasksPage() {
       if (!result.success) {
         console.error('[task status] update failed:', result.error);
         revertStatus();
-        setWarnMsg(`Failed to update status: ${result.error ?? 'Unknown error'}`);
-        setTimeout(() => setWarnMsg(null), 5000);
+        toast(`Failed to update status: ${result.error ?? 'Unknown error'}`, 'warning');
       } else {
         console.log('[task status] update success — id:', task.id);
       }
     } catch (err) {
       console.error('[task status] network error:', err);
       revertStatus();
-      setWarnMsg('Failed to update task status. Please try again.');
-      setTimeout(() => setWarnMsg(null), 5000);
+      toast('Failed to update task status. Please try again.', 'warning');
     }
   };
 
@@ -1226,28 +1217,6 @@ export default function TasksPage() {
 
       {/* Delete Modal */}
       <DeleteConfirmModal task={deleteTask} open={!!deleteTask} onClose={() => { setDeleteTask(null); setDeleteError(null); }} onConfirm={handleDelete} error={deleteError} t={t} />
-
-      {/* Success toast */}
-      {successMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: SUCCESS_TOAST_BG, minWidth: 280 }}>
-          <CheckCircle size={16} className="shrink-0" />
-          <span className="flex-1">{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Warning toast */}
-      {warnMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: WARN_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
-          <span className="flex-1">{warnMsg}</span>
-          <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
