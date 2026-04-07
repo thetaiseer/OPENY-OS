@@ -89,7 +89,12 @@ export async function insertWithColumnFallback(
 }
 
 /**
- * Serialize a Supabase / PostgreSQL error object to a readable JSON string.
+ * Serialize a Supabase / PostgrestError object to a readable JSON string.
+ *
+ * Designed for the error shape returned by Supabase client calls:
+ * `{ message, code, details, hint }`.  Pass the raw error object from
+ * `supabase.from(...).insert(...)` — all present properties are included.
+ *
  * Use this helper instead of `console.log(error)` to avoid "[object Object]".
  */
 export function serializeDbError(
