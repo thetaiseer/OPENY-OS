@@ -240,7 +240,7 @@ export default function DashboardPage() {
         .not('status', 'in', '("done","delivered")')
         .order('due_date', { ascending: true })
         .limit(5);
-      return (data ?? []) as Array<{ id: string; title: string; due_date?: string; client?: { name: string } | null }>;
+      return (data ?? []) as unknown as Array<{ id: string; title: string; due_date?: string; client?: { name: string } | null }>;
     },
     staleTime: 60_000,
   });

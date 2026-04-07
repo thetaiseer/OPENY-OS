@@ -14,6 +14,17 @@ export interface SlackMessage {
 export async function sendSlackMessage(webhookUrl: string, msg: SlackMessage): Promise<void> {
   if (!webhookUrl) throw new Error('Slack webhook URL is not configured');
 
+  // Validate that the URL targets a known Slack domain to prevent SSRF.
+  let parsed: URL;
+  try {
+    parsed = new URL(webhookUrl);
+  } catch {
+    throw new Error('Invalid Slack webhook URL');
+  }
+  if (!parsed.hostname.endsWith('.slack.com')) {
+    throw new Error('Slack webhook URL must target *.slack.com');
+  }
+
   const payload = {
     text: msg.text,
     ...(msg.icon_emoji ? { icon_emoji: msg.icon_emoji } : {}),

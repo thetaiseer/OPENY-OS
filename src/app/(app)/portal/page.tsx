@@ -1,10 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, CheckCircle, Clock, Eye, Download, ExternalLink } from 'lucide-react';
+import { FolderOpen, CheckCircle, Clock, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
-import supabase from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import type { Asset } from '@/lib/types';
 
 /**
@@ -18,6 +18,7 @@ export default function PortalPage() {
     queryKey: ['portal-assets', user.id],
     enabled: !!user.id,
     queryFn: async () => {
+      const supabase = createClient();
       // Clients see assets linked to their own email / client record
       const { data, error } = await supabase
         .from('assets')
