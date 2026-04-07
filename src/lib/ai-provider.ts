@@ -52,6 +52,14 @@ export async function callAI({
   throw new AiUnconfiguredError();
 }
 
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+/** Extract a human-readable message from an API error response body. */
+function parseApiErrorMessage(err: Record<string, unknown>, fallback: string): string {
+  const msg = (err?.error as Record<string, unknown>)?.message;
+  return msg != null ? String(msg) : fallback;
+}
+
 // ── OpenAI ────────────────────────────────────────────────────────────────────
 
 async function callOpenAI({
@@ -86,8 +94,7 @@ async function callOpenAI({
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const msg = (err?.error as Record<string, unknown>)?.message ?? `OpenAI API error (HTTP ${res.status})`;
-    throw new Error(String(msg));
+    throw new Error(parseApiErrorMessage(err, `OpenAI API error (HTTP ${res.status})`));
   }
 
   const data = await res.json() as {
@@ -95,7 +102,7 @@ async function callOpenAI({
   };
 
   const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error('No response from OpenAI');
+  if (!text) throw new Error('OpenAI returned an empty response — no content in choices[0].message.content');
   return text;
 }
 
@@ -131,10 +138,8 @@ async function callGemini({
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const errMsg =
-      (err?.error as Record<string, unknown>)?.message ??
-      `Gemini API error (HTTP ${res.status})`;
-    throw new Error(String(errMsg));
+    const errMsg = parseApiErrorMessage(err, `Gemini API error (HTTP ${res.status})`);
+    throw new Error(errMsg);
   }
 
   const data = await res.json() as {
@@ -142,6 +147,6 @@ async function callGemini({
   };
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('No response from Gemini');
+  if (!text) throw new Error('Gemini returned an empty response — no text in candidates[0].content.parts[0]');
   return text;
 }
