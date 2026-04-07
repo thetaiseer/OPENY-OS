@@ -54,6 +54,9 @@ export async function callAI({
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
+/** Maximum number of raw-body characters included in a non-JSON error message. */
+const MAX_ERROR_BODY_LENGTH = 200;
+
 /** Extract a human-readable message from an API error response body. */
 function parseApiErrorMessage(err: Record<string, unknown>, fallback: string): string {
   const msg = (err?.error as Record<string, unknown>)?.message;
@@ -144,7 +147,7 @@ async function callGemini({
       const err = JSON.parse(rawBody) as Record<string, unknown>;
       errMsg = parseApiErrorMessage(err, `Gemini API error (HTTP ${res.status})`);
     } catch {
-      errMsg = `Gemini API error (HTTP ${res.status}): ${rawBody.slice(0, 200)}`;
+      errMsg = `Gemini API error (HTTP ${res.status}): ${rawBody.slice(0, MAX_ERROR_BODY_LENGTH)}`;
     }
     throw new Error(errMsg);
   }
