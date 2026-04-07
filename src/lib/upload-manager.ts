@@ -1,4 +1,19 @@
 /**
+ * Error thrown when a Drive resumable upload completes (all bytes acknowledged
+ * or Drive returned 200/201) but the file ID could not be recovered from the
+ * response.  The file IS on Google Drive — this is NOT a drive_upload failure.
+ *
+ * Callers (upload-context) should treat this as a Phase 2 (database_insert)
+ * warning rather than a Phase 1 (drive_upload) failure.
+ */
+export class DriveUploadedNoIdError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DriveUploadedNoIdError';
+  }
+}
+
+/**
  * Chunked resumable upload to Google Drive.
  *
  * Splits a File into 8 MB chunks and sends each one via PUT with a
@@ -172,8 +187,15 @@ export async function uploadFileChunked(
         if (res.status === 200 || res.status === 201) {
           const data = (await res.json()) as { id?: string };
           onProgress(totalSize, totalSize);
-          if (!data.id) throw new Error('Google Drive did not return a file ID after upload');
-          return data.id;
+          if (data.id) return data.id;
+          // Drive responded 200/201 but omitted the id field.
+          // The file IS on Drive — try a status query as a last resort.
+          const recovered = await resolveCompletedFileId(uploadUrl, totalSize);
+          if (recovered) return recovered;
+          throw new DriveUploadedNoIdError(
+            'Google Drive did not return a file ID after upload. ' +
+            'The file was uploaded successfully but the ID could not be confirmed.',
+          );
         }
 
         // Transient errors — schedule retry
@@ -205,7 +227,13 @@ export async function uploadFileChunked(
   // All chunks sent but Drive never returned 200/201 — query final state
   const finalId = await resolveCompletedFileId(uploadUrl, totalSize);
   if (finalId) return finalId;
-  throw new Error('Upload finished all chunks but Google Drive did not confirm the file ID');
+  // The session URL may have expired after the final chunk was acknowledged.
+  // All chunk boundaries were accepted (308) so the file IS on Google Drive,
+  // but we cannot recover its ID right now.
+  throw new DriveUploadedNoIdError(
+    'Upload finished all chunks but Google Drive did not confirm the file ID. ' +
+    'The file was uploaded successfully but the ID could not be confirmed.',
+  );
 }
 
 /**
