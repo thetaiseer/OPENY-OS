@@ -21,7 +21,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const VALID_STATUSES   = ['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'] as const;
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
   console.log('[POST /api/tasks] db insert payload:', JSON.stringify(insertPayload));
 
-  const db = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const db = createClient(supabaseUrl, supabaseServiceRoleKey!);
   const { data, error } = await db
     .from('tasks')
     .insert(insertPayload)

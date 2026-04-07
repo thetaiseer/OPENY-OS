@@ -781,6 +781,7 @@ export default function TasksPage() {
       });
 
       const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
       let result: { success: boolean; task?: { id?: string; title?: string }; step?: string; error?: string };
       try {
         result = await res.json() as typeof result;
@@ -880,6 +881,7 @@ export default function TasksPage() {
       });
 
       const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
       let result: { success: boolean; task?: Task; step?: string; error?: string };
       try {
         result = await res.json() as typeof result;
@@ -946,6 +948,7 @@ export default function TasksPage() {
       });
 
       const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
       let result: { success: boolean; step?: string; error?: string };
       try {
         result = await res.json() as typeof result;
