@@ -5,7 +5,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 
-export type UserRole = 'admin' | 'team' | 'client';
+export type UserRole = 'admin' | 'manager' | 'team' | 'client';
 
 const LOADING_USER: User = {
   id: '',
