@@ -9,6 +9,7 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -576,7 +577,8 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
   );
 }
 
-const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS    = 15_000;
+const MUTATION_TIMEOUT_MS = 15_000;
 
 // Accent-soft fallback color for filter active states (matches --accent-soft CSS var)
 const ACCENT_SOFT = 'var(--accent-soft, #ede9fe)';
@@ -619,7 +621,8 @@ function FilterSelect({ value, onChange, children }: FilterSelectProps) {
 export default function TasksPage() {
   const { t } = useLang();
   const { role } = useAuth();
-  const canManageTasks = role === 'admin' || role === 'team';
+  const { toast } = useToast();
+  const canManageTasks = role === 'admin' || role === 'manager' || role === 'team';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -649,19 +652,15 @@ export default function TasksPage() {
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── Fire-and-forget activity logger ─────────────────────────────────────
-  // Never blocks the UI — call after the main mutation succeeds.
-  const logTaskActivity = useCallback((description: string, clientId?: string | null) => {
-    void supabase.from('activities').insert({
-      type: 'task',
-      description,
-      client_id: clientId ?? null,
-    }).then(({ error }) => { if (error) console.warn('[task] activity log:', error); });
-  }, []);
+  // Note: activity logging for create/edit/delete is handled server-side in
+  // the API routes. This helper is kept for any future client-side use.
+
 
   // ── fetch ────────────────────────────────────────────────────────────────
   // silent=true → background refresh after mutations; no loading spinner,
   // no error banner, and existing data is NOT cleared on failure.
-  const fetchAll = useCallback(async (silent = false) => {
+  // Returns true if tasks were fetched successfully (used to detect refresh failures).
+  const fetchAll = useCallback(async (silent = false): Promise<boolean> => {
     if (!silent) {
       setLoading(true);
       setFetchError(null);
@@ -685,8 +684,10 @@ export default function TasksPage() {
 
       const [tasksRes, clientsRes, teamRes] = settled;
 
+      let tasksOk = false;
       if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
         setTasks((tasksRes.value.data ?? []) as Task[]);
+        tasksOk = true;
       } else {
         console.error('[tasks] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
         if (!silent) setTasks([]);
@@ -703,6 +704,7 @@ export default function TasksPage() {
         console.error('[tasks] team fetch error:', teamRes.status === 'rejected' ? teamRes.reason : teamRes.value.error);
         if (!silent) setTeam([]);
       }
+      return tasksOk;
     } catch (err) {
       if (!silent) {
         const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
@@ -717,6 +719,7 @@ export default function TasksPage() {
       } else {
         console.warn('[tasks] silent refresh failed (ignored):', err);
       }
+      return false;
     } finally {
       clearTimeout(timeoutId);
       if (!silent) setLoading(false);
@@ -745,33 +748,80 @@ export default function TasksPage() {
     if (!createForm.assigned_to) { setCreateError(t('pleaseAssignMember')); return; }
     if (!createForm.due_date) { setCreateError(t('pleaseSetDueDate')); return; }
     setSaving(true);
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     try {
-      const payload: Record<string, unknown> = {
-        title: createForm.title.trim(),
+      const payload = {
+        title:       createForm.title.trim(),
         description: createForm.description || null,
-        status: createForm.status,
-        priority: createForm.priority,
-        start_date: createForm.start_date || null,
-        due_date: createForm.due_date || null,
-        client_id: createForm.client_id || null,
-        assigned_to: createForm.assigned_to || null,
-        created_by: createForm.created_by || null,
-        mentions: Array.isArray(createForm.mentions) ? createForm.mentions : [],
-        tags: parseTags(createForm.tags),
+        status:      createForm.status,
+        priority:    createForm.priority,
+        start_date:  createForm.start_date || null,
+        due_date:    createForm.due_date,
+        client_id:   createForm.client_id,
+        assigned_to: createForm.assigned_to,
+        created_by:  createForm.created_by || null,
+        mentions:    Array.isArray(createForm.mentions) ? createForm.mentions : [],
+        tags:        parseTags(createForm.tags),
       };
-      const { error } = await supabase.from('tasks').insert(payload);
-      if (error) throw error;
-      logTaskActivity(`Task "${createForm.title}" created`, createForm.client_id || null);
+
+      console.log('[task create] form submit started', { title: payload.title });
+      console.log('[task create] request payload:', JSON.stringify(payload));
+
+      const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('Request timed out. Please try again.')),
+          MUTATION_TIMEOUT_MS,
+        );
+        fetch('/api/tasks', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        }).then(resolve, reject);
+      });
+
+      const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
+      let result: { success: boolean; task?: { id?: string; title?: string }; step?: string; error?: string };
+      try {
+        result = await res.json() as typeof result;
+      } catch {
+        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+      }
+
+      console.log('[task create] API response:', JSON.stringify(result));
+
+      if (!result.success) {
+        const step = result.step ? ` [${result.step}]` : '';
+        const msg  = result.error ?? 'Failed to create task';
+        throw new Error(`${msg}${step}`);
+      }
+
+      console.log('[task create] insert success, id:', result.task?.id);
+
+      // — SUCCESS PATH —
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
-      fetchAll(true);
+      toast(`Task "${createForm.title}" created successfully.`, 'success');
+
+      // Refresh list non-blocking — warn if it fails
+      console.log('[task create] triggering list refetch');
+      void fetchAll(true).then(ok => {
+        console.log('[task create] list refetch result, ok:', ok);
+        if (!ok) {
+          toast('Task was created but the list failed to refresh. Please reload the page.', 'warning', 6000);
+        }
+      }).catch((err: unknown) => {
+        console.warn('[task create] list refetch threw unexpectedly:', err);
+      });
     } catch (err: unknown) {
-      console.error('[task create]', err);
-      const msg = err instanceof Error
+      console.error('[task create] error:', err);
+      const message = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to create task';
-      setCreateError(msg);
+      setCreateError(message);
     } finally {
+      clearTimeout(timeoutHandle);
       setSaving(false);
     }
   };
@@ -799,33 +849,81 @@ export default function TasksPage() {
     if (!editTask) return;
     setSaving(true);
     setEditError(null);
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     try {
-      const payload: Record<string, unknown> = {
-        title: editForm.title.trim(),
+      const payload = {
+        title:       editForm.title.trim(),
         description: editForm.description || null,
-        status: editForm.status,
-        priority: editForm.priority,
-        start_date: editForm.start_date || null,
-        due_date: editForm.due_date || null,
-        client_id: editForm.client_id || null,
+        status:      editForm.status,
+        priority:    editForm.priority,
+        start_date:  editForm.start_date || null,
+        due_date:    editForm.due_date || null,
+        client_id:   editForm.client_id || null,
         assigned_to: editForm.assigned_to || null,
-        created_by: editForm.created_by || null,
-        mentions: Array.isArray(editForm.mentions) ? editForm.mentions : [],
-        tags: parseTags(editForm.tags),
-        updated_at: new Date().toISOString(),
+        created_by:  editForm.created_by || null,
+        mentions:    Array.isArray(editForm.mentions) ? editForm.mentions : [],
+        tags:        parseTags(editForm.tags),
       };
-      const { error } = await supabase.from('tasks').update(payload).eq('id', editTask.id);
-      if (error) throw error;
-      logTaskActivity(`Task "${editForm.title}" updated`, editForm.client_id || null);
+
+      console.log('[task edit] submit — id:', editTask.id, '| payload:', JSON.stringify(payload));
+
+      const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('Request timed out. Please try again.')),
+          MUTATION_TIMEOUT_MS,
+        );
+        fetch(`/api/tasks/${editTask.id}`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        }).then(resolve, reject);
+      });
+
+      const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
+      let result: { success: boolean; task?: Task; step?: string; error?: string };
+      try {
+        result = await res.json() as typeof result;
+      } catch {
+        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+      }
+
+      console.log('[task edit] API response:', JSON.stringify(result));
+
+      if (!result.success) {
+        const step = result.step ? ` [${result.step}]` : '';
+        const msg  = result.error ?? 'Failed to update task';
+        throw new Error(`${msg}${step}`);
+      }
+
+      console.log('[task edit] update success — id:', result.task?.id);
+
+      // Update local state immediately with the returned task so the list
+      // reflects the change without waiting for a round-trip fetch.
+      if (result.task) {
+        setTasks(prev => prev.map(tk => tk.id === editTask.id ? (result.task ?? tk) : tk));
+      }
+
       setEditTask(null);
-      fetchAll(true);
+      toast(`Task "${editForm.title}" updated successfully.`, 'success');
+
+      // Background refresh
+      void fetchAll(true).then(ok => {
+        if (!ok) {
+          toast('Task was updated but the list failed to refresh. Please reload the page.', 'warning', 6000);
+        }
+      }).catch((err: unknown) => {
+        console.warn('[task edit] list refetch threw unexpectedly:', err);
+      });
     } catch (err: unknown) {
-      console.error('[task update]', err);
-      const msg = err instanceof Error
+      console.error('[task edit] error:', err);
+      const message = err instanceof Error
         ? err.message
         : (err as { message?: string })?.message ?? 'Failed to update task';
-      setEditError(msg);
+      setEditError(message);
     } finally {
+      clearTimeout(timeoutHandle);
       setSaving(false);
     }
   };
@@ -834,21 +932,86 @@ export default function TasksPage() {
   const handleDelete = async () => {
     if (!deleteTask) return;
     setDeleteError(null);
-    const { error } = await supabase.from('tasks').delete().eq('id', deleteTask.id);
-    if (error) { setDeleteError(error.message); return; }
-    logTaskActivity(`Task "${deleteTask.title}" deleted`, deleteTask.client_id || null);
-    setDeleteTask(null);
-    setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
+
+    console.log('[task delete] submit — id:', deleteTask.id, '| title:', deleteTask.title);
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('Request timed out. Please try again.')),
+          MUTATION_TIMEOUT_MS,
+        );
+        fetch(`/api/tasks/${deleteTask.id}`, {
+          method: 'DELETE',
+        }).then(resolve, reject);
+      });
+
+      const res = await fetchWithTimeout;
+      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
+      let result: { success: boolean; step?: string; error?: string };
+      try {
+        result = await res.json() as typeof result;
+      } catch {
+        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+      }
+
+      console.log('[task delete] API response:', JSON.stringify(result));
+
+      if (!result.success) {
+        const step = result.step ? ` [${result.step}]` : '';
+        const msg  = result.error ?? 'Failed to delete task';
+        throw new Error(`${msg}${step}`);
+      }
+
+      console.log('[task delete] delete success — id:', deleteTask.id);
+
+      // Remove from local state immediately
+      const deletedTitle = deleteTask.title;
+      setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
+      setDeleteTask(null);
+      toast(`Task "${deletedTitle}" deleted.`, 'success');
+    } catch (err: unknown) {
+      console.error('[task delete] error:', err);
+      const message = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message ?? 'Failed to delete task';
+      setDeleteError(message);
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
   };
 
   // ── status change ─────────────────────────────────────────────────────────
   const handleStatusChange = async (task: Task, newStatus: string) => {
-    const { error } = await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', task.id);
-    if (error) {
-      console.error('[task status change]', error);
-      return;
-    }
+    // Optimistically update local state first for instant UI feedback
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus as Task['status'] } : t));
+
+    console.log('[task status] change — id:', task.id, '| from:', task.status, '| to:', newStatus);
+
+    // Helper to revert the optimistic update on any failure.
+    const revertStatus = () =>
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const result = await res.json() as { success: boolean; error?: string };
+      if (!result.success) {
+        console.error('[task status] update failed:', result.error);
+        revertStatus();
+        toast(`Failed to update status: ${result.error ?? 'Unknown error'}`, 'warning');
+      } else {
+        console.log('[task status] update success — id:', task.id);
+      }
+    } catch (err) {
+      console.error('[task status] network error:', err);
+      revertStatus();
+      toast('Failed to update task status. Please try again.', 'warning');
+    }
   };
 
   const statuses = ['all', 'todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'];
