@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 
 interface TaskInput {
   id: string;
@@ -11,18 +12,13 @@ interface TaskInput {
 
 /**
  * POST /api/ai/suggest-schedule
- * Suggest an optimized task schedule.
+ * Suggest an optimized task schedule using AI (OpenAI or Gemini).
  * Body: { tasks: TaskInput[], context?: string }
  */
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireRole(req, ['admin', 'team', 'manager']);
     if (auth instanceof NextResponse) return auth;
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: 'AI features not configured.' }, { status: 503 });
-    }
 
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch {
@@ -47,36 +43,29 @@ export async function POST(req: NextRequest) {
       'No extra text.',
     ].filter(Boolean).join('\n');
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are a scheduling assistant. Return only valid JSON.' },
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 1024,
-        temperature: 0.4,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-      return NextResponse.json({ success: false, error: String((err?.error as Record<string, unknown>)?.message ?? `OpenAI error ${res.status}`) }, { status: 502 });
-    }
-
-    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? '[]';
-
-    let schedule: { id: string; suggestedOrder: number; reason: string }[];
     try {
-      schedule = JSON.parse(raw) as typeof schedule;
-    } catch {
-      return NextResponse.json({ success: false, error: 'AI returned invalid schedule format' }, { status: 502 });
-    }
+      const raw = await callAI({
+        system: 'You are a scheduling assistant. Return only valid JSON.',
+        user: prompt,
+        maxTokens: 1024,
+        temperature: 0.4,
+      });
 
-    return NextResponse.json({ success: true, schedule });
+      let schedule: { id: string; suggestedOrder: number; reason: string }[];
+      try {
+        schedule = JSON.parse(raw) as typeof schedule;
+      } catch {
+        return NextResponse.json({ success: false, error: 'AI returned invalid schedule format' }, { status: 502 });
+      }
+
+      return NextResponse.json({ success: true, schedule });
+    } catch (aiErr: unknown) {
+      if (aiErr instanceof AiUnconfiguredError) {
+        return NextResponse.json({ success: false, error: 'AI features not configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' }, { status: 503 });
+      }
+      const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
+      return NextResponse.json({ success: false, error: msg }, { status: 502 });
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
