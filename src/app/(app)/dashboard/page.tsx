@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import {
+  Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp,
+} from 'lucide-react';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis } from 'recharts';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
+import { useDashboardStats } from '@/lib/queries';
 import StatCard from '@/components/ui/StatCard';
+import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, Asset } from '@/lib/types';
 
@@ -19,8 +25,122 @@ interface Stats {
 
 interface AssetRow {
   content_type: string | null;
-  file_size: number | null;
 }
+
+// ── Trend chart ───────────────────────────────────────────────────────────────
+
+function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
+  const chartData = data.map(d => ({
+    name: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    completed: d.completed,
+  }));
+  const total = data.reduce((s, d) => s + d.completed, 0);
+  const firstHalf  = data.slice(0, 15).reduce((s, d) => s + d.completed, 0);
+  const secondHalf = data.slice(15).reduce((s, d) => s + d.completed, 0);
+  const up = secondHalf >= firstHalf;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{total}</p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>tasks completed (30d)</p>
+        </div>
+        <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: up ? 'rgba(22,163,74,0.1)' : 'rgba(239,68,68,0.1)', color: up ? '#16a34a' : '#ef4444' }}>
+          {up ? '▲' : '▼'} vs prev 15d
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={80}>
+        <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="name" hide />
+          <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }} labelStyle={{ color: 'var(--text-secondary)' }} itemStyle={{ color: 'var(--text)' }} />
+          <Area type="monotone" dataKey="completed" stroke="var(--accent)" fill="url(#tg)" strokeWidth={2} dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ── Team performance ──────────────────────────────────────────────────────────
+
+function TeamPerformance({ data }: { data: { id: string; name: string; completed: number }[] }) {
+  if (!data.length) return <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No completions this month</p>;
+  const chartData = data.slice(0, 6).map(d => ({ name: d.name.split(' ')[0], completed: d.completed }));
+  return (
+    <ResponsiveContainer width="100%" height={130}>
+      <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+        <XAxis type="number" hide />
+        <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }} cursor={{ fill: 'var(--surface-2)' }} />
+        <Bar dataKey="completed" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Overdue risk ──────────────────────────────────────────────────────────────
+
+function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?: string; client?: { name: string } | null }[] }) {
+  if (!tasks.length) return <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>🎉 No at-risk tasks!</p>;
+  return (
+    <div className="space-y-2">
+      {tasks.map(t => {
+        const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date).getTime() - Date.now()) / 86400000) : null;
+        return (
+          <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(239,68,68,0.07)' }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{t.title}</p>
+              {t.client && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.client.name}</p>}
+            </div>
+            {daysLeft !== null && (
+              <span className="text-xs font-semibold shrink-0" style={{ color: daysLeft < 0 ? '#ef4444' : '#d97706' }}>
+                {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Predictions ───────────────────────────────────────────────────────────────
+
+function Predictions({ trends, overdueTasks }: { trends: { completed: number }[]; overdueTasks: number }) {
+  const recentPace = trends.slice(-7).reduce((s, d) => s + d.completed, 0) / 7;
+  const olderPace  = trends.slice(-14, -7).reduce((s, d) => s + d.completed, 0) / 7;
+  const paceChange = olderPace > 0 ? ((recentPace - olderPace) / olderPace) * 100 : 0;
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
+        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>COMPLETION PACE (7d avg)</p>
+        <p className="text-lg font-bold" style={{ color: 'var(--text)' }}>{recentPace.toFixed(1)} tasks/day</p>
+        {olderPace > 0 && (
+          <p className="text-xs" style={{ color: paceChange >= 0 ? '#16a34a' : '#ef4444' }}>
+            {paceChange >= 0 ? '▲' : '▼'} {Math.abs(paceChange).toFixed(0)}% vs prev week
+          </p>
+        )}
+      </div>
+      <div className="rounded-xl px-4 py-3" style={{ background: overdueTasks > 0 ? 'rgba(239,68,68,0.07)' : 'rgba(22,163,74,0.07)' }}>
+        <p className="text-xs font-semibold mb-1" style={{ color: overdueTasks > 0 ? '#ef4444' : '#16a34a' }}>
+          {overdueTasks > 0 ? 'OVERDUE RISK' : 'ON TRACK'}
+        </p>
+        <p className="text-sm" style={{ color: 'var(--text)' }}>
+          {overdueTasks > 0
+            ? `${overdueTasks} overdue${recentPace > 0 ? ` — cleared in ~${Math.ceil(overdueTasks / recentPace)}d` : ''}`
+            : 'No overdue tasks 🎉'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Content distribution ──────────────────────────────────────────────────────
 
 function ContentDistribution({ items }: { items: { label: string; count: number }[] }) {
   if (!items.length) {
@@ -45,90 +165,88 @@ function ContentDistribution({ items }: { items: { label: string; count: number 
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [stats, setStats] = useState<Stats>({
-    totalClients: 0,
-    activeTasks: 0,
-    pendingApprovals: 0,
-    overdueTasks: 0,
-    tasksDueThisWeek: 0,
-  });
-  const [activities, setActivities] = useState<ActivityType[]>([]);
-  const [assetRows, setAssetRows]   = useState<AssetRow[]>([]);
-  const [scheduled, setScheduled]   = useState<Asset[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-
-  useEffect(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const fetchData = async () => {
-      setError(null);
-      try {
-        const weekLater = new Date();
-        weekLater.setDate(weekLater.getDate() + 7);
-        const weekLaterStr = weekLater.toISOString().slice(0, 10);
-
-        // Use Promise.allSettled so each query can fail independently.
-        // A single slow or missing table (e.g. approvals) will NOT block or
-        // timeout the whole dashboard — it just shows 0 for that stat.
-        const settled = await Promise.allSettled([
-          supabase.from('clients').select('id', { count: 'exact', head: true }),
-          supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
-          supabase.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-          supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10),
-          supabase.from('assets').select('content_type, file_size'),
-          supabase.from('assets')
-            .select('id, name, publish_date, approval_status, client_name, content_type')
-            .eq('approval_status', 'scheduled')
-            .gte('publish_date', todayStr)
-            .order('publish_date', { ascending: true })
-            .limit(5),
-          supabase.from('tasks').select('id', { count: 'exact', head: true })
-            .gte('due_date', todayStr)
-            .lte('due_date', weekLaterStr)
-            .not('status', 'in', '("done","delivered")'),
-        ]);
-
-        const [clients, tasks, approvals, overdue, activityRes, assetsRes, scheduledRes, dueThisWeek] = settled;
-
-        setStats({
-          totalClients:     clients.status    === 'fulfilled' ? (clients.value.count    ?? 0) : 0,
-          activeTasks:      tasks.status      === 'fulfilled' ? (tasks.value.count      ?? 0) : 0,
-          pendingApprovals: approvals.status  === 'fulfilled' ? (approvals.value.count  ?? 0) : 0,
-          overdueTasks:     overdue.status    === 'fulfilled' ? (overdue.value.count    ?? 0) : 0,
-          tasksDueThisWeek: dueThisWeek.status === 'fulfilled' ? (dueThisWeek.value.count ?? 0) : 0,
-        });
-        if (activityRes.status === 'fulfilled' && !activityRes.value.error) {
-          setActivities((activityRes.value.data ?? []) as ActivityType[]);
-        } else {
-          console.error('[dashboard] activities fetch error:', activityRes.status === 'rejected' ? activityRes.reason : activityRes.value.error);
-        }
-        if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
-          setAssetRows((assetsRes.value.data ?? []) as AssetRow[]);
-        } else {
-          console.error('[dashboard] assets fetch error:', assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error);
-        }
-        if (scheduledRes.status === 'fulfilled' && !scheduledRes.value.error) {
-          setScheduled((scheduledRes.value.data ?? []) as Asset[]);
-        } else {
-          console.error('[dashboard] scheduled fetch error:', scheduledRes.status === 'rejected' ? scheduledRes.reason : scheduledRes.value.error);
-        }
-      } catch (err) {
-        console.error('[dashboard] load error:', err);
-        setError('Failed to load dashboard data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
   const firstName = user?.name?.split(' ')[0] || 'there';
 
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+
+  const { data: activitiesData } = useQuery<ActivityType[]>({
+    queryKey: ['activities'],
+    queryFn: async () => {
+      const { data } = await supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(10);
+      return (data ?? []) as ActivityType[];
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: assetRows } = useQuery<AssetRow[]>({
+    queryKey: ['asset-content-types'],
+    queryFn: async () => {
+      const { data } = await supabase.from('assets').select('content_type');
+      return (data ?? []) as AssetRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: scheduled } = useQuery<Asset[]>({
+    queryKey: ['scheduled-posts'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase.from('assets')
+        .select('id, name, publish_date, approval_status, client_name, content_type')
+        .eq('approval_status', 'scheduled')
+        .gte('publish_date', todayStr)
+        .order('publish_date', { ascending: true })
+        .limit(5);
+      return (data ?? []) as Asset[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: trendsData } = useQuery<{ date: string; completed: number }[]>({
+    queryKey: ['dashboard-trends'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/trends');
+      if (!res.ok) return [];
+      const json = await res.json() as { success: boolean; trends?: { date: string; completed: number }[] };
+      return json.trends ?? [];
+    },
+    staleTime: 120_000,
+  });
+
+  const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
+    queryKey: ['dashboard-team-performance'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/team-performance');
+      if (!res.ok) return [];
+      const json = await res.json() as { success: boolean; performance?: { id: string; name: string; completed: number }[] };
+      return json.performance ?? [];
+    },
+    staleTime: 120_000,
+  });
+
+  const { data: atRiskTasks } = useQuery({
+    queryKey: ['at-risk-tasks'],
+    queryFn: async () => {
+      const soonStr = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, status, client:clients(id,name)')
+        .lte('due_date', soonStr)
+        .not('status', 'in', '("done","delivered")')
+        .order('due_date', { ascending: true })
+        .limit(5);
+      return (data ?? []) as unknown as Array<{ id: string; title: string; due_date?: string; client?: { name: string } | null }>;
+    },
+    staleTime: 60_000,
+  });
+
   const contentDistItems = useMemo(() => {
+    if (!assetRows) return [];
     const counts: Record<string, number> = {};
     for (const row of assetRows) {
       const key = row.content_type ?? 'OTHER';
@@ -150,71 +268,88 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {error && (
-        <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
-        >
-          <AlertCircle size={16} className="shrink-0" />
-          <span>{error}</span>
+      {/* ── Stat cards ── */}
+      {statsLoading ? <SkeletonStatGrid count={6} /> : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard label={t('totalClients')}     value={stats?.totalClients     ?? 0} icon={<Users2 size={20} />}        color="blue"   />
+          <StatCard label={t('activeTasks')}      value={stats?.activeTasks      ?? 0} icon={<CheckSquare size={20} />}   color="mint"   />
+          <StatCard label={t('pendingApprovals')} value={stats?.pendingApprovals ?? 0} icon={<Clock size={20} />}         color="amber"  />
+          <StatCard label={t('overdueTasks')}     value={stats?.overdueTasks     ?? 0} icon={<AlertTriangle size={20} />} color="rose"   />
+          <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={20} />}  color="violet" />
+          <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
         </div>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface)' }} />
-          ))}
+      {/* ── Trend + Team performance ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
+          </div>
+          {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard label={t('totalClients')}     value={stats.totalClients}     icon={<Users2 size={20} />}        color="blue"   />
-          <StatCard label={t('activeTasks')}      value={stats.activeTasks}      icon={<CheckSquare size={20} />}   color="mint"   />
-          <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} icon={<Clock size={20} />}         color="amber"  />
-          <StatCard label={t('overdueTasks')}     value={stats.overdueTasks}     icon={<AlertTriangle size={20} />} color="rose"   />
-          <StatCard label={t('tasksDueThisWeek')} value={stats.tasksDueThisWeek} icon={<CalendarDays size={20} />}  color="violet" />
-          <StatCard label="Total Assets"          value={assetRows.length}       icon={<FolderOpen size={20} />}    color="cyan"   />
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
+          {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />}
         </div>
-      )}
+      </div>
 
+      {/* ── At-risk + Predictions ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={16} style={{ color: '#d97706' }} />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
+          </div>
+          <OverdueRisk tasks={atRiskTasks ?? []} />
+        </div>
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
+          <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
+        </div>
+      </div>
+
+      {/* ── Activity + Content distribution ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
-          {activities.length === 0 ? (
+          {!activitiesData ? (
+            <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+          ) : activitiesData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <Activity size={28} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {activities.map(a => (
+              {activitiesData.map(a => (
                 <div key={a.id} className="flex gap-3">
                   <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: 'var(--accent)' }} />
                   <div>
                     <p className="text-sm" style={{ color: 'var(--text)' }}>{a.description}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(a.created_at).toLocaleDateString()}
-                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{new Date(a.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
         <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
           <ContentDistribution items={contentDistItems} />
         </div>
       </div>
 
-      {/* Upcoming scheduled posts */}
+      {/* ── Upcoming scheduled posts ── */}
       <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-2 mb-5">
           <CalendarDays size={18} style={{ color: 'var(--accent)' }} />
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
         </div>
-        {scheduled.length === 0 ? (
+        {!scheduled ? (
+          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+        ) : scheduled.length === 0 ? (
           <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
         ) : (
           <div className="space-y-3">
@@ -224,9 +359,7 @@ export default function DashboardPage() {
                   <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                    {a.client_name && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{a.client_name}</p>
-                    )}
+                    {a.client_name && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{a.client_name}</p>}
                   </div>
                 </div>
                 <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
