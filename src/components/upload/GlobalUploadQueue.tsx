@@ -202,7 +202,7 @@ export default function GlobalUploadQueue() {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-50 rounded-2xl border overflow-hidden"
+      className="fixed bottom-[80px] right-5 z-[51] rounded-2xl border overflow-hidden"
       style={{
         background:  'var(--surface)',
         borderColor: 'var(--border)',

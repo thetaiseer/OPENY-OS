@@ -118,11 +118,19 @@ export default function AiAssistantPanel() {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(bodyObj),
       });
 
       const json = await res.json() as Record<string, unknown>;
-      if (!json.success) throw new Error((json.error as string | undefined) ?? 'AI request failed');
+      if (!json.success) {
+        const errMsg = (json.error as string | undefined) ?? 'AI request failed';
+        // HTTP 503 means AI keys are not configured — surface a clear actionable message
+        if (res.status === 503) {
+          throw new Error('AI is not configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in your environment variables.');
+        }
+        throw new Error(errMsg);
+      }
 
       if (mode === 'tasks') setResult((json.tasks as string[]) ?? []);
       else if (mode === 'content') setResult((json.content as string) ?? '');
@@ -139,7 +147,7 @@ export default function AiAssistantPanel() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 left-5 z-50 flex items-center gap-2 h-11 px-4 rounded-full shadow-lg text-white font-medium text-sm transition-opacity hover:opacity-90"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 h-11 px-4 rounded-full shadow-lg text-white font-medium text-sm transition-opacity hover:opacity-90"
         style={{ background: 'var(--accent)' }}
         title="AI Assistant"
       >
@@ -151,7 +159,7 @@ export default function AiAssistantPanel() {
 
   return (
     <div
-      className="fixed bottom-5 left-5 z-50 flex flex-col rounded-2xl border overflow-hidden"
+      className="fixed bottom-5 right-5 z-50 flex flex-col rounded-2xl border overflow-hidden"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',

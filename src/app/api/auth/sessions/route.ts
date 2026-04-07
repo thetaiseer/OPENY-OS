@@ -187,9 +187,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.log('[sessions] ✓ Session created — id:', (session as Record<string, unknown>).id, '| user:', auth.profile.id);
   console.log(
-    '[sessions] Session created:', session.id,
+    '[sessions] ✓ Session created — id:', (session as Record<string, unknown>).id,
     '| user:', auth.profile.email,
     '| browser:', browser, '| os:', os,
     '| country:', country ?? 'Unknown',

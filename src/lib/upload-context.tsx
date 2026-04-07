@@ -170,6 +170,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const sessionRes = await fetch('/api/assets/upload-session', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           fileName:    safeFileName,
           fileType:    item.file.type || 'application/octet-stream',
@@ -227,6 +228,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const completeRes = await fetch('/api/assets/upload-complete', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             driveFileId,
             driveFolderId,
