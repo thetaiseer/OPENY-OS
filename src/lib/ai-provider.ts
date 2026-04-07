@@ -5,7 +5,7 @@
  *
  * Provider priority:
  *   1. OPENAI_API_KEY  → OpenAI gpt-4o-mini
- *   2. GEMINI_API_KEY  → Google Gemini gemini-1.5-flash
+ *   2. GEMINI_API_KEY  → Google Gemini gemini-2.0-flash
  *
  * If neither key is set, throws AiUnconfiguredError (callers return HTTP 503).
  *
@@ -121,7 +121,7 @@ async function callGemini({
   maxTokens: number;
   temperature: number;
 }): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -137,8 +137,15 @@ async function callGemini({
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const errMsg = parseApiErrorMessage(err, `Gemini API error (HTTP ${res.status})`);
+    const rawBody = await res.text();
+    console.error(`[Gemini] request failed — status ${res.status}`, rawBody);
+    let errMsg: string;
+    try {
+      const err = JSON.parse(rawBody) as Record<string, unknown>;
+      errMsg = parseApiErrorMessage(err, `Gemini API error (HTTP ${res.status})`);
+    } catch {
+      errMsg = `Gemini API error (HTTP ${res.status}): ${rawBody.slice(0, 200)}`;
+    }
     throw new Error(errMsg);
   }
 
