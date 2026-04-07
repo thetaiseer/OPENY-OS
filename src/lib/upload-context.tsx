@@ -249,6 +249,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           warning?: string;
           error?: string;
           asset?: Asset;
+          dbErrorMessage?: string;
+          dbErrorCode?: string;
+          dbErrorDetails?: string;
+          dbErrorHint?: string;
         };
         try {
           completeJson = await completeRes.json();
@@ -268,8 +272,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
         if (completeJson.success && completeJson.dbSaved === false) {
           // Partial success: Drive file exists, DB metadata not saved.
-          console.warn('[upload] ⚠️ partial success — driveUploaded: true, dbSaved: false:', completeJson.warning);
-          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: completeJson.warning ?? DB_SAVE_WARNING } });
+          const dbErrMsg = completeJson.dbErrorMessage
+            ? `DB error (${completeJson.dbErrorCode ?? 'unknown'}): ${completeJson.dbErrorMessage}`
+            : (completeJson.warning ?? DB_SAVE_WARNING);
+          console.warn('[upload] ⚠️ partial success — driveUploaded: true, dbSaved: false:', completeJson.dbErrorMessage ?? completeJson.warning);
+          if (completeJson.dbErrorDetails) console.warn('[upload] ⚠️ dbErrorDetails:', completeJson.dbErrorDetails);
+          if (completeJson.dbErrorHint)    console.warn('[upload] ⚠️ dbErrorHint:', completeJson.dbErrorHint);
+          d({ type: 'UPDATE', id: item.id, patch: { status: 'warning', progress: 100, error: dbErrMsg } });
           return;
         }
 

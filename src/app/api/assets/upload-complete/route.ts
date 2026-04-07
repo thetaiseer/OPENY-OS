@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
-import { insertWithColumnFallback } from '@/lib/asset-db';
+import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
       if (dbError) {
         // database_insert failed — Drive file is preserved (no rollback).
         console.error('[upload-complete] ❌ database_insert failed — code:', dbError.code, '| msg:', dbError.message);
+        console.error('[upload-complete] ❌ database_insert error details:', serializeDbError(dbError));
         console.warn('[upload-complete] ⚠️ Drive file preserved — returning partial success for:', driveFileId);
         return NextResponse.json(
           {
@@ -159,6 +160,10 @@ export async function POST(req: NextRequest) {
             driveUploaded: true,
             dbSaved: false,
             warning: 'File uploaded but metadata not saved',
+            dbErrorMessage: dbError.message,
+            dbErrorCode:    dbError.code,
+            dbErrorDetails: dbError.details ?? null,
+            dbErrorHint:    dbError.hint    ?? null,
           },
           { status: 200 },
         );
