@@ -3,7 +3,7 @@
  *
  * Creates a new client record.
  *
- * Auth: requires 'admin' or 'team' role.
+ * Auth: requires 'admin', 'manager', or 'team' role.
  *
  * Request body (JSON):
  *   { name, email?, phone?, website?, industry?, status?, notes? }
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   console.log('[POST /api/clients] request received');
 
   // 1. Auth & role check
-  const auth = await requireRole(request, ['admin', 'team']);
+  const auth = await requireRole(request, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
   console.log('[POST /api/clients] caller:', auth.profile.email, '| role:', auth.profile.role);

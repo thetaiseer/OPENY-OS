@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 
 export type ImproveAction =
   | 'improve'
@@ -52,16 +53,8 @@ function countWords(text: string): number {
 export async function POST(req: NextRequest) {
   try {
     // Auth — any logged-in role may use AI features
-    const auth = await requireRole(req, ['admin', 'team', 'client']);
+    const auth = await requireRole(req, ['admin', 'team', 'client', 'manager']);
     if (auth instanceof NextResponse) return auth;
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { success: false, error: 'AI writing features are not configured. Set OPENAI_API_KEY to enable them.' },
-        { status: 503 },
-      );
-    }
 
     let body: Record<string, unknown>;
     try {
@@ -93,44 +86,28 @@ export async function POST(req: NextRequest) {
 
     const instruction = ACTION_INSTRUCTION[resolvedAction];
 
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content:
-              `You are a professional writing assistant. ${instruction} ` +
-              'Return ONLY the improved text, no explanations, no quotation marks, no preamble.',
-          },
-          { role: 'user', content: text.trim() },
-        ],
-        max_tokens: 1024,
+    const systemPrompt =
+      `You are a professional writing assistant. ${instruction} ` +
+      'Return ONLY the improved text, no explanations, no quotation marks, no preamble.';
+
+    try {
+      const improved = await callAI({
+        system: systemPrompt,
+        user: (text as string).trim(),
+        maxTokens: 1024,
         temperature: 0.6,
-      }),
-    });
-
-    if (!openaiRes.ok) {
-      const errBody = await openaiRes.json().catch(() => ({})) as Record<string, unknown>;
-      const errMsg = (errBody?.error as Record<string, unknown>)?.message ?? `OpenAI API error (HTTP ${openaiRes.status})`;
-      return NextResponse.json({ success: false, error: String(errMsg) }, { status: 502 });
+      });
+      return NextResponse.json({ success: true, improved });
+    } catch (aiErr: unknown) {
+      if (aiErr instanceof AiUnconfiguredError) {
+        return NextResponse.json(
+          { success: false, error: 'AI writing features are not configured. Set OPENAI_API_KEY or GEMINI_API_KEY to enable them.' },
+          { status: 503 },
+        );
+      }
+      const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
+      return NextResponse.json({ success: false, error: msg }, { status: 502 });
     }
-
-    const data = await openaiRes.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const improved = data.choices?.[0]?.message?.content?.trim();
-    if (!improved) {
-      return NextResponse.json({ success: false, error: 'No response from AI' }, { status: 502 });
-    }
-
-    return NextResponse.json({ success: true, improved });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[ai/improve] error:', msg);
