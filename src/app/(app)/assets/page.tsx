@@ -5,7 +5,7 @@ import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
   Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check, Loader2,
-  ChevronDown, ChevronRight, Folder,
+  ChevronDown, ChevronRight, Folder, Send, Calendar,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -14,9 +14,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import UploadModal from '@/components/upload/UploadModal';
+import SchedulePublishingModal from '@/components/publishing/SchedulePublishingModal';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
-import type { Asset, Client } from '@/lib/types';
+import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 
 // ── Upload config ─────────────────────────────────────────────────────────────
 
@@ -407,6 +408,8 @@ interface AssetCardProps {
   canDelete: boolean;
   canApprove: boolean;
   canRename: boolean;
+  scheduleCount?: number;
+  nextScheduleDate?: string | null;
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
@@ -415,9 +418,10 @@ interface AssetCardProps {
   onReject: () => void;
   onComments: () => void;
   onRename: (newName: string) => Promise<void>;
+  onSchedule: () => void;
 }
 
-function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments, onRename }: AssetCardProps) {
+function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nextScheduleDate, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments, onRename, onSchedule }: AssetCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName]   = useState(asset.name);
   const [renaming, setRenaming]   = useState(false);
@@ -564,13 +568,36 @@ function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, 
               📅 {new Date(asset.publish_date).toLocaleDateString()}
             </span>
           )}
+          {scheduleCount != null && scheduleCount > 0 && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5"
+              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+            >
+              <Send size={10} />
+              {scheduleCount} scheduled
+            </span>
+          )}
+          {nextScheduleDate && (
+            <span className="text-xs flex items-center gap-0.5" style={{ color: '#7c3aed' }}>
+              <Calendar size={10} />
+              {new Date(nextScheduleDate).toLocaleDateString()}
+            </span>
+          )}
         </div>
         <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatDate(asset.created_at)}</span>
       </div>
 
       <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
-        <button onClick={onView} title="View" className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+        <button onClick={onView} title="View" className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <Eye size={13} /><span>View</span>
+        </button>
+        <button
+          onClick={onSchedule}
+          title="Schedule Publishing"
+          className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+          style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+        >
+          <Send size={13} /><span>Schedule</span>
         </button>
         <a href={downloadUrl} download={asset.name} title="Download" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <Download size={14} />
@@ -706,6 +733,13 @@ export default function AssetsPage() {
   const [syncResult, setSyncResult]       = useState<SyncLog | null>(null);
   const [showSyncResult, setShowSyncResult] = useState(false);
 
+  // Publishing schedule state
+  const [scheduleAsset, setScheduleAsset]           = useState<Asset | null>(null);
+  const [scheduleAfterUpload, setScheduleAfterUpload] = useState(false);
+  const [team, setTeam]                             = useState<TeamMember[]>([]);
+  // Map: asset_id → { count, nextDate }
+  const [scheduleCounts, setScheduleCounts]         = useState<Record<string, { count: number; nextDate: string | null }>>({});
+
   // ── Toast ───────────────────────────────────────────────────────────────────
 
   const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -785,9 +819,15 @@ export default function AssetsPage() {
       if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
+    // If the user chose "Upload & Schedule", open the scheduling modal for this asset
+    if (scheduleAfterUpload) {
+      setScheduleAfterUpload(false);
+      setScheduleAsset(latestAsset as Asset);
+    }
     // No full DB refresh here — the prepend is sufficient for immediate feedback.
     // A full refresh would fire once per uploaded file in a batch, causing N
     // redundant round-trips. The list stays consistent; duplicates are guarded above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestAsset]);
 
   useEffect(() => {
@@ -796,6 +836,36 @@ export default function AssetsPage() {
       else if (data) setClients(data as Client[]);
     });
   }, []);
+
+  // Fetch team members for the schedule assignee
+  useEffect(() => {
+    supabase.from('profiles').select('id, name, email, role').then(({ data, error }) => {
+      if (error) { if (process.env.NODE_ENV === 'development') console.error('[profiles]', error); }
+      else if (data) setTeam(data as TeamMember[]);
+    });
+  }, []);
+
+  // Fetch publishing schedule counts for all loaded assets (best-effort)
+  useEffect(() => {
+    if (assets.length === 0) return;
+    supabase
+      .from('publishing_schedules')
+      .select('asset_id, scheduled_date, status')
+      .in('asset_id', assets.map(a => a.id))
+      .neq('status', 'cancelled')
+      .order('scheduled_date', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) { if (process.env.NODE_ENV === 'development') console.error('[publishing_schedules]', error); return; }
+        const counts: Record<string, { count: number; nextDate: string | null }> = {};
+        for (const row of (data ?? [])) {
+          const id = row.asset_id as string;
+          if (!counts[id]) counts[id] = { count: 0, nextDate: null };
+          counts[id].count++;
+          if (!counts[id].nextDate) counts[id].nextDate = row.scheduled_date as string;
+        }
+        setScheduleCounts(counts);
+      });
+  }, [assets]);
 
   // Fetch last sync info on mount
   useEffect(() => {
@@ -978,12 +1048,13 @@ export default function AssetsPage() {
 
   // ── Confirm upload — hand off to global UploadContext ───────────────────────
 
-  const handleUploadConfirm = () => {
+  const startUploadBatch = (andSchedule: boolean) => {
     const items = [...pendingItems];
     if (!items.length) return;
     // previewUrl object URLs are transferred to the context which owns their lifecycle.
     // Clear pendingItems WITHOUT revoking — the context will revoke them on removeItem/clearCompleted.
     setPendingItems([]);
+    if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
     const initialItems: InitialUploadItem[] = items.map(i => ({
       id:         i.id,
@@ -1000,6 +1071,9 @@ export default function AssetsPage() {
     });
     addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
+
+  const handleUploadConfirm = () => startUploadBatch(false);
+  const handleUploadAndSchedule = () => startUploadBatch(true);
 
   // ── Delete ──────────────────────────────────────────────────────────────────
 
@@ -1079,7 +1153,22 @@ export default function AssetsPage() {
     addToast(`Asset ${action}`, 'success');
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Schedule Publishing ─────────────────────────────────────────────────────
+
+  const handleScheduleCreated = (schedule: PublishingSchedule) => {
+    // Update schedule counts in state
+    setScheduleCounts(prev => {
+      const existing = prev[schedule.asset_id] ?? { count: 0, nextDate: null };
+      const nextDate = existing.nextDate && existing.nextDate < schedule.scheduled_date
+        ? existing.nextDate
+        : schedule.scheduled_date;
+      return {
+        ...prev,
+        [schedule.asset_id]: { count: existing.count + 1, nextDate },
+      };
+    });
+    addToast('Publishing scheduled successfully!', 'success');
+  };
 
   return (
     <>
@@ -1397,12 +1486,15 @@ export default function AssetsPage() {
                                             <AssetCard
                                               key={asset.id} asset={asset}
                                               canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
+                                              scheduleCount={scheduleCounts[asset.id]?.count}
+                                              nextScheduleDate={scheduleCounts[asset.id]?.nextDate}
                                               onView={() => handleView(asset)} onDelete={() => void handleDelete(asset)}
                                               onCopyLink={() => void handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
                                               onApprove={() => void handleApprovalAction(asset, 'approved')}
                                               onReject={() => void handleApprovalAction(asset, 'rejected')}
                                               onComments={() => setCommentsAsset(asset)}
                                               onRename={(newName) => handleRename(asset, newName)}
+                                              onSchedule={() => setScheduleAsset(asset)}
                                             />
                                           ))}
                                         </div>
@@ -1434,12 +1526,15 @@ export default function AssetsPage() {
                 <AssetCard
                   key={asset.id} asset={asset}
                   canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
+                  scheduleCount={scheduleCounts[asset.id]?.count}
+                  nextScheduleDate={scheduleCounts[asset.id]?.nextDate}
                   onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
                   onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
                   onApprove={() => handleApprovalAction(asset, 'approved')}
                   onReject={() => handleApprovalAction(asset, 'rejected')}
                   onComments={() => setCommentsAsset(asset)}
                   onRename={(newName) => handleRename(asset, newName)}
+                  onSchedule={() => setScheduleAsset(asset)}
                 />
               ))}
             </div>
@@ -1466,6 +1561,7 @@ export default function AssetsPage() {
           onClientChange={(name, id) => { setUploadClientName(name); setUploadClientId(id); }}
           onNewClientCreated={handleNewClientCreated}
           onConfirm={handleUploadConfirm}
+          onConfirmAndSchedule={handleUploadAndSchedule}
           onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
           onUploadNameChange={handleUploadNameChange}
           onRemoveFile={id => setPendingItems(prev => {
@@ -1473,6 +1569,17 @@ export default function AssetsPage() {
             if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
             return prev.filter(i => i.id !== id);
           })}
+        />
+      )}
+
+      {/* Schedule Publishing modal */}
+      {scheduleAsset && (
+        <SchedulePublishingModal
+          asset={scheduleAsset}
+          clients={clients}
+          team={team}
+          onCreated={handleScheduleCreated}
+          onClose={() => setScheduleAsset(null)}
         />
       )}
 

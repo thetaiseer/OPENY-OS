@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
-  LayoutGrid, List, Search,
+  LayoutGrid, List, Search, Send,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -328,6 +329,29 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           <Calendar size={11} />{fmtDate(task.created_at)}
         </span>
       </div>
+
+      {/* Publishing schedule badges */}
+      {((task.platforms && task.platforms.length > 0) || (task.post_types && task.post_types.length > 0)) && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <Send size={11} style={{ color: '#7c3aed' }} />
+          {(task.platforms ?? []).map(p => {
+            const pl = PLATFORMS.find(x => x.value === p);
+            return (
+              <span key={p} className="text-[10px] px-1.5 py-0.5 rounded font-medium text-white" style={{ background: pl ? (pl.value === 'snapchat' ? '#f59e0b' : pl.color) : '#7c3aed' }}>
+                {pl ? pl.label : p}
+              </span>
+            );
+          })}
+          {(task.post_types ?? []).map(pt => {
+            const typ = POST_TYPES.find(x => x.value === pt);
+            return (
+              <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                {typ ? typ.label : pt}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Mentions */}
       {mentionedMembers.length > 0 && (
@@ -644,6 +668,8 @@ export default function TasksPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('');
+  const [postTypeFilter, setPostTypeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'list' | 'kanban'>('list');
 
@@ -734,6 +760,8 @@ export default function TasksPage() {
     if (clientFilter && task.client_id !== clientFilter) return false;
     if (assignedFilter && task.assigned_to !== assignedFilter) return false;
     if (priorityFilter && task.priority !== priorityFilter) return false;
+    if (platformFilter && !(task.platforms ?? []).includes(platformFilter)) return false;
+    if (postTypeFilter && !(task.post_types ?? []).includes(postTypeFilter)) return false;
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
@@ -1135,9 +1163,17 @@ export default function TasksPage() {
           <option value="medium">{t('medium')}</option>
           <option value="low">{t('low')}</option>
         </FilterSelect>
-        {(clientFilter || assignedFilter || priorityFilter || searchQuery) && (
+        <FilterSelect value={platformFilter} onChange={setPlatformFilter}>
+          <option value="">All platforms</option>
+          {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </FilterSelect>
+        <FilterSelect value={postTypeFilter} onChange={setPostTypeFilter}>
+          <option value="">All post types</option>
+          {POST_TYPES.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
+        </FilterSelect>
+        {(clientFilter || assignedFilter || priorityFilter || platformFilter || postTypeFilter || searchQuery) && (
           <button
-            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setSearchQuery(''); }}
+            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setPlatformFilter(''); setPostTypeFilter(''); setSearchQuery(''); }}
             className="inline-flex items-center h-8 px-3.5 rounded-full text-xs font-medium transition-all"
             style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
           >
