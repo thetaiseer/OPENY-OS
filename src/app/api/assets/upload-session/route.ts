@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createFolderHierarchy, initiateResumableSession } from '@/lib/google-drive';
+import { getStorageProvider } from '@/lib/storage';
 import { clientToFolderName } from '@/lib/asset-utils';
 import { requireRole } from '@/lib/api-auth';
 
@@ -172,19 +172,23 @@ export async function POST(req: NextRequest) {
     const safeUploadedBy   = uploadedBy && typeof uploadedBy === 'string' ? uploadedBy.trim() : null;
     console.log('[upload-session] client:', clientName.trim(), '→ folder:', clientFolderName, '| type:', contentType, '| month:', monthKey, '| size:', fileSize, '| renamed:', renamedFileName);
 
-    // ── Build folder hierarchy ─────────────────────────────────────────────────
-    const { monthFolderId } = await createFolderHierarchy(clientFolderName, contentType, monthKey);
+    // ── Build folder hierarchy + initiate upload session via storage provider ──
+    const provider = getStorageProvider();
+    const { uploadUrl, remoteFolderId } = await provider.createUploadSession({
+      fileName:        renamedFileName,
+      mimeType:        fileType || 'application/octet-stream',
+      fileSize:        fileSize as number,
+      clientFolderName,
+      contentType:     contentType as string,
+      monthKey:        monthKey as string,
+    });
 
-    // ── Initiate resumable upload session ─────────────────────────────────────
-    const mimeType = fileType || 'application/octet-stream';
-    const uploadUrl = await initiateResumableSession(renamedFileName, mimeType, fileSize as number, monthFolderId);
-
-    console.log('[upload-session] ✅ session created — folder:', monthFolderId);
+    console.log('[upload-session] ✅ session created — folder:', remoteFolderId);
 
     return NextResponse.json({
       success: true,
       uploadUrl,
-      drive_folder_id:    monthFolderId,
+      drive_folder_id:    remoteFolderId,
       client_folder_name: clientFolderName,
       renamedFileName,
       ...(safeUploadedBy ? { uploadedBy: safeUploadedBy } : {}),
