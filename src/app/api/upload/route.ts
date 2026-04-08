@@ -270,7 +270,6 @@ export async function POST(req: NextRequest) {
     preview_url:        buildPreviewUrl(driveFileId),
     thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
     web_view_link:      webViewLink,
-    upload_state:       'completed',
     ...(clientId    ? { client_id:   clientId    } : {}),
     ...(uploadedBy  ? { uploaded_by: uploadedBy  } : {}),
   };

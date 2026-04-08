@@ -190,9 +190,11 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         preview_url:        previewUrl,
         thumbnail_url:      thumbnailUrl,
         web_view_link:      viewUrl,
+        // hasIsDeleted doubles as "bidirectional-sync migration applied" — is_deleted,
+        // last_synced_at, and source_updated_at are all added by the same migration.
         ...(hasIsDeleted ? { is_deleted: false } : {}),
-        last_synced_at:     syncNow,
-        source_updated_at:  meta.modified_time ?? null,
+        ...(hasIsDeleted ? { last_synced_at: syncNow } : {}),
+        ...(hasIsDeleted && meta.modified_time ? { source_updated_at: meta.modified_time } : {}),
       };
 
       // Log the exact payload so the DB error can be matched to a specific field.
