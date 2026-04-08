@@ -205,7 +205,7 @@ export default function AiAssistantPanel() {
     };
 
     const observer = new MutationObserver(checkForModal);
-    observer.observe(document.body, { childList: true, subtree: false, attributes: false });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: false });
     checkForModal();
     return () => observer.disconnect();
   }, []);
