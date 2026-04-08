@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getStorageProvider } from '@/lib/storage';
-import type { RemoteFileMeta } from '@/lib/storage';
+import {
+  scanDriveForSync,
+  checkDriveFileExists,
+  setFilePublicReadable,
+  buildPreviewUrl,
+  buildDownloadUrl,
+  buildThumbnailUrl,
+} from '@/lib/google-drive';
+import type { DriveFileMeta } from '@/lib/google-drive';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 
@@ -90,11 +97,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     if (errorDetails.length < MAX_ERROR_DETAILS) errorDetails.push(entry);
   }
 
-  // ── 1. Scan provider storage ─────────────────────────────────────────────
-  const provider = getStorageProvider();
-  let remoteFiles: RemoteFileMeta[];
+  // ── 1. Scan Drive storage ────────────────────────────────────────────────
+  let remoteFiles: DriveFileMeta[];
   try {
-    remoteFiles = await provider.listFiles();
+    remoteFiles = await scanDriveForSync();
     driveConnected = true;
   } catch (err: unknown) {
     recordError('Drive scan failed', err);
@@ -145,8 +151,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   const syncNow = new Date().toISOString();
 
   // Build lookup maps
-  const remoteMap = new Map<string, RemoteFileMeta>();
-  for (const f of remoteFiles) remoteMap.set(f.remote_file_id, f);
+  const remoteMap = new Map<string, DriveFileMeta>();
+  for (const f of remoteFiles) remoteMap.set(f.drive_file_id, f);
 
   const dbMap = new Map<string, DbAsset>();
   for (const a of dbAssets) {
@@ -159,14 +165,11 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 
     try {
       // Grant public read access so the file is viewable in the UI
-      const { viewUrl, downloadUrl } = await provider.grantPublicAccess(remoteId);
+      const { webViewLink: viewUrl, webContentLink: downloadUrl } = await setFilePublicReadable(remoteId);
 
-      // Build preview/thumbnail URLs from the provider (no extra API calls needed)
-      const previewUrl   = provider.getPreviewUrl(remoteId);
-      const thumbnailUrl = provider.getThumbnailUrl(remoteId, meta.thumbnail_link);
+      const previewUrl   = buildPreviewUrl(remoteId);
+      const thumbnailUrl = buildThumbnailUrl(remoteId, meta.thumbnail_link);
 
-      // Use insertWithColumnFallback so missing columns (e.g. is_deleted,
-      // last_synced_at) are stripped automatically and the insert still succeeds.
       const insertRow: Record<string, unknown> = {
         name:               meta.name,
         file_path:          null,
@@ -179,10 +182,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         bucket_name:        null,
         storage_provider:   'google_drive',
         drive_file_id:      remoteId,
-        drive_folder_id:    meta.remote_folder_id,
+        drive_folder_id:    meta.drive_folder_id,
         client_name:        meta.client_folder_name,
         client_folder_name: meta.client_folder_name,
-        content_type:       meta.content_type,
+        content_type:       null,
         month_key:          meta.month_key,
         preview_url:        previewUrl,
         thumbnail_url:      thumbnailUrl,
@@ -236,13 +239,10 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 
     const updates: Record<string, unknown> = {};
 
-    // Only include last_synced_at if the column is known to exist
     if (hasIsDeleted) {
       updates.last_synced_at = syncNow;
-      // Always refresh preview/thumbnail URLs and permissions metadata on each
-      // sync pass so stale or missing values are repaired automatically.
-      updates.preview_url   = provider.getPreviewUrl(remoteId);
-      updates.thumbnail_url = provider.getThumbnailUrl(remoteId, meta.thumbnail_link);
+      updates.preview_url   = buildPreviewUrl(remoteId);
+      updates.thumbnail_url = buildThumbnailUrl(remoteId, meta.thumbnail_link);
     }
 
     // Always refresh canonical Drive URLs when we have them from the scan.
@@ -335,7 +335,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     // Verify by calling provider directly — avoids false positives if the scan
     // missed a file (e.g. a path edge-case or transient API error).
     try {
-      const exists = await provider.fileExists(remoteId);
+      const exists = await checkDriveFileExists(remoteId);
       if (exists) {
         // File still exists in storage — just not under the expected path.
         // Do not remove from DB; it may have been moved.
