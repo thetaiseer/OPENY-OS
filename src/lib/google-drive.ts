@@ -5,7 +5,6 @@
  */
 import { google } from 'googleapis';
 import type { drive_v3 } from 'googleapis';
-import { Readable } from 'stream';
 import { clientToFolderName } from './asset-utils';
 
 // ── Allowed content types ──────────────────────────────────────────────────────
@@ -230,120 +229,6 @@ async function getOrCreateFolder(
   if (!newId) throw new Error(`Failed to create Drive folder: ${name}`);
   console.log(`[google-drive] created folder "${name}" — id:`, newId);
   return newId;
-}
-
-// ── Main upload function ──────────────────────────────────────────────────────
-
-/**
- * Upload a file buffer to the structured path:
- *   root / Clients / clientFolderName / contentType / year / MM-MonthName
- *
- * Creates any missing folders along the way.
- * Returns drive_file_id, drive_folder_id (the month folder), and public links.
- */
-export async function uploadToStructuredPath(
-  buffer: Buffer,
-  mimeType: string,
-  fileName: string,
-  clientFolderName: string,
-  contentType: string,
-  monthKey: string,
-): Promise<DriveUploadResult> {
-  const { drive, rootFolderId } = getDriveClient();
-
-  const { year, monthFolder } = monthKeyToComponents(monthKey);
-  console.log(`[google-drive] structured upload: Clients/${clientFolderName}/${contentType}/${year}/${monthFolder}/${fileName}`);
-
-  // Build folder hierarchy: root → Clients → client → content_type → year → month
-  const clientsFolderId = await getOrCreateFolder(drive, 'Clients', rootFolderId);
-  console.log('[google-drive] resolved Clients folder → id:', clientsFolderId);
-
-  const clientFolderId = await getOrCreateFolder(drive, clientFolderName, clientsFolderId);
-  console.log('[google-drive] resolved client folder:', clientFolderName, '→ id:', clientFolderId);
-
-  const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
-  console.log('[google-drive] resolved content type folder:', contentType, '→ id:', contentTypeFolderId);
-
-  const yearFolderId = await getOrCreateFolder(drive, year, contentTypeFolderId);
-  console.log('[google-drive] resolved year folder:', year, '→ id:', yearFolderId);
-
-  const monthFolderId = await getOrCreateFolder(drive, monthFolder, yearFolderId);
-  console.log('[google-drive] resolved month folder:', monthFolder, '→ id:', monthFolderId);
-
-  // Upload file into the month folder
-  const readableStream = Readable.from(buffer);
-  console.log('[google-drive] uploading file:', fileName, '| mimeType:', mimeType, '| size (bytes):', buffer.length, '| monthFolderId:', monthFolderId);
-
-  const createRes = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      parents: [monthFolderId],
-    },
-    media: {
-      mimeType,
-      body: readableStream,
-    },
-    fields: 'id',
-    supportsAllDrives: true,
-  });
-
-  console.log('[google-drive] create response status:', createRes.status);
-  console.log('[google-drive] create response data:', JSON.stringify(createRes.data));
-
-  const fileId = createRes.data.id;
-  if (!fileId) {
-    throw new Error('Google Drive upload succeeded but returned no file ID');
-  }
-  console.log('[google-drive] file ID:', fileId);
-
-  // Grant anyone-with-link read access
-  const permRes = await drive.permissions.create({
-    fileId,
-    requestBody: { role: 'reader', type: 'anyone' },
-    supportsAllDrives: true,
-  });
-  console.log('[google-drive] permission create status:', permRes.status);
-
-  // Fetch updated links and metadata after permission change
-  const metaRes = await drive.files.get({
-    fileId,
-    fields: 'id,mimeType,size,webViewLink,webContentLink,thumbnailLink',
-    supportsAllDrives: true,
-  });
-
-  const rawView = metaRes.data.webViewLink ?? '';
-  const rawDownload = metaRes.data.webContentLink ?? '';
-
-  let webViewLink = rawView;
-  try { assertValidUrl(rawView, 'webViewLink'); } catch {
-    webViewLink = `https://drive.google.com/file/d/${fileId}/view`;
-  }
-
-  let webContentLink = rawDownload;
-  try { assertValidUrl(rawDownload, 'webContentLink'); } catch {
-    webContentLink = `https://drive.google.com/uc?id=${fileId}&export=download`;
-  }
-
-  const thumbnailLink = metaRes.data.thumbnailLink ?? null;
-  const fileMimeType = metaRes.data.mimeType ?? null;
-  const fileSize = metaRes.data.size ? Number(metaRes.data.size) : null;
-
-  const result: DriveUploadResult = {
-    drive_file_id: fileId,
-    drive_folder_id: monthFolderId,
-    client_folder_name: clientFolderName,
-    webViewLink,
-    webContentLink,
-    thumbnailLink,
-    mimeType: fileMimeType,
-    fileSize,
-  };
-
-  console.log('[google-drive] uploaded file id:', fileId, '| webViewLink:', webViewLink);
-  console.log('[google-drive] final links — webViewLink:', result.webViewLink);
-  console.log('[google-drive] final links — webContentLink:', result.webContentLink);
-
-  return result;
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
@@ -676,7 +561,7 @@ export async function setFilePublicReadable(
  * Scan the entire Google Drive Clients folder hierarchy and return metadata for
  * every file found.
  *
- * Expected Drive path: root / Clients / {clientFolder} / {CONTENT_TYPE} / {year} / {MM-MonthName} / file
+ * Expected Drive path: root / Clients / {clientFolder} / {year} / {MM-MonthName} / {CONTENT_TYPE} / file
  *
  * Files outside this structure are ignored.
  */
@@ -699,49 +584,52 @@ export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
     if (!clientFolder.id || !clientFolder.name) continue;
     const clientFolderName = clientFolder.name;
 
-    const contentTypeFolders = await listSubFolders(drive, clientFolder.id);
+    // Level 2: year folders
+    const yearFolders = await listSubFolders(drive, clientFolder.id);
 
-    for (const ctFolder of contentTypeFolders) {
-      if (!ctFolder.id || !ctFolder.name) continue;
-      const contentType = ctFolder.name;
-
-      // Skip folders whose names don't match a known content type
-      if (!(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
-        console.log(`[google-drive] scanDriveForSync: skipping unknown content type folder "${contentType}" under "${clientFolderName}"`);
+    for (const yearFolder of yearFolders) {
+      if (!yearFolder.id || !yearFolder.name) continue;
+      const year = yearFolder.name;
+      if (!/^\d{4}$/.test(year)) {
+        console.log(`[google-drive] scanDriveForSync: skipping non-year folder "${year}" under "${clientFolderName}"`);
         continue;
       }
 
-      const yearFolders = await listSubFolders(drive, ctFolder.id);
+      // Level 3: month folders (MM-MonthName)
+      const monthFolders = await listSubFolders(drive, yearFolder.id);
 
-      for (const yearFolder of yearFolders) {
-        if (!yearFolder.id || !yearFolder.name) continue;
-        const year = yearFolder.name;
-        if (!/^\d{4}$/.test(year)) {
-          console.log(`[google-drive] scanDriveForSync: skipping non-year folder "${year}"`);
+      for (const monthFolder of monthFolders) {
+        if (!monthFolder.id || !monthFolder.name) continue;
+
+        // Parse MM from folder name like "04-April" and validate range
+        const mmMatch = monthFolder.name.match(/^(\d{2})-/);
+        if (!mmMatch) {
+          console.log(`[google-drive] scanDriveForSync: skipping unrecognised month folder "${monthFolder.name}"`);
           continue;
         }
+        const mm = mmMatch[1];
+        const mmNum = parseInt(mm, 10);
+        if (mmNum < 1 || mmNum > 12) {
+          console.log(`[google-drive] scanDriveForSync: skipping out-of-range month folder "${monthFolder.name}" (mm=${mm})`);
+          continue;
+        }
+        const monthKey = `${year}-${mm}`;
 
-        const monthFolders = await listSubFolders(drive, yearFolder.id);
+        // Level 4: content type folders
+        const contentTypeFolders = await listSubFolders(drive, monthFolder.id);
 
-        for (const monthFolder of monthFolders) {
-          if (!monthFolder.id || !monthFolder.name) continue;
+        for (const ctFolder of contentTypeFolders) {
+          if (!ctFolder.id || !ctFolder.name) continue;
+          const contentType = ctFolder.name;
 
-          // Parse MM from folder name like "04-April" and validate range
-          const mmMatch = monthFolder.name.match(/^(\d{2})-/);
-          if (!mmMatch) {
-            console.log(`[google-drive] scanDriveForSync: skipping unrecognised month folder "${monthFolder.name}"`);
+          // Skip folders whose names don't match a known content type
+          if (!(ALLOWED_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+            console.log(`[google-drive] scanDriveForSync: skipping unknown content type folder "${contentType}" under "${clientFolderName}/${year}/${monthFolder.name}"`);
             continue;
           }
-          const mm = mmMatch[1];
-          const mmNum = parseInt(mm, 10);
-          if (mmNum < 1 || mmNum > 12) {
-            console.log(`[google-drive] scanDriveForSync: skipping out-of-range month folder "${monthFolder.name}" (mm=${mm})`);
-            continue;
-          }
-          const monthKey = `${year}-${mm}`;
 
-          const files = await listSyncFiles(drive, monthFolder.id);
-          console.log(`[google-drive] scanDriveForSync: ${clientFolderName}/${contentType}/${year}/${monthFolder.name} — ${files.length} file(s)`);
+          const files = await listSyncFiles(drive, ctFolder.id);
+          console.log(`[google-drive] scanDriveForSync: ${clientFolderName}/${year}/${monthFolder.name}/${contentType} — ${files.length} file(s)`);
 
           for (const file of files) {
             if (!file.id || !file.name) continue;
@@ -759,7 +647,7 @@ export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
               content_type: contentType,
               year,
               month_key: monthKey,
-              drive_folder_id: monthFolder.id,
+              drive_folder_id: ctFolder.id,
             });
           }
         }
@@ -775,15 +663,17 @@ export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
 
 /**
  * Build the Drive folder hierarchy for a structured upload and return the leaf
- * (month) folder ID.  Creates any missing folders along the way.
+ * (content-type) folder ID.  Creates any missing folders along the way.
  *
- * Path: root / Clients / clientFolderName / contentType / year / MM-MonthName
+ * Path: root / Clients / clientFolderName / year / MM-MonthName / contentType
+ *
+ * Returns the leaf (content-type) folder ID as `leafFolderId`.
  */
 export async function createFolderHierarchy(
   clientFolderName: string,
   contentType: string,
   monthKey: string,
-): Promise<{ monthFolderId: string; clientFolderName: string }> {
+): Promise<{ leafFolderId: string; clientFolderName: string }> {
   console.log(JSON.stringify({
     step: 'createFolderHierarchy_entry',
     clientFolderName, contentType, monthKey,
@@ -797,20 +687,21 @@ export async function createFolderHierarchy(
   const clientFolderId = await getOrCreateFolder(drive, clientFolderName, clientsFolderId);
   console.log('[google-drive] folder hierarchy — client:', clientFolderName, '→', clientFolderId);
 
-  const contentTypeFolderId = await getOrCreateFolder(drive, contentType, clientFolderId);
-  console.log('[google-drive] folder hierarchy — contentType:', contentType, '→', contentTypeFolderId);
-
-  const yearFolderId = await getOrCreateFolder(drive, year, contentTypeFolderId);
+  const yearFolderId = await getOrCreateFolder(drive, year, clientFolderId);
   console.log('[google-drive] folder hierarchy — year:', year, '→', yearFolderId);
 
-  const monthFolderId = await getOrCreateFolder(drive, monthFolder, yearFolderId);
-  console.log('[google-drive] folder hierarchy — month:', monthFolder, '→', monthFolderId);
+  const monthFolderIdRaw = await getOrCreateFolder(drive, monthFolder, yearFolderId);
+  console.log('[google-drive] folder hierarchy — month:', monthFolder, '→', monthFolderIdRaw);
+
+  const contentTypeFolderId = await getOrCreateFolder(drive, contentType, monthFolderIdRaw);
+  console.log('[google-drive] folder hierarchy — contentType:', contentType, '→', contentTypeFolderId);
+
   console.log(JSON.stringify({
     step: 'createFolderHierarchy_complete',
-    monthFolderId, clientFolderName,
+    leafFolderId: contentTypeFolderId, clientFolderName,
   }));
 
-  return { monthFolderId, clientFolderName };
+  return { leafFolderId: contentTypeFolderId, clientFolderName };
 }
 
 /**

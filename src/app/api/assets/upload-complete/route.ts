@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   console.log('[upload-complete] POST /api/assets/upload-complete — start');
   try {
     // ── Auth ──────────────────────────────────────────────────────────────────
-    const auth = await requireRole(req, ['admin', 'team']);
+    const auth = await requireRole(req, ['admin', 'manager', 'team']);
     if (auth instanceof NextResponse) return auth;
 
     let body: Record<string, unknown>;
@@ -183,6 +183,9 @@ export async function POST(req: NextRequest) {
       preview_url:   provider.getPreviewUrl(driveFileId),
       thumbnail_url: provider.getThumbnailUrl(driveFileId, thumbnailLink),
       web_view_link: webViewLink,
+      // Upload tracking — stripped gracefully if column not yet migrated
+      upload_state:  'completed',
+      last_synced_at: new Date().toISOString(),
     };
 
     let inserted: Record<string, unknown>;

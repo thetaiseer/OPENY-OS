@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
   console.log('[upload-session] content-type:', req.headers.get('content-type'));
   console.log('[upload-session] x-forwarded-for:', req.headers.get('x-forwarded-for') ?? '(none)');
 
-  // ── Auth: only admin and team members may initiate uploads ─────────────────
-  const auth = await requireRole(req, ['admin', 'team']);
+  // ── Auth: admin, manager, and team members may initiate uploads ──────────────
+  const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
   // ── Rate limiting ───────────────────────────────────────────────────────────
