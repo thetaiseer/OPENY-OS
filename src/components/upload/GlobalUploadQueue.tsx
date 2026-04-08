@@ -4,15 +4,25 @@
  * GlobalUploadQueue — Fixed-position upload progress panel.
  *
  * Mounted once in the app layout so it stays visible across all routes.
- * Shows the current upload queue with per-file progress and action buttons
- * (retry, remove).  The panel can be minimised to a compact status bar.
+ *
+ * Each upload item card shows:
+ *   - file name + file size
+ *   - exact current stage (Queued / Validating / Uploading / Uploaded /
+ *     Saving to system / Completed / Uploaded, but not saved in system / Failed)
+ *   - progress bar while active
+ *   - retry button   — only if status === 'failed' (true upload failure)
+ *   - reconcile button — only if status === 'partial_success' (Drive OK, DB failed)
+ *   - remove button  — always, disabled while actively uploading
+ *   - expandable details section with exact technical error
+ *
+ * Mobile: compact bottom-sheet style, no overflowing buttons, readable stage text.
  */
 
 import { useState } from 'react';
 import {
   Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle, AlertTriangle,
-  Loader2, RotateCcw, Trash2, File, FileImage,
-  FileText, FileVideo, FileAudio,
+  Loader2, RotateCcw, RefreshCw, Trash2, File, FileImage,
+  FileText, FileVideo, FileAudio, ChevronRight,
 } from 'lucide-react';
 import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
 
@@ -52,120 +62,180 @@ function FileTypeIcon({ item }: { item: UploadItem }) {
   return <File size={sz} style={{ color: 'var(--text-secondary)' }} />;
 }
 
-const STATUS_LABEL: Record<UploadStatus, string> = {
-  queued:    'Queued',
-  uploading: 'Uploading',
-  saving:    'Saving…',
-  success:   'Complete',
-  warning:   'Uploaded',
-  failed:    'Failed',
-};
+// ── Stage colour & label maps ─────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<UploadStatus, string> = {
-  queued:    'var(--text-secondary)',
-  uploading: 'var(--accent)',
-  saving:    'var(--accent)',
-  success:   '#16a34a',
-  warning:   '#d97706',
-  failed:    '#ef4444',
+  queued:          'var(--text-secondary)',
+  validating:      'var(--accent)',
+  uploading:       'var(--accent)',
+  uploaded:        'var(--accent)',
+  saving_metadata: 'var(--accent)',
+  completed:       '#16a34a',
+  partial_success: '#d97706',
+  failed:          '#ef4444',
 };
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
 
 function QueueRow({ item }: { item: UploadItem }) {
-  const { retryItem, removeItem } = useUpload();
-  const isActive   = item.status === 'uploading' || item.status === 'saving';
-  const isComplete = item.status === 'success';
-  const isWarning  = item.status === 'warning';
+  const { retryItem, reconcileItem, removeItem } = useUpload();
+  const [expanded, setExpanded] = useState(false);
+
+  const isActive   = item.status === 'validating' || item.status === 'uploading'
+                  || item.status === 'uploaded'    || item.status === 'saving_metadata';
+  const isComplete = item.status === 'completed';
+  const isPartial  = item.status === 'partial_success';
   const isFailed   = item.status === 'failed';
+  const hasDetail  = !!item.errorDetail;
+
+  const statusColor = STATUS_COLOR[item.status];
 
   return (
     <div
-      className="flex items-start gap-2.5 p-3 rounded-xl"
-      style={{ background: 'var(--surface-2)' }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
     >
-      {/* Thumbnail / icon */}
-      <div
-        className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden mt-0.5"
-        style={{ background: 'var(--surface)' }}
-      >
-        {item.previewUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={item.previewUrl} alt="" className="w-full h-full object-cover" />
-          : <FileTypeIcon item={item} />
-        }
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0 space-y-1">
-        {/* Name + status icon */}
-        <div className="flex items-center gap-1.5">
-          <p className="text-xs font-semibold truncate flex-1" style={{ color: 'var(--text)' }}>
-            {getDisplayName(item)}
-          </p>
-          {isComplete && <CheckCircle   size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
-          {isWarning   && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
-          {isFailed    && <AlertCircle  size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
-          {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
+      {/* ── Main row ── */}
+      <div className="flex items-start gap-2.5 p-3">
+        {/* Thumbnail / icon */}
+        <div
+          className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden mt-0.5"
+          style={{ background: 'var(--surface)' }}
+        >
+          {item.previewUrl && isImageFile(item.file.name, item.file.type)
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={item.previewUrl} alt="" className="w-full h-full object-cover" />
+            : <FileTypeIcon item={item} />
+          }
         </div>
 
-        {/* Size · status · progress% */}
-        <div className="flex items-center gap-1.5 text-xs">
-          {item.file.size > 0 && (
-            <span style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
-          )}
-          {item.file.size > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
-          <span style={{ color: STATUS_COLOR[item.status], fontWeight: 600 }}>
-            {STATUS_LABEL[item.status]}
-          </span>
-          {isActive && (
-            <span className="tabular-nums font-bold ml-auto" style={{ color: 'var(--accent)' }}>
-              {item.progress}%
-            </span>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {isActive && (
-          <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'var(--border)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${item.progress}%`, background: 'var(--accent)' }}
-            />
+        {/* Main content */}
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Name + status icon */}
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold truncate flex-1" style={{ color: 'var(--text)' }}>
+              {getDisplayName(item)}
+            </p>
+            {isComplete && <CheckCircle   size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
+            {isPartial   && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
+            {isFailed    && <AlertCircle  size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
+            {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
           </div>
-        )}
 
-        {/* Warning message */}
-        {isWarning && item.error && (
-          <p className="text-xs leading-tight line-clamp-2" style={{ color: '#d97706', opacity: 0.85 }}>
-            {item.error}
-          </p>
-        )}
+          {/* Size · stage text */}
+          <div className="flex items-center gap-1.5 flex-wrap text-xs">
+            {item.file.size > 0 && (
+              <span style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
+            )}
+            {item.file.size > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
+            <span style={{ color: statusColor, fontWeight: 600 }}>
+              {item.statusText}
+            </span>
+            {isActive && item.status === 'uploading' && (
+              <span className="tabular-nums font-bold ml-auto" style={{ color: 'var(--accent)' }}>
+                {item.progress}%
+              </span>
+            )}
+          </div>
 
-        {/* Error message */}
-        {isFailed && item.error && (
-          <p className="text-xs leading-tight line-clamp-2" style={{ color: '#ef4444', opacity: 0.85 }}>
-            {item.error}
-          </p>
-        )}
-      </div>
+          {/* Progress bar */}
+          {isActive && (
+            <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'var(--border)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${item.progress}%`, background: 'var(--accent)' }}
+              />
+            </div>
+          )}
 
-      {/* Action buttons */}
-      <div className="flex flex-col gap-1 shrink-0 mt-0.5">
-        {isFailed && (
-          <button onClick={() => retryItem(item.id)} title="Retry"
-            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface)', color: '#f59e0b' }}>
-            <RotateCcw size={10} />
+          {/* Brief error summary line (failed / partial_success) */}
+          {(isFailed || isPartial) && item.errorDetail && (
+            <p className="text-xs leading-tight line-clamp-2" style={{ color: statusColor, opacity: 0.9 }}>
+              {item.errorDetail.message}
+            </p>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col gap-1 shrink-0 mt-0.5">
+          {/* Retry — only on true upload failures */}
+          {isFailed && (
+            <button
+              onClick={() => retryItem(item.id)}
+              title="Retry upload"
+              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--surface)', color: '#f59e0b' }}
+            >
+              <RotateCcw size={10} />
+            </button>
+          )}
+          {/* Reconcile — only when Drive succeeded but DB save failed */}
+          {isPartial && (
+            <button
+              onClick={() => reconcileItem(item.id)}
+              title="Retry saving to system"
+              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--surface)', color: '#d97706' }}
+            >
+              <RefreshCw size={10} />
+            </button>
+          )}
+          {/* Expand details — when there's technical error info */}
+          {hasDetail && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              title={expanded ? 'Hide details' : 'Show details'}
+              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+            >
+              <ChevronRight
+                size={10}
+                style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+              />
+            </button>
+          )}
+          {/* Remove */}
+          <button
+            onClick={() => removeItem(item.id)}
+            disabled={isActive}
+            title="Remove"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
+            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+          >
+            <Trash2 size={10} />
           </button>
-        )}
-        <button onClick={() => removeItem(item.id)} title="Remove"
-          disabled={isActive}
-          className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
-          style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}>
-          <Trash2 size={10} />
-        </button>
+        </div>
       </div>
+
+      {/* ── Expandable details section ── */}
+      {expanded && item.errorDetail && (
+        <div
+          className="px-3 pb-3 pt-0 space-y-1"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <p className="text-xs font-semibold pt-2" style={{ color: 'var(--text-secondary)' }}>
+            Technical details
+          </p>
+          {item.errorDetail.step && (
+            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>step: </span>{item.errorDetail.step}
+            </p>
+          )}
+          {item.errorDetail.code && (
+            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>code: </span>{item.errorDetail.code}
+            </p>
+          )}
+          {item.errorDetail.details && (
+            <p
+              className="text-xs font-mono break-all leading-relaxed"
+              style={{ color: 'var(--text-secondary)', opacity: 0.85 }}
+            >
+              {item.errorDetail.details}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -178,27 +248,33 @@ export default function GlobalUploadQueue() {
 
   if (queue.length === 0) return null;
 
-  const completed  = queue.filter(i => i.status === 'success').length;
-  const warned     = queue.filter(i => i.status === 'warning').length;
-  const failed     = queue.filter(i => i.status === 'failed').length;
-  const active     = queue.filter(i => i.status === 'uploading' || i.status === 'saving').length;
+  const completed = queue.filter(i => i.status === 'completed').length;
+  const partial   = queue.filter(i => i.status === 'partial_success').length;
+  const failed    = queue.filter(i => i.status === 'failed').length;
+  const active    = queue.filter(i =>
+    i.status === 'validating' || i.status === 'uploading' ||
+    i.status === 'uploaded'   || i.status === 'saving_metadata',
+  ).length;
+
   const overallPct = queue.length > 0
     ? Math.round(queue.reduce((sum, i) => sum + i.progress, 0) / queue.length)
     : 0;
 
   const allDone = active === 0 && queue.every(
-    i => i.status === 'success' || i.status === 'warning' || i.status === 'failed',
+    i => i.status === 'completed' || i.status === 'partial_success' || i.status === 'failed',
   );
 
   const titleText = active > 0
     ? `Uploading ${active} file${active !== 1 ? 's' : ''}…`
     : allDone
     ? [
-        completed > 0 && `${completed} uploaded`,
-        warned    > 0 && `${warned} partial`,
+        completed > 0 && `${completed} completed`,
+        partial   > 0 && `${partial} partial`,
         failed    > 0 && `${failed} failed`,
       ].filter(Boolean).join(' · ') || 'Done'
     : `${completed}/${queue.length} files`;
+
+  const clearableCount = completed + partial;
 
   return (
     <div
@@ -207,8 +283,8 @@ export default function GlobalUploadQueue() {
         background:  'var(--surface)',
         borderColor: 'var(--border)',
         boxShadow:   '0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10)',
-        width:       320,
-        maxHeight:   minimised ? 'auto' : 460,
+        width:       'min(320px, calc(100vw - 24px))',
+        maxHeight:   minimised ? 'auto' : 480,
       }}
     >
       {/* ── Header ── */}
@@ -225,18 +301,18 @@ export default function GlobalUploadQueue() {
           style={{
             background: active > 0
               ? 'var(--accent-soft)'
-              : allDone && failed === 0 && warned === 0
+              : allDone && failed === 0 && partial === 0
               ? 'rgba(22,163,74,0.10)'
-              : allDone && warned > 0 && failed === 0
+              : allDone && partial > 0 && failed === 0
               ? 'rgba(217,119,6,0.10)'
               : 'var(--surface)',
           }}
         >
           {active > 0
             ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-            : allDone && failed === 0 && warned === 0
+            : allDone && failed === 0 && partial === 0
             ? <CheckCircle   size={14} style={{ color: '#16a34a' }} />
-            : allDone && warned > 0 && failed === 0
+            : allDone && partial > 0 && failed === 0
             ? <AlertTriangle size={14} style={{ color: '#d97706' }} />
             : <Upload size={14} style={{ color: 'var(--accent)' }} />
           }
@@ -277,15 +353,15 @@ export default function GlobalUploadQueue() {
 
       {/* ── Queue list ── */}
       {!minimised && (
-        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 340 }}>
+        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 360 }}>
           {queue.map(item => <QueueRow key={item.id} item={item} />)}
-          {(completed + warned) > 0 && (
+          {clearableCount > 0 && (
             <button
               onClick={e => { e.stopPropagation(); clearCompleted(); }}
               className="w-full text-xs py-2 rounded-xl font-medium transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
             >
-              Clear {completed + warned} completed
+              Clear {clearableCount} completed
             </button>
           )}
         </div>
