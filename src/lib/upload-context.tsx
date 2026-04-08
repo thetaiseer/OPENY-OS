@@ -233,20 +233,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     try {
       // ── Phase 1: drive_upload ─────────────────────────────────────────────
       // Errors in this phase mark the item as 'failed'.
-      console.log('[upload] drive_upload start —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
-      d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 2 } });
+      console.log(JSON.stringify({
+        step: 'drive_upload_start',
+        fileName: item.file.name,
+        fileSize: item.file.size,
+        fileType: item.file.type || 'application/octet-stream',
+        client: item.clientName,
+        contentType: item.contentType,
+        monthKey: item.monthKey,
+        hasRemoteId: !!item.remoteId,
+      }));
 
-      const safeFileName = item.file.name.replace(/\s+/g, '_');
-
-      const sessionRes = await fetch('/api/assets/upload-session', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          fileName:    safeFileName,
-          fileType:    item.file.type || 'application/octet-stream',
-          fileSize:    item.file.size,
-          clientName:  item.clientName,
       let driveFileId:    string;
       let driveFolderId:  string | null;
       let clientFolderName: string | null;
@@ -288,6 +285,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
         const safeFileName = sanitizeUploadFileName(item.file.name);
 
+        // ── DIAGNOSTIC: log everything before the session request ─────────────
+        console.log(JSON.stringify({
+          step: 'pre_session_request',
+          endpoint: '/api/assets/upload-session',
+          fileName: safeFileName,
+          originalFileName: item.file.name,
+          fileSize: item.file.size,
+          fileType: item.file.type || 'application/octet-stream',
+          clientName: item.clientName,
+          contentType: item.contentType,
+          monthKey: item.monthKey,
+          hasClientId: !!item.clientId,
+          hasUploadedBy: !!item.uploadedBy,
+          hasCustomFileName: !!(item.uploadName?.trim()),
+        }));
+
         const sessionRes = await fetch('/api/assets/upload-session', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -305,28 +318,50 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           signal: ctrl.signal,
         });
 
+        // ── DIAGNOSTIC: capture raw response text before JSON.parse ──────────
+        const sessionRawText = await sessionRes.text().catch(() => '(body unreadable)');
+        console.log(JSON.stringify({
+          step: 'session_response_raw',
+          httpStatus: sessionRes.status,
+          ok: sessionRes.ok,
+          rawBody: sessionRawText.slice(0, 600),
+        }));
+
         let sessionJson: {
           success: boolean;
           error?: string;
+          code?: string;
+          details?: string;
+          provider?: string;
           uploadUrl?: string;
           drive_folder_id?: string;
           client_folder_name?: string;
           renamedFileName?: string;
         };
         try {
-          sessionJson = await sessionRes.json();
+          sessionJson = JSON.parse(sessionRawText);
         } catch (parseErr) {
-          throw new Error(`Failed to parse upload session response (HTTP ${sessionRes.status}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+          throw new Error(`[session_parse_failed] HTTP ${sessionRes.status} — body: ${sessionRawText.slice(0, 300)} — parseErr: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
         }
 
         if (!sessionRes.ok || !sessionJson.success) {
+          const errMsg = sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})`;
+          const errCode = sessionJson.code ?? null;
+          const errDetails = sessionJson.details ?? null;
           console.error(JSON.stringify({
             step: 'upload_session',
             ok: false,
             fileName: item.file.name,
-            error: { message: sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})` },
+            httpStatus: sessionRes.status,
+            error: { message: errMsg, code: errCode, details: errDetails, provider: sessionJson.provider ?? 'google-drive' },
           }));
-          throw new Error(sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})`);
+          // Throw with structured prefix so the outer catch can surface exact details
+          throw Object.assign(new Error(errMsg), {
+            uploadStep: 'session',
+            uploadCode: errCode ?? 'SESSION_FAILED',
+            uploadDetails: errDetails ?? `HTTP ${sessionRes.status}`,
+            uploadProvider: sessionJson.provider ?? 'google-drive',
+          });
         }
 
         const uploadUrl = sessionJson.uploadUrl;
@@ -341,10 +376,21 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           fileName: item.file.name,
           remoteFolderId: driveFolderId,
           renamedFileName,
+          uploadUrlPrefix: uploadUrl.slice(0, 60) + '...',
         }));
 
         // ── Stage: uploading ──────────────────────────────────────────────────
         setStage(item.id, 'uploading', { progress: 5 });
+
+        // ── DIAGNOSTIC: log before chunk upload starts ────────────────────────
+        console.log(JSON.stringify({
+          step: 'pre_chunk_upload',
+          fileName: item.file.name,
+          fileSize: item.file.size,
+          fileType: item.file.type || 'application/octet-stream',
+          uploadUrlPresent: true,
+          uploadUrlHost: (() => { try { return new URL(uploadUrl).host; } catch { return '(invalid url)'; } })(),
+        }));
 
         driveFileId = await uploadFileChunked(uploadUrl, item.file, {
           signal: ctrl.signal,
@@ -583,18 +629,25 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       // All other errors are Phase 1 (session fetch or Drive chunk upload) → failed.
       const msg = err instanceof Error ? err.message : String(err);
+      // Preserve structured sub-step info when available (attached by session error path)
+      const enriched = err as { uploadStep?: string; uploadCode?: string; uploadDetails?: string; uploadProvider?: string };
+      const errStep    = enriched.uploadStep    ?? 'upload';
+      const errCode    = enriched.uploadCode    ?? 'UPLOAD_ERROR';
+      const errDetails = enriched.uploadDetails ?? null;
+      const errProvider = enriched.uploadProvider ?? 'google-drive';
       console.error(JSON.stringify({
-        step: 'remote_upload',
+        step: 'phase1_failed',
         ok: false,
         fileName: item.file.name,
-        error: { message: msg, code: 'UPLOAD_ERROR', details: null },
+        provider: errProvider,
+        error: { message: msg, code: errCode, step: errStep, details: errDetails },
       }));
       setStage(item.id, 'failed', {
         errorDetail: {
-          step:    'upload',
+          step:    errStep,
           message: msg,
-          code:    'UPLOAD_ERROR',
-          details: null,
+          code:    errCode,
+          details: errDetails,
         },
       });
     } finally {
