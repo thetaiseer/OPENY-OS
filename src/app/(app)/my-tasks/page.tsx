@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   CheckSquare, AlertCircle, Calendar, User,
-  Clock, CheckCheck, LayoutList,
+  Clock, CheckCheck, LayoutList, Plus, Send,
+  Filter, X, Paperclip, Zap,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import Badge from '@/components/ui/Badge';
-import type { Task, TeamMember } from '@/lib/types';
+import NewTaskModal from '@/components/tasks/NewTaskModal';
+import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
+import type { Task, TeamMember, Client } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -17,27 +21,32 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function weekLaterStr() {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().slice(0, 10);
-}
-
 function isTaskOverdue(task: Task) {
   if (!task.due_date) return false;
-  if (task.status === 'done' || task.status === 'delivered') return false;
+  const done = ['done', 'completed', 'delivered', 'published', 'cancelled'];
+  if (done.includes(task.status)) return false;
   return task.due_date < todayStr();
 }
 
 function isDueToday(task: Task) {
   if (!task.due_date) return false;
-  if (task.status === 'done' || task.status === 'delivered') return false;
+  const done = ['done', 'completed', 'delivered', 'published', 'cancelled'];
+  if (done.includes(task.status)) return false;
   return task.due_date === todayStr();
 }
 
-function fmtDate(d?: string) {
+function fmtDate(d?: string | null) {
   if (!d) return '';
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtTime(t?: string | null) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h, 10);
+  const ampm = hr >= 12 ? 'PM' : 'AM';
+  const h12 = hr % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
 }
 
 const priorityVariant = (p: string) => {
@@ -47,18 +56,44 @@ const priorityVariant = (p: string) => {
 };
 
 const statusVariant = (s: string) => {
-  if (s === 'done' || s === 'delivered') return 'success' as const;
-  if (s === 'overdue')                   return 'danger'  as const;
-  if (s === 'in_progress')               return 'info'    as const;
-  if (s === 'review')                    return 'warning' as const;
+  if (['done', 'completed', 'delivered'].includes(s))        return 'success' as const;
+  if (['published', 'approved'].includes(s))                 return 'success' as const;
+  if (['overdue', 'cancelled'].includes(s))                  return 'danger'  as const;
+  if (['in_progress', 'scheduled'].includes(s))              return 'info'    as const;
+  if (['in_review', 'review', 'waiting_client'].includes(s)) return 'warning' as const;
   return 'default' as const;
 };
 
-function statusLabel(s: string, t: (k: string) => string) {
-  if (s === 'in_progress') return t('inProgress');
-  if (s === 'review')      return t('review');
-  if (s === 'delivered')   return t('delivered');
-  return t(s);
+function statusLabel(s: string): string {
+  const labels: Record<string, string> = {
+    in_progress: 'In Progress', in_review: 'In Review',
+    waiting_client: 'Waiting Client', review: 'Review',
+    delivered: 'Delivered', published: 'Published',
+    completed: 'Completed', cancelled: 'Cancelled',
+    scheduled: 'Scheduled', approved: 'Approved',
+    todo: 'To Do', done: 'Done', overdue: 'Overdue',
+  };
+  return labels[s] ?? s;
+}
+
+function categoryLabel(cat?: string | null): string {
+  const labels: Record<string, string> = {
+    internal_task: 'Internal', content_creation: 'Content',
+    design_task: 'Design', approval_task: 'Approval',
+    publishing_task: 'Publishing', asset_upload_task: 'Asset Upload',
+    follow_up_task: 'Follow-up',
+  };
+  return cat ? (labels[cat] ?? cat) : '';
+}
+
+function categoryColor(cat?: string | null): string {
+  const colors: Record<string, string> = {
+    internal_task: '#6b7280', content_creation: '#2563eb',
+    design_task: '#d946ef', approval_task: '#d97706',
+    publishing_task: '#7c3aed', asset_upload_task: '#0891b2',
+    follow_up_task: '#16a34a',
+  };
+  return cat ? (colors[cat] ?? 'var(--accent)') : 'var(--accent)';
 }
 
 // ─── Section definitions ─────────────────────────────────────────────────────
@@ -66,45 +101,124 @@ function statusLabel(s: string, t: (k: string) => string) {
 type SectionKey = 'all' | 'dueToday' | 'overdue' | 'inProgress' | 'inReview' | 'completed';
 
 const SECTIONS: { key: SectionKey; labelKey: string; icon: React.ElementType; color: string }[] = [
-  { key: 'dueToday',   labelKey: 'tasksDueToday',   icon: Calendar,    color: '#f59e0b' },
-  { key: 'overdue',    labelKey: 'tasksOverdue',     icon: AlertCircle, color: '#ef4444' },
-  { key: 'inProgress', labelKey: 'tasksInProgress',  icon: Clock,       color: 'var(--accent)' },
-  { key: 'inReview',   labelKey: 'tasksInReview',    icon: CheckSquare, color: '#8b5cf6' },
-  { key: 'completed',  labelKey: 'tasksCompleted',   icon: CheckCheck,  color: '#22c55e' },
+  { key: 'dueToday',   labelKey: 'tasksDueToday',  icon: Calendar,    color: '#f59e0b' },
+  { key: 'overdue',    labelKey: 'tasksOverdue',    icon: AlertCircle, color: '#ef4444' },
+  { key: 'inProgress', labelKey: 'tasksInProgress', icon: Clock,       color: 'var(--accent)' },
+  { key: 'inReview',   labelKey: 'tasksInReview',   icon: CheckSquare, color: '#8b5cf6' },
+  { key: 'completed',  labelKey: 'tasksCompleted',  icon: CheckCheck,  color: '#22c55e' },
 ];
 
-// ─── TaskRow ─────────────────────────────────────────────────────────────────
+const CATEGORY_FILTERS = [
+  { value: 'content_creation', label: 'Content' },
+  { value: 'publishing_task',  label: 'Publishing' },
+  { value: 'design_task',      label: 'Design' },
+  { value: 'approval_task',    label: 'Approval' },
+  { value: 'internal_task',    label: 'Internal' },
+  { value: 'follow_up_task',   label: 'Follow-up' },
+  { value: 'asset_upload_task',label: 'Asset Upload' },
+];
 
-function TaskRow({ task, t }: { task: Task; t: (k: string) => string }) {
+// ─── TaskCard ─────────────────────────────────────────────────────────────────
+
+function TaskCard({ task }: { task: Task }) {
   const overdue = isTaskOverdue(task);
+  const isToday = isDueToday(task);
+  const hasPlatforms   = (task.platforms  ?? []).length > 0;
+  const hasPostTypes   = (task.post_types ?? []).length > 0;
+  const hasAsset       = !!task.asset_id;
+  const hasPubSchedule = !!task.publishing_schedule_id;
+  const cat            = task.task_category;
+
+  const borderColor = overdue ? '#ef4444'
+    : isToday ? '#f59e0b'
+    : cat ? categoryColor(cat)
+    : 'var(--border)';
+
   return (
     <div
-      className="flex items-center gap-4 px-4 py-3 rounded-xl border transition-shadow hover:shadow-sm"
-      style={{
-        background: 'var(--surface)',
-        borderColor: 'var(--border)',
-        borderLeft: `3px solid ${overdue ? '#ef4444' : task.status === 'done' || task.status === 'delivered' ? '#22c55e' : 'var(--accent)'}`,
-      }}
+      className="flex flex-col gap-2.5 px-4 py-3 rounded-xl border transition-shadow hover:shadow-sm"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', borderLeft: `3px solid ${borderColor}` }}
     >
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
-        <div className="flex flex-wrap gap-2 mt-1 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {task.client && (
-            <span className="flex items-center gap-1">
-              <User size={11} />{task.client.name}
+      {/* Row 1: title + status badges */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
+          {task.description && (
+            <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
+          <Badge variant={statusVariant(task.status)}>{statusLabel(task.status)}</Badge>
+        </div>
+      </div>
+
+      {/* Row 2: meta info */}
+      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+        {cat && (
+          <span className="px-2 py-0.5 rounded-full font-medium text-white"
+            style={{ background: categoryColor(cat), fontSize: '10px' }}>
+            {categoryLabel(cat)}
+          </span>
+        )}
+        {task.client && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <User size={10} />{task.client.name}
+          </span>
+        )}
+        {task.due_date && (
+          <span
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${overdue ? 'text-red-500 font-medium' : isToday ? 'text-amber-600 font-medium' : ''}`}
+            style={{ background: overdue ? '#fef2f2' : isToday ? '#fffbeb' : 'var(--surface-2)' }}
+          >
+            <Calendar size={10} />
+            {fmtDate(task.due_date)}
+            {task.due_time && ` · ${fmtTime(task.due_time)}`}
+            {overdue ? ' · Overdue' : isToday ? ' · Today' : ''}
+          </span>
+        )}
+      </div>
+
+      {/* Row 3: publishing badges */}
+      {(hasPlatforms || hasPostTypes) && (
+        <div className="flex flex-wrap gap-1 items-center">
+          <Send size={10} style={{ color: '#7c3aed' }} />
+          {(task.platforms ?? []).map(p => {
+            const pl = PLATFORMS.find(x => x.value === p);
+            return (
+              <span key={p} className="text-white font-medium rounded px-1.5 py-0.5"
+                style={{ background: getPlatformDisplayColor(p), fontSize: '10px' }}>
+                {pl?.label ?? p}
+              </span>
+            );
+          })}
+          {(task.post_types ?? []).map(pt => {
+            const typ = POST_TYPES.find(x => x.value === pt);
+            return (
+              <span key={pt} className="rounded px-1.5 py-0.5 font-medium"
+                style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', fontSize: '10px' }}>
+                {typ?.label ?? pt}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Row 4: linked record badges */}
+      {(hasAsset || hasPubSchedule) && (
+        <div className="flex gap-1.5 items-center">
+          {hasAsset && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <Paperclip size={9} className="inline mr-0.5" />Asset
             </span>
           )}
-          {task.due_date && (
-            <span className={`flex items-center gap-1 ${overdue ? 'text-red-500 font-medium' : ''}`}>
-              <Calendar size={11} />{fmtDate(task.due_date)}{overdue ? ` · ${t('overdue')}` : ''}
+          {hasPubSchedule && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: '#f3e8ff', color: '#7c3aed' }}>
+              <Send size={9} className="inline mr-0.5" />Schedule
             </span>
           )}
         </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-        <Badge variant={statusVariant(task.status)}>{statusLabel(task.status, t)}</Badge>
-      </div>
+      )}
     </div>
   );
 }
@@ -114,97 +228,157 @@ function TaskRow({ task, t }: { task: Task; t: (k: string) => string }) {
 export default function MyTasksPage() {
   const { t } = useLang();
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMember, setSelectedMember] = useState<string>('');
-  const [activeSection, setActiveSection] = useState<SectionKey>('all');
+  const { toast } = useToast();
 
-  useEffect(() => {
+  const [tasks, setTasks]       = useState<Task[]>([]);
+  const [team, setTeam]         = useState<TeamMember[]>([]);
+  const [clients, setClients]   = useState<Client[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [selectedMember, setSelectedMember] = useState<string>('');
+  const [activeSection, setActiveSection]   = useState<SectionKey>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [showNewTask, setShowNewTask]       = useState(false);
+
+  const fetchData = useCallback(async () => {
     const FETCH_TIMEOUT_MS = 15_000;
-    const fetchData = async () => {
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-        });
-        const [tasksRes, teamRes] = await Promise.race([
-          Promise.allSettled([
-            supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
-            supabase.from('team_members').select('*').order('name'),
-          ]),
-          timeoutPromise,
-        ]);
-        if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
-          setTasks((tasksRes.value.data ?? []) as Task[]);
-        if (teamRes.status === 'fulfilled' && !teamRes.value.error)
-          setTeam((teamRes.value.data ?? []) as TeamMember[]);
-      } catch (err) {
-        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-        console.error('[my-tasks] fetch error:', isTimeout ? 'timeout' : err);
-      } finally {
-        if (timeoutId !== undefined) clearTimeout(timeoutId);
-        setLoading(false);
-      }
-    };
-    fetchData();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
+      });
+      const [tasksRes, teamRes, clientsRes] = await Promise.race([
+        Promise.allSettled([
+          supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
+          supabase.from('team_members').select('*').order('name'),
+          supabase.from('clients').select('id,name,status').order('name'),
+        ]),
+        timeoutPromise,
+      ]);
+      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
+        setTasks((tasksRes.value.data ?? []) as Task[]);
+      if (teamRes.status === 'fulfilled' && !teamRes.value.error)
+        setTeam((teamRes.value.data ?? []) as TeamMember[]);
+      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error)
+        setClients((clientsRes.value.data ?? []) as Client[]);
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
+      console.error('[my-tasks] fetch error:', isTimeout ? 'timeout' : err);
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      setLoading(false);
+    }
   }, []);
 
-  // Filter tasks by selected team member (if any)
-  const memberTasks = useMemo(() => {
-    if (!selectedMember) return tasks;
-    return tasks.filter(t => t.assigned_to === selectedMember);
-  }, [tasks, selectedMember]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Section counts
+  const memberTasks = useMemo(() => {
+    let result = tasks;
+    if (selectedMember) result = result.filter(t => t.assigned_to === selectedMember);
+    if (categoryFilter) result = result.filter(t => t.task_category === categoryFilter);
+    return result;
+  }, [tasks, selectedMember, categoryFilter]);
+
   const counts = useMemo(() => ({
     dueToday:   memberTasks.filter(isDueToday).length,
     overdue:    memberTasks.filter(isTaskOverdue).length,
     inProgress: memberTasks.filter(t => t.status === 'in_progress').length,
-    inReview:   memberTasks.filter(t => t.status === 'review').length,
-    completed:  memberTasks.filter(t => t.status === 'done' || t.status === 'delivered').length,
+    inReview:   memberTasks.filter(t => ['in_review', 'review'].includes(t.status)).length,
+    completed:  memberTasks.filter(t => ['done', 'completed', 'delivered', 'published'].includes(t.status)).length,
   }), [memberTasks]);
 
-  // Tasks shown in list based on active section
   const visibleTasks = useMemo(() => {
     switch (activeSection) {
       case 'dueToday':   return memberTasks.filter(isDueToday);
       case 'overdue':    return memberTasks.filter(isTaskOverdue);
       case 'inProgress': return memberTasks.filter(t => t.status === 'in_progress');
-      case 'inReview':   return memberTasks.filter(t => t.status === 'review');
-      case 'completed':  return memberTasks.filter(t => t.status === 'done' || t.status === 'delivered');
+      case 'inReview':   return memberTasks.filter(t => ['in_review', 'review'].includes(t.status));
+      case 'completed':  return memberTasks.filter(t => ['done', 'completed', 'delivered', 'published'].includes(t.status));
       default:           return memberTasks;
     }
   }, [memberTasks, activeSection]);
 
-  const overdueCount = memberTasks.filter(isTaskOverdue).length;
-  const selectedMemberName = team.find(m => m.id === selectedMember)?.name ?? user.name;
+  const overdueCount       = memberTasks.filter(isTaskOverdue).length;
+  const selectedMemberName = team.find(m => m.id === selectedMember)?.name ?? (user as { name?: string })?.name ?? 'All';
+
+  function handleTaskCreated(task: Record<string, unknown>) {
+    setTasks(prev => [task as unknown as Task, ...prev]);
+    toast('Task created successfully', 'success');
+  }
+
+  const sectionHeaderLabel = activeSection === 'all'
+    ? t('allTasks')
+    : t(SECTIONS.find(s => s.key === activeSection)?.labelKey ?? '');
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('myTasks')}</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          {selectedMemberName} &mdash; {memberTasks.length} tasks total
-          {overdueCount > 0 && (
-            <span className="ml-2 text-red-500 font-medium">{overdueCount} {t('overdueCount')}</span>
-          )}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+            <Zap size={22} style={{ color: 'var(--accent)' }} />
+            {t('myTasks')}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {selectedMemberName} &mdash; {memberTasks.length} tasks
+            {overdueCount > 0 && (
+              <span className="ml-2 text-red-500 font-medium">{overdueCount} overdue</span>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowNewTask(true)}
+          className="flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 shrink-0"
+          style={{ background: 'var(--accent)' }}
+        >
+          <Plus size={16} /> New Task
+        </button>
       </div>
 
-      {/* Team member selector */}
-      <div className="flex items-center gap-3">
-        <User size={16} style={{ color: 'var(--text-secondary)' }} />
-        <select
-          value={selectedMember}
-          onChange={e => { setSelectedMember(e.target.value); setActiveSection('all'); }}
-          className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-          style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <option value="">{t('allTeamMembers')}</option>
-          {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
+      {/* Filters row */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <User size={14} style={{ color: 'var(--text-secondary)' }} />
+          <select
+            value={selectedMember}
+            onChange={e => { setSelectedMember(e.target.value); setActiveSection('all'); }}
+            className="h-8 px-3 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          >
+            <option value="">{t('allTeamMembers')}</option>
+            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Filter size={13} style={{ color: 'var(--text-secondary)' }} />
+          {categoryFilter && (
+            <button
+              onClick={() => setCategoryFilter('')}
+              className="h-7 px-2.5 rounded-full text-xs font-medium flex items-center gap-1"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
+              <X size={10} /> Clear
+            </button>
+          )}
+          {CATEGORY_FILTERS.map(cf => {
+            const active = categoryFilter === cf.value;
+            return (
+              <button
+                key={cf.value}
+                onClick={() => setCategoryFilter(active ? '' : cf.value)}
+                className="h-7 px-2.5 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: active ? categoryColor(cf.value) : 'var(--surface-2)',
+                  color: active ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${active ? categoryColor(cf.value) : 'var(--border)'}`,
+                }}
+              >
+                {cf.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -217,8 +391,8 @@ export default function MyTasksPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {SECTIONS.map(sec => {
-            const count = counts[sec.key as keyof typeof counts];
-            const Icon = sec.icon;
+            const count  = counts[sec.key as keyof typeof counts] ?? 0;
+            const Icon   = sec.icon;
             const active = activeSection === sec.key;
             return (
               <button
@@ -235,14 +409,12 @@ export default function MyTasksPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <Icon size={18} style={{ color: active ? '#fff' : sec.color }} />
-                  <span
-                    className="text-2xl font-bold tabular-nums"
-                    style={{ color: active ? '#fff' : 'var(--text)' }}
-                  >
+                  <span className="text-2xl font-bold tabular-nums" style={{ color: active ? '#fff' : 'var(--text)' }}>
                     {count}
                   </span>
                 </div>
-                <p className="text-xs font-medium leading-tight" style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)' }}>
+                <p className="text-xs font-medium leading-tight"
+                  style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)' }}>
                   {t(sec.labelKey)}
                 </p>
               </button>
@@ -253,12 +425,23 @@ export default function MyTasksPage() {
 
       {/* Task list */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <LayoutList size={16} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            {activeSection === 'all' ? t('allTasks') : t(SECTIONS.find(s => s.key === activeSection)?.labelKey ?? '')}
-            <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>({visibleTasks.length})</span>
-          </h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LayoutList size={16} style={{ color: 'var(--accent)' }} />
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              {sectionHeaderLabel}
+              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
+                ({visibleTasks.length})
+              </span>
+            </h2>
+          </div>
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="flex items-center gap-1 text-xs font-medium hover:underline"
+            style={{ color: 'var(--accent)' }}
+          >
+            <Plus size={12} /> Add task
+          </button>
         </div>
 
         {loading ? (
@@ -270,16 +453,32 @@ export default function MyTasksPage() {
         ) : visibleTasks.length === 0 ? (
           <div className="rounded-2xl border p-10 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <CheckSquare size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('noTasksInSection')}</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>{t('noTasksInSection')}</p>
+            <button
+              onClick={() => setShowNewTask(true)}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-medium text-white"
+              style={{ background: 'var(--accent)' }}
+            >
+              <Plus size={14} /> Create your first task
+            </button>
           </div>
         ) : (
           <div className="space-y-2">
             {visibleTasks.map(task => (
-              <TaskRow key={task.id} task={task} t={t} />
+              <TaskCard key={task.id} task={task} />
             ))}
           </div>
         )}
       </div>
+
+      {/* New Task Modal */}
+      <NewTaskModal
+        open={showNewTask}
+        onClose={() => setShowNewTask(false)}
+        onCreated={handleTaskCreated}
+        clients={clients}
+        team={team}
+      />
     </div>
   );
 }

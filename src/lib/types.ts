@@ -30,16 +30,55 @@ export interface TeamMember {
   created_at: string;
 }
 
+export type TaskStatus =
+  | 'todo'
+  | 'in_progress'
+  | 'in_review'
+  | 'review'
+  | 'waiting_client'
+  | 'approved'
+  | 'scheduled'
+  | 'published'
+  | 'done'
+  | 'completed'
+  | 'delivered'
+  | 'overdue'
+  | 'cancelled';
+
+export type TaskCategory =
+  | 'internal_task'
+  | 'content_creation'
+  | 'design_task'
+  | 'approval_task'
+  | 'publishing_task'
+  | 'asset_upload_task'
+  | 'follow_up_task';
+
+export type ContentPurpose =
+  | 'awareness'
+  | 'engagement'
+  | 'promotion'
+  | 'branding'
+  | 'lead_generation'
+  | 'announcement'
+  | 'offer_campaign';
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'done' | 'delivered' | 'overdue';
+  status: TaskStatus;
   priority: 'low' | 'medium' | 'high';
   start_date?: string;
   due_date?: string;
+  due_time?: string | null;
+  timezone?: string | null;
   task_date?: string;
+  task_category?: TaskCategory | null;
+  content_purpose?: ContentPurpose | null;
+  caption?: string | null;
   client_id?: string;
+  client_name?: string | null;
   assigned_to?: string;
   created_by?: string;
   mentions?: string[];

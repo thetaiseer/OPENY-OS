@@ -7,7 +7,11 @@
  *
  * Request body (JSON):
  *   { title, description?, status?, priority?, start_date?, due_date?,
- *     client_id, assigned_to, created_by?, mentions?, tags? }
+ *     due_time?, timezone?, task_category?, content_purpose?, caption?,
+ *     client_id?, client_name?, assigned_to?, created_by?, mentions?, tags?,
+ *     platforms?, post_types?, publishing_schedule_id?, asset_id? }
+ *
+ * client_id and assigned_to are required unless task_category is 'internal_task'.
  *
  * Success response:
  *   { success: true, task: { ...createdTask } }
@@ -23,8 +27,30 @@ import { requireRole } from '@/lib/api-auth';
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const VALID_STATUSES   = ['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'] as const;
+const VALID_STATUSES = [
+  'todo', 'in_progress', 'in_review', 'review', 'waiting_client',
+  'approved', 'scheduled', 'published', 'done', 'completed',
+  'delivered', 'overdue', 'cancelled',
+] as const;
+
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+const VALID_TASK_CATEGORIES = [
+  'internal_task', 'content_creation', 'design_task', 'approval_task',
+  'publishing_task', 'asset_upload_task', 'follow_up_task',
+] as const;
+
+const VALID_CONTENT_PURPOSES = [
+  'awareness', 'engagement', 'promotion', 'branding',
+  'lead_generation', 'announcement', 'offer_campaign',
+] as const;
+
+const VALID_PLATFORMS = [
+  'instagram', 'facebook', 'tiktok', 'linkedin',
+  'twitter', 'snapchat', 'youtube_shorts',
+] as const;
+
+const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 export async function POST(request: NextRequest) {
   console.log('[POST /api/tasks] request received');
@@ -52,16 +78,18 @@ export async function POST(request: NextRequest) {
   // 3. Validate required fields
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (!title) {
-    console.warn('[POST /api/tasks] validation failed: title is empty');
     return NextResponse.json(
       { success: false, step: 'validation', error: 'Task title is required' },
       { status: 400 },
     );
   }
 
+  const taskCategory = typeof body.task_category === 'string' ? body.task_category.trim() : '';
+  const isInternalTask = taskCategory === 'internal_task';
+
+  // client_id and assigned_to are required for non-internal tasks
   const clientId = typeof body.client_id === 'string' ? body.client_id.trim() : '';
-  if (!clientId) {
-    console.warn('[POST /api/tasks] validation failed: client_id is empty');
+  if (!clientId && !isInternalTask) {
     return NextResponse.json(
       { success: false, step: 'validation', error: 'Client is required' },
       { status: 400 },
@@ -69,8 +97,7 @@ export async function POST(request: NextRequest) {
   }
 
   const assignedTo = typeof body.assigned_to === 'string' ? body.assigned_to.trim() : '';
-  if (!assignedTo) {
-    console.warn('[POST /api/tasks] validation failed: assigned_to is empty');
+  if (!assignedTo && !isInternalTask) {
     return NextResponse.json(
       { success: false, step: 'validation', error: 'Assigned team member is required' },
       { status: 400 },
@@ -79,7 +106,6 @@ export async function POST(request: NextRequest) {
 
   const dueDate = typeof body.due_date === 'string' ? body.due_date.trim() : '';
   if (!dueDate) {
-    console.warn('[POST /api/tasks] validation failed: due_date is empty');
     return NextResponse.json(
       { success: false, step: 'validation', error: 'Due date is required' },
       { status: 400 },
@@ -97,16 +123,38 @@ export async function POST(request: NextRequest) {
     title,
     status,
     priority,
-    client_id:   clientId,
-    assigned_to: assignedTo,
-    due_date:    dueDate,
+    due_date: dueDate,
   };
+
+  if (clientId)   insertPayload.client_id   = clientId;
+  if (assignedTo) insertPayload.assigned_to = assignedTo;
 
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   if (description) insertPayload.description = description;
 
   const startDate = typeof body.start_date === 'string' ? body.start_date.trim() : '';
   if (startDate) insertPayload.start_date = startDate;
+
+  const dueTime = typeof body.due_time === 'string' ? body.due_time.trim() : '';
+  if (dueTime) insertPayload.due_time = dueTime;
+
+  const timezone = typeof body.timezone === 'string' ? body.timezone.trim() : '';
+  if (timezone) insertPayload.timezone = timezone;
+
+  if (taskCategory && (VALID_TASK_CATEGORIES as readonly string[]).includes(taskCategory)) {
+    insertPayload.task_category = taskCategory;
+  }
+
+  const clientName = typeof body.client_name === 'string' ? body.client_name.trim() : '';
+  if (clientName) insertPayload.client_name = clientName;
+
+  const contentPurpose = typeof body.content_purpose === 'string' ? body.content_purpose.trim() : '';
+  if (contentPurpose && (VALID_CONTENT_PURPOSES as readonly string[]).includes(contentPurpose)) {
+    insertPayload.content_purpose = contentPurpose;
+  }
+
+  const caption = typeof body.caption === 'string' ? body.caption.trim() : '';
+  if (caption) insertPayload.caption = caption;
 
   const createdBy = typeof body.created_by === 'string' ? body.created_by.trim() : '';
   if (createdBy) insertPayload.created_by = createdBy;
@@ -118,6 +166,24 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(body.tags)) {
     insertPayload.tags = (body.tags as unknown[]).filter(t => typeof t === 'string');
   }
+
+  if (Array.isArray(body.platforms)) {
+    insertPayload.platforms = (body.platforms as unknown[]).filter(
+      (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
+    );
+  }
+
+  if (Array.isArray(body.post_types)) {
+    insertPayload.post_types = (body.post_types as unknown[]).filter(
+      (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+    );
+  }
+
+  const publishingScheduleId = typeof body.publishing_schedule_id === 'string' ? body.publishing_schedule_id.trim() : '';
+  if (publishingScheduleId) insertPayload.publishing_schedule_id = publishingScheduleId;
+
+  const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
+  if (assetId) insertPayload.asset_id = assetId;
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   if (!supabaseServiceRoleKey) {
@@ -147,11 +213,19 @@ export async function POST(request: NextRequest) {
 
   console.log('[POST /api/tasks] insert success — id:', data?.id);
 
+  // If an asset was provided, link the asset back to this task (fire-and-forget)
+  if (assetId && data?.id) {
+    void db.from('assets').update({ task_id: data.id }).eq('id', assetId)
+      .then(({ error: aErr }) => {
+        if (aErr) console.warn('[POST /api/tasks] asset link failed:', aErr.message);
+      });
+  }
+
   // Activity log (fire-and-forget — never blocks response)
   void Promise.resolve(db.from('activities').insert({
     type:        'task',
     description: `Task "${title}" created`,
-    client_id:   clientId,
+    client_id:   clientId || null,
   })).then(({ error: actErr }) => {
     if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
   }).catch((err: unknown) => {
