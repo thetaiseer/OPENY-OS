@@ -127,7 +127,7 @@ export default function AiAssistantPanel() {
         const errMsg = (json.error as string | undefined) ?? 'AI request failed';
         // HTTP 503 means AI keys are not configured — surface a clear actionable message
         if (res.status === 503) {
-          throw new Error('AI is not configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in your environment variables.');
+          throw new Error('AI is not configured. Please set GEMINI_API_KEY in your environment variables.');
         }
         throw new Error(errMsg);
       }

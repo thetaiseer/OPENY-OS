@@ -5,6 +5,7 @@ import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
   Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check, Loader2,
+  ChevronDown, ChevronRight, Folder,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -189,7 +190,37 @@ function getFileBaseName(name: string): string {
   return ext ? name.slice(0, name.length - ext.length) : name;
 }
 
-// ── Preview Modal ─────────────────────────────────────────────────────────────
+// ── Month/Year helpers ────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+
+/** Convert "04" or "4" to "April". Returns the raw string on invalid input. */
+function monthLabel(mm: string): string {
+  const idx = parseInt(mm, 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx > 11) return mm;
+  return MONTH_NAMES[idx] ?? mm;
+}
+
+/** Extract year string from an asset (prefers month_key, falls back to created_at). */
+function getAssetYear(asset: Asset): string {
+  if (asset.month_key && asset.month_key.length >= 4) return asset.month_key.slice(0, 4);
+  if (asset.created_at) return new Date(asset.created_at).getFullYear().toString();
+  return 'Unknown';
+}
+
+/** Count total assets in a Client→Year→Month nested map. */
+function countFolderAssets(yearMap: Map<string, Map<string, Asset[]>>): number {
+  let total = 0;
+  for (const monthMap of yearMap.values()) {
+    for (const arr of monthMap.values()) {
+      total += arr.length;
+    }
+  }
+  return total;
+}
 
 /**
  * Wrapper for Drive embed iframes that shows a loading spinner and a
@@ -508,6 +539,24 @@ function AssetCard({ asset, canDelete, canApprove, canRename, onView, onDelete, 
         {asset.content_type && (
           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{contentTypeLabel(asset.content_type)}</span>
         )}
+        {/* Client / Month / Year metadata */}
+        {(asset.client_name || asset.month_key) && (
+          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+            {asset.client_name && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded font-medium"
+                style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+              >
+                {asset.client_name}
+              </span>
+            )}
+            {asset.month_key && asset.month_key.length >= 7 && (
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {monthLabel(asset.month_key.slice(5, 7))} {asset.month_key.slice(0, 4)}
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           <ApprovalBadge status={asset.approval_status} />
           {asset.publish_date && (
@@ -632,8 +681,12 @@ export default function AssetsPage() {
   const [filterClient, setFilterClient]           = useState('');
   const [filterContentType, setFilterContentType] = useState('');
   const [filterMonthKey, setFilterMonthKey]       = useState(''); // "YYYY-MM" or ""
+  const [filterYear, setFilterYear]               = useState('');
   const [filterApproval, setFilterApproval]       = useState('');
   const [sortBy, setSortBy]                       = useState<'newest' | 'oldest' | 'largest'>('newest');
+
+  // Collapse state for folder sections (keyed by "client:name", "year:client:year", "month:client:mk")
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Pending batch (local — shown before upload starts, then handed to context)
   const [pendingItems, setPendingItems]               = useState<FileUploadItem[]>([]);
@@ -785,13 +838,14 @@ export default function AssetsPage() {
 
   // ── Filtered / sorted assets ─────────────────────────────────────────────────
 
-  const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterMonthKey || filterApproval);
+  const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterMonthKey || filterYear || filterApproval);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setFilterClient('');
     setFilterContentType('');
     setFilterMonthKey('');
+    setFilterYear('');
     setFilterApproval('');
   }, []);
 
@@ -803,33 +857,59 @@ export default function AssetsPage() {
         a.name.toLowerCase().includes(q) ||
         (a.client_name?.toLowerCase().includes(q) ?? false) ||
         (a.content_type?.toLowerCase().includes(q) ?? false) ||
-        (a.file_type?.toLowerCase().includes(q) ?? false),
+        (a.file_type?.toLowerCase().includes(q) ?? false) ||
+        (a.month_key?.toLowerCase().includes(q) ?? false) ||
+        (a.mime_type?.toLowerCase().includes(q) ?? false),
       );
     }
     if (filterClient)      result = result.filter(a => a.client_name === filterClient);
     if (filterContentType) result = result.filter(a => a.content_type === filterContentType);
     if (filterMonthKey)    result = result.filter(a => a.month_key === filterMonthKey);
+    if (filterYear)        result = result.filter(a => getAssetYear(a) === filterYear);
     if (filterApproval)    result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
     if (sortBy === 'oldest')       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
     else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [deferredAssets, deferredSearchQuery, filterClient, filterContentType, filterMonthKey, filterApproval, sortBy]);
+  }, [deferredAssets, deferredSearchQuery, filterClient, filterContentType, filterMonthKey, filterYear, filterApproval, sortBy]);
 
-  // ── Grouped view ─────────────────────────────────────────────────────────────
+  // ── Folder view: Client → Year → Month ───────────────────────────────────────
 
-  // When no specific client is selected, produce an ordered list of [clientName, assets[]] groups
-  const groupedByClient = useMemo(() => {
+  // Derive available years from all loaded assets for the year filter dropdown
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    for (const a of assets) {
+      years.add(getAssetYear(a));
+    }
+    return Array.from(years).filter(y => y !== 'Unknown').sort().reverse();
+  }, [assets]);
+
+  // 3-level grouped view — only active when multiple clients present and no client filter
+  const folderView = useMemo(() => {
     if (filterClient) return null;
-    const map = new Map<string, Asset[]>();
+    const map = new Map<string, Map<string, Map<string, Asset[]>>>();
     for (const asset of filteredAssets) {
-      const key = asset.client_name ?? 'No client';
-      const list = map.get(key);
-      if (list) list.push(asset);
-      else map.set(key, [asset]);
+      const client  = asset.client_name ?? 'No Client';
+      const year    = getAssetYear(asset);
+      const mk      = asset.month_key ?? '';
+      if (!map.has(client)) map.set(client, new Map());
+      const yearMap = map.get(client)!;
+      if (!yearMap.has(year)) yearMap.set(year, new Map());
+      const monthMap = yearMap.get(year)!;
+      if (!monthMap.has(mk)) monthMap.set(mk, []);
+      monthMap.get(mk)!.push(asset);
     }
     return map.size > 1 ? map : null;
   }, [filteredAssets, filterClient]);
+
+  const toggleCollapse = useCallback((key: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   // ── File helpers ────────────────────────────────────────────────────────────
 
@@ -865,6 +945,16 @@ export default function AssetsPage() {
     setUploadClientName(name);
     setUploadClientId(clients.find(c => c.name === name)?.id ?? '');
   };
+
+  // Called when a new client is created inline from the upload modal
+  const handleNewClientCreated = useCallback((client: Client) => {
+    setClients(prev => {
+      if (prev.some(c => c.id === client.id)) return prev;
+      return [...prev, client].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    setUploadClientName(client.name);
+    setUploadClientId(client.id);
+  }, []);
 
   const handleUploadNameChange = (id: string, name: string) => {
     setPendingItems(prev => prev.map(i => i.id === id ? { ...i, uploadName: name } : i));
@@ -1072,7 +1162,7 @@ export default function AssetsPage() {
           className="rounded-2xl border p-4 space-y-3"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          {/* Browse row — client · month/year */}
+          {/* Browse row — client · month/year · year */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide shrink-0 w-14" style={{ color: 'var(--text-secondary)' }}>Browse</span>
             <select
@@ -1083,6 +1173,15 @@ export default function AssetsPage() {
             >
               <option value="">All clients</option>
               {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+            <select
+              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+              style={{ background: 'var(--surface-2)', color: filterYear ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              value={filterYear}
+              onChange={e => setFilterYear(e.target.value)}
+            >
+              <option value="">All years</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <MonthYearPicker
               value={filterMonthKey}
@@ -1152,6 +1251,7 @@ export default function AssetsPage() {
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-1.5">
               {filterClient && <FilterBadge label={filterClient} onRemove={() => setFilterClient('')} />}
+              {filterYear && <FilterBadge label={filterYear} onRemove={() => setFilterYear('')} />}
               {filterMonthKey && <FilterBadge label={filterMonthKey} onRemove={() => setFilterMonthKey('')} />}
               {filterContentType && <FilterBadge label={contentTypeLabel(filterContentType)} onRemove={() => setFilterContentType('')} />}
               {filterApproval && <FilterBadge label={filterApproval} onRemove={() => setFilterApproval('')} />}
@@ -1215,46 +1315,111 @@ export default function AssetsPage() {
               ) : undefined
             }
           />
-        ) : groupedByClient ? (
-          /* ── Grouped by client ── */
-          <div className="space-y-8">
-            {Array.from(groupedByClient.entries()).map(([clientName, clientAssets]) => (
-              <div key={clientName}>
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{clientName}</h3>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        ) : folderView ? (
+          /* ── Folder-grouped view: Client → Year → Month ── */
+          <div className="space-y-6">
+            {Array.from(folderView.entries()).map(([clientKey, yearMap]) => {
+              const clientColKey = `client:${clientKey}`;
+              const clientCollapsed = collapsed.has(clientColKey);
+              const totalCount = countFolderAssets(yearMap);
+              return (
+                <div key={clientKey}>
+                  {/* Client header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapse(clientColKey)}
+                    className="flex items-center gap-2 mb-3 w-full text-left hover:opacity-80 transition-opacity"
                   >
-                    {clientAssets.length}
-                  </span>
-                  {/* Only show the filter shortcut when clientName corresponds to a real client */}
-                  {clientAssets[0]?.client_name && (
-                    <button
-                      className="text-xs underline opacity-60 hover:opacity-100 transition-opacity"
-                      style={{ color: 'var(--accent)' }}
-                      onClick={() => setFilterClient(clientAssets[0].client_name!)}
+                    {clientCollapsed
+                      ? <ChevronRight size={16} style={{ color: 'var(--text-secondary)' }} />
+                      : <ChevronDown  size={16} style={{ color: 'var(--text-secondary)' }} />}
+                    <Folder size={16} style={{ color: 'var(--accent)' }} />
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{clientKey}</span>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                     >
-                      View all →
-                    </button>
+                      {totalCount}
+                    </span>
+                  </button>
+
+                  {!clientCollapsed && (
+                    <div className="pl-6 space-y-4">
+                      {Array.from(yearMap.entries()).map(([year, monthMap]) => {
+                        const yearColKey = `year:${clientKey}:${year}`;
+                        const yearCollapsed = collapsed.has(yearColKey);
+                        const yearCount = Array.from(monthMap.values()).reduce((s, a) => s + a.length, 0);
+                        return (
+                          <div key={year}>
+                            {/* Year header */}
+                            <button
+                              type="button"
+                              onClick={() => toggleCollapse(yearColKey)}
+                              className="flex items-center gap-1.5 mb-2 hover:opacity-80 transition-opacity"
+                            >
+                              {yearCollapsed
+                                ? <ChevronRight size={14} style={{ color: 'var(--text-secondary)' }} />
+                                : <ChevronDown  size={14} style={{ color: 'var(--text-secondary)' }} />}
+                              <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{year}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                                {yearCount}
+                              </span>
+                            </button>
+
+                            {!yearCollapsed && (
+                              <div className="pl-4 space-y-3">
+                                {Array.from(monthMap.entries()).map(([mk, monthAssets]) => {
+                                  const monthColKey = `month:${clientKey}:${mk}`;
+                                  const monthCollapsed = collapsed.has(monthColKey);
+                                  const monthDisplay = mk.length >= 7
+                                    ? `${monthLabel(mk.slice(5, 7))} ${mk.slice(0, 4)}`
+                                    : (mk || 'Unknown Month');
+                                  return (
+                                    <div key={mk}>
+                                      {/* Month header */}
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleCollapse(monthColKey)}
+                                        className="flex items-center gap-1.5 mb-2 hover:opacity-80 transition-opacity"
+                                      >
+                                        {monthCollapsed
+                                          ? <ChevronRight size={13} style={{ color: 'var(--text-secondary)' }} />
+                                          : <ChevronDown  size={13} style={{ color: 'var(--text-secondary)' }} />}
+                                        <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>{monthDisplay}</span>
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                                          {monthAssets.length}
+                                        </span>
+                                      </button>
+
+                                      {!monthCollapsed && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                          {monthAssets.map(asset => (
+                                            <AssetCard
+                                              key={asset.id} asset={asset}
+                                              canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
+                                              onView={() => handleView(asset)} onDelete={() => void handleDelete(asset)}
+                                              onCopyLink={() => void handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                                              onApprove={() => void handleApprovalAction(asset, 'approved')}
+                                              onReject={() => void handleApprovalAction(asset, 'rejected')}
+                                              onComments={() => setCommentsAsset(asset)}
+                                              onRename={(newName) => handleRename(asset, newName)}
+                                            />
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {clientAssets.map(asset => (
-                    <AssetCard
-                      key={asset.id} asset={asset}
-                      canDelete={isAdmin} canApprove={isAdmin || user?.role === 'team'} canRename={isAdmin || user?.role === 'team'}
-                      onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
-                      onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
-                      onApprove={() => handleApprovalAction(asset, 'approved')}
-                      onReject={() => handleApprovalAction(asset, 'rejected')}
-                      onComments={() => setCommentsAsset(asset)}
-                      onRename={(newName) => handleRename(asset, newName)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {hasMore && !loading && (
               <div className="flex justify-center pt-2">
                 <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
@@ -1299,6 +1464,7 @@ export default function AssetsPage() {
           onContentTypeChange={setUploadContentType}
           onMonthChange={setUploadMonth}
           onClientChange={(name, id) => { setUploadClientName(name); setUploadClientId(id); }}
+          onNewClientCreated={handleNewClientCreated}
           onConfirm={handleUploadConfirm}
           onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
           onUploadNameChange={handleUploadNameChange}

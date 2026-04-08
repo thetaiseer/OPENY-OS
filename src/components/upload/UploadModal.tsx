@@ -7,15 +7,18 @@
  * Features:
  *  - Per-file name editor with validation
  *  - Client selection (lockable when uploading from a client workspace)
+ *  - "+ Create New" button that opens CreateClientModal inline
  *  - Content-type selector
  *  - MonthYearPicker (modern calendar-style month/year picker)
  *  - AI writing improvement on file names
  *  - Consistent design system styling
  */
 
-import { X, FileImage, FileText, FileVideo, FileAudio, File, Sparkles, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { X, FileImage, FileText, FileVideo, FileAudio, File, Plus } from 'lucide-react';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import CreateClientModal from '@/components/upload/CreateClientModal';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Client } from '@/lib/types';
 
@@ -37,13 +40,15 @@ export interface UploadModalProps {
   clients:       Client[];
   /** When true the client field is hidden (uploading from a client workspace) */
   lockClient?:   boolean;
-  onContentTypeChange: (v: string) => void;
-  onMonthChange:       (v: string) => void;
-  onClientChange?:     (name: string, id: string) => void;
-  onUploadNameChange:  (id: string, name: string) => void;
-  onRemoveFile:        (id: string) => void;
-  onConfirm:           () => void;
-  onCancel:            () => void;
+  onContentTypeChange:  (v: string) => void;
+  onMonthChange:        (v: string) => void;
+  onClientChange?:      (name: string, id: string) => void;
+  /** Called when a new client is created via the inline modal */
+  onNewClientCreated?:  (client: Client) => void;
+  onUploadNameChange:   (id: string, name: string) => void;
+  onRemoveFile:         (id: string) => void;
+  onConfirm:            () => void;
+  onCancel:             () => void;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -181,7 +186,7 @@ function FileRow({
           type="text"
           value={item.uploadName}
           onChange={e => onChangeName(e.target.value)}
-          placeholder="Enter file name…"
+          placeholder="Enter file name..."
           className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
           style={{
             background:  'var(--surface)',
@@ -204,19 +209,22 @@ export default function UploadModal({
   contentType,
   monthKey,
   clientName,
-  clientId,
+  clientId: _clientId,
   clients,
   lockClient = false,
   onContentTypeChange,
   onMonthChange,
   onClientChange,
+  onNewClientCreated,
   onUploadNameChange,
   onRemoveFile,
   onConfirm,
   onCancel,
 }: UploadModalProps) {
-  const hasErrors    = files.some(f => validateUploadName(f.uploadName) !== null);
-  const canConfirm   = files.length > 0 && !hasErrors && (lockClient || !!clientName);
+  const [showCreateClient, setShowCreateClient] = useState(false);
+
+  const hasErrors  = files.some(f => validateUploadName(f.uploadName) !== null);
+  const canConfirm = files.length > 0 && !hasErrors && (lockClient || !!clientName);
 
   const handleClientSelect = (name: string) => {
     if (!onClientChange) return;
@@ -224,148 +232,174 @@ export default function UploadModal({
     onClientChange(name, found?.id ?? '');
   };
 
+  const handleNewClientCreated = (client: Client) => {
+    setShowCreateClient(false);
+    onNewClientCreated?.(client);
+    onClientChange?.(client.name, client.id);
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
-      onClick={onCancel}
-    >
+    <>
       <div
-        className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col"
-        style={{
-          background:   'var(--surface)',
-          borderColor:  'var(--border)',
-          maxHeight:    '92vh',
-        }}
-        onClick={e => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.65)' }}
+        onClick={onCancel}
       >
-        {/* ── Header ── */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-          style={{ borderColor: 'var(--border)' }}
+          className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col"
+          style={{
+            background:   'var(--surface)',
+            borderColor:  'var(--border)',
+            maxHeight:    '92vh',
+          }}
+          onClick={e => e.stopPropagation()}
         >
-          <div>
-            <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-              Upload {files.length === 1 ? 'File' : `${files.length} Files`}
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              Review details before uploading to Google Drive
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-            title="Cancel"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* ── Scrollable body ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-
-          {/* File list */}
-          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-            {files.map(item => (
-              <FileRow
-                key={item.id}
-                item={item}
-                onChangeName={name => onUploadNameChange(item.id, name)}
-                onRemove={() => onRemoveFile(item.id)}
-              />
-            ))}
-          </div>
-
+          {/* Header */}
           <div
-            className="rounded-2xl border p-4 space-y-4"
-            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+            className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+            style={{ borderColor: 'var(--border)' }}
           >
-            {/* Client selector */}
-            {!lockClient && (
+            <div>
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
+                Upload {files.length === 1 ? 'File' : `${files.length} Files`}
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                Review details before uploading to Google Drive
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              title="Cancel"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+            {/* File list */}
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {files.map(item => (
+                <FileRow
+                  key={item.id}
+                  item={item}
+                  onChangeName={name => onUploadNameChange(item.id, name)}
+                  onRemove={() => onRemoveFile(item.id)}
+                />
+              ))}
+            </div>
+
+            <div
+              className="rounded-2xl border p-4 space-y-4"
+              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+            >
+              {/* Client selector */}
+              {!lockClient && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label required>Client</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateClient(true)}
+                      className="flex items-center gap-1 text-xs font-medium hover:opacity-80 transition-opacity"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      <Plus size={12} /> Create New
+                    </button>
+                  </div>
+                  <select
+                    className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                    style={{
+                      background: 'var(--surface)',
+                      color:      clientName ? 'var(--text)' : 'var(--text-secondary)',
+                      border:     '1.5px solid var(--border)',
+                    }}
+                    value={clientName}
+                    onChange={e => handleClientSelect(e.target.value)}
+                  >
+                    <option value="">— Select a client —</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Content Type */}
               <div>
-                <Label required>Client</Label>
+                <Label required>Content Type</Label>
                 <select
                   className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
                   style={{
                     background: 'var(--surface)',
-                    color:      clientName ? 'var(--text)' : 'var(--text-secondary)',
+                    color:      'var(--text)',
                     border:     '1.5px solid var(--border)',
                   }}
-                  value={clientName}
-                  onChange={e => handleClientSelect(e.target.value)}
+                  value={contentType}
+                  onChange={e => onContentTypeChange(e.target.value)}
                 >
-                  <option value="">— Select a client —</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
+                  {ALLOWED_CONTENT_TYPES.map(ct => (
+                    <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {/* Content Type */}
-            <div>
-              <Label required>Content Type</Label>
-              <select
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-                style={{
-                  background: 'var(--surface)',
-                  color:      'var(--text)',
-                  border:     '1.5px solid var(--border)',
-                }}
-                value={contentType}
-                onChange={e => onContentTypeChange(e.target.value)}
-              >
-                {ALLOWED_CONTENT_TYPES.map(ct => (
-                  <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Month / Year picker */}
-            <div>
-              <Label required>Month & Year</Label>
-              <MonthYearPicker
-                value={monthKey}
-                onChange={onMonthChange}
-                placeholder="Pick a month…"
-                className="w-full"
-              />
+              {/* Month / Year picker */}
+              <div>
+                <Label required>Month & Year</Label>
+                <MonthYearPicker
+                  value={monthKey}
+                  onChange={onMonthChange}
+                  placeholder="Pick a month..."
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* ── Footer ── */}
-        <div
-          className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-            style={{
-              background: 'var(--surface-2)',
-              color:      'var(--text)',
-              border:     '1px solid var(--border)',
-            }}
+          {/* Footer */}
+          <div
+            className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
+            style={{ borderColor: 'var(--border)' }}
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={!canConfirm}
-            className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: 'var(--accent)' }}
-          >
-            {files.length === 1
-              ? 'Upload File'
-              : `Upload ${files.length} Files`}
-          </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{
+                background: 'var(--surface-2)',
+                color:      'var(--text)',
+                border:     '1px solid var(--border)',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!canConfirm}
+              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'var(--accent)' }}
+            >
+              {files.length === 1
+                ? 'Upload File'
+                : `Upload ${files.length} Files`}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Inline Create Client modal — renders above UploadModal (z-60) */}
+      {showCreateClient && (
+        <CreateClientModal
+          onCreated={handleNewClientCreated}
+          onCancel={() => setShowCreateClient(false)}
+        />
+      )}
+    </>
   );
 }

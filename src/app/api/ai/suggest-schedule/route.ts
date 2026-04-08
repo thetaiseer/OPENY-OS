@@ -12,7 +12,7 @@ interface TaskInput {
 
 /**
  * POST /api/ai/suggest-schedule
- * Suggest an optimized task schedule using AI (OpenAI or Gemini).
+ * Suggest an optimized task schedule using Gemini.
  * Body: { tasks: TaskInput[], context?: string }
  */
 export async function POST(req: NextRequest) {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, schedule });
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
-        return NextResponse.json({ success: false, error: 'AI features not configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' }, { status: 503 });
+        return NextResponse.json({ success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' }, { status: 503 });
       }
       const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       return NextResponse.json({ success: false, error: msg }, { status: 502 });
