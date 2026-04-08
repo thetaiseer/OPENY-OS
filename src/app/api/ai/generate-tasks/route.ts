@@ -4,7 +4,7 @@ import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 
 /**
  * POST /api/ai/generate-tasks
- * Generate task suggestions for a client using AI (OpenAI or Gemini).
+ * Generate task suggestions for a client using Gemini.
  * Body: { clientId?: string, clientName?: string, description?: string, count?: number }
  */
 export async function POST(req: NextRequest) {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, tasks });
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
-        return NextResponse.json({ success: false, error: 'AI features not configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' }, { status: 503 });
+        return NextResponse.json({ success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' }, { status: 503 });
       }
       const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       return NextResponse.json({ success: false, error: msg }, { status: 502 });

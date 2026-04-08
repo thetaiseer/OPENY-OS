@@ -40,7 +40,7 @@ function countWords(text: string): number {
 /**
  * POST /api/ai/improve
  *
- * Improves a piece of text using OpenAI.
+ * Improves a piece of text using Gemini.
  *
  * Request body (JSON):
  *   text   – the text to improve (required)
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
         return NextResponse.json(
-          { success: false, error: 'AI writing features are not configured. Set OPENAI_API_KEY or GEMINI_API_KEY to enable them.' },
+          { success: false, error: 'AI writing features are not configured. Set GEMINI_API_KEY to enable them.' },
           { status: 503 },
         );
       }

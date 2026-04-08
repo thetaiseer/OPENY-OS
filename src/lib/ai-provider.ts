@@ -1,13 +1,12 @@
 /**
  * src/lib/ai-provider.ts
  *
- * Unified AI text-generation helper.
+ * Gemini AI text-generation helper.
  *
- * Provider priority:
- *   1. OPENAI_API_KEY  → OpenAI gpt-4o-mini
- *   2. GEMINI_API_KEY  → Google Gemini gemini-2.5-flash
+ * Requires GEMINI_API_KEY. Reads GEMINI_MODEL env var for the model name
+ * (default: gemini-2.5-flash).
  *
- * If neither key is set, throws AiUnconfiguredError (callers return HTTP 503).
+ * If GEMINI_API_KEY is not set, throws AiUnconfiguredError (callers return HTTP 503).
  *
  * Usage:
  *   const text = await callAI({ system: '...', user: '...', maxTokens: 512, temperature: 0.7 });
@@ -15,13 +14,13 @@
 
 export class AiUnconfiguredError extends Error {
   constructor() {
-    super('AI features are not configured. Set OPENAI_API_KEY or GEMINI_API_KEY to enable them.');
+    super('AI features are not configured. Set GEMINI_API_KEY to enable them.');
     this.name = 'AiUnconfiguredError';
   }
 }
 
 export interface AiCallOptions {
-  /** System-role instruction (OpenAI) / prepended to user prompt (Gemini). */
+  /** System-role instruction prepended to the user prompt. */
   system: string;
   /** User-role prompt. */
   user: string;
@@ -38,18 +37,13 @@ export async function callAI({
   maxTokens = 1024,
   temperature = 0.7,
 }: AiCallOptions): Promise<string> {
-  const openaiKey = process.env.OPENAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
-  if (openaiKey) {
-    return callOpenAI({ openaiKey, system, user, maxTokens, temperature });
+  if (!geminiKey) {
+    throw new AiUnconfiguredError();
   }
 
-  if (geminiKey) {
-    return callGemini({ geminiKey, system, user, maxTokens, temperature });
-  }
-
-  throw new AiUnconfiguredError();
+  return callGemini({ geminiKey, system, user, maxTokens, temperature });
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -61,52 +55,6 @@ const MAX_ERROR_BODY_LENGTH = 200;
 function parseApiErrorMessage(err: Record<string, unknown>, fallback: string): string {
   const msg = (err?.error as Record<string, unknown>)?.message;
   return msg != null ? String(msg) : fallback;
-}
-
-// ── OpenAI ────────────────────────────────────────────────────────────────────
-
-async function callOpenAI({
-  openaiKey,
-  system,
-  user,
-  maxTokens,
-  temperature,
-}: {
-  openaiKey: string;
-  system: string;
-  user: string;
-  maxTokens: number;
-  temperature: number;
-}): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      max_tokens: maxTokens,
-      temperature,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-    throw new Error(parseApiErrorMessage(err, `OpenAI API error (HTTP ${res.status})`));
-  }
-
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error('OpenAI returned an empty response — no content in choices[0].message.content');
-  return text;
 }
 
 // ── Gemini ────────────────────────────────────────────────────────────────────
@@ -124,7 +72,8 @@ async function callGemini({
   maxTokens: number;
   temperature: number;
 }): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+  const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
 
   const res = await fetch(url, {
     method: 'POST',

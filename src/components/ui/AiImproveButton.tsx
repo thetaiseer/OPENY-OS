@@ -133,7 +133,7 @@ export default function AiImproveButton({
       <button
         type="button"
         disabled
-        title="AI writing is not configured (OPENAI_API_KEY or GEMINI_API_KEY is not set)"
+        title="AI writing is not configured (GEMINI_API_KEY is not set)"
         className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium opacity-30 cursor-not-allowed ${className}`}
         style={{
           background: 'var(--accent-soft)',
