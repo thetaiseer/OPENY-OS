@@ -271,7 +271,6 @@ export async function POST(req: NextRequest) {
     thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
     web_view_link:      webViewLink,
     upload_state:       'completed',
-    last_synced_at:     new Date().toISOString(),
     ...(clientId    ? { client_id:   clientId    } : {}),
     ...(uploadedBy  ? { uploaded_by: uploadedBy  } : {}),
   };
