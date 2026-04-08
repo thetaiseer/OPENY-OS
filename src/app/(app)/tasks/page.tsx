@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember } from '@/lib/types';
 
@@ -143,10 +144,16 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')} *</label>
-          <select required value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className={inputCls} style={inputStyle}>
-            <option value="">{t('none')}</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <SelectDropdown
+            fullWidth
+            value={form.client_id}
+            onChange={v => setForm(f => ({ ...f, client_id: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...clients.map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
@@ -164,21 +171,31 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-          <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className={inputCls} style={inputStyle}>
-            <option value="low">{t('low')}</option>
-            <option value="medium">{t('medium')}</option>
-            <option value="high">{t('high')}</option>
-          </select>
+          <SelectDropdown
+            fullWidth
+            value={form.priority}
+            onChange={v => setForm(f => ({ ...f, priority: v }))}
+            options={[
+              { value: 'low',    label: t('low') },
+              { value: 'medium', label: t('medium') },
+              { value: 'high',   label: t('high') },
+            ]}
+          />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputCls} style={inputStyle}>
-            <option value="todo">{t('todo')}</option>
-            <option value="in_progress">{t('inProgress')}</option>
-            <option value="review">{t('review')}</option>
-            <option value="done">{t('done')}</option>
-            <option value="delivered">{t('delivered')}</option>
-          </select>
+          <SelectDropdown
+            fullWidth
+            value={form.status}
+            onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[
+              { value: 'todo',        label: t('todo') },
+              { value: 'in_progress', label: t('inProgress') },
+              { value: 'review',      label: t('review') },
+              { value: 'done',        label: t('done') },
+              { value: 'delivered',   label: t('delivered') },
+            ]}
+          />
         </div>
       </div>
 
@@ -186,17 +203,29 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')} *</label>
-          <select required value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))} className={inputCls} style={inputStyle}>
-            <option value="">{t('unassigned')}</option>
-            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
+          <SelectDropdown
+            fullWidth
+            value={form.assigned_to}
+            onChange={v => setForm(f => ({ ...f, assigned_to: v }))}
+            placeholder={t('unassigned')}
+            options={[
+              { value: '', label: t('unassigned') },
+              ...team.map(m => ({ value: m.id, label: m.name })),
+            ]}
+          />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('createdBy')}</label>
-          <select value={form.created_by} onChange={e => setForm(f => ({ ...f, created_by: e.target.value }))} className={inputCls} style={inputStyle}>
-            <option value="">{t('none')}</option>
-            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
+          <SelectDropdown
+            fullWidth
+            value={form.created_by}
+            onChange={v => setForm(f => ({ ...f, created_by: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...team.map(m => ({ value: m.id, label: m.name })),
+            ]}
+          />
         </div>
       </div>
 
@@ -551,17 +580,17 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t 
                         </div>
                       </div>
                       {/* Quick status change */}
-                      <select
-                        value={task.status}
-                        onChange={e => onStatusChange(task, e.target.value)}
-                        className="w-full h-7 px-2 rounded-lg text-xs outline-none"
-                        style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => (
-                          <option key={s} value={s}>{statusLabel(s, t)}</option>
-                        ))}
-                      </select>
+                      <div onClick={e => e.stopPropagation()}>
+                        <SelectDropdown
+                          fullWidth
+                          value={task.status}
+                          onChange={v => onStatusChange(task, v)}
+                          options={['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => ({
+                            value: s,
+                            label: statusLabel(s, t),
+                          }))}
+                        />
+                      </div>
                     </div>
                   );
                 })
@@ -604,42 +633,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
 const FETCH_TIMEOUT_MS    = 15_000;
 const MUTATION_TIMEOUT_MS = 15_000;
 
-// Accent-soft fallback color for filter active states (matches --accent-soft CSS var)
-const ACCENT_SOFT = 'var(--accent-soft, #ede9fe)';
 
-// ─── FilterSelect ─────────────────────────────────────────────────────────────
-// Styled chip-like select wrapper used for the dropdown filter controls.
-
-interface FilterSelectProps {
-  value: string;
-  onChange: (v: string) => void;
-  children: React.ReactNode;
-}
-
-function FilterSelect({ value, onChange, children }: FilterSelectProps) {
-  const isActive = !!value;
-  return (
-    <div className="relative inline-flex items-center">
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="h-8 pl-3 pr-7 rounded-full text-xs appearance-none outline-none cursor-pointer transition-all"
-        style={{
-          background: isActive ? ACCENT_SOFT : 'var(--surface)',
-          color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-          border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-        }}
-      >
-        {children}
-      </select>
-      <ChevronDown
-        size={12}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)' }}
-      />
-    </div>
-  );
-}
 
 
 export default function TasksPage() {
@@ -1149,32 +1143,57 @@ export default function TasksPage() {
 
       {/* Dropdown filters */}
       <div className="flex flex-wrap gap-2 items-center">
-        <FilterSelect value={clientFilter} onChange={setClientFilter}>
-          <option value="">{t('allClients')}</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </FilterSelect>
-        <FilterSelect value={assignedFilter} onChange={setAssignedFilter}>
-          <option value="">{t('allMembers')}</option>
-          {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </FilterSelect>
-        <FilterSelect value={priorityFilter} onChange={setPriorityFilter}>
-          <option value="">{t('allPriorities')}</option>
-          <option value="high">{t('high')}</option>
-          <option value="medium">{t('medium')}</option>
-          <option value="low">{t('low')}</option>
-        </FilterSelect>
-        <FilterSelect value={platformFilter} onChange={setPlatformFilter}>
-          <option value="">All platforms</option>
-          {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-        </FilterSelect>
-        <FilterSelect value={postTypeFilter} onChange={setPostTypeFilter}>
-          <option value="">All post types</option>
-          {POST_TYPES.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
-        </FilterSelect>
+        <SelectDropdown
+          value={clientFilter}
+          onChange={setClientFilter}
+          placeholder={t('allClients')}
+          options={[
+            { value: '', label: t('allClients') },
+            ...clients.map(c => ({ value: c.id, label: c.name })),
+          ]}
+        />
+        <SelectDropdown
+          value={assignedFilter}
+          onChange={setAssignedFilter}
+          placeholder={t('allMembers')}
+          options={[
+            { value: '', label: t('allMembers') },
+            ...team.map(m => ({ value: m.id, label: m.name })),
+          ]}
+        />
+        <SelectDropdown
+          value={priorityFilter}
+          onChange={setPriorityFilter}
+          placeholder={t('allPriorities')}
+          options={[
+            { value: '',       label: t('allPriorities') },
+            { value: 'high',   label: t('high') },
+            { value: 'medium', label: t('medium') },
+            { value: 'low',    label: t('low') },
+          ]}
+        />
+        <SelectDropdown
+          value={platformFilter}
+          onChange={setPlatformFilter}
+          placeholder="All platforms"
+          options={[
+            { value: '', label: 'All platforms' },
+            ...PLATFORMS.map(p => ({ value: p.value, label: p.label })),
+          ]}
+        />
+        <SelectDropdown
+          value={postTypeFilter}
+          onChange={setPostTypeFilter}
+          placeholder="All post types"
+          options={[
+            { value: '', label: 'All post types' },
+            ...POST_TYPES.map(pt => ({ value: pt.value, label: pt.label })),
+          ]}
+        />
         {(clientFilter || assignedFilter || priorityFilter || platformFilter || postTypeFilter || searchQuery) && (
           <button
             onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setPlatformFilter(''); setPostTypeFilter(''); setSearchQuery(''); }}
-            className="inline-flex items-center h-8 px-3.5 rounded-full text-xs font-medium transition-all"
+            className="inline-flex items-center h-9 px-3.5 rounded-lg text-sm font-medium transition-all"
             style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
           >
             Clear filters

@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
 
@@ -339,15 +340,15 @@ export default function MyTasksPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <User size={14} style={{ color: 'var(--text-secondary)' }} />
-          <select
+          <SelectDropdown
             value={selectedMember}
-            onChange={e => { setSelectedMember(e.target.value); setActiveSection('all'); }}
-            className="h-8 px-3 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
-          >
-            <option value="">{t('allTeamMembers')}</option>
-            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
+            onChange={v => { setSelectedMember(v); setActiveSection('all'); }}
+            placeholder={t('allTeamMembers')}
+            options={[
+              { value: '', label: t('allTeamMembers') },
+              ...team.map(m => ({ value: m.id, label: m.name })),
+            ]}
+          />
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">

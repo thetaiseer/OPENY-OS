@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 
 const statusVariant = (s: string) => {
@@ -342,16 +343,16 @@ export default function ClientsPage() {
             ))}
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              >
-                <option value="active">{t('active')}</option>
-                <option value="inactive">{t('inactive')}</option>
-                <option value="prospect">{t('prospect')}</option>
-              </select>
+                onChange={v => setForm(f => ({ ...f, status: v }))}
+                options={[
+                  { value: 'active',   label: t('active') },
+                  { value: 'inactive', label: t('inactive') },
+                  { value: 'prospect', label: t('prospect') },
+                ]}
+              />
             </div>
           </div>
           <div className="space-y-1">

@@ -22,6 +22,7 @@ import {
   X, Calendar, Clock, Globe,
   CheckCircle, AlertCircle, Loader2, Send,
 } from 'lucide-react';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -334,17 +335,16 @@ export default function SchedulePublishingModal({
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                   CLIENT
                 </label>
-                <select
-                  className={inputCls}
-                  style={inputStyle}
+                <SelectDropdown
+                  fullWidth
                   value={clientNameVal}
-                  onChange={e => handleClientChange(e.target.value)}
-                >
-                  <option value="">— Select a client —</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={handleClientChange}
+                  placeholder="— Select a client —"
+                  options={[
+                    { value: '', label: '— Select a client —' },
+                    ...clients.map(c => ({ value: c.name, label: c.name })),
+                  ]}
+                />
               </div>
             )}
 
@@ -458,16 +458,12 @@ export default function SchedulePublishingModal({
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                   <Globe size={11} className="inline mr-1" />TIMEZONE
                 </label>
-                <select
-                  className={inputCls}
-                  style={inputStyle}
+                <SelectDropdown
+                  fullWidth
                   value={timezone}
-                  onChange={e => setTimezone(e.target.value)}
-                >
-                  {COMMON_TIMEZONES.map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
+                  onChange={setTimezone}
+                  options={COMMON_TIMEZONES.map(tz => ({ value: tz, label: tz }))}
+                />
               </div>
             </div>
 
@@ -476,16 +472,12 @@ export default function SchedulePublishingModal({
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                 STATUS
               </label>
-              <select
-                className={inputCls}
-                style={inputStyle}
+              <SelectDropdown
+                fullWidth
                 value={status}
-                onChange={e => setStatus(e.target.value)}
-              >
-                {STATUSES.map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
+                onChange={setStatus}
+                options={STATUSES.map(s => ({ value: s.value, label: s.label }))}
+              />
             </div>
 
             {/* Caption */}
@@ -524,17 +516,16 @@ export default function SchedulePublishingModal({
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                   ASSIGN TO (optional)
                 </label>
-                <select
-                  className={inputCls}
-                  style={inputStyle}
+                <SelectDropdown
+                  fullWidth
                   value={assignedTo}
-                  onChange={e => setAssignedTo(e.target.value)}
-                >
-                  <option value="">— Unassigned —</option>
-                  {team.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+                  onChange={setAssignedTo}
+                  placeholder="— Unassigned —"
+                  options={[
+                    { value: '', label: '— Unassigned —' },
+                    ...team.map(m => ({ value: m.id, label: m.name })),
+                  ]}
+                />
               </div>
             )}
 
@@ -543,16 +534,12 @@ export default function SchedulePublishingModal({
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                 REMINDER (optional)
               </label>
-              <select
-                className={inputCls}
-                style={inputStyle}
+              <SelectDropdown
+                fullWidth
                 value={reminderMinutes}
-                onChange={e => setReminderMinutes(e.target.value)}
-              >
-                {REMINDER_OPTIONS.map(r => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
+                onChange={setReminderMinutes}
+                options={REMINDER_OPTIONS.map(r => ({ value: r.value, label: r.label }))}
+              />
             </div>
 
           </div>

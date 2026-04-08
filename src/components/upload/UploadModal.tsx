@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { X, FileImage, FileText, FileVideo, FileAudio, File, Plus } from 'lucide-react';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import CreateClientModal from '@/components/upload/CreateClientModal';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Client } from '@/lib/types';
@@ -314,41 +315,28 @@ export default function UploadModal({
                       <Plus size={12} /> Create New
                     </button>
                   </div>
-                  <select
-                    className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-                    style={{
-                      background: 'var(--surface)',
-                      color:      clientName ? 'var(--text)' : 'var(--text-secondary)',
-                      border:     '1.5px solid var(--border)',
-                    }}
+                  <SelectDropdown
+                    fullWidth
                     value={clientName}
-                    onChange={e => handleClientSelect(e.target.value)}
-                  >
-                    <option value="">— Select a client —</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
+                    onChange={handleClientSelect}
+                    placeholder="— Select a client —"
+                    options={[
+                      { value: '', label: '— Select a client —' },
+                      ...clients.map(c => ({ value: c.name, label: c.name })),
+                    ]}
+                  />
                 </div>
               )}
 
               {/* Content Type */}
               <div>
                 <Label required>Content Type</Label>
-                <select
-                  className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-                  style={{
-                    background: 'var(--surface)',
-                    color:      'var(--text)',
-                    border:     '1.5px solid var(--border)',
-                  }}
+                <SelectDropdown
+                  fullWidth
                   value={contentType}
-                  onChange={e => onContentTypeChange(e.target.value)}
-                >
-                  {ALLOWED_CONTENT_TYPES.map(ct => (
-                    <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>
-                  ))}
-                </select>
+                  onChange={onContentTypeChange}
+                  options={ALLOWED_CONTENT_TYPES.map(ct => ({ value: ct, label: contentTypeLabel(ct) }))}
+                />
               </div>
 
               {/* Month / Year picker */}

@@ -18,6 +18,7 @@ import {
   Paperclip, ChevronDown, FileText,
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client, TeamMember, TaskCategory, Task } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -447,16 +448,12 @@ export default function NewTaskModal({
         {/* Content type picker */}
         <div className="space-y-1">
           <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>File Category</label>
-          <select
+          <SelectDropdown
+            fullWidth
             value={uploadState.contentType}
-            onChange={e => setUpload(u => ({ ...u, contentType: e.target.value }))}
-            className="w-full h-8 px-2 rounded-lg text-xs outline-none"
-            style={inputStyle}
-          >
-            {VALID_CONTENT_TYPES_UPLOAD.map(ct => (
-              <option key={ct} value={ct}>{ct.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
+            onChange={v => setUpload(u => ({ ...u, contentType: v }))}
+            options={VALID_CONTENT_TYPES_UPLOAD.map(ct => ({ value: ct, label: ct.replace(/_/g, ' ') }))}
+          />
         </div>
 
         {/* Drive folder info */}
@@ -544,27 +541,29 @@ export default function NewTaskModal({
                   <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
                     <User size={12} /> Client {isInternal ? '' : '*'}
                   </label>
-                  <select
+                  <SelectDropdown
+                    fullWidth
                     value={clientId}
-                    onChange={e => setClientId(e.target.value)}
-                    className={inputCls}
-                    style={inputStyle}
-                  >
-                    <option value="">— Select client —</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                    onChange={setClientId}
+                    placeholder="— Select client —"
+                    options={[
+                      { value: '', label: '— Select client —' },
+                      ...clients.map(c => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Assignee *</label>
-                  <select
+                  <SelectDropdown
+                    fullWidth
                     value={assignedTo}
-                    onChange={e => setAssigned(e.target.value)}
-                    className={inputCls}
-                    style={inputStyle}
-                  >
-                    <option value="">— Unassigned —</option>
-                    {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+                    onChange={setAssigned}
+                    placeholder="— Unassigned —"
+                    options={[
+                      { value: '', label: '— Unassigned —' },
+                      ...team.map(m => ({ value: m.id, label: m.name })),
+                    ]}
+                  />
                 </div>
               </div>
             )}
@@ -573,15 +572,16 @@ export default function NewTaskModal({
             {isInternal && (
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Assignee</label>
-                <select
+                <SelectDropdown
+                  fullWidth
                   value={assignedTo}
-                  onChange={e => setAssigned(e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                >
-                  <option value="">— Unassigned —</option>
-                  {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
+                  onChange={setAssigned}
+                  placeholder="— Unassigned —"
+                  options={[
+                    { value: '', label: '— Unassigned —' },
+                    ...team.map(m => ({ value: m.id, label: m.name })),
+                  ]}
+                />
               </div>
             )}
 
@@ -589,21 +589,31 @@ export default function NewTaskModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Priority</label>
-                <select value={priority} onChange={e => setPriority(e.target.value)} className={inputCls} style={inputStyle}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                <SelectDropdown
+                  fullWidth
+                  value={priority}
+                  onChange={setPriority}
+                  options={[
+                    { value: 'low',    label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high',   label: 'High' },
+                  ]}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Status</label>
-                <select value={status} onChange={e => setStatus(e.target.value)} className={inputCls} style={inputStyle}>
-                  <option value="todo">To Do</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="in_review">In Review</option>
-                  <option value="waiting_client">Waiting on Client</option>
-                  {taskCategory === 'publishing_task' && <option value="scheduled">Scheduled</option>}
-                </select>
+                <SelectDropdown
+                  fullWidth
+                  value={status}
+                  onChange={setStatus}
+                  options={[
+                    { value: 'todo',           label: 'To Do' },
+                    { value: 'in_progress',    label: 'In Progress' },
+                    { value: 'in_review',      label: 'In Review' },
+                    { value: 'waiting_client', label: 'Waiting on Client' },
+                    ...(taskCategory === 'publishing_task' ? [{ value: 'scheduled', label: 'Scheduled' }] : []),
+                  ]}
+                />
               </div>
             </div>
 
@@ -638,9 +648,12 @@ export default function NewTaskModal({
                 <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
                   <Globe size={12} /> Timezone
                 </label>
-                <select value={timezone} onChange={e => setTimezone(e.target.value)} className={inputCls} style={inputStyle}>
-                  {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                </select>
+                <SelectDropdown
+                  fullWidth
+                  value={timezone}
+                  onChange={setTimezone}
+                  options={COMMON_TIMEZONES.map(tz => ({ value: tz, label: tz }))}
+                />
               </div>
             </div>
 
@@ -693,17 +706,16 @@ export default function NewTaskModal({
                 {/* Content purpose */}
                 <div className="space-y-1">
                   <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Content Purpose</label>
-                  <select
+                  <SelectDropdown
+                    fullWidth
                     value={contentPurpose}
-                    onChange={e => setContentPurpose(e.target.value)}
-                    className={inputCls}
-                    style={inputStyle}
-                  >
-                    <option value="">— Select purpose —</option>
-                    {CONTENT_PURPOSES.map(cp => (
-                      <option key={cp.value} value={cp.value}>{cp.label}</option>
-                    ))}
-                  </select>
+                    onChange={setContentPurpose}
+                    placeholder="— Select purpose —"
+                    options={[
+                      { value: '', label: '— Select purpose —' },
+                      ...CONTENT_PURPOSES.map(cp => ({ value: cp.value, label: cp.label })),
+                    ]}
+                  />
                 </div>
 
                 {/* Caption */}
