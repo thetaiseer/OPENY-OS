@@ -784,6 +784,10 @@ export async function createFolderHierarchy(
   contentType: string,
   monthKey: string,
 ): Promise<{ monthFolderId: string; clientFolderName: string }> {
+  console.log(JSON.stringify({
+    step: 'createFolderHierarchy_entry',
+    clientFolderName, contentType, monthKey,
+  }));
   const { drive, rootFolderId } = getDriveClient();
   const { year, monthFolder } = monthKeyToComponents(monthKey);
 
@@ -801,6 +805,10 @@ export async function createFolderHierarchy(
 
   const monthFolderId = await getOrCreateFolder(drive, monthFolder, yearFolderId);
   console.log('[google-drive] folder hierarchy — month:', monthFolder, '→', monthFolderId);
+  console.log(JSON.stringify({
+    step: 'createFolderHierarchy_complete',
+    monthFolderId, clientFolderName,
+  }));
 
   return { monthFolderId, clientFolderName };
 }
@@ -821,18 +829,39 @@ export async function initiateResumableSession(
   fileSize: number,
   monthFolderId: string,
 ): Promise<string> {
+  console.log(JSON.stringify({
+    step: 'initiateResumableSession_entry',
+    fileName, fileType, fileSize, monthFolderId,
+  }));
   const { auth } = getDriveClient();
+  console.log('[google-drive] initiateResumableSession — auth.credentials present:', !!(auth.credentials));
+  console.log('[google-drive] initiateResumableSession — refresh_token set:', !!(auth.credentials?.refresh_token));
 
   // Obtain a short-lived access token via the OAuth2 refresh token
-  const tokenResponse = await auth.getAccessToken();
-  const accessToken = tokenResponse?.token;
+  let accessToken: string | null | undefined;
+  try {
+    const tokenResponse = await auth.getAccessToken();
+    accessToken = tokenResponse?.token;
+  } catch (tokenErr: unknown) {
+    const tokenMsg = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
+    const tokenStack = tokenErr instanceof Error ? (tokenErr.stack ?? null) : null;
+    console.error(JSON.stringify({
+      step: 'get_access_token_failed',
+      error: { message: tokenMsg, stack: tokenStack },
+    }));
+    throw tokenErr;
+  }
   if (!accessToken) {
     throw new Error('Failed to obtain Google OAuth access token for resumable session');
   }
 
-  console.log('[google-drive] access_token present:', !!accessToken);
-  console.log('[google-drive] initiating resumable session — file:', fileName);
-  console.log('[google-drive] mimeType:', fileType, '| fileSize:', fileSize, '| folder:', monthFolderId);
+  console.log('[google-drive] access_token present:', !!accessToken, '| token length:', accessToken ? accessToken.length : 0);
+  console.log(JSON.stringify({
+    step: 'initiate_resumable_session_request',
+    fileName, fileType, fileSize, monthFolderId,
+    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
+    fileMetadata: { name: fileName, parents: [monthFolderId] },
+  }));
 
   const initRes = await fetch(
     // supportsAllDrives=true is required when the target folder lives in a
@@ -852,9 +881,20 @@ export async function initiateResumableSession(
     },
   );
 
+  console.log(JSON.stringify({
+    step: 'initiate_resumable_session_response',
+    httpStatus: initRes.status,
+    ok: initRes.ok,
+    hasLocationHeader: !!initRes.headers.get('Location'),
+  }));
+
   if (!initRes.ok) {
     const body = await initRes.text();
-    console.error('[google-drive] resumable session initiation failed — status:', initRes.status, '| body:', body);
+    console.error(JSON.stringify({
+      step: 'initiate_resumable_session_failed',
+      httpStatus: initRes.status,
+      responseBody: body.slice(0, 600),
+    }));
     throw new Error(`Resumable session initiation failed (${initRes.status}): ${body}`);
   }
 
@@ -863,8 +903,7 @@ export async function initiateResumableSession(
     throw new Error('Resumable session initiation did not return a Location header');
   }
 
-  console.log('[google-drive] upload_url obtained successfully');
-  console.log('[google-drive] resumable session created successfully');
+  console.log('[google-drive] resumable session created successfully — uploadUrl present: true');
   return uploadUrl;
 }
 

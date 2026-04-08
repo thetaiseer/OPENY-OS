@@ -64,6 +64,12 @@ function resolveFileName(
 // Simple in-memory rate limiter: 30 requests per 60 seconds per IP
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
+/** Return the first N lines of a stack trace as a single string, or null. */
+function truncateStack(stack: string | null, lines = 4): string | null {
+  if (!stack) return null;
+  return stack.split('\n').slice(0, lines).join(' | ');
+}
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
@@ -104,7 +110,9 @@ function checkRateLimit(ip: string): boolean {
  *   client_folder_name – normalised client folder name stored in Drive
  */
 export async function POST(req: NextRequest) {
-  console.log('[upload-session] POST /api/assets/upload-session');
+  console.log('[upload-session] POST /api/assets/upload-session — request received');
+  console.log('[upload-session] content-type:', req.headers.get('content-type'));
+  console.log('[upload-session] x-forwarded-for:', req.headers.get('x-forwarded-for') ?? '(none)');
 
   // ── Auth: only admin and team members may initiate uploads ─────────────────
   const auth = await requireRole(req, ['admin', 'team']);
@@ -126,10 +134,18 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ success: false, step: 'validation', error: 'Request body must be valid JSON' }, { status: 400 });
+      console.error('[upload-session] ❌ body parse failed — non-JSON request body');
+      return NextResponse.json({ success: false, step: 'validation', error: 'Request body must be valid JSON', code: 'INVALID_JSON', provider: 'google-drive' }, { status: 400 });
     }
 
     const { fileName, fileType, fileSize, clientName, contentType, monthKey, uploadedBy, customFileName } = body;
+
+    // ── DIAGNOSTIC: log every parsed field ───────────────────────────────────
+    console.log(JSON.stringify({
+      step: 'body_parsed',
+      fileName, fileType, fileSize, clientName, contentType, monthKey,
+      hasUploadedBy: !!uploadedBy, hasCustomFileName: !!customFileName,
+    }));
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if (!fileName || typeof fileName !== 'string') {
@@ -174,16 +190,39 @@ export async function POST(req: NextRequest) {
 
     // ── Build folder hierarchy + initiate upload session via storage provider ──
     const provider = getStorageProvider();
-    const { uploadUrl, remoteFolderId } = await provider.createUploadSession({
-      fileName:        renamedFileName,
-      mimeType:        fileType || 'application/octet-stream',
-      fileSize:        fileSize as number,
-      clientFolderName,
-      contentType:     contentType as string,
-      monthKey:        monthKey as string,
-    });
+    console.log('[upload-session] calling provider.createUploadSession — provider:', provider.name);
+    let uploadUrl: string;
+    let remoteFolderId: string;
+    try {
+      ({ uploadUrl, remoteFolderId } = await provider.createUploadSession({
+        fileName:        renamedFileName,
+        mimeType:        fileType || 'application/octet-stream',
+        fileSize:        fileSize as number,
+        clientFolderName,
+        contentType:     contentType as string,
+        monthKey:        monthKey as string,
+      }));
+    } catch (providerErr: unknown) {
+      const pMsg   = providerErr instanceof Error ? providerErr.message : String(providerErr);
+      const pStack = providerErr instanceof Error ? (providerErr.stack ?? null) : null;
+      console.error(JSON.stringify({
+        step: 'provider_create_session',
+        ok: false,
+        provider: 'google-drive',
+        fileName: renamedFileName,
+        error: { message: pMsg, stack: pStack },
+      }));
+      return NextResponse.json({
+        success:  false,
+        step:     'drive_upload',
+        provider: 'google-drive',
+        error:    pMsg,
+        code:     'PROVIDER_SESSION_FAILED',
+        details:  truncateStack(pStack),
+      }, { status: 500 });
+    }
 
-    console.log('[upload-session] ✅ session created — folder:', remoteFolderId);
+    console.log('[upload-session] ✅ provider.createUploadSession returned — folder:', remoteFolderId);
 
     return NextResponse.json({
       success: true,
@@ -194,8 +233,21 @@ export async function POST(req: NextRequest) {
       ...(safeUploadedBy ? { uploadedBy: safeUploadedBy } : {}),
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload-session] ❌ error:', msg);
-    return NextResponse.json({ success: false, step: 'drive_upload', error: msg }, { status: 500 });
+    const msg   = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? (err.stack ?? null) : null;
+    console.error(JSON.stringify({
+      step: 'server_error',
+      ok: false,
+      provider: 'google-drive',
+      error: { message: msg, stack },
+    }));
+    return NextResponse.json({
+      success:  false,
+      step:     'drive_upload',
+      provider: 'google-drive',
+      error:    msg,
+      code:     'SERVER_ERROR',
+      details:  truncateStack(stack),
+    }, { status: 500 });
   }
 }
