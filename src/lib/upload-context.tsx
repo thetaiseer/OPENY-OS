@@ -166,6 +166,9 @@ function stageText(status: UploadStatus, progress?: number): string {
 
 const UPLOAD_CONCURRENCY = 2;
 
+/** Shown to the user whenever Drive upload succeeded but DB save failed. */
+const PARTIAL_SUCCESS_MESSAGE = 'Uploaded successfully, but failed to save inside the system.';
+
 // ── Context ───────────────────────────────────────────────────────────────────
 
 const UploadContext = createContext<UploadContextValue>({
@@ -239,8 +242,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       let sessionJson: {
         success: boolean;
-        stage?: string;
-        error?: string | { message?: string };
+        error?: string;
         uploadUrl?: string;
         drive_folder_id?: string;
         client_folder_name?: string;
@@ -253,11 +255,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!sessionRes.ok || !sessionJson.success) {
-        const errMsg = typeof sessionJson.error === 'string'
-          ? sessionJson.error
-          : (sessionJson.error as { message?: string })?.message
-          ?? `Upload session failed (HTTP ${sessionRes.status})`;
-        throw new Error(errMsg);
+        throw new Error(sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})`);
       }
 
       const uploadUrl        = sessionJson.uploadUrl;
@@ -345,7 +343,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               progress: 100,
               errorDetail: {
                 step:    'saving_metadata',
-                message: 'Uploaded successfully, but failed to save inside the system.',
+                message: PARTIAL_SUCCESS_MESSAGE,
                 code:    `HTTP_${completeRes.status}`,
                 details: null,
               },
@@ -384,9 +382,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             progress: 100,
             errorDetail: {
               step:    'saving_metadata',
-              message: 'Uploaded successfully, but failed to save inside the system.',
+              message: PARTIAL_SUCCESS_MESSAGE,
               code:    errCode,
-              details: errMsg !== 'Uploaded successfully, but failed to save inside the system.' ? errMsg : errDetails,
+              details: errMsg !== PARTIAL_SUCCESS_MESSAGE ? errMsg : errDetails,
             },
           });
           return;
@@ -401,7 +399,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           progress: 100,
           errorDetail: {
             step:    'saving_metadata',
-            message: 'Uploaded successfully, but failed to save inside the system.',
+            message: PARTIAL_SUCCESS_MESSAGE,
             code:    srvErr?.code ?? null,
             details: srvMsg,
           },
@@ -420,7 +418,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           progress: 100,
           errorDetail: {
             step:    'saving_metadata',
-            message: 'Uploaded successfully, but failed to save inside the system.',
+            message: PARTIAL_SUCCESS_MESSAGE,
             code:    'NETWORK_ERROR',
             details: saveMsg,
           },
@@ -439,7 +437,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           progress: 100,
           errorDetail: {
             step:    'uploaded',
-            message: 'Uploaded successfully, but failed to save inside the system.',
+            message: PARTIAL_SUCCESS_MESSAGE,
             code:    'DRIVE_NO_ID',
             details: 'File uploaded to Google Drive but the file ID could not be confirmed. Check Google Drive manually.',
           },
@@ -513,12 +511,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Reconcile: re-queue an item that reached partial_success so that the
-   * upload-complete step can be retried.  Drive upload is already done, so we
-   * skip directly to the saving_metadata attempt.
+   * metadata save step can be retried.
    *
-   * Currently this re-queues as 'queued' which will re-run the full flow
-   * including re-uploading to Drive.  A future optimisation could track the
-   * driveFileId and skip directly to upload-complete.
+   * NOTE: The current implementation re-queues the full flow (including a
+   * new Drive upload) because the original driveFileId is not persisted in
+   * state.  A future optimisation could store the driveFileId and jump
+   * directly to the saving_metadata step, skipping the upload entirely.
    */
   const reconcileItem = useCallback((id: string) => {
     dispatch({
