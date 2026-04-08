@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { scanDriveForSync, setFilePublicReadable, checkDriveFileExists, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
-import type { DriveFileMeta } from '@/lib/google-drive';
+import { getStorageProvider } from '@/lib/storage';
+import type { RemoteFileMeta } from '@/lib/storage';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 
@@ -28,9 +28,7 @@ interface DbAsset {
   content_type: string | null;
   month_key: string | null;
   is_deleted: boolean | null;
-}
-
-interface InsertFailure {
+}interface InsertFailure {
   step: 'database_insert';
   file: string;
   payload: Record<string, unknown>;
@@ -92,10 +90,11 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     if (errorDetails.length < MAX_ERROR_DETAILS) errorDetails.push(entry);
   }
 
-  // ── 1. Scan Drive ────────────────────────────────────────────────────────
-  let driveFiles: DriveFileMeta[];
+  // ── 1. Scan provider storage ─────────────────────────────────────────────
+  const provider = getStorageProvider();
+  let remoteFiles: RemoteFileMeta[];
   try {
-    driveFiles = await scanDriveForSync();
+    remoteFiles = await provider.listFiles();
     driveConnected = true;
   } catch (err: unknown) {
     recordError('Drive scan failed', err);
@@ -146,48 +145,48 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   const syncNow = new Date().toISOString();
 
   // Build lookup maps
-  const driveMap = new Map<string, DriveFileMeta>();
-  for (const f of driveFiles) driveMap.set(f.drive_file_id, f);
+  const remoteMap = new Map<string, RemoteFileMeta>();
+  for (const f of remoteFiles) remoteMap.set(f.remote_file_id, f);
 
   const dbMap = new Map<string, DbAsset>();
   for (const a of dbAssets) {
     if (a.drive_file_id) dbMap.set(a.drive_file_id, a);
   }
 
-  // ── 3. INSERT: files in Drive but not in DB ──────────────────────────────
-  for (const [driveId, meta] of driveMap) {
-    if (dbMap.has(driveId)) continue;
+  // ── 3. INSERT: files in provider but not in DB ───────────────────────────
+  for (const [remoteId, meta] of remoteMap) {
+    if (dbMap.has(remoteId)) continue;
 
     try {
       // Grant public read access so the file is viewable in the UI
-      const { webViewLink, webContentLink } = await setFilePublicReadable(driveId);
+      const { viewUrl, downloadUrl } = await provider.grantPublicAccess(remoteId);
 
-      // Build preview/thumbnail URLs from the Drive file ID (no extra API calls needed)
-      const previewUrl   = buildPreviewUrl(driveId);
-      const thumbnailUrl = buildThumbnailUrl(driveId, meta.thumbnail_link);
+      // Build preview/thumbnail URLs from the provider (no extra API calls needed)
+      const previewUrl   = provider.getPreviewUrl(remoteId);
+      const thumbnailUrl = provider.getThumbnailUrl(remoteId, meta.thumbnail_link);
 
       // Use insertWithColumnFallback so missing columns (e.g. is_deleted,
       // last_synced_at) are stripped automatically and the insert still succeeds.
       const insertRow: Record<string, unknown> = {
         name:               meta.name,
         file_path:          null,
-        file_url:           webViewLink,
-        view_url:           webViewLink,
-        download_url:       webContentLink,
+        file_url:           viewUrl,
+        view_url:           viewUrl,
+        download_url:       downloadUrl,
         file_type:          meta.mime_type,
         mime_type:          meta.mime_type,
         file_size:          meta.file_size,
         bucket_name:        null,
         storage_provider:   'google_drive',
-        drive_file_id:      driveId,
-        drive_folder_id:    meta.drive_folder_id,
+        drive_file_id:      remoteId,
+        drive_folder_id:    meta.remote_folder_id,
         client_name:        meta.client_folder_name,
         client_folder_name: meta.client_folder_name,
         content_type:       meta.content_type,
         month_key:          meta.month_key,
         preview_url:        previewUrl,
         thumbnail_url:      thumbnailUrl,
-        web_view_link:      webViewLink,
+        web_view_link:      viewUrl,
         ...(hasIsDeleted ? { is_deleted: false } : {}),
         last_synced_at:     syncNow,
         source_updated_at:  meta.modified_time ?? null,
@@ -223,16 +222,16 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         if (errorDetails.length < MAX_ERROR_DETAILS) errorDetails.push(errorEntry);
       } else {
         added++;
-        console.log('[sync] inserted:', meta.name, '| driveId:', driveId);
+        console.log('[sync] inserted:', meta.name, '| remoteId:', remoteId);
       }
     } catch (err: unknown) {
       recordError(`Insert "${meta.name}"`, err);
     }
   }
 
-  // ── 4. UPDATE: files in both Drive and DB — patch changed metadata ───────
-  for (const [driveId, meta] of driveMap) {
-    const dbAsset = dbMap.get(driveId);
+  // ── 4. UPDATE: files in both provider and DB — patch changed metadata ────
+  for (const [remoteId, meta] of remoteMap) {
+    const dbAsset = dbMap.get(remoteId);
     if (!dbAsset) continue;
 
     const updates: Record<string, unknown> = {};
@@ -242,8 +241,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       updates.last_synced_at = syncNow;
       // Always refresh preview/thumbnail URLs and permissions metadata on each
       // sync pass so stale or missing values are repaired automatically.
-      updates.preview_url   = buildPreviewUrl(driveId);
-      updates.thumbnail_url = buildThumbnailUrl(driveId, meta.thumbnail_link);
+      updates.preview_url   = provider.getPreviewUrl(remoteId);
+      updates.thumbnail_url = provider.getThumbnailUrl(remoteId, meta.thumbnail_link);
     }
 
     // Always refresh canonical Drive URLs when we have them from the scan.
@@ -317,9 +316,9 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
       } else {
         if (hasDataChanges) {
           updated++;
-          console.log('[sync] updated:', meta.name, '| driveId:', driveId, '| fields:', Object.keys(updates).join(', '));
+          console.log('[sync] updated:', meta.name, '| remoteId:', remoteId, '| fields:', Object.keys(updates).join(', '));
         } else {
-          console.debug('[sync] last_synced_at refreshed (no data change):', meta.name, '| driveId:', driveId);
+          console.debug('[sync] last_synced_at refreshed (no data change):', meta.name, '| remoteId:', remoteId);
         }
       }
     } catch (err: unknown) {
@@ -327,20 +326,20 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
     }
   }
 
-  // ── 5. REMOVE: DB assets not found in Drive scan ─────────────────────────
-  for (const [driveId, dbAsset] of dbMap) {
-    if (driveMap.has(driveId)) continue;
+  // ── 5. REMOVE: DB assets not found in provider scan ──────────────────────
+  for (const [remoteId, dbAsset] of dbMap) {
+    if (remoteMap.has(remoteId)) continue;
     // Already soft-deleted — nothing more to do.
     if (hasIsDeleted && dbAsset.is_deleted) continue;
 
-    // Verify by calling Drive directly — avoids false positives if the scan
+    // Verify by calling provider directly — avoids false positives if the scan
     // missed a file (e.g. a path edge-case or transient API error).
     try {
-      const exists = await checkDriveFileExists(driveId);
+      const exists = await provider.fileExists(remoteId);
       if (exists) {
-        // File still exists in Drive — just not under the expected path.
+        // File still exists in storage — just not under the expected path.
         // Do not remove from DB; it may have been moved.
-        console.log('[sync] skipping removal — file still exists in Drive (possibly moved):', dbAsset.name);
+        console.log('[sync] skipping removal — file still exists in provider (possibly moved):', dbAsset.name);
         continue;
       }
 
@@ -355,7 +354,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
           recordError(`Remove "${dbAsset.name}"`, softDeleteError);
         } else {
           removed++;
-          console.log('[sync] soft-deleted:', dbAsset.name, '| driveId:', driveId);
+          console.log('[sync] soft-deleted:', dbAsset.name, '| remoteId:', remoteId);
         }
       } else {
         // is_deleted column not available — hard-delete as fallback
@@ -368,12 +367,12 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
           recordError(`Remove "${dbAsset.name}"`, hardDeleteError);
         } else {
           removed++;
-          console.log('[sync] hard-deleted (is_deleted unavailable):', dbAsset.name, '| driveId:', driveId);
+          console.log('[sync] hard-deleted (is_deleted unavailable):', dbAsset.name, '| remoteId:', remoteId);
         }
       }
     } catch (err: unknown) {
-      // Transient Drive API error — skip to avoid accidental data loss
-      console.warn('[sync] skipping removal due to Drive check error for', dbAsset.name, err);
+      // Transient provider API error — skip to avoid accidental data loss
+      console.warn('[sync] skipping removal due to provider check error for', dbAsset.name, err);
     }
   }
 

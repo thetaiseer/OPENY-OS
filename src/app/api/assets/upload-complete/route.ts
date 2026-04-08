@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { finalizeFileAfterUpload, buildPreviewUrl, buildThumbnailUrl } from '@/lib/google-drive';
+import { getStorageProvider } from '@/lib/storage';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 
@@ -103,8 +103,12 @@ export async function POST(req: NextRequest) {
     let previewReason: string | null = null;
 
     try {
-      ({ webViewLink, webContentLink, thumbnailLink, mimeType: driveMimeType } =
-        await finalizeFileAfterUpload(driveFileId));
+      const provider = getStorageProvider();
+      const finalized = await provider.finalizeUpload(driveFileId);
+      webViewLink    = finalized.viewUrl;
+      webContentLink = finalized.downloadUrl;
+      thumbnailLink  = finalized.thumbnailLink;
+      driveMimeType  = finalized.mimeType;
       console.log('[upload-complete] ✅ drive_upload finalize OK — view:', webViewLink);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -141,10 +145,11 @@ export async function POST(req: NextRequest) {
     if (safeClientId) requiredRow.client_id = safeClientId;
 
     // Optional preview columns — stripped automatically on 42703 (missing column) errors
+    const provider = getStorageProvider();
     const previewFields: Record<string, unknown> = {
       mime_type:     driveMimeType ?? (typeof fileType === 'string' && fileType ? fileType : null),
-      preview_url:   buildPreviewUrl(driveFileId),
-      thumbnail_url: buildThumbnailUrl(driveFileId, thumbnailLink),
+      preview_url:   provider.getPreviewUrl(driveFileId),
+      thumbnail_url: provider.getThumbnailUrl(driveFileId, thumbnailLink),
       web_view_link: webViewLink,
     };
 

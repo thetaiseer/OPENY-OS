@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { deleteFromDrive, DriveFileNotFoundError, cleanupEmptyFoldersFromLeaf, renameInDrive } from '@/lib/google-drive';
+import { getStorageProvider, StorageFileNotFoundError } from '@/lib/storage';
 import { requireRole } from '@/lib/api-auth';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
@@ -62,16 +62,17 @@ export async function DELETE(
 
   if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
     try {
-      await deleteFromDrive(asset.drive_file_id as string);
+      const provider = getStorageProvider();
+      await provider.deleteFile(asset.drive_file_id as string);
       console.log('[asset-delete] Drive delete succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
     } catch (err: unknown) {
-      if (err instanceof DriveFileNotFoundError) {
-        // File already gone from Drive – treat as orphaned record and continue
+      if (err instanceof StorageFileNotFoundError) {
+        // File already gone from provider — treat as orphaned record and continue
         warning = 'Asset record deleted. Remote file was already missing.';
-        console.warn('[asset-delete] Drive file not found – treating as orphaned', {
+        console.warn('[asset-delete] Remote file not found – treating as orphaned', {
           assetId: asset.id,
           driveFileId: asset.drive_file_id,
-          driveError: err.message,
+          error: err.message,
         });
       } else {
         const msg = err instanceof Error ? err.message : String(err);
@@ -104,7 +105,10 @@ export async function DELETE(
         assetId: asset.id,
         monthFolderId: asset.drive_folder_id,
       });
-      await cleanupEmptyFoldersFromLeaf(asset.drive_folder_id);
+      const provider = getStorageProvider();
+      if (provider.cleanupEmptyFolders) {
+        await provider.cleanupEmptyFolders(asset.drive_folder_id);
+      }
       console.log('[asset-delete] folder cleanup completed', { assetId: asset.id });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -177,12 +181,13 @@ export async function PATCH(
   // ── 2. Rename in Google Drive first ───────────────────────────────────────
   if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
     try {
-      await renameInDrive(asset.drive_file_id as string, newName);
+      const provider = getStorageProvider();
+      await provider.renameFile(asset.drive_file_id as string, newName);
       console.log('[asset-rename] Drive rename succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
     } catch (err: unknown) {
-      if (err instanceof DriveFileNotFoundError) {
+      if (err instanceof StorageFileNotFoundError) {
         // File is already gone — allow DB-only rename so the record stays consistent
-        console.warn('[asset-rename] Drive file not found — updating DB record only', {
+        console.warn('[asset-rename] Remote file not found — updating DB record only', {
           assetId: asset.id,
           driveFileId: asset.drive_file_id,
         });
