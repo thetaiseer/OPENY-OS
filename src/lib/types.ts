@@ -47,6 +47,11 @@ export interface Task {
   client?: { id: string; name: string };
   created_at: string;
   updated_at: string;
+  /** Publishing schedule integration */
+  publishing_schedule_id?: string | null;
+  asset_id?: string | null;
+  platforms?: string[] | null;
+  post_types?: string[] | null;
 }
 
 export interface ContentItem {
@@ -133,4 +138,49 @@ export interface ApprovalHistory {
   user_name?: string | null;
   notes?: string | null;
   created_at: string;
+}
+
+export type PublishingPlatform =
+  | 'instagram'
+  | 'facebook'
+  | 'tiktok'
+  | 'linkedin'
+  | 'twitter'
+  | 'snapchat'
+  | 'youtube_shorts';
+
+export type PublishingPostType = 'post' | 'reel' | 'carousel' | 'story';
+
+export type PublishingStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'pending_review'
+  | 'approved'
+  | 'published'
+  | 'missed'
+  | 'cancelled';
+
+export interface PublishingSchedule {
+  id: string;
+  asset_id: string;
+  client_id?: string | null;
+  client_name?: string | null;
+  scheduled_date: string;
+  scheduled_time: string;
+  timezone: string;
+  platforms: PublishingPlatform[];
+  post_types: PublishingPostType[];
+  caption?: string | null;
+  notes?: string | null;
+  status: PublishingStatus;
+  assigned_to?: string | null;
+  assignee_name?: string | null;
+  reminder_minutes?: number | null;
+  task_id?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Joined from assets table when fetching schedules */
+  asset?: Pick<Asset, 'id' | 'name' | 'content_type' | 'file_url' | 'preview_url' | 'client_name'> | null;
 }

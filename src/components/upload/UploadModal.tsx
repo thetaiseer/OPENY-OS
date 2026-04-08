@@ -48,6 +48,8 @@ export interface UploadModalProps {
   onUploadNameChange:   (id: string, name: string) => void;
   onRemoveFile:         (id: string) => void;
   onConfirm:            () => void;
+  /** Upload files and open scheduling modal immediately after */
+  onConfirmAndSchedule?: () => void;
   onCancel:             () => void;
 }
 
@@ -219,6 +221,7 @@ export default function UploadModal({
   onUploadNameChange,
   onRemoveFile,
   onConfirm,
+  onConfirmAndSchedule,
   onCancel,
 }: UploadModalProps) {
   const [showCreateClient, setShowCreateClient] = useState(false);
@@ -378,6 +381,17 @@ export default function UploadModal({
             >
               Cancel
             </button>
+            {onConfirmAndSchedule && (
+              <button
+                type="button"
+                onClick={onConfirmAndSchedule}
+                disabled={!canConfirm}
+                className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
+              >
+                Upload &amp; Schedule
+              </button>
+            )}
             <button
               type="button"
               onClick={onConfirm}

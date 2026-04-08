@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import type { Task, Asset } from '@/lib/types';
+import type { Task, Asset, PublishingSchedule } from '@/lib/types';
+import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,26 @@ function approvalColor(s?: string | null): string {
   return '#6b7280';
 }
 
+function scheduleStatusColor(s?: string): string {
+  if (s === 'published')      return '#0891b2';
+  if (s === 'approved')       return '#16a34a';
+  if (s === 'pending_review') return '#d97706';
+  if (s === 'missed')         return '#dc2626';
+  if (s === 'cancelled')      return '#6b7280';
+  if (s === 'draft')          return '#9ca3af';
+  return '#7c3aed'; // scheduled (default)
+}
+
+function platformLabel(value: string): string {
+  const p = PLATFORMS.find(pl => pl.value === value);
+  return p ? p.label : value;
+}
+
+function postTypeLabel(value: string): string {
+  const pt = POST_TYPES.find(t => t.value === value);
+  return pt ? pt.label : value;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -44,11 +65,15 @@ export default function CalendarPage() {
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [tasks,  setTasks]  = useState<Task[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [tasks,     setTasks]     = useState<Task[]>([]);
+  const [assets,    setAssets]    = useState<Asset[]>([]);
+  const [schedules, setSchedules] = useState<PublishingSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  // Selected schedule for detail view
+  const [selectedSchedule, setSelectedSchedule] = useState<PublishingSchedule | null>(null);
+  const [markingPublished, setMarkingPublished] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -71,25 +96,39 @@ export default function CalendarPage() {
               .select('id, name, publish_date, approval_status, content_type, client_name')
               .gte('publish_date', startDate)
               .lte('publish_date', endDate),
+            supabase.from('publishing_schedules')
+              .select('*, asset:assets(id, name, content_type, preview_url)')
+              .gte('scheduled_date', startDate)
+              .lte('scheduled_date', endDate)
+              .neq('status', 'cancelled')
+              .order('scheduled_time', { ascending: true }),
           ]),
           timeoutPromise,
         ]);
 
-        const [tasksRes, assetsRes] = settled;
+        const [tasksRes, assetsRes, schedulesRes] = settled;
 
         if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
           setTasks((tasksRes.value.data ?? []) as Task[]);
         } else {
-          const err = tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error;
-          console.error('[calendar] tasks fetch error:', err);
+          console.error('[calendar] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
           setTasks([]);
         }
         if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
           setAssets((assetsRes.value.data ?? []) as Asset[]);
         } else {
-          const err = assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error;
-          console.error('[calendar] assets fetch error:', err);
+          console.error('[calendar] assets fetch error:', assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error);
           setAssets([]);
+        }
+        if (schedulesRes.status === 'fulfilled' && !schedulesRes.value.error) {
+          setSchedules((schedulesRes.value.data ?? []) as PublishingSchedule[]);
+        } else {
+          // publishing_schedules table may not exist on first install before migration is run.
+          // This is non-fatal — calendar still shows tasks and assets.
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[calendar] schedules fetch skipped/failed:', schedulesRes.status === 'rejected' ? schedulesRes.reason : schedulesRes.value.error);
+          }
+          setSchedules([]);
         }
       } catch (err) {
         const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
@@ -100,6 +139,7 @@ export default function CalendarPage() {
         setError(msg);
         setTasks([]);
         setAssets([]);
+        setSchedules([]);
       } finally {
         clearTimeout(timeoutId);
         setLoading(false);
@@ -145,8 +185,38 @@ export default function CalendarPage() {
     return map;
   }, [assets]);
 
-  const selectedTasks  = selectedDay ? (tasksByDay[selectedDay]  ?? []) : [];
-  const selectedAssets = selectedDay ? (assetsByDay[selectedDay] ?? []) : [];
+  const schedulesByDay = useMemo(() => {
+    const map: Record<number, PublishingSchedule[]> = {};
+    for (const s of schedules) {
+      if (!s.scheduled_date) continue;
+      const d = new Date(s.scheduled_date + 'T00:00:00').getDate();
+      if (!map[d]) map[d] = [];
+      map[d].push(s);
+    }
+    return map;
+  }, [schedules]);
+
+  const selectedTasks     = selectedDay ? (tasksByDay[selectedDay]     ?? []) : [];
+  const selectedAssets    = selectedDay ? (assetsByDay[selectedDay]    ?? []) : [];
+  const selectedSchedules = selectedDay ? (schedulesByDay[selectedDay] ?? []) : [];
+
+  // ── Mark as published ───────────────────────────────────────────────────────
+  const handleMarkPublished = async (schedule: PublishingSchedule) => {
+    setMarkingPublished(true);
+    try {
+      const res = await fetch(`/api/publishing-schedules/${schedule.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'published' }),
+      });
+      if (res.ok) {
+        setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, status: 'published' } : s));
+        setSelectedSchedule(prev => prev?.id === schedule.id ? { ...prev, status: 'published' } : prev);
+      }
+    } finally {
+      setMarkingPublished(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -155,7 +225,7 @@ export default function CalendarPage() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Calendar</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            View tasks and assets by date
+            View tasks, assets, and publishing schedules by date
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -180,6 +250,13 @@ export default function CalendarPage() {
             <ChevronRight size={16} style={{ color: 'var(--text)' }} />
           </button>
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#2563eb' }} />Tasks</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#7c3aed' }} />Publishing schedules</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#6b7280' }} />Assets</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -242,10 +319,11 @@ export default function CalendarPage() {
                     month === today.getMonth() &&
                     day   === today.getDate()
                   );
-                  const isSelected   = selectedDay === day;
-                  const dayTasks     = tasksByDay[day]  ?? [];
-                  const dayAssets    = assetsByDay[day] ?? [];
-                  const totalVisible = dayTasks.length + dayAssets.length;
+                  const isSelected    = selectedDay === day;
+                  const dayTasks      = tasksByDay[day]      ?? [];
+                  const dayAssets     = assetsByDay[day]     ?? [];
+                  const daySchedules  = schedulesByDay[day]  ?? [];
+                  const totalVisible  = dayTasks.length + dayAssets.length + daySchedules.length;
 
                   return (
                     <div
@@ -267,7 +345,20 @@ export default function CalendarPage() {
                         {day}
                       </div>
                       <div className="space-y-0.5 overflow-hidden">
-                        {dayTasks.slice(0, 2).map(t => (
+                        {daySchedules.slice(0, 2).map(s => (
+                          <div
+                            key={s.id}
+                            className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
+                            style={{
+                              background: `${scheduleStatusColor(s.status)}20`,
+                              color:      scheduleStatusColor(s.status),
+                            }}
+                          >
+                            <Send size={8} className="shrink-0" />
+                            <span className="truncate">{s.client_name ?? s.asset?.name ?? 'Schedule'}</span>
+                          </div>
+                        ))}
+                        {dayTasks.slice(0, Math.max(0, 2 - daySchedules.length)).map(t => (
                           <div
                             key={t.id}
                             className="text-xs px-1 py-0.5 rounded truncate"
@@ -279,7 +370,7 @@ export default function CalendarPage() {
                             {t.title}
                           </div>
                         ))}
-                        {dayAssets.slice(0, Math.max(0, 2 - dayTasks.length)).map(a => (
+                        {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayTasks.length)).map(a => (
                           <div
                             key={a.id}
                             className="text-xs px-1 py-0.5 rounded truncate"
@@ -317,12 +408,61 @@ export default function CalendarPage() {
                   {MONTH_NAMES[month]} {selectedDay}, {year}
                 </h3>
 
-                {selectedTasks.length === 0 && selectedAssets.length === 0 ? (
+                {selectedTasks.length === 0 && selectedAssets.length === 0 && selectedSchedules.length === 0 ? (
                   <p className="text-sm py-4" style={{ color: 'var(--text-secondary)' }}>
                     Nothing scheduled for this day
                   </p>
                 ) : (
                   <>
+                    {/* Publishing schedules */}
+                    {selectedSchedules.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Send size={14} style={{ color: '#7c3aed' }} />
+                          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                            PUBLISHING ({selectedSchedules.length})
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {selectedSchedules.map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => setSelectedSchedule(s)}
+                              className="w-full rounded-lg p-2.5 text-left transition-opacity hover:opacity-80"
+                              style={{ background: 'var(--surface-2)', border: selectedSchedule?.id === s.id ? '1.5px solid var(--accent)' : '1.5px solid transparent' }}
+                            >
+                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                                {s.asset?.name ?? 'Asset'}
+                              </p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                  style={{ background: `${scheduleStatusColor(s.status)}20`, color: scheduleStatusColor(s.status) }}
+                                >
+                                  {s.status}
+                                </span>
+                                {s.platforms.slice(0, 2).map(p => (
+                                  <span key={p} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}>
+                                    {platformLabel(p)}
+                                  </span>
+                                ))}
+                                {s.post_types.slice(0, 2).map(pt => (
+                                  <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
+                                    {postTypeLabel(pt)}
+                                  </span>
+                                ))}
+                              </div>
+                              {s.scheduled_time && (
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                  🕐 {s.scheduled_time.slice(0, 5)} {s.timezone !== 'UTC' ? s.timezone : ''}
+                                </p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {selectedTasks.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -412,6 +552,119 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {/* Schedule detail sheet */}
+      {selectedSchedule && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.65)' }}
+          onClick={() => setSelectedSchedule(null)}
+        >
+          <div
+            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border shadow-2xl"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <Send size={16} style={{ color: '#7c3aed' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Publishing Schedule</span>
+              </div>
+              <button onClick={() => setSelectedSchedule(null)} className="opacity-60 hover:opacity-100 transition-opacity">
+                <X size={16} style={{ color: 'var(--text)' }} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Asset name */}
+              <div>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>ASSET</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  {selectedSchedule.asset?.name ?? 'Unknown asset'}
+                </p>
+              </div>
+              {/* Client */}
+              {selectedSchedule.client_name && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>CLIENT</p>
+                  <p className="text-sm" style={{ color: 'var(--text)' }}>{selectedSchedule.client_name}</p>
+                </div>
+              )}
+              {/* Date / Time */}
+              <div className="flex gap-4">
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>DATE</p>
+                  <p className="text-sm" style={{ color: 'var(--text)' }}>{selectedSchedule.scheduled_date}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>TIME</p>
+                  <p className="text-sm" style={{ color: 'var(--text)' }}>{selectedSchedule.scheduled_time?.slice(0, 5)} {selectedSchedule.timezone !== 'UTC' ? selectedSchedule.timezone : 'UTC'}</p>
+                </div>
+              </div>
+              {/* Status */}
+              <div>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>STATUS</p>
+                <span
+                  className="text-xs px-2 py-0.5 rounded font-medium capitalize"
+                  style={{ background: `${scheduleStatusColor(selectedSchedule.status)}20`, color: scheduleStatusColor(selectedSchedule.status) }}
+                >
+                  {selectedSchedule.status}
+                </span>
+              </div>
+              {/* Platforms */}
+              {selectedSchedule.platforms.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>PLATFORMS</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSchedule.platforms.map(p => (
+                      <span key={p} className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                        {platformLabel(p)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Post types */}
+              {selectedSchedule.post_types.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>POST TYPES</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSchedule.post_types.map(pt => (
+                      <span key={pt} className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                        {postTypeLabel(pt)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Caption */}
+              {selectedSchedule.caption && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>CAPTION</p>
+                  <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text)' }}>{selectedSchedule.caption}</p>
+                </div>
+              )}
+              {/* Notes */}
+              {selectedSchedule.notes && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>NOTES</p>
+                  <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-secondary)' }}>{selectedSchedule.notes}</p>
+                </div>
+              )}
+              {/* Actions */}
+              {selectedSchedule.status !== 'published' && selectedSchedule.status !== 'cancelled' && (
+                <button
+                  onClick={() => void handleMarkPublished(selectedSchedule)}
+                  disabled={markingPublished}
+                  className="w-full h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  style={{ background: '#0891b2' }}
+                >
+                  {markingPublished ? 'Marking…' : '✓ Mark as Published'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
