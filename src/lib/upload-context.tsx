@@ -3,18 +3,16 @@
 /**
  * Global upload context — rebuilt from scratch.
  *
- * Upload stage machine:
- *   queued → validating → uploading → uploaded → saving_metadata → completed
- *                                                                  ↘ partial_success
- *   queued → validating → failed   (if session/validation fails)
- *   queued → uploading  → failed   (if Drive upload fails)
+ * Upload status machine:
+ *   queued → uploading → uploaded → completed
+ *                                  ↘ failed_db     (Drive OK, DB save failed)
+ *   queued → uploading → failed_upload (Drive upload failed)
  *
  * Rules:
- *  1. If file upload (Drive) fails                → failed
- *  2. If Drive upload succeeded + DB save failed  → partial_success
- *  3. If DB save succeeded + preview failed       → completed (fallback icon)
- *  4. List refresh / assets-reload failure        → keep completed/partial_success (never downgrade)
- *  5. Never show vague "Load failed" — always show exact stage-based messages.
+ *  1. If Drive upload fails      → failed_upload  (can retry full upload)
+ *  2. If Drive OK + DB fails     → failed_db      (can retry DB save only)
+ *  3. NEVER show "Load failed" or generic "Failed"
+ *  4. Always show exact stage-based messages
  */
 
 import React, {
@@ -25,22 +23,19 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { uploadFileChunked, DriveUploadedNoIdError } from './upload-manager';
 import type { Asset } from './types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type UploadStatus =
   | 'queued'
-  | 'validating'
   | 'uploading'
   | 'uploaded'
-  | 'saving_metadata'
+  | 'saved'
   | 'completed'
-  | 'partial_success'
-  | 'failed';
+  | 'failed_upload'
+  | 'failed_db';
 
-/** Structured error detail from any stage. */
 export interface UploadErrorDetail {
   step:    string;
   message: string;
@@ -49,17 +44,15 @@ export interface UploadErrorDetail {
 }
 
 export interface UploadItem {
-  id:         string;
-  file:       File;
-  previewUrl: string | null;
+  id:          string;
+  file:        File;
+  previewUrl:  string | null;
   /** User-editable base name (no extension). */
-  uploadName: string;
-  status:     UploadStatus;
+  uploadName:  string;
+  status:      UploadStatus;
   /** 0–100 */
-  progress:   number;
-  /** Human-readable stage summary. */
-  statusText: string;
-  /** Structured error — populated on failed / partial_success. */
+  progress:    number;
+  statusText:  string;
   errorDetail: UploadErrorDetail | null;
   // metadata
   clientName:  string;
@@ -67,15 +60,11 @@ export interface UploadItem {
   contentType: string;
   monthKey:    string;
   uploadedBy:  string | null;
-  /**
-   * Remote storage info — populated after Drive upload succeeds.
-   * Used by reconcileItem to skip the binary re-upload and go
-   * directly to the metadata-save step.
-   */
-  remoteId:               string | null;
-  remoteFolderId:         string | null;
-  remoteClientFolderName: string | null;
-  remoteFileName:         string | null;
+  /** Set after a successful Drive upload — used to retry DB save without re-uploading. */
+  driveFileId:   string | null;
+  driveFolderId: string | null;
+  driveFileName: string | null;
+  fileMimeType:  string | null;
 }
 
 /** Minimal shape submitted when confirming a batch. */
@@ -95,32 +84,34 @@ export interface InitialUploadItem {
   uploadName: string;
 }
 
-// Keep legacy alias so the pages don't need changes
+// Keep legacy alias for pages that reference UploadQueueItem
 export type UploadQueueItem = UploadItem;
 
+// ── Context value ─────────────────────────────────────────────────────────────
+
 interface UploadContextValue {
-  queue:         UploadItem[];
-  isUploading:   boolean;
+  queue:          UploadItem[];
+  isUploading:    boolean;
   /** Most recently completed asset — used by the Assets page to prepend instantly. */
-  latestAsset:   Asset | null;
-  startBatch:    (items: InitialUploadItem[], meta: BatchMeta) => void;
-  retryItem:     (id: string) => void;
-  reconcileItem: (id: string) => void;
-  removeItem:    (id: string) => void;
+  latestAsset:    Asset | null;
+  startBatch:     (items: InitialUploadItem[], meta: BatchMeta) => void;
+  retryItem:      (id: string) => void;
+  reconcileItem:  (id: string) => void;
+  removeItem:     (id: string) => void;
   clearCompleted: () => void;
 }
 
 // ── State & reducer ───────────────────────────────────────────────────────────
 
 interface UploadState {
-  queue: UploadItem[];
+  queue:       UploadItem[];
   latestAsset: Asset | null;
 }
 
 type UploadAction =
-  | { type: 'ENQUEUE';  items: UploadItem[] }
-  | { type: 'UPDATE';   id: string; patch: Partial<UploadItem> }
-  | { type: 'REMOVE';   id: string }
+  | { type: 'ENQUEUE';          items: UploadItem[] }
+  | { type: 'UPDATE';           id: string; patch: Partial<UploadItem> }
+  | { type: 'REMOVE';           id: string }
   | { type: 'CLEAR_COMPLETED' }
   | { type: 'SET_LATEST_ASSET'; asset: Asset };
 
@@ -128,7 +119,6 @@ function reducer(state: UploadState, action: UploadAction): UploadState {
   switch (action.type) {
     case 'ENQUEUE':
       return { ...state, queue: [...state.queue, ...action.items] };
-
     case 'UPDATE':
       return {
         ...state,
@@ -136,52 +126,44 @@ function reducer(state: UploadState, action: UploadAction): UploadState {
           item.id === action.id ? { ...item, ...action.patch } : item,
         ),
       };
-
     case 'REMOVE':
       return { ...state, queue: state.queue.filter(i => i.id !== action.id) };
-
     case 'CLEAR_COMPLETED':
       return {
         ...state,
         queue: state.queue.filter(
-          i => i.status !== 'completed' && i.status !== 'partial_success',
+          i => i.status !== 'completed' && i.status !== 'failed_db',
         ),
       };
-
     case 'SET_LATEST_ASSET':
       return { ...state, latestAsset: action.asset };
-
     default:
       return state;
   }
 }
 
-// ── Human-readable stage text ─────────────────────────────────────────────────
+// ── Stage text ────────────────────────────────────────────────────────────────
 
 function stageText(status: UploadStatus, progress?: number): string {
   switch (status) {
-    case 'queued':          return 'Queued';
-    case 'validating':      return 'Validating';
-    case 'uploading':       return progress != null ? `Uploading ${progress}%` : 'Uploading';
-    case 'uploaded':        return 'Uploaded';
-    case 'saving_metadata': return 'Saving in system';
-    case 'completed':       return 'Completed';
-    case 'partial_success': return 'Uploaded, but not saved in system';
-    case 'failed':          return 'Failed during upload';
+    case 'queued':        return 'Queued';
+    case 'uploading':     return progress != null ? `Uploading ${progress}%` : 'Uploading';
+    case 'uploaded':      return 'Uploaded';
+    case 'saved':         return 'Saved to Drive';
+    case 'completed':     return 'Completed';
+    case 'failed_upload': return 'Upload failed';
+    case 'failed_db':     return 'Saved to Drive, system save failed';
   }
-}
-
-/** Replace whitespace with underscores to produce a safe file name for upload. */
-function sanitizeUploadFileName(name: string): string {
-  return name.replace(/\s+/g, '_');
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const UPLOAD_CONCURRENCY = 2;
 
-/** Shown to the user whenever Drive upload succeeded but DB save failed. */
-const PARTIAL_SUCCESS_MESSAGE = 'Uploaded successfully, but failed to save inside the system.';
+/** Maximum file size before showing a client-side error (250 MB). */
+const MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024;
+
+const DB_FAIL_MESSAGE = 'File uploaded to Drive successfully, but could not be saved in the system.';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -196,6 +178,40 @@ const UploadContext = createContext<UploadContextValue>({
   clearCompleted: () => {},
 });
 
+// ── XHR upload helper ─────────────────────────────────────────────────────────
+
+interface XhrResult {
+  status: number;
+  body:   string;
+}
+
+function uploadViaXHR(
+  url: string,
+  formData: FormData,
+  onProgress: (pct: number) => void,
+  signal: AbortSignal,
+): Promise<XhrResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener('load', () => resolve({ status: xhr.status, body: xhr.responseText }));
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+    xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled', 'AbortError')));
+
+    signal.addEventListener('abort', () => xhr.abort(), { once: true });
+
+    xhr.open('POST', url);
+    xhr.send(formData);
+  });
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function UploadProvider({ children }: { children: React.ReactNode }) {
@@ -204,8 +220,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const runningRef          = useRef<Set<string>>(new Set());
   const dispatchRef         = useRef(dispatch);
   dispatchRef.current = dispatch;
-
-  // ── Helper: dispatch a stage update ──────────────────────────────────────
 
   const setStage = useCallback((
     id: string,
@@ -224,430 +238,168 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // ── Core upload function (runs per item) ──────────────────────────────────
+  // ── Core upload function ─────────────────────────────────────────────────
 
   const doUploadItem = useCallback(async (item: UploadItem) => {
     const ctrl = new AbortController();
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
-      // ── Phase 1: drive_upload ─────────────────────────────────────────────
-      // Errors in this phase mark the item as 'failed'.
-      console.log(JSON.stringify({
-        step: 'drive_upload_start',
-        fileName: item.file.name,
-        fileSize: item.file.size,
-        fileType: item.file.type || 'application/octet-stream',
-        client: item.clientName,
-        contentType: item.contentType,
-        monthKey: item.monthKey,
-        hasRemoteId: !!item.remoteId,
-      }));
+      let xhrResult: XhrResult;
 
-      let driveFileId:    string;
-      let driveFolderId:  string | null;
-      let clientFolderName: string | null;
-      let renamedFileName:  string | null;
-
-      if (item.remoteId) {
-        // ── Reconcile path: Drive upload already done — skip directly to metadata save ──
-        // This branch is entered when reconcileItem re-queues a partial_success item.
-        // The remote info (driveFileId, folderId, etc.) was stored in the item when the
-        // original Drive upload succeeded.  We skip the session + binary upload entirely
-        // to prevent a duplicate Drive file.
-        driveFileId    = item.remoteId;
-        driveFolderId  = item.remoteFolderId;
-        clientFolderName = item.remoteClientFolderName;
-        renamedFileName  = item.remoteFileName;
-
-        console.log(JSON.stringify({
-          step: 'reconcile',
-          ok: true,
-          fileName: item.file.name,
-          remoteId: driveFileId,
-          note: 'skipping Drive re-upload — using stored remote info',
-        }));
-
-        // Show uploaded stage briefly so the UI reflects the reconcile flow
-        setStage(item.id, 'uploaded', { progress: 94 });
-
-      } else {
-        // ── Normal path: full session + Drive upload ──────────────────────────
-        setStage(item.id, 'validating', { progress: 1 });
-        console.log(JSON.stringify({
-          step: 'validating',
-          ok: true,
-          fileName: item.file.name,
-          client: item.clientName,
-          contentType: item.contentType,
-          monthKey: item.monthKey,
-        }));
-
-        const safeFileName = sanitizeUploadFileName(item.file.name);
-
-        // ── DIAGNOSTIC: log everything before the session request ─────────────
-        console.log(JSON.stringify({
-          step: 'pre_session_request',
-          endpoint: '/api/assets/upload-session',
-          fileName: safeFileName,
-          originalFileName: item.file.name,
-          fileSize: item.file.size,
-          fileType: item.file.type || 'application/octet-stream',
-          clientName: item.clientName,
-          contentType: item.contentType,
-          monthKey: item.monthKey,
-          hasClientId: !!item.clientId,
-          hasUploadedBy: !!item.uploadedBy,
-          hasCustomFileName: !!(item.uploadName?.trim()),
-        }));
-
-        const sessionRes = await fetch('/api/assets/upload-session', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName:    safeFileName,
-            fileType:    item.file.type || 'application/octet-stream',
-            fileSize:    item.file.size,
-            clientName:  item.clientName,
-            contentType: item.contentType,
-            monthKey:    item.monthKey,
-            ...(item.clientId    ? { clientId:       item.clientId }    : {}),
-            ...(item.uploadedBy  ? { uploadedBy:     item.uploadedBy }  : {}),
-            ...(item.uploadName.trim() ? { customFileName: item.uploadName.trim() } : {}),
-          }),
-          signal: ctrl.signal,
-        });
-
-        // ── DIAGNOSTIC: capture raw response text before JSON.parse ──────────
-        const sessionRawText = await sessionRes.text().catch(() => '(body unreadable)');
-        console.log(JSON.stringify({
-          step: 'session_response_raw',
-          httpStatus: sessionRes.status,
-          ok: sessionRes.ok,
-          rawBody: sessionRawText.slice(0, 600),
-        }));
-
-        let sessionJson: {
-          success: boolean;
-          error?: string;
-          code?: string;
-          details?: string;
-          provider?: string;
-          uploadUrl?: string;
-          drive_folder_id?: string;
-          client_folder_name?: string;
-          renamedFileName?: string;
-        };
-        try {
-          sessionJson = JSON.parse(sessionRawText);
-        } catch (parseErr) {
-          throw new Error(`[session_parse_failed] HTTP ${sessionRes.status} — body: ${sessionRawText.slice(0, 300)} — parseErr: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
-        }
-
-        if (!sessionRes.ok || !sessionJson.success) {
-          const errMsg = sessionJson.error ?? `Upload session failed (HTTP ${sessionRes.status})`;
-          const errCode = sessionJson.code ?? null;
-          const errDetails = sessionJson.details ?? null;
-          console.error(JSON.stringify({
-            step: 'upload_session',
-            ok: false,
-            fileName: item.file.name,
-            httpStatus: sessionRes.status,
-            error: { message: errMsg, code: errCode, details: errDetails, provider: sessionJson.provider ?? 'google-drive' },
-          }));
-          // Throw with structured prefix so the outer catch can surface exact details
-          throw Object.assign(new Error(errMsg), {
-            uploadStep: 'session',
-            uploadCode: errCode ?? 'SESSION_FAILED',
-            uploadDetails: errDetails ?? `HTTP ${sessionRes.status}`,
-            uploadProvider: sessionJson.provider ?? 'google-drive',
-          });
-        }
-
-        const uploadUrl = sessionJson.uploadUrl;
-        driveFolderId    = sessionJson.drive_folder_id    ?? null;
-        clientFolderName = sessionJson.client_folder_name ?? null;
-        renamedFileName  = sessionJson.renamedFileName    ?? null;
-
-        if (!uploadUrl) throw new Error('Server did not return an upload URL');
-        console.log(JSON.stringify({
-          step: 'upload_session',
-          ok: true,
-          fileName: item.file.name,
-          remoteFolderId: driveFolderId,
-          renamedFileName,
-          uploadUrlPrefix: uploadUrl.slice(0, 60) + '...',
-        }));
-
-        // ── Stage: uploading ──────────────────────────────────────────────────
-        setStage(item.id, 'uploading', { progress: 5 });
-
-        // ── DIAGNOSTIC: log before chunk upload starts ────────────────────────
-        console.log(JSON.stringify({
-          step: 'pre_chunk_upload',
-          fileName: item.file.name,
-          fileSize: item.file.size,
-          fileType: item.file.type || 'application/octet-stream',
-          uploadUrlPresent: true,
-          uploadUrlHost: (() => { try { return new URL(uploadUrl).host; } catch { return '(invalid url)'; } })(),
-        }));
-
-        driveFileId = await uploadFileChunked(uploadUrl, item.file, {
-          signal: ctrl.signal,
-          onProgress: (bytesUploaded, total) => {
-            const pct = 5 + Math.round((bytesUploaded / total) * 88); // 5 → 93
-            setStage(item.id, 'uploading', { progress: pct });
-          },
-        });
-
-        console.log(JSON.stringify({
-          step: 'remote_upload',
-          ok: true,
-          fileName: item.file.name,
-          remoteId: driveFileId,
-        }));
-
-        // ── Stage: uploaded ───────────────────────────────────────────────────
-        // Drive file is on Google Drive. Anything from here failing → partial_success.
-        setStage(item.id, 'uploaded', { progress: 94 });
-
-        // Persist remote info into item state so reconcileItem can use it later
-        // without triggering a re-upload.
-        dispatchRef.current({
-          type:  'UPDATE',
-          id:    item.id,
-          patch: {
-            remoteId:               driveFileId,
-            remoteFolderId:         driveFolderId,
-            remoteClientFolderName: clientFolderName,
-            remoteFileName:         renamedFileName ?? safeFileName,
-          },
-        });
-      }
-
-      // ── Stage: saving_metadata ────────────────────────────────────────────
-      setStage(item.id, 'saving_metadata', { progress: 95 });
-      const effectiveFileName = renamedFileName ?? sanitizeUploadFileName(item.file.name);
-      console.log(JSON.stringify({
-        step: 'db_insert',
-        ok: null,
-        fileName: effectiveFileName,
-        remoteId: driveFileId,
-        note: 'calling upload-complete',
-      }));
-
-      let completeJson: {
-        success: boolean;
-        stage?: string;
-        file?: { name: string; size: number | null };
-        remote?: { uploaded: boolean; id?: string };
-        database?: {
-          saved: boolean;
-          id?: string | null;
-          error?: { message: string; code: string | null; details: string | null; hint?: string | null };
-        };
-        preview?: { ok: boolean; reason: string | null };
-        error?: { step: string; message: string; code: string | null; details: string | null };
-        asset?: Asset;
-        // Legacy fields (backward compat — will be removed once backend fully deployed)
-        driveUploaded?: boolean;
-        dbSaved?: boolean;
-        warning?: string;
-        dbErrorMessage?: string;
-        dbErrorCode?: string;
-        dbErrorDetails?: string;
-        dbErrorHint?: string;
-      };
-
-      try {
-        const completeRes = await fetch('/api/assets/upload-complete', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            driveFileId,
-            driveFolderId,
-            clientFolderName,
-            fileName:    effectiveFileName,
-            fileType:    item.file.type  || null,
-            fileSize:    item.file.size  || null,
-            contentType: item.contentType,
-            monthKey:    item.monthKey,
-            clientName:  item.clientName,
-            clientId:    item.clientId   || null,
-            ...(item.uploadedBy ? { uploadedBy: item.uploadedBy } : {}),
-          }),
-          // NOTE: no AbortSignal — Drive file already exists, must not orphan it
-        });
-
-        try {
-          completeJson = await completeRes.json();
-        } catch {
-          // Unreadable body — treat 2xx as completed, anything else as partial_success.
-          if (completeRes.status === 200 || completeRes.status === 201) {
-            console.log('[upload] ✅ saving_metadata OK (unreadable body, HTTP', completeRes.status, ')');
-            setStage(item.id, 'completed', { progress: 100 });
-          } else {
-            console.warn('[upload] ⚠️ saving_metadata: unreadable response (HTTP', completeRes.status, ') — Drive file exists');
-            setStage(item.id, 'partial_success', {
-              progress: 100,
-              errorDetail: {
-                step:    'saving_metadata',
-                message: PARTIAL_SUCCESS_MESSAGE,
-                code:    `HTTP_${completeRes.status}`,
-                details: null,
-              },
-            });
-          }
-          return;
-        }
-
-        console.log(JSON.stringify({
-          step: 'db_insert',
-          ok: true,
-          stage: completeJson.stage,
-          success: completeJson.success,
-          fileName: effectiveFileName,
-          remoteId: driveFileId,
-          dbSaved: completeJson.database?.saved,
-          dbId: completeJson.database?.id,
-        }));
-
-        // ── Handle new structured response ────────────────────────────────
-        if (completeJson.stage === 'completed' || (completeJson.success && completeJson.database?.saved === true)) {
-          // Full success (new or legacy format).
-          if (completeJson.asset) {
-            dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
-          }
-          // Preview failure inside completed is NOT a failure.
-          if (completeJson.preview && !completeJson.preview.ok) {
-            console.log(JSON.stringify({ step: 'preview', ok: false, reason: completeJson.preview.reason, note: 'still completed' }));
-          }
-          setStage(item.id, 'completed', { progress: 100 });
-          return;
-        }
-
-        if (completeJson.stage === 'partial_success' || (completeJson.success && completeJson.database?.saved === false)) {
-          // Partial success: Drive OK, DB failed.
-          const dbErr = completeJson.database?.error;
-          const errMsg = dbErr?.message
-            ?? completeJson.dbErrorMessage
-            ?? 'Uploaded successfully, but failed to save inside the system.';
-          const errCode = dbErr?.code ?? completeJson.dbErrorCode ?? null;
-          const errDetails = dbErr?.details ?? completeJson.dbErrorDetails ?? null;
-
-          console.warn(JSON.stringify({
-            step: 'db_insert',
-            ok: false,
-            fileName: effectiveFileName,
-            remoteId: driveFileId,
-            error: { message: errMsg, code: errCode, details: errDetails, hint: dbErr?.hint ?? null },
-          }));
-          setStage(item.id, 'partial_success', {
-            progress: 100,
-            errorDetail: {
-              step:    'saving_metadata',
-              message: PARTIAL_SUCCESS_MESSAGE,
-              code:    errCode,
-              details: errMsg !== PARTIAL_SUCCESS_MESSAGE ? errMsg : errDetails,
-            },
-          });
-          return;
-        }
-
-        // upload-complete returned an error — but Drive upload already succeeded.
-        // Treat as partial_success so the Drive file is not silently ignored.
-        const srvErr = completeJson.error;
-        const srvMsg = srvErr?.message ?? completeJson.warning ?? 'Metadata save failed (server error)';
-        console.warn(JSON.stringify({
-          step: 'db_insert',
-          ok: false,
-          fileName: effectiveFileName,
-          remoteId: driveFileId,
-          error: { message: srvMsg, code: srvErr?.code ?? null, details: srvErr?.details ?? null },
-        }));
-        setStage(item.id, 'partial_success', {
-          progress: 100,
+      // ── Client-side size check ──────────────────────────────────────────
+      if (item.file.size > MAX_FILE_SIZE_BYTES && !item.driveFileId) {
+        setStage(item.id, 'failed_upload', {
           errorDetail: {
-            step:    'saving_metadata',
-            message: PARTIAL_SUCCESS_MESSAGE,
-            code:    srvErr?.code ?? null,
-            details: srvMsg,
-          },
-        });
-
-      } catch (saveErr: unknown) {
-        // Re-throw AbortErrors — these happen before saving_metadata starts and
-        // should remove the item via the outer catch.
-        if ((saveErr as Error)?.name === 'AbortError') throw saveErr;
-
-        // Network/timeout error calling upload-complete.
-        // Drive upload already completed → partial_success (not failed).
-        const saveMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
-        console.warn(JSON.stringify({
-          step: 'db_insert',
-          ok: false,
-          fileName: effectiveFileName,
-          remoteId: driveFileId,
-          error: { message: saveMsg, code: 'NETWORK_ERROR', details: null },
-        }));
-        setStage(item.id, 'partial_success', {
-          progress: 100,
-          errorDetail: {
-            step:    'saving_metadata',
-            message: PARTIAL_SUCCESS_MESSAGE,
-            code:    'NETWORK_ERROR',
-            details: saveMsg,
-          },
-        });
-      }
-
-    } catch (err: unknown) {
-      // AbortError — item is being removed, do nothing.
-      if ((err as Error)?.name === 'AbortError') return;
-
-      // DriveUploadedNoIdError — file IS on Drive but ID could not be confirmed.
-      // Treat as partial_success (Drive file exists, we just can't track it yet).
-      if (err instanceof DriveUploadedNoIdError) {
-        console.warn(JSON.stringify({
-          step: 'remote_upload',
-          ok: false,
-          fileName: item.file.name,
-          error: { message: err.message, code: 'DRIVE_NO_ID', details: 'File uploaded to Google Drive but the file ID could not be confirmed. Check Google Drive manually.' },
-        }));
-        setStage(item.id, 'partial_success', {
-          progress: 100,
-          errorDetail: {
-            step:    'uploaded',
-            message: PARTIAL_SUCCESS_MESSAGE,
-            code:    'DRIVE_NO_ID',
-            details: 'File uploaded to Google Drive but the file ID could not be confirmed. Check Google Drive manually.',
+            step:    'size_limit',
+            message: `File is too large (${(item.file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.`,
+            code:    'SIZE_LIMIT_EXCEEDED',
+            details: null,
           },
         });
         return;
       }
 
-      // All other errors are Phase 1 (session fetch or Drive chunk upload) → failed.
-      const msg = err instanceof Error ? err.message : String(err);
-      // Preserve structured sub-step info when available (attached by session error path)
-      const enriched = err as { uploadStep?: string; uploadCode?: string; uploadDetails?: string; uploadProvider?: string };
-      const errStep    = enriched.uploadStep    ?? 'upload';
-      const errCode    = enriched.uploadCode    ?? 'UPLOAD_ERROR';
-      const errDetails = enriched.uploadDetails ?? null;
-      const errProvider = enriched.uploadProvider ?? 'google-drive';
-      console.error(JSON.stringify({
-        step: 'phase1_failed',
-        ok: false,
-        fileName: item.file.name,
-        provider: errProvider,
-        error: { message: msg, code: errCode, step: errStep, details: errDetails },
-      }));
-      setStage(item.id, 'failed', {
+      // ── Build FormData ────────────────────────────────────────────────
+      const formData = new FormData();
+
+      if (item.driveFileId) {
+        // ── Reconcile path: Drive already done — retry DB save only ──────
+        formData.append('driveFileId',    item.driveFileId);
+        formData.append('driveFolderId',  item.driveFolderId ?? '');
+        formData.append('driveFileName',  item.driveFileName ?? item.file.name);
+        formData.append('fileMimeType',   (item.fileMimeType ?? item.file.type) || 'application/octet-stream');
+        formData.append('fileSize',       String(item.file.size));
+
+        setStage(item.id, 'uploading', { progress: 90 });
+      } else {
+        // ── Normal path: upload file to server ───────────────────────────
+        formData.append('file',       item.file);
+
+        setStage(item.id, 'uploading', { progress: 0 });
+      }
+
+      formData.append('clientName',  item.clientName);
+      formData.append('contentType', item.contentType);
+      formData.append('monthKey',    item.monthKey);
+      if (item.clientId)   formData.append('clientId',   item.clientId);
+      if (item.uploadedBy) formData.append('uploadedBy', item.uploadedBy);
+      if (item.uploadName.trim()) formData.append('customFileName', item.uploadName.trim());
+
+      // ── Upload via XHR (for progress tracking) ──────────────────────
+      try {
+        xhrResult = await uploadViaXHR(
+          '/api/upload',
+          formData,
+          (pct) => {
+            if (!item.driveFileId) {
+              setStage(item.id, 'uploading', { progress: pct });
+            }
+          },
+          ctrl.signal,
+        );
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        throw new Error(err instanceof Error ? err.message : 'Network error during upload');
+      }
+
+      // ── XHR done — bytes sent to server (or DB retry complete) ────────
+      setStage(item.id, 'uploaded', { progress: 100 });
+
+      // ── Parse server response ─────────────────────────────────────────
+      let json: {
+        success:         boolean;
+        stage?:          string;
+        asset?:          Asset;
+        drive_file_id?:  string;
+        drive_folder_id?: string;
+        drive_file_name?: string;
+        error?: { step: string; message: string; code?: string | null; details?: string | null };
+      };
+
+      try {
+        json = JSON.parse(xhrResult.body);
+      } catch {
+        // Unreadable response — treat 2xx as completed, others as failed
+        if (xhrResult.status >= 200 && xhrResult.status < 300) {
+          setStage(item.id, 'completed', { progress: 100 });
+        } else {
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:    'response_parse',
+              message: 'Upload failed with an unreadable server response',
+              code:    `HTTP_${xhrResult.status}`,
+              details: xhrResult.body.slice(0, 300),
+            },
+          });
+        }
+        return;
+      }
+
+      // ── Handle response stage ─────────────────────────────────────────
+      if (json.stage === 'completed') {
+        if (json.asset) dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: json.asset });
+        setStage(item.id, 'completed', { progress: 100 });
+        return;
+      }
+
+      if (json.stage === 'failed_db') {
+        // Drive upload succeeded — store the Drive info for reconcile retry
+        dispatchRef.current({
+          type:  'UPDATE',
+          id:    item.id,
+          patch: {
+            driveFileId:   json.drive_file_id   ?? null,
+            driveFolderId: json.drive_folder_id ?? null,
+            driveFileName: json.drive_file_name ?? null,
+            fileMimeType:  item.file.type || null,
+          },
+        });
+        setStage(item.id, 'failed_db', {
+          progress: 100,
+          errorDetail: {
+            step:    'database_insert',
+            message: DB_FAIL_MESSAGE,
+            code:    json.error?.code    ?? null,
+            details: json.error?.message ?? null,
+          },
+        });
+        return;
+      }
+
+      if (json.stage === 'failed_upload' || !json.success) {
+        const err = json.error;
+        setStage(item.id, 'failed_upload', {
+          errorDetail: {
+            step:    err?.step    ?? 'upload',
+            message: err?.message ?? 'Upload failed',
+            code:    err?.code    ?? `HTTP_${xhrResult.status}`,
+            details: err?.details ?? null,
+          },
+        });
+        return;
+      }
+
+      // Unknown stage — treat as failure
+      setStage(item.id, 'failed_upload', {
         errorDetail: {
-          step:    errStep,
+          step:    'unknown',
+          message: 'Upload failed with an unexpected server response',
+          code:    null,
+          details: xhrResult.body.slice(0, 300),
+        },
+      });
+
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return;
+
+      const msg = err instanceof Error ? err.message : String(err);
+      setStage(item.id, 'failed_upload', {
+        errorDetail: {
+          step:    'upload',
           message: msg,
-          code:    errCode,
-          details: errDetails,
+          code:    'UPLOAD_ERROR',
+          details: null,
         },
       });
     } finally {
@@ -656,7 +408,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setStage]);
 
-  // ── Queue runner — starts uploads whenever slots are free ─────────────────
+  // ── Queue runner ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     const queued = state.queue.filter(
@@ -677,109 +429,90 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   const startBatch = useCallback((items: InitialUploadItem[], meta: BatchMeta) => {
     const queueItems: UploadItem[] = items.map(i => ({
-      id:          i.id,
-      file:        i.file,
-      previewUrl:  i.previewUrl,
-      status:      'queued',
-      statusText:  stageText('queued'),
-      progress:    0,
-      errorDetail: null,
-      uploadName:  i.uploadName,
-      clientName:  meta.clientName,
-      clientId:    meta.clientId,
-      contentType: meta.contentType,
-      monthKey:    meta.monthKey,
-      uploadedBy:  meta.uploadedBy,
-      // Remote info — populated after Drive upload succeeds
-      remoteId:               null,
-      remoteFolderId:         null,
-      remoteClientFolderName: null,
-      remoteFileName:         null,
+      id:            i.id,
+      file:          i.file,
+      previewUrl:    i.previewUrl,
+      status:        'queued',
+      statusText:    stageText('queued'),
+      progress:      0,
+      errorDetail:   null,
+      uploadName:    i.uploadName,
+      clientName:    meta.clientName,
+      clientId:      meta.clientId,
+      contentType:   meta.contentType,
+      monthKey:      meta.monthKey,
+      uploadedBy:    meta.uploadedBy,
+      driveFileId:   null,
+      driveFolderId: null,
+      driveFileName: null,
+      fileMimeType:  null,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
   }, []);
 
-  /** Retry is only meaningful for items that failed before Drive upload completed. */
+  /** Retry a failed_upload item — full upload from scratch. */
   const retryItem = useCallback((id: string) => {
-    dispatch({
+    dispatchRef.current({
       type:  'UPDATE',
       id,
       patch: {
-        status:                 'queued',
-        statusText:             stageText('queued'),
-        errorDetail:            null,
-        progress:               0,
-        // Clear any stale remote info so the full upload runs from scratch
-        remoteId:               null,
-        remoteFolderId:         null,
-        remoteClientFolderName: null,
-        remoteFileName:         null,
+        status:        'queued',
+        statusText:    stageText('queued'),
+        progress:      0,
+        errorDetail:   null,
+        driveFileId:   null,
+        driveFolderId: null,
+        driveFileName: null,
+        fileMimeType:  null,
       },
     });
   }, []);
 
-  /**
-   * Reconcile: re-queue an item that reached partial_success so that the
-   * metadata save step can be retried WITHOUT re-uploading the binary.
-   *
-   * The item already has remoteId / remoteFolderId / remoteFileName stored
-   * from when the Drive upload succeeded.  doUploadItem detects a non-null
-   * remoteId and skips the Drive upload phase, going directly to saving_metadata.
-   *
-   * This prevents duplicate Drive uploads and does NOT create duplicate DB rows
-   * because upload-complete checks for an existing asset with the same
-   * drive_file_id before inserting.
-   */
+  /** Retry a failed_db item — skip Drive upload, retry DB save only. */
   const reconcileItem = useCallback((id: string) => {
-    dispatch({
+    dispatchRef.current({
       type:  'UPDATE',
       id,
-      // Re-queue while intentionally preserving remoteId/remoteFolderId/etc.
-      // doUploadItem will detect remoteId and skip the Drive upload phase.
-      patch: { status: 'queued', statusText: stageText('queued'), errorDetail: null, progress: 0 },
+      patch: {
+        status:      'queued',
+        statusText:  stageText('queued'),
+        progress:    0,
+        errorDetail: null,
+        // driveFileId/driveFolderId/driveFileName preserved — doUploadItem will skip Drive upload
+      },
     });
   }, []);
 
   const removeItem = useCallback((id: string) => {
-    abortControllersRef.current.get(id)?.abort();
-    const item = state.queue.find(i => i.id === id);
-    if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
-    dispatch({ type: 'REMOVE', id });
-  }, [state.queue]);
+    const ctrl = abortControllersRef.current.get(id);
+    if (ctrl) { ctrl.abort(); abortControllersRef.current.delete(id); }
+    runningRef.current.delete(id);
+    dispatchRef.current({ type: 'REMOVE', id });
+  }, []);
 
   const clearCompleted = useCallback(() => {
-    state.queue
-      .filter(i => (i.status === 'completed' || i.status === 'partial_success') && i.previewUrl)
-      .forEach(i => URL.revokeObjectURL(i.previewUrl!));
-    dispatch({ type: 'CLEAR_COMPLETED' });
-  }, [state.queue]);
+    dispatchRef.current({ type: 'CLEAR_COMPLETED' });
+  }, []);
 
-  const isUploading = state.queue.some(i =>
-    i.status === 'validating' ||
-    i.status === 'uploading' ||
-    i.status === 'uploaded' ||
-    i.status === 'saving_metadata',
+  const isUploading = state.queue.some(
+    i => i.status === 'uploading' || i.status === 'uploaded' || i.status === 'saved',
   );
 
   return (
-    <UploadContext.Provider
-      value={{
-        queue:          state.queue,
-        isUploading,
-        latestAsset:    state.latestAsset,
-        startBatch,
-        retryItem,
-        reconcileItem,
-        removeItem,
-        clearCompleted,
-      }}
-    >
+    <UploadContext.Provider value={{
+      queue:          state.queue,
+      isUploading,
+      latestAsset:    state.latestAsset,
+      startBatch,
+      retryItem,
+      reconcileItem,
+      removeItem,
+      clearCompleted,
+    }}>
       {children}
     </UploadContext.Provider>
   );
 }
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useUpload(): UploadContextValue {
   return useContext(UploadContext);

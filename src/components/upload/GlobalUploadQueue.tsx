@@ -11,7 +11,7 @@
  *     Saving to system / Completed / Uploaded, but not saved in system / Failed)
  *   - progress bar while active
  *   - retry button   — only if status === 'failed' (true upload failure)
- *   - reconcile button — only if status === 'partial_success' (Drive OK, DB failed)
+ *   - reconcile button — only if status === 'failed_db' (Drive OK, DB save failed)
  *   - remove button  — always, disabled while actively uploading
  *   - expandable details section with exact technical error
  *
@@ -62,17 +62,16 @@ function FileTypeIcon({ item }: { item: UploadItem }) {
   return <File size={sz} style={{ color: 'var(--text-secondary)' }} />;
 }
 
-// ── Stage colour & label maps ─────────────────────────────────────────────────
+// ── Stage colour map ──────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<UploadStatus, string> = {
-  queued:          'var(--text-secondary)',
-  validating:      'var(--accent)',
-  uploading:       'var(--accent)',
-  uploaded:        'var(--accent)',
-  saving_metadata: 'var(--accent)',
-  completed:       '#16a34a',
-  partial_success: '#d97706',
-  failed:          '#ef4444',
+  queued:        'var(--text-secondary)',
+  uploading:     'var(--accent)',
+  uploaded:      'var(--accent)',
+  saved:         'var(--accent)',
+  completed:     '#16a34a',
+  failed_db:     '#d97706',
+  failed_upload: '#ef4444',
 };
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
@@ -81,11 +80,10 @@ function QueueRow({ item }: { item: UploadItem }) {
   const { retryItem, reconcileItem, removeItem } = useUpload();
   const [expanded, setExpanded] = useState(false);
 
-  const isActive   = item.status === 'validating' || item.status === 'uploading'
-                  || item.status === 'uploaded'    || item.status === 'saving_metadata';
+  const isActive   = item.status === 'uploading' || item.status === 'uploaded' || item.status === 'saved';
   const isComplete = item.status === 'completed';
-  const isPartial  = item.status === 'partial_success';
-  const isFailed   = item.status === 'failed';
+  const isFailedDb = item.status === 'failed_db';
+  const isFailed   = item.status === 'failed_upload';
   const hasDetail  = !!item.errorDetail;
 
   const statusColor = STATUS_COLOR[item.status];
@@ -116,9 +114,9 @@ function QueueRow({ item }: { item: UploadItem }) {
             <p className="text-xs font-semibold truncate flex-1" style={{ color: 'var(--text)' }}>
               {getDisplayName(item)}
             </p>
-            {isComplete && <CheckCircle   size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
-            {isPartial   && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
-            {isFailed    && <AlertCircle  size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
+            {isComplete  && <CheckCircle   size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
+            {isFailedDb  && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
+            {isFailed    && <AlertCircle   size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
             {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
           </div>
 
@@ -148,8 +146,8 @@ function QueueRow({ item }: { item: UploadItem }) {
             </div>
           )}
 
-          {/* Brief error summary line (failed / partial_success) */}
-          {(isFailed || isPartial) && item.errorDetail && (
+          {/* Brief error summary line (failed / failed_db) */}
+          {(isFailed || isFailedDb) && item.errorDetail && (
             <p className="text-xs leading-tight line-clamp-2" style={{ color: statusColor, opacity: 0.9 }}>
               {item.errorDetail.message}
             </p>
@@ -170,7 +168,7 @@ function QueueRow({ item }: { item: UploadItem }) {
             </button>
           )}
           {/* Reconcile — only when Drive succeeded but DB save failed */}
-          {isPartial && (
+          {isFailedDb && (
             <button
               onClick={() => reconcileItem(item.id)}
               title="Retry saving to system"
@@ -249,11 +247,10 @@ export default function GlobalUploadQueue() {
   if (queue.length === 0) return null;
 
   const completed = queue.filter(i => i.status === 'completed').length;
-  const partial   = queue.filter(i => i.status === 'partial_success').length;
-  const failed    = queue.filter(i => i.status === 'failed').length;
+  const failedDb  = queue.filter(i => i.status === 'failed_db').length;
+  const failed    = queue.filter(i => i.status === 'failed_upload').length;
   const active    = queue.filter(i =>
-    i.status === 'validating' || i.status === 'uploading' ||
-    i.status === 'uploaded'   || i.status === 'saving_metadata',
+    i.status === 'uploading' || i.status === 'uploaded' || i.status === 'saved',
   ).length;
 
   const overallPct = queue.length > 0
@@ -261,7 +258,7 @@ export default function GlobalUploadQueue() {
     : 0;
 
   const allDone = active === 0 && queue.every(
-    i => i.status === 'completed' || i.status === 'partial_success' || i.status === 'failed',
+    i => i.status === 'completed' || i.status === 'failed_db' || i.status === 'failed_upload',
   );
 
   const titleText = active > 0
@@ -269,12 +266,12 @@ export default function GlobalUploadQueue() {
     : allDone
     ? [
         completed > 0 && `${completed} completed`,
-        partial   > 0 && `${partial} partial`,
+        failedDb  > 0 && `${failedDb} partial`,
         failed    > 0 && `${failed} failed`,
       ].filter(Boolean).join(' · ') || 'Done'
     : `${completed}/${queue.length} files`;
 
-  const clearableCount = completed + partial;
+  const clearableCount = completed + failedDb;
 
   return (
     <div
@@ -301,18 +298,18 @@ export default function GlobalUploadQueue() {
           style={{
             background: active > 0
               ? 'var(--accent-soft)'
-              : allDone && failed === 0 && partial === 0
+              : allDone && failed === 0 && failedDb === 0
               ? 'rgba(22,163,74,0.10)'
-              : allDone && partial > 0 && failed === 0
+              : allDone && failedDb > 0 && failed === 0
               ? 'rgba(217,119,6,0.10)'
               : 'var(--surface)',
           }}
         >
           {active > 0
             ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-            : allDone && failed === 0 && partial === 0
+            : allDone && failed === 0 && failedDb === 0
             ? <CheckCircle   size={14} style={{ color: '#16a34a' }} />
-            : allDone && partial > 0 && failed === 0
+            : allDone && failedDb > 0 && failed === 0
             ? <AlertTriangle size={14} style={{ color: '#d97706' }} />
             : <Upload size={14} style={{ color: 'var(--accent)' }} />
           }
