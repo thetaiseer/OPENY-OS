@@ -11,7 +11,7 @@
 ALTER TABLE public.tasks
   ADD COLUMN IF NOT EXISTS task_category   TEXT,
   ADD COLUMN IF NOT EXISTS due_time        TIME,
-  ADD COLUMN IF NOT EXISTS timezone        TEXT NOT NULL DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS timezone        TEXT DEFAULT 'UTC',
   ADD COLUMN IF NOT EXISTS content_purpose TEXT,
   ADD COLUMN IF NOT EXISTS caption         TEXT,
   ADD COLUMN IF NOT EXISTS client_name     TEXT,

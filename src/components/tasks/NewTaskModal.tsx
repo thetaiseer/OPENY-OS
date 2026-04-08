@@ -18,7 +18,7 @@ import {
   Paperclip, ChevronDown, FileText,
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
-import type { Client, TeamMember, TaskCategory } from '@/lib/types';
+import type { Client, TeamMember, TaskCategory, Task } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ interface UploadState {
 interface NewTaskModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (task: Record<string, unknown>) => void;
+  onCreated: (task: Task) => void;
   clients: Client[];
   team: TeamMember[];
   /** Pre-selected client id */
@@ -183,6 +183,13 @@ export default function NewTaskModal({
 
   // ── File upload handler ───────────────────────────────────────────────────
 
+  interface UploadResponse {
+    stage?: string;
+    file?: { id?: string };
+    success?: boolean;
+    error?: { message?: string };
+  }
+
   async function handleFileUpload(): Promise<string | null> {
     if (!uploadState.file) return null;
     if (!selectedClient) {
@@ -201,7 +208,7 @@ export default function NewTaskModal({
       fd.append('clientId', clientId);
 
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const json = await res.json() as { stage?: string; file?: { id?: string }; success?: boolean; error?: { message?: string } };
+      const json = await res.json() as UploadResponse;
 
       if (json.stage === 'completed' && json.file?.id) {
         setUpload(u => ({ ...u, uploading: false, uploadedAssetId: json.file!.id! }));
@@ -271,7 +278,7 @@ export default function NewTaskModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json() as { success: boolean; task?: Record<string, unknown>; error?: string };
+      const json = await res.json() as { success: boolean; task?: Task; error?: string };
 
       if (!res.ok || !json.success) {
         setError(json.error ?? 'Failed to create task');

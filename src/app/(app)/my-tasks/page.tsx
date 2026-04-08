@@ -298,10 +298,10 @@ export default function MyTasksPage() {
   }, [memberTasks, activeSection]);
 
   const overdueCount       = memberTasks.filter(isTaskOverdue).length;
-  const selectedMemberName = team.find(m => m.id === selectedMember)?.name ?? (user as { name?: string })?.name ?? 'All';
+  const selectedMemberName = team.find(m => m.id === selectedMember)?.name ?? user.name ?? 'All';
 
-  function handleTaskCreated(task: Record<string, unknown>) {
-    setTasks(prev => [task as unknown as Task, ...prev]);
+  function handleTaskCreated(task: Task) {
+    setTasks(prev => [task, ...prev]);
     toast('Task created successfully', 'success');
   }
 
