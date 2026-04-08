@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getStorageProvider } from '@/lib/storage';
 import { requireRole } from '@/lib/api-auth';
-import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
+import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -92,6 +92,39 @@ export async function POST(req: NextRequest) {
 
     console.log('[upload-complete] file:', fileName, '| drive_file_id:', driveFileId, '| client:', clientName);
 
+    // ── Deduplication check — prevent duplicate DB rows on reconcile retry ────
+    // If an asset with this drive_file_id already exists in the DB (e.g. the
+    // previous upload-complete call succeeded but the response was lost in
+    // transit), return the existing record as a completed success rather than
+    // inserting a duplicate.
+    const supabase = getSupabase();
+    {
+      const { data: existing, error: dedupErr } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('drive_file_id', driveFileId)
+        .maybeSingle();
+
+      if (dedupErr) {
+        // Non-fatal — log and continue with normal insert
+        console.warn('[upload-complete] ⚠️ dedup check failed (non-fatal):', dedupErr.message);
+      } else if (existing) {
+        console.log('[upload-complete] ℹ️ dedup — asset already in DB for drive_file_id:', driveFileId, '| id:', existing.id, '— returning existing record');
+        return NextResponse.json(
+          {
+            success:  true,
+            stage:    'completed',
+            file:     { name: fileName, size: safeFileSize },
+            remote:   { uploaded: true, id: driveFileId },
+            database: { saved: true, id: existing.id, alreadyExisted: true },
+            preview:  { ok: true, reason: null },
+            asset:    existing,
+          },
+          { status: 200 },
+        );
+      }
+    }
+
     // ── Step 1: drive_upload finalize — set permissions + fetch canonical links ─
     // If this step fails we fall back to constructed URLs and continue.
     // Preview failure must NOT mark the upload as failed.
@@ -109,10 +142,10 @@ export async function POST(req: NextRequest) {
       webContentLink = finalized.downloadUrl;
       thumbnailLink  = finalized.thumbnailLink;
       driveMimeType  = finalized.mimeType;
-      console.log('[upload-complete] ✅ drive_upload finalize OK — view:', webViewLink);
+      console.log(JSON.stringify({ step: 'drive_finalize', ok: true, fileName, remoteId: driveFileId, viewUrl: webViewLink }));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[upload-complete] ⚠️ finalizeFileAfterUpload failed — using fallback URLs:', msg);
+      console.warn(JSON.stringify({ step: 'drive_finalize', ok: false, fileName, remoteId: driveFileId, error: { message: msg }, note: 'using fallback URLs — not a failure' }));
       previewOk     = false;
       previewReason = msg;
       // Fallback URLs already set; proceed to database_insert.
@@ -121,8 +154,7 @@ export async function POST(req: NextRequest) {
     // ── Step 2: database_insert ───────────────────────────────────────────────
     // Drive upload already succeeded. If DB insert fails → partial_success.
     // Drive file is preserved (no rollback).
-    console.log('[upload-complete] database_insert — inserting into assets table…');
-    const supabase = getSupabase();
+    console.log('[upload-complete] database_insert — inserting into assets table…')
 
     const requiredRow: Record<string, unknown> = {
       name:               fileName,
@@ -156,7 +188,7 @@ export async function POST(req: NextRequest) {
     let inserted: Record<string, unknown>;
     try {
       const fullRow = { ...requiredRow, ...previewFields };
-      console.log('[upload-complete] insert payload keys:', Object.keys(fullRow).join(', '));
+      console.log(JSON.stringify({ step: 'db_insert', ok: null, fileName, remoteId: driveFileId, payloadKeys: Object.keys(fullRow) }));
 
       const { data, error: dbError } = await insertWithColumnFallback(
         (row) => supabase.from('assets').insert(row).select().single(),
@@ -166,9 +198,13 @@ export async function POST(req: NextRequest) {
 
       if (dbError) {
         // database_insert failed — Drive file preserved (no rollback) → partial_success.
-        console.error('[upload-complete] ❌ database_insert failed — code:', dbError.code, '| msg:', dbError.message);
-        console.error('[upload-complete] ❌ database_insert error details:', serializeDbError(dbError));
-        console.warn('[upload-complete] ⚠️ Drive file preserved — returning partial_success for:', driveFileId);
+        console.error(JSON.stringify({
+          step: 'db_insert',
+          ok: false,
+          fileName,
+          remoteId: driveFileId,
+          error: { message: dbError.message, code: dbError.code ?? null, details: dbError.details ?? null, hint: dbError.hint ?? null },
+        }));
         return NextResponse.json(
           {
             success: true,
@@ -190,8 +226,7 @@ export async function POST(req: NextRequest) {
       inserted = data as Record<string, unknown>;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload-complete] ❌ database_insert exception:', msg);
-      console.warn('[upload-complete] ⚠️ Drive file preserved — returning partial_success for:', driveFileId);
+      console.error(JSON.stringify({ step: 'db_insert', ok: false, fileName, remoteId: driveFileId, error: { message: msg, code: 'DB_EXCEPTION', details: null, hint: null } }));
       return NextResponse.json(
         {
           success: true,
@@ -211,7 +246,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[upload-complete] ✅ database_insert OK — asset id:', inserted?.id);
+    console.log(JSON.stringify({ step: 'db_insert', ok: true, fileName, remoteId: driveFileId, dbId: inserted?.id }));
 
     // ── Activity log (fire-and-forget) ────────────────────────────────────────
     void supabase.from('activities').insert({
@@ -219,10 +254,10 @@ export async function POST(req: NextRequest) {
       description: `Asset "${fileName}" uploaded to Google Drive (${clientFolderName}/${contentType}/${monthKey})${safeUploadedBy ? ` by ${safeUploadedBy}` : ''}`,
       ...(safeClientId ? { client_id: safeClientId } : {}),
     }).then(({ error }) => {
-      if (error) console.warn('[upload-complete] activity log insert failed:', error.message);
+      if (error) console.warn(JSON.stringify({ step: 'activity_log', ok: false, error: { message: error.message } }));
     });
 
-    console.log('[upload-complete] ✅ response_return — stage: completed, assetId:', inserted?.id);
+    console.log(JSON.stringify({ step: 'response_return', ok: true, stage: 'completed', fileName, remoteId: driveFileId, dbId: inserted?.id, previewOk }));
     return NextResponse.json(
       {
         success:  true,
@@ -237,7 +272,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[upload-complete] ❌ Unexpected error:', msg);
+    console.error(JSON.stringify({ step: 'server_error', ok: false, error: { message: msg, code: 'SERVER_ERROR', details: null } }));
     return NextResponse.json(
       {
         success: false,
