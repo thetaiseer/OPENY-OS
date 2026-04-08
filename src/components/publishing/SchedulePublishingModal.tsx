@@ -27,14 +27,20 @@ import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const PLATFORMS = [
-  { value: 'instagram',      label: 'Instagram',      color: '#e1306c' },
-  { value: 'facebook',       label: 'Facebook',       color: '#1877f2' },
-  { value: 'tiktok',         label: 'TikTok',         color: '#010101' },
-  { value: 'linkedin',       label: 'LinkedIn',       color: '#0077b5' },
-  { value: 'twitter',        label: 'X / Twitter',    color: '#1da1f2' },
-  { value: 'snapchat',       label: 'Snapchat',       color: '#fffc00' },
-  { value: 'youtube_shorts', label: 'YouTube Shorts', color: '#ff0000' },
+  { value: 'instagram',      label: 'Instagram',      color: '#e1306c',  displayColor: '#e1306c' },
+  { value: 'facebook',       label: 'Facebook',       color: '#1877f2',  displayColor: '#1877f2' },
+  { value: 'tiktok',         label: 'TikTok',         color: '#010101',  displayColor: '#010101' },
+  { value: 'linkedin',       label: 'LinkedIn',       color: '#0077b5',  displayColor: '#0077b5' },
+  { value: 'twitter',        label: 'X / Twitter',    color: '#1da1f2',  displayColor: '#1da1f2' },
+  { value: 'snapchat',       label: 'Snapchat',       color: '#fffc00',  displayColor: '#f59e0b' },
+  { value: 'youtube_shorts', label: 'YouTube Shorts', color: '#ff0000',  displayColor: '#ff0000' },
 ] as const;
+
+/** Returns the display-safe background color for a platform (avoids near-white for Snapchat). */
+export function getPlatformDisplayColor(value: string): string {
+  const p = PLATFORMS.find(pl => pl.value === value);
+  return p ? p.displayColor : '#7c3aed';
+}
 
 export const POST_TYPES = [
   { value: 'post',     label: 'Post',     desc: 'Regular feed post' },
@@ -85,7 +91,7 @@ function PlatformBadge({ value }: { value: string }) {
   return (
     <span
       className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium text-white"
-      style={{ background: p.color === '#fffc00' ? '#f5a623' : p.color }}
+      style={{ background: getPlatformDisplayColor(value) }}
     >
       {p.label}
     </span>
@@ -357,9 +363,9 @@ export default function SchedulePublishingModal({
                       onClick={() => togglePlatform(p.value)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
                       style={{
-                        background:   selected ? (p.value === 'snapchat' ? '#f59e0b' : p.color) : 'var(--surface-2)',
-                        color:        selected ? (p.value === 'snapchat' ? '#1a1a1a' : 'white') : 'var(--text)',
-                        borderColor:  selected ? (p.value === 'snapchat' ? '#f59e0b' : p.color) : 'var(--border)',
+                        background:   selected ? getPlatformDisplayColor(p.value) : 'var(--surface-2)',
+                        color:        selected ? (p.value === 'tiktok' ? 'white' : p.value === 'snapchat' ? '#1a1a1a' : 'white') : 'var(--text)',
+                        borderColor:  selected ? getPlatformDisplayColor(p.value) : 'var(--border)',
                       }}
                     >
                       {p.label}

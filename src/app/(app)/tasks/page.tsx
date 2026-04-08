@@ -14,7 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
-import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           {(task.platforms ?? []).map(p => {
             const pl = PLATFORMS.find(x => x.value === p);
             return (
-              <span key={p} className="text-[10px] px-1.5 py-0.5 rounded font-medium text-white" style={{ background: pl ? (pl.value === 'snapchat' ? '#f59e0b' : pl.color) : '#7c3aed' }}>
+              <span key={p} className="text-[10px] px-1.5 py-0.5 rounded font-medium text-white" style={{ background: getPlatformDisplayColor(p) }}>
                 {pl ? pl.label : p}
               </span>
             );

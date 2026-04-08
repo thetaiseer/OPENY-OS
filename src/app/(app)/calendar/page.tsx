@@ -123,8 +123,11 @@ export default function CalendarPage() {
         if (schedulesRes.status === 'fulfilled' && !schedulesRes.value.error) {
           setSchedules((schedulesRes.value.data ?? []) as PublishingSchedule[]);
         } else {
-          // publishing_schedules table may not exist yet — non-fatal
-          console.warn('[calendar] schedules fetch error:', schedulesRes.status === 'rejected' ? schedulesRes.reason : schedulesRes.value.error);
+          // publishing_schedules table may not exist on first install before migration is run.
+          // This is non-fatal — calendar still shows tasks and assets.
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[calendar] schedules fetch skipped/failed:', schedulesRes.status === 'rejected' ? schedulesRes.reason : schedulesRes.value.error);
+          }
           setSchedules([]);
         }
       } catch (err) {

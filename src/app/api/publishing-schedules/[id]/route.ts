@@ -125,9 +125,12 @@ export async function PATCH(
     if (existing.task_id) {
       const taskUpdates: Record<string, unknown> = {};
 
-      // When published → mark task done
-      if (updates.status === 'published') taskUpdates.status = 'done';
-      else if (updates.status === 'cancelled') taskUpdates.status = 'done';
+      // When published → mark task done (success path)
+      // When cancelled → also mark task done (it will no longer be actioned)
+      // The task status 'done' represents completion in both cases.
+      if (updates.status === 'published' || updates.status === 'cancelled') {
+        taskUpdates.status = 'done';
+      }
 
       // When rescheduled → update task due date
       if (updates.scheduled_date) taskUpdates.due_date = updates.scheduled_date;

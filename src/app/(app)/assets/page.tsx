@@ -819,7 +819,10 @@ export default function AssetsPage() {
       if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
-    // If the user chose "Upload & Schedule", open the scheduling modal for this asset
+    // If the user chose "Upload & Schedule", open the scheduling modal for this asset.
+    // Note: in a multi-file batch only the most recently completed asset opens the modal.
+    // This is intentional — scheduling is done per-asset and additional assets can be
+    // scheduled from their cards on the assets page.
     if (scheduleAfterUpload) {
       setScheduleAfterUpload(false);
       setScheduleAsset(latestAsset as Asset);
@@ -1159,9 +1162,9 @@ export default function AssetsPage() {
     // Update schedule counts in state
     setScheduleCounts(prev => {
       const existing = prev[schedule.asset_id] ?? { count: 0, nextDate: null };
-      const nextDate = existing.nextDate && existing.nextDate < schedule.scheduled_date
-        ? existing.nextDate
-        : schedule.scheduled_date;
+      const existingTime = existing.nextDate ? new Date(existing.nextDate).getTime() : Infinity;
+      const newTime = new Date(schedule.scheduled_date).getTime();
+      const nextDate = existingTime <= newTime ? existing.nextDate : schedule.scheduled_date;
       return {
         ...prev,
         [schedule.asset_id]: { count: existing.count + 1, nextDate },

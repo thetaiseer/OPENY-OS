@@ -238,7 +238,9 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (taskErr) {
-        // Task creation failure is non-fatal — log but continue
+        // Task creation failure is non-fatal. The publishing schedule has already been saved
+        // successfully and the user can still publish. The task is a convenience link; its
+        // absence does not prevent the workflow. We log a warning for observability.
         console.warn('[POST /api/publishing-schedules] task creation failed:', taskErr.message);
       } else {
         createdTask = taskData;
