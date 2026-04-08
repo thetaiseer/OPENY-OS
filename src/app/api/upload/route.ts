@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       driveFolderId = await createFolderHierarchy(clientName, monthKey);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] createFolderHierarchy failed:', msg);
+      console.error(JSON.stringify({ step: 'folder_creation_failed', clientName, monthKey, error: msg }));
       return NextResponse.json(
         { success: false, stage: 'failed_upload', error: { step: 'folder_creation', message: msg } },
         { status: 500 },
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
       uploadResult = await uploadFileToDrive(driveFolderId, driveFileName, fileMimeType, fileBuffer);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] uploadFileToDrive failed:', msg);
+      console.error(JSON.stringify({ step: 'drive_upload_failed', fileName: driveFileName, error: msg }));
       return NextResponse.json(
         { success: false, stage: 'failed_upload', error: { step: 'drive_upload', message: msg } },
         { status: 500 },

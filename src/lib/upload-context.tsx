@@ -53,7 +53,7 @@ export interface UploadItem {
   /** 0–100 */
   progress:    number;
   statusText:  string;
-  errorDetail: UploadErrorDetail | null;
+  errorDetail: UploadErrorDetail | null; // populated for failed_upload and failed_db statuses
   // metadata
   clientName:  string;
   clientId:    string;
@@ -248,6 +248,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       let xhrResult: XhrResult;
 
       // ── Client-side size check ──────────────────────────────────────────
+      // Skip for failed_db retries — the file is not re-uploaded, only metadata
+      // is sent. The file was already accepted and uploaded to Drive previously.
       if (item.file.size > MAX_FILE_SIZE_BYTES && !item.driveFileId) {
         setStage(item.id, 'failed_upload', {
           errorDetail: {
