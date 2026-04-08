@@ -15,6 +15,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import ActivityLog from '@/components/ui/ActivityLog';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import { contentTypeLabel } from '@/lib/asset-utils';
@@ -857,16 +858,16 @@ export default function ClientWorkspace() {
             ))}
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 value={editForm.status}
-                onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              >
-                <option value="active">{t('active')}</option>
-                <option value="inactive">{t('inactive')}</option>
-                <option value="prospect">{t('prospect')}</option>
-              </select>
+                onChange={v => setEditForm(f => ({ ...f, status: v }))}
+                options={[
+                  { value: 'active',   label: t('active') },
+                  { value: 'inactive', label: t('inactive') },
+                  { value: 'prospect', label: t('prospect') },
+                ]}
+              />
             </div>
           </div>
           <div className="space-y-1">
@@ -930,13 +931,16 @@ export default function ClientWorkspace() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-              <select value={taskForm.priority} onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                <option value="low">{t('low')}</option>
-                <option value="medium">{t('medium')}</option>
-                <option value="high">{t('high')}</option>
-              </select>
+              <SelectDropdown
+                fullWidth
+                value={taskForm.priority}
+                onChange={v => setTaskForm(f => ({ ...f, priority: v }))}
+                options={[
+                  { value: 'low',    label: t('low') },
+                  { value: 'medium', label: t('medium') },
+                  { value: 'high',   label: t('high') },
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')}</label>
@@ -948,12 +952,16 @@ export default function ClientWorkspace() {
           {team.length > 0 && (
             <div className="space-y-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')}</label>
-              <select value={taskForm.assigned_to} onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                <option value="">{t('unassigned')}</option>
-                {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
+              <SelectDropdown
+                fullWidth
+                value={taskForm.assigned_to}
+                onChange={v => setTaskForm(f => ({ ...f, assigned_to: v }))}
+                placeholder={t('unassigned')}
+                options={[
+                  { value: '', label: t('unassigned') },
+                  ...team.map(m => ({ value: m.id, label: m.name })),
+                ]}
+              />
             </div>
           )}
           <div className="flex justify-end gap-3 pt-2">

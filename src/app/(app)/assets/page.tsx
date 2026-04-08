@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import UploadModal from '@/components/upload/UploadModal';
 import SchedulePublishingModal from '@/components/publishing/SchedulePublishingModal';
 import { contentTypeLabel } from '@/lib/asset-utils';
@@ -1257,24 +1258,24 @@ export default function AssetsPage() {
           {/* Browse row — client · month/year · year */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide shrink-0 w-14" style={{ color: 'var(--text-secondary)' }}>Browse</span>
-            <select
-              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-              style={{ background: 'var(--surface-2)', color: filterClient ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            <SelectDropdown
               value={filterClient}
-              onChange={e => setFilterClient(e.target.value)}
-            >
-              <option value="">All clients</option>
-              {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
-            <select
-              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-              style={{ background: 'var(--surface-2)', color: filterYear ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              onChange={setFilterClient}
+              placeholder="All clients"
+              options={[
+                { value: '', label: 'All clients' },
+                ...clients.map(c => ({ value: c.name, label: c.name })),
+              ]}
+            />
+            <SelectDropdown
               value={filterYear}
-              onChange={e => setFilterYear(e.target.value)}
-            >
-              <option value="">All years</option>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+              onChange={setFilterYear}
+              placeholder="All years"
+              options={[
+                { value: '', label: 'All years' },
+                ...availableYears.map(y => ({ value: y, label: y })),
+              ]}
+            />
             <MonthYearPicker
               value={filterMonthKey}
               onChange={setFilterMonthKey}
@@ -1296,38 +1297,37 @@ export default function AssetsPage() {
                 style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               />
             </div>
-            <select
-              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-              style={{ background: 'var(--surface-2)', color: filterContentType ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            <SelectDropdown
               value={filterContentType}
-              onChange={e => setFilterContentType(e.target.value)}
-            >
-              <option value="">All types</option>
-              {ALLOWED_CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{contentTypeLabel(ct)}</option>)}
-            </select>
-            <select
-              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-              style={{ background: 'var(--surface-2)', color: filterApproval ? 'var(--text)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              onChange={setFilterContentType}
+              placeholder="All types"
+              options={[
+                { value: '', label: 'All types' },
+                ...ALLOWED_CONTENT_TYPES.map(ct => ({ value: ct, label: contentTypeLabel(ct) })),
+              ]}
+            />
+            <SelectDropdown
               value={filterApproval}
-              onChange={e => setFilterApproval(e.target.value)}
-            >
-              <option value="">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="published">Published</option>
-            </select>
-            <select
-              className="h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              onChange={setFilterApproval}
+              placeholder="All statuses"
+              options={[
+                { value: '',          label: 'All statuses' },
+                { value: 'pending',   label: 'Pending' },
+                { value: 'approved',  label: 'Approved' },
+                { value: 'rejected',  label: 'Rejected' },
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'published', label: 'Published' },
+              ]}
+            />
+            <SelectDropdown
               value={sortBy}
-              onChange={e => setSortBy(e.target.value as 'newest' | 'oldest' | 'largest')}
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="largest">Largest First</option>
-            </select>
+              onChange={v => setSortBy(v as 'newest' | 'oldest' | 'largest')}
+              options={[
+                { value: 'newest',  label: 'Newest First' },
+                { value: 'oldest',  label: 'Oldest First' },
+                { value: 'largest', label: 'Largest First' },
+              ]}
+            />
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}

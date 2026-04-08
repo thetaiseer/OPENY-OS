@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bot, X, Sparkles, FileText, Calendar, MessageSquare, Loader2, Copy, Check, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -400,15 +401,21 @@ export default function AiAssistantPanel() {
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Platform</label>
-                <select value={platform} onChange={e => setPlatform(e.target.value)} className={inputCls} style={inputStyle}>
-                  {['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'].map(p => <option key={p}>{p}</option>)}
-                </select>
+                <SelectDropdown
+                  fullWidth
+                  value={platform}
+                  onChange={setPlatform}
+                  options={['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'].map(p => ({ value: p, label: p }))}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tone</label>
-                <select value={tone} onChange={e => setTone(e.target.value)} className={inputCls} style={inputStyle}>
-                  {['professional', 'casual', 'funny', 'inspirational', 'promotional'].map(t => <option key={t}>{t}</option>)}
-                </select>
+                <SelectDropdown
+                  fullWidth
+                  value={tone}
+                  onChange={setTone}
+                  options={['professional', 'casual', 'funny', 'inspirational', 'promotional'].map(t => ({ value: t, label: t }))}
+                />
               </div>
             </div>
             <div className="space-y-1">
