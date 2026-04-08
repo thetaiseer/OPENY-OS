@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     // ── Step 2: database_insert ───────────────────────────────────────────────
     // Drive upload already succeeded. If DB insert fails → partial_success.
     // Drive file is preserved (no rollback).
-    console.log('[upload-complete] database_insert — inserting into assets table…')
+    console.log('[upload-complete] database_insert — inserting into assets table…');
 
     const requiredRow: Record<string, unknown> = {
       name:               fileName,

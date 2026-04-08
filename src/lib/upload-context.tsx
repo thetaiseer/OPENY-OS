@@ -171,6 +171,11 @@ function stageText(status: UploadStatus, progress?: number): string {
   }
 }
 
+/** Replace whitespace with underscores to produce a safe file name for upload. */
+function sanitizeUploadFileName(name: string): string {
+  return name.replace(/\s+/g, '_');
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const UPLOAD_CONCURRENCY = 2;
@@ -265,7 +270,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           monthKey: item.monthKey,
         }));
 
-        const safeFileName = item.file.name.replace(/\s+/g, '_');
+        const safeFileName = sanitizeUploadFileName(item.file.name);
 
         const sessionRes = await fetch('/api/assets/upload-session', {
           method:  'POST',
@@ -360,7 +365,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       // ── Stage: saving_metadata ────────────────────────────────────────────
       setStage(item.id, 'saving_metadata', { progress: 95 });
-      const effectiveFileName = renamedFileName ?? item.file.name.replace(/\s+/g, '_');
+      const effectiveFileName = renamedFileName ?? sanitizeUploadFileName(item.file.name);
       console.log(JSON.stringify({
         step: 'db_insert',
         ok: null,
