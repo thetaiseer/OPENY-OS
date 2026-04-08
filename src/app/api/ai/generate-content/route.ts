@@ -23,17 +23,22 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = [
-      `Write a ${tone} ${platform} post about: ${topic}.`,
-      clientName ? `Brand: ${clientName}.` : '',
-      'Include relevant emojis and hashtags.',
-      'Return just the post text, no extra explanation.',
-    ].filter(Boolean).join(' ');
+      `Write a complete, ready-to-publish ${tone} ${platform} post about: ${topic}.`,
+      clientName ? `Brand / Client: ${clientName}.` : '',
+      'Requirements:',
+      '- Write the full post body — do NOT truncate or summarize.',
+      '- Include an engaging opening hook.',
+      '- Include a compelling call-to-action.',
+      '- Add relevant emojis throughout.',
+      '- Add a block of relevant hashtags at the end (10-15 hashtags).',
+      '- Return ONLY the post text, no preamble or explanation.',
+    ].filter(Boolean).join('\n');
 
     try {
       const content = await callAI({
-        system: 'You are a creative social media copywriter.',
+        system: 'You are a professional social media copywriter who writes complete, polished, ready-to-publish posts. Never shorten or truncate your output. Always write the full post.',
         user: prompt,
-        maxTokens: 512,
+        maxTokens: 2048,
         temperature: 0.8,
       });
       return NextResponse.json({ success: true, content });
