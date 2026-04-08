@@ -25,8 +25,29 @@ import { requireRole } from '@/lib/api-auth';
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const VALID_STATUSES   = ['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'] as const;
+const VALID_STATUSES = [
+  'todo', 'in_progress', 'in_review', 'review', 'waiting_client',
+  'approved', 'scheduled', 'published', 'done', 'completed',
+  'delivered', 'overdue', 'cancelled',
+] as const;
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+const VALID_TASK_CATEGORIES = [
+  'internal_task', 'content_creation', 'design_task', 'approval_task',
+  'publishing_task', 'asset_upload_task', 'follow_up_task',
+] as const;
+
+const VALID_CONTENT_PURPOSES = [
+  'awareness', 'engagement', 'promotion', 'branding',
+  'lead_generation', 'announcement', 'offer_campaign',
+] as const;
+
+const VALID_PLATFORMS = [
+  'instagram', 'facebook', 'tiktok', 'linkedin',
+  'twitter', 'snapchat', 'youtube_shorts',
+] as const;
+
+const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 interface Params { id: string }
 
@@ -97,6 +118,42 @@ export async function PATCH(
   }
   if (typeof body.created_by === 'string') {
     updatePayload.created_by = body.created_by.trim() || null;
+  }
+  if (typeof body.due_time === 'string') {
+    updatePayload.due_time = body.due_time.trim() || null;
+  }
+  if (typeof body.timezone === 'string' && body.timezone.trim()) {
+    updatePayload.timezone = body.timezone.trim();
+  }
+  if (typeof body.task_category === 'string') {
+    const cat = body.task_category.trim();
+    updatePayload.task_category = (VALID_TASK_CATEGORIES as readonly string[]).includes(cat) ? cat : null;
+  }
+  if (typeof body.content_purpose === 'string') {
+    const cp = body.content_purpose.trim();
+    updatePayload.content_purpose = (VALID_CONTENT_PURPOSES as readonly string[]).includes(cp) ? cp : null;
+  }
+  if (typeof body.caption === 'string') {
+    updatePayload.caption = body.caption.trim() || null;
+  }
+  if (typeof body.client_name === 'string') {
+    updatePayload.client_name = body.client_name.trim() || null;
+  }
+  if (Array.isArray(body.platforms)) {
+    updatePayload.platforms = (body.platforms as unknown[]).filter(
+      (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
+    );
+  }
+  if (Array.isArray(body.post_types)) {
+    updatePayload.post_types = (body.post_types as unknown[]).filter(
+      (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+    );
+  }
+  if (typeof body.publishing_schedule_id === 'string') {
+    updatePayload.publishing_schedule_id = body.publishing_schedule_id.trim() || null;
+  }
+  if (typeof body.asset_id === 'string') {
+    updatePayload.asset_id = body.asset_id.trim() || null;
   }
   if (Array.isArray(body.mentions)) {
     updatePayload.mentions = (body.mentions as unknown[]).filter(m => typeof m === 'string');
