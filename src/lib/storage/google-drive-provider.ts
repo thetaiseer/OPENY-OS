@@ -41,7 +41,7 @@ export class GoogleDriveProvider implements StorageProvider {
   async createUploadSession(
     opts: CreateUploadSessionOptions,
   ): Promise<CreateUploadSessionResult> {
-    const { monthFolderId } = await createFolderHierarchy(
+    const { leafFolderId } = await createFolderHierarchy(
       opts.clientFolderName,
       opts.contentType,
       opts.monthKey,
@@ -50,9 +50,9 @@ export class GoogleDriveProvider implements StorageProvider {
       opts.fileName,
       opts.mimeType,
       opts.fileSize,
-      monthFolderId,
+      leafFolderId,
     );
-    return { uploadUrl, remoteFolderId: monthFolderId };
+    return { uploadUrl, remoteFolderId: leafFolderId };
   }
 
   async finalizeUpload(remoteId: string): Promise<FinalizeUploadResult> {

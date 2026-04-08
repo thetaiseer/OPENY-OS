@@ -666,12 +666,14 @@ export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
  * (content-type) folder ID.  Creates any missing folders along the way.
  *
  * Path: root / Clients / clientFolderName / year / MM-MonthName / contentType
+ *
+ * Returns the leaf (content-type) folder ID as `leafFolderId`.
  */
 export async function createFolderHierarchy(
   clientFolderName: string,
   contentType: string,
   monthKey: string,
-): Promise<{ monthFolderId: string; clientFolderName: string }> {
+): Promise<{ leafFolderId: string; clientFolderName: string }> {
   console.log(JSON.stringify({
     step: 'createFolderHierarchy_entry',
     clientFolderName, contentType, monthKey,
@@ -696,10 +698,10 @@ export async function createFolderHierarchy(
 
   console.log(JSON.stringify({
     step: 'createFolderHierarchy_complete',
-    monthFolderId: contentTypeFolderId, clientFolderName,
+    leafFolderId: contentTypeFolderId, clientFolderName,
   }));
 
-  return { monthFolderId: contentTypeFolderId, clientFolderName };
+  return { leafFolderId: contentTypeFolderId, clientFolderName };
 }
 
 /**
