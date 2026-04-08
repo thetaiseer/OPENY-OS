@@ -29,7 +29,9 @@ export function extractMissingColumn(
   err: { message?: string; details?: string },
 ): string | null {
   const text = `${err.message ?? ''} ${err.details ?? ''}`;
-  const m = text.match(/column "([^"]+)"/);
+  // Postgres uses double-quotes: column "xyz" of relation ...
+  // PostgREST / Supabase client may reformat to single-quotes: column 'xyz'
+  const m = text.match(/column ["']([^"']+)["']/);
   return m?.[1] ?? null;
 }
 

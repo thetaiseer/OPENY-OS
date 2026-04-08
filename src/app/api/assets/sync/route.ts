@@ -191,8 +191,8 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
         thumbnail_url:      thumbnailUrl,
         web_view_link:      viewUrl,
         ...(hasIsDeleted ? { is_deleted: false } : {}),
-        last_synced_at:     syncNow,
-        source_updated_at:  meta.modified_time ?? null,
+        ...(hasIsDeleted ? { last_synced_at: syncNow } : {}),
+        ...(hasIsDeleted && meta.modified_time ? { source_updated_at: meta.modified_time } : {}),
       };
 
       // Log the exact payload so the DB error can be matched to a specific field.
