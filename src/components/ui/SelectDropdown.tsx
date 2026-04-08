@@ -118,7 +118,7 @@ export default function SelectDropdown({
             role="button"
             tabIndex={0}
             onClick={handleClear}
-            onKeyDown={e => e.key === 'Enter' && handleClear(e as unknown as React.MouseEvent)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(''); } }}
             className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
             aria-label="Clear selection"
           >
@@ -133,16 +133,18 @@ export default function SelectDropdown({
         )}
       </button>
 
-      {/* Popover — same style as MonthYearPicker popover */}
+      {/* Popover — same style as MonthYearPicker popover.
+          Inline zIndex ensures it renders above modals (z-50/z-60) and other overlays. */}
       {open && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 mt-2 z-[200] rounded-2xl border shadow-2xl overflow-hidden"
+          className="absolute top-full left-0 mt-2 rounded-2xl border shadow-2xl overflow-hidden"
           style={{
             background:  'var(--surface)',
             borderColor: 'var(--border)',
             minWidth:    fullWidth ? '100%' : 160,
             width:       fullWidth ? '100%' : undefined,
+            zIndex:      200,
           }}
         >
           <div className="py-1.5 max-h-60 overflow-y-auto">
