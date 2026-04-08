@@ -32,16 +32,6 @@ function LoginForm() {
       return;
     }
 
-    // Register session asynchronously (non-blocking — don't fail login on error)
-    fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' })
-      .then(res => {
-        if (res.ok) {
-          console.log('[login] ✓ Session registered');
-        } else {
-          console.warn('[login] Session registration returned', res.status);
-        }
-      })
-      .catch(err => console.warn('[login] Session registration failed:', err));
     // Register session — awaited so the openy-sid cookie is set before navigation
     try {
       const res = await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' });

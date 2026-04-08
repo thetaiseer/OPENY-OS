@@ -231,6 +231,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
+      // ── Phase 1: drive_upload ─────────────────────────────────────────────
+      // Errors in this phase mark the item as 'failed'.
+      console.log('[upload] drive_upload start —', item.file.name, '| client:', item.clientName, '| type:', item.contentType, '| month:', item.monthKey);
+      d({ type: 'UPDATE', id: item.id, patch: { status: 'uploading', progress: 2 } });
+
+      const safeFileName = item.file.name.replace(/\s+/g, '_');
+
+      const sessionRes = await fetch('/api/assets/upload-session', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fileName:    safeFileName,
+          fileType:    item.file.type || 'application/octet-stream',
+          fileSize:    item.file.size,
+          clientName:  item.clientName,
       let driveFileId:    string;
       let driveFolderId:  string | null;
       let clientFolderName: string | null;
@@ -401,6 +417,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const completeRes = await fetch('/api/assets/upload-complete', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             driveFileId,
             driveFolderId,
