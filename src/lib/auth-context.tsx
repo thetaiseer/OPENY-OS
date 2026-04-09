@@ -48,11 +48,30 @@ async function fetchUserProfile(
 ): Promise<ProfileResult> {
   console.log('[auth] Fetching profile for auth user id:', supabaseUser.id, '| email:', supabaseUser.email);
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, role')
-    .eq('id', supabaseUser.id)
-    .single();
+  // Race the profile fetch against a 6-second timeout so a slow/offline DB
+  // never blocks the UI indefinitely.
+  type ProfileRow = { id: string; name: string; email: string; role: string } | null;
+  let data: ProfileRow = null;
+  let error: { code: string; message: string } | null = null;
+
+  try {
+    const result = await Promise.race([
+      supabase
+        .from('profiles')
+        .select('id, name, email, role')
+        .eq('id', supabaseUser.id)
+        .single() as unknown as Promise<{ data: ProfileRow; error: { code: string; message: string } | null }>,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('profile-fetch-timeout')), 6_000),
+      ),
+    ]);
+    data  = result.data;
+    error = result.error;
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.message === 'profile-fetch-timeout';
+    console.warn('[auth] Profile fetch', isTimeout ? 'timed out' : 'threw:', err);
+    // Fall through to the missing-profile branch below.
+  }
 
   console.log('[auth] Profile query result — row:', data, '| error:', error ? `${error.code}: ${error.message}` : 'none');
 
@@ -130,9 +149,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // the initial loading behaviour intact.
     let mounted = true;
 
+    // Safety timeout: if `onAuthStateChange` never fires (e.g. network issue
+    // during token refresh), clear the loading state after 8 s so the UI is
+    // never stuck on a blank/spinning screen indefinitely.
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        console.warn('[auth] Safety timeout reached — clearing loading state');
+        setLoading(false);
+      }
+    }, 8_000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return;
+        clearTimeout(safetyTimer);
         if (session?.user) {
           await loadProfile(session.user);
         } else {
@@ -147,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [supabase, loadProfile]);

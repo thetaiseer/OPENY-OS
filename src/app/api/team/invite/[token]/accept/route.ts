@@ -49,13 +49,21 @@ export async function POST(
   // ── 1. Validate token ────────────────────────────────────────────────────
   const { data: invitation, error: invErr } = await db
     .from('team_invitations')
-    .select('id, email, full_name, role, status, expires_at, team_member_id')
+    .select('id, email, role, status, expires_at, team_member_id, team_member:team_members(full_name, role)')
     .eq('token', token)
     .maybeSingle();
 
   if (invErr || !invitation) {
     return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 });
   }
+
+  // Resolve full_name from the team_member join
+  const memberData = Array.isArray(invitation.team_member)
+    ? invitation.team_member[0]
+    : invitation.team_member;
+  const invitationFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
+  const invitationRole     = (memberData as { role?: string } | null)?.role
+    ?? (invitation as { role?: string }).role ?? '';
 
   if (invitation.status === 'accepted') {
     return NextResponse.json({ error: 'This invitation has already been accepted.' }, { status: 410 });
@@ -71,7 +79,7 @@ export async function POST(
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
   }
 
-  const finalName = displayName || invitation.full_name;
+  const finalName = displayName || invitationFullName;
 
   // ── 2. Create Supabase auth user ─────────────────────────────────────────
   const { data: authData, error: authError } = await db.auth.admin.createUser({
@@ -98,7 +106,7 @@ export async function POST(
     team:    'team',
     client:  'client',
   };
-  const profileRole = roleMap[invitation.role.toLowerCase()] ?? 'team';
+  const profileRole = roleMap[invitationRole.toLowerCase()] ?? 'team';
 
   const { error: profileError } = await db.from('profiles').insert({
     id:    authUserId,

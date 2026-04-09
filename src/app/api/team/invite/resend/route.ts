@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
 
   const db = createServiceClient(url, key);
 
-  // Find the most recent non-accepted invitation
+  // Find the most recent non-accepted invitation (with team_member join for full_name)
   const { data: invitation, error } = await db
     .from('team_invitations')
-    .select('*')
+    .select('*, team_member:team_members(full_name, role)')
     .eq('team_member_id', teamMemberId)
     .in('status', ['invited', 'expired'])
     .order('created_at', { ascending: false })
@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
   if (error || !invitation) {
     return NextResponse.json({ error: 'No pending invitation found for this member.' }, { status: 404 });
   }
+
+  // Resolve full_name and role from the team_member join
+  const memberData  = Array.isArray(invitation.team_member)
+    ? invitation.team_member[0]
+    : invitation.team_member;
+  const memberFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
+  const memberRole     = (memberData as { role?: string } | null)?.role
+    ?? (invitation as { role?: string }).role ?? '';
 
   // Generate a fresh token and extend expiry
   const newToken    = randomBytes(32).toString('hex');
@@ -77,10 +85,10 @@ export async function POST(request: NextRequest) {
   // Send email
   const inviteUrl = `${appUrl}/invite/${newToken}`;
   const html = teamInviteEmail({
-    recipientName: invitation.full_name,
+    recipientName: memberFullName,
     inviterName:   auth.profile.name,
     workspaceName: 'OPENY OS',
-    role:          invitation.role,
+    role:          memberRole,
     inviteUrl,
     expiresInDays: INVITE_EXPIRY_DAYS,
   });
