@@ -31,9 +31,26 @@ export interface TeamMember {
   email: string;
   role?: string;
   avatar?: string;
-  status?: 'active' | 'inactive' | 'suspended';
+  status?: 'active' | 'invited' | 'inactive' | 'suspended';
   created_at: string;
   updated_at?: string;
+}
+
+export type InviteStatus = 'invited' | 'accepted' | 'expired' | 'revoked';
+
+export interface TeamInvitation {
+  id: string;
+  team_member_id: string;
+  email: string;
+  name: string;
+  role: string;
+  token: string;
+  status: InviteStatus;
+  invited_by?: string | null;
+  expires_at: string;
+  accepted_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type TaskStatus =
