@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   CheckSquare, AlertCircle, Calendar, User,
   Clock, CheckCheck, LayoutList, Plus, Send,
-  Filter, X, Paperclip, Zap,
+  Filter, X, Paperclip, Zap, Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -121,7 +121,7 @@ const CATEGORY_FILTERS = [
 
 // ─── TaskCard ─────────────────────────────────────────────────────────────────
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task) => void }) {
   const overdue = isTaskOverdue(task);
   const isToday = isDueToday(task);
   const hasPlatforms   = (task.platforms  ?? []).length > 0;
@@ -220,6 +220,21 @@ function TaskCard({ task }: { task: Task }) {
           )}
         </div>
       )}
+
+      {/* Row 5: actions */}
+      {onDuplicate && (
+        <div className="flex justify-end mt-1">
+          <button
+            type="button"
+            onClick={() => onDuplicate(task)}
+            className="flex items-center gap-1 text-xs hover:underline opacity-60 hover:opacity-100 transition-opacity"
+            style={{ color: 'var(--text-secondary)' }}
+            title="Duplicate task"
+          >
+            <Copy size={11} /> Duplicate
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -304,6 +319,45 @@ export default function MyTasksPage() {
   function handleTaskCreated(task: Task) {
     setTasks(prev => [task, ...prev]);
     toast('Task created successfully', 'success');
+  }
+
+  async function duplicateTask(task: Task) {
+    try {
+      const baseTitle = task.title.replace(/^Copy of /, '');
+      const body: Record<string, unknown> = {
+        title:           `Copy of ${baseTitle}`,
+        description:     task.description ?? '',
+        status:          'todo',
+        priority:        task.priority,
+        due_date:        task.due_date ?? new Date().toISOString().slice(0, 10),
+        due_time:        task.due_time ?? '',
+        timezone:        task.timezone ?? 'UTC',
+        task_category:   task.task_category ?? '',
+        client_id:       task.client_id ?? '',
+        client_name:     task.client_name ?? '',
+        assigned_to:     task.assigned_to ?? '',
+        content_purpose: task.content_purpose ?? '',
+        caption:         task.caption ?? '',
+        platforms:       task.platforms ?? [],
+        post_types:      task.post_types ?? [],
+        created_by:      user?.id ?? '',
+      };
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json() as { success: boolean; task?: Task; error?: string };
+      if (json.success && json.task) {
+        setTasks(prev => [json.task!, ...prev]);
+        toast('Task duplicated', 'success');
+      } else {
+        toast(json.error ?? 'Failed to duplicate task', 'error');
+      }
+    } catch (err) {
+      toast('Failed to duplicate task', 'error');
+      console.error('[duplicateTask] error:', err);
+    }
   }
 
   const sectionHeaderLabel = activeSection === 'all'
@@ -466,7 +520,7 @@ export default function MyTasksPage() {
         ) : (
           <div className="space-y-2">
             {visibleTasks.map(task => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard key={task.id} task={task} onDuplicate={duplicateTask} />
             ))}
           </div>
         )}
