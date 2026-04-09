@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
         void logEmailSent({ to: requesterEmail, subject: `Approval ${statusStr}`, eventType: `approval_${statusStr}`, entityType: 'approval', entityId: id });
       } catch (emailErr) {
         console.warn('[approvals/[id]] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: requesterEmail, subject: `Approval ${statusStr}`, status: 'failed', error: String(emailErr) });
+        void logEmailSent({ to: requesterEmail, subject: `Approval ${statusStr}`, status: 'failed', error: String(emailErr), eventType: `approval_${statusStr}`, entityType: 'approval', entityId: id });
       }
     })();
   }

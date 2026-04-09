@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
     const unreadCount = (data ?? []).filter((n: { read: boolean }) => !n.read).length;
-    return NextResponse.json({ success: true, notifications: data ?? [], unreadCount });
+    // When unreadOnly=true, all returned items are unread so count equals data length
+    const effectiveUnreadCount = unreadOnly ? (data ?? []).length : unreadCount;
+    return NextResponse.json({ success: true, notifications: data ?? [], unreadCount: effectiveUnreadCount });
   } catch (err) {
     console.error('[GET /api/notifications] unexpected:', err);
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });

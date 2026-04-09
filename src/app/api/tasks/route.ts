@@ -308,7 +308,10 @@ export async function POST(request: NextRequest) {
         }
       } catch (emailErr) {
         console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: assigneeEmail || assignedTo, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+        // Only log failed email if we have a valid email address to log against
+        if (assigneeEmail) {
+          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+        }
       }
     })();
   }
