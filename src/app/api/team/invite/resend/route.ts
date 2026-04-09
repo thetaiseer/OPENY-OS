@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
     : invitation.team_member;
   const memberFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
   const memberRole     = (memberData as { role?: string } | null)?.role
+    // Fallback to invitation.role while `role` still exists on team_invitations
+    // for backward compatibility with rows created before the schema migration.
     ?? (invitation as { role?: string }).role ?? '';
 
   // Generate a fresh token and extend expiry

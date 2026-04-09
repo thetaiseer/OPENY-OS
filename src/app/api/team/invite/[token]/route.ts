@@ -37,7 +37,10 @@ export async function GET(
     ? invitation.team_member[0]
     : invitation.team_member;
   const full_name = (memberData as { full_name?: string } | null)?.full_name ?? '';
-  const role      = (memberData as { role?: string } | null)?.role ?? (invitation as { role?: string }).role ?? '';
+  const role      = (memberData as { role?: string } | null)?.role
+    // Fallback to invitation.role while `role` still exists on team_invitations
+    // for backward compatibility with rows created before the schema migration.
+    ?? (invitation as { role?: string }).role ?? '';
 
   if (invitation.status === 'revoked') {
     return NextResponse.json({ error: 'This invitation has been revoked.' }, { status: 410 });

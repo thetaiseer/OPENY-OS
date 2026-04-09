@@ -63,6 +63,8 @@ export async function POST(
     : invitation.team_member;
   const invitationFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
   const invitationRole     = (memberData as { role?: string } | null)?.role
+    // Fallback to invitation.role while `role` still exists on team_invitations
+    // for backward compatibility with rows created before the schema migration.
     ?? (invitation as { role?: string }).role ?? '';
 
   if (invitation.status === 'accepted') {
