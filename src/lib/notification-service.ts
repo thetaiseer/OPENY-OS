@@ -140,15 +140,15 @@ export async function notifyTaskUpdated(opts: {
 }
 
 export async function notifyApprovalRequested(opts: {
-  taskId: string;
-  taskTitle: string;
+  taskId?: string | null;
+  taskTitle?: string | null;
   reviewerId?: string | null;
   clientId?: string | null;
   approvalId: string;
 }): Promise<void> {
   await createNotification({
     title:       'Approval Requested',
-    message:     `Review requested for: "${opts.taskTitle}"`,
+    message:     opts.taskTitle ? `Review requested for: "${opts.taskTitle}"` : 'A new approval review has been requested',
     type:        'warning',
     event_type:  'approval_requested',
     user_id:     opts.reviewerId ?? null,
