@@ -30,11 +30,25 @@ export function subscribeToTasks(onChange: () => void): () => void {
   return () => { void supabase.removeChannel(channel); };
 }
 
+export interface NotificationPayload {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  user_id: string | null;
+  event_type: string | null;
+  action_url: string | null;
+  created_at: string;
+}
+
 /**
  * Subscribe to INSERT events on the `notifications` table.
+ * `onNew` is called with the inserted row payload on each new notification.
  * Returns an unsubscribe function.
  */
-export function subscribeToNotifications(onChange: () => void): () => void {
+export function subscribeToNotifications(
+  onNew: (payload: NotificationPayload) => void,
+): () => void {
   const supabase = createClient();
 
   const channel: RealtimeChannel = supabase
@@ -42,7 +56,7 @@ export function subscribeToNotifications(onChange: () => void): () => void {
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications' },
-      (_payload) => { onChange(); },
+      (event) => { onNew(event.new as NotificationPayload); },
     )
     .subscribe();
 

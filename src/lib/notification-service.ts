@@ -23,7 +23,8 @@ export type NotificationEventType =
   | 'approval_needs_changes'
   | 'asset_uploaded'
   | 'asset_linked'
-  | 'client_created';
+  | 'client_created'
+  | 'team_invitation';
 
 export interface CreateNotificationInput {
   title: string;
@@ -199,5 +200,64 @@ export async function notifyAssetUploaded(opts: {
     entity_type: 'asset',
     entity_id:   opts.assetId,
     action_url:  `/assets`,
+  });
+}
+
+export async function notifyApprovalDecision(opts: {
+  approvalId: string;
+  taskId?: string | null;
+  taskTitle?: string | null;
+  decision: 'approved' | 'rejected' | 'needs_changes';
+  decidedByName?: string | null;
+  requestedById?: string | null;
+  clientId?: string | null;
+}): Promise<void> {
+  const labels: Record<string, string> = {
+    approved:      'Approved',
+    rejected:      'Rejected',
+    needs_changes: 'Needs Changes',
+  };
+  const types: Record<string, 'success' | 'error' | 'warning'> = {
+    approved:      'success',
+    rejected:      'error',
+    needs_changes: 'warning',
+  };
+  const label = labels[opts.decision] ?? opts.decision;
+  const type  = types[opts.decision]  ?? 'info';
+  const eventMap: Record<string, NotificationEventType> = {
+    approved:      'approval_approved',
+    rejected:      'approval_rejected',
+    needs_changes: 'approval_needs_changes',
+  };
+  await createNotification({
+    title:       `Task ${label}`,
+    message:     opts.taskTitle
+      ? `"${opts.taskTitle}" has been ${label.toLowerCase()}${opts.decidedByName ? ` by ${opts.decidedByName}` : ''}`
+      : `Your approval request was ${label.toLowerCase()}`,
+    type,
+    event_type:  eventMap[opts.decision],
+    user_id:     opts.requestedById ?? null,
+    client_id:   opts.clientId,
+    task_id:     opts.taskId ?? null,
+    entity_type: 'approval',
+    entity_id:   opts.approvalId,
+    action_url:  `/my-tasks`,
+  });
+}
+
+export async function notifyInvitation(opts: {
+  teamMemberId: string;
+  inviteeName: string;
+  inviterName?: string | null;
+  role: string;
+}): Promise<void> {
+  // Broadcast team-wide notification (user_id null = all users see it)
+  await createNotification({
+    title:       'Team Invitation Sent',
+    message:     `${opts.inviteeName} was invited to join as ${opts.role}${opts.inviterName ? ` by ${opts.inviterName}` : ''}`,
+    type:        'info',
+    event_type:  'team_invitation',
+    entity_id:   opts.teamMemberId,
+    action_url:  `/team`,
   });
 }

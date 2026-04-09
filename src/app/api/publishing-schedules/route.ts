@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
+import { notifyPublishingScheduled } from '@/lib/notification-service';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -284,6 +285,16 @@ export async function POST(req: NextRequest) {
       entity_id:   schedule.id,
     }).then(({ error: actErr }) => {
       if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
+    });
+
+    // ── Notification (best-effort) ────────────────────────────────────────────
+    void notifyPublishingScheduled({
+      scheduleId:    schedule.id,
+      taskId:        schedule.task_id ?? null,
+      clientId:      resolvedClientId,
+      clientName:    resolvedClientName,
+      scheduledDate,
+      platforms,
     });
 
     return NextResponse.json(
