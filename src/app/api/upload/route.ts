@@ -104,6 +104,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
+  // ── Rate limit: 60 uploads per hour per user ──────────────────────────────
+  const { checkRateLimit } = await import('@/lib/rate-limit');
+  const rl = checkRateLimit(`upload:user:${auth.profile.id}`, { limit: 60, windowMs: 60 * 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { success: false, stage: 'failed_upload', error: { step: 'rate_limit', message: 'Upload limit exceeded. Please try again later.' } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   // ── Parse form data ───────────────────────────────────────────────────────
   let formData: FormData;
   try {

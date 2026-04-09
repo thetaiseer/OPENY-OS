@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export type ImproveAction =
   | 'improve'
@@ -55,6 +56,15 @@ export async function POST(req: NextRequest) {
     // Auth — any logged-in role may use AI features
     const auth = await requireRole(req, ['admin', 'team', 'client', 'manager']);
     if (auth instanceof NextResponse) return auth;
+
+    // Rate limit: 30 requests per minute per user
+    const rl = checkRateLimit(`ai:user:${auth.profile.id}`, { limit: 30, windowMs: 60_000 });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many AI requests. Please wait a moment before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+      );
+    }
 
     let body: Record<string, unknown>;
     try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/ai/generate-tasks
@@ -11,6 +12,14 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireRole(req, ['admin', 'team', 'manager']);
     if (auth instanceof NextResponse) return auth;
+
+    const rl = checkRateLimit(`ai:user:${auth.profile.id}`, { limit: 30, windowMs: 60_000 });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many AI requests. Please wait a moment.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+      );
+    }
 
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch {
