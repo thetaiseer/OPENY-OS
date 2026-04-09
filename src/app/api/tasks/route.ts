@@ -26,6 +26,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
+import { notifyTaskCreated } from '@/lib/notification-service';
+import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -287,6 +289,88 @@ export async function POST(request: NextRequest) {
   }).catch((err: unknown) => {
     console.warn('[POST /api/tasks] activity log network error:', err instanceof Error ? err.message : String(err));
   });
+
+  // Auto-create publishing schedule for publishing_task category
+  if (taskCategory === 'publishing_task' && data?.id && dueDate) {
+    void (async () => {
+      try {
+        const schedPayload: Record<string, unknown> = {
+          asset_id:       assetId || null,
+          client_id:      clientId || null,
+          client_name:    data.client_name || clientName || null,
+          scheduled_date: dueDate,
+          scheduled_time: dueTime || '09:00:00',
+          timezone:       insertPayload.timezone || 'UTC',
+          platforms:      insertPayload.platforms || [],
+          post_types:     insertPayload.post_types || [],
+          caption:        caption || null,
+          status:         'scheduled',
+          task_id:        data.id,
+          created_by:     createdBy || null,
+        };
+        const { data: sched, error: schedErr } = await db
+          .from('publishing_schedules')
+          .insert(schedPayload)
+          .select()
+          .single();
+        if (schedErr) {
+          console.warn('[POST /api/tasks] publishing schedule auto-create failed:', schedErr.message);
+        } else if (sched?.id) {
+          await db.from('tasks').update({ publishing_schedule_id: sched.id }).eq('id', data.id);
+          console.log('[POST /api/tasks] publishing schedule auto-created:', sched.id);
+        }
+      } catch (e) {
+        console.warn('[POST /api/tasks] publishing schedule error:', e instanceof Error ? e.message : String(e));
+      }
+    })();
+  }
+
+  // Fire notifications (side effect — never blocks)
+  if (data?.id) {
+    void notifyTaskCreated({
+      taskId:       data.id,
+      taskTitle:    title,
+      clientId:     clientId || null,
+      assignedToId: assignedTo || null,
+      createdById:  createdBy || null,
+      clientName:   data.client_name || clientName || null,
+    });
+  }
+
+  if (assignedTo && data?.id) {
+    void (async () => {
+      let assigneeEmail = '';
+      try {
+        const { data: profile } = await db
+          .from('profiles')
+          .select('email, name')
+          .eq('id', assignedTo)
+          .single();
+        if (profile?.email) {
+          assigneeEmail = profile.email;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+          await sendEmail({
+            to: profile.email,
+            subject: `New Task: ${title}`,
+            html: taskAssignedEmail({
+              recipientName: profile.name ?? profile.email,
+              taskTitle:     title,
+              clientName:    data.client_name || clientName || undefined,
+              dueDate:       dueDate || undefined,
+              appUrl,
+            }),
+          });
+          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, eventType: 'task_assigned', entityType: 'task', entityId: data.id });
+        }
+      } catch (emailErr) {
+        console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
+        // Only log failed email if we have a valid email address to log against
+        if (assigneeEmail) {
+          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+        }
+      }
+    })();
+  }
 
   return NextResponse.json({ success: true, task: data }, { status: 201 });
 }
