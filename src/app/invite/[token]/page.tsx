@@ -145,7 +145,7 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                   Welcome, {invite.name}!
                 </p>
                 <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
-                  You've been invited as <span className="font-medium" style={{ color: '#6366f1' }}>{invite.role}</span>
+                  {"You've been invited as"} <span className="font-medium" style={{ color: '#6366f1' }}>{invite.role}</span>
                 </p>
                 <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{invite.email}</p>
               </div>
