@@ -8,14 +8,93 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
-const blankForm = { name: '', email: '', role: '' };
+// ── Marketing roles list ─────────────────────────────────────────────────────
+const ROLE_OPTIONS = [
+  { value: 'Content Creator',           label: 'Content Creator' },
+  { value: 'Social Media Manager',      label: 'Social Media Manager' },
+  { value: 'Graphic Designer',          label: 'Graphic Designer' },
+  { value: 'Video Editor',              label: 'Video Editor' },
+  { value: 'Copywriter',                label: 'Copywriter' },
+  { value: 'SEO Specialist',            label: 'SEO Specialist' },
+  { value: 'Paid Ads Specialist',       label: 'Paid Ads Specialist' },
+  { value: 'Email Marketing Specialist',label: 'Email Marketing Specialist' },
+  { value: 'Brand Strategist',          label: 'Brand Strategist' },
+  { value: 'Marketing Manager',         label: 'Marketing Manager' },
+  { value: 'Account Manager',           label: 'Account Manager' },
+  { value: 'Project Manager',           label: 'Project Manager' },
+  { value: 'UX/UI Designer',            label: 'UX/UI Designer' },
+  { value: 'Photographer',              label: 'Photographer' },
+  { value: 'Influencer Manager',        label: 'Influencer Manager' },
+  { value: 'PR Specialist',             label: 'PR Specialist' },
+  { value: 'Analytics Specialist',      label: 'Analytics Specialist' },
+  { value: 'Admin',                     label: 'Admin' },
+  { value: 'Manager',                   label: 'Manager' },
+  { value: '__other__',                 label: 'Other…' },
+];
+
+// ── RoleField — dropdown + optional custom text input ────────────────────────
+function RoleField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  // Determine if the current value matches a preset option
+  const isPreset = ROLE_OPTIONS.some(o => o.value === value && o.value !== '__other__');
+  const [dropVal, setDropVal] = useState(isPreset ? value : (value ? '__other__' : ''));
+  const [customVal, setCustomVal] = useState(isPreset ? '' : value);
+
+  const handleDropChange = (v: string) => {
+    setDropVal(v);
+    if (v === '__other__') {
+      onChange(customVal);
+    } else {
+      setCustomVal('');
+      onChange(v);
+    }
+  };
+
+  const handleCustomChange = (v: string) => {
+    setCustomVal(v);
+    onChange(v);
+  };
+
+  return (
+    <div className="space-y-2">
+      <SelectDropdown
+        value={dropVal}
+        onChange={handleDropChange}
+        options={ROLE_OPTIONS}
+        placeholder="Select role…"
+        fullWidth
+        clearable
+      />
+      {dropVal === '__other__' && (
+        <input
+          type="text"
+          value={customVal}
+          onChange={e => handleCustomChange(e.target.value)}
+          className={inputCls}
+          style={inputStyle}
+          placeholder="Enter custom role"
+          autoFocus
+        />
+      )}
+    </div>
+  );
+}
+
+const blankForm = { full_name: '', email: '', role: '' };
 
 // ── MemberForm is defined at module scope so React never remounts it ─────────
 function MemberForm({
@@ -31,8 +110,8 @@ function MemberForm({
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full Name *</label>
         <input
           required
-          value={f.name}
-          onChange={e => setF(x => ({ ...x, name: e.target.value }))}
+          value={f.full_name}
+          onChange={e => setF(x => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="Team member name"
@@ -51,13 +130,7 @@ function MemberForm({
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role</label>
-        <input
-          value={f.role}
-          onChange={e => setF(x => ({ ...x, role: e.target.value }))}
-          className={inputCls}
-          style={inputStyle}
-          placeholder="Designer, Manager, etc."
-        />
+        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
       </div>
     </div>
   );
@@ -77,8 +150,8 @@ function InviteForm({
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full Name *</label>
         <input
           required
-          value={f.name}
-          onChange={e => setF(x => ({ ...x, name: e.target.value }))}
+          value={f.full_name}
+          onChange={e => setF(x => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="Team member name"
@@ -98,14 +171,7 @@ function InviteForm({
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role *</label>
-        <input
-          required
-          value={f.role}
-          onChange={e => setF(x => ({ ...x, role: e.target.value }))}
-          className={inputCls}
-          style={inputStyle}
-          placeholder="Designer, Manager, etc."
-        />
+        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
       </div>
       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         An invitation email will be sent automatically. The link expires in 7 days.
@@ -137,6 +203,7 @@ function InviteBadge({ status }: { status: string }) {
 export default function TeamPage() {
   const { t } = useLang();
   const { role: myRole } = useAuth();
+  const { toast } = useToast();
   const canManage = myRole === 'admin' || myRole === 'manager';
 
   const [members, setMembers]           = useState<TeamMember[]>([]);
@@ -158,7 +225,7 @@ export default function TeamPage() {
   const fetchData = useCallback(async () => {
     try {
       const [membersRes, invitesRes] = await Promise.all([
-        supabase.from('team_members').select('*').order('name'),
+        supabase.from('team_members').select('*').order('full_name'),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
       ]);
       if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
@@ -183,8 +250,8 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
-    if (!inviteForm.name.trim() || !inviteForm.email.trim() || !inviteForm.role.trim()) {
-      setActionError('Name, email, and role are required.');
+    if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.role.trim()) {
+      setActionError('Full name, email, and role are required.');
       return;
     }
     setSaving(true);
@@ -192,12 +259,13 @@ export default function TeamPage() {
       const res = await fetch('/api/team/invite', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(inviteForm),
+        body:    JSON.stringify({ full_name: inviteForm.full_name, email: inviteForm.email, role: inviteForm.role }),
       });
       const data = await res.json();
       if (!res.ok) { setActionError(data.error ?? 'Failed to send invitation.'); return; }
       setInviteOpen(false);
       setInviteForm({ ...blankForm });
+      toast(`Invitation sent to ${inviteForm.email}`, 'success');
       fetchData();
     } catch {
       setActionError('Network error. Please try again.');
@@ -208,7 +276,7 @@ export default function TeamPage() {
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (member: TeamMember) => {
-    setEditForm({ name: member.name, email: member.email ?? '', role: member.role ?? '' });
+    setEditForm({ full_name: member.full_name, email: member.email ?? '', role: member.role ?? '' });
     setEditMember(member);
   };
 
@@ -218,15 +286,16 @@ export default function TeamPage() {
     setSaving(true);
     try {
       const { error } = await supabase.from('team_members').update({
-        name:  editForm.name.trim(),
-        email: editForm.email || null,
-        role:  editForm.role || null,
+        full_name: editForm.full_name.trim(),
+        email:     editForm.email || null,
+        role:      editForm.role || null,
       }).eq('id', editMember.id);
       if (error) throw error;
       setEditMember(null);
+      toast('Member updated successfully', 'success');
       fetchData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to update member');
+      toast(err instanceof Error ? err.message : 'Failed to update member', 'error');
     } finally {
       setSaving(false);
     }
@@ -236,9 +305,10 @@ export default function TeamPage() {
   const handleDelete = async () => {
     if (!deleteMember) return;
     const { error } = await supabase.from('team_members').delete().eq('id', deleteMember.id);
-    if (error) { alert(error.message); return; }
+    if (error) { toast(error.message, 'error'); return; }
     setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
     setDeleteMember(null);
+    toast('Member removed', 'info');
   };
 
   // ── Resend invite ─────────────────────────────────────────────────────────
@@ -250,17 +320,17 @@ export default function TeamPage() {
         body:    JSON.stringify({ team_member_id: member.id }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.error ?? 'Failed to resend invitation.'); return; }
-      alert(`Invitation resent to ${member.email}`);
+      if (!res.ok) { toast(data.error ?? 'Failed to resend invitation.', 'error'); return; }
+      toast(`Invitation resent to ${member.email}`, 'success');
       fetchData();
     } catch {
-      alert('Network error. Please try again.');
+      toast('Network error. Please try again.', 'error');
     }
   };
 
   // ── Revoke invite ─────────────────────────────────────────────────────────
   const handleRevoke = async (member: TeamMember) => {
-    if (!confirm(`Revoke invitation for ${member.name}? This will remove them from the team list.`)) return;
+    if (!confirm(`Revoke invitation for ${member.full_name}? This will remove them from the team list.`)) return;
     try {
       const res = await fetch('/api/team/invite/revoke', {
         method:  'POST',
@@ -268,10 +338,11 @@ export default function TeamPage() {
         body:    JSON.stringify({ team_member_id: member.id }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.error ?? 'Failed to revoke invitation.'); return; }
+      if (!res.ok) { toast(data.error ?? 'Failed to revoke invitation.', 'error'); return; }
+      toast('Invitation revoked', 'info');
       fetchData();
     } catch {
-      alert('Network error. Please try again.');
+      toast('Network error. Please try again.', 'error');
     }
   };
 
@@ -283,7 +354,7 @@ export default function TeamPage() {
     const link   = `${appUrl}/invite/${inv.token}`;
     try {
       await navigator.clipboard.writeText(link);
-      alert('Invite link copied to clipboard!');
+      toast('Invite link copied to clipboard!', 'success');
     } catch {
       prompt('Copy this invite link:', link);
     }
@@ -420,7 +491,7 @@ export default function TeamPage() {
       <Modal open={!!deleteMember} onClose={() => setDeleteMember(null)} title="Remove Member" size="sm">
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text)' }}>
-            Remove <strong>{deleteMember?.name}</strong> from the team? This cannot be undone.
+            Remove <strong>{deleteMember?.full_name}</strong> from the team? This cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setDeleteMember(null)} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
@@ -468,11 +539,11 @@ function MemberCard({
           className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
           style={{ background: isInvited ? '#d97706' : 'var(--accent)' }}
         >
-          {member.name.charAt(0).toUpperCase()}
+          {member.full_name.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.name}</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
             {isInvited && <InviteBadge status="invited" />}
           </div>
           {member.role && (
@@ -535,4 +606,3 @@ function MemberCard({
     </div>
   );
 }
-

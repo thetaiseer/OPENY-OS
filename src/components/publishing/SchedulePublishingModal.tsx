@@ -523,7 +523,7 @@ export default function SchedulePublishingModal({
                   placeholder="— Unassigned —"
                   options={[
                     { value: '', label: '— Unassigned —' },
-                    ...team.map(m => ({ value: m.id, label: m.name })),
+                    ...team.map(m => ({ value: m.id, label: m.full_name })),
                   ]}
                 />
               </div>

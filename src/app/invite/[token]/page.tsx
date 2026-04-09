@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, use } from 'react';
 import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff } from 'lucide-react';
 
 interface InviteInfo {
-  name: string;
+  full_name: string;
   email: string;
   role: string;
   expires_at: string;
@@ -50,7 +50,7 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
           return;
         }
         setInvite(data as InviteInfo);
-        setDisplayName(data.name as string);
+        setDisplayName(data.full_name as string);
         setPageState('valid');
       } catch {
         setPageState('error');
@@ -139,10 +139,10 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                   className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white mx-auto mb-3"
                   style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
                 >
-                  {invite.name.charAt(0).toUpperCase()}
+                  {invite.full_name.charAt(0).toUpperCase()}
                 </div>
                 <p className="text-base font-semibold" style={{ color: '#111827' }}>
-                  Welcome, {invite.name}!
+                  Welcome, {invite.full_name}!
                 </p>
                 <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
                   {"You've been invited as"} <span className="font-medium" style={{ color: '#6366f1' }}>{invite.role}</span>

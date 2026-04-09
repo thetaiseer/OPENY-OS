@@ -49,7 +49,7 @@ export async function POST(
   // ── 1. Validate token ────────────────────────────────────────────────────
   const { data: invitation, error: invErr } = await db
     .from('team_invitations')
-    .select('id, email, name, role, status, expires_at, team_member_id')
+    .select('id, email, full_name, role, status, expires_at, team_member_id')
     .eq('token', token)
     .maybeSingle();
 
@@ -71,7 +71,7 @@ export async function POST(
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
   }
 
-  const finalName = displayName || invitation.name;
+  const finalName = displayName || invitation.full_name;
 
   // ── 2. Create Supabase auth user ─────────────────────────────────────────
   const { data: authData, error: authError } = await db.auth.admin.createUser({
@@ -119,7 +119,7 @@ export async function POST(
   // ── 4. Activate team member ──────────────────────────────────────────────
   await db
     .from('team_members')
-    .update({ status: 'active', updated_at: new Date().toISOString() })
+    .update({ status: 'active', profile_id: authUserId, updated_at: new Date().toISOString() })
     .eq('id', invitation.team_member_id);
 
   // ── 5. Mark invitation accepted ──────────────────────────────────────────

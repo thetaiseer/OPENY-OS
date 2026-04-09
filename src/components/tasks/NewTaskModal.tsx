@@ -561,7 +561,7 @@ export default function NewTaskModal({
                     placeholder="— Unassigned —"
                     options={[
                       { value: '', label: '— Unassigned —' },
-                      ...team.map(m => ({ value: m.id, label: m.name })),
+                      ...team.map(m => ({ value: m.id, label: m.full_name })),
                     ]}
                   />
                 </div>
@@ -579,7 +579,7 @@ export default function NewTaskModal({
                   placeholder="— Unassigned —"
                   options={[
                     { value: '', label: '— Unassigned —' },
-                    ...team.map(m => ({ value: m.id, label: m.name })),
+                    ...team.map(m => ({ value: m.id, label: m.full_name })),
                   ]}
                 />
               </div>

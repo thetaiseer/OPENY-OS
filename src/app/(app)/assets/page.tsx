@@ -845,7 +845,7 @@ export default function AssetsPage() {
   useEffect(() => {
     supabase.from('profiles').select('id, name, email, role').then(({ data, error }) => {
       if (error) { if (process.env.NODE_ENV === 'development') console.error('[profiles]', error); }
-      else if (data) setTeam(data as TeamMember[]);
+      else if (data) setTeam(data.map(p => ({ ...p, full_name: p.name, created_at: '' })) as TeamMember[]);
     });
   }, []);
 

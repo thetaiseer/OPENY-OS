@@ -24,7 +24,7 @@ export async function GET(
 
   const { data: invitation, error } = await db
     .from('team_invitations')
-    .select('id, email, name, role, status, expires_at, accepted_at')
+    .select('id, email, full_name, role, status, expires_at, accepted_at')
     .eq('token', token)
     .maybeSingle();
 
@@ -52,7 +52,7 @@ export async function GET(
   }
 
   return NextResponse.json({
-    name:       invitation.name,
+    full_name:  invitation.full_name,
     email:      invitation.email,
     role:       invitation.role,
     expires_at: invitation.expires_at,

@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const name  = (body.name  ?? '').trim();
+  const full_name = (body.full_name ?? body.name ?? '').trim();
   const email = (body.email ?? '').trim().toLowerCase();
   const role  = (body.role  ?? '').trim();
 
-  if (!name || !email || !role) {
-    return NextResponse.json({ error: 'name, email, and role are required' }, { status: 400 });
+  if (!full_name || !email || !role) {
+    return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 });
   }
 
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ name, email, role, status: 'invited' })
+    .insert({ full_name, email, role, status: 'invited' })
     .select()
     .single();
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
-      name,
+      full_name,
       role,
       token,
       status: 'invited',
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   // ── 5. Send invite email ──────────────────────────────────────────────────
   const inviteUrl = `${appUrl}/invite/${token}`;
   const html = teamInviteEmail({
-    recipientName:  name,
+    recipientName:  full_name,
     inviterName:    auth.profile.name,
     workspaceName:  'OPENY OS',
     role,
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
   // Notify team (best-effort — after successful email send)
   void notifyInvitation({
     teamMemberId: member.id,
-    inviteeName:  name,
+    inviteeName:  full_name,
     inviterName:  auth.profile.name ?? null,
     role,
   });
