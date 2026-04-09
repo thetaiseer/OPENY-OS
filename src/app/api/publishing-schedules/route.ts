@@ -34,8 +34,9 @@ const VALID_PLATFORMS = [
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 const VALID_STATUSES = [
-  'draft', 'scheduled', 'pending_review', 'approved',
-  'published', 'missed', 'cancelled',
+  'scheduled', 'queued', 'published', 'missed', 'cancelled',
+  // legacy values kept for backward compat reading
+  'draft', 'pending_review', 'approved',
 ] as const;
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -101,9 +102,15 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Validate required fields ──────────────────────────────────────────────
-  const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
-  if (!assetId) {
-    return NextResponse.json({ success: false, error: 'asset_id is required' }, { status: 400 });
+  const assetId       = typeof body.asset_id        === 'string' ? body.asset_id.trim()        : '';
+  const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
+
+  // Either asset_id or content_item_id must be provided
+  if (!assetId && !contentItemId) {
+    return NextResponse.json(
+      { success: false, error: 'Either asset_id or content_item_id is required' },
+      { status: 400 },
+    );
   }
 
   const scheduledDate = typeof body.scheduled_date === 'string' ? body.scheduled_date.trim() : '';
@@ -144,26 +151,33 @@ export async function POST(req: NextRequest) {
   try {
     const db = getSupabase();
 
-    // ── Fetch asset info to build task title ─────────────────────────────────
-    const { data: assetData, error: assetErr } = await db
-      .from('assets')
-      .select('id, name, client_id, client_name')
-      .eq('id', assetId)
-      .single();
+    let resolvedClientId: string | null   = clientId;
+    let resolvedClientName: string | null = clientName;
 
-    if (assetErr || !assetData) {
-      return NextResponse.json(
-        { success: false, error: 'Asset not found' },
-        { status: 404 },
-      );
+    // ── Fetch asset info (only if asset_id provided) ─────────────────────────
+    let assetData: { id: string; name: string; client_id: string | null; client_name: string | null } | null = null;
+    if (assetId) {
+      const { data: ad, error: assetErr } = await db
+        .from('assets')
+        .select('id, name, client_id, client_name')
+        .eq('id', assetId)
+        .single();
+
+      if (assetErr || !ad) {
+        return NextResponse.json(
+          { success: false, error: 'Asset not found' },
+          { status: 404 },
+        );
+      }
+      assetData = ad;
+      resolvedClientId   = clientId   ?? assetData.client_id   ?? null;
+      resolvedClientName = clientName ?? assetData.client_name ?? null;
     }
-
-    const resolvedClientId   = clientId   ?? assetData.client_id   ?? null;
-    const resolvedClientName = clientName ?? assetData.client_name ?? null;
 
     // ── Insert publishing schedule ────────────────────────────────────────────
     const schedulePayload: Record<string, unknown> = {
-      asset_id:         assetId,
+      asset_id:         assetId || null,
+      content_item_id:  contentItemId || null,
       client_id:        resolvedClientId,
       client_name:      resolvedClientName,
       scheduled_date:   scheduledDate,
@@ -215,18 +229,21 @@ export async function POST(req: NextRequest) {
       });
 
       const taskTitle = `Publish ${platformLabels.join(' + ')} ${postTypeLabels.join(' + ')} for ${resolvedClientName ?? 'Client'}`;
+      const entityName = assetData ? assetData.name : `content item ${contentItemId}`;
 
       const taskPayload: Record<string, unknown> = {
         title:                  taskTitle,
-        description:            caption ? `Caption: ${caption}` : `Publishing schedule for "${assetData.name}"`,
+        description:            caption ? `Caption: ${caption}` : `Publishing schedule for "${entityName}"`,
         status:                 'todo',
         priority:               'medium',
         due_date:               scheduledDate,
         client_id:              resolvedClientId,
         assigned_to:            assignedTo ?? auth.profile.id,
         created_by:             auth.profile.id,
+        created_by_id:          auth.profile.id,
         publishing_schedule_id: schedule.id,
-        asset_id:               assetId,
+        asset_id:               assetId || null,
+        content_item_id:        contentItemId || null,
         platforms,
         post_types:             postTypes,
       };
@@ -254,11 +271,17 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Activity log (best-effort) ────────────────────────────────────────────
+    const activityDesc = assetData
+      ? `Publishing scheduled for "${assetData.name}" on ${scheduledDate}`
+      : `Publishing scheduled for content item on ${scheduledDate}`;
     void db.from('activities').insert({
       type:        'publishing_scheduled',
-      description: `Publishing scheduled for "${assetData.name}" on ${scheduledDate}`,
+      description: activityDesc,
       user_id:     auth.profile.id,
+      user_uuid:   auth.profile.id,
       client_id:   resolvedClientId,
+      entity_type: 'publishing_schedule',
+      entity_id:   schedule.id,
     }).then(({ error: actErr }) => {
       if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
     });
