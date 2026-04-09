@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export type ImproveAction =
   | 'improve'

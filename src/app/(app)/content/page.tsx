@@ -160,8 +160,6 @@ interface ContentCardProps {
 }
 
 function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const nextStatuses: Partial<Record<ContentItemStatus, ContentItemStatus>> = {
     draft: 'pending_review',
     pending_review: 'approved',
