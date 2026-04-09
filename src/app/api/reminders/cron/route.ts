@@ -8,7 +8,7 @@
  *   4. Sends a deadline alert email to the assignee (if available)
  *
  * Security: protected by CRON_SECRET env var (header x-cron-secret or query ?secret=…).
- * Schedule: run once per day via Vercel Cron (see vercel.json).
+ * Schedule: run once per day via Vercel Cron (see vercel.json). Runs at 08:00 UTC.
  *
  * Vercel Cron config:
  *   { "path": "/api/reminders/cron", "schedule": "0 8 * * *" }
@@ -20,6 +20,7 @@ import { createNotification } from '@/lib/notification-service';
 import { sendEmail, deadlineAlertEmail, logEmailSent } from '@/lib/email';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered'];
+const MS_PER_DAY = 86_400_000;
 
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   const db      = getDb();
   const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const now     = new Date();
-  const in24h   = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const in24h   = new Date(now.getTime() + MS_PER_DAY);
 
   let dueSoonCount = 0;
   let overdueCount = 0;
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     for (const task of (dueSoon ?? []) as TaskRow[]) {
       try {
-        const daysLeft = Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / 86_400_000);
+        const daysLeft = Math.max(1, Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / MS_PER_DAY));
         await createNotification({
           title:       'Task Due Soon',
           message:     `"${task.title}" is due in ${daysLeft <= 0 ? 'less than a day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}`,

@@ -18,16 +18,16 @@ export default function NotificationRealtimeSync() {
   const queryClient = useQueryClient();
   const { toast }   = useToast();
   const { user }    = useAuth();
-  const userId      = useRef<string | null>(null);
 
-  useEffect(() => {
-    userId.current = user?.id ?? null;
-  }, [user]);
+  // Keep a stable, always-current ref to the user id so the subscription
+  // callback can access it without being re-created on every user change.
+  const userIdRef = useRef<string | null>(null);
+  userIdRef.current = user?.id ?? null;
 
   useEffect(() => {
     const unsub = subscribeToNotifications((payload: NotificationPayload) => {
       // Only show toast if the notification targets this user (or is broadcast)
-      const mine = !payload.user_id || payload.user_id === userId.current;
+      const mine = !payload.user_id || payload.user_id === userIdRef.current;
       if (!mine) return;
 
       // Map notification type to toast type
@@ -45,7 +45,7 @@ export default function NotificationRealtimeSync() {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
     return unsub;
-  }, [queryClient, toast]);
+  }, [queryClient, toast]); // userIdRef is stable — no need to include
 
   return null;
 }

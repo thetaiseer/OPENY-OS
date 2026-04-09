@@ -214,7 +214,11 @@ export default function NotificationDropdown() {
                     <div
                       key={n.id}
                       className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-2)] transition-colors group"
-                      style={{ borderLeft: n.read ? 'none' : `3px solid ${color}`, paddingLeft: n.read ? 16 : 13 }}
+                      style={{
+                        borderLeft: n.read ? 'none' : '3px solid ' + color,
+                        // Compensate left-padding so content stays aligned when the 3px indicator border is shown
+                        paddingLeft: n.read ? 16 : 13,
+                      }}
                     >
                       {/* Icon */}
                       <div
