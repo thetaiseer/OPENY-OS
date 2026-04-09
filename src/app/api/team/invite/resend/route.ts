@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
   // Send email
   const inviteUrl = `${appUrl}/invite/${newToken}`;
   const html = teamInviteEmail({
-    recipientName: invitation.name,
+    recipientName: invitation.full_name,
     inviterName:   auth.profile.name,
     workspaceName: 'OPENY OS',
     role:          invitation.role,

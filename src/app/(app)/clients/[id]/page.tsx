@@ -304,7 +304,7 @@ export default function ClientWorkspace() {
           supabase.from('assets').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
           supabase.from('activities').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
           supabase.from('approvals').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('team_members').select('*').order('name'),
+          supabase.from('team_members').select('*').order('full_name'),
         ]),
         timeoutPromise,
       ]);
@@ -648,17 +648,17 @@ export default function ClientWorkspace() {
                         )}
                         {assignee && (
                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-                            <User size={10} />{assignee.name}
+                            <User size={10} />{assignee.full_name}
                           </span>
                         )}
                         {creator && (
                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-                            by {creator.name}
+                            by {creator.full_name}
                           </span>
                         )}
                         {mentionedMembers.length > 0 && (
                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-                            <Users size={10} />{mentionedMembers.map(m => `@${m.name}`).join(', ')}
+                            <Users size={10} />{mentionedMembers.map(m => `@${m.full_name}`).join(', ')}
                           </span>
                         )}
                         {task.tags && task.tags.length > 0 && task.tags.map(tag => (
@@ -959,7 +959,7 @@ export default function ClientWorkspace() {
                 placeholder={t('unassigned')}
                 options={[
                   { value: '', label: t('unassigned') },
-                  ...team.map(m => ({ value: m.id, label: m.name })),
+                  ...team.map(m => ({ value: m.id, label: m.full_name })),
                 ]}
               />
             </div>

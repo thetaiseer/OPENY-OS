@@ -27,10 +27,11 @@ export interface Client {
 
 export interface TeamMember {
   id: string;
-  name: string;
+  full_name: string;
   email: string;
   role?: string;
   avatar?: string;
+  profile_id?: string | null;
   status?: 'active' | 'invited' | 'inactive' | 'suspended';
   created_at: string;
   updated_at?: string;
@@ -42,7 +43,7 @@ export interface TeamInvitation {
   id: string;
   team_member_id: string;
   email: string;
-  name: string;
+  full_name: string;
   role: string;
   token: string;
   status: InviteStatus;
@@ -241,7 +242,7 @@ export interface Approval {
   updated_at: string;
   /** Joined relations */
   client?: Pick<Client, 'id' | 'name'> | null;
-  reviewer?: Pick<TeamMember, 'id' | 'name' | 'email' | 'avatar'> | null;
+  reviewer?: Pick<TeamMember, 'id' | 'full_name' | 'email' | 'avatar'> | null;
   task?: Pick<Task, 'id' | 'title'> | null;
   asset?: Pick<Asset, 'id' | 'name'> | null;
   content_item?: Pick<ContentItem, 'id' | 'title'> | null;

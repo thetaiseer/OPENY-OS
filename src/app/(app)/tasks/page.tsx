@@ -210,7 +210,7 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
             placeholder={t('unassigned')}
             options={[
               { value: '', label: t('unassigned') },
-              ...team.map(m => ({ value: m.id, label: m.name })),
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
             ]}
           />
         </div>
@@ -223,7 +223,7 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
             placeholder={t('none')}
             options={[
               { value: '', label: t('none') },
-              ...team.map(m => ({ value: m.id, label: m.name })),
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
             ]}
           />
         </div>
@@ -248,7 +248,7 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
                     border: '1px solid var(--border)',
                   }}
                 >
-                  @{m.name}
+                  @{m.full_name}
                 </button>
               );
             })}
@@ -346,12 +346,12 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         )}
         {assignee && (
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <User size={11} />{assignee.name}
+            <User size={11} />{assignee.full_name}
           </span>
         )}
         {creator && (
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <Clock size={11} />by {creator.name}
+            <Clock size={11} />by {creator.full_name}
           </span>
         )}
         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
@@ -388,7 +388,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           <Users size={12} style={{ color: 'var(--text-secondary)' }} />
           {mentionedMembers.map(m => (
             <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>
-              @{m.name}
+              @{m.full_name}
             </span>
           ))}
         </div>
@@ -472,13 +472,13 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
           {task.due_date && row(t('deadline'),
             <span className={overdue ? 'text-red-500 font-medium' : ''}>{fmtDate(task.due_date)}{overdue ? ` (${t('overdue')})` : ''}</span>
           )}
-          {assignee && row(t('assignedTo'), assignee.name)}
-          {creator && row(t('createdBy'), creator.name)}
+          {assignee && row(t('assignedTo'), assignee.full_name)}
+          {creator && row(t('createdBy'), creator.full_name)}
           {row(t('createdOn'), fmtDate(task.created_at))}
           {mentionedMembers.length > 0 && row(t('mentions'),
             <div className="flex flex-wrap gap-1">
               {mentionedMembers.map(m => (
-                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>@{m.name}</span>
+                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>@{m.full_name}</span>
               ))}
             </div>
           )}
@@ -561,7 +561,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t 
                         )}
                         {assignee && (
                           <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-                            <User size={10} />{assignee.name}
+                            <User size={10} />{assignee.full_name}
                           </span>
                         )}
                         {task.due_date && (
@@ -690,7 +690,7 @@ export default function TasksPage() {
       const dataPromise = Promise.allSettled([
         supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
         supabase.from('clients').select('id,name').order('name'),
-        supabase.from('team_members').select('*').order('name'),
+        supabase.from('team_members').select('*').order('full_name'),
       ]);
 
       const settled = silent
@@ -1158,7 +1158,7 @@ export default function TasksPage() {
           placeholder={t('allMembers')}
           options={[
             { value: '', label: t('allMembers') },
-            ...team.map(m => ({ value: m.id, label: m.name })),
+            ...team.map(m => ({ value: m.id, label: m.full_name })),
           ]}
         />
         <SelectDropdown

@@ -265,7 +265,7 @@ export default function MyTasksPage() {
       const [tasksRes, teamRes, clientsRes] = await Promise.race([
         Promise.allSettled([
           supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
-          supabase.from('team_members').select('*').order('name'),
+          supabase.from('team_members').select('*').order('full_name'),
           supabase.from('clients').select('id,name,status').order('name'),
         ]),
         timeoutPromise,
@@ -314,7 +314,7 @@ export default function MyTasksPage() {
   }, [memberTasks, activeSection]);
 
   const overdueCount       = memberTasks.filter(isTaskOverdue).length;
-  const selectedMemberName = team.find(m => m.id === selectedMember)?.name ?? user.name ?? 'All';
+  const selectedMemberName = team.find(m => m.id === selectedMember)?.full_name ?? user.name ?? 'All';
 
   function handleTaskCreated(task: Task) {
     setTasks(prev => [task, ...prev]);
@@ -400,7 +400,7 @@ export default function MyTasksPage() {
             placeholder={t('allTeamMembers')}
             options={[
               { value: '', label: t('allTeamMembers') },
-              ...team.map(m => ({ value: m.id, label: m.name })),
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
             ]}
           />
         </div>
