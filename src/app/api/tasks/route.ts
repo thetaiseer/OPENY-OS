@@ -281,9 +281,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Fire email to assignee (side effect — never blocks)
   if (assignedTo && data?.id) {
     void (async () => {
+      let assigneeEmail = '';
       try {
         const { data: profile } = await db
           .from('profiles')
@@ -291,6 +291,7 @@ export async function POST(request: NextRequest) {
           .eq('id', assignedTo)
           .single();
         if (profile?.email) {
+          assigneeEmail = profile.email;
           const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
           await sendEmail({
             to: profile.email,
@@ -307,7 +308,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (emailErr) {
         console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: assignedTo, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+        void logEmailSent({ to: assigneeEmail || `user:${assignedTo}`, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
       }
     })();
   }

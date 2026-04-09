@@ -149,7 +149,7 @@ export async function logEmailSent(opts: {
       subject:     opts.subject,
       event_type:  opts.eventType ?? null,
       entity_type: opts.entityType ?? null,
-      entity_id:   opts.entityId ? opts.entityId : null,
+      entity_id:   opts.entityId ?? null,
       status:      opts.status ?? 'sent',
       error:       opts.error ?? null,
     });
