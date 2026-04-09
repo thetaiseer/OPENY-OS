@@ -43,7 +43,7 @@ interface TaskRow {
   assignee_id: string | null;
   client_id: string | null;
   status: string;
-  assignee?: { id: string; name: string | null; email: string } | null;
+  assignee?: { id: string; name: string | null; email: string }[] | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         dueSoonCount++;
 
         // Send email to assignee
-        const assignee = task.assignee as { id: string; name: string | null; email: string } | null;
+        const assignee = task.assignee?.[0] ?? null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
         overdueCount++;
 
         // Send overdue email to assignee
-        const assignee = task.assignee as { id: string; name: string | null; email: string } | null;
+        const assignee = task.assignee?.[0] ?? null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
