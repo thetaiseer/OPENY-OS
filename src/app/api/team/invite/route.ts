@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
+  // body.name is accepted as a fallback for older clients; prefer body.full_name
   const full_name = (body.full_name ?? body.name ?? '').trim();
   const email = (body.email ?? '').trim().toLowerCase();
   const role  = (body.role  ?? '').trim();

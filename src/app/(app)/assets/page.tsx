@@ -843,9 +843,9 @@ export default function AssetsPage() {
 
   // Fetch team members for the schedule assignee
   useEffect(() => {
-    supabase.from('profiles').select('id, name, email, role').then(({ data, error }) => {
-      if (error) { if (process.env.NODE_ENV === 'development') console.error('[profiles]', error); }
-      else if (data) setTeam(data.map(p => ({ ...p, full_name: p.name, created_at: '' })) as TeamMember[]);
+    supabase.from('team_members').select('*').order('full_name').then(({ data, error }) => {
+      if (error) { if (process.env.NODE_ENV === 'development') console.error('[team_members]', error); }
+      else if (data) setTeam(data as TeamMember[]);
     });
   }, []);
 
