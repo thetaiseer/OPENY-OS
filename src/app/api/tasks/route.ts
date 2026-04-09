@@ -8,10 +8,13 @@
  * Request body (JSON):
  *   { title, description?, status?, priority?, start_date?, due_date?,
  *     due_time?, timezone?, task_category?, content_purpose?, caption?,
- *     client_id?, client_name?, assigned_to?, created_by?, mentions?, tags?,
- *     platforms?, post_types?, publishing_schedule_id?, asset_id? }
+ *     notes?, client_id?, client_name?, assigned_to?, assignee_id?,
+ *     created_by?, created_by_id?, mentions?, tags?,
+ *     platforms?, post_types?, publishing_schedule_id?,
+ *     asset_id?, asset_ids?, content_item_id?, approval_id? }
  *
  * client_id and assigned_to are required unless task_category is 'internal_task'.
+ * asset_ids: array of asset UUIDs — creates task_asset_links entries.
  *
  * Success response:
  *   { success: true, task: { ...createdTask } }
@@ -187,6 +190,35 @@ export async function POST(request: NextRequest) {
   const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
   if (assetId) insertPayload.asset_id = assetId;
 
+  // New v2 fields
+  const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
+  if (notes) insertPayload.notes = notes;
+
+  const assigneeId = typeof body.assignee_id === 'string' ? body.assignee_id.trim() : '';
+  if (assigneeId) insertPayload.assignee_id = assigneeId;
+
+  const createdById = typeof body.created_by_id === 'string' ? body.created_by_id.trim() : '';
+  if (createdById) insertPayload.created_by_id = createdById;
+
+  // Fall back to caller's profile UUID for created_by_id if not provided
+  if (!createdById && auth.profile.id) insertPayload.created_by_id = auth.profile.id;
+
+  const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
+  if (contentItemId) insertPayload.content_item_id = contentItemId;
+
+  const approvalId = typeof body.approval_id === 'string' ? body.approval_id.trim() : '';
+  if (approvalId) insertPayload.approval_id = approvalId;
+
+  // Collect asset_ids array for task_asset_links
+  const assetIds: string[] = [];
+  if (Array.isArray(body.asset_ids)) {
+    for (const id of body.asset_ids) {
+      if (typeof id === 'string' && id.trim()) assetIds.push(id.trim());
+    }
+  }
+  // Also include single asset_id if not already in the array
+  if (assetId && !assetIds.includes(assetId)) assetIds.push(assetId);
+
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   if (!supabaseServiceRoleKey) {
     console.error('[POST /api/tasks] SUPABASE_SERVICE_ROLE_KEY is not set');
@@ -223,11 +255,35 @@ export async function POST(request: NextRequest) {
       });
   }
 
+  // Insert task_asset_links for all provided asset IDs
+  if (assetIds.length > 0 && data?.id) {
+    const linkRows = assetIds.map(aid => ({
+      task_id:   data.id,
+      asset_id:  aid,
+      linked_by: auth.profile.id ?? null,
+    }));
+    void db.from('task_asset_links')
+      .upsert(linkRows, { onConflict: 'task_id,asset_id' })
+      .then(({ error: linkErr }) => {
+        if (linkErr) console.warn('[POST /api/tasks] task_asset_links insert failed:', linkErr.message);
+      });
+    // Also update assets.status → 'linked' and assets.task_id (best-effort)
+    void db.from('assets')
+      .update({ task_id: data.id, status: 'linked' })
+      .in('id', assetIds)
+      .then(({ error: aErr }) => {
+        if (aErr) console.warn('[POST /api/tasks] asset status update failed:', aErr.message);
+      });
+  }
+
   // Activity log (fire-and-forget — never blocks response)
   void Promise.resolve(db.from('activities').insert({
     type:        'task',
     description: `Task "${title}" created`,
     client_id:   clientId || null,
+    entity_type: 'task',
+    entity_id:   data?.id ?? null,
+    user_uuid:   auth.profile.id ?? null,
   })).then(({ error: actErr }) => {
     if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
   }).catch((err: unknown) => {

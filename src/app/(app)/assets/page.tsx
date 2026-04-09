@@ -1160,17 +1160,20 @@ export default function AssetsPage() {
   // ── Schedule Publishing ─────────────────────────────────────────────────────
 
   const handleScheduleCreated = (schedule: PublishingSchedule) => {
-    // Update schedule counts in state
-    setScheduleCounts(prev => {
-      const existing = prev[schedule.asset_id] ?? { count: 0, nextDate: null };
-      const existingTime = existing.nextDate ? new Date(existing.nextDate).getTime() : Infinity;
-      const newTime = new Date(schedule.scheduled_date).getTime();
-      const nextDate = existingTime <= newTime ? existing.nextDate : schedule.scheduled_date;
-      return {
-        ...prev,
-        [schedule.asset_id]: { count: existing.count + 1, nextDate },
-      };
-    });
+    // Update schedule counts in state (only when asset-based; content-first schedules have no asset_id)
+    if (schedule.asset_id) {
+      const assetId = schedule.asset_id;
+      setScheduleCounts(prev => {
+        const existing = prev[assetId] ?? { count: 0, nextDate: null };
+        const existingTime = existing.nextDate ? new Date(existing.nextDate).getTime() : Infinity;
+        const newTime = new Date(schedule.scheduled_date).getTime();
+        const nextDate = existingTime <= newTime ? existing.nextDate : schedule.scheduled_date;
+        return {
+          ...prev,
+          [assetId]: { count: existing.count + 1, nextDate },
+        };
+      });
+    }
     addToast('Publishing scheduled successfully!', 'success');
   };
 

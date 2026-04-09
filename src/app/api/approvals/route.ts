@@ -1,116 +1,150 @@
 /**
- * GET  /api/approvals — list approvals
- * POST /api/approvals — create an approval record
+ * GET /api/approvals
+ *   List approvals with optional filters.
+ *   Query params: client_id, status, task_id, asset_id, content_item_id
+ *
+ * POST /api/approvals
+ *   Create a new approval record.
+ *   Body: { client_id?, task_id?, asset_id?, content_item_id?, reviewer_id?, notes?, status? }
+ *
+ * Auth: admin | manager | team
  */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
-import { notifyApprovalRequested } from '@/lib/notification-service';
-import { sendEmail, approvalRequestEmail, logEmailSent } from '@/lib/email';
 
-function getDb() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key);
 }
 
-const VALID_STATUSES = ['pending', 'approved', 'rejected', 'needs_changes'] as const;
+const VALID_STATUSES = ['pending', 'approved', 'rejected'] as const;
+
+// ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const taskId   = searchParams.get('task_id');
-  const assetId  = searchParams.get('asset_id');
-  const clientId = searchParams.get('client_id');
-  const status   = searchParams.get('status');
+  const clientId      = searchParams.get('client_id');
+  const status        = searchParams.get('status');
+  const taskId        = searchParams.get('task_id');
+  const assetId       = searchParams.get('asset_id');
+  const contentItemId = searchParams.get('content_item_id');
 
-  const db = getDb();
-  let query = db.from('approvals').select('*').order('created_at', { ascending: false });
-  if (taskId)   query = query.eq('task_id', taskId);
-  if (assetId)  query = query.eq('asset_id', assetId);
-  if (clientId) query = query.eq('client_id', clientId);
-  if (status)   query = query.eq('status', status);
+  try {
+    const db = getSupabase();
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, approvals: data ?? [] });
+    let query = db
+      .from('approvals')
+      .select(`
+        *,
+        client:clients(id, name),
+        reviewer:profiles(id, name, email, avatar),
+        task:tasks(id, title),
+        asset:assets(id, name),
+        content_item:content_items(id, title)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (clientId)      query = query.eq('client_id', clientId);
+    if (status)        query = query.eq('status', status);
+    if (taskId)        query = query.eq('task_id', taskId);
+    if (assetId)       query = query.eq('asset_id', assetId);
+    if (contentItemId) query = query.eq('content_item_id', contentItemId);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[GET /api/approvals] error:', error.message);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, approvals: data ?? [] });
+  } catch (err) {
+    console.error('[GET /api/approvals] unexpected error:', err);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
 }
+
+// ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const db = getDb();
+  // At least one of task_id / asset_id / content_item_id must be provided
+  const taskId        = typeof body.task_id         === 'string' ? body.task_id.trim()         : '';
+  const assetId       = typeof body.asset_id        === 'string' ? body.asset_id.trim()        : '';
+  const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
+
+  if (!taskId && !assetId && !contentItemId) {
+    return NextResponse.json(
+      { success: false, error: 'One of task_id, asset_id, or content_item_id is required' },
+      { status: 400 },
+    );
+  }
+
+  const clientId   = typeof body.client_id   === 'string' ? body.client_id.trim()   : '';
+  const reviewerId = typeof body.reviewer_id === 'string' ? body.reviewer_id.trim() : '';
+  const notes      = typeof body.notes       === 'string' ? body.notes.trim()       : '';
+  const rawStatus  = typeof body.status      === 'string' ? body.status             : 'pending';
+  const status     = (VALID_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : 'pending';
+
   const insertPayload: Record<string, unknown> = {
-    status: 'pending',
+    status,
+    client_id:        clientId        || null,
+    task_id:          taskId          || null,
+    asset_id:         assetId         || null,
+    content_item_id:  contentItemId   || null,
+    reviewer_id:      reviewerId      || auth.profile.id,
+    notes:            notes           || null,
   };
 
-  if (typeof body.task_id   === 'string') insertPayload.task_id   = body.task_id;
-  if (typeof body.asset_id  === 'string') insertPayload.asset_id  = body.asset_id;
-  if (typeof body.client_id === 'string') insertPayload.client_id = body.client_id;
-  if (typeof body.client_name === 'string') insertPayload.client_name = body.client_name;
-  if (typeof body.reviewer_id === 'string') insertPayload.reviewer_id = body.reviewer_id;
-  if (typeof body.reviewer_name === 'string') insertPayload.reviewer_name = body.reviewer_name;
-  if (typeof body.requested_by === 'string') insertPayload.requested_by = body.requested_by;
-  if (typeof body.requested_by_name === 'string') insertPayload.requested_by_name = body.requested_by_name;
-  if (typeof body.notes === 'string') insertPayload.notes = body.notes;
-  if (typeof body.status === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
-    insertPayload.status = body.status;
-  }
+  if (status === 'approved') insertPayload.approved_at = new Date().toISOString();
+  if (status === 'rejected') insertPayload.rejected_at = new Date().toISOString();
 
-  const { data, error } = await db.from('approvals').insert(insertPayload).select().single();
-  if (error) {
-    console.error('[POST /api/approvals] db error:', error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+  try {
+    const db = getSupabase();
 
-  // Link approval to task
-  if (insertPayload.task_id && data?.id) {
-    void db.from('tasks').update({ approval_id: data.id }).eq('id', insertPayload.task_id)
-      .then(({ error: e }) => { if (e) console.warn('[approvals] task link failed:', e.message); });
-  }
+    const { data, error } = await db
+      .from('approvals')
+      .insert(insertPayload)
+      .select('*, client:clients(id,name), reviewer:profiles(id,name,email,avatar)')
+      .single();
 
-  // Fire notification (side effect)
-  if (data?.id) {
-    void notifyApprovalRequested({
-      taskId: String(insertPayload.task_id ?? ''),
-      taskTitle: String(body.task_title ?? 'Task'),
-      reviewerId: typeof insertPayload.reviewer_id === 'string' ? insertPayload.reviewer_id : null,
-      clientId: typeof insertPayload.client_id === 'string' ? insertPayload.client_id : null,
-      approvalId: data.id,
+    if (error) {
+      console.error('[POST /api/approvals] db error:', error.message);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    // Activity log (best-effort)
+    void db.from('activities').insert({
+      type:        'approval_created',
+      description: `Approval created with status "${status}"`,
+      user_id:     auth.profile.id,
+      user_uuid:   auth.profile.id,
+      client_id:   clientId || null,
+      entity_type: 'approval',
+      entity_id:   data?.id ?? null,
+    }).then(({ error: actErr }) => {
+      if (actErr) console.warn('[POST /api/approvals] activity log failed:', actErr.message);
     });
-  }
 
-  // Fire email (side effect)
-  const reviewerEmail = typeof body.reviewer_email === 'string' ? body.reviewer_email : null;
-  if (reviewerEmail) {
-    const approvalId = data?.id ?? '';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    void (async () => {
-      try {
-        await sendEmail({
-          to: reviewerEmail,
-          subject: `Approval Requested: ${String(body.task_title ?? 'Task')}`,
-          html: approvalRequestEmail({
-            recipientName: String(insertPayload.reviewer_name ?? 'Team'),
-            taskTitle: String(body.task_title ?? 'Task'),
-            clientName: typeof insertPayload.client_name === 'string' ? insertPayload.client_name : undefined,
-            requestedBy: typeof insertPayload.requested_by_name === 'string' ? insertPayload.requested_by_name : undefined,
-            appUrl,
-          }),
-        });
-        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: approvalId });
-      } catch (emailErr) {
-        console.warn('[approvals] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: approvalId, status: 'failed', error: String(emailErr) });
-      }
-    })();
+    return NextResponse.json({ success: true, approval: data }, { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/approvals] unexpected error:', err);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, approval: data }, { status: 201 });
 }

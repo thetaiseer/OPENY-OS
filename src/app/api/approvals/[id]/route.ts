@@ -1,96 +1,190 @@
 /**
- * GET    /api/approvals/[id] — get a single approval
- * PATCH  /api/approvals/[id] — update approval status/notes
+ * GET /api/approvals/[id]
+ *   Get a single approval by ID.
+ *
+ * PATCH /api/approvals/[id]
+ *   Update an approval (status, notes, reviewer_id).
+ *   Automatically sets approved_at / rejected_at when status changes.
+ *   When a task's approval is resolved, optionally syncs task status.
+ *
+ * Auth: admin | manager | team
  */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
-import { createNotification } from '@/lib/notification-service';
-import { sendEmail, approvalDecisionEmail, logEmailSent } from '@/lib/email';
 
-function getDb() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key);
 }
 
-const VALID_STATUSES = ['pending', 'approved', 'rejected', 'needs_changes'] as const;
+const VALID_STATUSES = ['pending', 'approved', 'rejected'] as const;
 
 interface Params { id: string }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const { id } = await params;
+// ── GET ───────────────────────────────────────────────────────────────────────
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<Params> },
+) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
-  const db = getDb();
-  const { data, error } = await db.from('approvals').select('*').eq('id', id).single();
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
-  return NextResponse.json({ success: true, approval: data });
+  const { id } = await params;
+
+  try {
+    const db = getSupabase();
+
+    const { data, error } = await db
+      .from('approvals')
+      .select(`
+        *,
+        client:clients(id, name),
+        reviewer:profiles(id, name, email, avatar),
+        task:tasks(id, title),
+        asset:assets(id, name),
+        content_item:content_items(id, title)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ success: false, error: 'Approval not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, approval: data });
+  } catch (err) {
+    console.error('[GET /api/approvals/[id]] unexpected error:', err);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const { id } = await params;
+// ── PATCH ─────────────────────────────────────────────────────────────────────
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<Params> },
+) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
 
+  const { id } = await params;
+
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.status === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
-    updatePayload.status = body.status;
-  }
-  if (typeof body.notes === 'string') updatePayload.notes = body.notes;
-  if (typeof body.reviewer_id === 'string') updatePayload.reviewer_id = body.reviewer_id;
-  if (typeof body.reviewer_name === 'string') updatePayload.reviewer_name = body.reviewer_name;
+  try {
+    const db = getSupabase();
 
-  const db = getDb();
-  const { data, error } = await db.from('approvals').update(updatePayload).eq('id', id).select().single();
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const { data: existing, error: fetchErr } = await db
+      .from('approvals')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  // Fire notification for status change
-  if (updatePayload.status && data) {
-    const statusStr = String(updatePayload.status);
-    const notifType = statusStr === 'approved' ? 'success' as const : statusStr === 'rejected' ? 'error' as const : 'warning' as const;
-    const label = statusStr === 'approved' ? 'Approved' : statusStr === 'rejected' ? 'Rejected' : 'Needs Changes';
-    void createNotification({
-      title:       `Approval ${label}`,
-      message:     `The approval has been ${statusStr.replace('_', ' ')}${data.notes ? `: "${data.notes}"` : ''}`,
-      type:        notifType,
-      event_type:  statusStr === 'approved' ? 'approval_approved' : statusStr === 'rejected' ? 'approval_rejected' : 'approval_needs_changes',
-      task_id:     data.task_id ?? null,
-      entity_type: 'approval',
-      entity_id:   id,
-      action_url:  '/my-tasks',
-    });
-  }
+    if (fetchErr || !existing) {
+      return NextResponse.json({ success: false, error: 'Approval not found' }, { status: 404 });
+    }
 
-  // Fire email to task creator if available
-  const requesterEmail = typeof body.requester_email === 'string' ? body.requester_email : null;
-  if (requesterEmail && updatePayload.status) {
-    const statusStr = String(updatePayload.status);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    void (async () => {
-      try {
-        await sendEmail({
-          to: requesterEmail,
-          subject: `Approval ${statusStr}: ${String(body.task_title ?? 'Task')}`,
-          html: approvalDecisionEmail({
-            recipientName: String(body.requester_name ?? 'Team'),
-            taskTitle: String(body.task_title ?? 'Task'),
-            decision: statusStr as 'approved' | 'rejected' | 'needs_changes',
-            notes: typeof data.notes === 'string' ? data.notes : undefined,
-            appUrl,
-          }),
-        });
-        void logEmailSent({ to: requesterEmail, subject: `Approval ${statusStr}`, eventType: `approval_${statusStr}`, entityType: 'approval', entityId: id });
-      } catch (emailErr) {
-        console.warn('[approvals/[id]] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: requesterEmail, subject: `Approval ${statusStr}`, status: 'failed', error: String(emailErr), eventType: `approval_${statusStr}`, entityType: 'approval', entityId: id });
+    const updates: Record<string, unknown> = {};
+
+    if (typeof body.status === 'string') {
+      const rawStatus = body.status;
+      if ((VALID_STATUSES as readonly string[]).includes(rawStatus)) {
+        updates.status = rawStatus;
+
+        // Stamp approval/rejection timestamps
+        if (rawStatus === 'approved' && !existing.approved_at) {
+          updates.approved_at = new Date().toISOString();
+          updates.rejected_at = null;
+        }
+        if (rawStatus === 'rejected' && !existing.rejected_at) {
+          updates.rejected_at = new Date().toISOString();
+          updates.approved_at = null;
+        }
+        if (rawStatus === 'pending') {
+          updates.approved_at = null;
+          updates.rejected_at = null;
+        }
       }
-    })();
-  }
+    }
+    if ('notes' in body) {
+      updates.notes = typeof body.notes === 'string' ? body.notes.trim() || null : null;
+    }
+    if (typeof body.reviewer_id === 'string') {
+      updates.reviewer_id = body.reviewer_id.trim() || null;
+    }
 
-  return NextResponse.json({ success: true, approval: data });
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    const { data: updated, error: updateErr } = await db
+      .from('approvals')
+      .update(updates)
+      .eq('id', id)
+      .select('*, client:clients(id,name), reviewer:profiles(id,name,email,avatar)')
+      .single();
+
+    if (updateErr || !updated) {
+      console.error('[PATCH /api/approvals/[id]] error:', updateErr?.message);
+      return NextResponse.json(
+        { success: false, error: updateErr?.message ?? 'Failed to update approval' },
+        { status: 500 },
+      );
+    }
+
+    // ── Sync linked task status when approval is resolved ─────────────────────
+    // Only sync on approved/rejected transitions; pending resets leave the task unchanged.
+    if (updates.status && existing.task_id && updates.status !== 'pending') {
+      const taskStatus = updates.status === 'approved' ? 'approved' : 'in_review';
+      void db.from('tasks')
+        .update({ status: taskStatus, updated_at: new Date().toISOString() })
+        .eq('id', existing.task_id)
+        .then(({ error: taskErr }) => {
+          if (taskErr) console.warn('[PATCH /api/approvals/[id]] task sync failed:', taskErr.message);
+        });
+    }
+
+    // ── Sync linked asset approval_status (backward compat during transition) ─
+    if (updates.status && existing.asset_id) {
+      const assetApprovalStatus = updates.status === 'approved' ? 'approved'
+        : updates.status === 'rejected' ? 'rejected'
+        : 'pending';
+      void db.from('assets')
+        .update({ approval_status: assetApprovalStatus })
+        .eq('id', existing.asset_id)
+        .then(({ error: aErr }) => {
+          if (aErr) console.warn('[PATCH /api/approvals/[id]] asset sync failed:', aErr.message);
+        });
+    }
+
+    // Activity log (best-effort)
+    if (updates.status) {
+      void db.from('activities').insert({
+        type:        `approval_${updates.status}`,
+        description: `Approval ${updates.status} by ${auth.profile.name ?? auth.profile.email}`,
+        user_id:     auth.profile.id,
+        user_uuid:   auth.profile.id,
+        client_id:   existing.client_id ?? null,
+        entity_type: 'approval',
+        entity_id:   id,
+      }).then(({ error: actErr }) => {
+        if (actErr) console.warn('[PATCH /api/approvals/[id]] activity log failed:', actErr.message);
+      });
+    }
+
+    return NextResponse.json({ success: true, approval: updated });
+  } catch (err) {
+    console.error('[PATCH /api/approvals/[id]] unexpected error:', err);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
 }

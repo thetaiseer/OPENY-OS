@@ -161,6 +161,22 @@ export async function PATCH(
   if (Array.isArray(body.tags)) {
     updatePayload.tags = (body.tags as unknown[]).filter(t => typeof t === 'string');
   }
+  // v2 fields
+  if (typeof body.notes === 'string') {
+    updatePayload.notes = body.notes.trim() || null;
+  }
+  if (typeof body.assignee_id === 'string') {
+    updatePayload.assignee_id = body.assignee_id.trim() || null;
+  }
+  if (typeof body.created_by_id === 'string') {
+    updatePayload.created_by_id = body.created_by_id.trim() || null;
+  }
+  if (typeof body.content_item_id === 'string') {
+    updatePayload.content_item_id = body.content_item_id.trim() || null;
+  }
+  if (typeof body.approval_id === 'string') {
+    updatePayload.approval_id = body.approval_id.trim() || null;
+  }
 
   if (!supabaseServiceRoleKey) {
     console.error('[PATCH /api/tasks/[id]] SUPABASE_SERVICE_ROLE_KEY is not set');

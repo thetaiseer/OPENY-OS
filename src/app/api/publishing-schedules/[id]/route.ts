@@ -28,8 +28,9 @@ const VALID_PLATFORMS = [
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 const VALID_STATUSES = [
-  'draft', 'scheduled', 'pending_review', 'approved',
-  'published', 'missed', 'cancelled',
+  'scheduled', 'queued', 'published', 'missed', 'cancelled',
+  // legacy values kept for backward compat
+  'draft', 'pending_review', 'approved',
 ] as const;
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
@@ -99,6 +100,10 @@ export async function PATCH(
       const rawStatus = body.status;
       if ((VALID_STATUSES as readonly string[]).includes(rawStatus)) {
         updates.status = rawStatus;
+        // When transitioning to published, stamp published_at
+        if (rawStatus === 'published' && !existing.published_at) {
+          updates.published_at = new Date().toISOString();
+        }
       }
     }
 
@@ -125,11 +130,10 @@ export async function PATCH(
     if (existing.task_id) {
       const taskUpdates: Record<string, unknown> = {};
 
-      // When published → mark task done (success path)
-      // When cancelled → also mark task done (it will no longer be actioned)
-      // The task status 'done' represents completion in both cases.
+      // When published → mark task completed (success path)
+      // When cancelled → also mark task completed (it will no longer be actioned)
       if (updates.status === 'published' || updates.status === 'cancelled') {
-        taskUpdates.status = 'done';
+        taskUpdates.status = 'completed';
       }
 
       // When rescheduled → update task due date
@@ -146,7 +150,10 @@ export async function PATCH(
         type:        `publishing_${updates.status}`,
         description: `Publishing schedule status changed to "${updates.status}"`,
         user_id:     auth.profile.id,
+        user_uuid:   auth.profile.id,
         client_id:   existing.client_id ?? null,
+        entity_type: 'publishing_schedule',
+        entity_id:   id,
       }).then(({ error: actErr }) => {
         if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
       });
