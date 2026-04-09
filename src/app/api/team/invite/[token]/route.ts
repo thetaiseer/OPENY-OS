@@ -24,13 +24,23 @@ export async function GET(
 
   const { data: invitation, error } = await db
     .from('team_invitations')
-    .select('id, email, full_name, role, status, expires_at, accepted_at')
+    .select('id, email, role, status, expires_at, accepted_at, team_member:team_members(full_name, role)')
     .eq('token', token)
     .maybeSingle();
 
   if (error || !invitation) {
     return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
   }
+
+  // Resolve full_name and role from the team_member join
+  const memberData = Array.isArray(invitation.team_member)
+    ? invitation.team_member[0]
+    : invitation.team_member;
+  const full_name = (memberData as { full_name?: string } | null)?.full_name ?? '';
+  const role      = (memberData as { role?: string } | null)?.role
+    // Fallback to invitation.role while `role` still exists on team_invitations
+    // for backward compatibility with rows created before the schema migration.
+    ?? (invitation as { role?: string }).role ?? '';
 
   if (invitation.status === 'revoked') {
     return NextResponse.json({ error: 'This invitation has been revoked.' }, { status: 410 });
@@ -52,9 +62,9 @@ export async function GET(
   }
 
   return NextResponse.json({
-    full_name:  invitation.full_name,
+    full_name,
     email:      invitation.email,
-    role:       invitation.role,
+    role,
     expires_at: invitation.expires_at,
   });
 }

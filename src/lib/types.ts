@@ -43,8 +43,7 @@ export interface TeamInvitation {
   id: string;
   team_member_id: string;
   email: string;
-  full_name: string;
-  role: string;
+  role?: string;
   token: string;
   status: InviteStatus;
   invited_by?: string | null;
