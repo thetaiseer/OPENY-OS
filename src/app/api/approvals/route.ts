@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
   // Fire email (side effect)
   const reviewerEmail = typeof body.reviewer_email === 'string' ? body.reviewer_email : null;
   if (reviewerEmail) {
+    const approvalId = data?.id ?? '';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
     void (async () => {
       try {
@@ -103,10 +104,10 @@ export async function POST(req: NextRequest) {
             appUrl,
           }),
         });
-        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: data.id });
+        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: approvalId });
       } catch (emailErr) {
         console.warn('[approvals] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: data.id, status: 'failed', error: String(emailErr) });
+        void logEmailSent({ to: reviewerEmail, subject: `Approval Requested`, eventType: 'approval_requested', entityType: 'approval', entityId: approvalId, status: 'failed', error: String(emailErr) });
       }
     })();
   }

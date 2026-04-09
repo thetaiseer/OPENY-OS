@@ -304,11 +304,11 @@ export async function POST(request: NextRequest) {
               appUrl,
             }),
           });
-          void logEmailSent({ to: profile.email, subject: `New Task: ${title}`, eventType: 'task_assigned', entityType: 'task', entityId: data.id });
+          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, eventType: 'task_assigned', entityType: 'task', entityId: data.id });
         }
       } catch (emailErr) {
         console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        void logEmailSent({ to: assigneeEmail || `user:${assignedTo}`, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+        void logEmailSent({ to: assigneeEmail || assignedTo, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
       }
     })();
   }

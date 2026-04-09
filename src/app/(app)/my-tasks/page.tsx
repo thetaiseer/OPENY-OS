@@ -324,7 +324,7 @@ export default function MyTasksPage() {
   async function duplicateTask(task: Task) {
     try {
       const body: Record<string, unknown> = {
-        title:           `Copy of ${task.title}`,
+        title:           task.title.startsWith('Copy of ') ? task.title : `Copy of ${task.title}`,
         description:     task.description ?? '',
         status:          'todo',
         priority:        task.priority,

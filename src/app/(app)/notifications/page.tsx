@@ -205,7 +205,7 @@ export default function NotificationsPage() {
                   )}
                   <button
                     onClick={() => deleteNotif(n.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                    className="p-1.5 rounded-lg transition-colors hover:opacity-70"
                     style={{ color: 'var(--text-secondary)' }}
                     title="Delete"
                   >
