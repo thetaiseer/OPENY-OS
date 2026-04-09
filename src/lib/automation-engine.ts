@@ -168,7 +168,7 @@ export async function runAutomations(trigger: TriggerType, ctx: TriggerContext):
 
 /** Persist a run record to automation_runs (best-effort). */
 function logRun(
-  sb: ReturnType<typeof createClient>,
+  sb: unknown,
   run: {
     rule_id: string;
     trigger_type: string;
@@ -178,7 +178,7 @@ function logRun(
     duration_ms: number;
   },
 ): void {
-  void (sb as unknown as { from: (t: string) => { insert: (v: unknown) => Promise<unknown> } })
+  void (sb as { from: (t: string) => { insert: (v: unknown) => Promise<unknown> } })
     .from('automation_runs')
     .insert({
       rule_id:        run.rule_id,

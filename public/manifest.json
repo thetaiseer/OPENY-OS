@@ -1,0 +1,48 @@
+{
+  "name": "OPENY OS",
+  "short_name": "OPENY",
+  "description": "Modern SaaS workspace for social media agencies",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to Dashboard",
+      "url": "/dashboard"
+    },
+    {
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "Go to Tasks",
+      "url": "/tasks"
+    },
+    {
+      "name": "Clients",
+      "short_name": "Clients",
+      "description": "Go to Clients",
+      "url": "/clients"
+    }
+  ]
+}
