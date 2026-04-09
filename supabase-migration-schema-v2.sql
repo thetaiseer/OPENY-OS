@@ -446,13 +446,13 @@ UPDATE public.tasks
 SET status = 'completed'
 WHERE status IN ('done', 'delivered');
 
--- 5.5 publishing_schedules: backfill status aliases (already done in step 3 above)
--- (repeated as safety net for any stragglers missed before the constraint was applied)
-UPDATE public.publishing_schedules
-SET status = 'scheduled'
-WHERE status NOT IN ('scheduled', 'queued', 'published', 'missed', 'cancelled');
+-- 5.5 publishing_schedules: status aliases were already backfilled in Step 3.
+--     No duplicate UPDATE needed here.
 
--- 5.6 assets.status: backfill from upload_state / approval_status for existing rows
+-- 5.6 assets.status: best-effort backfill for existing rows.
+-- Note: assets that have a task_id set from the old single-link model are marked
+-- 'linked' here as a reasonable approximation. Once task_asset_links is fully
+-- adopted, this field should be managed exclusively through that junction table.
 UPDATE public.assets
 SET status = CASE
   WHEN is_deleted = true           THEN 'archived'

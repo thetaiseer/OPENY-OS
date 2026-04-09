@@ -143,10 +143,9 @@ export async function PATCH(
     }
 
     // ── Sync linked task status when approval is resolved ─────────────────────
-    if (updates.status && existing.task_id) {
-      const taskStatus = updates.status === 'approved' ? 'approved'
-        : updates.status === 'rejected' ? 'in_review'
-        : 'waiting_client';
+    // Only sync on approved/rejected transitions; pending resets leave the task unchanged.
+    if (updates.status && existing.task_id && updates.status !== 'pending') {
+      const taskStatus = updates.status === 'approved' ? 'approved' : 'in_review';
       void db.from('tasks')
         .update({ status: taskStatus, updated_at: new Date().toISOString() })
         .eq('id', existing.task_id)
