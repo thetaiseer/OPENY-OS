@@ -60,6 +60,10 @@ END;
 $$;
 
 -- RLS for team_members
+-- NOTE: The policy below is intentionally permissive for development / testing.
+-- Before going to production replace it with role-scoped policies, e.g.:
+--   SELECT allowed for authenticated users
+--   INSERT/UPDATE/DELETE restricted to admin and manager roles
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 
 DO $$
@@ -95,6 +99,11 @@ $$;
 --   updated_at     TIMESTAMPTZ
 -- ─────────────────────────────────────────────────────────────────────────────
 
+--
+-- DEPENDENCY: public.profiles must exist before this table is created.
+-- It is created by supabase-migration-profiles.sql (or the Supabase Auth
+-- trigger that auto-creates it).  Run that migration first if needed.
+--
 CREATE TABLE IF NOT EXISTS public.team_invitations (
   id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   team_member_id UUID        NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
@@ -125,6 +134,11 @@ CREATE INDEX IF NOT EXISTS idx_team_invitations_team_member_id
   ON public.team_invitations (team_member_id);
 
 -- RLS for team_invitations
+-- NOTE: The policy below is intentionally permissive for development / testing.
+-- Invitation tokens are single-use and expire after 7 days. Before going to
+-- production replace with tighter policies, e.g.:
+--   SELECT restricted to the invited email or admin/manager roles
+--   INSERT/UPDATE/DELETE restricted to admin and manager roles
 ALTER TABLE public.team_invitations ENABLE ROW LEVEL SECURITY;
 
 DO $$
