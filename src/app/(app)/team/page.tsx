@@ -161,8 +161,10 @@ export default function TeamPage() {
         supabase.from('team_members').select('*').order('name'),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
       ]);
-      if (!membersRes.error)  setMembers((membersRes.data  ?? []) as TeamMember[]);
-      if (!invitesRes.error)  setInvitations((invitesRes.data ?? []) as TeamInvitation[]);
+      if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
+      else setMembers((membersRes.data ?? []) as TeamMember[]);
+      if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
+      else setInvitations((invitesRes.data ?? []) as TeamInvitation[]);
     } catch (err) {
       console.error('[team] fetch error:', err);
     } finally {

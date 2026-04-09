@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { PG_UNIQUE_VIOLATION } from '@/lib/constants/postgres-errors';
 
 export async function POST(
   request: NextRequest,
@@ -106,7 +107,7 @@ export async function POST(
     role:  profileRole,
   });
 
-  if (profileError && profileError.code !== '23505') {
+  if (profileError && profileError.code !== PG_UNIQUE_VIOLATION) {
     // Roll back auth user creation
     await db.auth.admin.deleteUser(authUserId);
     return NextResponse.json(
