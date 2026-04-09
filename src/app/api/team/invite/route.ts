@@ -12,6 +12,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
+import { notifyInvitation } from '@/lib/notification-service';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -157,6 +158,14 @@ export async function POST(request: NextRequest) {
       { status: 502 },
     );
   }
+
+  // Notify team (best-effort — after successful email send)
+  void notifyInvitation({
+    teamMemberId: member.id,
+    inviteeName:  name,
+    inviterName:  auth.profile.name ?? null,
+    role,
+  });
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });
 }

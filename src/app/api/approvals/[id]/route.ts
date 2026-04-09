@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
+import { notifyApprovalDecision } from '@/lib/notification-service';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -180,6 +181,20 @@ export async function PATCH(
       }).then(({ error: actErr }) => {
         if (actErr) console.warn('[PATCH /api/approvals/[id]] activity log failed:', actErr.message);
       });
+
+      // Notification for approval decision (best-effort)
+      const decision = updates.status as string;
+      if (decision === 'approved' || decision === 'rejected' || decision === 'needs_changes') {
+        void notifyApprovalDecision({
+          approvalId:    id,
+          taskId:        existing.task_id ?? null,
+          taskTitle:     null,
+          decision:      decision as 'approved' | 'rejected' | 'needs_changes',
+          decidedByName: auth.profile.name ?? auth.profile.email,
+          requestedById: existing.requested_by ?? null,
+          clientId:      existing.client_id ?? null,
+        });
+      }
     }
 
     return NextResponse.json({ success: true, approval: updated });

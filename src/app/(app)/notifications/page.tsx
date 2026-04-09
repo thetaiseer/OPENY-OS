@@ -40,6 +40,7 @@ const EVENT_LABEL: Record<string, string> = {
   asset_uploaded:         'Asset Uploaded',
   asset_linked:           'Asset Linked',
   client_created:         'Client Created',
+  team_invitation:        'Team Invitation',
 };
 
 function fmtDate(d: string) {

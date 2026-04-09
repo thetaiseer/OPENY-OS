@@ -10,7 +10,8 @@ import { ToastProvider } from '@/lib/toast-context';
 import ToastContainer from '@/components/ui/ToastContainer';
 import { createClient } from '@/lib/supabase/client';
 import AiAssistantPanel from '@/components/ai/AiAssistantPanel';
-import { subscribeToTasks, subscribeToNotifications } from '@/lib/realtime';
+import { subscribeToTasks } from '@/lib/realtime';
+import NotificationRealtimeSync from '@/components/notifications/NotificationRealtimeSync';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,22 +84,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['activities'] });
     });
-    const unsubNotifs = subscribeToNotifications(() => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    });
 
     return () => {
       if (checkTimer.current)    clearInterval(checkTimer.current);
       if (activityTimer.current) clearInterval(activityTimer.current);
       unsubTasks();
-      unsubNotifs();
     };
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <UploadProvider>
+          <UploadProvider>
           <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
             <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -110,6 +107,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <GlobalUploadQueue />
           <ToastContainer />
           <AiAssistantPanel />
+          {/* Real-time notification sync: subscribes to Supabase Realtime and fires toasts */}
+          <NotificationRealtimeSync />
         </UploadProvider>
       </ToastProvider>
     </QueryClientProvider>

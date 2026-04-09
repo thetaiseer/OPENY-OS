@@ -11,6 +11,7 @@ import {
   monthKeyToMonthName,
 } from '@/lib/google-drive';
 import { insertWithColumnFallback } from '@/lib/asset-db';
+import { notifyAssetUploaded } from '@/lib/notification-service';
 
 // ── Runtime config ────────────────────────────────────────────────────────────
 // Allow up to 5 minutes for large file uploads (requires Vercel Pro).
@@ -309,6 +310,16 @@ export async function POST(req: NextRequest) {
   }).then(({ error }) => {
     if (error) console.warn('[upload] activity log failed:', error.message);
   });
+
+  // ── Step 6: Notify (fire-and-forget) ─────────────────────────────────────
+  if (inserted) {
+    void notifyAssetUploaded({
+      assetId:      inserted.id as string,
+      assetName:    driveFileName,
+      clientId:     clientId ?? null,
+      uploadedById: auth.profile.id,
+    });
+  }
 
   console.log('[upload] completed:', driveFileName, '| drive_file_id:', driveFileId);
 

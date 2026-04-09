@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
+import { notifyApprovalRequested } from '@/lib/notification-service';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -141,6 +142,17 @@ export async function POST(req: NextRequest) {
     }).then(({ error: actErr }) => {
       if (actErr) console.warn('[POST /api/approvals] activity log failed:', actErr.message);
     });
+
+    // Notification (best-effort)
+    if (data) {
+      void notifyApprovalRequested({
+        approvalId: data.id,
+        taskId:     taskId || null,
+        taskTitle:  null,
+        reviewerId: reviewerId || auth.profile.id,
+        clientId:   clientId || null,
+      });
+    }
 
     return NextResponse.json({ success: true, approval: data }, { status: 201 });
   } catch (err) {
