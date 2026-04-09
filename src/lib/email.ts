@@ -157,6 +157,46 @@ export async function logEmailSent(opts: {
     console.warn('[email] logEmailSent failed:', err instanceof Error ? err.message : String(err));
   }
 }
+export function teamInviteEmail(opts: {
+  recipientName: string;
+  inviterName?: string;
+  workspaceName?: string;
+  role: string;
+  inviteUrl: string;
+  expiresInDays?: number;
+}): string {
+  const workspace = opts.workspaceName ?? 'OPENY OS';
+  const expiry    = opts.expiresInDays ?? 7;
+  return `
+<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#ffffff">
+  <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:40px 32px;border-radius:16px 16px 0 0;text-align:center">
+    <h1 style="margin:0;font-size:28px;color:#ffffff;font-weight:700;letter-spacing:-0.5px">${workspace}</h1>
+    <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:15px">You're invited to join the team</p>
+  </div>
+  <div style="padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px">
+    <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111827">Hi ${opts.recipientName} 👋</p>
+    <p style="margin:0 0 24px;color:#4b5563;line-height:1.6">
+      ${opts.inviterName ? `<strong>${opts.inviterName}</strong> has invited you` : 'You have been invited'} to join <strong>${workspace}</strong> as a <strong>${opts.role}</strong>.
+    </p>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-bottom:28px">
+      <p style="margin:0 0 4px;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Your Role</p>
+      <p style="margin:0;font-size:16px;font-weight:600;color:#111827">${opts.role}</p>
+    </div>
+    <div style="text-align:center;margin-bottom:28px">
+      <a href="${opts.inviteUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:600;letter-spacing:0.01em">
+        Accept Invitation →
+      </a>
+    </div>
+    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;text-align:center">
+      This invitation expires in <strong>${expiry} days</strong>.
+    </p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
+    <p style="margin:0 0 4px;font-size:12px;color:#9ca3af">If the button doesn't work, copy and paste this link:</p>
+    <p style="margin:0;font-size:12px;color:#6366f1;word-break:break-all">${opts.inviteUrl}</p>
+  </div>
+</div>`;
+}
+
 export function deadlineAlertEmail(opts: {
   recipientName: string;
   taskTitle: string;
