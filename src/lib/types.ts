@@ -113,7 +113,6 @@ export interface Task {
   asset_id?: string | null;
   platforms?: string[] | null;
   post_types?: string[] | null;
-  approval_id?: string | null;
   reminder_at?: string | null;
   linked_drive_folder_id?: string | null;
 }
@@ -302,22 +301,6 @@ export interface Notification {
   action_url?: string | null;
   event_type?: string | null;
   created_at: string;
-}
-
-export interface Approval {
-  id: string;
-  task_id?: string | null;
-  asset_id?: string | null;
-  client_id?: string | null;
-  client_name?: string | null;
-  reviewer_id?: string | null;
-  reviewer_name?: string | null;
-  requested_by?: string | null;
-  requested_by_name?: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'needs_changes';
-  notes?: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface ApprovalHistory {
