@@ -35,9 +35,12 @@ interface ReportsData {
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
 
-function toCSV(rows: Record<string, unknown>[], headers: string[]): string {
+function toCSV<T extends object>(rows: T[], headers: Array<keyof T>): string {
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  return [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  return [
+    headers.join(','),
+    ...rows.map(r => headers.map(h => escape(r[h])).join(',')),
+  ].join('\n');
 }
 
 function downloadCSV(csv: string, filename: string): void {
@@ -94,11 +97,11 @@ export default function ReportsPage() {
 
   function exportClients() {
     if (!report) return;
-    downloadCSV(toCSV(report.clientStats as unknown as Record<string, unknown>[], ['name', 'totalTasks', 'completedTasks', 'pendingTasks', 'overdueTasks', 'totalAssets', 'pendingApprovals']), 'openy-client-report.csv');
+    downloadCSV(toCSV<ClientStat>(report.clientStats, ['name', 'totalTasks', 'completedTasks', 'pendingTasks', 'overdueTasks', 'totalAssets', 'pendingApprovals']), 'openy-client-report.csv');
   }
   function exportTeam() {
     if (!report) return;
-    downloadCSV(toCSV(report.teamStats as unknown as Record<string, unknown>[], ['name', 'totalAssigned', 'completedTasks', 'completionRate', 'overdueTasks']), 'openy-team-report.csv');
+    downloadCSV(toCSV<TeamMemberStat>(report.teamStats, ['name', 'totalAssigned', 'completedTasks', 'completionRate', 'overdueTasks']), 'openy-team-report.csv');
   }
 
   return (

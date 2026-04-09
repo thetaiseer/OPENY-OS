@@ -65,7 +65,10 @@ export default function PortalPage() {
   const isLoading = assetsLoading || approvalsLoading;
 
   const approved = assets?.filter(a => (approvalMap?.[a.id]?.status ?? 'pending') === 'approved') ?? [];
-  const pending  = assets?.filter(a => !approvalMap?.[a.id] || approvalMap[a.id].status === 'pending')  ?? [];
+  const pending  = assets?.filter(a => {
+    const status = approvalMap?.[a.id]?.status;
+    return !status || status === 'pending';
+  }) ?? [];
   const total    = assets?.length ?? 0;
 
   function approvalBadge(assetId: string) {

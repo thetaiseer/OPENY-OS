@@ -367,20 +367,25 @@ export default function ContentPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start"
+          role="region"
+          aria-label="Content status pipeline"
+        >
           {STATUS_PIPELINE.filter(s => grouped[s.status]?.length > 0).map(s => (
-            <div key={s.status} className="space-y-3">
-              <div className="flex items-center justify-between">
+            <div key={s.status} className="space-y-3" role="list" aria-label={`${s.label} items`}>
+              <div className="flex items-center justify-between" role="heading" aria-level={2}>
                 <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: s.color }}>{s.label}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>{grouped[s.status].length}</span>
               </div>
               {grouped[s.status].map(item => (
-                <ContentCard
-                  key={item.id}
-                  item={item}
-                  onStatusChange={handleStatusChange}
-                  onDelete={handleDelete}
-                />
+                <div key={item.id} role="listitem">
+                  <ContentCard
+                    item={item}
+                    onStatusChange={handleStatusChange}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))}
             </div>
           ))}

@@ -24,7 +24,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+  SELECT role FROM public.profiles WHERE id = auth.uid();
 $$;
 
 -- ── Helper function: get the calling user's client_id from profiles ───────────
@@ -36,7 +36,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT client_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+  SELECT client_id FROM public.profiles WHERE id = auth.uid();
 $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
