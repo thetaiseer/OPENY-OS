@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 5. Send invite email ──────────────────────────────────────────────────
-  const inviteUrl = `${appUrl}/invite/${token}`;
+  const inviteUrl = `${appUrl}/invite?token=${token}`;
   const html = teamInviteEmail({
     recipientName:  full_name,
     inviterName:    auth.profile.name,

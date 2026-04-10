@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -90,8 +90,9 @@ function PasswordRequirements({ password }: { password: string }) {
   );
 }
 
-export default function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params);
+export default function InviteAcceptPage() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
   const router = useRouter();
 
   const [pageState, setPageState]     = useState<PageState>('loading');
@@ -108,15 +109,21 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
   const displayNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!token) {
+      setPageState('not_found');
+      setErrorMsg('No invitation token provided.');
+      return;
+    }
+
     async function validate() {
       try {
         const res = await fetch(`/api/team/invite/${token}`);
         const data = await res.json();
         if (!res.ok) {
           const msg: string = data.error ?? 'Unknown error';
-          if (msg.includes('expired'))          setPageState('expired');
-          else if (msg.includes('revoked'))     setPageState('revoked');
-          else if (msg.includes('already been accepted')) setPageState('already_accepted');
+          if (msg.includes('expired'))                     setPageState('expired');
+          else if (msg.includes('revoked'))                setPageState('revoked');
+          else if (msg.includes('already been accepted'))  setPageState('already_accepted');
           else { setPageState('not_found'); setErrorMsg(msg); }
           return;
         }
