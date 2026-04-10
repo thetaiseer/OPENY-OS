@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function InviteLayout({ children }: { children: React.ReactNode }) {
-  return <Suspense>{children}</Suspense>;
+  return <Suspense fallback={null}>{children}</Suspense>;
 }
