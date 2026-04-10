@@ -11,7 +11,7 @@ export interface EmailMessage {
   from?: string;
 }
 
-const DEFAULT_FROM = process.env.EMAIL_FROM ?? 'OPENY OS <onboarding@resend.dev>';
+const DEFAULT_FROM = process.env.EMAIL_FROM ?? 'OPENY OS <noreply@openy-os.com>';
 
 // ── Startup env check ─────────────────────────────────────────────────────────
 // Runs once when this module is first imported (server startup).
