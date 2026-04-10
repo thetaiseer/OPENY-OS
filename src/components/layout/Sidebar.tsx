@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
-  BarChart2, Users, Settings, X, CalendarDays, UserCheck, Shield, Zap, FileText,
+  BarChart2, Users, Settings, X, CalendarDays, UserCheck, Shield, FileText,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -25,17 +25,12 @@ const navItems = [
   { href: '/settings',  icon: Settings,        key: 'settings'  },
 ];
 
-const adminOnlyItems = [
-  { href: '/automations', icon: Zap, key: 'automations' },
-];
-
 interface SidebarProps { open?: boolean; onClose?: () => void; }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLang();
-  const { user, role } = useAuth();
-  const isAdminOrManager = role === 'admin' || role === 'manager';
+  const { user } = useAuth();
 
   return (
     <>
@@ -75,26 +70,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             const active =
               pathname === href ||
               (href !== '/dashboard' && pathname.startsWith(href));
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  active
-                    ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
-                )}
-              >
-                <Icon size={18} strokeWidth={1.8} />
-                <span>{t(key)}</span>
-              </Link>
-            );
-          })}
-          {/* Admin/Manager-only items */}
-          {isAdminOrManager && adminOnlyItems.map(({ href, icon: Icon, key }) => {
-            const active = pathname === href || pathname.startsWith(href);
             return (
               <Link
                 key={href}
