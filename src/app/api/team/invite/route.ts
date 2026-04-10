@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
   if (!url || !key) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
+  if (!appUrl) {
+    console.warn('[team/invite] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
+  }
 
   const db = createServiceClient(url, key);
 

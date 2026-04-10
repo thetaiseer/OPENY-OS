@@ -30,6 +30,18 @@ export interface AiCallOptions {
   temperature?: number;
 }
 
+// ── Startup env check ─────────────────────────────────────────────────────────
+// Runs once when this module is first imported (server startup).
+{
+  const geminiKey   = process.env.GEMINI_API_KEY;
+  const geminiModel = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+  if (geminiKey) {
+    console.log(`[ai] GEMINI_API_KEY loaded ✓ (model: ${geminiModel})`);
+  } else {
+    console.warn('[ai] GEMINI_API_KEY is not set — AI features will return HTTP 503');
+  }
+}
+
 /** Returns the trimmed text from the AI response. Throws on network / parse errors. */
 export async function callAI({
   system,

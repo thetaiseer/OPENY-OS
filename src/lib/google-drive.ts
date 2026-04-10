@@ -102,6 +102,8 @@ function getDriveClient(): { drive: drive_v3.Drive; rootFolderId: string } {
   if (!refreshToken) throw new Error('Missing env var: GOOGLE_OAUTH_REFRESH_TOKEN');
   if (!rawFolderId)  throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
 
+  console.log('[google-drive] Env vars loaded ✓ (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, FOLDER_ID)');
+
   const rootFolderId = extractFolderId(rawFolderId);
   const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
   oauth2Client.setCredentials({ refresh_token: refreshToken });
