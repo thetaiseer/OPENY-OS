@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface InviteInfo {
   full_name: string;
@@ -22,6 +24,7 @@ type PageState =
 
 export default function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  const router = useRouter();
 
   const [pageState, setPageState]     = useState<PageState>('loading');
   const [invite, setInvite]           = useState<InviteInfo | null>(null);
@@ -91,7 +94,26 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
         setFormError(data.error ?? 'Failed to activate account.');
         return;
       }
-      setPageState('success');
+
+      // Auto-login with the newly created credentials
+      if (!invite) {
+        setPageState('success');
+        return;
+      }
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email:    invite.email,
+        password,
+      });
+
+      if (signInError) {
+        // Account was created but auto-login failed — fall back to manual login
+        setPageState('success');
+        return;
+      }
+
+      // Redirect to dashboard
+      router.replace('/dashboard');
     } catch {
       setFormError('Network error. Please try again.');
     } finally {
@@ -244,12 +266,12 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                 className="w-full h-10 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
                 style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
-                {submitting ? 'Activating account…' : 'Activate My Account'}
+                {submitting ? 'Setting up your account…' : 'Join OPENY OS'}
               </button>
             </form>
           )}
 
-          {/* Success */}
+          {/* Success (fallback when auto-login fails) */}
           {pageState === 'success' && (
             <div className="text-center py-6">
               <CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a' }} />
