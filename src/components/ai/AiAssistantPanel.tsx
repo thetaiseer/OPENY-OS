@@ -6,6 +6,14 @@ import {
   ChevronDown, ChevronUp, Clock, Zap,
 } from 'lucide-react';
 
+/** UUID v4 generator with fallback for older browsers */
+function genId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return genId();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Message {
@@ -275,7 +283,7 @@ export default function AiAssistantPanel() {
     setInput('');
 
     const userMsg: Message = {
-      id: crypto.randomUUID(),
+      id: genId(),
       role: 'user',
       content: messageText,
       timestamp: new Date(),
@@ -305,7 +313,7 @@ export default function AiAssistantPanel() {
       };
 
       const assistantMsg: Message = {
-        id: crypto.randomUUID(),
+        id: genId(),
         role: 'assistant',
         content: json.needs_clarification
           ? (json.clarification_question ?? 'Can you clarify?')
@@ -324,7 +332,7 @@ export default function AiAssistantPanel() {
       setMessages(prev => [...prev, assistantMsg]);
     } catch {
       setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
+        id: genId(),
         role: 'assistant',
         content: 'Connection error. Please try again.',
         timestamp: new Date(),

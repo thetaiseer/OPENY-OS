@@ -4,8 +4,9 @@ import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { createNotification } from '@/lib/notification-service';
 
-// Use explicit any-typed Supabase client to avoid schema inference issues
-type Db = SupabaseClient<any>; // any = untyped schema
+// Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Db = SupabaseClient<any>;
 
 function getSupabase(): Db {
   return createClient(
@@ -481,7 +482,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'message is required' }, { status: 400 });
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // Use UTC date consistently regardless of server timezone
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD UTC
   const systemPrompt = SYSTEM_PROMPT.replace('{TODAY}', today);
 
   try {
