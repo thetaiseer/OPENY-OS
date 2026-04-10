@@ -1,191 +1,256 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, X, Sparkles, FileText, Calendar, MessageSquare, Loader2, Copy, Check, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
-import SelectDropdown from '@/components/ui/SelectDropdown';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  Bot, X, Send, Loader2, CheckCircle, XCircle, AlertCircle,
+  ChevronDown, ChevronUp, Clock, Zap,
+} from 'lucide-react';
+
+/** UUID v4 generator with fallback for older browsers */
+function genId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return genId();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Mode = 'tasks' | 'content' | 'summarize' | 'schedule';
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  intent?: string;
+  actions_taken?: string[];
+  entities?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  status?: 'success' | 'error' | 'clarification' | 'pending';
+  clarification_question?: string;
+}
 
-const MODES: { id: Mode; label: string; icon: React.ReactNode; desc: string }[] = [
-  { id: 'tasks',     label: 'Generate Tasks',    icon: <Sparkles size={14} />,     desc: 'AI-generated task list for a client' },
-  { id: 'content',   label: 'Write Content',     icon: <MessageSquare size={14} />, desc: 'Full marketing copy for social media' },
-  { id: 'summarize', label: 'Summarize Report',  icon: <FileText size={14} />,      desc: 'Natural-language report summary' },
-  { id: 'schedule',  label: 'Suggest Schedule',  icon: <Calendar size={14} />,      desc: 'Optimised task ordering' },
-];
+// ── Message bubble ────────────────────────────────────────────────────────────
 
-// ── Field styles ──────────────────────────────────────────────────────────────
-
-const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
-
-// ── Copy button ───────────────────────────────────────────────────────────────
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+function EntityChip({ label, value }: { label: string; value: string }) {
   return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-opacity hover:opacity-70"
-      style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mr-1 mb-1"
+      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
     >
-      {copied ? <Check size={11} /> : <Copy size={11} />}
-      {copied ? 'Copied' : 'Copy'}
-    </button>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}:</span>
+      {value}
+    </span>
   );
 }
 
-// ── Result action bar ─────────────────────────────────────────────────────────
-
-function ResultActions({
-  text,
-  isLong,
-  expanded,
-  onToggle,
-  onRegenerate,
-}: {
-  text: string;
-  isLong: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  onRegenerate?: () => void;
-}) {
+function ActionCard({ actions }: { actions: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? actions : actions.slice(0, 2);
   return (
-    <div className="flex items-center gap-1 flex-wrap">
-      <CopyButton text={text} />
-      {onRegenerate && (
-        <button
-          onClick={onRegenerate}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          <RefreshCw size={11} />
-          Retry
-        </button>
-      )}
-      {isLong && (
-        <button
-          onClick={onToggle}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          {expanded ? 'Collapse' : 'Expand'}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── Result display ────────────────────────────────────────────────────────────
-
-function ResultBox({ result, onRegenerate }: { result: string | string[]; onRegenerate?: () => void }) {
-  const [expanded, setExpanded] = useState(true);
-
-  if (Array.isArray(result)) {
-    const fullText = result.join('\n');
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
-            {result.length} Tasks Generated
-          </p>
-          <ResultActions text={fullText} isLong={false} expanded={true} onToggle={() => {}} onRegenerate={onRegenerate} />
-        </div>
-        {result.map((item, i) => (
-          <div
-            key={i}
-            className="rounded-lg px-3 py-2.5"
-            style={{ background: 'var(--surface-2)', borderLeft: '3px solid var(--accent)' }}
+    <div className="mt-2 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+      <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'var(--surface-2)' }}>
+        <Zap size={12} style={{ color: 'var(--accent)' }} />
+        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          Actions Taken
+        </span>
+        {actions.length > 2 && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="ml-auto flex items-center gap-0.5 text-xs"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
-              <span className="text-xs font-bold mr-1.5" style={{ color: 'var(--accent)' }}>{i + 1}.</span>
-              {item}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const isLong = result.length > 400;
-
-  return (
-    <div className="rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b flex-wrap" style={{ borderColor: 'var(--border)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Result</p>
-        <ResultActions
-          text={result}
-          isLong={isLong}
-          expanded={expanded}
-          onToggle={() => setExpanded(v => !v)}
-          onRegenerate={onRegenerate}
-        />
-      </div>
-      <div
-        className="px-3 py-3 transition-all duration-300"
-        style={{ overflowY: expanded ? 'auto' : 'hidden', maxHeight: expanded ? 'none' : '7rem' }}
-      >
-        <p
-          className="text-sm whitespace-pre-wrap"
-          style={{ color: 'var(--text)', lineHeight: '1.75', wordBreak: 'break-word' }}
-        >
-          {result}
-        </p>
-        {!expanded && isLong && (
-          <div
-            className="h-8 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to bottom, transparent, var(--surface-2))',
-              marginTop: '-2rem',
-              position: 'relative',
-            }}
-          />
+            {expanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            {expanded ? 'Less' : `+${actions.length - 2} more`}
+          </button>
         )}
       </div>
+      {visible.map((action, i) => (
+        <div
+          key={i}
+          className="px-3 py-1.5 flex items-center gap-2 border-t text-xs"
+          style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+        >
+          <CheckCircle size={11} style={{ color: '#16a34a', flexShrink: 0 }} />
+          {action}
+        </div>
+      ))}
     </div>
   );
 }
+
+function TaskList({ tasks }: { tasks: Array<{ id: string; title: string; status: string; priority?: string; due_date?: string; client_name?: string }> }) {
+  return (
+    <div className="mt-2 space-y-1">
+      {tasks.slice(0, 8).map(task => (
+        <div
+          key={task.id}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        >
+          <span className="flex-1 font-medium truncate" style={{ color: 'var(--text)' }}>{task.title}</span>
+          <span
+            className="px-1.5 py-0.5 rounded-full shrink-0"
+            style={{
+              background: task.status === 'completed' ? 'rgba(22,163,74,0.1)' : task.status === 'todo' ? 'rgba(99,102,241,0.1)' : 'rgba(234,179,8,0.1)',
+              color: task.status === 'completed' ? '#16a34a' : task.status === 'todo' ? '#6366f1' : '#d97706',
+            }}
+          >
+            {task.status}
+          </span>
+          {task.due_date && (
+            <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>
+              {new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AssistantMessage({ msg }: { msg: Message }) {
+  const isSuccess = msg.status === 'success';
+  const isError = msg.status === 'error';
+  const isClarification = msg.status === 'clarification';
+
+  const entities = msg.entities ?? {};
+  const detectedEntities = Object.entries(entities).filter(([, v]) => v != null && !(typeof v === 'string' && v === '') && !Array.isArray(v));
+  const detectedArrays = Object.entries(entities).filter(([, v]) => Array.isArray(v) && (v as unknown[]).length > 0);
+
+  return (
+    <div className="flex gap-2.5 max-w-full">
+      <div
+        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+        style={{ background: 'var(--accent-soft)' }}
+      >
+        <Bot size={12} style={{ color: 'var(--accent)' }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        {/* Status indicator */}
+        {(isSuccess || isError) && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            {isSuccess
+              ? <CheckCircle size={13} style={{ color: '#16a34a' }} />
+              : <XCircle size={13} style={{ color: '#ef4444' }} />
+            }
+            <span className="text-xs font-semibold" style={{ color: isSuccess ? '#16a34a' : '#ef4444' }}>
+              {isSuccess ? 'Done' : 'Failed'}
+            </span>
+            {msg.intent && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-full ml-1"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              >
+                {msg.intent.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+        )}
+        {isClarification && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <AlertCircle size={13} style={{ color: '#d97706' }} />
+            <span className="text-xs font-semibold" style={{ color: '#d97706' }}>Clarification needed</span>
+          </div>
+        )}
+
+        {/* Main message */}
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
+          {msg.content}
+        </p>
+
+        {/* Entity chips */}
+        {detectedEntities.length > 0 && (
+          <div className="mt-2 flex flex-wrap">
+            {detectedEntities.map(([k, v]) => (
+              <EntityChip key={k} label={k.replace(/_/g, ' ')} value={String(v)} />
+            ))}
+            {detectedArrays.map(([k, v]) => (
+              <EntityChip key={k} label={k.replace(/_/g, ' ')} value={(v as unknown[]).map(String).join(', ')} />
+            ))}
+          </div>
+        )}
+
+        {/* Action summary cards */}
+        {msg.actions_taken && msg.actions_taken.length > 0 && (
+          <ActionCard actions={msg.actions_taken} />
+        )}
+
+        {/* Task list */}
+        {Array.isArray(msg.data?.tasks) && (msg.data.tasks as unknown[]).length > 0 && (
+          <TaskList tasks={msg.data.tasks as Array<{ id: string; title: string; status: string; priority?: string; due_date?: string; client_name?: string }>} />
+        )}
+
+        {/* Content ideas */}
+        {typeof msg.data?.ideas === 'string' && (
+          <div
+            className="mt-2 rounded-lg px-3 py-2.5 text-xs whitespace-pre-wrap"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', lineHeight: 1.7 }}
+          >
+            {msg.data.ideas as string}
+          </div>
+        )}
+
+        <p className="text-xs mt-1.5" style={{ color: 'var(--text-secondary)' }}>
+          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function UserMessage({ msg }: { msg: Message }) {
+  return (
+    <div className="flex gap-2.5 justify-end max-w-full">
+      <div
+        className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-sm text-sm"
+        style={{ background: 'var(--accent)', color: '#fff' }}
+      >
+        <p style={{ lineHeight: 1.6 }}>{msg.content}</p>
+        <p className="text-xs mt-1 opacity-70">
+          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Suggestion chips ──────────────────────────────────────────────────────────
+
+const SUGGESTIONS = [
+  'وريني كل التاسكات المتأخرة',
+  'اعمل تاسك جديد',
+  'دور على عميل',
+  'اعمل 3 أفكار ريلز',
+  'Schedule a post on Instagram',
+  'List all active tasks',
+];
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export default function AiAssistantPanel() {
-  const [open, setOpen]         = useState(false);
-  const [mode, setMode]         = useState<Mode>('tasks');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-  const [result, setResult]     = useState<string | string[] | null>(null);
-
-  // Scroll-aware button state
-  const [isScrolling, setIsScrolling]   = useState(false);
-  const [isModalOpen, setIsModalOpen]   = useState(false);
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Form fields
-  const [clientName, setClientName]   = useState('');
-  const [description, setDescription] = useState('');
-  const [platform, setPlatform]       = useState('Instagram');
-  const [tone, setTone]               = useState('professional');
-  const [topic, setTopic]             = useState('');
-  const [reportText, setReportText]   = useState('');
-  const [taskJson, setTaskJson]       = useState('');
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // ── Scroll detection ────────────────────────────────────────────────────────
+  // Scroll detection
   useEffect(() => {
     if (open) return;
-
     const handleScroll = () => {
       setIsScrolling(true);
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
       scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 800);
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -193,79 +258,99 @@ export default function AiAssistantPanel() {
     };
   }, [open]);
 
-  // ── Modal / overlay detection ───────────────────────────────────────────────
+  // Modal detection
   useEffect(() => {
-    const checkForModal = () => {
-      const hasModal = !!(
+    const check = () => {
+      setIsModalOpen(!!(
         document.querySelector('[role="dialog"]') ||
         document.querySelector('[aria-modal="true"]') ||
-        document.querySelector('.fixed.inset-0[class*="bg-"]') ||
         document.querySelector('[data-modal="true"]')
-      );
-      setIsModalOpen(hasModal);
+      ));
     };
-
-    const observer = new MutationObserver(checkForModal);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: false });
-    checkForModal();
-    return () => observer.disconnect();
+    const obs = new MutationObserver(check);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: false });
+    check();
+    return () => obs.disconnect();
   }, []);
 
   const isCollapsed = !open && (isScrolling || isModalOpen);
-  // When a modal is open move the button above typical bottom-bar modal actions
   const bottomOffset = !open && isModalOpen ? '5rem' : '1.25rem';
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  const handleSubmit = useCallback(async () => {
+  const sendMessage = useCallback(async (text?: string) => {
+    const messageText = (text ?? input).trim();
+    if (!messageText || loading) return;
+
+    setInput('');
+
+    const userMsg: Message = {
+      id: genId(),
+      role: 'user',
+      content: messageText,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMsg]);
     setLoading(true);
-    setError(null);
-    setResult(null);
 
     try {
-      let url = '';
-      let bodyObj: Record<string, unknown> = {};
-
-      if (mode === 'tasks') {
-        url = '/api/ai/generate-tasks';
-        bodyObj = { clientName, description, count: 8 };
-      } else if (mode === 'content') {
-        url = '/api/ai/generate-content';
-        bodyObj = { platform, tone, topic, clientName };
-      } else if (mode === 'summarize') {
-        url = '/api/ai/summarize-report';
-        bodyObj = { reportData: reportText };
-      } else if (mode === 'schedule') {
-        url = '/api/ai/suggest-schedule';
-        try { bodyObj = { tasks: JSON.parse(taskJson) }; } catch { throw new Error('Invalid JSON in tasks field'); }
-      }
-
-      const res = await fetch(url, {
+      const res = await fetch('/api/ai/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(bodyObj),
+        body: JSON.stringify({ message: messageText }),
       });
 
-      const json = await res.json() as Record<string, unknown>;
-      if (!json.success) {
-        if (res.status === 503) {
-          throw new Error('AI is not configured. Please set GEMINI_API_KEY in your environment variables.');
-        }
-        throw new Error((json.error as string | undefined) ?? 'AI request failed');
-      }
+      const json = await res.json() as {
+        success: boolean;
+        intent?: string;
+        entities?: Record<string, unknown>;
+        message?: string;
+        data?: Record<string, unknown>;
+        actions_taken?: string[];
+        needs_clarification?: boolean;
+        clarification_question?: string;
+        error?: string;
+      };
 
-      if (mode === 'tasks') setResult((json.tasks as string[]) ?? []);
-      else if (mode === 'content') setResult((json.content as string) ?? '');
-      else if (mode === 'summarize') setResult((json.summary as string) ?? '');
-      else if (mode === 'schedule') setResult(JSON.stringify(json.schedule, null, 2));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const assistantMsg: Message = {
+        id: genId(),
+        role: 'assistant',
+        content: json.needs_clarification
+          ? (json.clarification_question ?? 'Can you clarify?')
+          : (json.message ?? (json.success ? 'Done!' : (json.error ?? 'Something went wrong'))),
+        timestamp: new Date(),
+        intent: json.intent,
+        entities: json.entities,
+        data: json.data,
+        actions_taken: json.actions_taken,
+        status: json.needs_clarification
+          ? 'clarification'
+          : (res.status === 503 ? 'error' : json.success ? 'success' : 'error'),
+        clarification_question: json.clarification_question,
+      };
+
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch {
+      setMessages(prev => [...prev, {
+        id: genId(),
+        role: 'assistant',
+        content: 'Connection error. Please try again.',
+        timestamp: new Date(),
+        status: 'error',
+      }]);
     } finally {
       setLoading(false);
     }
-  }, [mode, clientName, description, platform, tone, topic, reportText, taskJson]);
+  }, [input, loading]);
 
-  // ── Collapsed / expanded pill floating button ───────────────────────────────
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void sendMessage();
+    }
+  };
+
+  // Collapsed button
   if (!open) {
     return (
       <button
@@ -304,7 +389,7 @@ export default function AiAssistantPanel() {
     );
   }
 
-  // ── Open panel ───────────────────────────────────────────────────────────────
+  // Open panel
   return (
     <div
       className="fixed z-50 flex flex-col rounded-2xl border overflow-hidden"
@@ -314,11 +399,11 @@ export default function AiAssistantPanel() {
         boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
         bottom: '1.25rem',
         right: '1.25rem',
-        width: 'min(390px, calc(100vw - 2rem))',
-        maxHeight: 'min(88vh, 700px)',
+        width: 'min(420px, calc(100vw - 2rem))',
+        maxHeight: 'min(88vh, 720px)',
       }}
     >
-      {/* ── Sticky header ─────────────────────────────────────────────────── */}
+      {/* Header */}
       <div
         className="flex items-center gap-2.5 px-4 py-3 border-b shrink-0"
         style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
@@ -329,7 +414,10 @@ export default function AiAssistantPanel() {
         >
           <Bot size={14} style={{ color: 'var(--accent)' }} />
         </div>
-        <p className="text-sm font-bold flex-1" style={{ color: 'var(--text)' }}>AI Assistant</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Assistant</p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Your workspace operator</p>
+        </div>
         <button
           onClick={() => setOpen(false)}
           className="w-6 h-6 flex items-center justify-center rounded-md hover:opacity-70 transition-opacity shrink-0"
@@ -339,159 +427,108 @@ export default function AiAssistantPanel() {
         </button>
       </div>
 
-      {/* ── Mode tabs ─────────────────────────────────────────────────────── */}
-      <div
-        className="flex gap-1 px-3 py-2.5 border-b shrink-0 overflow-x-auto"
-        style={{ borderColor: 'var(--border)', scrollbarWidth: 'none' }}
-      >
-        {MODES.map(m => (
-          <button
-            key={m.id}
-            onClick={() => { setMode(m.id); setResult(null); setError(null); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 transition-colors"
-            style={
-              mode === m.id
-                ? { background: 'var(--accent)', color: '#fff', whiteSpace: 'nowrap' }
-                : { background: 'var(--surface-2)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }
-            }
-            title={m.desc}
-          >
-            {m.icon}
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Scrollable form + result body ─────────────────────────────────── */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {MODES.find(m => m.id === mode)?.desc}
-        </p>
-
-        {mode === 'tasks' && (
-          <>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Client Name</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className={inputCls}
-                style={inputStyle}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Project Description</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Describe the project or campaign…"
-                className={`${inputCls} resize-none`}
-                style={inputStyle}
-              />
-            </div>
-          </>
-        )}
-
-        {mode === 'content' && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Platform</label>
-                <SelectDropdown
-                  fullWidth
-                  value={platform}
-                  onChange={setPlatform}
-                  options={['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'].map(p => ({ value: p, label: p }))}
-                />
+        {messages.length === 0 ? (
+          <div className="space-y-4">
+            <div className="flex gap-2.5">
+              <div
+                className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: 'var(--accent-soft)' }}
+              >
+                <Bot size={12} style={{ color: 'var(--accent)' }} />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tone</label>
-                <SelectDropdown
-                  fullWidth
-                  value={tone}
-                  onChange={setTone}
-                  options={['professional', 'casual', 'funny', 'inspirational', 'promotional'].map(t => ({ value: t, label: t }))}
-                />
+              <div>
+                <p className="text-sm" style={{ color: 'var(--text)' }}>
+                  مرحبا! أنا مساعد OPENY OS. أقدر أساعدك في إنشاء مهام، جدولة منشورات، البحث عن عملاء، وأكثر.
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Hi! I can create tasks, schedule posts, search clients, invite team members, and more. Just tell me what you need.
+                </p>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Topic <span style={{ color: 'var(--accent)' }}>*</span></label>
-              <input
-                type="text"
-                value={topic}
-                onChange={e => setTopic(e.target.value)}
-                placeholder="e.g. New product launch, summer sale…"
-                className={inputCls}
-                style={inputStyle}
-              />
+
+            {/* Suggestions */}
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
+                <Clock size={10} className="inline mr-1" />
+                Try saying:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTIONS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => void sendMessage(s)}
+                    className="text-xs px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Brand / Client</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-                placeholder="Optional brand name"
-                className={inputCls}
-                style={inputStyle}
-              />
+          </div>
+        ) : (
+          messages.map(msg => (
+            msg.role === 'user'
+              ? <UserMessage key={msg.id} msg={msg} />
+              : <AssistantMessage key={msg.id} msg={msg} />
+          ))
+        )}
+
+        {loading && (
+          <div className="flex gap-2.5">
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'var(--accent-soft)' }}
+            >
+              <Bot size={12} style={{ color: 'var(--accent)' }} />
             </div>
-          </>
-        )}
-
-        {mode === 'summarize' && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Report Data <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <textarea
-              value={reportText}
-              onChange={e => setReportText(e.target.value)}
-              rows={6}
-              placeholder="Paste your report data, numbers, or stats here…"
-              className={`${inputCls} resize-none`}
-              style={inputStyle}
-            />
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+              <Loader2 size={13} className="animate-spin" style={{ color: 'var(--accent)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Processing…</span>
+            </div>
           </div>
         )}
 
-        {mode === 'schedule' && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tasks JSON <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <textarea
-              value={taskJson}
-              onChange={e => setTaskJson(e.target.value)}
-              rows={5}
-              placeholder={'[{"id":"1","title":"...","priority":"high","due_date":"2024-02-01","status":"todo"}]'}
-              className={`${inputCls} resize-none font-mono text-xs`}
-              style={inputStyle}
-            />
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Paste a JSON array of task objects.</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-lg px-3 py-2.5 text-xs leading-relaxed" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-            {error}
-          </div>
-        )}
-
-        {result && <ResultBox result={result} onRegenerate={handleSubmit} />}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Sticky footer ─────────────────────────────────────────────────── */}
-      <div className="p-3 border-t shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
-          style={{ background: 'var(--accent)' }}
+      {/* Input */}
+      <div
+        className="shrink-0 p-3 border-t"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+      >
+        <div
+          className="flex items-end gap-2 rounded-xl px-3 py-2"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loading ? 'Generating…' : 'Generate'}
-        </button>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="اكتب أمرك... / Type a command…"
+            rows={1}
+            className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
+            style={{
+              color: 'var(--text)',
+              maxHeight: '6rem',
+              scrollbarWidth: 'none',
+            }}
+          />
+          <button
+            onClick={() => void sendMessage()}
+            disabled={loading || !input.trim()}
+            className="flex items-center justify-center w-7 h-7 rounded-lg transition-opacity disabled:opacity-40 shrink-0"
+            style={{ background: 'var(--accent)' }}
+          >
+            <Send size={13} style={{ color: '#fff' }} />
+          </button>
+        </div>
+        <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-secondary)' }}>
+          Enter to send • Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
