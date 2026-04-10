@@ -96,9 +96,13 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
       }
 
       // Auto-login with the newly created credentials
+      if (!invite) {
+        setPageState('success');
+        return;
+      }
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email:    invite!.email,
+        email:    invite.email,
         password,
       });
 
