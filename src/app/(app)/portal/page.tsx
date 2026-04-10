@@ -1,39 +1,85 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, CheckCircle, Clock, Eye, Download } from 'lucide-react';
+import { FolderOpen, CheckCircle, Clock, Eye, Download, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
-import type { Asset } from '@/lib/types';
+import type { Asset, Approval } from '@/lib/types';
+
+/** Map asset_id → latest approval record (from the approvals table). */
+type ApprovalMap = Record<string, Approval>;
 
 /**
  * Client read-only portal — shows their own assets and approval status.
+ * Approval status is read from the `approvals` table (not the deprecated
+ * `assets.approval_status` column).
  * Accessible by the 'client' role only (enforced via middleware).
  */
 export default function PortalPage() {
-  const { user } = useAuth();
+  const { user, clientId } = useAuth();
 
-  const { data: assets, isLoading } = useQuery<Asset[]>({
-    queryKey: ['portal-assets', user.id],
+  const { data: assets, isLoading: assetsLoading } = useQuery<Asset[]>({
+    queryKey: ['portal-assets', user.id, clientId],
     enabled: !!user.id,
     queryFn: async () => {
       const supabase = createClient();
-      // Clients see assets linked to their own email / client record
-      const { data, error } = await supabase
+      let q = supabase
         .from('assets')
-        .select('*')
+        .select('id, name, content_type, file_url, view_url, web_view_link, download_url, client_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
+      // Scope to the client's own records when client_id is known
+      if (clientId) q = q.eq('client_id', clientId);
+      const { data, error } = await q;
       if (error) throw new Error(error.message);
       return (data ?? []) as Asset[];
     },
     staleTime: 30_000,
   });
 
-  const approved = assets?.filter(a => a.approval_status === 'approved') ?? [];
-  const pending  = assets?.filter(a => a.approval_status === 'pending')  ?? [];
+  // Fetch approvals from the authoritative `approvals` table — keyed by asset_id
+  const { data: approvalMap, isLoading: approvalsLoading } = useQuery<ApprovalMap>({
+    queryKey: ['portal-approvals', clientId],
+    enabled: !!user.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      let q = supabase
+        .from('approvals')
+        .select('id, asset_id, status, notes, approved_at, rejected_at, created_at, updated_at')
+        .not('asset_id', 'is', null)
+        .order('created_at', { ascending: false });
+      if (clientId) q = q.eq('client_id', clientId);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      // Keep only the most-recent approval per asset
+      const map: ApprovalMap = {};
+      for (const row of (data ?? []) as Approval[]) {
+        if (row.asset_id && !map[row.asset_id]) map[row.asset_id] = row;
+      }
+      return map;
+    },
+    staleTime: 30_000,
+  });
+
+  const isLoading = assetsLoading || approvalsLoading;
+
+  const approved = assets?.filter(a => (approvalMap?.[a.id]?.status ?? 'pending') === 'approved') ?? [];
+  const pending  = assets?.filter(a => {
+    const status = approvalMap?.[a.id]?.status;
+    return !status || status === 'pending';
+  }) ?? [];
   const total    = assets?.length ?? 0;
+
+  function approvalBadge(assetId: string) {
+    const a = approvalMap?.[assetId];
+    const status = a?.status ?? 'pending';
+    if (status === 'approved')
+      return { label: 'Approved', style: { background: 'rgba(22,163,74,0.1)', color: '#16a34a' } };
+    if (status === 'rejected')
+      return { label: 'Rejected', style: { background: 'rgba(239,68,68,0.1)', color: '#ef4444' } };
+    return { label: 'Pending Review', style: { background: 'rgba(217,119,6,0.1)', color: '#d97706' } };
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -49,9 +95,9 @@ export default function PortalPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Total Assets',  value: total,          icon: <FolderOpen size={18} />,  color: '#6366f1' },
-          { label: 'Approved',      value: approved.length, icon: <CheckCircle size={18} />, color: '#16a34a' },
-          { label: 'Pending Review',value: pending.length,  icon: <Clock size={18} />,       color: '#d97706' },
+          { label: 'Total Assets',   value: total,           icon: <FolderOpen size={18} />,   color: '#6366f1' },
+          { label: 'Approved',       value: approved.length, icon: <CheckCircle size={18} />,  color: '#16a34a' },
+          { label: 'Pending Review', value: pending.length,  icon: <Clock size={18} />,        color: '#d97706' },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${c.color}18`, color: c.color }}>
@@ -78,43 +124,45 @@ export default function PortalPage() {
           </div>
         ) : (
           <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            {assets.map(a => (
-              <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
-                  <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
+            {assets.map(a => {
+              const badge = approvalBadge(a.id);
+              const approval = approvalMap?.[a.id];
+              const viewLink  = a.web_view_link ?? a.view_url ?? null;
+              return (
+                <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
+                    <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
+                    </p>
+                    {approval?.notes && (
+                      <p className="text-xs mt-1 italic" style={{ color: 'var(--text-secondary)' }}>
+                        Note: {approval.notes}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium px-2 py-1 rounded-full shrink-0" style={badge.style}>
+                    {badge.style.color === '#16a34a' ? <CheckCircle size={10} className="inline mr-1" /> : badge.style.color === '#ef4444' ? <XCircle size={10} className="inline mr-1" /> : <Clock size={10} className="inline mr-1" />}
+                    {badge.label}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {viewLink && (
+                      <a href={viewLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="View">
+                        <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
+                      </a>
+                    )}
+                    {a.download_url && (
+                      <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
+                        <Download size={14} style={{ color: 'var(--text-secondary)' }} />
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <span
-                  className="text-xs font-medium px-2 py-1 rounded-full shrink-0"
-                  style={
-                    a.approval_status === 'approved'
-                      ? { background: 'rgba(22,163,74,0.1)', color: '#16a34a' }
-                      : a.approval_status === 'rejected'
-                      ? { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }
-                      : { background: 'rgba(217,119,6,0.1)', color: '#d97706' }
-                  }
-                >
-                  {a.approval_status ?? 'Pending'}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {a.view_url && (
-                    <a href={a.view_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="View">
-                      <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
-                    </a>
-                  )}
-                  {a.download_url && (
-                    <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
-                      <Download size={14} style={{ color: 'var(--text-secondary)' }} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

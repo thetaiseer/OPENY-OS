@@ -8,6 +8,28 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+const VALID_TRIGGERS = [
+  'task_completed',
+  'asset_uploaded',
+  'deadline_near',
+  'approval_requested',
+  'approval_decided',
+  'publishing_missed',
+  'new_client_added',
+  'content_item_status_changed',
+] as const;
+
+const VALID_ACTIONS = [
+  'send_notification',
+  'link_asset_to_client',
+  'alert_user',
+  'send_slack',
+  'send_email',
+  'create_task',
+  'update_task_status',
+  'webhook',
+] as const;
+
 /**
  * GET  /api/automations — list all automation rules
  * POST /api/automations — create a new rule
@@ -47,13 +69,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'name, trigger_type, and action_type are required' }, { status: 400 });
   }
 
-  const VALID_TRIGGERS = ['task_completed', 'asset_uploaded', 'deadline_near'];
-  const VALID_ACTIONS  = ['send_notification', 'link_asset_to_client', 'alert_user', 'send_slack'];
-
-  if (!VALID_TRIGGERS.includes(trigger_type as string)) {
+  if (!(VALID_TRIGGERS as readonly string[]).includes(trigger_type as string)) {
     return NextResponse.json({ success: false, error: `trigger_type must be one of: ${VALID_TRIGGERS.join(', ')}` }, { status: 400 });
   }
-  if (!VALID_ACTIONS.includes(action_type as string)) {
+  if (!(VALID_ACTIONS as readonly string[]).includes(action_type as string)) {
     return NextResponse.json({ success: false, error: `action_type must be one of: ${VALID_ACTIONS.join(', ')}` }, { status: 400 });
   }
 

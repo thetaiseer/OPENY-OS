@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
-  Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp,
+  Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis } from 'recharts';
 import supabase from '@/lib/supabase';
@@ -13,7 +13,7 @@ import { useDashboardStats } from '@/lib/queries';
 import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
-import type { Activity as ActivityType, Asset } from '@/lib/types';
+import type { Activity as ActivityType, PublishingSchedule } from '@/lib/types';
 
 interface Stats {
   totalClients: number;
@@ -21,10 +21,6 @@ interface Stats {
   pendingApprovals: number;
   overdueTasks: number;
   tasksDueThisWeek: number;
-}
-
-interface AssetRow {
-  content_type: string | null;
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -183,29 +179,32 @@ export default function DashboardPage() {
     staleTime: 30_000,
   });
 
-  const { data: assetRows } = useQuery<AssetRow[]>({
+  const { data: assetRows } = useQuery<{ content_type: string | null }[]>({
     queryKey: ['asset-content-types'],
     queryFn: async () => {
       // Limit to 500 rows to prevent fetching potentially thousands of records
       // for the content-type distribution chart.  This is a representative
       // sample — for exact aggregation move to a server-side GROUP BY endpoint.
       const { data } = await supabase.from('assets').select('content_type').limit(500);
-      return (data ?? []) as AssetRow[];
+      return (data ?? []) as { content_type: string | null }[];
     },
     staleTime: 60_000,
   });
 
-  const { data: scheduled } = useQuery<Asset[]>({
+  // F2 fix: use publishing_schedules instead of deprecated assets.publish_date / approval_status
+  const { data: scheduled } = useQuery<PublishingSchedule[]>({
     queryKey: ['scheduled-posts'],
     queryFn: async () => {
       const todayStr = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase.from('assets')
-        .select('id, name, publish_date, approval_status, client_name, content_type')
-        .eq('approval_status', 'scheduled')
-        .gte('publish_date', todayStr)
-        .order('publish_date', { ascending: true })
+      const { data } = await supabase
+        .from('publishing_schedules')
+        .select('id, scheduled_date, scheduled_time, platforms, client_id, caption, status, asset:assets(id, name, content_type, client_name)')
+        .in('status', ['scheduled', 'queued'])
+        .gte('scheduled_date', todayStr)
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true })
         .limit(5);
-      return (data ?? []) as Asset[];
+      return (data ?? []) as unknown as PublishingSchedule[];
     },
     staleTime: 60_000,
   });
@@ -356,17 +355,25 @@ export default function DashboardPage() {
           <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
         ) : (
           <div className="space-y-3">
-            {scheduled.map(a => (
-              <div key={a.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
+            {scheduled.map(s => (
+              <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
+                  <Send size={16} style={{ color: 'var(--accent)' }} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                    {a.client_name && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{a.client_name}</p>}
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                      {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
+                    </p>
+                    {s.asset?.client_name && (
+                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
+                    )}
+                    {s.platforms?.length > 0 && (
+                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
+                    )}
                   </div>
                 </div>
                 <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
-                  {a.publish_date ? new Date(a.publish_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
+                  {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
                 </div>
               </div>
             ))}

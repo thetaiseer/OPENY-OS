@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
-  BarChart2, Users, Settings, X, CalendarDays, UserCheck, Shield, Zap,
+  BarChart2, Users, Settings, X, CalendarDays, UserCheck, Shield, Zap, FileText,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/my-tasks',  icon: UserCheck,       key: 'myTasks'   },
   { href: '/clients',   icon: Users2,          key: 'clients'   },
   { href: '/tasks',     icon: CheckSquare,     key: 'tasks'     },
+  { href: '/content',   icon: FileText,        key: 'content'   },
   { href: '/calendar',  icon: CalendarDays,    key: 'calendar'  },
   { href: '/assets',    icon: FolderOpen,      key: 'assets'    },
   { href: '/reports',   icon: BarChart2,       key: 'reports'   },

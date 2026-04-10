@@ -1,0 +1,88 @@
+/**
+ * GET    /api/content-items/[id] — get a single content item
+ * PATCH  /api/content-items/[id] — update title/status/caption/etc.
+ * DELETE /api/content-items/[id] — delete (admin/manager only)
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/api-auth';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key);
+}
+
+const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
+
+interface Params { id: string }
+
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  if (auth instanceof NextResponse) return auth;
+  const { id } = await params;
+  try {
+    const db = getSupabase();
+    const { data, error } = await db
+      .from('content_items')
+      .select('*, client:clients(id, name)')
+      .eq('id', id)
+      .single();
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+    return NextResponse.json({ success: true, item: data });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  if (auth instanceof NextResponse) return auth;
+  const { id } = await params;
+
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (typeof body.title       === 'string') updates.title        = body.title.trim();
+  if (typeof body.description === 'string') updates.description  = body.description.trim();
+  if (typeof body.caption     === 'string') updates.caption      = body.caption.trim();
+  if (typeof body.purpose     === 'string') updates.purpose      = body.purpose;
+  if (Array.isArray(body.platform_targets)) updates.platform_targets = body.platform_targets;
+  if (Array.isArray(body.post_types))        updates.post_types       = body.post_types;
+  if (typeof body.status      === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
+    updates.status = body.status;
+  }
+
+  try {
+    const db = getSupabase();
+    const { data, error } = await db
+      .from('content_items')
+      .update(updates)
+      .eq('id', id)
+      .select('*, client:clients(id, name)')
+      .single();
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, item: data });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const auth = await requireRole(req, ['admin', 'manager']);
+  if (auth instanceof NextResponse) return auth;
+  const { id } = await params;
+  try {
+    const db = getSupabase();
+    const { error } = await db.from('content_items').delete().eq('id', id);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
