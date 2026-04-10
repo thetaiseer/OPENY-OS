@@ -196,7 +196,7 @@ export function teamInviteEmail(opts: {
     </div>
     <div style="text-align:center;margin-bottom:28px">
       <a href="${opts.inviteUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:600;letter-spacing:0.01em">
-        Accept Invitation →
+        Join OPENY OS
       </a>
     </div>
     <p style="margin:0 0 8px;font-size:13px;color:#6b7280;text-align:center">
