@@ -5,7 +5,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { createNotification } from '@/lib/notification-service';
 
 // Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
 
 function getSupabase(): Db {
