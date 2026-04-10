@@ -17,12 +17,12 @@ function getSupabase() {
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
 
-type Params = { id: string };
+interface Params { id: string }
 
-export async function GET(req: NextRequest, { params }: { params: Params }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
-  const { id } = params;
+  const { id } = await params;
   try {
     const db = getSupabase();
     const { data, error } = await db
@@ -37,10 +37,10 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Params }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team']);
   if (auth instanceof NextResponse) return auth;
-  const { id } = params;
+  const { id } = await params;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch {
@@ -73,10 +73,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Params }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
-  const { id } = params;
+  const { id } = await params;
   try {
     const db = getSupabase();
     const { error } = await db.from('content_items').delete().eq('id', id);
