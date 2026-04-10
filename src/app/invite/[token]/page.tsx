@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface InviteInfo {
@@ -21,6 +21,74 @@ type PageState =
   | 'already_accepted'
   | 'success'
   | 'error';
+
+// Password strength: 0–4
+function getPasswordStrength(pw: string): number {
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw))   score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  return Math.min(score, 4);
+}
+
+const STRENGTH_LEVELS: Array<{ label: string; color: string } | null> = [
+  null,
+  { label: 'Weak',   color: '#ef4444' },
+  { label: 'Fair',   color: '#f97316' },
+  { label: 'Good',   color: '#eab308' },
+  { label: 'Strong', color: '#22c55e' },
+];
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  if (!password) return null;
+  const strength = getPasswordStrength(password);
+  const level = STRENGTH_LEVELS[strength];
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+        {[1, 2, 3, 4].map(i => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: 3,
+              borderRadius: 2,
+              background: i <= strength && level ? level.color : '#e5e7eb',
+              transition: 'background 0.2s',
+            }}
+          />
+        ))}
+      </div>
+      {level && (
+        <p style={{ margin: 0, fontSize: 11, color: level.color, fontWeight: 500 }}>
+          {level.label}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PasswordRequirements({ password }: { password: string }) {
+  const reqs = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'Uppercase & lowercase letters', met: /[A-Z]/.test(password) && /[a-z]/.test(password) },
+    { label: 'A number', met: /\d/.test(password) },
+    { label: 'A special character', met: /[^A-Za-z0-9]/.test(password) },
+  ];
+  if (!password) return null;
+  return (
+    <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {reqs.map(r => (
+        <li key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: r.met ? '#16a34a' : '#9ca3af' }}>
+          <Check size={12} style={{ flexShrink: 0, opacity: r.met ? 1 : 0.35 }} />
+          {r.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -217,10 +285,13 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                     className="absolute right-3 top-1/2 -translate-y-1/2"
                     style={{ color: '#9ca3af' }}
                     tabIndex={-1}
+                    aria-label={showPw ? 'Hide password' : 'Show password'}
                   >
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                <PasswordStrengthBar password={password} />
+                <PasswordRequirements password={password} />
               </div>
 
               {/* Confirm password */}
@@ -236,7 +307,7 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                     className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none"
                     style={{
                       background: '#f9fafb',
-                      border:     '1px solid #d1d5db',
+                      border:     `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : '#d1d5db'}`,
                       color:      '#111827',
                     }}
                     placeholder="Repeat your password"
@@ -248,10 +319,14 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
                     className="absolute right-3 top-1/2 -translate-y-1/2"
                     style={{ color: '#9ca3af' }}
                     tabIndex={-1}
+                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
                   >
                     {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {confirmPw && confirmPw !== password && (
+                  <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>Passwords do not match.</p>
+                )}
               </div>
 
               {formError && (
@@ -262,11 +337,11 @@ export default function InviteAcceptPage({ params }: { params: Promise<{ token: 
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full h-10 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                disabled={submitting || !password || password !== confirmPw || getPasswordStrength(password) < 2}
+                className="w-full h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
-                {submitting ? 'Setting up your account…' : 'Join OPENY OS'}
+                {submitting ? 'Setting up your account…' : 'Accept Invitation & Join'}
               </button>
             </form>
           )}
