@@ -5,6 +5,9 @@
  * design language exactly.  Use this everywhere a native <select> would
  * otherwise appear (filter bars, form fields, modals, etc.).
  *
+ * The popover is rendered via a React portal so it is never clipped by
+ * overflow:hidden / overflow:auto ancestors (e.g. modal content wrappers).
+ *
  * Props:
  *   value       – currently selected value (empty string → placeholder shown)
  *   onChange    – called with the new value string
@@ -18,6 +21,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, X, Check } from 'lucide-react';
 
 export interface SelectOption {
@@ -52,9 +56,31 @@ export default function SelectDropdown({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Portal anchor: track the trigger's bounding rect so the portal can position itself
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [mounted, setMounted] = useState(false);
+
   const selected = options.find(o => o.value === value);
   const label = selected?.label ?? placeholder;
   const hasValue = !!value;
+
+  // Track mount state so createPortal is only called client-side
+  useEffect(() => { setMounted(true); }, []);
+
+  // Re-measure trigger position whenever the dropdown opens or on scroll/resize
+  useEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
+    };
+    measure();
+    window.addEventListener('scroll', measure, true);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -90,6 +116,56 @@ export default function SelectDropdown({
     e.stopPropagation();
     onChange('');
   };
+
+  // Compute portal dropdown position from the trigger's bounding rect
+  const portalStyle: React.CSSProperties = rect
+    ? {
+        position: 'fixed',
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      }
+    : { display: 'none' };
+
+  const popover = open && mounted && rect
+    ? createPortal(
+        <div
+          ref={dropdownRef}
+          className="rounded-2xl border shadow-2xl overflow-hidden"
+          style={{
+            ...portalStyle,
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+          }}
+        >
+          <div className="py-1.5 max-h-60 overflow-y-auto">
+            {options.map(option => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleSelect(option.value)}
+                  className="flex items-center justify-between w-full px-3 h-9 text-sm text-left transition-colors hover:bg-[var(--surface-2)]"
+                  style={{
+                    background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
+                    color:      isSelected ? 'var(--accent)' : 'var(--text)',
+                    fontWeight: isSelected ? 600 : 400,
+                  }}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {isSelected && (
+                    <Check size={13} className="shrink-0 ml-2" style={{ color: 'var(--accent)' }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
     <div className={`relative ${fullWidth ? 'w-full' : 'inline-block'}`}>
@@ -133,45 +209,8 @@ export default function SelectDropdown({
         )}
       </button>
 
-      {/* Popover — same style as MonthYearPicker popover.
-          Inline zIndex ensures it renders above modals (z-50/z-60) and other overlays. */}
-      {open && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-full left-0 mt-2 rounded-2xl border shadow-2xl overflow-hidden"
-          style={{
-            background:  'var(--surface)',
-            borderColor: 'var(--border)',
-            minWidth:    fullWidth ? '100%' : 160,
-            width:       fullWidth ? '100%' : undefined,
-            zIndex:      200,
-          }}
-        >
-          <div className="py-1.5 max-h-60 overflow-y-auto">
-            {options.map(option => {
-              const isSelected = option.value === value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3 h-9 text-sm text-left transition-colors hover:bg-[var(--surface-2)]"
-                  style={{
-                    background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
-                    color:      isSelected ? 'var(--accent)' : 'var(--text)',
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
-                >
-                  <span className="truncate">{option.label}</span>
-                  {isSelected && (
-                    <Check size={13} className="shrink-0 ml-2" style={{ color: 'var(--accent)' }} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Popover rendered via portal so it escapes overflow:hidden/auto ancestors */}
+      {popover}
     </div>
   );
 }
