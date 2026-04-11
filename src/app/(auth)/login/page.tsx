@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, FormEvent, Suspense } from 'react';
+import { useState, useEffect, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 function LoginForm() {
   const router       = useRouter();
@@ -12,8 +12,30 @@ function LoginForm() {
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
+  const [showPw,   setShowPw]   = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Redirect already-authenticated users away from the login page.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const next = searchParams.get('next') ?? '/dashboard';
+        router.replace(next);
+      } else {
+        setChecking(false);
+      }
+    });
+  }, [supabase, router, searchParams]);
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center h-20">
+        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -79,27 +101,48 @@ function LoginForm() {
 
       {/* Password */}
       <div className="space-y-1">
-        <label
-          htmlFor="password"
-          className="text-sm font-medium"
-          style={{ color: 'var(--text)' }}
-        >
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="w-full h-10 px-3 rounded-lg text-sm outline-none transition-colors"
-          style={{
-            background:   'var(--surface-2)',
-            color:        'var(--text)',
-            border:       '1px solid var(--border)',
-          }}
-        />
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="password"
+            className="text-sm font-medium"
+            style={{ color: 'var(--text)' }}
+          >
+            Password
+          </label>
+          <a
+            href="/forgot-password"
+            className="text-xs hover:underline"
+            style={{ color: 'var(--accent)' }}
+          >
+            Forgot password?
+          </a>
+        </div>
+        <div className="relative">
+          <input
+            id="password"
+            type={showPw ? 'text' : 'password'}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none transition-colors"
+            style={{
+              background: 'var(--surface-2)',
+              color:      'var(--text)',
+              border:     '1px solid var(--border)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw(v => !v)}
+            tabIndex={-1}
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
+            style={{ color: 'var(--text-secondary)' }}
+            aria-label={showPw ? 'Hide password' : 'Show password'}
+          >
+            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
       </div>
 
       {/* Error */}

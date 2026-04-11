@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', ['invited'])
+    .in('status', ['pending'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       team_member_id: member.id,
       email,
       token,
-      status: 'invited',
+      status: 'pending',
       invited_by: auth.profile.id,
       expires_at: expiresAt,
     })
