@@ -36,13 +36,18 @@ export async function POST(request: NextRequest) {
 
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+
+  // Production domain — used for invite links
+  const INVITE_DOMAIN = 'https://openy-os.com';
+
+  // Sender address: prefer RESEND_FROM_EMAIL, then INVITE_FROM_EMAIL, then default
+  const fromEmail =
+    process.env.RESEND_FROM_EMAIL ??
+    process.env.INVITE_FROM_EMAIL ??
+    'OPENY OS <noreply@openy-os.com>';
 
   if (!url || !key) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-  if (!appUrl) {
-    console.warn('[team/invite] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
   }
 
   const db = createServiceClient(url, key);
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', ['invited'])
+    .in('status', ['pending', 'invited'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest) {
       team_member_id: member.id,
       email,
       token,
-      status:     'invited',
+      status:     'pending',
       invited_by: auth.profile.id,
       expires_at: expiresAt,
     })
@@ -122,10 +127,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'invited' });
+  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'pending' });
 
   // ── 5. Send invite email ──────────────────────────────────────────────────
-  const inviteUrl = `${appUrl}/invite?token=${token}`;
+  const inviteUrl = `${INVITE_DOMAIN}/invite?token=${token}`;
+  console.log('[team/invite] Invitation URL:', inviteUrl);
+  console.log('[team/invite] Sending email via sender:', fromEmail);
+
   const html = teamInviteEmail({
     recipientName:  full_name,
     inviterName:    auth.profile.name,
@@ -140,7 +148,9 @@ export async function POST(request: NextRequest) {
       to:      email,
       subject: "You're invited to join OPENY OS",
       html,
+      from:    fromEmail,
     });
+    console.log('[team/invite] Email sent successfully to:', email);
     await logEmailSent({
       to:         email,
       subject:    "You're invited to join OPENY OS",
@@ -151,6 +161,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+    console.error('[team/invite] Email send failed:', errMsg);
     await logEmailSent({
       to:         email,
       subject:    "You're invited to join OPENY OS",
