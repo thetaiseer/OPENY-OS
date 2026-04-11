@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import {
   Bot, X, Send, Loader2, CheckCircle, XCircle, AlertCircle,
   ChevronDown, ChevronUp, Clock, Zap,
 } from 'lucide-react';
 
-/** UUID v4 generator with fallback for older browsers */
+// ── Stable ID generator ───────────────────────────────────────────────────────
+// NOTE: The original implementation had an inverted guard that caused infinite
+// recursion (calling genId() when crypto.randomUUID IS available). Fixed below.
 function genId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return genId();
+    return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
@@ -26,12 +28,31 @@ interface Message {
   entities?: Record<string, unknown>;
   data?: Record<string, unknown>;
   status?: 'success' | 'error' | 'clarification' | 'pending';
-  clarification_question?: string;
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
+type TaskRow = {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  due_date?: string;
+  client_name?: string;
+};
 
-function EntityChip({ label, value }: { label: string; value: string }) {
+// ── Static suggestions (never recomputed) ─────────────────────────────────────
+
+const SUGGESTIONS: readonly string[] = [
+  'وريني كل التاسكات المتأخرة',
+  'اعمل تاسك جديد',
+  'دور على عميل',
+  'اعمل 3 أفكار ريلز',
+  'Schedule a post on Instagram',
+  'List all active tasks',
+];
+
+// ── Memoized sub-components ───────────────────────────────────────────────────
+
+const EntityChip = memo(function EntityChip({ label, value }: { label: string; value: string }) {
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mr-1 mb-1"
@@ -41,10 +62,11 @@ function EntityChip({ label, value }: { label: string; value: string }) {
       {value}
     </span>
   );
-}
+});
 
-function ActionCard({ actions }: { actions: string[] }) {
+const ActionCard = memo(function ActionCard({ actions }: { actions: string[] }) {
   const [expanded, setExpanded] = useState(false);
+  const toggle = useCallback(() => setExpanded(v => !v), []);
   const visible = expanded ? actions : actions.slice(0, 2);
   return (
     <div className="mt-2 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -55,7 +77,7 @@ function ActionCard({ actions }: { actions: string[] }) {
         </span>
         {actions.length > 2 && (
           <button
-            onClick={() => setExpanded(v => !v)}
+            onClick={toggle}
             className="ml-auto flex items-center gap-0.5 text-xs"
             style={{ color: 'var(--text-secondary)' }}
           >
@@ -76,9 +98,9 @@ function ActionCard({ actions }: { actions: string[] }) {
       ))}
     </div>
   );
-}
+});
 
-function TaskList({ tasks }: { tasks: Array<{ id: string; title: string; status: string; priority?: string; due_date?: string; client_name?: string }> }) {
+const TaskList = memo(function TaskList({ tasks }: { tasks: TaskRow[] }) {
   return (
     <div className="mt-2 space-y-1">
       {tasks.slice(0, 8).map(task => (
@@ -106,16 +128,20 @@ function TaskList({ tasks }: { tasks: Array<{ id: string; title: string; status:
       ))}
     </div>
   );
-}
+});
 
-function AssistantMessage({ msg }: { msg: Message }) {
+const AssistantMessage = memo(function AssistantMessage({ msg }: { msg: Message }) {
   const isSuccess = msg.status === 'success';
   const isError = msg.status === 'error';
   const isClarification = msg.status === 'clarification';
 
   const entities = msg.entities ?? {};
-  const detectedEntities = Object.entries(entities).filter(([, v]) => v != null && !(typeof v === 'string' && v === '') && !Array.isArray(v));
-  const detectedArrays = Object.entries(entities).filter(([, v]) => Array.isArray(v) && (v as unknown[]).length > 0);
+  const detectedEntities = Object.entries(entities).filter(
+    ([, v]) => v != null && !(typeof v === 'string' && v === '') && !Array.isArray(v),
+  );
+  const detectedArrays = Object.entries(entities).filter(
+    ([, v]) => Array.isArray(v) && (v as unknown[]).length > 0,
+  );
 
   return (
     <div className="flex gap-2.5 max-w-full">
@@ -126,7 +152,6 @@ function AssistantMessage({ msg }: { msg: Message }) {
         <Bot size={12} style={{ color: 'var(--accent)' }} />
       </div>
       <div className="flex-1 min-w-0">
-        {/* Status indicator */}
         {(isSuccess || isError) && (
           <div className="flex items-center gap-1.5 mb-1.5">
             {isSuccess
@@ -153,12 +178,10 @@ function AssistantMessage({ msg }: { msg: Message }) {
           </div>
         )}
 
-        {/* Main message */}
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
           {msg.content}
         </p>
 
-        {/* Entity chips */}
         {detectedEntities.length > 0 && (
           <div className="mt-2 flex flex-wrap">
             {detectedEntities.map(([k, v]) => (
@@ -170,17 +193,14 @@ function AssistantMessage({ msg }: { msg: Message }) {
           </div>
         )}
 
-        {/* Action summary cards */}
         {msg.actions_taken && msg.actions_taken.length > 0 && (
           <ActionCard actions={msg.actions_taken} />
         )}
 
-        {/* Task list */}
         {Array.isArray(msg.data?.tasks) && (msg.data.tasks as unknown[]).length > 0 && (
-          <TaskList tasks={msg.data.tasks as Array<{ id: string; title: string; status: string; priority?: string; due_date?: string; client_name?: string }>} />
+          <TaskList tasks={msg.data.tasks as TaskRow[]} />
         )}
 
-        {/* Content ideas */}
         {typeof msg.data?.ideas === 'string' && (
           <div
             className="mt-2 rounded-lg px-3 py-2.5 text-xs whitespace-pre-wrap"
@@ -196,9 +216,9 @@ function AssistantMessage({ msg }: { msg: Message }) {
       </div>
     </div>
   );
-}
+});
 
-function UserMessage({ msg }: { msg: Message }) {
+const UserMessage = memo(function UserMessage({ msg }: { msg: Message }) {
   return (
     <div className="flex gap-2.5 justify-end max-w-full">
       <div
@@ -212,75 +232,166 @@ function UserMessage({ msg }: { msg: Message }) {
       </div>
     </div>
   );
+});
+
+// ── AISuggestions ─────────────────────────────────────────────────────────────
+
+interface AISuggestionsProps {
+  onSelect: (suggestion: string) => void;
 }
 
-// ── Suggestion chips ──────────────────────────────────────────────────────────
+const AISuggestions = memo(function AISuggestions({ onSelect }: AISuggestionsProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2.5">
+        <div
+          className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+          style={{ background: 'var(--accent-soft)' }}
+        >
+          <Bot size={12} style={{ color: 'var(--accent)' }} />
+        </div>
+        <div>
+          <p className="text-sm" style={{ color: 'var(--text)' }}>
+            مرحبا! أنا مساعد OPENY OS. أقدر أساعدك في إنشاء مهام، جدولة منشورات، البحث عن عملاء، وأكثر.
+          </p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Hi! I can create tasks, schedule posts, search clients, invite team members, and more. Just tell me what you need.
+          </p>
+        </div>
+      </div>
 
-const SUGGESTIONS = [
-  'وريني كل التاسكات المتأخرة',
-  'اعمل تاسك جديد',
-  'دور على عميل',
-  'اعمل 3 أفكار ريلز',
-  'Schedule a post on Instagram',
-  'List all active tasks',
-];
+      <div>
+        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
+          <Clock size={10} className="inline mr-1" />
+          Try saying:
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {SUGGESTIONS.map(s => (
+            <button
+              key={s}
+              onClick={() => onSelect(s)}
+              className="text-xs px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
 
-// ── Main panel ────────────────────────────────────────────────────────────────
+// ── AIInputBox ────────────────────────────────────────────────────────────────
 
-export default function AiAssistantPanel() {
-  const [open, setOpen] = useState(false);
+interface AIInputBoxProps {
+  value: string;
+  onChange: (val: string) => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+}
+
+const AIInputBox = memo(function AIInputBox({ value, onChange, onSubmit, isSubmitting }: AIInputBoxProps) {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value),
+    [onChange],
+  );
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onSubmit();
+      }
+    },
+    [onSubmit],
+  );
+
+  return (
+    <div
+      className="shrink-0 p-3 border-t"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+    >
+      <div
+        className="flex items-end gap-2 rounded-xl px-3 py-2"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        <textarea
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          placeholder="اكتب أمرك... / Type a command…"
+          rows={1}
+          className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
+          style={{ color: 'var(--text)', maxHeight: '6rem', scrollbarWidth: 'none' }}
+        />
+        <button
+          onClick={onSubmit}
+          disabled={isSubmitting || !value.trim()}
+          className="flex items-center justify-center w-7 h-7 rounded-lg transition-opacity disabled:opacity-40 shrink-0"
+          style={{ background: 'var(--accent)' }}
+        >
+          <Send size={13} style={{ color: '#fff' }} />
+        </button>
+      </div>
+      <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-secondary)' }}>
+        Enter to send • Shift+Enter for new line
+      </p>
+    </div>
+  );
+});
+
+// ── useAICommandState ─────────────────────────────────────────────────────────
+// Encapsulates all async command state. sendMessage is stable (no dep changes).
+
+interface CommandApiResponse {
+  success: boolean;
+  intent?: string;
+  entities?: Record<string, unknown>;
+  message?: string;
+  data?: Record<string, unknown>;
+  actions_taken?: string[];
+  needs_clarification?: boolean;
+  clarification_question?: string;
+  error?: string;
+}
+
+function useAICommandState() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  // Sync ref so sendMessage never captures a stale `input` value
+  const inputRef = useRef('');
+  const isSubmittingRef = useRef(false); // synchronous guard — prevents race conditions
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
-  // Scroll detection
-  useEffect(() => {
-    if (open) return;
-    const handleScroll = () => {
-      setIsScrolling(true);
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-      scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 800);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    };
-  }, [open]);
-
-  // Modal detection
-  useEffect(() => {
-    const check = () => {
-      setIsModalOpen(!!(
-        document.querySelector('[role="dialog"]') ||
-        document.querySelector('[aria-modal="true"]') ||
-        document.querySelector('[data-modal="true"]')
-      ));
-    };
-    const obs = new MutationObserver(check);
-    obs.observe(document.body, { childList: true, subtree: true, attributes: false });
-    check();
-    return () => obs.disconnect();
+  // Keep inputRef in sync with state
+  const handleSetInput = useCallback((val: string) => {
+    inputRef.current = val;
+    setInput(val);
   }, []);
 
-  const isCollapsed = !open && (isScrolling || isModalOpen);
-  const bottomOffset = !open && isModalOpen ? '5rem' : '1.25rem';
+  // sendMessage is stable: no deps that change on every keystroke
+  const sendMessage = useCallback(async (suggestionText?: string) => {
+    const messageText = suggestionText !== undefined
+      ? suggestionText.trim()
+      : inputRef.current.trim();
 
-  const sendMessage = useCallback(async (text?: string) => {
-    const messageText = (text ?? input).trim();
-    if (!messageText || loading) return;
+    if (!messageText || isSubmittingRef.current) return;
 
-    setInput('');
+    // Abort any in-flight request before starting a new one
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
+    // Synchronous guard — prevents duplicate submissions from rapid clicks
+    isSubmittingRef.current = true;
+
+    // Clear the input field immediately (only when using the typed input)
+    if (suggestionText === undefined) {
+      inputRef.current = '';
+      setInput('');
+    }
 
     const userMsg: Message = {
       id: genId(),
@@ -288,9 +399,8 @@ export default function AiAssistantPanel() {
       content: messageText,
       timestamp: new Date(),
     };
-
     setMessages(prev => [...prev, userMsg]);
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch('/api/ai/command', {
@@ -298,19 +408,12 @@ export default function AiAssistantPanel() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ message: messageText }),
+        signal: abortRef.current.signal,
       });
 
-      const json = await res.json() as {
-        success: boolean;
-        intent?: string;
-        entities?: Record<string, unknown>;
-        message?: string;
-        data?: Record<string, unknown>;
-        actions_taken?: string[];
-        needs_clarification?: boolean;
-        clarification_question?: string;
-        error?: string;
-      };
+      const json = await res.json() as CommandApiResponse;
+
+      if (!mountedRef.current) return;
 
       const assistantMsg: Message = {
         id: genId(),
@@ -326,70 +429,55 @@ export default function AiAssistantPanel() {
         status: json.needs_clarification
           ? 'clarification'
           : (res.status === 503 ? 'error' : json.success ? 'success' : 'error'),
-        clarification_question: json.clarification_question,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-    } catch {
+    } catch (err) {
+      // AbortError means the request was intentionally cancelled — silently ignore
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (!mountedRef.current) return;
+
       setMessages(prev => [...prev, {
         id: genId(),
         role: 'assistant',
         content: 'Connection error. Please try again.',
         timestamp: new Date(),
-        status: 'error',
+        status: 'error' as const,
       }]);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }
     }
-  }, [input, loading]);
+  }, []); // stable — no external deps
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void sendMessage();
-    }
-  };
+  // Abort in-flight request on unmount to avoid state updates after unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
 
-  // Collapsed button
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Open AI Assistant"
-        className="fixed z-50 flex items-center justify-center text-white shadow-lg"
-        style={{
-          background: 'var(--accent)',
-          bottom: bottomOffset,
-          right: '1.25rem',
-          height: isCollapsed ? '2.5rem' : '2.75rem',
-          minWidth: isCollapsed ? '2.5rem' : '0',
-          paddingLeft: isCollapsed ? '0' : '1rem',
-          paddingRight: isCollapsed ? '0' : '1rem',
-          borderRadius: isCollapsed ? '50%' : '9999px',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          overflow: 'hidden',
-          transition: 'height 300ms ease, min-width 300ms ease, padding 300ms ease, border-radius 300ms ease, bottom 300ms ease',
-        }}
-      >
-        <Bot size={18} style={{ flexShrink: 0 }} />
-        <span
-          style={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            maxWidth: isCollapsed ? '0' : '8rem',
-            opacity: isCollapsed ? 0 : 1,
-            marginLeft: isCollapsed ? '0' : '0.5rem',
-            transition: 'max-width 300ms ease, opacity 200ms ease, margin-left 300ms ease',
-          }}
-        >
-          AI Assistant
-        </span>
-      </button>
-    );
-  }
+  return { messages, input, setInput: handleSetInput, isSubmitting, sendMessage };
+}
 
-  // Open panel
+// ── AIPanel ───────────────────────────────────────────────────────────────────
+
+function AIPanel({ onClose }: { onClose: () => void }) {
+  const { messages, input, setInput, isSubmitting, sendMessage } = useAICommandState();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = useCallback(() => void sendMessage(), [sendMessage]);
+  const handleSuggestion = useCallback((s: string) => void sendMessage(s), [sendMessage]);
+
   return (
     <div
       className="fixed z-50 flex flex-col rounded-2xl border overflow-hidden"
@@ -419,7 +507,7 @@ export default function AiAssistantPanel() {
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Your workspace operator</p>
         </div>
         <button
-          onClick={() => setOpen(false)}
+          onClick={onClose}
           className="w-6 h-6 flex items-center justify-center rounded-md hover:opacity-70 transition-opacity shrink-0"
           style={{ color: 'var(--text-secondary)' }}
         >
@@ -429,54 +517,16 @@ export default function AiAssistantPanel() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {messages.length === 0 ? (
-          <div className="space-y-4">
-            <div className="flex gap-2.5">
-              <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                style={{ background: 'var(--accent-soft)' }}
-              >
-                <Bot size={12} style={{ color: 'var(--accent)' }} />
-              </div>
-              <div>
-                <p className="text-sm" style={{ color: 'var(--text)' }}>
-                  مرحبا! أنا مساعد OPENY OS. أقدر أساعدك في إنشاء مهام، جدولة منشورات، البحث عن عملاء، وأكثر.
-                </p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                  Hi! I can create tasks, schedule posts, search clients, invite team members, and more. Just tell me what you need.
-                </p>
-              </div>
-            </div>
+        {messages.length === 0
+          ? <AISuggestions onSelect={handleSuggestion} />
+          : messages.map(msg =>
+              msg.role === 'user'
+                ? <UserMessage key={msg.id} msg={msg} />
+                : <AssistantMessage key={msg.id} msg={msg} />
+            )
+        }
 
-            {/* Suggestions */}
-            <div>
-              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
-                <Clock size={10} className="inline mr-1" />
-                Try saying:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {SUGGESTIONS.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => void sendMessage(s)}
-                    className="text-xs px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
-                    style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          messages.map(msg => (
-            msg.role === 'user'
-              ? <UserMessage key={msg.id} msg={msg} />
-              : <AssistantMessage key={msg.id} msg={msg} />
-          ))
-        )}
-
-        {loading && (
+        {isSubmitting && (
           <div className="flex gap-2.5">
             <div
               className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
@@ -495,41 +545,52 @@ export default function AiAssistantPanel() {
       </div>
 
       {/* Input */}
-      <div
-        className="shrink-0 p-3 border-t"
-        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-      >
-        <div
-          className="flex items-end gap-2 rounded-xl px-3 py-2"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-        >
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="اكتب أمرك... / Type a command…"
-            rows={1}
-            className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
-            style={{
-              color: 'var(--text)',
-              maxHeight: '6rem',
-              scrollbarWidth: 'none',
-            }}
-          />
-          <button
-            onClick={() => void sendMessage()}
-            disabled={loading || !input.trim()}
-            className="flex items-center justify-center w-7 h-7 rounded-lg transition-opacity disabled:opacity-40 shrink-0"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Send size={13} style={{ color: '#fff' }} />
-          </button>
-        </div>
-        <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-secondary)' }}>
-          Enter to send • Shift+Enter for new line
-        </p>
-      </div>
+      <AIInputBox
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
+}
+
+// ── AIChatLauncher ────────────────────────────────────────────────────────────
+
+function AIChatLauncher({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Open AI Assistant"
+      className="fixed z-50 flex items-center justify-center text-white shadow-lg"
+      style={{
+        background: 'var(--accent)',
+        bottom: '1.25rem',
+        right: '1.25rem',
+        height: '2.75rem',
+        paddingLeft: '1rem',
+        paddingRight: '1rem',
+        borderRadius: '9999px',
+        fontSize: '0.875rem',
+        fontWeight: 600,
+      }}
+    >
+      <Bot size={18} style={{ flexShrink: 0 }} />
+      <span style={{ whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>AI Assistant</span>
+    </button>
+  );
+}
+
+// ── Root export ───────────────────────────────────────────────────────────────
+
+export default function AiAssistantPanel() {
+  const [open, setOpen] = useState(false);
+  const handleOpen = useCallback(() => setOpen(true), []);
+  const handleClose = useCallback(() => setOpen(false), []);
+
+  if (!open) {
+    return <AIChatLauncher onClick={handleOpen} />;
+  }
+
+  return <AIPanel onClose={handleClose} />;
 }
