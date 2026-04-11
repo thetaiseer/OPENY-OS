@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
-import {
-  createFolderHierarchy,
-  uploadFileToDrive,
-  buildPreviewUrl,
-  buildDownloadUrl,
-  buildThumbnailUrl,
-  monthKeyToYear,
-  monthKeyToMonthName,
-} from '@/lib/google-drive';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
 
@@ -36,6 +27,9 @@ const VALID_CONTENT_TYPES = [
 ] as const;
 type ValidContentType = typeof VALID_CONTENT_TYPES[number];
 
+/** Supabase Storage bucket name for uploaded assets. */
+const ASSETS_BUCKET = 'assets';
+
 // ── Supabase client ───────────────────────────────────────────────────────────
 
 function getSupabase() {
@@ -44,6 +38,11 @@ function getSupabase() {
   if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
   if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
   return createClient(url, key);
+}
+
+/** Build the public storage URL for an object in the assets bucket. */
+function buildStorageUrl(supabaseUrl: string, bucket: string, path: string): string {
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,8 +77,8 @@ function buildFinalFileName(
 /**
  * POST /api/upload
  *
- * Accepts a multipart form upload, uploads the file to Google Drive under:
- *   Clients/{clientName}/{year}/{monthName}/
+ * Accepts a multipart form upload, uploads the file to Supabase Storage under:
+ *   assets/{userId}/{timestamp}_{sanitizedFileName}
  * then saves asset metadata to the Supabase `assets` table.
  *
  * Form fields:
@@ -91,13 +90,14 @@ function buildFinalFileName(
  *   uploadedBy     – uploader name/email (optional)
  *   customFileName – custom base name without extension (optional)
  *
- * For a failed_db retry (Drive already done), pass driveFileId, driveFolderId,
- * and driveFileName instead of file — the Drive upload step is skipped.
+ * For a failed_db retry (storage already done), pass driveFileId (storage path),
+ * driveFolderId (bucket name), and driveFileName instead of file — the storage
+ * upload step is skipped.
  *
  * Response stages:
- *   completed    – fully succeeded (Drive + DB)
- *   failed_db    – Drive OK, DB save failed (drive_file_id included for retry)
- *   failed_upload – Drive upload failed
+ *   completed    – fully succeeded (Storage + DB)
+ *   failed_db    – Storage OK, DB save failed (drive_file_id/path included for retry)
+ *   failed_upload – Storage upload failed
  */
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -135,12 +135,15 @@ export async function POST(req: NextRequest) {
   const uploadedBy   = (formData.get('uploadedBy')   as string | null)?.trim() || null;
   const customName   = (formData.get('customFileName') as string | null)?.trim() || null;
 
-  // Fields used for failed_db retry (Drive already done)
-  const existingDriveFileId    = (formData.get('driveFileId')    as string | null)?.trim() || null;
-  const existingDriveFolderId  = (formData.get('driveFolderId')  as string | null)?.trim() || null;
-  const existingDriveFileName  = (formData.get('driveFileName')  as string | null)?.trim() || null;
+  // Fields used for failed_db retry (storage already done).
+  // driveFileId repurposed as the Supabase storage object path.
+  // driveFolderId repurposed as the bucket name.
+  // driveFileName is the display file name.
+  const existingStoragePath  = (formData.get('driveFileId')    as string | null)?.trim() || null;
+  const existingBucketName   = (formData.get('driveFolderId')  as string | null)?.trim() || null;
+  const existingFileName     = (formData.get('driveFileName')  as string | null)?.trim() || null;
 
-  const isRetryDbSave = !!(existingDriveFileId && existingDriveFolderId && existingDriveFileName);
+  const isRetryDbSave = !!(existingStoragePath && existingBucketName && existingFileName);
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const validationError = (message: string, step = 'validation') =>
@@ -158,38 +161,38 @@ export async function POST(req: NextRequest) {
     return validationError('monthKey must be in YYYY-MM format');
   }
 
-  let driveFileId:   string;
-  let driveFolderId: string;
-  let driveFileName: string;
-  let fileMimeType:  string;
-  let fileSize:      number | null;
-  let thumbnailLink: string | null = null;
-  let webViewLink:   string;
-  let webContentLink: string;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabase    = getSupabase();
 
-  // ── Drive upload (or skip if retrying DB save) ─────────────────────────────
+  let storagePath:  string;
+  let bucketName:   string;
+  let displayName:  string;
+  let fileMimeType: string;
+  let fileSize:     number | null;
+  let publicUrl:    string;
+
+  // ── Storage upload (or skip if retrying DB save) ───────────────────────────
   if (isRetryDbSave) {
-    // Drive already done — skip upload, go straight to DB save
-    driveFileId    = existingDriveFileId!;
-    driveFolderId  = existingDriveFolderId!;
-    driveFileName  = existingDriveFileName!;
-    fileMimeType   = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
-    fileSize       = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
-    webViewLink    = `https://drive.google.com/file/d/${driveFileId}/view`;
-    webContentLink = `https://drive.google.com/uc?id=${driveFileId}&export=download`;
+    // Storage already done — skip upload, go straight to DB save.
+    storagePath  = existingStoragePath!;
+    bucketName   = existingBucketName!;
+    displayName  = existingFileName!;
+    fileMimeType = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
+    fileSize     = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
+    publicUrl    = buildStorageUrl(supabaseUrl, bucketName, storagePath);
   } else {
-    // Normal upload path — file is required
+    // Normal upload path — file is required.
     if (!file || !(file instanceof File)) {
       return validationError('file is required');
     }
 
-    // Security: block dangerous file extensions
+    // Security: block dangerous file extensions.
     const ext = getExtension(file.name);
     if (BLOCKED_EXTENSIONS.has(ext)) {
       return validationError('File type not allowed: executable and script files are blocked');
     }
 
-    // Size limit check
+    // Size limit check.
     if (file.size > MAX_FILE_SIZE) {
       return validationError(
         `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
@@ -201,88 +204,90 @@ export async function POST(req: NextRequest) {
       return validationError('File is empty');
     }
 
-    // Build final file name
-    driveFileName = buildFinalFileName(file.name, customName, clientName, contentType, monthKey);
-    fileMimeType  = file.type || 'application/octet-stream';
-    fileSize      = file.size;
+    // Build display name and storage path.
+    displayName  = buildFinalFileName(file.name, customName, clientName, contentType, monthKey);
+    fileMimeType = file.type || 'application/octet-stream';
+    fileSize     = file.size;
+    bucketName   = ASSETS_BUCKET;
+    // Path: {userId}/{timestamp}_{sanitizedFileName} — no profile_id dependency.
+    storagePath  = `${auth.profile.id}/${Date.now()}_${sanitizeFileName(displayName)}`;
 
-    // ── Step 1: Create folder hierarchy ─────────────────────────────────────
-    try {
-      driveFolderId = await createFolderHierarchy(clientName, monthKey);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(JSON.stringify({ step: 'folder_creation_failed', clientName, monthKey, error: msg }));
-      return NextResponse.json(
-        { success: false, stage: 'failed_upload', error: { step: 'folder_creation', message: msg } },
-        { status: 500 },
-      );
-    }
-
-    // ── Step 2: Upload file to Drive ─────────────────────────────────────────
-    let uploadResult;
+    // ── Upload file to Supabase Storage ──────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      uploadResult = await uploadFileToDrive(driveFolderId, driveFileName, fileMimeType, fileBuffer);
+      const { error: storageError } = await supabase.storage
+        .from(bucketName)
+        .upload(storagePath, fileBuffer, {
+          contentType: fileMimeType,
+          upsert:      false,
+        });
+
+      if (storageError) {
+        console.error('[upload] Supabase storage upload failed:', storageError.message);
+        return NextResponse.json(
+          {
+            success: false,
+            stage:   'failed_upload',
+            error:   { step: 'storage_upload', message: storageError.message },
+          },
+          { status: 500 },
+        );
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(JSON.stringify({ step: 'drive_upload_failed', fileName: driveFileName, error: msg }));
+      console.error('[upload] storage upload exception:', msg);
       return NextResponse.json(
-        { success: false, stage: 'failed_upload', error: { step: 'drive_upload', message: msg } },
+        { success: false, stage: 'failed_upload', error: { step: 'storage_upload', message: msg } },
         { status: 500 },
       );
     }
 
-    driveFileId    = uploadResult.fileId;
-    webViewLink    = uploadResult.webViewLink;
-    webContentLink = uploadResult.webContentLink;
-    thumbnailLink  = uploadResult.thumbnailLink;
-    if (uploadResult.mimeType) fileMimeType = uploadResult.mimeType;
-    if (uploadResult.fileSize) fileSize = uploadResult.fileSize;
+    publicUrl = buildStorageUrl(supabaseUrl, bucketName, storagePath);
   }
 
-  // ── Step 3: Deduplication check ──────────────────────────────────────────
-  const supabase = getSupabase();
+  // ── Step 2: Deduplication check ──────────────────────────────────────────
   {
     const { data: existing } = await supabase
       .from('assets')
       .select('*')
-      .eq('drive_file_id', driveFileId)
+      .eq('file_path', storagePath)
       .maybeSingle();
 
     if (existing) {
       return NextResponse.json(
-        { success: true, stage: 'completed', asset: existing, drive_file_id: driveFileId },
+        { success: true, stage: 'completed', asset: existing, drive_file_id: storagePath },
         { status: 200 },
       );
     }
   }
 
-  // ── Step 4: Save metadata to database ─────────────────────────────────────
-  const year      = monthKeyToYear(monthKey);
-  const monthName = monthKeyToMonthName(monthKey);
+  // ── Step 3: Save metadata to database ─────────────────────────────────────
+  const [year, monthNum] = monthKey.split('-');
+  const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
+    .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
   const insertRow: Record<string, unknown> = {
-    name:               driveFileName,
-    file_path:          null,
-    file_url:           webViewLink,
-    view_url:           webViewLink,
-    download_url:       webContentLink,
-    file_type:          fileMimeType,
-    mime_type:          fileMimeType,
-    file_size:          fileSize,
-    bucket_name:        null,
-    storage_provider:   'google_drive',
-    drive_file_id:      driveFileId,
-    drive_folder_id:    driveFolderId,
+    name:             displayName,
+    file_path:        storagePath,
+    file_url:         publicUrl,
+    view_url:         publicUrl,
+    download_url:     publicUrl,
+    file_type:        fileMimeType,
+    mime_type:        fileMimeType,
+    file_size:        fileSize,
+    bucket_name:      bucketName,
+    storage_provider: 'supabase_storage',
+    drive_file_id:    null,
+    drive_folder_id:  null,
     client_name:        clientName,
     client_folder_name: clientName,
-    content_type:       contentType,
-    month_key:          monthKey,
-    preview_url:        buildPreviewUrl(driveFileId),
-    thumbnail_url:      buildThumbnailUrl(driveFileId, thumbnailLink),
-    web_view_link:      webViewLink,
-    ...(clientId    ? { client_id:   clientId    } : {}),
-    ...(uploadedBy  ? { uploaded_by: uploadedBy  } : {}),
+    content_type:     contentType,
+    month_key:        monthKey,
+    preview_url:      publicUrl,
+    thumbnail_url:    publicUrl,
+    web_view_link:    publicUrl,
+    ...(clientId   ? { client_id:   clientId   } : {}),
+    ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
   };
 
   const { data: inserted, error: dbError } = await insertWithColumnFallback(
@@ -293,14 +298,16 @@ export async function POST(req: NextRequest) {
 
   if (dbError) {
     console.error('[upload] DB insert failed:', dbError.message);
-    // Drive file exists — return failed_db so the client can retry DB save
+    // Storage file exists — return failed_db so the client can retry DB save.
+    // Reuse drive_file_id/drive_folder_id/drive_file_name fields to carry the
+    // storage path, bucket name, and display name for the retry request.
     return NextResponse.json(
       {
-        success:      true,
-        stage:        'failed_db',
-        drive_file_id:   driveFileId,
-        drive_folder_id: driveFolderId,
-        drive_file_name: driveFileName,
+        success:         true,
+        stage:           'failed_db',
+        drive_file_id:   storagePath,
+        drive_folder_id: bucketName,
+        drive_file_name: displayName,
         error: {
           step:    'database_insert',
           message: dbError.message,
@@ -312,34 +319,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Step 5: Log activity (fire-and-forget) ────────────────────────────────
+  // ── Step 4: Log activity (fire-and-forget) ────────────────────────────────
   void supabase.from('activities').insert({
     type:        'asset',
-    description: `Asset "${driveFileName}" uploaded to Google Drive (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
+    description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
     ...(clientId ? { client_id: clientId } : {}),
   }).then(({ error }) => {
     if (error) console.warn('[upload] activity log failed:', error.message);
   });
 
-  // ── Step 6: Notify (fire-and-forget) ─────────────────────────────────────
+  // ── Step 5: Notify (fire-and-forget) ─────────────────────────────────────
   if (inserted) {
     void notifyAssetUploaded({
       assetId:      inserted.id as string,
-      assetName:    driveFileName,
+      assetName:    displayName,
       clientId:     clientId ?? null,
       uploadedById: auth.profile.id,
     });
   }
 
-  console.log('[upload] completed:', driveFileName, '| drive_file_id:', driveFileId);
+  console.log('[upload] completed:', displayName, '| path:', storagePath);
 
   return NextResponse.json(
     {
-      success:  true,
-      stage:    'completed',
-      asset:    inserted,
-      drive_file_id:   driveFileId,
-      drive_folder_id: driveFolderId,
+      success:         true,
+      stage:           'completed',
+      asset:           inserted,
+      drive_file_id:   storagePath,
+      drive_folder_id: bucketName,
     },
     { status: 201 },
   );

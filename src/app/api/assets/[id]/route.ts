@@ -34,10 +34,10 @@ export async function DELETE(
 
   const supabase = getSupabase();
 
-  // ── 1. Fetch asset row to get drive_file_id and drive_folder_id ─────────────
+  // ── 1. Fetch asset row ────────────────────────────────────────────────────
   const { data: asset, error: fetchError } = await supabase
     .from('assets')
-    .select('id, drive_file_id, drive_folder_id, name, storage_provider')
+    .select('id, drive_file_id, drive_folder_id, file_path, bucket_name, name, storage_provider')
     .eq('id', id)
     .single();
 
@@ -55,36 +55,70 @@ export async function DELETE(
     storageProvider: asset.storage_provider,
   });
 
-  // ── 2. Delete from Google Drive (only if stored there) ───────────────────
+  // ── 2. Delete from remote storage ────────────────────────────────────────
   let warning: string | undefined;
 
-  if (asset.storage_provider === 'google_drive' && !asset.drive_file_id) {
-    console.warn('[asset-delete] drive_file_id is missing for a google_drive asset – skipping Drive deletion and proceeding with DB delete', {
-      assetId: asset.id,
-      storageProvider: asset.storage_provider,
-    });
-  }
+  if (asset.storage_provider === 'supabase_storage') {
+    // ── Supabase Storage delete ─────────────────────────────────────────────
+    const filePath   = asset.file_path as string | null;
+    const bucketName = (asset.bucket_name as string | null) ?? 'assets';
 
-  if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
-    try {
-      await deleteFromDrive(asset.drive_file_id as string);
-      console.log('[asset-delete] Drive delete succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
-    } catch (err: unknown) {
-      if (err instanceof DriveFileNotFoundError) {
-        // File already gone from provider — treat as orphaned record and continue
-        warning = 'Asset record deleted. Remote file was already missing.';
-        console.warn('[asset-delete] Remote file not found – treating as orphaned', {
-          assetId: asset.id,
-          driveFileId: asset.drive_file_id,
-          error: err.message,
-        });
+    if (!filePath) {
+      console.warn('[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion', {
+        assetId: asset.id,
+      });
+    } else {
+      const { error: storageError } = await supabase.storage
+        .from(bucketName)
+        .remove([filePath]);
+
+      if (storageError) {
+        // Treat "not found" as an orphaned record and continue with DB delete.
+        if (storageError.message.toLowerCase().includes('not found')) {
+          warning = 'Asset record deleted. Remote file was already missing.';
+          console.warn('[asset-delete] Storage file not found – treating as orphaned', {
+            assetId: asset.id,
+            filePath,
+            error: storageError.message,
+          });
+        } else {
+          console.error('[asset-delete] Storage delete failed', { assetId: asset.id, filePath, error: storageError.message });
+          return NextResponse.json(
+            { error: `Storage delete failed: ${storageError.message}` },
+            { status: 502 },
+          );
+        }
       } else {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[asset-delete] Drive delete failed', { assetId: asset.id, driveFileId: asset.drive_file_id, error: msg });
-        return NextResponse.json(
-          { error: `Google Drive delete failed: ${msg}` },
-          { status: 502 },
-        );
+        console.log('[asset-delete] Storage delete succeeded', { assetId: asset.id, filePath });
+      }
+    }
+  } else if (asset.storage_provider === 'google_drive') {
+    // ── Google Drive delete ──────────────────────────────────────────────────
+    if (!asset.drive_file_id) {
+      console.warn('[asset-delete] drive_file_id is missing for a google_drive asset – skipping Drive deletion and proceeding with DB delete', {
+        assetId: asset.id,
+        storageProvider: asset.storage_provider,
+      });
+    } else {
+      try {
+        await deleteFromDrive(asset.drive_file_id as string);
+        console.log('[asset-delete] Drive delete succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
+      } catch (err: unknown) {
+        if (err instanceof DriveFileNotFoundError) {
+          warning = 'Asset record deleted. Remote file was already missing.';
+          console.warn('[asset-delete] Remote file not found – treating as orphaned', {
+            assetId: asset.id,
+            driveFileId: asset.drive_file_id,
+            error: err.message,
+          });
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[asset-delete] Drive delete failed', { assetId: asset.id, driveFileId: asset.drive_file_id, error: msg });
+          return NextResponse.json(
+            { error: `Google Drive delete failed: ${msg}` },
+            { status: 502 },
+          );
+        }
       }
     }
   }
@@ -101,7 +135,7 @@ export async function DELETE(
 
   console.log('[asset-delete] DB delete succeeded', { assetId: asset.id });
 
-  // ── 4. Clean up empty parent folders in Google Drive ─────────────────────
+  // ── 4. Clean up empty parent folders in Google Drive (Drive only) ─────────
   // Errors here must not fail the overall delete — they are logged only.
   if (asset.storage_provider === 'google_drive' && asset.drive_folder_id) {
     try {
