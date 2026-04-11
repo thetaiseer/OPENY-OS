@@ -26,9 +26,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'team_member_id is required' }, { status: 400 });
   }
 
-  const url    = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const url      = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key      = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const appUrl   = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const fromEmail =
+    process.env.INVITE_FROM_EMAIL ??
+    process.env.RESEND_FROM_EMAIL ??
+    'OPENY OS <noreply@openy-os.com>';
 
   if (!url || !key) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -89,6 +93,9 @@ export async function POST(request: NextRequest) {
 
   // Send email
   const inviteUrl = `${appUrl}/invite?token=${newToken}`;
+  console.log('[team/invite/resend] Generated token (prefix):', newToken.slice(0, 8) + '...', '— expires', newExpiresAt);
+  console.log('[team/invite/resend] Invitation URL:', inviteUrl);
+  console.log('[team/invite/resend] Sending email via sender:', fromEmail);
   const html = teamInviteEmail({
     recipientName: memberFullName,
     inviterName:   auth.profile.name,
@@ -103,7 +110,9 @@ export async function POST(request: NextRequest) {
       to:      invitation.email,
       subject: "You're invited to join OPENY OS",
       html,
+      from:    fromEmail,
     });
+    console.log('[team/invite/resend] Email sent successfully to:', invitation.email);
     await logEmailSent({
       to:         invitation.email,
       subject:    "You're invited to join OPENY OS",
@@ -114,6 +123,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+    console.error('[team/invite/resend] Email send failed:', errMsg);
     await logEmailSent({
       to:         invitation.email,
       subject:    "You're invited to join OPENY OS",
