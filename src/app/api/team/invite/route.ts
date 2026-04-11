@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   const token     = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  console.log('[team/invite] Generated token for', email, '— expires', expiresAt);
+  console.log('[team/invite] Generated token (prefix):', token.slice(0, 8) + '...', '— expires', expiresAt);
 
   const { data: invitation, error: inviteError } = await db
     .from('team_invitations')

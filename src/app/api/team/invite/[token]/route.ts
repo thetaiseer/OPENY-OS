@@ -22,7 +22,7 @@ export async function GET(
 
   const db = createServiceClient(url, key);
 
-  console.log('[team/invite/token] Received token:', token);
+  console.log('[team/invite/token] Received token:', token.slice(0, 8) + '...');
 
   const { data: invitation, error } = await db
     .from('team_invitations')
