@@ -263,7 +263,8 @@ export async function POST(req: NextRequest) {
 
   // ── Step 3: Save metadata to database ─────────────────────────────────────
   const [year, monthNum] = monthKey.split('-');
-  const monthName = new Date(`${year}-${monthNum}-01`).toLocaleString('en-US', { month: 'long' });
+  const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
+    .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
   const insertRow: Record<string, unknown> = {
     name:             displayName,

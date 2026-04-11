@@ -22,7 +22,8 @@ alter table storage.objects enable row level security;
 
 -- ── Upload policy ────────────────────────────────────────────────────────────
 -- Authenticated users may upload files to the "assets" bucket.
--- Path convention enforced by the application: {userId}/{timestamp}_{filename}
+-- Path convention enforced by the application: {auth_user_id}/{timestamp}_{filename}
+-- where auth_user_id is the Supabase Auth user UUID (auth.uid()).
 -- The check (bucket_id = 'assets') scopes this policy to our bucket only.
 drop policy if exists "Allow authenticated upload to assets" on storage.objects;
 create policy "Allow authenticated upload to assets"
