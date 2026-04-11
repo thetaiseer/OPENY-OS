@@ -104,8 +104,6 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
-      name:       full_name,
-      role,
       token,
       status:     'invited',
       invited_by: auth.profile.id,
