@@ -69,6 +69,71 @@ export class DriveFileNotFoundError extends Error {
   }
 }
 
+// ── Config validation ─────────────────────────────────────────────────────────
+
+/** Granular status of the Google Drive OAuth configuration. */
+export type DriveConfigStatus =
+  | 'not_configured'       // No env vars are set
+  | 'partially_configured' // Some but not all required env vars are set
+  | 'configured'           // All env vars present; connectivity test failed for a non-auth reason
+  | 'connected'            // All vars present AND a live Drive API call succeeded
+  | 'auth_failed';         // All vars present but the Drive API rejected credentials
+
+export interface DriveConfigResult {
+  status: DriveConfigStatus;
+  /** True only when status === 'connected'. */
+  connected: boolean;
+  /** Env var names that are missing/empty. */
+  missingVars: string[];
+  /** Human-readable error detail when status === 'auth_failed'. */
+  error: string | null;
+}
+
+/**
+ * Validate the Google Drive OAuth configuration and (optionally) test
+ * connectivity by making a lightweight `drive.about.get` call.
+ *
+ * Never throws — returns a structured result instead.
+ */
+export async function checkDriveConnection(): Promise<DriveConfigResult> {
+  const vars: Record<string, string | undefined> = {
+    GOOGLE_OAUTH_CLIENT_ID:     process.env.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_OAUTH_REFRESH_TOKEN: process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+  };
+
+  const missingVars = Object.entries(vars)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+
+  if (missingVars.length === Object.keys(vars).length) {
+    return { status: 'not_configured', connected: false, missingVars, error: null };
+  }
+
+  if (missingVars.length > 0) {
+    return { status: 'partially_configured', connected: false, missingVars, error: null };
+  }
+
+  // All vars are present — make a lightweight API call to verify credentials
+  try {
+    const { drive } = getDriveClient();
+    await drive.about.get({ fields: 'user' });
+    return { status: 'connected', connected: true, missingVars: [], error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isAuthError =
+      /invalid.*(grant|credentials|token)|unauthorized|401|403/i.test(msg);
+    return {
+      status: isAuthError ? 'auth_failed' : 'configured',
+      connected: false,
+      missingVars: [],
+      error: isAuthError
+        ? `Google Drive API authentication failed: ${msg}`
+        : `Google Drive API error: ${msg}`,
+    };
+  }
+}
+
 // ── Drive client ──────────────────────────────────────────────────────────────
 
 /**

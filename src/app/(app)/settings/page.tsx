@@ -11,9 +11,19 @@ import {
 
 // ── Google Drive types ────────────────────────────────────────────────────────
 
+type DriveConfigStatus =
+  | 'not_configured'
+  | 'partially_configured'
+  | 'configured'
+  | 'connected'
+  | 'auth_failed';
+
 interface DriveStatus {
+  status: DriveConfigStatus;
   connected: boolean;
   configured: boolean;
+  missingVars: string[];
+  error: string | null;
   email: string | null;
   isAdminAccount: boolean;
 }
@@ -77,9 +87,12 @@ function GoogleDriveSyncCard() {
     setLoadingConn(true);
     try {
       const res = await fetch('/api/auth/google/status');
-      setStatus(res.ok ? await res.json() : { connected: false, configured: false, email: null, isAdminAccount: false });
+      setStatus(res.ok
+        ? await res.json() as DriveStatus
+        : { status: 'not_configured', connected: false, configured: false, missingVars: [], error: 'Failed to load status', email: null, isAdminAccount: false },
+      );
     } catch {
-      setStatus({ connected: false, configured: false, email: null, isAdminAccount: false });
+      setStatus({ status: 'not_configured', connected: false, configured: false, missingVars: [], error: 'Network error', email: null, isAdminAccount: false });
     } finally {
       setLoadingConn(false);
     }
@@ -176,25 +189,52 @@ function GoogleDriveSyncCard() {
             {status?.connected
               ? <CheckCircle size={17} style={{ color: '#16a34a' }} className="shrink-0 mt-0.5" />
               : <CloudOff    size={17} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {status?.connected ? 'Connected' : 'Disconnected'}
+                  {status?.connected ? 'Connected' : (
+                    status?.status === 'auth_failed'         ? 'Auth failed' :
+                    status?.status === 'configured'          ? 'API error' :
+                    status?.status === 'partially_configured'? 'Partially configured' :
+                    'Disconnected'
+                  )}
                 </p>
-                <StatusBadge ok={!!status?.connected} label={status?.connected ? 'OAuth OK' : 'Not configured'} />
+                <StatusBadge
+                  ok={!!status?.connected}
+                  label={
+                    status?.connected                          ? 'OAuth OK' :
+                    status?.status === 'auth_failed'           ? 'Auth failed' :
+                    status?.status === 'configured'            ? 'API error' :
+                    status?.status === 'partially_configured'  ? 'Partial config' :
+                    'Not configured'
+                  }
+                />
               </div>
               {status?.email && (
                 <p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{status.email}</p>
               )}
-              {!status?.connected && (
-                <p className="text-xs mt-1" style={{ color: '#ef4444' }}>
-                  Set <code className="px-1 rounded" style={{ background: 'rgba(239,68,68,0.12)', fontFamily: 'monospace' }}>GOOGLE_OAUTH_CLIENT_ID</code>
-                  {', '}
-                  <code className="px-1 rounded" style={{ background: 'rgba(239,68,68,0.12)', fontFamily: 'monospace' }}>GOOGLE_OAUTH_CLIENT_SECRET</code>
-                  {', and '}
-                  <code className="px-1 rounded" style={{ background: 'rgba(239,68,68,0.12)', fontFamily: 'monospace' }}>GOOGLE_OAUTH_REFRESH_TOKEN</code>
-                  {' '}in your environment.
-                </p>
+              {/* Auth/API error detail */}
+              {(status?.status === 'auth_failed' || status?.status === 'configured') && status?.error && (
+                <p className="text-xs mt-1 break-words" style={{ color: '#ef4444' }}>{status.error}</p>
+              )}
+              {/* Missing env vars */}
+              {!status?.connected && (status?.missingVars?.length ?? 0) > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-xs" style={{ color: '#ef4444' }}>
+                    {status!.missingVars.length === 3 ? 'Missing required environment variables:' : 'Missing environment variable(s):'}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {status!.missingVars.map(v => (
+                      <code
+                        key={v}
+                        className="px-1 rounded text-xs"
+                        style={{ background: 'rgba(239,68,68,0.12)', fontFamily: 'monospace', color: '#ef4444' }}
+                      >
+                        {v}
+                      </code>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -331,10 +371,18 @@ function GoogleDriveSyncCard() {
         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       >
         <p className="font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Diagnostics</p>
-        <DiagRow label="OAuth configured"  value={status?.configured ? 'Yes' : 'No'}   ok={!!status?.configured} />
-        <DiagRow label="Connected account" value={status?.email ?? '—'}               ok={!!status?.email} />
-        <DiagRow label="Upload enabled"    value={status?.configured ? 'Yes' : 'No'}   ok={!!status?.configured} />
-        <DiagRow label="Root folder ID"    value="(set GOOGLE_DRIVE_FOLDER_ID on server)" />
+        <DiagRow label="Config status"     value={status?.status ?? '—'}                             ok={status?.status === 'connected'} />
+        <DiagRow label="OAuth configured"  value={status?.configured ? 'Yes' : 'No'}                ok={!!status?.configured} />
+        <DiagRow label="Connected account" value={status?.email ?? '—'}                             ok={!!status?.email} />
+        <DiagRow label="Upload enabled"    value={status?.configured ? 'Yes' : 'No'}                 ok={!!status?.configured} />
+        <DiagRow label="Root folder ID"    value={status?.configured ? '(set in env)' : 'Not set'} ok={!!status?.configured} />
+        {(status?.missingVars?.length ?? 0) > 0 && (
+          <DiagRow
+            label="Missing vars"
+            value={status!.missingVars.join(', ')}
+            ok={false}
+          />
+        )}
       </section>
     </div>
   );
