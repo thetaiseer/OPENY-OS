@@ -107,13 +107,13 @@ export interface Task {
   client_id?: string;
   /** @deprecated joined from clients table; use client.name instead */
   client_name?: string | null;
-  /** @deprecated use assignee_id (UUID FK to profiles) */
+  /** @deprecated use assignee_id (UUID FK to auth user) */
   assigned_to?: string;
-  /** UUID FK to profiles — canonical assignee reference */
+  /** UUID FK to auth user — canonical assignee reference */
   assignee_id?: string | null;
-  /** @deprecated use created_by_id (UUID FK to profiles) */
+  /** @deprecated use created_by_id (UUID FK to auth user) */
   created_by?: string;
-  /** UUID FK to profiles — canonical creator reference */
+  /** UUID FK to auth user — canonical creator reference */
   created_by_id?: string | null;
   /** FK to content_items */
   content_item_id?: string | null;
@@ -161,7 +161,7 @@ export interface ContentItem {
   task_id?: string | null;
   /** FK to approvals */
   approval_id?: string | null;
-  /** UUID FK to profiles */
+  /** UUID FK to auth user (creator) */
   created_by?: string | null;
   client?: Client;
   created_at: string;
@@ -232,7 +232,7 @@ export interface Approval {
   content_item_id?: string | null;
   /** FK to assets */
   asset_id?: string | null;
-  /** UUID FK to profiles (the reviewer) */
+  /** UUID FK to auth user (the reviewer) */
   reviewer_id?: string | null;
   notes?: string | null;
   approved_at?: string | null;
@@ -251,9 +251,9 @@ export interface Activity {
   id: string;
   type: string;
   description: string;
-  /** @deprecated use user_uuid (UUID FK to profiles) */
+  /** @deprecated use user_uuid (UUID FK to auth user) */
   user_id?: string;
-  /** UUID FK to profiles */
+  /** UUID FK to auth user */
   user_uuid?: string | null;
   client_id?: string;
   /** The type of entity this activity relates to (task, asset, approval, etc.) */
@@ -372,12 +372,12 @@ export interface PublishingSchedule {
   notes?: string | null;
   status: PublishingStatus;
   assigned_to?: string | null;
-  /** @deprecated joined from profiles; use assigned_to UUID */
+  /** @deprecated joined from team_members; use assigned_to UUID */
   assignee_name?: string | null;
   reminder_minutes?: number | null;
   task_id?: string | null;
   created_by?: string | null;
-  /** @deprecated joined from profiles */
+  /** @deprecated joined from team_members */
   created_by_name?: string | null;
   /** Timestamp when this schedule was actually published */
   published_at?: string | null;

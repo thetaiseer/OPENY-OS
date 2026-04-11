@@ -341,19 +341,20 @@ export async function POST(request: NextRequest) {
     void (async () => {
       let assigneeEmail = '';
       try {
-        const { data: profile } = await db
-          .from('profiles')
-          .select('email, name')
-          .eq('id', assignedTo)
-          .single();
-        if (profile?.email) {
-          assigneeEmail = profile.email;
+        const { data: member } = await db
+          .from('team_members')
+          .select('email, full_name')
+          .eq('profile_id', assignedTo)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (member?.email) {
+          assigneeEmail = member.email;
           const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
           await sendEmail({
-            to: profile.email,
+            to: member.email,
             subject: `New Task: ${title}`,
             html: taskAssignedEmail({
-              recipientName: profile.name ?? profile.email,
+              recipientName: member.full_name ?? member.email,
               taskTitle:     title,
               clientName:    data.client_name || clientName || undefined,
               dueDate:       dueDate || undefined,
@@ -364,7 +365,6 @@ export async function POST(request: NextRequest) {
         }
       } catch (emailErr) {
         console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        // Only log failed email if we have a valid email address to log against
         if (assigneeEmail) {
           void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
         }

@@ -98,14 +98,6 @@ export async function PATCH(
     }
 
     updates.permission_role = newRole;
-
-    // Keep profiles.role in sync when the linked profile exists
-    if (targetMember.profile_id) {
-      await db
-        .from('profiles')
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .eq('id', targetMember.profile_id);
-    }
   }
 
   updates.updated_at = new Date().toISOString();
