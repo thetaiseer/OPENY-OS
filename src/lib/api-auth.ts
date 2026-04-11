@@ -4,6 +4,8 @@
  * Helpers for enforcing authentication and role-based access control in
  * Next.js Route Handlers (API routes).
  *
+ * Role resolution uses public.team_members (matched by email).
+ *
  * Usage:
  *   const result = await getApiUser(request);
  *   if (!result) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,25 +23,13 @@ const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Admin email: a profile row created via the fallback path receives 'admin'
-// role if the auth user's email matches this value.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? process.env.GOOGLE_ADMIN_EMAIL ?? '').toLowerCase();
-
 // Owner email always resolves to 'owner' role — the workspace owner.
 const OWNER_EMAIL = 'thetaiseer@gmail.com';
 
 // ── Profile cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache that avoids a redundant Supabase round-trip on
 // every API call.  The JWT is still validated on every request via getUser();
-// only the secondary profile table lookup is cached.
-//
-// Limitations:
-//  • In serverless/edge environments (Vercel) each worker is a separate Node.js
-//    process so the cache is per-worker, not global.  Warm workers benefit from
-//    the cache; cold starts do not.  In the worst case this is a no-op.
-//  • To prevent unbounded growth in long-running servers the cache is capped at
-//    MAX_PROFILE_CACHE_SIZE entries.  LRU eviction is approximated by deleting
-//    the oldest entry when the cap is reached.
+// only the secondary team_members lookup is cached.
 // TTL: 60 s — role changes take effect within one minute.
 
 const PROFILE_CACHE_TTL_MS  = 60_000;
@@ -53,7 +43,6 @@ interface CachedProfile {
 const profileCache = new Map<string, CachedProfile>();
 
 function setCachedProfile(userId: string, profile: UserProfile): void {
-  // Evict expired entries first; if still at cap, remove the oldest.
   const now = Date.now();
   for (const [key, entry] of profileCache) {
     if (entry.expiresAt <= now) profileCache.delete(key);
@@ -74,7 +63,7 @@ export interface UserProfile {
 
 /**
  * Reads the session from the request cookies, validates it with Supabase,
- * and fetches the caller's profile row (role) from `public.profiles`.
+ * and resolves the caller's role from public.team_members (matched by email).
  *
  * Returns null if the caller is not authenticated.
  */
@@ -107,16 +96,27 @@ export async function getApiUser(
     return null;
   }
 
-  // ── Profile lookup (with short-lived cache) ───────────────────────────────
+  const email = user.email ?? '';
 
-  // Return cached profile if still fresh — saves one Supabase round-trip per
-  // request.  The JWT validation above already ran so the identity is verified.
+  // ── Cached result ─────────────────────────────────────────────────────────
   const cached = profileCache.get(user.id);
   if (cached && Date.now() < cached.expiresAt) {
     return { profile: cached.profile };
   }
 
-  // 3. Fetch the role from public.profiles using the service-role key so that
+  // ── Owner shortcut ────────────────────────────────────────────────────────
+  if (email.toLowerCase() === OWNER_EMAIL) {
+    const ownerProfile: UserProfile = {
+      id:    user.id,
+      name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
+      email,
+      role:  'owner',
+    };
+    setCachedProfile(user.id, ownerProfile);
+    return { profile: ownerProfile };
+  }
+
+  // 3. Fetch role from public.team_members using the service-role key so that
   //    Row Level Security does not block the read.
   if (!supabaseServiceRoleKey) {
     console.error('[api-auth] SUPABASE_SERVICE_ROLE_KEY is not set — cannot verify role');
@@ -125,67 +125,28 @@ export async function getApiUser(
 
   const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
 
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('id, name, email, role')
-    .eq('id', user.id)
-    .single();
+  const { data: member, error: memberError } = await admin
+    .from('team_members')
+    .select('id, full_name, email, role')
+    .eq('email', email)
+    .maybeSingle();
 
-  console.log('[api-auth] profile fetch — row:', profile ? `id=${profile.id} role=${profile.role}` : 'null', '| error:', profileError ? `${profileError.code}: ${profileError.message}` : 'none');
-
-  if (profileError || !profile) {
-    // Profile row missing — auto-create it with appropriate role.
-    // Use INSERT ... on conflict do nothing to avoid overwriting an existing
-    // row whose role may have been set by an admin after the initial sign-up.
-    const email = user.email ?? '';
-    const lowerEmail = email.toLowerCase();
-    const autoRole: UserRole =
-      lowerEmail === OWNER_EMAIL
-        ? 'owner'
-        : (ADMIN_EMAIL && lowerEmail === ADMIN_EMAIL ? 'admin' : 'team');
-    const fallback: UserProfile = {
-      id:    user.id,
-      name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
-      email,
-      role:  autoRole,
-    };
-
-    console.warn('[api-auth] Profile row not found for user', user.id, '| email:', email, '| inserting fallback with role:', autoRole);
-
-    // INSERT only — never update if the row already exists.
-    const { error: insertError } = await admin.from('profiles').insert({
-      id:    fallback.id,
-      name:  fallback.name,
-      email: fallback.email,
-      role:  fallback.role,
-    });
-
-    if (insertError && insertError.code !== '23505') {
-      // 23505 = unique_violation — row was inserted by a concurrent request; safe to ignore.
-      console.error('[api-auth] Failed to insert fallback profile:', insertError.message);
-    }
-
-    // Cache the fallback profile too.
-    setCachedProfile(fallback.id, fallback);
-    return { profile: fallback };
-  }
+  console.log('[api-auth] team_members fetch — row:', member ? `email=${member.email} role=${member.role}` : 'null', '| error:', memberError ? `${memberError.code}: ${memberError.message}` : 'none');
 
   const resolved: UserProfile = {
-    id:    profile.id,
-    name:  profile.name,
-    email: profile.email,
-    // thetaiseer@gmail.com is always the workspace owner regardless of what
-    // the profiles row says.
-    role:  profile.email?.toLowerCase() === OWNER_EMAIL
-      ? 'owner'
-      : (profile.role as UserRole),
+    id:    user.id,
+    name:  member?.full_name ?? user.user_metadata?.name ?? email.split('@')[0] ?? '',
+    email,
+    role:  member ? (member.role as UserRole) || 'team' : 'team',
   };
+
+  if (!member) {
+    console.warn('[api-auth] No team_member row found for email:', email, '— defaulting to team role');
+  }
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
 
-  // Populate cache for subsequent requests from the same user.
   setCachedProfile(resolved.id, resolved);
-
   return { profile: resolved };
 }
 

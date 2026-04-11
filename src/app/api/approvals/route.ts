@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       .select(`
         *,
         client:clients(id, name),
-        reviewer:profiles(id, name, email, avatar),
+        reviewer:team_members(id, full_name, email, avatar),
         task:tasks(id, title),
         asset:assets(id, name),
         content_item:content_items(id, title)
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await db
       .from('approvals')
       .insert(insertPayload)
-      .select('*, client:clients(id,name), reviewer:profiles(id,name,email,avatar)')
+      .select('*, client:clients(id,name), reviewer:team_members(id,full_name,email,avatar)')
       .single();
 
     if (error) {
