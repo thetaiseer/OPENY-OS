@@ -268,7 +268,7 @@ export default function UploadModal({
                 Upload {files.length === 1 ? 'File' : `${files.length} Files`}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Review details before uploading to Google Drive
+                Review details before uploading
               </p>
             </div>
             <button

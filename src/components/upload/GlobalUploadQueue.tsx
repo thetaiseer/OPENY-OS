@@ -11,7 +11,7 @@
  *     Saving to system / Completed / Uploaded, but not saved in system / Failed)
  *   - progress bar while active
  *   - retry button   — only if status === 'failed' (true upload failure)
- *   - reconcile button — only if status === 'failed_db' (Drive OK, DB save failed)
+ *   - reconcile button — only if status === 'failed_db' (Storage OK, DB save failed)
  *   - remove button  — always, disabled while actively uploading
  *   - expandable details section with exact technical error
  *

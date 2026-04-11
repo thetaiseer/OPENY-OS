@@ -161,8 +161,19 @@ export async function POST(req: NextRequest) {
     return validationError('monthKey must be in YYYY-MM format');
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabase    = getSupabase();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+
+  let supabase: ReturnType<typeof getSupabase>;
+  try {
+    supabase = getSupabase();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Supabase configuration error';
+    console.error('[upload] Supabase client initialisation failed:', msg);
+    return NextResponse.json(
+      { success: false, stage: 'failed_upload', error: { step: 'config', message: msg } },
+      { status: 500 },
+    );
+  }
 
   let storagePath:  string;
   let bucketName:   string;
