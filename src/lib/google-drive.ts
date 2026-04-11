@@ -140,14 +140,22 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
   const json = await res.json() as Record<string, unknown>;
 
   if (typeof json.error === 'string') {
-    throw new Error(`Google token error: ${json.error} — ${json.error_description ?? ''}`);
+    throw new Error(`Google token error: ${json.error} — ${typeof json.error_description === 'string' ? json.error_description : ''}`);
   }
 
   if (typeof json.access_token !== 'string') {
     throw new Error('Google token response missing access_token');
   }
 
-  return json as unknown as GoogleTokenResponse;
+  // Build a validated, strongly-typed return value
+  const tokens: GoogleTokenResponse = {
+    access_token:  json.access_token,
+    token_type:    typeof json.token_type    === 'string' ? json.token_type    : 'Bearer',
+    expires_in:    typeof json.expires_in    === 'number' ? json.expires_in    : 3600,
+    scope:         typeof json.scope         === 'string' ? json.scope         : '',
+    refresh_token: typeof json.refresh_token === 'string' ? json.refresh_token : undefined,
+  };
+  return tokens;
 }
 
 // ── Config validation ─────────────────────────────────────────────────────────

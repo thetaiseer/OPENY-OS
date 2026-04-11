@@ -331,7 +331,8 @@ function GoogleDriveSyncCard() {
           style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', color: '#16a34a' }}
         >
           <CheckCircle size={16} className="shrink-0 mt-0.5" />
-          Google Drive connected successfully.
+          <span className="flex-1">Google Drive connected successfully.</span>
+          <button onClick={() => setGoogleParam(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Dismiss">✕</button>
         </div>
       )}
       {googleParam === 'error' && (
@@ -340,7 +341,8 @@ function GoogleDriveSyncCard() {
           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}
         >
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          Google Drive connection failed. Please try again or check your configuration.
+          <span className="flex-1">Google Drive connection failed. Please try again or check your configuration.</span>
+          <button onClick={() => setGoogleParam(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Dismiss">✕</button>
         </div>
       )}
 

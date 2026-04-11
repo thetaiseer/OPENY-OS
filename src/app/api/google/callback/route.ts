@@ -44,12 +44,10 @@ export async function GET(req: NextRequest) {
     const tokens = await exchangeCodeForTokens(code);
     console.log(
       '[google/callback] Token exchange successful.',
-      'access_token:', !!tokens.access_token,
-      'refresh_token:', !!tokens.refresh_token,
-      'expires_in:', tokens.expires_in,
+      'has_refresh_token:', !!tokens.refresh_token,
     );
     // TODO: Persist tokens.refresh_token securely (e.g. encrypted DB or env var update)
-    // For now, log is the integration point — teams can store or rotate via Vercel env update.
+    // For now, the token is available here and can be stored by extending this handler.
     return NextResponse.redirect(`${settingsBase}?google=connected`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
