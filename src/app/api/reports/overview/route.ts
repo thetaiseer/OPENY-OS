@@ -48,14 +48,14 @@ export async function GET(req: NextRequest) {
   try {
     const db = getSupabase();
 
-    const [clientsResult, tasksResult, assetsResult, schedulesResult, approvalsResult, teamMembersResult] =
+    const [clientsResult, tasksResult, assetsResult, schedulesResult, approvalsResult, profilesResult] =
       await Promise.allSettled([
         db.from('clients').select('id, name'),
         db.from('tasks').select('id, status, priority, due_date, client_id, assignee_id, created_at'),
         db.from('assets').select('id, client_id, content_type, created_at'),
         db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
         db.from('approvals').select('id, status, client_id, created_at, approved_at, rejected_at'),
-        db.from('team_members').select('id, full_name, email, permission_role, status, profile_id').eq('status', 'active'),
+        db.from('profiles').select('id, name, role'),
       ]);
 
     const clients   = clientsResult.status   === 'fulfilled' ? (clientsResult.value.data   ?? []) : [];
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const assets    = assetsResult.status    === 'fulfilled' ? (assetsResult.value.data    ?? []) : [];
     const schedules = schedulesResult.status === 'fulfilled' ? (schedulesResult.value.data ?? []) : [];
     const approvals = approvalsResult.status === 'fulfilled' ? (approvalsResult.value.data ?? []) : [];
-    const teamMembers = teamMembersResult.status === 'fulfilled' ? (teamMembersResult.value.data ?? []) : [];
+    const profiles  = profilesResult.status  === 'fulfilled' ? (profilesResult.value.data  ?? []) : [];
 
     const today = new Date().toISOString().slice(0, 10);
     const completedStatuses = new Set(['done', 'delivered', 'completed', 'published']);
@@ -105,15 +105,15 @@ export async function GET(req: NextRequest) {
 
     // ── Team stats ────────────────────────────────────────────────────────────
 
-    const teamStats = teamMembers
-      .filter((member: Record<string, string>) => member.permission_role !== 'viewer')
-      .map((member: Record<string, string>) => {
-        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === member.profile_id);
+    const teamStats = profiles
+      .filter((p: Record<string, string>) => p.role !== 'client')
+      .map((p: Record<string, string>) => {
+        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === p.id);
         const completed = assigned.filter((t: Record<string, string>) => completedStatuses.has(t.status));
         const overdue = assigned.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status));
         return {
-          id: member.id,
-          name: member.full_name,
+          id: p.id,
+          name: p.name,
           completedTasks: completed.length,
           totalAssigned: assigned.length,
           completionRate: assigned.length > 0 ? Math.round((completed.length / assigned.length) * 100) : 0,

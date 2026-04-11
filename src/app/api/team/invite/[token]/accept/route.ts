@@ -4,8 +4,9 @@
  * Accepts a team invitation:
  *   1. Validates token
  *   2. Creates Supabase auth user with the given password
- *   3. Activates team_member row with the assigned permission_role
- *   4. Marks invitation as accepted
+ *   3. Creates profile record with the assigned role
+ *   4. Marks team_member as active
+ *   5. Marks invitation as accepted
  *
  * Public route — no auth required.
  *
@@ -14,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { PG_UNIQUE_VIOLATION } from '@/lib/constants/postgres-errors';
 
 export async function POST(
   request: NextRequest,
@@ -99,27 +101,36 @@ export async function POST(
 
   const authUserId = authData.user.id;
 
-  // Resolve permission_role from the linked team_member row.
-  const memberDataForRole = Array.isArray(invitation.team_member)
-    ? invitation.team_member[0]
-    : invitation.team_member;
-  const invitationPermissionRole =
-    (memberDataForRole as { permission_role?: string } | null)?.permission_role ?? 'member';
+  // ── 3. Create profile record ─────────────────────────────────────────────
+  // Map invitation role to a UserRole (admin/manager/team/client)
+  const roleMap: Record<string, string> = {
+    admin:   'admin',
+    manager: 'manager',
+    team:    'team',
+    client:  'client',
+  };
+  const profileRole = roleMap[invitationRole.toLowerCase()] ?? 'team';
 
-  const allowedRoles = ['owner', 'admin', 'member', 'viewer'];
-  const permissionRole = allowedRoles.includes(invitationPermissionRole)
-    ? invitationPermissionRole
-    : 'member';
+  const { error: profileError } = await db.from('profiles').insert({
+    id:    authUserId,
+    name:  finalName,
+    email: invitation.email,
+    role:  profileRole,
+  });
 
-  // ── 3. Activate team member ──────────────────────────────────────────────
+  if (profileError && profileError.code !== PG_UNIQUE_VIOLATION) {
+    // Roll back auth user creation
+    await db.auth.admin.deleteUser(authUserId);
+    return NextResponse.json(
+      { error: `Failed to create profile: ${profileError.message}` },
+      { status: 500 },
+    );
+  }
+
+  // ── 4. Activate team member ──────────────────────────────────────────────
   await db
     .from('team_members')
-    .update({
-      status:          'active',
-      profile_id:      authUserId,
-      permission_role: permissionRole,
-      updated_at:      new Date().toISOString(),
-    })
+    .update({ status: 'active', profile_id: authUserId, updated_at: new Date().toISOString() })
     .eq('id', invitation.team_member_id);
 
   // ── 5. Mark invitation accepted ──────────────────────────────────────────

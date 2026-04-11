@@ -11,15 +11,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
-import { canAssignRole, isValidPermissionRole } from '@/lib/rbac';
-import type { UserRole } from '@/lib/auth-context';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 
 const INVITE_EXPIRY_DAYS = 7;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['owner', 'admin']);
+  const auth = await requireRole(request, ['admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
@@ -28,36 +26,12 @@ export async function POST(request: NextRequest) {
   }
 
   // body.name is accepted as a fallback for older clients; prefer body.full_name
-  const full_name      = (body.full_name ?? body.name ?? '').trim();
-  const email          = (body.email ?? '').trim().toLowerCase();
-  const job_title      = (body.job_title ?? (() => {
-    if (body.role) console.warn('[team/invite] Deprecated: body.role used as job_title — update client to send body.job_title');
-    return body.role;
-  })() ?? '').trim();  // job title (e.g., "Graphic Designer")
-  const permission_role = (body.permission_role ?? 'member').trim();  // RBAC role (admin|manager|member|viewer)
+  const full_name = (body.full_name ?? body.name ?? '').trim();
+  const email = (body.email ?? '').trim().toLowerCase();
+  const role  = (body.role  ?? '').trim();
 
-  if (!full_name || !email) {
-    return NextResponse.json({ error: 'full_name and email are required' }, { status: 400 });
-  }
-
-  if (!job_title) {
-    return NextResponse.json({ error: 'job_title is required' }, { status: 400 });
-  }
-
-  // Validate RBAC permission role — never trust value from frontend blindly.
-  if (!isValidPermissionRole(permission_role)) {
-    return NextResponse.json(
-      { error: `Invalid permission_role "${permission_role}". Must be one of: admin, manager, member, viewer` },
-      { status: 400 },
-    );
-  }
-
-  // Callers can only invite users to roles they are allowed to assign.
-  if (!canAssignRole(auth.profile.role, permission_role as UserRole)) {
-    return NextResponse.json(
-      { error: `Forbidden — your role cannot invite someone as "${permission_role}"` },
-      { status: 403 },
-    );
+  if (!full_name || !email || !role) {
+    return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 });
   }
 
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -110,7 +84,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, job_title, permission_role, status: 'invited' })
+    .insert({ full_name, email, role, status: 'invited' })
     .select()
     .single();
 
@@ -122,7 +96,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_members row:', { id: member.id, email, job_title, permission_role, status: 'invited' });
+  console.log('[team/invite] Created team_members row:', { id: member.id, email, role, status: 'invited' });
 
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
@@ -135,8 +109,6 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
-      job_title,
-      permission_role,
       token,
       status:     'pending',
       invited_by: auth.profile.id,
@@ -166,7 +138,7 @@ export async function POST(request: NextRequest) {
     recipientName:  full_name,
     inviterName:    auth.profile.name,
     workspaceName:  'OPENY OS',
-    role:           `${job_title} (${permission_role})`,
+    role,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,
   });
@@ -213,7 +185,7 @@ export async function POST(request: NextRequest) {
     teamMemberId: member.id,
     inviteeName:  full_name,
     inviterName:  auth.profile.name ?? null,
-    role:         job_title,
+    role,
   });
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });

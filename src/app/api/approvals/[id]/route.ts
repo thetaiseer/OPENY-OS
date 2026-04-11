@@ -45,6 +45,7 @@ export async function GET(
       .select(`
         *,
         client:clients(id, name),
+        reviewer:profiles(id, name, email, avatar),
         task:tasks(id, title),
         asset:assets(id, name),
         content_item:content_items(id, title)
@@ -131,7 +132,7 @@ export async function PATCH(
       .from('approvals')
       .update(updates)
       .eq('id', id)
-      .select('*, client:clients(id,name)')
+      .select('*, client:clients(id,name), reviewer:profiles(id,name,email,avatar)')
       .single();
 
     if (updateErr || !updated) {

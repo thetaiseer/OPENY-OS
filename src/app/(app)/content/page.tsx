@@ -310,7 +310,7 @@ export default function ContentPage() {
             Manage your content pipeline from draft to published
           </p>
         </div>
-        {(role === 'owner' || role === 'admin' || role === 'member') && (
+        {(role === 'admin' || role === 'manager' || role === 'team') && (
           <button
             onClick={() => setNewOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"

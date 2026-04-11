@@ -640,7 +640,7 @@ export default function TasksPage() {
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
-  const canManageTasks = role === 'owner' || role === 'admin' || role === 'member';
+  const canManageTasks = role === 'admin' || role === 'manager' || role === 'team';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);

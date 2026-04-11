@@ -8,22 +8,21 @@ import {
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
-import { canManageMembers, canAccessAdminPages } from '@/lib/rbac';
 import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard',  adminOnly: false },
-  { href: '/my-tasks',  icon: UserCheck,       key: 'myTasks',    adminOnly: false },
-  { href: '/clients',   icon: Users2,          key: 'clients',    adminOnly: false },
-  { href: '/tasks',     icon: CheckSquare,     key: 'tasks',      adminOnly: false },
-  { href: '/content',   icon: FileText,        key: 'content',    adminOnly: false },
-  { href: '/calendar',  icon: CalendarDays,    key: 'calendar',   adminOnly: false },
-  { href: '/assets',    icon: FolderOpen,      key: 'assets',     adminOnly: false },
-  { href: '/reports',   icon: BarChart2,       key: 'reports',    adminOnly: false },
-  { href: '/team',      icon: Users,           key: 'team',       adminOnly: true  },
-  { href: '/security',  icon: Shield,          key: 'security',   adminOnly: true  },
-  { href: '/settings',  icon: Settings,        key: 'settings',   adminOnly: true  },
+  { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
+  { href: '/my-tasks',  icon: UserCheck,       key: 'myTasks'   },
+  { href: '/clients',   icon: Users2,          key: 'clients'   },
+  { href: '/tasks',     icon: CheckSquare,     key: 'tasks'     },
+  { href: '/content',   icon: FileText,        key: 'content'   },
+  { href: '/calendar',  icon: CalendarDays,    key: 'calendar'  },
+  { href: '/assets',    icon: FolderOpen,      key: 'assets'    },
+  { href: '/reports',   icon: BarChart2,       key: 'reports'   },
+  { href: '/team',      icon: Users,           key: 'team'      },
+  { href: '/security',  icon: Shield,          key: 'security'  },
+  { href: '/settings',  icon: Settings,        key: 'settings'  },
 ];
 
 interface SidebarProps { open?: boolean; onClose?: () => void; }
@@ -31,8 +30,7 @@ interface SidebarProps { open?: boolean; onClose?: () => void; }
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLang();
-  const { user, role } = useAuth();
-  const isAdminOrOwner = canManageMembers(role) || canAccessAdminPages(role);
+  const { user } = useAuth();
 
   return (
     <>
@@ -68,9 +66,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, icon: Icon, key, adminOnly }) => {
-            // Hide admin-only items from member/viewer
-            if (adminOnly && !isAdminOrOwner) return null;
+          {navItems.map(({ href, icon: Icon, key }) => {
             const active =
               pathname === href ||
               (href !== '/dashboard' && pathname.startsWith(href));

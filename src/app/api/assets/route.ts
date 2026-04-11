@@ -36,9 +36,10 @@ export async function GET(req: NextRequest) {
     const from = page * PAGE_SIZE;
     const to   = from + PAGE_SIZE - 1;
 
-    // Viewer role: return an empty list to avoid exposing all assets until
-    // RLS policies are tightened.
-    if (profile.role === 'viewer') {
+    // Client role: profiles no longer carry client_id, so we cannot scope
+    // results to a specific client — return an empty list to avoid exposing
+    // all assets until RLS policies are tightened.
+    if (profile.role === 'client') {
       return NextResponse.json({ success: true, assets: [], page, hasMore: false });
     }
 

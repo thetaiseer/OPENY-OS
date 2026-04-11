@@ -43,29 +43,7 @@ interface TaskRow {
   assignee_id: string | null;
   client_id: string | null;
   status: string;
-}
-
-interface AssigneeInfo {
-  name: string | null;
-  email: string;
-}
-
-async function resolveAssignees(
-  db: ReturnType<typeof getDb>,
-  assigneeIds: string[],
-): Promise<Record<string, AssigneeInfo>> {
-  if (assigneeIds.length === 0) return {};
-  const { data: members } = await db
-    .from('team_members')
-    .select('profile_id, full_name, email')
-    .in('profile_id', assigneeIds);
-  const map: Record<string, AssigneeInfo> = {};
-  for (const m of members ?? []) {
-    if (m.profile_id && m.email) {
-      map[m.profile_id as string] = { name: (m.full_name as string | null), email: m.email as string };
-    }
-  }
-  return map;
+  assignee?: { id: string; name: string | null; email: string }[] | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -86,17 +64,13 @@ export async function GET(req: NextRequest) {
     // ── 1. Tasks due within the next 24 hours ─────────────────────────────────
     const { data: dueSoon } = await db
       .from('tasks')
-      .select('id, title, due_date, assignee_id, client_id, status')
+      .select('id, title, due_date, assignee_id, client_id, status, assignee:profiles!tasks_assignee_id_fkey(id,name,email)')
       .gt('due_date',  now.toISOString())
       .lte('due_date', in24h.toISOString())
       .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
       .limit(100);
 
-    const dueSoonTasks = (dueSoon ?? []) as TaskRow[];
-    const dueSoonAssigneeIds = [...new Set(dueSoonTasks.map(t => t.assignee_id).filter(Boolean) as string[])];
-    const dueSoonAssigneeMap = await resolveAssignees(db, dueSoonAssigneeIds);
-
-    for (const task of dueSoonTasks) {
+    for (const task of (dueSoon ?? []) as TaskRow[]) {
       try {
         const daysLeft = Math.max(1, Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / MS_PER_DAY));
         await createNotification({
@@ -114,7 +88,7 @@ export async function GET(req: NextRequest) {
         dueSoonCount++;
 
         // Send email to assignee
-        const assignee = task.assignee_id ? dueSoonAssigneeMap[task.assignee_id] : null;
+        const assignee = task.assignee?.[0] ?? null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
@@ -141,16 +115,12 @@ export async function GET(req: NextRequest) {
     // ── 2. Overdue tasks ──────────────────────────────────────────────────────
     const { data: overdue } = await db
       .from('tasks')
-      .select('id, title, due_date, assignee_id, client_id, status')
+      .select('id, title, due_date, assignee_id, client_id, status, assignee:profiles!tasks_assignee_id_fkey(id,name,email)')
       .lt('due_date', now.toISOString())
       .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
       .limit(100);
 
-    const overdueTasks = (overdue ?? []) as TaskRow[];
-    const overdueAssigneeIds = [...new Set(overdueTasks.map(t => t.assignee_id).filter(Boolean) as string[])];
-    const overdueAssigneeMap = await resolveAssignees(db, overdueAssigneeIds);
-
-    for (const task of overdueTasks) {
+    for (const task of (overdue ?? []) as TaskRow[]) {
       try {
         await createNotification({
           title:       'Task Overdue',
@@ -167,7 +137,7 @@ export async function GET(req: NextRequest) {
         overdueCount++;
 
         // Send overdue email to assignee
-        const assignee = task.assignee_id ? overdueAssigneeMap[task.assignee_id] : null;
+        const assignee = task.assignee?.[0] ?? null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({

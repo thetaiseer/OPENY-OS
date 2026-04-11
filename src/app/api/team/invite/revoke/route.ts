@@ -12,7 +12,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['owner', 'admin']);
+  const auth = await requireRole(request, ['admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
