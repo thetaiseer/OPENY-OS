@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         db.from('assets').select('id, client_id, content_type, created_at'),
         db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
         db.from('approvals').select('id, status, client_id, created_at, approved_at, rejected_at'),
-        db.from('team_members').select('id, full_name, role').neq('status', 'invited'),
+        db.from('team_members').select('id, full_name, role, profile_id').neq('status', 'invited'),
       ]);
 
     const clients   = clientsResult.status   === 'fulfilled' ? (clientsResult.value.data   ?? []) : [];
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     const teamStats = members
       .filter((m: Record<string, string>) => m.role !== 'client')
       .map((m: Record<string, string>) => {
-        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === m.id);
+        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === m.profile_id);
         const completed = assigned.filter((t: Record<string, string>) => completedStatuses.has(t.status));
         const overdue = assigned.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status));
         return {

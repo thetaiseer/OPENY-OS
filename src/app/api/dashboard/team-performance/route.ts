@@ -42,10 +42,10 @@ export async function GET(req: NextRequest) {
     if (ids.length) {
       const { data: members } = await sb
         .from('team_members')
-        .select('id, full_name')
-        .in('id', ids);
+        .select('profile_id, full_name')
+        .in('profile_id', ids);
       for (const m of members ?? []) {
-        nameMap[m.id as string] = m.full_name as string;
+        if (m.profile_id) nameMap[m.profile_id as string] = m.full_name as string;
       }
     }
 
