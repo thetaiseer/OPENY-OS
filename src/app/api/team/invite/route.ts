@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'full_name, email, and access_role are required' }, { status: 400 });
   }
 
-  // Validate access_role strictly
+  // Validate access_role strictly.
+  // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
   const VALID_ACCESS_ROLES = ['admin', 'manager', 'team', 'viewer'];
   if (!VALID_ACCESS_ROLES.includes(access_role)) {
     return NextResponse.json(

@@ -17,7 +17,20 @@ import type { TeamMember, TeamInvitation } from '@/lib/types';
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
+// ── System access roles ───────────────────────────────────────────────────────
+// These are the valid values for team_members.role (access control).
+// 'owner' is intentionally excluded — ownership cannot be granted via invitation.
+const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team', 'viewer', 'client'] as const;
+
+const ACCESS_ROLE_OPTIONS = [
+  { value: 'admin',   label: 'Admin — full access' },
+  { value: 'manager', label: 'Manager — manage tasks & team' },
+  { value: 'team',    label: 'Team Member — standard access' },
+  { value: 'viewer',  label: 'Viewer — read-only access' },
+];
+
 // ── Marketing roles list (job titles) ────────────────────────────────────────
+// Stored in team_members.job_title — separate from the access role.
 const JOB_TITLE_OPTIONS = [
   { value: 'Content Creator',           label: 'Content Creator' },
   { value: 'Social Media Manager',      label: 'Social Media Manager' },
@@ -42,13 +55,17 @@ const JOB_TITLE_OPTIONS = [
 // Keep ROLE_OPTIONS for backward compat (edit form uses it for job_title)
 const ROLE_OPTIONS = JOB_TITLE_OPTIONS;
 
-// ── System access roles ───────────────────────────────────────────────────────
-const ACCESS_ROLE_OPTIONS = [
-  { value: 'admin',   label: 'Admin — full access' },
-  { value: 'manager', label: 'Manager — manage tasks & team' },
-  { value: 'team',    label: 'Team Member — standard access' },
-  { value: 'viewer',  label: 'Viewer — read-only access' },
-];
+// Returns the job title to display on a MemberCard.
+// After the team-identity migration, job_title holds the display title.
+// For older rows that still store a job title in `role`, fall back to role.
+function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): string | null {
+  if (member.job_title) return member.job_title;
+  // If role looks like a job title (not a known access role), show it
+  if (member.role && !(ACCESS_ROLE_VALUES as readonly string[]).includes(member.role)) {
+    return member.role;
+  }
+  return null;
+}
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
 function RoleField({
@@ -578,12 +595,12 @@ function MemberCard({
             <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
             {isInvited && <InviteBadge status="invited" />}
           </div>
-          {(member.job_title || (!member.job_title && member.role && !['owner','admin','manager','team','viewer','client'].includes(member.role))) && (
+          {resolveDisplayJobTitle(member) && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Briefcase size={11} />{member.job_title ?? member.role}
+              <Briefcase size={11} />{resolveDisplayJobTitle(member)}
             </p>
           )}
-          {member.role && ['owner','admin','manager','team','viewer','client'].includes(member.role) && (
+          {member.role && (ACCESS_ROLE_VALUES as readonly string[]).includes(member.role) && (
             <span
               className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
