@@ -102,14 +102,18 @@ export async function POST(
   const authUserId = authData.user.id;
 
   // ── 3. Create profile record ─────────────────────────────────────────────
-  // Map invitation role to a UserRole (admin/manager/team/client)
-  const roleMap: Record<string, string> = {
-    admin:   'admin',
-    manager: 'manager',
-    team:    'team',
-    client:  'client',
-  };
-  const profileRole = roleMap[invitationRole.toLowerCase()] ?? 'team';
+  // Map invitation permission_role to profiles.role (they share the same values).
+  const memberDataForRole = Array.isArray(invitation.team_member)
+    ? invitation.team_member[0]
+    : invitation.team_member;
+  const invitationPermissionRole =
+    (memberDataForRole as { permission_role?: string } | null)?.permission_role ?? 'member';
+
+  // Validate and sanitise — never trust stored values blindly.
+  const allowedRoles = ['owner', 'admin', 'member', 'viewer'];
+  const profileRole = allowedRoles.includes(invitationPermissionRole)
+    ? invitationPermissionRole
+    : 'member';
 
   const { error: profileError } = await db.from('profiles').insert({
     id:    authUserId,
@@ -130,7 +134,12 @@ export async function POST(
   // ── 4. Activate team member ──────────────────────────────────────────────
   await db
     .from('team_members')
-    .update({ status: 'active', profile_id: authUserId, updated_at: new Date().toISOString() })
+    .update({
+      status:          'active',
+      profile_id:      authUserId,
+      permission_role: profileRole,
+      updated_at:      new Date().toISOString(),
+    })
     .eq('id', invitation.team_member_id);
 
   // ── 5. Mark invitation accepted ──────────────────────────────────────────

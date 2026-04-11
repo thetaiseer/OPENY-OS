@@ -5,13 +5,27 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 
-export type UserRole = 'admin' | 'manager' | 'team' | 'client';
+export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+/** Map legacy role values to the current RBAC role set. */
+export function normalizeRole(raw: string): UserRole {
+  switch (raw) {
+    case 'owner':   return 'owner';
+    case 'admin':   return 'admin';
+    case 'manager': return 'admin';
+    case 'team':    return 'member';
+    case 'member':  return 'member';
+    case 'viewer':  return 'viewer';
+    case 'client':  return 'viewer';
+    default:        return 'viewer';
+  }
+}
 
 const LOADING_USER: User = {
   id: '',
   name: '',
   email: '',
-  role: 'client',
+  role: 'viewer',
 };
 
 interface AuthContextType {
@@ -28,7 +42,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: LOADING_USER,
-  role: 'client',
+  role: 'viewer',
   clientId: null,
   loading: true,
   profileMissing: false,
@@ -76,7 +90,7 @@ async function fetchUserProfile(
   console.log('[auth] Profile query result — row:', data, '| error:', error ? `${error.code}: ${error.message}` : 'none');
 
   if (data) {
-    const resolvedRole = (data.role as UserRole) || 'client';
+    const resolvedRole = normalizeRole(data.role ?? '');
     console.log('[auth] Resolved role from database:', resolvedRole);
     return {
       profileMissing: false,
@@ -102,7 +116,7 @@ async function fetchUserProfile(
       id:    supabaseUser.id,
       name:  supabaseUser.user_metadata?.name ?? supabaseUser.email?.split('@')[0] ?? '',
       email: supabaseUser.email ?? '',
-      role:  'client',
+      role:  'viewer',
     },
   };
 }
@@ -248,7 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('[auth] Profile repair complete');
   };
 
-  const role     = (user.role as UserRole) || 'client';
+  const role     = normalizeRole(user.role ?? '') as UserRole;
   const clientId = null;
 
   return (

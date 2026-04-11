@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { canAccessAdminPages } from '@/lib/rbac';
+import AccessDenied from '@/components/ui/AccessDenied';
 import {
   Monitor, Smartphone, Tablet, Globe, Clock, Shield,
   ShieldAlert, LogOut, RefreshCw, Loader2, AlertTriangle,
@@ -193,7 +195,12 @@ function Detail({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function SecurityPage() {
-  const { signOut } = useAuth();
+  const { signOut, role, loading: authLoading } = useAuth();
+
+  // Restrict security management page to owner/admin only
+  if (!authLoading && !canAccessAdminPages(role)) {
+    return <AccessDenied message="Only owners and admins can access the Security page." />;
+  }
 
   const [sessions,       setSessions]       = useState<Session[]>([]);
   const [loading,        setLoading]        = useState(true);
