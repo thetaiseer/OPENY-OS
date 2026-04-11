@@ -9,13 +9,13 @@
  *   if (!result) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  *
  *   const { profile } = result;
- *   if (profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+ *   if (!canManageMembers(profile.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
-import type { UserRole } from './auth-context';
+import { type UserRole, normalizeRole } from './auth-context';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -135,7 +135,7 @@ export async function getApiUser(
     // Use INSERT ... on conflict do nothing to avoid overwriting an existing
     // row whose role may have been set by an admin after the initial sign-up.
     const email = user.email ?? '';
-    const autoRole: UserRole = ADMIN_EMAIL && email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'client';
+    const autoRole: UserRole = ADMIN_EMAIL && email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'viewer';
     const fallback: UserProfile = {
       id:    user.id,
       name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
@@ -163,11 +163,27 @@ export async function getApiUser(
     return { profile: fallback };
   }
 
+  // Resolve the role: prefer team_members.permission_role when the user has
+  // an active team_members row linked by profile_id (DB source of truth per RBAC v1).
+  let resolvedRole = normalizeRole(profile.role ?? '');
+
+  const { data: tmRow } = await admin
+    .from('team_members')
+    .select('permission_role')
+    .eq('profile_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (tmRow?.permission_role) {
+    resolvedRole = normalizeRole(tmRow.permission_role);
+    console.log('[api-auth] Using team_members.permission_role:', resolvedRole);
+  }
+
   const resolved: UserProfile = {
     id:    profile.id,
     name:  profile.name,
     email: profile.email,
-    role:  profile.role as UserRole,
+    role:  resolvedRole,
   };
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
@@ -182,14 +198,18 @@ export async function getApiUser(
  * Convenience helper: returns the profile if the caller has one of the
  * allowed roles, otherwise returns a 401/403 NextResponse.
  *
+ * Accepts both new role names (owner|admin|member|viewer) and legacy names
+ * (manager|team|client) — legacy names are normalised before comparison so
+ * existing route handlers continue to work without modification.
+ *
  * Usage:
- *   const result = await requireRole(request, ['admin', 'team']);
+ *   const result = await requireRole(request, ['admin', 'member']);
  *   if (result instanceof NextResponse) return result;
  *   const { profile } = result;
  */
 export async function requireRole(
   request: NextRequest,
-  allowedRoles: UserRole[],
+  allowedRoles: string[],
 ): Promise<{ profile: UserProfile } | NextResponse> {
   const auth = await getApiUser(request);
 
@@ -197,7 +217,9 @@ export async function requireRole(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!allowedRoles.includes(auth.profile.role)) {
+  // Normalise allowed roles so callers using legacy names still work.
+  const normalised = allowedRoles.map(r => normalizeRole(r));
+  if (!normalised.includes(auth.profile.role)) {
     console.warn(
       '[api-auth] requireRole denied — user:', auth.profile.email,
       '| role:', auth.profile.role,

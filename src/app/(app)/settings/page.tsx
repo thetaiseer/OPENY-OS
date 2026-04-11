@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
+import { canAccessAdminPages } from '@/lib/rbac';
+import AccessDenied from '@/components/ui/AccessDenied';
 import {
   CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2, LogOut,
   ShieldCheck, CloudOff, CloudLightning, HardDrive, RotateCcw,
@@ -357,18 +359,24 @@ function DiagRow({ label, value, ok }: { label: string; value: string; ok?: bool
 // ── Settings Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { user, role, signOut } = useAuth();
+  const { user, role, signOut, loading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
-  const isAdmin = role === 'admin';
+  // Restrict settings management to owner/admin only
+  if (!authLoading && !canAccessAdminPages(role)) {
+    return <AccessDenied message="Only owners and admins can access the Settings page." />;
+  }
+
+  const isAdmin = role === 'owner' || role === 'admin';
 
   const roleDescriptions: Record<string, string> = {
-    admin:  'Full access to all data and settings',
-    team:   'Access to assigned clients — can upload assets and create tasks',
-    client: 'Can view own assets and submit approvals',
+    owner:  'Full access to all data, settings, and user management',
+    admin:  'Full operational access — cannot promote users to owner',
+    member: 'Limited workspace access — can work on assigned tasks',
+    viewer: 'Read-only access to permitted workspace areas',
   };
 
   async function handleSignOut() {

@@ -11,13 +11,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
+import { canAssignRole, isValidPermissionRole } from '@/lib/rbac';
+import type { UserRole } from '@/lib/auth-context';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 
 const INVITE_EXPIRY_DAYS = 7;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['admin', 'manager']);
+  const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
@@ -26,12 +28,29 @@ export async function POST(request: NextRequest) {
   }
 
   // body.name is accepted as a fallback for older clients; prefer body.full_name
-  const full_name = (body.full_name ?? body.name ?? '').trim();
-  const email = (body.email ?? '').trim().toLowerCase();
-  const role  = (body.role  ?? '').trim();
+  const full_name      = (body.full_name ?? body.name ?? '').trim();
+  const email          = (body.email ?? '').trim().toLowerCase();
+  const role           = (body.role  ?? '').trim();           // job title
+  const permission_role = (body.permission_role ?? 'member').trim(); // RBAC role
 
-  if (!full_name || !email || !role) {
-    return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 });
+  if (!full_name || !email) {
+    return NextResponse.json({ error: 'full_name and email are required' }, { status: 400 });
+  }
+
+  // Validate RBAC permission role — never trust value from frontend blindly.
+  if (!isValidPermissionRole(permission_role)) {
+    return NextResponse.json(
+      { error: `Invalid permission_role "${permission_role}". Must be one of: owner, admin, member, viewer` },
+      { status: 400 },
+    );
+  }
+
+  // Callers can only invite users to roles they are allowed to assign.
+  if (!canAssignRole(auth.profile.role, permission_role as UserRole)) {
+    return NextResponse.json(
+      { error: `Forbidden — your role cannot invite someone as "${permission_role}"` },
+      { status: 403 },
+    );
   }
 
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -84,7 +103,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, role, status: 'invited' })
+    .insert({ full_name, email, role: role || null, permission_role, status: 'invited' })
     .select()
     .single();
 

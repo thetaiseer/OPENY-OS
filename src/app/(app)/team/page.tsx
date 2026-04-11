@@ -9,7 +9,9 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
+import { canManageMembers } from '@/lib/rbac';
 import EmptyState from '@/components/ui/EmptyState';
+import AccessDenied from '@/components/ui/AccessDenied';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
@@ -202,9 +204,9 @@ function InviteBadge({ status }: { status: string }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function TeamPage() {
   const { t } = useLang();
-  const { role: myRole } = useAuth();
+  const { role: myRole, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const canManage = myRole === 'admin' || myRole === 'manager';
+  const canManage = canManageMembers(myRole);
 
   const [members, setMembers]           = useState<TeamMember[]>([]);
   const [invitations, setInvitations]   = useState<TeamInvitation[]>([]);
@@ -246,6 +248,11 @@ export default function TeamPage() {
     return invitations.find(i => i.team_member_id === memberId);
   }, [invitations]);
 
+  // Show access denied for member/viewer (after all hooks)
+  if (!authLoading && !canManage) {
+    return <AccessDenied message="Only owners and admins can access the Team management page." />;
+  }
+
   // ── Invite ────────────────────────────────────────────────────────────────
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,12 +292,17 @@ export default function TeamPage() {
     if (!editMember) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('team_members').update({
-        full_name: editForm.full_name.trim(),
-        email:     editForm.email || null,
-        role:      editForm.role || null,
-      }).eq('id', editMember.id);
-      if (error) throw error;
+      const res = await fetch(`/api/team/members/${editMember.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          full_name: editForm.full_name.trim(),
+          email:     editForm.email || null,
+          role:      editForm.role  || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to update member');
       setEditMember(null);
       toast('Member updated successfully', 'success');
       fetchData();
@@ -304,11 +316,16 @@ export default function TeamPage() {
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteMember) return;
-    const { error } = await supabase.from('team_members').delete().eq('id', deleteMember.id);
-    if (error) { toast(error.message, 'error'); return; }
-    setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
-    setDeleteMember(null);
-    toast('Member removed', 'info');
+    try {
+      const res = await fetch(`/api/team/members/${deleteMember.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error ?? 'Failed to remove member', 'error'); return; }
+      setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
+      setDeleteMember(null);
+      toast('Member removed', 'info');
+    } catch {
+      toast('Network error. Please try again.', 'error');
+    }
   };
 
   // ── Resend invite ─────────────────────────────────────────────────────────

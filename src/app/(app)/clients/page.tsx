@@ -26,7 +26,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
-  const canManageClients = role === 'admin' || role === 'team' || role === 'manager';
+  const canManageClients = role === 'owner' || role === 'admin' || role === 'member';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
