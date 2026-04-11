@@ -22,11 +22,15 @@ export async function GET(
 
   const db = createServiceClient(url, key);
 
+  console.log('[team/invite/token] Received token:', token);
+
   const { data: invitation, error } = await db
     .from('team_invitations')
     .select('id, email, role, status, expires_at, accepted_at, team_member:team_members(full_name, role)')
     .eq('token', token)
     .maybeSingle();
+
+  console.log('[team/invite/token] DB query result:', invitation ? { id: invitation.id, status: invitation.status } : null, 'error:', error?.message ?? null);
 
   if (error || !invitation) {
     return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
@@ -52,7 +56,7 @@ export async function GET(
 
   if (invitation.status === 'expired' || new Date(invitation.expires_at) <= new Date()) {
     // Mark as expired in DB if not already
-    if (invitation.status === 'pending') {
+    if (invitation.status === 'invited') {
       await db
         .from('team_invitations')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
