@@ -30,6 +30,8 @@ export interface TeamMember {
   full_name: string;
   email: string;
   role?: string;
+  job_title?: string;
+  permission_role?: string;
   avatar?: string;
   profile_id?: string | null;
   status?: 'active' | 'invited' | 'inactive' | 'suspended';
@@ -44,6 +46,8 @@ export interface TeamInvitation {
   team_member_id: string;
   email: string;
   role?: string;
+  job_title?: string;
+  permission_role?: string;
   token: string;
   status: InviteStatus;
   invited_by?: string | null;

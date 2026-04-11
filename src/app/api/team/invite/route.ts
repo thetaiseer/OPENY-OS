@@ -30,17 +30,21 @@ export async function POST(request: NextRequest) {
   // body.name is accepted as a fallback for older clients; prefer body.full_name
   const full_name      = (body.full_name ?? body.name ?? '').trim();
   const email          = (body.email ?? '').trim().toLowerCase();
-  const role           = (body.role  ?? '').trim();           // job title
-  const permission_role = (body.permission_role ?? 'member').trim(); // RBAC role
+  const job_title      = (body.job_title ?? body.role ?? '').trim();  // job title (e.g., "Graphic Designer")
+  const permission_role = (body.permission_role ?? 'member').trim();  // RBAC role (admin|manager|member|viewer)
 
   if (!full_name || !email) {
     return NextResponse.json({ error: 'full_name and email are required' }, { status: 400 });
   }
 
+  if (!job_title) {
+    return NextResponse.json({ error: 'job_title is required' }, { status: 400 });
+  }
+
   // Validate RBAC permission role — never trust value from frontend blindly.
   if (!isValidPermissionRole(permission_role)) {
     return NextResponse.json(
-      { error: `Invalid permission_role "${permission_role}". Must be one of: owner, admin, member, viewer` },
+      { error: `Invalid permission_role "${permission_role}". Must be one of: admin, manager, member, viewer` },
       { status: 400 },
     );
   }
@@ -103,7 +107,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, role: role || null, permission_role, status: 'invited' })
+    .insert({ full_name, email, job_title, permission_role, status: 'invited' })
     .select()
     .single();
 
@@ -115,7 +119,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_members row:', { id: member.id, email, role, status: 'invited' });
+  console.log('[team/invite] Created team_members row:', { id: member.id, email, job_title, permission_role, status: 'invited' });
 
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
@@ -128,6 +132,8 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
+      job_title,
+      permission_role,
       token,
       status:     'pending',
       invited_by: auth.profile.id,
@@ -157,7 +163,7 @@ export async function POST(request: NextRequest) {
     recipientName:  full_name,
     inviterName:    auth.profile.name,
     workspaceName:  'OPENY OS',
-    role,
+    role:           `${job_title} (${permission_role})`,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,
   });
@@ -204,7 +210,7 @@ export async function POST(request: NextRequest) {
     teamMemberId: member.id,
     inviteeName:  full_name,
     inviterName:  auth.profile.name ?? null,
-    role,
+    role:         job_title,
   });
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });
