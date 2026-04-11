@@ -77,7 +77,8 @@ export async function POST(
     await db
       .from('team_invitations')
       .update({ status: 'expired', updated_at: new Date().toISOString() })
-      .eq('id', invitation.id);
+      .eq('id', invitation.id)
+      .eq('status', 'invited'); // only update if still in invited state
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
   }
 

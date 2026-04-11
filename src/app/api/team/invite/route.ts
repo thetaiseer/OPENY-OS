@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', ['pending'])
+    .in('status', ['invited'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -84,23 +84,30 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (memberError || !member) {
+    console.error('[team/invite] Failed to insert team_members row:', memberError?.message);
     return NextResponse.json(
       { error: memberError?.message ?? 'Failed to create team member' },
       { status: 500 },
     );
   }
 
+  console.log('[team/invite] Created team_members row:', { id: member.id, email, role, status: 'invited' });
+
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  console.log('[team/invite] Generated token (prefix):', token.slice(0, 8) + '...', '— expires', expiresAt);
 
   const { data: invitation, error: inviteError } = await db
     .from('team_invitations')
     .insert({
       team_member_id: member.id,
       email,
+      name:       full_name,
+      role,
       token,
-      status: 'pending',
+      status:     'invited',
       invited_by: auth.profile.id,
       expires_at: expiresAt,
     })
@@ -108,6 +115,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (inviteError || !invitation) {
+    console.error('[team/invite] Failed to insert team_invitations row:', inviteError?.message);
     // Roll back the team member if we can't create the invitation
     await db.from('team_members').delete().eq('id', member.id);
     return NextResponse.json(
@@ -115,6 +123,8 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'invited' });
 
   // ── 5. Send invite email ──────────────────────────────────────────────────
   const inviteUrl = `${appUrl}/invite?token=${token}`;
