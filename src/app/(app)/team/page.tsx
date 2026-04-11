@@ -17,8 +17,8 @@ import type { TeamMember, TeamInvitation } from '@/lib/types';
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
-// ── Marketing roles list ─────────────────────────────────────────────────────
-const ROLE_OPTIONS = [
+// ── Marketing roles list (job titles) ────────────────────────────────────────
+const JOB_TITLE_OPTIONS = [
   { value: 'Content Creator',           label: 'Content Creator' },
   { value: 'Social Media Manager',      label: 'Social Media Manager' },
   { value: 'Graphic Designer',          label: 'Graphic Designer' },
@@ -36,9 +36,18 @@ const ROLE_OPTIONS = [
   { value: 'Influencer Manager',        label: 'Influencer Manager' },
   { value: 'PR Specialist',             label: 'PR Specialist' },
   { value: 'Analytics Specialist',      label: 'Analytics Specialist' },
-  { value: 'Admin',                     label: 'Admin' },
-  { value: 'Manager',                   label: 'Manager' },
   { value: '__other__',                 label: 'Other…' },
+];
+
+// Keep ROLE_OPTIONS for backward compat (edit form uses it for job_title)
+const ROLE_OPTIONS = JOB_TITLE_OPTIONS;
+
+// ── System access roles ───────────────────────────────────────────────────────
+const ACCESS_ROLE_OPTIONS = [
+  { value: 'admin',   label: 'Admin — full access' },
+  { value: 'manager', label: 'Manager — manage tasks & team' },
+  { value: 'team',    label: 'Team Member — standard access' },
+  { value: 'viewer',  label: 'Viewer — read-only access' },
 ];
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
@@ -94,7 +103,8 @@ function RoleField({
   );
 }
 
-const blankForm = { full_name: '', email: '', role: '' };
+const blankForm       = { full_name: '', email: '', role: '', job_title: '' };
+const blankInviteForm = { full_name: '', email: '', access_role: '', job_title: '' };
 
 // ── MemberForm is defined at module scope so React never remounts it ─────────
 function MemberForm({
@@ -129,8 +139,8 @@ function MemberForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role</label>
-        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
+        <RoleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
       </div>
     </div>
   );
@@ -141,8 +151,8 @@ function InviteForm({
   f,
   setF,
 }: {
-  f: typeof blankForm;
-  setF: React.Dispatch<React.SetStateAction<typeof blankForm>>;
+  f: typeof blankInviteForm;
+  setF: React.Dispatch<React.SetStateAction<typeof blankInviteForm>>;
 }) {
   return (
     <div className="space-y-4">
@@ -170,8 +180,24 @@ function InviteForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role *</label>
-        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Access Role *</label>
+        <SelectDropdown
+          value={f.access_role}
+          onChange={v => setF(x => ({ ...x, access_role: v }))}
+          options={ACCESS_ROLE_OPTIONS}
+          placeholder="Select access level…"
+          fullWidth
+        />
+        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+          Controls what this person can see and do in OPENY OS.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
+        <RoleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
+        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+          Their actual role on the team (e.g. Graphic Designer).
+        </p>
       </div>
       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         An invitation email will be sent automatically. The link expires in 7 days.
@@ -204,7 +230,7 @@ export default function TeamPage() {
   const { t } = useLang();
   const { role: myRole } = useAuth();
   const { toast } = useToast();
-  const canManage = myRole === 'admin' || myRole === 'manager';
+  const canManage = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
 
   const [members, setMembers]           = useState<TeamMember[]>([]);
   const [invitations, setInvitations]   = useState<TeamInvitation[]>([]);
@@ -218,7 +244,7 @@ export default function TeamPage() {
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
 
   // Forms — all at the top level, never re-created during render
-  const [inviteForm, setInviteForm]     = useState({ ...blankForm });
+  const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
   const [editForm, setEditForm]         = useState({ ...blankForm });
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
@@ -250,8 +276,8 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
-    if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.role.trim()) {
-      setActionError('Full name, email, and role are required.');
+    if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.access_role.trim()) {
+      setActionError('Full name, email, and access role are required.');
       return;
     }
     setSaving(true);
@@ -259,12 +285,17 @@ export default function TeamPage() {
       const res = await fetch('/api/team/invite', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ full_name: inviteForm.full_name, email: inviteForm.email, role: inviteForm.role }),
+        body:    JSON.stringify({
+          full_name:   inviteForm.full_name,
+          email:       inviteForm.email,
+          access_role: inviteForm.access_role,
+          job_title:   inviteForm.job_title,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setActionError(data.error ?? 'Failed to send invitation.'); return; }
       setInviteOpen(false);
-      setInviteForm({ ...blankForm });
+      setInviteForm({ ...blankInviteForm });
       toast(`Invitation sent to ${inviteForm.email}`, 'success');
       fetchData();
     } catch {
@@ -276,7 +307,7 @@ export default function TeamPage() {
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (member: TeamMember) => {
-    setEditForm({ full_name: member.full_name, email: member.email ?? '', role: member.role ?? '' });
+    setEditForm({ full_name: member.full_name, email: member.email ?? '', role: member.role ?? '', job_title: member.job_title ?? '' });
     setEditMember(member);
   };
 
@@ -289,6 +320,7 @@ export default function TeamPage() {
         full_name: editForm.full_name.trim(),
         email:     editForm.email || null,
         role:      editForm.role || null,
+        job_title: editForm.job_title || null,
       }).eq('id', editMember.id);
       if (error) throw error;
       setEditMember(null);
@@ -546,10 +578,18 @@ function MemberCard({
             <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
             {isInvited && <InviteBadge status="invited" />}
           </div>
-          {member.role && (
+          {(member.job_title || (!member.job_title && member.role && !['owner','admin','manager','team','viewer','client'].includes(member.role))) && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Briefcase size={11} />{member.role}
+              <Briefcase size={11} />{member.job_title ?? member.role}
             </p>
+          )}
+          {member.role && ['owner','admin','manager','team','viewer','client'].includes(member.role) && (
+            <span
+              className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              {member.role}
+            </span>
           )}
           {member.email && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>

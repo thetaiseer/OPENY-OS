@@ -5,13 +5,16 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 
-export type UserRole = 'admin' | 'manager' | 'team' | 'client';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'team' | 'client';
+
+// Email that always resolves to the 'owner' role — the workspace owner.
+const OWNER_EMAIL = 'thetaiseer@gmail.com';
 
 const LOADING_USER: User = {
   id: '',
   name: '',
   email: '',
-  role: 'client',
+  role: 'team',
 };
 
 interface AuthContextType {
@@ -28,7 +31,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: LOADING_USER,
-  role: 'client',
+  role: 'team',
   clientId: null,
   loading: true,
   profileMissing: false,
@@ -76,14 +79,20 @@ async function fetchUserProfile(
   console.log('[auth] Profile query result — row:', data, '| error:', error ? `${error.code}: ${error.message}` : 'none');
 
   if (data) {
-    const resolvedRole = (data.role as UserRole) || 'client';
+    const email = data.email || supabaseUser.email || '';
+    // thetaiseer@gmail.com is always the workspace owner regardless of what
+    // the profiles row says.
+    const resolvedRole: UserRole =
+      email.toLowerCase() === OWNER_EMAIL
+        ? 'owner'
+        : (data.role as UserRole) || 'team';
     console.log('[auth] Resolved role from database:', resolvedRole);
     return {
       profileMissing: false,
       user: {
         id:    data.id,
         name:  data.name || supabaseUser.email?.split('@')[0] || '',
-        email: data.email || supabaseUser.email || '',
+        email,
         role:  resolvedRole,
       },
     };
@@ -96,13 +105,15 @@ async function fetchUserProfile(
     '| query error:', error ? `${error.code}: ${error.message}` : 'row not found',
     '— profileMissing = true',
   );
+  const fallbackEmail = supabaseUser.email ?? '';
+  const fallbackRole: UserRole = fallbackEmail.toLowerCase() === OWNER_EMAIL ? 'owner' : 'team';
   return {
     profileMissing: true,
     user: {
       id:    supabaseUser.id,
       name:  supabaseUser.user_metadata?.name ?? supabaseUser.email?.split('@')[0] ?? '',
-      email: supabaseUser.email ?? '',
-      role:  'client',
+      email: fallbackEmail,
+      role:  fallbackRole,
     },
   };
 }
@@ -248,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('[auth] Profile repair complete');
   };
 
-  const role     = (user.role as UserRole) || 'client';
+  const role     = (user.role as UserRole) || 'team';
   const clientId = null;
 
   return (

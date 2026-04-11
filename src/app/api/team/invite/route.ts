@@ -3,8 +3,8 @@
  *
  * Creates a pending team member + invitation record and sends the invite email.
  *
- * Body: { name: string; email: string; role: string }
- * Auth: admin or manager only
+ * Body: { full_name: string; email: string; access_role: string; job_title?: string }
+ * Auth: owner, admin, or manager only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +17,7 @@ import { notifyInvitation } from '@/lib/notification-service';
 const INVITE_EXPIRY_DAYS = 7;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['admin', 'manager']);
+  const auth = await requireRole(request, ['owner', 'admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
@@ -26,12 +26,24 @@ export async function POST(request: NextRequest) {
   }
 
   // body.name is accepted as a fallback for older clients; prefer body.full_name
-  const full_name = (body.full_name ?? body.name ?? '').trim();
-  const email = (body.email ?? '').trim().toLowerCase();
-  const role  = (body.role  ?? '').trim();
+  const full_name   = (body.full_name ?? body.name ?? '').trim();
+  const email       = (body.email ?? '').trim().toLowerCase();
+  // access_role: the system permission level (admin|manager|team|viewer)
+  const access_role = (body.access_role ?? body.role ?? '').trim().toLowerCase();
+  // job_title: the human-readable job description (Graphic Designer, etc.)
+  const job_title   = (body.job_title ?? '').trim();
 
-  if (!full_name || !email || !role) {
-    return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 });
+  if (!full_name || !email || !access_role) {
+    return NextResponse.json({ error: 'full_name, email, and access_role are required' }, { status: 400 });
+  }
+
+  // Validate access_role strictly
+  const VALID_ACCESS_ROLES = ['admin', 'manager', 'team', 'viewer'];
+  if (!VALID_ACCESS_ROLES.includes(access_role)) {
+    return NextResponse.json(
+      { error: `Invalid access role "${access_role}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}` },
+      { status: 400 },
+    );
   }
 
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -84,7 +96,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, role, status: 'invited' })
+    .insert({ full_name, email, role: access_role, job_title: job_title || null, status: 'invited' })
     .select()
     .single();
 
@@ -96,7 +108,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_members row:', { id: member.id, email, role, status: 'invited' });
+  console.log('[team/invite] Created team_members row:', { id: member.id, email, access_role, status: 'invited' });
 
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
@@ -138,7 +150,7 @@ export async function POST(request: NextRequest) {
     recipientName:  full_name,
     inviterName:    auth.profile.name,
     workspaceName:  'OPENY OS',
-    role,
+    role:           access_role,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,
   });
@@ -185,7 +197,7 @@ export async function POST(request: NextRequest) {
     teamMemberId: member.id,
     inviteeName:  full_name,
     inviterName:  auth.profile.name ?? null,
-    role,
+    role:         access_role,
   });
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });

@@ -50,7 +50,7 @@ export default function AccountPage() {
           <AlertTriangle size={18} style={{ color: '#ca8a04' }} className="shrink-0 mt-0.5" />
           <div className="flex-1 space-y-2">
             <p className="text-sm" style={{ color: '#ca8a04' }}>
-              Your profile row was not found in the database. Role defaults to &quot;client&quot;.
+              Your profile row was not found in the database. Role defaults to &quot;team&quot;.
             </p>
             {repairError && (
               <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{repairError}</p>

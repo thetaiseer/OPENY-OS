@@ -25,6 +25,9 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // role if the auth user's email matches this value.
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? process.env.GOOGLE_ADMIN_EMAIL ?? '').toLowerCase();
 
+// Owner email always resolves to 'owner' role — the workspace owner.
+const OWNER_EMAIL = 'thetaiseer@gmail.com';
+
 // ── Profile cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache that avoids a redundant Supabase round-trip on
 // every API call.  The JWT is still validated on every request via getUser();
@@ -135,7 +138,11 @@ export async function getApiUser(
     // Use INSERT ... on conflict do nothing to avoid overwriting an existing
     // row whose role may have been set by an admin after the initial sign-up.
     const email = user.email ?? '';
-    const autoRole: UserRole = ADMIN_EMAIL && email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'client';
+    const lowerEmail = email.toLowerCase();
+    const autoRole: UserRole =
+      lowerEmail === OWNER_EMAIL
+        ? 'owner'
+        : (ADMIN_EMAIL && lowerEmail === ADMIN_EMAIL ? 'admin' : 'team');
     const fallback: UserProfile = {
       id:    user.id,
       name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
@@ -167,7 +174,11 @@ export async function getApiUser(
     id:    profile.id,
     name:  profile.name,
     email: profile.email,
-    role:  profile.role as UserRole,
+    // thetaiseer@gmail.com is always the workspace owner regardless of what
+    // the profiles row says.
+    role:  profile.email?.toLowerCase() === OWNER_EMAIL
+      ? 'owner'
+      : (profile.role as UserRole),
   };
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
