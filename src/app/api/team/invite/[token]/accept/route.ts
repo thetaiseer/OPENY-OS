@@ -4,9 +4,8 @@
  * Accepts a team invitation:
  *   1. Validates token
  *   2. Creates Supabase auth user with the given password
- *   3. Creates profile record with the assigned role
- *   4. Marks team_member as active
- *   5. Marks invitation as accepted
+ *   3. Marks team_member as active (profile_id = new auth user id)
+ *   4. Marks invitation as accepted
  *
  * Public route — no auth required.
  *
@@ -15,7 +14,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { PG_UNIQUE_VIOLATION } from '@/lib/constants/postgres-errors';
 
 export async function POST(
   request: NextRequest,
@@ -62,10 +60,6 @@ export async function POST(
     ? invitation.team_member[0]
     : invitation.team_member;
   const invitationFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
-  const invitationRole     = (memberData as { role?: string } | null)?.role
-    // Fallback to invitation.role while `role` still exists on team_invitations
-    // for backward compatibility with rows created before the schema migration.
-    ?? (invitation as { role?: string }).role ?? '';
 
   if (invitation.status === 'accepted') {
     return NextResponse.json({ error: 'This invitation has already been accepted.' }, { status: 410 });
@@ -93,50 +87,32 @@ export async function POST(
   });
 
   if (authError || !authData.user) {
-    return NextResponse.json(
-      { error: authError?.message ?? 'Failed to create user account.' },
-      { status: 500 },
-    );
+    // Ignore unique violation — user already exists (e.g. retry after partial failure)
+    if (authError && authError.message?.includes('already')) {
+      // Continue — team_member activation below will still succeed
+    } else {
+      return NextResponse.json(
+        { error: authError?.message ?? 'Failed to create user account.' },
+        { status: 500 },
+      );
+    }
   }
 
-  const authUserId = authData.user.id;
+  const authUserId = authData?.user?.id ?? null;
 
-  // ── 3. Create profile record ─────────────────────────────────────────────
-  // Map invitation role (access_role) to a UserRole for the profiles table
-  const roleMap: Record<string, string> = {
-    owner:   'owner',
-    admin:   'admin',
-    manager: 'manager',
-    team:    'team',
-    member:  'team',
-    viewer:  'client',
-    client:  'client',
+  // ── 3. Activate team member ──────────────────────────────────────────────
+  const updatePayload: Record<string, unknown> = {
+    status:     'active',
+    updated_at: new Date().toISOString(),
   };
-  const profileRole = roleMap[invitationRole.toLowerCase()] ?? 'team';
+  if (authUserId) updatePayload.profile_id = authUserId;
 
-  const { error: profileError } = await db.from('profiles').insert({
-    id:    authUserId,
-    name:  finalName,
-    email: invitation.email,
-    role:  profileRole,
-  });
-
-  if (profileError && profileError.code !== PG_UNIQUE_VIOLATION) {
-    // Roll back auth user creation
-    await db.auth.admin.deleteUser(authUserId);
-    return NextResponse.json(
-      { error: `Failed to create profile: ${profileError.message}` },
-      { status: 500 },
-    );
-  }
-
-  // ── 4. Activate team member ──────────────────────────────────────────────
   await db
     .from('team_members')
-    .update({ status: 'active', profile_id: authUserId, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', invitation.team_member_id);
 
-  // ── 5. Mark invitation accepted ──────────────────────────────────────────
+  // ── 4. Mark invitation accepted ──────────────────────────────────────────
   await db
     .from('team_invitations')
     .update({

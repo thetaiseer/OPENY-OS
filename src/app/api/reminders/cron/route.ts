@@ -43,7 +43,28 @@ interface TaskRow {
   assignee_id: string | null;
   client_id: string | null;
   status: string;
-  assignee?: { id: string; name: string | null; email: string }[] | null;
+}
+
+interface AssigneeMember {
+  profile_id: string | null;
+  full_name: string | null;
+  email: string;
+}
+
+async function resolveAssignees(
+  db: ReturnType<typeof getDb>,
+  assigneeIds: string[],
+): Promise<Map<string, AssigneeMember>> {
+  const map = new Map<string, AssigneeMember>();
+  if (!assigneeIds.length) return map;
+  const { data } = await db
+    .from('team_members')
+    .select('profile_id, full_name, email')
+    .in('profile_id', assigneeIds);
+  for (const m of data ?? []) {
+    if (m.profile_id) map.set(m.profile_id as string, m as AssigneeMember);
+  }
+  return map;
 }
 
 export async function GET(req: NextRequest) {
@@ -64,11 +85,16 @@ export async function GET(req: NextRequest) {
     // ── 1. Tasks due within the next 24 hours ─────────────────────────────────
     const { data: dueSoon } = await db
       .from('tasks')
-      .select('id, title, due_date, assignee_id, client_id, status, assignee:profiles!tasks_assignee_id_fkey(id,name,email)')
+      .select('id, title, due_date, assignee_id, client_id, status')
       .gt('due_date',  now.toISOString())
       .lte('due_date', in24h.toISOString())
       .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
       .limit(100);
+
+    const dueSoonIds = (dueSoon ?? [])
+      .map((t: Record<string, string | null>) => t.assignee_id)
+      .filter((id): id is string => !!id);
+    const dueSoonAssignees = await resolveAssignees(db, dueSoonIds);
 
     for (const task of (dueSoon ?? []) as TaskRow[]) {
       try {
@@ -88,14 +114,14 @@ export async function GET(req: NextRequest) {
         dueSoonCount++;
 
         // Send email to assignee
-        const assignee = task.assignee?.[0] ?? null;
+        const assignee = task.assignee_id ? dueSoonAssignees.get(task.assignee_id) ?? null : null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
               to:      assignee.email,
               subject: `⏰ Task due soon: ${task.title}`,
               html:    deadlineAlertEmail({
-                recipientName: assignee.name ?? assignee.email,
+                recipientName: assignee.full_name ?? assignee.email,
                 taskTitle:     task.title,
                 daysLeft,
                 appUrl,
@@ -115,10 +141,15 @@ export async function GET(req: NextRequest) {
     // ── 2. Overdue tasks ──────────────────────────────────────────────────────
     const { data: overdue } = await db
       .from('tasks')
-      .select('id, title, due_date, assignee_id, client_id, status, assignee:profiles!tasks_assignee_id_fkey(id,name,email)')
+      .select('id, title, due_date, assignee_id, client_id, status')
       .lt('due_date', now.toISOString())
       .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
       .limit(100);
+
+    const overdueIds = (overdue ?? [])
+      .map((t: Record<string, string | null>) => t.assignee_id)
+      .filter((id): id is string => !!id);
+    const overdueAssignees = await resolveAssignees(db, overdueIds);
 
     for (const task of (overdue ?? []) as TaskRow[]) {
       try {
@@ -137,14 +168,14 @@ export async function GET(req: NextRequest) {
         overdueCount++;
 
         // Send overdue email to assignee
-        const assignee = task.assignee?.[0] ?? null;
+        const assignee = task.assignee_id ? overdueAssignees.get(task.assignee_id) ?? null : null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
               to:      assignee.email,
               subject: `🚨 Task overdue: ${task.title}`,
               html:    deadlineAlertEmail({
-                recipientName: assignee.name ?? assignee.email,
+                recipientName: assignee.full_name ?? assignee.email,
                 taskTitle:     task.title,
                 daysLeft:      0,
                 appUrl,
