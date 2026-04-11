@@ -361,14 +361,14 @@ function useAICommandState() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync ref so sendMessage never captures a stale `input` value
-  const inputRef = useRef('');
+  const inputValueRef = useRef('');
   const isSubmittingRef = useRef(false); // synchronous guard — prevents race conditions
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
-  // Keep inputRef in sync with state
+  // Keep inputValueRef in sync with state
   const handleSetInput = useCallback((val: string) => {
-    inputRef.current = val;
+    inputValueRef.current = val;
     setInput(val);
   }, []);
 
@@ -376,7 +376,7 @@ function useAICommandState() {
   const sendMessage = useCallback(async (suggestionText?: string) => {
     const messageText = suggestionText !== undefined
       ? suggestionText.trim()
-      : inputRef.current.trim();
+      : inputValueRef.current.trim();
 
     if (!messageText || isSubmittingRef.current) return;
 
@@ -389,7 +389,7 @@ function useAICommandState() {
 
     // Clear the input field immediately (only when using the typed input)
     if (suggestionText === undefined) {
-      inputRef.current = '';
+      inputValueRef.current = '';
       setInput('');
     }
 
