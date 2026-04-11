@@ -102,11 +102,14 @@ export async function POST(
   const authUserId = authData.user.id;
 
   // ── 3. Create profile record ─────────────────────────────────────────────
-  // Map invitation role to a UserRole (admin/manager/team/client)
+  // Map invitation role (access_role) to a UserRole for the profiles table
   const roleMap: Record<string, string> = {
+    owner:   'owner',
     admin:   'admin',
     manager: 'manager',
     team:    'team',
+    member:  'team',
+    viewer:  'client',
     client:  'client',
   };
   const profileRole = roleMap[invitationRole.toLowerCase()] ?? 'team';

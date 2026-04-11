@@ -30,6 +30,7 @@ export interface TeamMember {
   full_name: string;
   email: string;
   role?: string;
+  job_title?: string;
   avatar?: string;
   profile_id?: string | null;
   status?: 'active' | 'invited' | 'inactive' | 'suspended';
