@@ -195,86 +195,81 @@ export function teamInviteEmail(opts: {
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>You're invited to join ${workspace}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,Helvetica,sans-serif;">
   <!-- Preheader (hidden) -->
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;min-width:100%;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f0f0">
     <tr>
       <td align="center" style="padding:32px 16px;">
 
-        <!-- Email card -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+        <!-- Email card — fixed 600px wide -->
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
 
-          <!-- Header -->
+          <!-- Header: solid purple -->
           <tr>
-            <td align="center" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:16px 16px 0 0;padding:40px 32px;">
-              <h1 style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">${workspace}</h1>
-              <p style="margin:8px 0 0;font-size:15px;color:rgba(255,255,255,0.85);">You're invited to join the team</p>
+            <td align="center" bgcolor="#6366f1" style="background-color:#6366f1;padding:36px 32px;border-radius:12px 12px 0 0;">
+              <h1 style="margin:0;font-size:26px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">${workspace}</h1>
+              <p style="margin:10px 0 0;font-size:15px;color:#e0e0ff;font-family:Arial,Helvetica,sans-serif;">You're invited to join the team</p>
             </td>
           </tr>
 
-          <!-- Body -->
+          <!-- White card body -->
           <tr>
-            <td style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:36px 32px;">
+            <td bgcolor="#ffffff" style="background-color:#ffffff;padding:36px 32px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;">
 
               <!-- Greeting -->
-              <p style="margin:0 0 6px;font-size:20px;font-weight:600;color:#111827;">Hi ${firstName} 👋</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#4b5563;line-height:1.7;">
+              <p style="margin:0 0 8px;font-size:20px;font-weight:bold;color:#111111;font-family:Arial,Helvetica,sans-serif;">Hi ${firstName},</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#444444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
                 ${opts.inviterName
-                  ? `<strong style="color:#111827;">${opts.inviterName}</strong> has invited you to join <strong style="color:#111827;">${workspace}</strong>.`
-                  : `You have been invited to join <strong style="color:#111827;">${workspace}</strong>.`}
+                  ? `<strong style="color:#111111;">${opts.inviterName}</strong> has invited you to join <strong style="color:#111111;">${workspace}</strong>.`
+                  : `You have been invited to join <strong style="color:#111111;">${workspace}</strong>.`}
               </p>
 
               <!-- Role card -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:28px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
-                  <td style="padding:20px 24px;">
-                    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Your role</p>
-                    <p style="margin:0;font-size:17px;font-weight:600;color:#111827;">${opts.role}</p>
+                  <td bgcolor="#f7f7f7" style="background-color:#f7f7f7;border:1px solid #e0e0e0;padding:18px 22px;border-radius:8px;">
+                    <p style="margin:0 0 4px;font-size:11px;font-weight:bold;color:#777777;text-transform:uppercase;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">Your role</p>
+                    <p style="margin:0;font-size:17px;font-weight:bold;color:#111111;font-family:Arial,Helvetica,sans-serif;">${opts.role}</p>
                   </td>
                 </tr>
               </table>
 
-              <!-- CTA button -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+              <!-- CTA button (table-based, no gradient) -->
+              <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px auto;">
                 <tr>
-                  <td align="center">
-                    <a href="${opts.inviteUrl}"
-                       target="_blank"
-                       style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:16px;font-weight:600;letter-spacing:0.01em;mso-padding-alt:0;text-align:center;">
-                      <!--[if mso]><i style="letter-spacing:40px;mso-font-width:-100%;mso-text-raise:30pt"> </i><![endif]-->
+                  <td align="center" bgcolor="#6366f1" style="background-color:#6366f1;border-radius:8px;">
+                    <a href="${opts.inviteUrl}" target="_blank"
+                       style="display:inline-block;color:#ffffff;text-decoration:none;padding:14px 40px;font-size:16px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;mso-padding-alt:14px 40px;">
                       Accept Invitation
-                      <!--[if mso]><i style="letter-spacing:40px;mso-font-width:-100%"> </i><![endif]-->
                     </a>
                   </td>
                 </tr>
               </table>
 
               <!-- Expiry notice -->
-              <p style="margin:0 0 20px;font-size:13px;color:#6b7280;text-align:center;">
-                This invitation link expires in <strong>${expiry} days</strong>. After that, you'll need to request a new one.
+              <p style="margin:0 0 20px;font-size:13px;color:#777777;text-align:center;font-family:Arial,Helvetica,sans-serif;">
+                This invitation expires in <strong style="color:#444444;">${expiry} days</strong>. After that, you'll need to request a new one.
               </p>
 
               <!-- Divider -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
-                <tr><td style="border-top:1px solid #e5e7eb;font-size:0;line-height:0;">&nbsp;</td></tr>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+                <tr><td style="border-top:1px solid #e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr>
               </table>
 
               <!-- Fallback link -->
-              <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;">Button not working? Copy and paste this link into your browser:</p>
-              <p style="margin:0;font-size:12px;color:#6366f1;word-break:break-all;">${opts.inviteUrl}</p>
+              <p style="margin:0 0 4px;font-size:12px;color:#999999;font-family:Arial,Helvetica,sans-serif;">Button not working? Copy and paste this link into your browser:</p>
+              <p style="margin:0;font-size:12px;color:#6366f1;word-break:break-all;font-family:Arial,Helvetica,sans-serif;">${opts.inviteUrl}</p>
 
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td align="center" style="padding:24px 16px 8px;">
-              <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} ${workspace}. All rights reserved.</p>
-              <p style="margin:0;font-size:12px;color:#9ca3af;">
-                If you did not expect this invitation, you can safely ignore this email.
-              </p>
+            <td bgcolor="#ffffff" align="center" style="background-color:#ffffff;padding:20px 32px 28px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;border-radius:0 0 12px 12px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#aaaaaa;font-family:Arial,Helvetica,sans-serif;">&copy; ${new Date().getFullYear()} ${workspace}. All rights reserved.</p>
+              <p style="margin:0;font-size:12px;color:#aaaaaa;font-family:Arial,Helvetica,sans-serif;">If you did not expect this invitation, you can safely ignore this email.</p>
             </td>
           </tr>
 
