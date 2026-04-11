@@ -75,7 +75,7 @@ export class DriveFileNotFoundError extends Error {
 export type DriveConfigStatus =
   | 'not_configured'       // No env vars are set
   | 'partially_configured' // Some but not all required env vars are set
-  | 'configured'           // All env vars present but connectivity not yet verified
+  | 'configured'           // All env vars present; connectivity test failed for a non-auth reason
   | 'connected'            // All vars present AND a live Drive API call succeeded
   | 'auth_failed';         // All vars present but the Drive API rejected credentials
 
@@ -124,7 +124,7 @@ export async function checkDriveConnection(): Promise<DriveConfigResult> {
     const isAuthError =
       /invalid.*(grant|credentials|token)|unauthorized|401|403/i.test(msg);
     return {
-      status: isAuthError ? 'auth_failed' : 'auth_failed',
+      status: isAuthError ? 'auth_failed' : 'configured',
       connected: false,
       missingVars: [],
       error: isAuthError

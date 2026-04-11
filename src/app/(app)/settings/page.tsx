@@ -194,6 +194,7 @@ function GoogleDriveSyncCard() {
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {status?.connected ? 'Connected' : (
                     status?.status === 'auth_failed'         ? 'Auth failed' :
+                    status?.status === 'configured'          ? 'API error' :
                     status?.status === 'partially_configured'? 'Partially configured' :
                     'Disconnected'
                   )}
@@ -203,6 +204,7 @@ function GoogleDriveSyncCard() {
                   label={
                     status?.connected                          ? 'OAuth OK' :
                     status?.status === 'auth_failed'           ? 'Auth failed' :
+                    status?.status === 'configured'            ? 'API error' :
                     status?.status === 'partially_configured'  ? 'Partial config' :
                     'Not configured'
                   }
@@ -211,8 +213,8 @@ function GoogleDriveSyncCard() {
               {status?.email && (
                 <p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{status.email}</p>
               )}
-              {/* Auth error detail */}
-              {status?.status === 'auth_failed' && status.error && (
+              {/* Auth/API error detail */}
+              {(status?.status === 'auth_failed' || status?.status === 'configured') && status?.error && (
                 <p className="text-xs mt-1 break-words" style={{ color: '#ef4444' }}>{status.error}</p>
               )}
               {/* Missing env vars */}
@@ -372,7 +374,7 @@ function GoogleDriveSyncCard() {
         <DiagRow label="Config status"     value={status?.status ?? '—'}                             ok={status?.status === 'connected'} />
         <DiagRow label="OAuth configured"  value={status?.configured ? 'Yes' : 'No'}                ok={!!status?.configured} />
         <DiagRow label="Connected account" value={status?.email ?? '—'}                             ok={!!status?.email} />
-        <DiagRow label="Upload enabled"    value={status?.connected ? 'Yes' : 'No'}                 ok={!!status?.connected} />
+        <DiagRow label="Upload enabled"    value={status?.configured ? 'Yes' : 'No'}                 ok={!!status?.configured} />
         <DiagRow label="Root folder ID"    value={status?.configured ? '(set in env)' : 'Not set'} ok={!!status?.configured} />
         {(status?.missingVars?.length ?? 0) > 0 && (
           <DiagRow
