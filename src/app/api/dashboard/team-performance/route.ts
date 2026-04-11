@@ -44,8 +44,8 @@ export async function GET(req: NextRequest) {
         .from('team_members')
         .select('profile_id, full_name')
         .in('profile_id', ids);
-      for (const m of members ?? []) {
-        if (m.profile_id) nameMap[m.profile_id as string] = m.full_name as string;
+      for (const member of members ?? []) {
+        if (member.profile_id) nameMap[member.profile_id as string] = member.full_name as string;
       }
     }
 

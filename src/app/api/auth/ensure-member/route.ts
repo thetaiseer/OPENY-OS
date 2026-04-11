@@ -16,7 +16,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { PG_UNIQUE_VIOLATION } from '@/lib/constants/postgres-errors';
 
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
+const OWNER_EMAIL = (process.env.OWNER_EMAIL ?? 'thetaiseer@gmail.com').toLowerCase();
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

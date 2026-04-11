@@ -7,8 +7,14 @@ import type { User } from './types';
 
 export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
 
-/** Email address that always resolves to the 'owner' role. */
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
+/** Email address that always resolves to the 'owner' role. Configurable via NEXT_PUBLIC_OWNER_EMAIL env var. */
+const OWNER_EMAIL = (process.env.NEXT_PUBLIC_OWNER_EMAIL ?? 'thetaiseer@gmail.com').toLowerCase();
+
+/** Resolve the workspace role for the given email, overriding with 'owner' for the owner email. */
+function resolveRoleForEmail(email: string, storedRole?: string): string {
+  if (email.toLowerCase() === OWNER_EMAIL) return 'owner';
+  return storedRole ?? 'member';
+}
 
 /** Map legacy role values to the current RBAC role set. */
 export function normalizeRole(raw: string): UserRole {
@@ -93,8 +99,7 @@ async function fetchUserFromTeamMembers(
 
   if (data) {
     // The owner email always resolves to 'owner' regardless of the stored role.
-    const rawRole = email.toLowerCase() === OWNER_EMAIL ? 'owner' : (data.permission_role ?? 'member');
-    const resolvedRole = normalizeRole(rawRole);
+    const resolvedRole = normalizeRole(resolveRoleForEmail(email, data.permission_role));
     console.log('[auth] Team member found — role:', resolvedRole);
     return {
       id:     supabaseUser.id,
@@ -113,8 +118,7 @@ async function fetchUserFromTeamMembers(
       const body = await res.json().catch(() => ({}));
       const member = (body as { member?: TeamMemberRow }).member;
       if (member) {
-        const rawRole = email.toLowerCase() === OWNER_EMAIL ? 'owner' : (member.permission_role ?? 'member');
-        const resolvedRole = normalizeRole(rawRole);
+        const resolvedRole = normalizeRole(resolveRoleForEmail(email, member.permission_role));
         console.log('[auth] Auto-created team member — role:', resolvedRole);
         return {
           id:     supabaseUser.id,
@@ -132,7 +136,7 @@ async function fetchUserFromTeamMembers(
   }
 
   // Final fallback: use auth user metadata with a default role.
-  const fallbackRole = email.toLowerCase() === OWNER_EMAIL ? 'owner' : 'member';
+  const fallbackRole = resolveRoleForEmail(email);
   console.warn('[auth] Falling back to default role:', fallbackRole, 'for email:', email);
   return {
     id:    supabaseUser.id,

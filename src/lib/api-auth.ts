@@ -24,8 +24,8 @@ const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/** Email that always resolves to the 'owner' role. */
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
+/** Email that always resolves to the 'owner' role. Configurable via OWNER_EMAIL env var. */
+const OWNER_EMAIL = (process.env.OWNER_EMAIL ?? 'thetaiseer@gmail.com').toLowerCase();
 
 // ── Identity cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache to avoid a DB round-trip on every API call.
@@ -162,7 +162,7 @@ export async function getApiUser(
   const resolved: UserProfile = {
     id:    user.id,
     name:  (tmRow.full_name as string | null) ?? email.split('@')[0],
-    email: (tmRow.email     as string | null) ?? email,
+    email: (tmRow.email as string | null) ?? email,
     role:  resolvedRole,
   };
 

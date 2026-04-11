@@ -106,14 +106,14 @@ export async function GET(req: NextRequest) {
     // ── Team stats ────────────────────────────────────────────────────────────
 
     const teamStats = teamMembers
-      .filter((m: Record<string, string>) => m.permission_role !== 'viewer')
-      .map((m: Record<string, string>) => {
-        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === m.profile_id);
+      .filter((member: Record<string, string>) => member.permission_role !== 'viewer')
+      .map((member: Record<string, string>) => {
+        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === member.profile_id);
         const completed = assigned.filter((t: Record<string, string>) => completedStatuses.has(t.status));
         const overdue = assigned.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status));
         return {
-          id: m.id,
-          name: m.full_name,
+          id: member.id,
+          name: member.full_name,
           completedTasks: completed.length,
           totalAssigned: assigned.length,
           completionRate: assigned.length > 0 ? Math.round((completed.length / assigned.length) * 100) : 0,
