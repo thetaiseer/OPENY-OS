@@ -69,6 +69,95 @@ export class DriveFileNotFoundError extends Error {
   }
 }
 
+// ── OAuth helpers (interactive flow) ─────────────────────────────────────────
+
+/**
+ * Required env vars for the interactive Google OAuth flow.
+ * (Separate from the refresh-token-based drive client vars.)
+ */
+const GOOGLE_OAUTH_VARS = [
+  'GOOGLE_OAUTH_CLIENT_ID',
+  'GOOGLE_OAUTH_CLIENT_SECRET',
+  'GOOGLE_OAUTH_REDIRECT_URI',
+] as const;
+
+export interface GoogleOAuthEnvCheck {
+  valid: boolean;
+  missing: string[];
+}
+
+/**
+ * Validate the env vars needed for the interactive OAuth flow.
+ * Does not throw — returns a typed result.
+ */
+export function validateGoogleOAuthEnvVars(): GoogleOAuthEnvCheck {
+  const missing = GOOGLE_OAUTH_VARS.filter(k => !process.env[k]);
+  return { valid: missing.length === 0, missing };
+}
+
+export interface GoogleTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+}
+
+/**
+ * Exchange a Google OAuth authorization code for tokens.
+ *
+ * Calls https://oauth2.googleapis.com/token and returns the parsed token
+ * response.  Throws with a descriptive message on failure.
+ */
+export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenResponse> {
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const redirectUri  = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+
+  if (!clientId)     throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_ID');
+  if (!clientSecret) throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_SECRET');
+  if (!redirectUri)  throw new Error('Missing env var: GOOGLE_OAUTH_REDIRECT_URI');
+
+  const body = new URLSearchParams({
+    code,
+    client_id:     clientId,
+    client_secret: clientSecret,
+    redirect_uri:  redirectUri,
+    grant_type:    'authorization_code',
+  });
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '(no body)');
+    throw new Error(`Google token endpoint returned ${res.status}: ${text}`);
+  }
+
+  const json = await res.json() as Record<string, unknown>;
+
+  if (typeof json.error === 'string') {
+    throw new Error(`Google token error: ${json.error} — ${typeof json.error_description === 'string' ? json.error_description : ''}`);
+  }
+
+  if (typeof json.access_token !== 'string') {
+    throw new Error('Google token response missing access_token');
+  }
+
+  // Build a validated, strongly-typed return value
+  const tokens: GoogleTokenResponse = {
+    access_token:  json.access_token,
+    token_type:    typeof json.token_type    === 'string' ? json.token_type    : 'Bearer',
+    expires_in:    typeof json.expires_in    === 'number' ? json.expires_in    : 3600,
+    scope:         typeof json.scope         === 'string' ? json.scope         : '',
+    refresh_token: typeof json.refresh_token === 'string' ? json.refresh_token : undefined,
+  };
+  return tokens;
+}
+
 // ── Config validation ─────────────────────────────────────────────────────────
 
 /** Granular status of the Google Drive OAuth configuration. */
