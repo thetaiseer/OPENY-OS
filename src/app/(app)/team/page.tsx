@@ -306,7 +306,9 @@ export default function TeamPage() {
         }),
       });
       let data: { error?: string } = {};
-      try { data = await res.json(); } catch { /* non-JSON response */ }
+      try { data = await res.json(); } catch (jsonErr) {
+        console.error('[team/invite] Failed to parse response JSON:', jsonErr);
+      }
       if (!res.ok) {
         console.error('[team/invite] API error:', res.status, data.error);
         setActionError(data.error ?? `Request failed (${res.status}). Please try again.`);

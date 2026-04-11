@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
   // body.name is accepted as a fallback for older clients; prefer body.full_name
   const full_name      = (body.full_name ?? body.name ?? '').trim();
   const email          = (body.email ?? '').trim().toLowerCase();
-  const job_title      = (body.job_title ?? body.role ?? '').trim();  // job title (e.g., "Graphic Designer")
+  const job_title      = (body.job_title ?? (() => {
+    if (body.role) console.warn('[team/invite] Deprecated: body.role used as job_title — update client to send body.job_title');
+    return body.role;
+  })() ?? '').trim();  // job title (e.g., "Graphic Designer")
   const permission_role = (body.permission_role ?? 'member').trim();  // RBAC role (admin|manager|member|viewer)
 
   if (!full_name || !email) {
