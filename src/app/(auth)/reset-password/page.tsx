@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
+const REDIRECT_DELAY_MS = 2500;
+
 function ResetPasswordForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -65,7 +67,7 @@ function ResetPasswordForm() {
 
     setSuccess(true);
     // Give the user a moment to read the success message, then redirect.
-    setTimeout(() => router.replace('/login'), 2500);
+    setTimeout(() => router.replace('/login'), REDIRECT_DELAY_MS);
   };
 
   // ── Loading state (exchanging code) ────────────────────────────────────────
