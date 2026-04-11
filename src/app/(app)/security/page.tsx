@@ -197,11 +197,6 @@ function Detail({
 export default function SecurityPage() {
   const { signOut, role, loading: authLoading } = useAuth();
 
-  // Restrict security page to owner/admin only
-  if (!authLoading && !canAccessAdminPages(role)) {
-    return <AccessDenied message="Only owners and admins can access the Security page." />;
-  }
-
   const [sessions,       setSessions]       = useState<Session[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState<string | null>(null);
@@ -225,6 +220,11 @@ export default function SecurityPage() {
   }, []);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  // Restrict security page to owner/admin only (after all hooks)
+  if (!authLoading && !canAccessAdminPages(role)) {
+    return <AccessDenied message="Only owners and admins can access the Security page." />;
+  }
 
   async function handleRevoke(id: string) {
     setRevoking(id);

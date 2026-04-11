@@ -208,11 +208,6 @@ export default function TeamPage() {
   const { toast } = useToast();
   const canManage = canManageMembers(myRole);
 
-  // Show access denied for member/viewer
-  if (!authLoading && !canManage) {
-    return <AccessDenied message="Only owners and admins can access the Team management page." />;
-  }
-
   const [members, setMembers]           = useState<TeamMember[]>([]);
   const [invitations, setInvitations]   = useState<TeamInvitation[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -252,6 +247,11 @@ export default function TeamPage() {
   const inviteByMember = useCallback((memberId: string): TeamInvitation | undefined => {
     return invitations.find(i => i.team_member_id === memberId);
   }, [invitations]);
+
+  // Show access denied for member/viewer (after all hooks)
+  if (!authLoading && !canManage) {
+    return <AccessDenied message="Only owners and admins can access the Team management page." />;
+  }
 
   // ── Invite ────────────────────────────────────────────────────────────────
   const handleInvite = async (e: React.FormEvent) => {
