@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import {
   CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2, LogOut,
-  ShieldCheck, CloudOff, CloudLightning, HardDrive, RotateCcw,
+  ShieldCheck, CloudOff, CloudLightning, HardDrive, RotateCcw, Link2,
 } from 'lucide-react';
 
 // ── Google Drive types ────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ function GoogleDriveSyncCard() {
   const [syncing,     setSyncing]     = useState(false);
   const [syncError,   setSyncError]   = useState<string | null>(null);
   const [syncMsg,     setSyncMsg]     = useState<string | null>(null);
+  const [googleParam, setGoogleParam] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     setLoadingConn(true);
@@ -119,6 +120,18 @@ function GoogleDriveSyncCard() {
     fetchStatus();
     fetchSyncLog();
   }, [fetchStatus, fetchSyncLog]);
+
+  // Read google=connected|error from the URL after OAuth redirect (no Suspense needed)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const param = new URLSearchParams(window.location.search).get('google');
+    if (param) {
+      setGoogleParam(param);
+      // Clean up the URL without a full reload
+      const clean = window.location.pathname;
+      window.history.replaceState(null, '', clean);
+    }
+  }, []);
 
   const handleRefresh = () => {
     fetchStatus();
@@ -311,6 +324,26 @@ function GoogleDriveSyncCard() {
         )}
       </section>
 
+      {/* ── OAuth connection feedback ── */}
+      {googleParam === 'connected' && (
+        <div
+          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', color: '#16a34a' }}
+        >
+          <CheckCircle size={16} className="shrink-0 mt-0.5" />
+          Google Drive connected successfully.
+        </div>
+      )}
+      {googleParam === 'error' && (
+        <div
+          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}
+        >
+          <AlertCircle size={16} className="shrink-0 mt-0.5" />
+          Google Drive connection failed. Please try again or check your configuration.
+        </div>
+      )}
+
       {/* ── Inline feedback ── */}
       {syncMsg && (
         <div
@@ -333,6 +366,14 @@ function GoogleDriveSyncCard() {
 
       {/* ── Actions ── */}
       <section className="flex flex-wrap gap-3">
+        <a
+          href="/api/google/connect"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+        >
+          <Link2 size={15} /> Connect Google Drive
+        </a>
+
         <button
           onClick={handleSyncNow}
           disabled={syncing || !status?.connected}
