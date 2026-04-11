@@ -6,6 +6,12 @@
  *
  * Role resolution uses public.team_members (matched by email).
  *
+ * Role hierarchy (highest → lowest):
+ *   owner > admin > manager > team > others (e.g. client)
+ *
+ * The "owner" role bypasses ALL role restrictions — requireRole() always
+ * returns success for an owner regardless of the allowedRoles list.
+ *
  * Usage:
  *   const result = await getApiUser(request);
  *   if (!result) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -154,6 +160,8 @@ export async function getApiUser(
  * Convenience helper: returns the profile if the caller has one of the
  * allowed roles, otherwise returns a 401/403 NextResponse.
  *
+ * The "owner" role always passes — it bypasses all role restrictions.
+ *
  * Usage:
  *   const result = await requireRole(request, ['admin', 'team']);
  *   if (result instanceof NextResponse) return result;
@@ -167,6 +175,11 @@ export async function requireRole(
 
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Owner has full access to all system actions — bypass all role restrictions.
+  if (auth.profile.role === 'owner') {
+    return auth;
   }
 
   if (!allowedRoles.includes(auth.profile.role)) {
