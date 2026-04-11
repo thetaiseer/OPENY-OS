@@ -197,7 +197,7 @@ function Detail({
 export default function SecurityPage() {
   const { signOut, role, loading: authLoading } = useAuth();
 
-  // Restrict security management page to owner/admin only
+  // Restrict security page to owner/admin only
   if (!authLoading && !canAccessAdminPages(role)) {
     return <AccessDenied message="Only owners and admins can access the Security page." />;
   }

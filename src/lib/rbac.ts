@@ -56,11 +56,6 @@ export function canAccessAdminPages(role: UserRole): boolean {
   return role === 'owner' || role === 'admin';
 }
 
-/** All roles may access their own security (sessions) page. */
-export function canAccessSecurityPage(_role: UserRole): boolean {
-  return true;
-}
-
 /** Valid RBAC permission roles accepted in API requests. */
 export const VALID_PERMISSION_ROLES: UserRole[] = ['owner', 'admin', 'member', 'viewer'];
 
