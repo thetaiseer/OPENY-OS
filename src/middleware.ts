@@ -37,6 +37,9 @@ export async function middleware(request: NextRequest) {
   // This avoids middleware interfering with cookie parsing in Route Handlers.
   const isPublicRoute =
     pathname.startsWith('/login') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname === '/invite' ||
     pathname.startsWith('/invite/') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||

@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .update({ status: 'revoked', updated_at: new Date().toISOString() })
     .eq('team_member_id', teamMemberId)
-    .eq('status', 'invited');
+    .eq('status', 'pending');
 
   if (revokeError) {
     return NextResponse.json({ error: revokeError.message }, { status: 500 });
