@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { User as UserIcon, KeyRound, LogOut, AlertTriangle } from 'lucide-react';
+import { User as UserIcon, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface AccountMenuProps {
@@ -15,7 +15,7 @@ interface AccountMenuProps {
 }
 
 export default function AccountMenu({ placement, children }: AccountMenuProps) {
-  const { user, role, loading, profileMissing, signOut } = useAuth();
+  const { user, role, loading, signOut } = useAuth();
   const [open, setOpen]           = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -113,17 +113,6 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
                 </div>
               </div>
             )}
-
-            {/* Profile missing warning */}
-            {profileMissing && !loading && (
-              <div
-                className="flex items-start gap-2 mt-2 px-2 py-1.5 rounded-lg text-xs"
-                style={{ background: 'rgba(234,179,8,0.1)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)' }}
-              >
-                <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-                <span>Profile not found — contact your admin.</span>
-              </div>
-            )}
           </div>
 
           {/* Menu items */}
@@ -177,3 +166,4 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
     </div>
   );
 }
+

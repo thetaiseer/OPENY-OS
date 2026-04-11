@@ -36,16 +36,16 @@ export async function GET(req: NextRequest) {
       counts[id] = (counts[id] ?? 0) + 1;
     }
 
-    // Resolve names from profiles
+    // Resolve names from team_members
     const ids = Object.keys(counts).filter(id => id !== 'unassigned');
     let nameMap: Record<string, string> = {};
     if (ids.length) {
-      const { data: profiles } = await sb
-        .from('profiles')
-        .select('id, name')
-        .in('id', ids);
-      for (const p of profiles ?? []) {
-        nameMap[p.id as string] = p.name as string;
+      const { data: members } = await sb
+        .from('team_members')
+        .select('profile_id, full_name')
+        .in('profile_id', ids);
+      for (const member of members ?? []) {
+        if (member.profile_id) nameMap[member.profile_id as string] = member.full_name as string;
       }
     }
 
