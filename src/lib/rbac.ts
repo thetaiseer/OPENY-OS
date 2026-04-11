@@ -4,17 +4,18 @@
  * Role-based access control helpers shared across the app.
  *
  * Role hierarchy (highest → lowest):
- *   owner > admin > member > viewer
+ *   owner > admin > manager > member > viewer
  */
 
 import type { UserRole } from './auth-context';
 
 /** Numeric rank for easy comparison — higher = more privileged. */
 const ROLE_RANK: Record<UserRole, number> = {
-  owner:  4,
-  admin:  3,
-  member: 2,
-  viewer: 1,
+  owner:   5,
+  admin:   4,
+  manager: 3,
+  member:  2,
+  viewer:  1,
 };
 
 /** Returns true if `role` is at least as privileged as `required`. */
@@ -32,12 +33,12 @@ export function canManageMembers(role: UserRole): boolean {
  *
  * Rules:
  *  - owner can assign any role including owner
- *  - admin can assign member or viewer; cannot assign admin or owner
- *  - member/viewer cannot assign any role
+ *  - admin can assign manager, member, or viewer; cannot assign admin or owner
+ *  - manager/member/viewer cannot assign any role
  */
 export function canAssignRole(callerRole: UserRole, targetRole: UserRole): boolean {
   if (callerRole === 'owner') return true;
-  if (callerRole === 'admin') return targetRole === 'member' || targetRole === 'viewer';
+  if (callerRole === 'admin') return targetRole === 'manager' || targetRole === 'member' || targetRole === 'viewer';
   return false;
 }
 
@@ -47,7 +48,7 @@ export function canAssignRole(callerRole: UserRole, targetRole: UserRole): boole
  */
 export function canChangeRoleOf(callerRole: UserRole, subjectRole: UserRole): boolean {
   if (callerRole === 'owner') return true;
-  if (callerRole === 'admin') return subjectRole === 'member' || subjectRole === 'viewer';
+  if (callerRole === 'admin') return subjectRole === 'manager' || subjectRole === 'member' || subjectRole === 'viewer';
   return false;
 }
 
@@ -57,7 +58,10 @@ export function canAccessAdminPages(role: UserRole): boolean {
 }
 
 /** Valid RBAC permission roles accepted in API requests. */
-export const VALID_PERMISSION_ROLES: UserRole[] = ['owner', 'admin', 'member', 'viewer'];
+export const VALID_PERMISSION_ROLES: UserRole[] = ['owner', 'admin', 'manager', 'member', 'viewer'];
+
+/** Valid roles that can be assigned when inviting a new team member (excludes owner). */
+export const ASSIGNABLE_ROLES: UserRole[] = ['admin', 'manager', 'member', 'viewer'];
 
 export function isValidPermissionRole(value: string): value is UserRole {
   return VALID_PERMISSION_ROLES.includes(value as UserRole);

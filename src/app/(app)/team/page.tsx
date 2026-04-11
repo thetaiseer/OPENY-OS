@@ -19,40 +19,46 @@ import type { TeamMember, TeamInvitation } from '@/lib/types';
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
-// ── Marketing roles list ─────────────────────────────────────────────────────
-const ROLE_OPTIONS = [
-  { value: 'Content Creator',           label: 'Content Creator' },
-  { value: 'Social Media Manager',      label: 'Social Media Manager' },
-  { value: 'Graphic Designer',          label: 'Graphic Designer' },
-  { value: 'Video Editor',              label: 'Video Editor' },
-  { value: 'Copywriter',                label: 'Copywriter' },
-  { value: 'SEO Specialist',            label: 'SEO Specialist' },
-  { value: 'Paid Ads Specialist',       label: 'Paid Ads Specialist' },
-  { value: 'Email Marketing Specialist',label: 'Email Marketing Specialist' },
-  { value: 'Brand Strategist',          label: 'Brand Strategist' },
-  { value: 'Marketing Manager',         label: 'Marketing Manager' },
-  { value: 'Account Manager',           label: 'Account Manager' },
-  { value: 'Project Manager',           label: 'Project Manager' },
-  { value: 'UX/UI Designer',            label: 'UX/UI Designer' },
-  { value: 'Photographer',              label: 'Photographer' },
-  { value: 'Influencer Manager',        label: 'Influencer Manager' },
-  { value: 'PR Specialist',             label: 'PR Specialist' },
-  { value: 'Analytics Specialist',      label: 'Analytics Specialist' },
-  { value: 'Admin',                     label: 'Admin' },
-  { value: 'Manager',                   label: 'Manager' },
-  { value: '__other__',                 label: 'Other…' },
+// ── Job titles list ───────────────────────────────────────────────────────────
+const JOB_TITLE_OPTIONS = [
+  { value: 'Graphic Designer',       label: 'Graphic Designer' },
+  { value: 'Social Media Manager',   label: 'Social Media Manager' },
+  { value: 'Content Creator',        label: 'Content Creator' },
+  { value: 'Video Editor',           label: 'Video Editor' },
+  { value: 'Media Buyer',            label: 'Media Buyer' },
+  { value: 'Copywriter',             label: 'Copywriter' },
+  { value: 'Community Manager',      label: 'Community Manager' },
+  { value: 'Account Manager',        label: 'Account Manager' },
+  { value: 'SEO Specialist',         label: 'SEO Specialist' },
+  { value: 'Performance Marketer',   label: 'Performance Marketer' },
+  { value: 'Email Marketing Specialist', label: 'Email Marketing Specialist' },
+  { value: 'Brand Strategist',       label: 'Brand Strategist' },
+  { value: 'UX/UI Designer',         label: 'UX/UI Designer' },
+  { value: 'Photographer',           label: 'Photographer' },
+  { value: 'Influencer Manager',     label: 'Influencer Manager' },
+  { value: 'PR Specialist',          label: 'PR Specialist' },
+  { value: 'Analytics Specialist',   label: 'Analytics Specialist' },
+  { value: 'Project Manager',        label: 'Project Manager' },
+  { value: '__other__',              label: 'Other…' },
 ];
 
-// ── RoleField — dropdown + optional custom text input ────────────────────────
-function RoleField({
+// ── Access role options (permission roles only) ───────────────────────────────
+const ACCESS_ROLE_OPTIONS = [
+  { value: 'admin',   label: 'Admin' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'member',  label: 'Member' },
+  { value: 'viewer',  label: 'Viewer' },
+];
+
+// ── JobTitleField — dropdown + optional custom text input ─────────────────────
+function JobTitleField({
   value,
   onChange,
 }: {
   value: string;
   onChange: (v: string) => void;
 }) {
-  // Determine if the current value matches a preset option
-  const isPreset = ROLE_OPTIONS.some(o => o.value === value && o.value !== '__other__');
+  const isPreset = JOB_TITLE_OPTIONS.some(o => o.value === value && o.value !== '__other__');
   const [dropVal, setDropVal] = useState(isPreset ? value : (value ? '__other__' : ''));
   const [customVal, setCustomVal] = useState(isPreset ? '' : value);
 
@@ -76,8 +82,8 @@ function RoleField({
       <SelectDropdown
         value={dropVal}
         onChange={handleDropChange}
-        options={ROLE_OPTIONS}
-        placeholder="Select role…"
+        options={JOB_TITLE_OPTIONS}
+        placeholder="Select job title…"
         fullWidth
         clearable
       />
@@ -88,7 +94,7 @@ function RoleField({
           onChange={e => handleCustomChange(e.target.value)}
           className={inputCls}
           style={inputStyle}
-          placeholder="Enter custom role"
+          placeholder="Enter custom job title"
           autoFocus
         />
       )}
@@ -96,7 +102,7 @@ function RoleField({
   );
 }
 
-const blankForm = { full_name: '', email: '', role: '' };
+const blankForm = { full_name: '', email: '', permission_role: 'member', job_title: '' };
 
 // ── MemberForm is defined at module scope so React never remounts it ─────────
 function MemberForm({
@@ -131,8 +137,18 @@ function MemberForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role</label>
-        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Access Role</label>
+        <SelectDropdown
+          value={f.permission_role}
+          onChange={v => setF(x => ({ ...x, permission_role: v }))}
+          options={ACCESS_ROLE_OPTIONS}
+          placeholder="Select access role…"
+          fullWidth
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
+        <JobTitleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
       </div>
     </div>
   );
@@ -172,8 +188,24 @@ function InviteForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Role *</label>
-        <RoleField value={f.role} onChange={v => setF(x => ({ ...x, role: v }))} />
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Access Role *</label>
+        <SelectDropdown
+          value={f.permission_role}
+          onChange={v => setF(x => ({ ...x, permission_role: v }))}
+          options={ACCESS_ROLE_OPTIONS}
+          placeholder="Select access role…"
+          fullWidth
+        />
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Controls what the member can see and do in the workspace.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title *</label>
+        <JobTitleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Their actual role on the team (e.g., Graphic Designer).
+        </p>
       </div>
       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         An invitation email will be sent automatically. The link expires in 7 days.
@@ -257,25 +289,39 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
-    if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.role.trim()) {
-      setActionError('Full name, email, and role are required.');
-      return;
-    }
+    if (!inviteForm.full_name.trim()) { setActionError('Full name is required.'); return; }
+    if (!inviteForm.email.trim())     { setActionError('Email is required.'); return; }
+    if (!inviteForm.permission_role)  { setActionError('Access role is required.'); return; }
+    if (!inviteForm.job_title.trim()) { setActionError('Job title is required.'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/team/invite', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ full_name: inviteForm.full_name, email: inviteForm.email, role: inviteForm.role }),
+        body:    JSON.stringify({
+          full_name:       inviteForm.full_name,
+          email:           inviteForm.email,
+          permission_role: inviteForm.permission_role,
+          job_title:       inviteForm.job_title,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) { setActionError(data.error ?? 'Failed to send invitation.'); return; }
+      let data: { error?: string } = {};
+      try { data = await res.json(); } catch (jsonErr) {
+        console.error('[team/invite] Failed to parse response JSON:', jsonErr);
+      }
+      if (!res.ok) {
+        console.error('[team/invite] API error:', res.status, data.error);
+        setActionError(data.error ?? `Request failed (${res.status}). Please try again.`);
+        return;
+      }
       setInviteOpen(false);
       setInviteForm({ ...blankForm });
       toast(`Invitation sent to ${inviteForm.email}`, 'success');
       fetchData();
-    } catch {
-      setActionError('Network error. Please try again.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error. Please check your connection and try again.';
+      console.error('[team/invite] fetch error:', err);
+      setActionError(msg);
     } finally {
       setSaving(false);
     }
@@ -283,7 +329,12 @@ export default function TeamPage() {
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (member: TeamMember) => {
-    setEditForm({ full_name: member.full_name, email: member.email ?? '', role: member.role ?? '' });
+    setEditForm({
+      full_name:       member.full_name,
+      email:           member.email ?? '',
+      permission_role: member.permission_role ?? 'member',
+      job_title:       member.job_title ?? member.role ?? '',
+    });
     setEditMember(member);
   };
 
@@ -296,9 +347,10 @@ export default function TeamPage() {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          full_name: editForm.full_name.trim(),
-          email:     editForm.email || null,
-          role:      editForm.role  || null,
+          full_name:       editForm.full_name.trim(),
+          email:           editForm.email || null,
+          permission_role: editForm.permission_role || null,
+          job_title:       editForm.job_title || null,
         }),
       });
       const data = await res.json();
@@ -563,9 +615,15 @@ function MemberCard({
             <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
             {isInvited && <InviteBadge status="invited" />}
           </div>
-          {member.role && (
+          {/* Job title and permission role displayed separately */}
+          {(member.job_title ?? member.role) && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Briefcase size={11} />{member.role}
+              <Briefcase size={11} />{member.job_title ?? member.role}
+            </p>
+          )}
+          {member.permission_role && (
+            <p className="text-xs flex items-center gap-1 mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>
+              <Users size={11} />{member.permission_role}
             </p>
           )}
           {member.email && (

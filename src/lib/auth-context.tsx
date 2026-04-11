@@ -5,7 +5,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 
-export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'member' | 'viewer';
 
 /** Email address that always resolves to the 'owner' role. Configurable via NEXT_PUBLIC_OWNER_EMAIL env var. */
 const OWNER_EMAIL = (process.env.NEXT_PUBLIC_OWNER_EMAIL ?? 'thetaiseer@gmail.com').toLowerCase();
@@ -21,7 +21,7 @@ export function normalizeRole(raw: string): UserRole {
   switch (raw) {
     case 'owner':   return 'owner';
     case 'admin':   return 'admin';
-    case 'manager': return 'admin';
+    case 'manager': return 'manager';
     case 'team':    return 'member';
     case 'member':  return 'member';
     case 'viewer':  return 'viewer';
