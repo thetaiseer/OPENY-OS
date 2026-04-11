@@ -1,10 +1,28 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { User, Mail, ShieldCheck, Clock, Activity } from 'lucide-react';
+import { AlertTriangle, User, Mail, ShieldCheck, Clock, Wrench } from 'lucide-react';
 
 export default function AccountPage() {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, profileMissing, repairProfile } = useAuth();
+  const [repairing, setRepairing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+  const [repairDone, setRepairDone] = useState(false);
+
+  async function handleRepair() {
+    setRepairing(true);
+    setRepairError(null);
+    setRepairDone(false);
+    try {
+      await repairProfile();
+      setRepairDone(true);
+    } catch (err: unknown) {
+      setRepairError(err instanceof Error ? err.message : 'Repair failed');
+    } finally {
+      setRepairing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -20,8 +38,48 @@ export default function AccountPage() {
     <div className="max-w-xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Account</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Your workspace identity</p>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Your profile details</p>
       </div>
+
+      {/* Profile missing warning */}
+      {profileMissing && !repairDone && (
+        <div
+          className="flex items-start gap-3 rounded-xl p-4"
+          style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)' }}
+        >
+          <AlertTriangle size={18} style={{ color: '#ca8a04' }} className="shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-2">
+            <p className="text-sm" style={{ color: '#ca8a04' }}>
+              Your profile row was not found in the database. Role defaults to &quot;client&quot;.
+            </p>
+            {repairError && (
+              <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{repairError}</p>
+            )}
+            <button
+              onClick={handleRepair}
+              disabled={repairing}
+              className="flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
+              style={{ background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.35)' }}
+            >
+              <Wrench size={13} />
+              {repairing ? 'Repairing…' : 'Repair Profile'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Repair success */}
+      {repairDone && (
+        <div
+          className="flex items-start gap-3 rounded-xl p-4"
+          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}
+        >
+          <ShieldCheck size={18} style={{ color: '#16a34a' }} className="shrink-0 mt-0.5" />
+          <p className="text-sm" style={{ color: '#16a34a' }}>
+            Profile repaired successfully. Your role has been updated.
+          </p>
+        </div>
+      )}
 
       {/* Avatar + name */}
       <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -41,7 +99,7 @@ export default function AccountPage() {
 
       {/* Details */}
       <div className="rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <Row icon={<User size={16} />} label="Full name" value={user.name || '—'} />
+        <Row icon={<User size={16} />} label="Name" value={user.name || '—'} />
         <Row icon={<Mail size={16} />} label="Email" value={user.email || '—'} />
         <Row
           icon={<ShieldCheck size={16} />}
@@ -55,23 +113,6 @@ export default function AccountPage() {
             </span>
           }
         />
-        {user.status && (
-          <Row
-            icon={<Activity size={16} />}
-            label="Status"
-            value={
-              <span
-                className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize"
-                style={{
-                  background: user.status === 'active' ? 'rgba(22,163,74,0.1)' : 'rgba(234,179,8,0.1)',
-                  color:      user.status === 'active' ? '#16a34a'               : '#ca8a04',
-                }}
-              >
-                {user.status}
-              </span>
-            }
-          />
-        )}
         {(() => {
           const createdAt = (user as unknown as { created_at?: string }).created_at;
           return createdAt ? (
@@ -113,4 +154,3 @@ function Row({
     </div>
   );
 }
-
