@@ -201,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearUserCache();
             setLoading(false);
           }
+        }
       },
     );
 
