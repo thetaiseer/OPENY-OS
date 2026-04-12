@@ -74,6 +74,8 @@ export interface UploadItem {
   driveFolderId: string | null;
   driveFileName: string | null;
   fileMimeType:  string | null;
+  /** Warning message shown when the post-upload Google Drive sync fails (non-blocking). */
+  driveWarning:  string | null;
 }
 
 /** Minimal shape submitted when confirming a batch. */
@@ -245,6 +247,53 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         ...extra,
       },
     });
+  }, []);
+
+  // ── Google Drive background sync ─────────────────────────────────────────
+  //
+  // Called after a successful upload + DB save (fire-and-forget).
+  // If Drive is not configured the server returns { driveConfigured: false }
+  // and we skip silently.  On any failure we set driveWarning on the item
+  // so the queue row can show a non-blocking warning.
+
+  const syncToDrive = useCallback(async (itemId: string, assetId: string) => {
+    try {
+      const res = await fetch('/api/drive-sync', {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ assetId }),
+        credentials: 'include',
+      });
+
+      const json = await res.json() as {
+        success:          boolean;
+        driveConfigured?: boolean;
+        error?:           string;
+        warning?:         string;
+      };
+
+      // Drive not configured — skip silently (not an error).
+      if (!json.driveConfigured) return;
+
+      // Partial success (Drive upload OK but DB update failed) — show warning.
+      if (json.success && json.warning) {
+        dispatchRef.current({ type: 'UPDATE', id: itemId, patch: { driveWarning: json.warning } });
+        return;
+      }
+
+      // True failure — show warning.
+      if (!json.success) {
+        dispatchRef.current({
+          type:  'UPDATE',
+          id:    itemId,
+          patch: { driveWarning: json.error ?? 'Google Drive sync failed' },
+        });
+      }
+    } catch (err: unknown) {
+      // Network / parse error — show warning, do not change upload status.
+      const msg = err instanceof Error ? err.message : 'Network error during Drive sync';
+      dispatchRef.current({ type: 'UPDATE', id: itemId, patch: { driveWarning: msg } });
+    }
   }, []);
 
   // ── Core upload function ─────────────────────────────────────────────────
@@ -443,6 +492,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       if (json.stage === 'completed') {
         if (json.asset) dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: json.asset });
         setStage(item.id, 'completed', { progress: 100 });
+        // Fire Google Drive sync in background — non-blocking.
+        // Failure shows a warning but does not change the upload status.
+        if (json.asset?.id) {
+          void syncToDrive(item.id, json.asset.id);
+        }
         return;
       }
 
@@ -511,7 +565,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       abortControllersRef.current.delete(item.id);
       runningRef.current.delete(item.id);
     }
-  }, [setStage]);
+  }, [setStage, syncToDrive]);
 
   // ── Queue runner ──────────────────────────────────────────────────────────
 
@@ -551,6 +605,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       driveFolderId: null,
       driveFileName: null,
       fileMimeType:  null,
+      driveWarning:  null,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
   }, []);
@@ -569,6 +624,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         driveFolderId: null,
         driveFileName: null,
         fileMimeType:  null,
+        driveWarning:  null,
       },
     });
   }, []);
