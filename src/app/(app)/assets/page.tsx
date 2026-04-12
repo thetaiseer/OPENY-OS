@@ -482,6 +482,17 @@ const CATEGORY_COLORS: Record<string, string> = {
   'other':        '#6b7280',
 };
 
+const FILE_TYPE_LABELS: Record<string, string> = {
+  'image':           'Images',
+  'video':           'Videos',
+  'audio':           'Audio',
+  'application/pdf': 'PDFs',
+};
+
+function fileTypeFilterLabel(value: string): string {
+  return FILE_TYPE_LABELS[value] ?? (value.charAt(0).toUpperCase() + value.slice(1));
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS  = 15_000;
@@ -1028,7 +1039,7 @@ export default function AssetsPage() {
           </div>
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-1.5">
-              {filterFileType && <FilterBadge label={filterFileType} onRemove={() => setFilterFileType('')} />}
+              {filterFileType && <FilterBadge label={fileTypeFilterLabel(filterFileType)} onRemove={() => setFilterFileType('')} />}
               {filterApproval && <FilterBadge label={filterApproval} onRemove={() => setFilterApproval('')} />}
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
             </div>

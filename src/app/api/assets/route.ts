@@ -73,15 +73,25 @@ export async function GET(req: NextRequest) {
 
     if (result.error?.code === '42703') {
       console.warn(
-        '[GET /api/assets] Column "is_deleted" does not exist — falling back to unfiltered query. ' +
+        '[GET /api/assets] Column "is_deleted" does not exist — falling back without is_deleted filter. ' +
         'Run supabase-migration-missing-columns.sql to add the missing column.',
       );
-      // Retry without is_deleted filter
-      result = await supabase
+      // Rebuild the same query without the is_deleted filter
+      let fallback = supabase
         .from('assets')
         .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
+
+      if (clientId)     fallback = fallback.eq('client_id', clientId);
+      if (clientName)   fallback = fallback.eq('client_name', clientName);
+      if (mainCategory) fallback = fallback.eq('main_category', mainCategory);
+      if (subCategory)  fallback = fallback.eq('sub_category', subCategory);
+      if (monthKey)     fallback = fallback.eq('month_key', monthKey);
+      if (year)         fallback = fallback.like('month_key', `${year}-%`);
+      if (fileType)     fallback = fallback.like('file_type', `${fileType}%`);
+      if (search)       fallback = fallback.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
+
+      result = await fallback.range(from, to);
     }
 
     const { data, error } = result;
