@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     displayName  = existingFileName!;
     fileMimeType = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
     fileSize     = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
-    publicUrl    = buildStorageUrl(supabaseUrl, "assets", storagePath);
+    publicUrl    = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
   } else {
     // Normal upload path — file is required.
     if (!file || !(file instanceof File)) {
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
     // ── Upload file to Supabase Storage ──────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const bucketName = "assets";
+      const bucketName = "client-assets";
 
       // ── Pre-upload diagnostic log ─────────────────────────────────────────
       console.log("SUPABASE URL:", supabaseUrl);
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
       console.log('[UPLOAD DEBUG] storage upload succeeded. path:', _uploadData?.path ?? storagePath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      const bucketName = "assets";
+      const bucketName = "client-assets";
       console.error('[UPLOAD DEBUG] ── storage upload EXCEPTION (during upload) ─');
       console.error('[UPLOAD DEBUG] exception     :', msg);
       console.error('[UPLOAD DEBUG] bucket        :', bucketName);
@@ -303,7 +303,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    publicUrl = buildStorageUrl(supabaseUrl, "assets", storagePath);
+    publicUrl = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
   }
 
   // ── Step 2: Deduplication check ──────────────────────────────────────────
@@ -336,7 +336,7 @@ export async function POST(req: NextRequest) {
     file_type:        fileMimeType,
     mime_type:        fileMimeType,
     file_size:        fileSize,
-    bucket_name:      "assets",
+    bucket_name:      "client-assets",
     storage_provider: 'supabase_storage',
     drive_file_id:    null,
     drive_folder_id:  null,
@@ -373,7 +373,7 @@ export async function POST(req: NextRequest) {
         when:            'after_upload',
         location:        publicUrl,
         drive_file_id:   storagePath,
-        drive_folder_id: "assets",
+        drive_folder_id: "client-assets",
         drive_file_name: displayName,
         error:           dbError,
       },
@@ -410,7 +410,7 @@ export async function POST(req: NextRequest) {
       location:        publicUrl,
       asset:           inserted,
       drive_file_id:   storagePath,
-      drive_folder_id: "assets",
+      drive_folder_id: "client-assets",
     },
     { status: 201 },
   );

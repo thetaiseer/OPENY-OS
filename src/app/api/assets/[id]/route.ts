@@ -58,7 +58,7 @@ export async function DELETE(
       });
     } else {
       const { error: storageError } = await supabase.storage
-        .from("assets")
+        .from("client-assets")
         .remove([filePath]);
 
       if (storageError) {
