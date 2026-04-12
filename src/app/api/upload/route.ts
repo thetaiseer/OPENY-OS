@@ -27,9 +27,6 @@ const VALID_CONTENT_TYPES = [
 ] as const;
 type ValidContentType = typeof VALID_CONTENT_TYPES[number];
 
-/** Supabase Storage bucket name for uploaded assets. */
-const ASSETS_BUCKET = 'assets';
-
 // ── Supabase client ───────────────────────────────────────────────────────────
 
 function getSupabase() {
@@ -137,13 +134,11 @@ export async function POST(req: NextRequest) {
 
   // Fields used for failed_db retry (storage already done).
   // driveFileId repurposed as the Supabase storage object path.
-  // driveFolderId repurposed as the bucket name.
   // driveFileName is the display file name.
   const existingStoragePath  = (formData.get('driveFileId')    as string | null)?.trim() || null;
-  const existingBucketName   = (formData.get('driveFolderId')  as string | null)?.trim() || null;
   const existingFileName     = (formData.get('driveFileName')  as string | null)?.trim() || null;
 
-  const isRetryDbSave = !!(existingStoragePath && existingBucketName && existingFileName);
+  const isRetryDbSave = !!(existingStoragePath && existingFileName);
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const validationError = (message: string, step = 'validation') =>
@@ -177,7 +172,6 @@ export async function POST(req: NextRequest) {
   }
 
   let storagePath:  string;
-  let bucketName:   string;
   let displayName:  string;
   let fileMimeType: string;
   let fileSize:     number | null;
@@ -187,11 +181,10 @@ export async function POST(req: NextRequest) {
   if (isRetryDbSave) {
     // Storage already done — skip upload, go straight to DB save.
     storagePath  = existingStoragePath!;
-    bucketName   = existingBucketName!;
     displayName  = existingFileName!;
     fileMimeType = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
     fileSize     = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
-    publicUrl    = buildStorageUrl(supabaseUrl, bucketName, storagePath);
+    publicUrl    = buildStorageUrl(supabaseUrl, "assets", storagePath);
   } else {
     // Normal upload path — file is required.
     if (!file || !(file instanceof File)) {
@@ -220,15 +213,15 @@ export async function POST(req: NextRequest) {
     displayName  = buildFinalFileName(file.name, customName, clientName, contentType, monthKey);
     fileMimeType = file.type || 'application/octet-stream';
     fileSize     = file.size;
-    bucketName   = ASSETS_BUCKET;
-    // Path: {userId}/{timestamp}_{sanitizedFileName} — no profile_id dependency.
-    storagePath  = `${auth.profile.id}/${Date.now()}_${sanitizeFileName(displayName)}`;
+    // Path: {userId}/{fileName}
+    storagePath  = `${auth.profile.id}/${file.name}`;
 
     // ── Upload file to Supabase Storage ──────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
+      console.log("Uploading to bucket:", "assets");
       const { error: storageError } = await supabase.storage
-        .from(bucketName)
+        .from("assets")
         .upload(storagePath, fileBuffer, {
           contentType: fileMimeType,
           upsert:      false,
@@ -254,7 +247,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    publicUrl = buildStorageUrl(supabaseUrl, bucketName, storagePath);
+    publicUrl = buildStorageUrl(supabaseUrl, "assets", storagePath);
   }
 
   // ── Step 2: Deduplication check ──────────────────────────────────────────
@@ -287,7 +280,7 @@ export async function POST(req: NextRequest) {
     file_type:        fileMimeType,
     mime_type:        fileMimeType,
     file_size:        fileSize,
-    bucket_name:      bucketName,
+    bucket_name:      "assets",
     storage_provider: 'supabase_storage',
     drive_file_id:    null,
     drive_folder_id:  null,
@@ -318,7 +311,7 @@ export async function POST(req: NextRequest) {
         success:         true,
         stage:           'failed_db',
         drive_file_id:   storagePath,
-        drive_folder_id: bucketName,
+        drive_folder_id: "assets",
         drive_file_name: displayName,
         error: {
           step:    'database_insert',
@@ -358,7 +351,7 @@ export async function POST(req: NextRequest) {
       stage:           'completed',
       asset:           inserted,
       drive_file_id:   storagePath,
-      drive_folder_id: bucketName,
+      drive_folder_id: "assets",
     },
     { status: 201 },
   );
