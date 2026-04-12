@@ -220,10 +220,20 @@ export async function POST(req: NextRequest) {
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const bucketName = "assets";
-      console.log("[ASSET DEBUG] Supabase upload started");
-      console.log("[ASSET DEBUG] Google Drive integration bypassed");
-      console.log("[UPLOAD DEBUG] bucket=assets");
-      const { data: _uploadData, error: storageError } = await supabase.storage
+
+      // ── Pre-upload diagnostic log ─────────────────────────────────────────
+      console.log('[UPLOAD DEBUG] ── pre-upload diagnostics ──────────────────');
+      console.log('[UPLOAD DEBUG] side          : server-side (Next.js API route)');
+      console.log('[UPLOAD DEBUG] client_type   : service_role (SUPABASE_SERVICE_ROLE_KEY)');
+      console.log('[UPLOAD DEBUG] user_id       :', auth.profile.id);
+      console.log('[UPLOAD DEBUG] bucket        :', bucketName);
+      console.log('[UPLOAD DEBUG] path          :', storagePath);
+      console.log('[UPLOAD DEBUG] mime_type     :', fileMimeType);
+      console.log('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
+      console.log('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
+      console.log('[UPLOAD DEBUG] ─────────────────────────────────────────────');
+
+      const { data: uploadData, error: storageError } = await supabase.storage
         .from(bucketName)
         .upload(storagePath, fileBuffer, {
           contentType: fileMimeType,
@@ -231,35 +241,67 @@ export async function POST(req: NextRequest) {
         });
 
       if (storageError) {
-        console.error('[upload] Supabase storage upload failed:', storageError.message, '| bucket:', bucketName, '| path:', storagePath, '| url:', supabaseUrl);
+        // Log the full error object so nothing is hidden.
+        console.error('[UPLOAD DEBUG] ── storage upload FAILED (during upload) ─');
+        console.error('[UPLOAD DEBUG] full_error    :', JSON.stringify(storageError, null, 2));
+        console.error('[UPLOAD DEBUG] bucket        :', bucketName);
+        console.error('[UPLOAD DEBUG] path          :', storagePath);
+        console.error('[UPLOAD DEBUG] mime_type     :', fileMimeType);
+        console.error('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
+        console.error('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
+        console.error('[UPLOAD DEBUG] ─────────────────────────────────────────');
         return NextResponse.json(
           {
-            success: false,
-            stage:   'failed_upload',
-            error:   {
-              step:         'storage_upload',
-              message:      storageError.message,
+            success:    false,
+            stage:      'failed_upload',
+            when:       'during_upload',
+            location:   null,
+            error:      storageError,
+            debug: {
               bucket:       bucketName,
               path:         storagePath,
+              mime_type:    fileMimeType,
+              file_size:    fileSize,
+              side:         'server',
+              client_type:  'service_role',
+              user_id:      auth.profile.id,
               supabase_url: supabaseUrl,
             },
           },
           { status: 500 },
         );
       }
+
+      console.log('[UPLOAD DEBUG] storage upload succeeded. path:', uploadData?.path ?? storagePath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const bucketName = "assets";
-      console.error('[upload] storage upload exception:', msg, '| bucket:', bucketName, '| path:', storagePath, '| url:', supabaseUrl);
+      console.error('[UPLOAD DEBUG] ── storage upload EXCEPTION (during upload) ─');
+      console.error('[UPLOAD DEBUG] exception     :', msg);
+      console.error('[UPLOAD DEBUG] bucket        :', bucketName);
+      console.error('[UPLOAD DEBUG] path          :', storagePath);
+      console.error('[UPLOAD DEBUG] mime_type     :', fileMimeType);
+      console.error('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
+      console.error('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
+      console.error('[UPLOAD DEBUG] ─────────────────────────────────────────────');
       return NextResponse.json(
         {
-          success: false,
-          stage:   'failed_upload',
-          error:   {
-            step:         'storage_upload',
-            message:      msg,
+          success:   false,
+          stage:     'failed_upload',
+          when:      'during_upload',
+          location:  null,
+          error: {
+            message: msg,
+            raw:     err instanceof Error ? { name: err.name, stack: err.stack } : String(err),
+          },
+          debug: {
             bucket:       bucketName,
             path:         storagePath,
+            mime_type:    fileMimeType,
+            file_size:    fileSize,
+            side:         'server',
+            client_type:  'service_role',
+            user_id:      auth.profile.id,
             supabase_url: supabaseUrl,
           },
         },
@@ -322,7 +364,11 @@ export async function POST(req: NextRequest) {
   );
 
   if (dbError) {
-    console.error('[upload] DB insert failed:', dbError.message);
+    console.error('[UPLOAD DEBUG] ── DB insert FAILED (after upload) ──────────');
+    console.error('[UPLOAD DEBUG] full_db_error :', JSON.stringify(dbError, null, 2));
+    console.error('[UPLOAD DEBUG] location      :', publicUrl);
+    console.error('[UPLOAD DEBUG] path          :', storagePath);
+    console.error('[UPLOAD DEBUG] ─────────────────────────────────────────────');
     // Storage file exists — return failed_db so the client can retry DB save.
     // Reuse drive_file_id/drive_folder_id/drive_file_name fields to carry the
     // storage path, bucket name, and display name for the retry request.
@@ -330,15 +376,12 @@ export async function POST(req: NextRequest) {
       {
         success:         true,
         stage:           'failed_db',
+        when:            'after_upload',
+        location:        publicUrl,
         drive_file_id:   storagePath,
         drive_folder_id: "assets",
         drive_file_name: displayName,
-        error: {
-          step:    'database_insert',
-          message: dbError.message,
-          code:    dbError.code    ?? null,
-          details: dbError.details ?? null,
-        },
+        error:           dbError,
       },
       { status: 200 },
     );
@@ -363,12 +406,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  console.log('[upload] completed:', displayName, '| path:', storagePath);
+  console.log('[UPLOAD DEBUG] completed:', displayName, '| location:', publicUrl);
 
   return NextResponse.json(
     {
       success:         true,
       stage:           'completed',
+      when:            'after_upload',
+      location:        publicUrl,
       asset:           inserted,
       drive_file_id:   storagePath,
       drive_folder_id: "assets",
