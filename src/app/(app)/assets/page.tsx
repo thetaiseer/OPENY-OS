@@ -197,15 +197,12 @@ function countFolderAssets(yearMap: Map<string, Map<string, Asset[]>>): number {
 }
 
 /**
- * Wrapper for Drive embed iframes that shows a loading spinner and a
- * fallback "Can't preview" card if the embed doesn't fully load.
- *
- * Google Drive iframes sometimes show their own "Load failed" page which we
- * cannot detect from JS (cross-origin).  We track the onLoad event; if it
- * fires the iframe is shown normally.  The fallback action buttons are always
- * rendered beneath the embed so the user can open in Drive or download.
+ * Wrapper for embedded iframes (e.g. PDF preview) that shows a loading spinner
+ * while the iframe is initializing.  We track the onLoad event; if it fires
+ * the iframe is shown normally.  The fallback action buttons are always
+ * rendered beneath the embed so the user can download the file.
  */
-function DriveEmbed({
+function EmbedPreview({
   src,
   title,
   allow,
@@ -301,7 +298,7 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
 
         {/* ── PDF — inline iframe ───────────────────────────────────────── */}
         {isPdf_ && (
-          <DriveEmbed
+          <EmbedPreview
             src={embedUrl ?? ''}
             title={asset.name}
             height="75vh"

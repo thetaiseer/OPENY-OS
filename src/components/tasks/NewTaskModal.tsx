@@ -409,7 +409,7 @@ export default function NewTaskModal({
 
         {!selectedClient && (
           <p className="text-xs text-amber-600 flex items-center gap-1">
-            <AlertCircle size={12} /> Select a client first — file will be stored in their Drive folder.
+            <AlertCircle size={12} /> Select a client first — file will be stored in their R2 storage folder.
           </p>
         )}
 
@@ -456,7 +456,7 @@ export default function NewTaskModal({
           />
         </div>
 
-        {/* Drive folder info */}
+        {/* Storage path info */}
         {selectedClient && (
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
             📁 Will be saved to: <strong>Clients / {selectedClient.name} / {new Date().getFullYear()} / ...</strong>
@@ -778,7 +778,7 @@ export default function NewTaskModal({
                 className="text-xs hover:underline flex items-center gap-1"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                <Paperclip size={12} /> Attach a file (uploads to client&apos;s Drive folder)
+                <Paperclip size={12} /> Attach a file (uploads to client&apos;s R2 storage)
               </button>
             )}
 
