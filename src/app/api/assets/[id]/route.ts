@@ -21,7 +21,7 @@ export async function DELETE(
   const supabase = getServiceClient();
   const { data: asset, error: fetchError } = await supabase
     .from('assets')
-    .select('id, drive_file_id, drive_folder_id, file_path, bucket_name, name, storage_provider')
+    .select('id, file_path, bucket_name, name, storage_provider')
     .eq('id', id)
     .single();
 

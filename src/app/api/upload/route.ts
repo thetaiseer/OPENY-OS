@@ -72,12 +72,12 @@ function buildFinalFileName(
  *   uploadedBy     – uploader name/email (optional)
  *   customFileName – custom base name without extension (optional)
  *
- * For a failed_db retry (R2 upload already done), pass driveFileId (R2 object key)
- * and driveFileName instead of file — the R2 upload step is skipped.
+ * For a failed_db retry (R2 upload already done), pass r2Key (R2 object key)
+ * and r2FileName instead of file — the R2 upload step is skipped.
  *
  * Response stages:
  *   completed    – fully succeeded (R2 + DB)
- *   failed_db    – R2 OK, DB save failed (drive_file_id/key included for retry)
+ *   failed_db    – R2 OK, DB save failed (r2_key/r2_bucket included for retry)
  *   failed_upload – R2 upload failed
  */
 export async function POST(req: NextRequest) {
@@ -117,10 +117,8 @@ export async function POST(req: NextRequest) {
   const customName   = (formData.get('customFileName') as string | null)?.trim() || null;
 
   // Fields used for failed_db retry (R2 upload already done).
-  // driveFileId repurposed as the R2 object key.
-  // driveFileName is the display file name.
-  const existingR2Key    = (formData.get('driveFileId')   as string | null)?.trim() || null;
-  const existingFileName = (formData.get('driveFileName') as string | null)?.trim() || null;
+  const existingR2Key    = (formData.get('r2Key')      as string | null)?.trim() || null;
+  const existingFileName = (formData.get('r2FileName') as string | null)?.trim() || null;
 
   const isRetryDbSave = !!(existingR2Key && existingFileName);
 
@@ -245,7 +243,7 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { success: true, stage: 'completed', asset: existing, drive_file_id: r2Key },
+        { success: true, stage: 'completed', asset: existing, r2_key: r2Key },
         { status: 200 },
       );
     }
@@ -267,8 +265,6 @@ export async function POST(req: NextRequest) {
     file_size:        fileSize,
     bucket_name:      process.env.R2_BUCKET_NAME ?? 'client-assets',
     storage_provider: 'r2',
-    drive_file_id:    null,
-    drive_folder_id:  null,
     client_name:        clientName,
     client_folder_name: clientName,
     content_type:     contentType,
@@ -294,14 +290,14 @@ export async function POST(req: NextRequest) {
     // R2 file exists — return failed_db so the client can retry DB save.
     return NextResponse.json(
       {
-        success:         true,
-        stage:           'failed_db',
-        when:            'after_upload',
-        location:        publicUrl,
-        drive_file_id:   r2Key,
-        drive_folder_id: process.env.R2_BUCKET_NAME ?? 'client-assets',
-        drive_file_name: displayName,
-        error:           dbError,
+        success:    true,
+        stage:      'failed_db',
+        when:       'after_upload',
+        location:   publicUrl,
+        r2_key:     r2Key,
+        r2_bucket:  process.env.R2_BUCKET_NAME ?? 'client-assets',
+        r2_filename: displayName,
+        error:      dbError,
       },
       { status: 200 },
     );
@@ -330,13 +326,13 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     {
-      success:         true,
-      stage:           'completed',
-      when:            'after_upload',
-      location:        publicUrl,
-      asset:           inserted,
-      drive_file_id:   r2Key,
-      drive_folder_id: process.env.R2_BUCKET_NAME ?? 'client-assets',
+      success:   true,
+      stage:     'completed',
+      when:      'after_upload',
+      location:  publicUrl,
+      asset:     inserted,
+      r2_key:    r2Key,
+      r2_bucket: process.env.R2_BUCKET_NAME ?? 'client-assets',
     },
     { status: 201 },
   );

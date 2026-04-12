@@ -19,8 +19,6 @@ export interface Client {
   status: 'active' | 'inactive' | 'prospect';
   logo?: string;
   notes?: string;
-  /** Google Drive root folder ID for this client */
-  drive_folder_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -132,7 +130,6 @@ export interface Task {
   platforms?: string[] | null;
   post_types?: string[] | null;
   reminder_at?: string | null;
-  linked_drive_folder_id?: string | null;
 }
 
 export type ContentItemStatus =
@@ -188,8 +185,6 @@ export interface Asset {
   file_size?: number;
   bucket_name?: string | null;
   storage_provider?: string | null;
-  drive_file_id?: string | null;
-  drive_folder_id?: string | null;
   client_folder_name?: string | null;
   content_type?: string | null;
   month_key?: string | null;
