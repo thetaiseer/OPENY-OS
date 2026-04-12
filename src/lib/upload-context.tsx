@@ -65,9 +65,9 @@ export interface UploadItem {
   monthKey:    string;
   uploadedBy:  string | null;
   /** R2 object key — set after a successful R2 upload; used to retry DB save without re-uploading. */
-  driveFileId:   string | null;
-  driveFolderId: string | null;
-  driveFileName: string | null;
+  r2Key:      string | null;
+  r2Bucket:   string | null;
+  r2FileName: string | null;
   fileMimeType:  string | null;
 }
 
@@ -249,7 +249,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   //   The server handles the R2 upload and DB save atomically.
   //   XHR upload.progress events provide real byte-level progress.
   //
-  // For failed_db retries: the R2 key is stored in item.driveFileId (legacy field name);
+  // For failed_db retries: the R2 key is stored in item.r2Key;
   //   the route detects this and skips the R2 upload, retrying only the DB save.
 
   const doUploadItem = useCallback(async (item: UploadItem) => {
@@ -258,7 +258,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // ── Client-side size check ──────────────────────────────────────────
-      if (item.file.size > MAX_FILE_SIZE_BYTES && !item.driveFileId) {
+      if (item.file.size > MAX_FILE_SIZE_BYTES && !item.r2Key) {
         setStage(item.id, 'failed_upload', {
           errorDetail: {
             step:    'size_limit',
@@ -275,10 +275,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       // ── Build form data ─────────────────────────────────────────────────
       const formData = new FormData();
 
-      if (item.driveFileId) {
+      if (item.r2Key) {
         // failed_db retry path: send R2 key + display name, skip actual file
-        formData.append('driveFileId',   item.driveFileId);
-        formData.append('driveFileName', item.driveFileName ?? item.file.name);
+        formData.append('r2Key',      item.r2Key);
+        formData.append('r2FileName', item.r2FileName ?? item.file.name);
         formData.append('fileMimeType',  item.fileMimeType ?? item.file.type ?? 'application/octet-stream');
         formData.append('fileSize',      String(item.file.size));
       } else {
@@ -311,12 +311,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       // ── Parse server response ─────────────────────────────────────────
       let json: {
-        success:          boolean;
-        stage?:           string;
-        asset?:           Asset;
-        drive_file_id?:   string;
-        drive_folder_id?: string;
-        drive_file_name?: string;
+        success:      boolean;
+        stage?:       string;
+        asset?:       Asset;
+        r2_key?:      string;
+        r2_bucket?:   string;
+        r2_filename?: string;
         error?: { step: string; message: string; code?: string | null; details?: string | null };
       };
 
@@ -351,10 +351,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           type:  'UPDATE',
           id:    item.id,
           patch: {
-            driveFileId:   json.drive_file_id   ?? item.driveFileId,
-            driveFolderId: json.drive_folder_id ?? item.driveFolderId,
-            driveFileName: json.drive_file_name ?? item.driveFileName,
-            fileMimeType:  item.fileMimeType ?? item.file.type ?? null,
+            r2Key:       json.r2_key      ?? item.r2Key,
+            r2Bucket:    json.r2_bucket   ?? item.r2Bucket,
+            r2FileName:  json.r2_filename ?? item.r2FileName,
+            fileMimeType: item.fileMimeType ?? item.file.type ?? null,
           },
         });
         setStage(item.id, 'failed_db', {
@@ -444,10 +444,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       contentType:   meta.contentType,
       monthKey:      meta.monthKey,
       uploadedBy:    meta.uploadedBy,
-      driveFileId:   null,
-      driveFolderId: null,
-      driveFileName: null,
-      fileMimeType:  null,
+      r2Key:       null,
+      r2Bucket:    null,
+      r2FileName:  null,
+      fileMimeType: null,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
   }, []);
@@ -462,10 +462,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         statusText:    stageText('queued'),
         progress:      0,
         errorDetail:   null,
-        driveFileId:   null,
-        driveFolderId: null,
-        driveFileName: null,
-        fileMimeType:  null,
+        r2Key:       null,
+        r2Bucket:    null,
+        r2FileName:  null,
+        fileMimeType: null,
       },
     });
   }, []);
@@ -480,7 +480,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         statusText:  stageText('queued'),
         progress:    0,
         errorDetail: null,
-        // driveFileId/driveFolderId/driveFileName preserved — doUploadItem will skip R2 upload
+        // r2Key/r2Bucket/r2FileName preserved — doUploadItem will skip R2 upload
       },
     });
   }, []);
