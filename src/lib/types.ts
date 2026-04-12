@@ -19,7 +19,6 @@ export interface Client {
   status: 'active' | 'inactive' | 'prospect';
   logo?: string;
   notes?: string;
-
   created_at: string;
   updated_at: string;
 }
@@ -131,7 +130,6 @@ export interface Task {
   platforms?: string[] | null;
   post_types?: string[] | null;
   reminder_at?: string | null;
-
 }
 
 export type ContentItemStatus =
@@ -187,7 +185,6 @@ export interface Asset {
   file_size?: number;
   bucket_name?: string | null;
   storage_provider?: string | null;
-
   client_folder_name?: string | null;
   content_type?: string | null;
   month_key?: string | null;
