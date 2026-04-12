@@ -13,10 +13,10 @@ export function contentTypeLabel(ct: string): string {
 }
 
 /**
- * Convert a client display name to a normalized Drive folder name.
+ * Convert a client display name to a normalized R2 path segment.
  * Uppercases and replaces whitespace with underscores.
  *
- * Must stay in sync with the folder naming used in the upload route.
+ * Must stay in sync with the path naming used in the upload route.
  */
 export function clientToFolderName(name: string): string {
   return name.trim().toUpperCase().replace(/\s+/g, '_');

@@ -167,7 +167,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               <RotateCcw size={10} />
             </button>
           )}
-          {/* Reconcile — only when Drive succeeded but DB save failed */}
+          {/* Reconcile — only when R2 upload succeeded but DB save failed */}
           {isFailedDb && (
             <button
               onClick={() => reconcileItem(item.id)}
