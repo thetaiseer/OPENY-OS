@@ -125,7 +125,7 @@ export async function saveRefreshToken(refreshToken: string): Promise<void> {
   try {
     const { error } = await sb
       .from('google_oauth_tokens')
-      .upsert({ key: 'default', refresh_token: refreshToken, updated_at: new Date().toISOString() });
+      .upsert({ key: 'default', refresh_token: refreshToken });
     if (error) {
       console.error('[google-drive] saveRefreshToken: upsert failed', error.message);
     } else {
@@ -358,7 +358,7 @@ async function getDriveClient(): Promise<{ drive: drive_v3.Drive; rootFolderId: 
   let refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
   if (!refreshToken) {
     console.log('[google-drive] GOOGLE_OAUTH_REFRESH_TOKEN not set — reading from DB');
-    refreshToken = await getStoredRefreshToken() ?? undefined;
+    refreshToken = (await getStoredRefreshToken()) || undefined;
   }
 
   if (!refreshToken) {

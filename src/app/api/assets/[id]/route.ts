@@ -114,7 +114,7 @@ export async function DELETE(
           });
         } else if (driveErr instanceof DriveAuthError) {
           // OAuth credentials rejected — do not block the DB delete
-          warning = 'Asset record deleted. Google Drive must be reconnected to remove the remote file.';
+          warning = 'Asset record deleted. Google Drive must be reconnected in Settings to remove the remote file.';
           console.error('[asset-delete] Drive auth error – skipping Drive delete', {
             assetId: asset.id,
             driveFileId,

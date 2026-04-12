@@ -55,6 +55,9 @@ export async function GET(req: NextRequest) {
     } else {
       // Google only returns a refresh token on the first consent or when
       // prompt=consent is set.  The existing stored token remains valid.
+      // Note: if this is a first-time setup and no token was stored previously,
+      // the user should disconnect and reconnect via /api/google/connect to force
+      // a fresh consent screen with a new refresh token.
       console.warn('[google/callback] No refresh_token in response — existing stored token unchanged');
     }
 
