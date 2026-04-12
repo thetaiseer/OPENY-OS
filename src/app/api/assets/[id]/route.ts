@@ -61,7 +61,6 @@ export async function DELETE(
   if (asset.storage_provider === 'supabase_storage') {
     // ── Supabase Storage delete ─────────────────────────────────────────────
     const filePath   = asset.file_path as string | null;
-    const bucketName = (asset.bucket_name as string | null) ?? 'assets';
 
     if (!filePath) {
       console.warn('[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion', {
@@ -69,7 +68,7 @@ export async function DELETE(
       });
     } else {
       const { error: storageError } = await supabase.storage
-        .from(bucketName)
+        .from("assets")
         .remove([filePath]);
 
       if (storageError) {
