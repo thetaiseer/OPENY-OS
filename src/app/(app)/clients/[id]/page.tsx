@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File,
   Calendar, User, Users, Tag, AlertCircle, Plus,
-  FileText, FileImage, FileVideo, FileAudio, Eye, Download, Link, ExternalLink,
+  FileText, FileImage, FileVideo, FileAudio, Eye, Download, Link,
   CheckCircle, X, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
@@ -81,15 +81,13 @@ function AssetFileIcon({ name, type, size = 36 }: { name: string; type?: string;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
-function ClientAssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }: {
+function ClientAssetCard({ asset, onView, onDelete, onCopyLink }: {
   asset: Asset;
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
-  onOpenInDrive: () => void;
 }) {
   const img = isImageFile(asset.name, asset.file_type);
-  const hasDrive = asset.storage_provider === 'google_drive' && !!asset.view_url;
   const downloadUrl = asset.download_url ?? asset.file_url;
   return (
     <div
@@ -141,13 +139,6 @@ function ClientAssetCard({ asset, onView, onDelete, onCopyLink, onOpenInDrive }:
           style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <Link size={14} />
         </button>
-        {hasDrive && (
-          <button onClick={onOpenInDrive} title="Open in Drive"
-            className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-            <ExternalLink size={14} />
-          </button>
-        )}
         <button onClick={onDelete} title="Delete"
           className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
           style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
@@ -184,13 +175,6 @@ function ClientPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => v
             onClick={e => e.stopPropagation()}>
             <Download size={14} /> Download
           </a>
-          {asset.view_url && (
-            <a href={asset.view_url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
-              onClick={e => e.stopPropagation()}>
-              <ExternalLink size={14} /> Open in Drive
-            </a>
-          )}
         </div>
       </div>
     </div>
@@ -740,9 +724,6 @@ export default function ClientWorkspace() {
                       } catch {
                         addToast('Failed to copy link', 'error');
                       }
-                    }}
-                    onOpenInDrive={() => {
-                      if (a.view_url) window.open(a.view_url, '_blank', 'noopener,noreferrer');
                     }}
                   />
                 ))}

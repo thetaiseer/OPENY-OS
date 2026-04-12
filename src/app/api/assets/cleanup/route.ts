@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { google } from 'googleapis';
 import { requireRole } from '@/lib/api-auth';
+import { objectExistsInR2, checkR2Config } from '@/lib/r2';
 
+type AssetRow = { id: string; name: string; file_path: string | null };
 
-function getDriveClient() {
-  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-  if (!clientId || !clientSecret || !refreshToken) return null;
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
-  return google.drive({ version: 'v3', auth: oauth2Client });
-}
-
-type AssetRow = { id: string; name: string; drive_file_id: string | null };
-
-// Check which Drive file IDs are missing (HTTP 404), 20 at a time
+// Check which R2 object keys are missing (HeadObject 404), 20 at a time
 async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
-  const drive = getDriveClient();
-  if (!drive) return [];
+  const { configured } = checkR2Config();
+  if (!configured) return [];
 
   const orphanedIds: string[] = [];
   const CONCURRENCY = 20;
@@ -28,14 +17,11 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
     const batch = assets.slice(i, i + CONCURRENCY);
     await Promise.allSettled(
       batch.map(async asset => {
-        if (!asset.drive_file_id) return;
+        if (!asset.file_path) return;
         try {
-          await drive.files.get({ fileId: asset.drive_file_id, fields: 'id' });
-        } catch (err: unknown) {
-          const status = (err as { code?: number })?.code;
-          if (status === 404) {
-            orphanedIds.push(asset.id);
-          }
+          const exists = await objectExistsInR2(asset.file_path);
+          if (!exists) orphanedIds.push(asset.id);
+        } catch {
           // Skip transient / auth errors to avoid false positives
         }
       }),
@@ -47,56 +33,62 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
 
 /**
  * GET /api/assets/cleanup
- * Find DB asset records whose Google Drive file is confirmed missing (404).
+ * Find DB asset records whose R2 object is confirmed missing.
  * Admin only.
  */
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = getServiceClient();
-
-  if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
-    return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });
+  const { configured, missingVars } = checkR2Config();
+  if (!configured) {
+    return NextResponse.json(
+      { error: `R2 storage not configured. Missing: ${missingVars.join(', ')}` },
+      { status: 500 },
+    );
   }
 
+  const supabase = getServiceClient();
   const { data: assets, error } = await supabase
     .from('assets')
-    .select('id, name, drive_file_id')
-    .eq('storage_provider', 'google_drive')
-    .not('drive_file_id', 'is', null);
+    .select('id, name, file_path')
+    .eq('storage_provider', 'r2')
+    .not('file_path', 'is', null);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const list = (assets ?? []) as AssetRow[];
   const orphanedIds = await findOrphanedIds(list);
-  const orphaned = list.filter(a => orphanedIds.includes(a.id)).map(a => ({
-    id: a.id, name: a.name, drive_file_id: a.drive_file_id,
-  }));
+  const orphaned = list
+    .filter(a => orphanedIds.includes(a.id))
+    .map(a => ({ id: a.id, name: a.name, file_path: a.file_path }));
 
   return NextResponse.json({ orphaned, total: list.length, orphanedCount: orphaned.length });
 }
 
 /**
  * DELETE /api/assets/cleanup
- * Delete DB records whose Google Drive file is confirmed missing (404).
+ * Delete DB records whose R2 object is confirmed missing.
  * Admin only.
  */
 export async function DELETE(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = getServiceClient();
-
-  if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
-    return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });
+  const { configured, missingVars } = checkR2Config();
+  if (!configured) {
+    return NextResponse.json(
+      { error: `R2 storage not configured. Missing: ${missingVars.join(', ')}` },
+      { status: 500 },
+    );
   }
 
+  const supabase = getServiceClient();
   const { data: assets, error } = await supabase
     .from('assets')
-    .select('id, name, drive_file_id')
-    .eq('storage_provider', 'google_drive')
-    .not('drive_file_id', 'is', null);
+    .select('id, name, file_path')
+    .eq('storage_provider', 'r2')
+    .not('file_path', 'is', null);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceClient, getSupabaseUrl } from '@/lib/supabase/service-client';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
+import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
 
 // ── Runtime config ────────────────────────────────────────────────────────────
 // Allow up to 5 minutes for large file uploads (requires Vercel Pro).
@@ -26,11 +27,6 @@ const VALID_CONTENT_TYPES = [
   'PASSWORDS','DOCUMENTS','RAW_FILES','ADS_CREATIVES','REPORTS','OTHER',
 ] as const;
 type ValidContentType = typeof VALID_CONTENT_TYPES[number];
-
-/** Build the public storage URL for an object in the assets bucket. */
-function buildStorageUrl(supabaseUrl: string, bucket: string, path: string): string {
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,9 +60,8 @@ function buildFinalFileName(
 /**
  * POST /api/upload
  *
- * Accepts a multipart form upload, uploads the file to Supabase Storage under:
- *   assets/{userId}/{timestamp}_{sanitizedFileName}
- * then saves asset metadata to the Supabase `assets` table.
+ * Accepts a multipart form upload, uploads the file to Cloudflare R2, then
+ * saves asset metadata to the Supabase `assets` table.
  *
  * Form fields:
  *   file           – the File to upload (required)
@@ -77,14 +72,13 @@ function buildFinalFileName(
  *   uploadedBy     – uploader name/email (optional)
  *   customFileName – custom base name without extension (optional)
  *
- * For a failed_db retry (storage already done), pass driveFileId (storage path),
- * driveFolderId (bucket name), and driveFileName instead of file — the storage
- * upload step is skipped.
+ * For a failed_db retry (R2 upload already done), pass driveFileId (R2 object key)
+ * and driveFileName instead of file — the R2 upload step is skipped.
  *
  * Response stages:
- *   completed    – fully succeeded (Storage + DB)
- *   failed_db    – Storage OK, DB save failed (drive_file_id/path included for retry)
- *   failed_upload – Storage upload failed
+ *   completed    – fully succeeded (R2 + DB)
+ *   failed_db    – R2 OK, DB save failed (drive_file_id/key included for retry)
+ *   failed_upload – R2 upload failed
  */
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -122,13 +116,13 @@ export async function POST(req: NextRequest) {
   const uploadedBy   = (formData.get('uploadedBy')   as string | null)?.trim() || null;
   const customName   = (formData.get('customFileName') as string | null)?.trim() || null;
 
-  // Fields used for failed_db retry (storage already done).
-  // driveFileId repurposed as the Supabase storage object path.
+  // Fields used for failed_db retry (R2 upload already done).
+  // driveFileId repurposed as the R2 object key.
   // driveFileName is the display file name.
-  const existingStoragePath  = (formData.get('driveFileId')    as string | null)?.trim() || null;
-  const existingFileName     = (formData.get('driveFileName')  as string | null)?.trim() || null;
+  const existingR2Key    = (formData.get('driveFileId')   as string | null)?.trim() || null;
+  const existingFileName = (formData.get('driveFileName') as string | null)?.trim() || null;
 
-  const isRetryDbSave = !!(existingStoragePath && existingFileName);
+  const isRetryDbSave = !!(existingR2Key && existingFileName);
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const validationError = (message: string, step = 'validation') =>
@@ -147,10 +141,8 @@ export async function POST(req: NextRequest) {
   }
 
   let supabase: ReturnType<typeof getServiceClient>;
-  let supabaseUrl: string;
   try {
-    supabase    = getServiceClient();
-    supabaseUrl = getSupabaseUrl();
+    supabase = getServiceClient();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Supabase configuration error';
     console.error('[upload] Supabase client initialisation failed:', msg);
@@ -160,20 +152,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let storagePath:  string;
+  let r2Key:        string;
   let displayName:  string;
   let fileMimeType: string;
   let fileSize:     number | null;
   let publicUrl:    string;
 
-  // ── Storage upload (or skip if retrying DB save) ───────────────────────────
+  // ── R2 upload (or skip if retrying DB save) ───────────────────────────────
   if (isRetryDbSave) {
-    // Storage already done — skip upload, go straight to DB save.
-    storagePath  = existingStoragePath!;
+    // R2 upload already done — skip upload, go straight to DB save.
+    r2Key        = existingR2Key!;
     displayName  = existingFileName!;
     fileMimeType = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
     fileSize     = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
-    publicUrl    = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
+    publicUrl    = buildR2Url(r2Key);
   } else {
     // Normal upload path — file is required.
     if (!file || !(file instanceof File)) {
@@ -198,112 +190,49 @@ export async function POST(req: NextRequest) {
       return validationError('File is empty');
     }
 
-    // Build display name and storage path.
+    // Build display name and R2 key.
     displayName  = buildFinalFileName(file.name, customName, clientName, contentType, monthKey);
     fileMimeType = file.type || 'application/octet-stream';
     fileSize     = file.size;
-    // Path: {userId}/{fileName}
-    storagePath  = `${auth.profile.id}/${file.name}`;
+    // Key: {clientName}/{contentType}/{monthKey}/{displayName}
+    const sanitizedClientName = sanitizeFileName(clientName);
+    r2Key = `${sanitizedClientName}/${contentType}/${monthKey}/${displayName}`;
 
-    // ── Upload file to Supabase Storage ──────────────────────────────────────
+    // ── Upload file to Cloudflare R2 ─────────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const bucketName = "client-assets";
 
-      // ── Pre-upload diagnostic log ─────────────────────────────────────────
-      console.log("SUPABASE URL:", supabaseUrl);
-      const { data: bucketList } = await supabase.storage.listBuckets();
-      console.log("Buckets:", bucketList);
-      console.log('[UPLOAD DEBUG] ── pre-upload diagnostics ──────────────────');
-      console.log('[UPLOAD DEBUG] side          : server-side (Next.js API route)');
-      console.log('[UPLOAD DEBUG] client_type   : service_role (SUPABASE_SERVICE_ROLE_KEY)');
-      console.log('[UPLOAD DEBUG] user_id       :', auth.profile.id);
-      console.log('[UPLOAD DEBUG] bucket        :', bucketName);
-      console.log('[UPLOAD DEBUG] path          :', storagePath);
-      console.log('[UPLOAD DEBUG] mime_type     :', fileMimeType);
-      console.log('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
-      console.log('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
-      console.log('[UPLOAD DEBUG] ─────────────────────────────────────────────');
+      console.log('[upload] ── R2 upload ────────────────────────────────────────');
+      console.log('[upload] user_id     :', auth.profile.id);
+      console.log('[upload] r2_key      :', r2Key);
+      console.log('[upload] mime_type   :', fileMimeType);
+      console.log('[upload] file_size   :', fileSize, 'bytes');
+      console.log('[upload] ─────────────────────────────────────────────────────');
 
-      const { data: _uploadData, error: storageError } = await supabase.storage
-        .from(bucketName)
-        .upload(storagePath, fileBuffer, {
-          contentType: fileMimeType,
-          upsert:      false,
-        });
+      const result = await uploadToR2(r2Key, fileBuffer, fileMimeType);
+      publicUrl    = result.publicUrl;
 
-      if (storageError) {
-        // Log the full error object so nothing is hidden.
-        console.error('[UPLOAD DEBUG] ── storage upload FAILED (during upload) ─');
-        console.error('[UPLOAD DEBUG] full_error    :', JSON.stringify(storageError, null, 2));
-        console.error('[UPLOAD DEBUG] bucket        :', bucketName);
-        console.error('[UPLOAD DEBUG] path          :', storagePath);
-        console.error('[UPLOAD DEBUG] mime_type     :', fileMimeType);
-        console.error('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
-        console.error('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
-        console.error('[UPLOAD DEBUG] ─────────────────────────────────────────');
-        return NextResponse.json(
-          {
-            success:    false,
-            stage:      'failed_upload',
-            when:       'during_upload',
-            location:   null,
-            error:      storageError,
-            debug: {
-              bucket:       bucketName,
-              path:         storagePath,
-              mime_type:    fileMimeType,
-              file_size:    fileSize,
-              side:         'server',
-              client_type:  'service_role',
-              user_id:      auth.profile.id,
-              supabase_url: supabaseUrl,
-            },
-          },
-          { status: 500 },
-        );
-      }
-
-      console.log('[UPLOAD DEBUG] storage upload succeeded. path:', _uploadData?.path ?? storagePath);
+      console.log('[upload] R2 upload succeeded. key:', r2Key, '| url:', publicUrl);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const bucketName = "client-assets";
-      console.error('[UPLOAD DEBUG] ── storage upload EXCEPTION (during upload) ─');
-      console.error('[UPLOAD DEBUG] exception     :', msg);
-      console.error('[UPLOAD DEBUG] bucket        :', bucketName);
-      console.error('[UPLOAD DEBUG] path          :', storagePath);
-      console.error('[UPLOAD DEBUG] mime_type     :', fileMimeType);
-      console.error('[UPLOAD DEBUG] file_size     :', fileSize, 'bytes');
-      console.error('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
-      console.error('[UPLOAD DEBUG] ─────────────────────────────────────────────');
+      const msg         = err instanceof Error ? err.message : String(err);
+      const isConfigErr = err instanceof R2ConfigError;
+      console.error('[upload] ── R2 upload FAILED ──────────────────────────────');
+      console.error('[upload] r2_key    :', r2Key);
+      console.error('[upload] error     :', msg);
+      console.error('[upload] ──────────────────────────────────────────────────');
       return NextResponse.json(
         {
-          success:   false,
-          stage:     'failed_upload',
-          when:      'during_upload',
-          location:  null,
+          success: false,
+          stage:   'failed_upload',
+          when:    'during_upload',
           error: {
-            message:    msg,
-            statusCode: null,
-            error:      err instanceof Error ? err.name : 'UnknownError',
-            stack:      err instanceof Error ? err.stack : undefined,
-          },
-          debug: {
-            bucket:       bucketName,
-            path:         storagePath,
-            mime_type:    fileMimeType,
-            file_size:    fileSize,
-            side:         'server',
-            client_type:  'service_role',
-            user_id:      auth.profile.id,
-            supabase_url: supabaseUrl,
+            step:    isConfigErr ? 'config' : 'r2_upload',
+            message: msg,
           },
         },
-        { status: 500 },
+        { status: isConfigErr ? 500 : 502 },
       );
     }
-
-    publicUrl = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
   }
 
   // ── Step 2: Deduplication check ──────────────────────────────────────────
@@ -311,12 +240,12 @@ export async function POST(req: NextRequest) {
     const { data: existing } = await supabase
       .from('assets')
       .select('*')
-      .eq('file_path', storagePath)
+      .eq('file_path', r2Key)
       .maybeSingle();
 
     if (existing) {
       return NextResponse.json(
-        { success: true, stage: 'completed', asset: existing, drive_file_id: storagePath },
+        { success: true, stage: 'completed', asset: existing, drive_file_id: r2Key },
         { status: 200 },
       );
     }
@@ -329,15 +258,15 @@ export async function POST(req: NextRequest) {
 
   const insertRow: Record<string, unknown> = {
     name:             displayName,
-    file_path:        storagePath,
+    file_path:        r2Key,
     file_url:         publicUrl,
     view_url:         publicUrl,
     download_url:     publicUrl,
     file_type:        fileMimeType,
     mime_type:        fileMimeType,
     file_size:        fileSize,
-    bucket_name:      "client-assets",
-    storage_provider: 'supabase_storage',
+    bucket_name:      process.env.R2_BUCKET_NAME ?? 'client-assets',
+    storage_provider: 'r2',
     drive_file_id:    null,
     drive_folder_id:  null,
     client_name:        clientName,
@@ -358,22 +287,19 @@ export async function POST(req: NextRequest) {
   );
 
   if (dbError) {
-    console.error('[UPLOAD DEBUG] ── DB insert FAILED (after upload) ──────────');
-    console.error('[UPLOAD DEBUG] full_db_error :', JSON.stringify(dbError, null, 2));
-    console.error('[UPLOAD DEBUG] location      :', publicUrl);
-    console.error('[UPLOAD DEBUG] path          :', storagePath);
-    console.error('[UPLOAD DEBUG] ─────────────────────────────────────────────');
-    // Storage file exists — return failed_db so the client can retry DB save.
-    // Reuse drive_file_id/drive_folder_id/drive_file_name fields to carry the
-    // storage path, bucket name, and display name for the retry request.
+    console.error('[upload] ── DB insert FAILED (after R2 upload) ───────────');
+    console.error('[upload] db_error    :', JSON.stringify(dbError, null, 2));
+    console.error('[upload] r2_key      :', r2Key);
+    console.error('[upload] ─────────────────────────────────────────────────');
+    // R2 file exists — return failed_db so the client can retry DB save.
     return NextResponse.json(
       {
         success:         true,
         stage:           'failed_db',
         when:            'after_upload',
         location:        publicUrl,
-        drive_file_id:   storagePath,
-        drive_folder_id: "client-assets",
+        drive_file_id:   r2Key,
+        drive_folder_id: process.env.R2_BUCKET_NAME ?? 'client-assets',
         drive_file_name: displayName,
         error:           dbError,
       },
@@ -400,7 +326,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  console.log('[UPLOAD DEBUG] completed:', displayName, '| location:', publicUrl);
+  console.log('[upload] completed:', displayName, '| r2_key:', r2Key, '| url:', publicUrl);
 
   return NextResponse.json(
     {
@@ -409,8 +335,8 @@ export async function POST(req: NextRequest) {
       when:            'after_upload',
       location:        publicUrl,
       asset:           inserted,
-      drive_file_id:   storagePath,
-      drive_folder_id: "client-assets",
+      drive_file_id:   r2Key,
+      drive_folder_id: process.env.R2_BUCKET_NAME ?? 'client-assets',
     },
     { status: 201 },
   );

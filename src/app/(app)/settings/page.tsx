@@ -5,52 +5,15 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import {
-  CheckCircle, AlertCircle, RefreshCw, ExternalLink, Loader2, LogOut,
-  ShieldCheck, CloudOff, CloudLightning, HardDrive, RotateCcw, Link2,
+  CheckCircle, AlertCircle, Loader2, LogOut,
+  ShieldCheck, CloudLightning, HardDrive, RotateCcw,
 } from 'lucide-react';
 
-// ── Google Drive types ────────────────────────────────────────────────────────
+// ── R2 Storage Card ───────────────────────────────────────────────────────────
 
-type DriveConfigStatus =
-  | 'not_configured'
-  | 'partially_configured'
-  | 'configured'
-  | 'connected'
-  | 'auth_failed';
-
-interface DriveStatus {
-  status: DriveConfigStatus;
-  connected: boolean;
+interface R2Status {
   configured: boolean;
   missingVars: string[];
-  error: string | null;
-  email: string | null;
-  isAdminAccount: boolean;
-}
-
-interface SyncLog {
-  id: string;
-  synced_at: string;
-  files_added: number;
-  files_updated: number;
-  files_removed: number;
-  errors_count: number;
-  error_details: string[];
-  duration_ms: number | null;
-  triggered_by: 'manual' | 'cron';
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
 }
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
@@ -63,131 +26,78 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
         border:     `1px solid ${ok ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
       }}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full"
-        style={{ background: ok ? '#16a34a' : '#ef4444' }}
-      />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: ok ? '#16a34a' : '#ef4444' }} />
       {label}
     </span>
   );
 }
 
-// ── Google Drive Sync Card ────────────────────────────────────────────────────
+function DiagRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span
+        className="font-mono truncate max-w-[180px] text-right"
+        style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
-function GoogleDriveSyncCard() {
-  const [status,      setStatus]      = useState<DriveStatus | null>(null);
-  const [syncLog,     setSyncLog]     = useState<SyncLog | null>(null);
-  const [loadingConn, setLoadingConn] = useState(true);
-  const [loadingSync, setLoadingSync] = useState(true);
-  const [syncing,     setSyncing]     = useState(false);
-  const [syncError,   setSyncError]   = useState<string | null>(null);
-  const [syncMsg,     setSyncMsg]     = useState<string | null>(null);
-  const [googleParam, setGoogleParam] = useState<string | null>(null);
+function R2StorageCard() {
+  const [status,  setStatus]  = useState<R2Status | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchStatus = useCallback(async () => {
-    setLoadingConn(true);
+    setLoading(true);
     try {
-      const res = await fetch('/api/auth/google/status');
-      setStatus(res.ok
-        ? await res.json() as DriveStatus
-        : { status: 'not_configured', connected: false, configured: false, missingVars: [], error: 'Failed to load status', email: null, isAdminAccount: false },
-      );
-    } catch {
-      setStatus({ status: 'not_configured', connected: false, configured: false, missingVars: [], error: 'Network error', email: null, isAdminAccount: false });
-    } finally {
-      setLoadingConn(false);
-    }
-  }, []);
-
-  const fetchSyncLog = useCallback(async () => {
-    setLoadingSync(true);
-    try {
-      const res = await fetch('/api/assets/sync');
+      const res = await fetch('/api/r2/status');
       if (res.ok) {
-        const body = await res.json() as { success: boolean; last_sync: SyncLog | null };
-        setSyncLog(body.last_sync ?? null);
+        setStatus(await res.json() as R2Status);
       } else {
-        setSyncLog(null);
+        setStatus({ configured: false, missingVars: ['Unable to check status'] });
       }
     } catch {
-      setSyncLog(null);
+      setStatus({ configured: false, missingVars: ['Network error'] });
     } finally {
-      setLoadingSync(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-    fetchSyncLog();
-  }, [fetchStatus, fetchSyncLog]);
-
-  // Read google=connected|error from the URL after OAuth redirect (no Suspense needed)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const param = new URLSearchParams(window.location.search).get('google');
-    if (param) {
-      setGoogleParam(param);
-      // Clean up the URL without a full reload
-      const clean = window.location.pathname;
-      window.history.replaceState(null, '', clean);
-    }
-  }, []);
-
-  const handleRefresh = () => {
-    fetchStatus();
-    fetchSyncLog();
-  };
-
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    setSyncMsg(null);
-    try {
-      const res  = await fetch('/api/assets/sync', { method: 'POST' });
-      const body = await res.json() as { success: boolean; files_added?: number; files_updated?: number; files_removed?: number; errors_count?: number; error?: string };
-      if (!res.ok || !body.success) {
-        setSyncError(body.error ?? `Sync failed (HTTP ${res.status})`);
-      } else {
-        setSyncMsg(`Sync complete — added ${body.files_added ?? 0}, updated ${body.files_updated ?? 0}, removed ${body.files_removed ?? 0}${(body.errors_count ?? 0) > 0 ? `, ${body.errors_count} error(s)` : ''}`);
-        void fetchSyncLog();
-      }
-    } catch (err: unknown) {
-      setSyncError(err instanceof Error ? err.message : 'Sync failed');
-    } finally {
-      setSyncing(false);
-    }
-  };
+    void fetchStatus();
+  }, [fetchStatus]);
 
   return (
     <div
       className="rounded-2xl border p-6 space-y-5"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HardDrive size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Google Drive Sync</h2>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Cloudflare R2 Storage</h2>
         </div>
         <button
-          onClick={handleRefresh}
-          disabled={loadingConn || loadingSync || syncing}
+          onClick={fetchStatus}
+          disabled={loading}
           title="Refresh status"
           className="flex items-center justify-center w-8 h-8 rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
           style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
         >
-          {(loadingConn || loadingSync) ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+          {loading ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
         </button>
       </div>
 
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Syncs assets between Google Drive and the database. Uploads go via OAuth 2.0 — no user login required.
+        Cloudflare R2 is the sole file storage provider. All asset uploads go directly to R2.
       </p>
 
-      {/* ── Connection status ── */}
       <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Connection</p>
-        {loadingConn ? (
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Configuration</p>
+        {loading ? (
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <Loader2 size={15} className="animate-spin" /> Checking…
           </div>
@@ -195,47 +105,23 @@ function GoogleDriveSyncCard() {
           <div
             className="flex items-start gap-3 rounded-xl p-4"
             style={{
-              background: status?.connected ? 'rgba(22,163,74,0.06)' : 'rgba(239,68,68,0.06)',
-              border: `1px solid ${status?.connected ? 'rgba(22,163,74,0.20)' : 'rgba(239,68,68,0.20)'}`,
+              background:  status?.configured ? 'rgba(22,163,74,0.06)' : 'rgba(239,68,68,0.06)',
+              border: `1px solid ${status?.configured ? 'rgba(22,163,74,0.20)' : 'rgba(239,68,68,0.20)'}`,
             }}
           >
-            {status?.connected
+            {status?.configured
               ? <CheckCircle size={17} style={{ color: '#16a34a' }} className="shrink-0 mt-0.5" />
-              : <CloudOff    size={17} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
+              : <AlertCircle size={17} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {status?.connected ? 'Connected' : (
-                    status?.status === 'auth_failed'         ? 'Auth failed' :
-                    status?.status === 'configured'          ? 'API error' :
-                    status?.status === 'partially_configured'? 'Partially configured' :
-                    'Disconnected'
-                  )}
+                  {status?.configured ? 'Configured' : 'Not configured'}
                 </p>
-                <StatusBadge
-                  ok={!!status?.connected}
-                  label={
-                    status?.connected                          ? 'OAuth OK' :
-                    status?.status === 'auth_failed'           ? 'Auth failed' :
-                    status?.status === 'configured'            ? 'API error' :
-                    status?.status === 'partially_configured'  ? 'Partial config' :
-                    'Not configured'
-                  }
-                />
+                <StatusBadge ok={!!status?.configured} label={status?.configured ? 'Ready' : 'Missing env vars'} />
               </div>
-              {status?.email && (
-                <p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{status.email}</p>
-              )}
-              {/* Auth/API error detail */}
-              {(status?.status === 'auth_failed' || status?.status === 'configured') && status?.error && (
-                <p className="text-xs mt-1 break-words" style={{ color: '#ef4444' }}>{status.error}</p>
-              )}
-              {/* Missing env vars */}
-              {!status?.connected && (status?.missingVars?.length ?? 0) > 0 && (
+              {!status?.configured && (status?.missingVars?.length ?? 0) > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  <p className="text-xs" style={{ color: '#ef4444' }}>
-                    {status!.missingVars.length === 3 ? 'Missing required environment variables:' : 'Missing environment variable(s):'}
-                  </p>
+                  <p className="text-xs" style={{ color: '#ef4444' }}>Missing environment variable(s):</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {status!.missingVars.map(v => (
                       <code
@@ -254,193 +140,29 @@ function GoogleDriveSyncCard() {
         )}
       </section>
 
-      {/* ── Sync status ── */}
-      <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Last Sync</p>
-        {loadingSync ? (
-          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <Loader2 size={15} className="animate-spin" /> Loading sync log…
-          </div>
-        ) : syncLog ? (
-          <div
-            className="rounded-xl p-4 space-y-3"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
-          >
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {formatDate(syncLog.synced_at)}
-              </p>
-              <div className="flex items-center gap-2">
-                <StatusBadge ok={syncLog.errors_count === 0} label={syncLog.errors_count === 0 ? 'Success' : `${syncLog.errors_count} error(s)`} />
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  via {syncLog.triggered_by}
-                </span>
-              </div>
-            </div>
-
-            {/* Counts */}
-            <div className="grid grid-cols-3 gap-3">
-              {([
-                { label: 'Added',   value: syncLog.files_added,   color: '#16a34a' },
-                { label: 'Updated', value: syncLog.files_updated, color: 'var(--accent)' },
-                { label: 'Removed', value: syncLog.files_removed, color: '#f59e0b' },
-              ] as const).map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="rounded-lg p-3 text-center"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                >
-                  <p className="text-lg font-bold" style={{ color }}>{value}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Duration */}
-            {syncLog.duration_ms != null && (
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Duration: {syncLog.duration_ms < 1000 ? `${syncLog.duration_ms}ms` : `${(syncLog.duration_ms / 1000).toFixed(1)}s`}
-              </p>
-            )}
-
-            {/* Error details */}
-            {syncLog.errors_count > 0 && syncLog.error_details.length > 0 && (
-              <div
-                className="rounded-lg p-3 space-y-1"
-                style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)' }}
-              >
-                <p className="text-xs font-semibold" style={{ color: '#ef4444' }}>Last error(s):</p>
-                {syncLog.error_details.slice(0, 3).map((e, i) => (
-                  <p key={i} className="text-xs font-mono truncate" style={{ color: '#ef4444' }}>{e}</p>
-                ))}
-                {syncLog.error_details.length > 3 && (
-                  <p className="text-xs" style={{ color: '#ef4444' }}>+{syncLog.error_details.length - 3} more</p>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No sync has run yet.</p>
-        )}
-      </section>
-
-      {/* ── OAuth connection feedback ── */}
-      {googleParam === 'connected' && (
-        <div
-          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', color: '#16a34a' }}
-        >
-          <CheckCircle size={16} className="shrink-0 mt-0.5" />
-          <span className="flex-1">Google Drive connected successfully.</span>
-          <button onClick={() => setGoogleParam(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Dismiss">✕</button>
-        </div>
-      )}
-      {googleParam === 'error' && (
-        <div
-          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}
-        >
-          <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          <span className="flex-1">Google Drive connection failed. Please try again or check your configuration.</span>
-          <button onClick={() => setGoogleParam(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Dismiss">✕</button>
-        </div>
-      )}
-
-      {/* ── Inline feedback ── */}
-      {syncMsg && (
-        <div
-          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', color: '#16a34a' }}
-        >
-          <CheckCircle size={16} className="shrink-0 mt-0.5" />
-          {syncMsg}
-        </div>
-      )}
-      {syncError && (
-        <div
-          className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}
-        >
-          <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          {syncError}
-        </div>
-      )}
-
-      {/* ── Actions ── */}
-      <section className="flex flex-wrap gap-3">
-        <a
-          href="/api/google/connect"
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <Link2 size={15} /> Connect Google Drive
-        </a>
-
-        <button
-          onClick={handleSyncNow}
-          disabled={syncing || !status?.connected}
-          title={!status?.connected ? 'Google Drive not connected' : undefined}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40"
-          style={{ background: 'var(--accent)' }}
-        >
-          {syncing
-            ? <><Loader2 size={15} className="animate-spin" /> Syncing…</>
-            : <><CloudLightning size={15} /> Sync Now</>}
-        </button>
-
-        <button
-          onClick={fetchStatus}
-          disabled={loadingConn}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <RotateCcw size={15} className={loadingConn ? 'animate-spin' : undefined} /> Reload Connection
-        </button>
-
-        <a
-          href="https://drive.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <ExternalLink size={15} /> Open Drive
-        </a>
-      </section>
-
-      {/* ── Diagnostics ── */}
       <section
         className="rounded-xl p-4 space-y-2 text-xs"
         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       >
         <p className="font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Diagnostics</p>
-        <DiagRow label="Config status"     value={status?.status ?? '—'}                             ok={status?.status === 'connected'} />
-        <DiagRow label="OAuth configured"  value={status?.configured ? 'Yes' : 'No'}                ok={!!status?.configured} />
-        <DiagRow label="Connected account" value={status?.email ?? '—'}                             ok={!!status?.email} />
-        <DiagRow label="Upload enabled"    value={status?.configured ? 'Yes' : 'No'}                 ok={!!status?.configured} />
-        <DiagRow label="Root folder ID"    value={status?.configured ? '(set in env)' : 'Not set'} ok={!!status?.configured} />
-        {(status?.missingVars?.length ?? 0) > 0 && (
-          <DiagRow
-            label="Missing vars"
-            value={status!.missingVars.join(', ')}
-            ok={false}
-          />
-        )}
+        <DiagRow label="Storage provider" value="Cloudflare R2"                                         ok={true} />
+        <DiagRow label="R2_ACCOUNT_ID"    value={status?.configured ? '(set)' : 'Not set'}             ok={!!status?.configured} />
+        <DiagRow label="R2_ACCESS_KEY_ID" value={status?.configured ? '(set)' : 'Not set'}             ok={!!status?.configured} />
+        <DiagRow label="R2_PUBLIC_URL"    value={status?.configured ? '(set)' : 'Not set'}             ok={!!status?.configured} />
+        <DiagRow label="Upload enabled"   value={status?.configured ? 'Yes' : 'No (missing env vars)'} ok={!!status?.configured} />
       </section>
-    </div>
-  );
-}
 
-function DiagRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span
-        className="font-mono truncate max-w-[180px] text-right"
-        style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
-      >
-        {value}
-      </span>
+      <section className="flex flex-wrap gap-3">
+        <a
+          href="https://dash.cloudflare.com/?to=/:account/r2"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+        >
+          <CloudLightning size={15} /> Open Cloudflare R2
+        </a>
+      </section>
     </div>
   );
 }
@@ -528,8 +250,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Admin-only: Google Drive Sync */}
-      {isAdmin && <GoogleDriveSyncCard />}
+      {/* Admin-only: R2 Storage */}
+      {isAdmin && <R2StorageCard />}
 
       {/* Role & Access */}
       <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
