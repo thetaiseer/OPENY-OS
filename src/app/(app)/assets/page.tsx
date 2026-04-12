@@ -198,7 +198,7 @@ function countFolderAssets(yearMap: Map<string, Map<string, Asset[]>>): number {
 
 /**
  * Wrapper for embedded iframes (e.g. PDF preview) that shows a loading spinner
- * while the iframe is initialising.  We track the onLoad event; if it fires
+ * while the iframe is initializing.  We track the onLoad event; if it fires
  * the iframe is shown normally.  The fallback action buttons are always
  * rendered beneath the embed so the user can download the file.
  */
