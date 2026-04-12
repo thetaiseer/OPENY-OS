@@ -14,6 +14,65 @@ function getSupabase(): Db {
   );
 }
 
+// ── Logging helpers ───────────────────────────────────────────────────────────
+
+function logAction(intent: string, detail: string) {
+  console.log(`[ai/command] ACTION intent=${intent} — ${detail}`);
+}
+
+function logFailure(intent: string, err: unknown) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`[ai/command] FAILED intent=${intent} — ${msg}`);
+}
+
+// ── Safe action registry ──────────────────────────────────────────────────────
+// Only intents listed here can be executed. All others return a graceful error.
+
+const ALLOWED_INTENTS = new Set([
+  'create_task',
+  'update_task',
+  'list_tasks',
+  'search_client',
+  'create_client',
+  'update_client',
+  'create_publishing_schedule',
+  'create_content_item',
+  'invite_team_member',
+  'create_notification',
+  'summarize_client_status',
+  'summarize_workspace_status',
+  'generate_content_ideas',
+  'unknown',
+]);
+
+// Columns that are safe to select from the tasks table.
+// This list reflects what the current schema actually has; never include
+// speculative columns (e.g. client_name which may not exist).
+const TASK_SAFE_COLUMNS = 'id, title, status, priority, due_date, client_id' as const;
+
+// Columns allowed in a task INSERT payload.
+const TASK_INSERT_ALLOWED_COLUMNS = new Set([
+  'title',
+  'description',
+  'client_id',
+  'priority',
+  'status',
+  'due_date',
+  'due_time',
+  'assignee_id',
+  'created_by_id',
+  'notes',
+  'task_category',
+  'content_purpose',
+]);
+
+/** Strip keys that are not in the whitelist to prevent unknown-column errors. */
+function sanitizeTaskPayload(raw: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(raw).filter(([k]) => TASK_INSERT_ALLOWED_COLUMNS.has(k))
+  );
+}
+
 // ── Intent & entity extraction ────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are OPENY OS — a smart workspace AI that understands Arabic, English, and mixed casual language.
@@ -171,18 +230,21 @@ async function executeCreateTask(
   const title = parsed.professional_title ?? entities.task_title ?? 'New Task';
   const description = parsed.professional_description ?? entities.task_description ?? null;
 
-  const taskPayload: Record<string, unknown> = {
+  // Only include columns that are confirmed to exist in the tasks table.
+  // client_name is intentionally excluded — use client_id (FK) only.
+  const rawPayload: Record<string, unknown> = {
     title,
     description,
     client_id: clientId,
-    client_name: clientName,
     priority: entities.priority ?? 'medium',
     status: 'todo',
     due_date: entities.due_date ?? null,
     due_time: entities.due_time ?? null,
     created_by_id: userId,
   };
+  const taskPayload = sanitizeTaskPayload(rawPayload);
 
+  logAction('create_task', `title="${title}" client_id=${clientId ?? 'none'}`);
   const { data: task, error } = await sb.from('tasks').insert(taskPayload).select().single();
   if (error) throw new Error(error.message);
 
@@ -224,7 +286,8 @@ async function executeListTasks(
   parsed: ParsedCommand,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
-  let query = sb.from('tasks').select('id, title, status, priority, due_date, client_name').order('due_date', { ascending: true });
+  // Use only confirmed-safe columns — client_name is excluded to avoid missing-column errors.
+  let query = sb.from('tasks').select(TASK_SAFE_COLUMNS).order('due_date', { ascending: true });
 
   if (entities.status) query = query.eq('status', entities.status);
   if (entities.client_name) {
@@ -238,6 +301,7 @@ async function executeListTasks(
     query = query.lt('due_date', new Date().toISOString().split('T')[0]).neq('status', 'completed');
   }
 
+  logAction('list_tasks', `status=${entities.status ?? 'any'} overdue=${isOverdue}`);
   const { data, error } = await query.limit(20);
   if (error) throw new Error(error.message);
 
@@ -254,6 +318,7 @@ async function executeSearchClient(
   parsed: ParsedCommand,
 ): Promise<ExecutionResult> {
   const nameQuery = parsed.entities.client_name ?? parsed.entities.query ?? '';
+  logAction('search_client', `query="${nameQuery}"`);
   const client = await findBestClientMatch(sb, nameQuery);
 
   if (!client) {
@@ -279,6 +344,7 @@ async function executeCreateClient(
   const name = parsed.professional_title ?? entities.client_name;
   if (!name) throw new Error('Client name is required');
 
+  logAction('create_client', `name="${name}"`);
   const { data, error } = await sb.from('clients').insert({
     name,
     email: entities.email ?? null,
@@ -292,6 +358,80 @@ async function executeCreateClient(
     message: `Client "${name}" created successfully.`,
     data: data as Record<string, unknown>,
     actions_taken: [`Created client: ${name}`],
+  };
+}
+
+async function executeUpdateTask(
+  sb: Db,
+  parsed: ParsedCommand,
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+  const actions: string[] = [];
+
+  // Find the task to update — require either a title query or a status filter
+  const searchTitle = entities.task_title ?? entities.query;
+  if (!searchTitle) {
+    return {
+      success: false,
+      message: 'Please specify which task you want to update (e.g. its title).',
+      actions_taken: [],
+    };
+  }
+
+  logAction('update_task', `search="${searchTitle}"`);
+
+  // Find the task by partial title match
+  const { data: tasks, error: findErr } = await sb
+    .from('tasks')
+    .select('id, title, status')
+    .ilike('title', `%${searchTitle}%`)
+    .limit(1);
+
+  if (findErr) throw new Error(findErr.message);
+  if (!tasks?.length) {
+    return {
+      success: false,
+      message: `No task found matching "${searchTitle}".`,
+      actions_taken: [],
+    };
+  }
+
+  const taskId = (tasks[0] as { id: string }).id;
+  const taskTitle = (tasks[0] as { id: string; title: string }).title;
+
+  // Build update payload — only include recognised, safe columns
+  const updatePayload: Record<string, unknown> = {};
+  if (entities.status) updatePayload.status = entities.status;
+  if (entities.priority) updatePayload.priority = entities.priority;
+  if (entities.due_date) updatePayload.due_date = entities.due_date;
+  if (entities.due_time) updatePayload.due_time = entities.due_time;
+  if (parsed.professional_title) updatePayload.title = parsed.professional_title;
+  if (parsed.professional_description) updatePayload.description = parsed.professional_description;
+
+  if (!Object.keys(updatePayload).length) {
+    return {
+      success: false,
+      message: 'Nothing to update. Please specify a new status, priority, or due date.',
+      actions_taken: [],
+    };
+  }
+
+  const { error: updateErr } = await sb
+    .from('tasks')
+    .update(updatePayload)
+    .eq('id', taskId);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  for (const [k, v] of Object.entries(updatePayload)) {
+    actions.push(`Updated ${k} → ${String(v)} on task "${taskTitle}"`);
+  }
+
+  return {
+    success: true,
+    message: `Task "${taskTitle}" updated successfully.`,
+    data: { id: taskId, title: taskTitle, ...updatePayload },
+    actions_taken: actions,
   };
 }
 
@@ -311,9 +451,10 @@ async function executeCreatePublishingSchedule(
   }
 
   const platforms = entities.platforms ?? ['Instagram'];
+  const contentTitle = parsed.professional_title ?? entities.task_title ?? 'AI Scheduled Post';
+  logAction('create_publishing_schedule', `title="${contentTitle}" platforms=${platforms.join(',')}`);
 
   // Create a content item first
-  const contentTitle = parsed.professional_title ?? entities.task_title ?? 'AI Scheduled Post';
   const { data: contentItem, error: contentError } = await sb.from('content_items').insert({
     title: contentTitle,
     description: parsed.professional_description ?? entities.task_description ?? null,
@@ -389,6 +530,7 @@ async function executeInviteTeamMember(
 
   const name = entities.team_member_name ?? null;
   const role = entities.role ?? 'member';
+  logAction('invite_team_member', `email="${email}" role=${role}`);
 
   // Generate a token
   const token = crypto.randomUUID();
@@ -420,6 +562,7 @@ async function executeSummarizeClientStatus(
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const client = entities.client_name ? await findBestClientMatch(sb, entities.client_name) : null;
+  logAction('summarize_client_status', `client=${client?.name ?? 'workspace'}`);
 
   let tasksQuery = sb.from('tasks').select('title, status, priority, due_date').order('due_date');
   if (client) tasksQuery = tasksQuery.eq('client_id', client.id);
@@ -449,6 +592,7 @@ async function executeGenerateContentIdeas(
   const count = entities.count ?? 3;
   const clientName = entities.client_name ?? 'the client';
   const contentType = entities.content_type ?? entities.post_type ?? 'Reels';
+  logAction('generate_content_ideas', `count=${count} type=${contentType} client="${clientName}"`);
 
   const ideas = await callAI({
     system: 'You are a creative social media strategist. Generate concise, actionable content ideas.',
@@ -516,69 +660,101 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Step 3: Execute
+    // Step 3: Guard — reject unknown intents before touching the database
+    if (!ALLOWED_INTENTS.has(parsed.intent)) {
+      logFailure(parsed.intent, 'Intent not in allowed list');
+      return NextResponse.json({
+        success: false,
+        ok: false,
+        error: `Intent "${parsed.intent}" is not supported.`,
+        intent: parsed.intent,
+        needs_clarification: false,
+      });
+    }
+
+    // Step 4: Execute the safe action, wrapped in its own try/catch so a DB
+    // error in one handler cannot crash the entire request or freeze the UI.
     const sb = getSupabase();
     const userId = auth.profile.id;
     let result: ExecutionResult;
 
-    switch (parsed.intent) {
-      case 'create_task':
-        result = await executeCreateTask(sb, parsed, userId);
-        break;
-      case 'list_tasks':
-        result = await executeListTasks(sb, parsed);
-        break;
-      case 'search_client':
-        result = await executeSearchClient(sb, parsed);
-        break;
-      case 'create_client':
-        result = await executeCreateClient(sb, parsed, userId);
-        break;
-      case 'create_publishing_schedule':
-        result = await executeCreatePublishingSchedule(sb, parsed, userId);
-        break;
-      case 'invite_team_member':
-        result = await executeInviteTeamMember(sb, parsed, userId);
-        break;
-      case 'summarize_client_status':
-      case 'summarize_workspace_status':
-        result = await executeSummarizeClientStatus(sb, parsed);
-        break;
-      case 'generate_content_ideas':
-        result = await executeGenerateContentIdeas(parsed);
-        break;
-      case 'create_content_item': {
-        // Create content item only
-        let clientId: string | null = null;
-        let clientName: string | null = null;
-        if (parsed.entities.client_name) {
-          const client = await findBestClientMatch(sb, parsed.entities.client_name);
-          if (client) { clientId = client.id; clientName = client.name; }
+    try {
+      switch (parsed.intent) {
+        case 'create_task':
+          result = await executeCreateTask(sb, parsed, userId);
+          break;
+        case 'update_task':
+          result = await executeUpdateTask(sb, parsed);
+          break;
+        case 'list_tasks':
+          result = await executeListTasks(sb, parsed);
+          break;
+        case 'search_client':
+          result = await executeSearchClient(sb, parsed);
+          break;
+        case 'create_client':
+          result = await executeCreateClient(sb, parsed, userId);
+          break;
+        case 'create_publishing_schedule':
+          result = await executeCreatePublishingSchedule(sb, parsed, userId);
+          break;
+        case 'invite_team_member':
+          result = await executeInviteTeamMember(sb, parsed, userId);
+          break;
+        case 'summarize_client_status':
+        case 'summarize_workspace_status':
+          result = await executeSummarizeClientStatus(sb, parsed);
+          break;
+        case 'generate_content_ideas':
+          result = await executeGenerateContentIdeas(parsed);
+          break;
+        case 'create_content_item': {
+          let clientId: string | null = null;
+          let clientName: string | null = null;
+          if (parsed.entities.client_name) {
+            const client = await findBestClientMatch(sb, parsed.entities.client_name);
+            if (client) { clientId = client.id; clientName = client.name; }
+          }
+          const title = parsed.professional_title ?? parsed.entities.task_title ?? 'New Content';
+          logAction('create_content_item', `title="${title}"`);
+          const { data, error } = await sb.from('content_items').insert({
+            title,
+            description: parsed.professional_description ?? parsed.entities.task_description ?? null,
+            client_id: clientId,
+            post_type: parsed.entities.post_type ?? 'post',
+            status: 'draft',
+            created_by_id: userId,
+          }).select().single();
+          if (error) throw new Error(error.message);
+          result = {
+            success: true,
+            message: `Content item "${title}" created${clientName ? ` for ${clientName}` : ''}.`,
+            data: data as Record<string, unknown>,
+            actions_taken: [`Created content item: ${title}`],
+          };
+          break;
         }
-        const title = parsed.professional_title ?? parsed.entities.task_title ?? 'New Content';
-        const { data, error } = await sb.from('content_items').insert({
-          title,
-          description: parsed.professional_description ?? parsed.entities.task_description ?? null,
-          client_id: clientId,
-          post_type: parsed.entities.post_type ?? 'post',
-          status: 'draft',
-          created_by_id: userId,
-        }).select().single();
-        if (error) throw new Error(error.message);
-        result = {
-          success: true,
-          message: `Content item "${title}" created${clientName ? ` for ${clientName}` : ''}.`,
-          data: data as Record<string, unknown>,
-          actions_taken: [`Created content item: ${title}`],
-        };
-        break;
+        default:
+          result = {
+            success: false,
+            message: "I didn't understand that command. Try asking me to create a task, schedule a post, search for a client, or invite a team member.",
+            actions_taken: [],
+          };
       }
-      default:
-        result = {
-          success: false,
-          message: "I didn't understand that command. Try asking me to create a task, schedule a post, search for a client, or invite a team member.",
-          actions_taken: [],
-        };
+    } catch (actionErr) {
+      // Per-action error: log it and return a safe structured response.
+      // This prevents UI freezing — the assistant panel shows the error message.
+      logFailure(parsed.intent, actionErr);
+      const errMsg = actionErr instanceof Error ? actionErr.message : String(actionErr);
+      return NextResponse.json({
+        ok: false,
+        success: false,
+        intent: parsed.intent,
+        entities: parsed.entities,
+        error: errMsg,
+        message: `Action failed: ${errMsg}`,
+        needs_clarification: false,
+      });
     }
 
     return NextResponse.json({
