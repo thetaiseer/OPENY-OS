@@ -220,6 +220,8 @@ export async function POST(req: NextRequest) {
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const bucketName = "assets";
+      console.log("[ASSET DEBUG] Supabase upload started");
+      console.log("[ASSET DEBUG] Google Drive integration bypassed");
       console.log("[UPLOAD DEBUG] bucket=assets");
       const { data: _uploadData, error: storageError } = await supabase.storage
         .from(bucketName)
