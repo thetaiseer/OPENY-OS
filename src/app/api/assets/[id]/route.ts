@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import {
   deleteFromDrive,
@@ -8,15 +8,6 @@ import {
   DriveFileNotFoundError,
   DriveAuthError,
 } from '@/lib/google-drive';
-
-// ── Supabase service-role client (server only) ────────────────────────────────
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  return createClient(url, key);
-}
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(
@@ -33,9 +24,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Missing asset id' }, { status: 400 });
   }
 
-  const supabase = getSupabase();
-
-  // ── 1. Fetch asset row ────────────────────────────────────────────────────
+  const supabase = getServiceClient();
   const { data: asset, error: fetchError } = await supabase
     .from('assets')
     .select('id, drive_file_id, drive_folder_id, file_path, bucket_name, name, storage_provider')
@@ -196,7 +185,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'name contains invalid characters' }, { status: 400 });
   }
 
-  const supabase = getSupabase();
+  const supabase = getServiceClient();
 
   // ── 1. Fetch the asset ─────────────────────────────────────────────────────
   const { data: asset, error: fetchError } = await supabase

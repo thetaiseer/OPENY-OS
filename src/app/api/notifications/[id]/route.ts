@@ -3,12 +3,9 @@
  * DELETE /api/notifications/[id] — delete a notification
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-function getDb() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-}
 
 interface Params { id: string }
 
@@ -20,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* ignore */ }
 
-  const db = getDb();
+  const db = getServiceClient();
   const updateData: Record<string, unknown> = {};
   if (typeof body.read === 'boolean') updateData.read = body.read;
 
@@ -38,7 +35,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   const auth = await requireRole(req, ['admin', 'manager', 'team', 'client']);
   if (auth instanceof NextResponse) return auth;
 
-  const db = getDb();
+  const db = getServiceClient();
   const { error } = await db.from('notifications').delete().eq('id', id);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

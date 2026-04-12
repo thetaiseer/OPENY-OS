@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-function getAdmin() {
-  return createServiceClient(supabaseUrl, supabaseServiceRoleKey);
-}
 
 // ── User-Agent parser ──────────────────────────────────────────────────────────
 
@@ -78,7 +73,7 @@ export async function GET(request: NextRequest) {
   const auth = await getApiUser(request);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const admin = getAdmin();
+  const admin = getServiceClient();
   const { data: sessions, error } = await admin
     .from('user_sessions')
     .select('*')
@@ -109,7 +104,7 @@ export async function POST(request: NextRequest) {
   const auth = await getApiUser(request);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const admin = getAdmin();
+  const admin = getServiceClient();
 
   const ip = (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||

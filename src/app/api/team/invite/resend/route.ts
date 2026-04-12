@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
@@ -25,9 +25,6 @@ export async function POST(request: NextRequest) {
   if (!teamMemberId) {
     return NextResponse.json({ error: 'team_member_id is required' }, { status: 400 });
   }
-
-  const url      = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key      = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const appUrl   = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const fromEmail =
     process.env.INVITE_FROM_EMAIL ??
@@ -41,7 +38,7 @@ export async function POST(request: NextRequest) {
     console.warn('[team/invite/resend] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
   }
 
-  const db = createServiceClient(url, key);
+  const db = getServiceClient();
 
   // Find the most recent non-accepted invitation (with team_member join for full_name)
   const { data: invitation, error } = await db

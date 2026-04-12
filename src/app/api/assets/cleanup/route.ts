@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { google } from 'googleapis';
 import { requireRole } from '@/lib/api-auth';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, key);
-}
 
 function getDriveClient() {
   const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
@@ -59,7 +54,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = getSupabase();
+  const supabase = getServiceClient();
 
   if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
     return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });
@@ -91,7 +86,7 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = getSupabase();
+  const supabase = getServiceClient();
 
   if (!process.env.GOOGLE_OAUTH_CLIENT_ID || !process.env.GOOGLE_OAUTH_CLIENT_SECRET || !process.env.GOOGLE_OAUTH_REFRESH_TOKEN) {
     return NextResponse.json({ error: 'Google Drive credentials not configured' }, { status: 500 });

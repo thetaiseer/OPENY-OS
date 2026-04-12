@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 
 export async function POST(
   request: NextRequest,
@@ -36,13 +36,7 @@ export async function POST(
     );
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
-  const db = createServiceClient(url, key);
+  const db = getServiceClient();
 
   // ── 1. Validate token ────────────────────────────────────────────────────
   const { data: invitation, error: invErr } = await db

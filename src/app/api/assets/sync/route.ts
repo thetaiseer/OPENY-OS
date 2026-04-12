@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import {
   scanDriveForSync,
   checkDriveFileExists,
@@ -14,13 +14,6 @@ import { insertWithColumnFallback } from '@/lib/asset-db';
 
 // ── Supabase service-role client ──────────────────────────────────────────────
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  return createClient(url, key);
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,7 +62,7 @@ const MAX_ERROR_DETAILS = 30;
  */
 async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
   const start = Date.now();
-  const supabase = getSupabase();
+  const supabase = getServiceClient();
 
   let added = 0, updated = 0, removed = 0, errors = 0;
   const errorDetails: string[] = [];
@@ -435,7 +428,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const supabase = getSupabase();
+    const supabase = getServiceClient();
     const { data, error } = await supabase
       .from('drive_sync_logs')
       .select('*')

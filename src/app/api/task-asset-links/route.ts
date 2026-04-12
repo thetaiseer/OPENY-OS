@@ -17,15 +17,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -45,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     let query = db
       .from('task_asset_links')
@@ -110,7 +104,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const linkRows = assetIds.map(aid => ({
       task_id:   taskId,
@@ -167,7 +161,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const { error } = await db
       .from('task_asset_links')

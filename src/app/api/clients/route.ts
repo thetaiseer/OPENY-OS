@@ -16,11 +16,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
 export async function POST(request: NextRequest) {
   console.log('[POST /api/clients] request received');
@@ -73,15 +71,7 @@ export async function POST(request: NextRequest) {
   console.log('[POST /api/clients] db insert payload:', JSON.stringify(insertPayload));
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
-  if (!supabaseServiceRoleKey) {
-    console.error('[POST /api/clients] SUPABASE_SERVICE_ROLE_KEY is not set');
-    return NextResponse.json(
-      { success: false, step: 'db_insert', error: 'Server configuration error' },
-      { status: 500 },
-    );
-  }
-
-  const db = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const db = getServiceClient();
   const { data, error } = await db
     .from('clients')
     .insert(insertPayload)

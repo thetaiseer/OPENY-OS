@@ -3,14 +3,9 @@
  * POST /api/notifications — create a notification (admin/manager only)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-function getDb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, key);
-}
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team', 'client']);
@@ -22,7 +17,7 @@ export async function GET(req: NextRequest) {
   const limit      = parseInt(searchParams.get('limit') ?? '50', 10);
 
   try {
-    const db = getDb();
+    const db = getServiceClient();
     let query = db
       .from('notifications')
       .select('*')
@@ -67,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const db = getDb();
+    const db = getServiceClient();
     const { data, error } = await db.from('notifications').insert({
       title,
       message,

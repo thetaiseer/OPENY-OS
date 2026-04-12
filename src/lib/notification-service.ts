@@ -4,7 +4,7 @@
  * Never throws — failures are logged but do not affect the main flow.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 
 export type NotificationEventType =
   | 'task_created'
@@ -39,18 +39,9 @@ export interface CreateNotificationInput {
   action_url?: string | null;
 }
 
-function getDb(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error('[notification-service] Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-  }
-  return createClient(url, key);
-}
-
 export async function createNotification(input: CreateNotificationInput): Promise<void> {
   try {
-    const db = getDb();
+    const db = getServiceClient();
     const { error } = await db.from('notifications').insert({
       title:       input.title,
       message:     input.message,

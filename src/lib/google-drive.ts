@@ -11,7 +11,7 @@
 import { google } from 'googleapis';
 import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
@@ -84,21 +84,12 @@ export class DriveAuthError extends Error {
 
 // ── Supabase token storage ────────────────────────────────────────────────────
 
-/** Return a service-role Supabase client, or null if env vars are missing. */
-function getSupabaseServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
-
 /**
  * Read the stored Google OAuth refresh token from the `google_oauth_tokens`
  * table.  Returns null if the table doesn't exist or no row is present.
  */
 export async function getStoredRefreshToken(): Promise<string | null> {
-  const sb = getSupabaseServiceClient();
-  if (!sb) return null;
+  const sb = getServiceClient();
   try {
     const { data, error } = await sb
       .from('google_oauth_tokens')
@@ -117,11 +108,7 @@ export async function getStoredRefreshToken(): Promise<string | null> {
  * Silently fails if the table doesn't exist yet.
  */
 export async function saveRefreshToken(refreshToken: string): Promise<void> {
-  const sb = getSupabaseServiceClient();
-  if (!sb) {
-    console.warn('[google-drive] saveRefreshToken: Supabase client unavailable — token not persisted');
-    return;
-  }
+  const sb = getServiceClient();
   try {
     const { error } = await sb
       .from('google_oauth_tokens')
@@ -141,8 +128,7 @@ export async function saveRefreshToken(refreshToken: string): Promise<void> {
  * is detected and a fresh reconnect is required).
  */
 export async function clearStoredRefreshToken(): Promise<void> {
-  const sb = getSupabaseServiceClient();
-  if (!sb) return;
+  const sb = getServiceClient();
   try {
     await sb.from('google_oauth_tokens').delete().eq('key', 'default');
     console.log('[google-drive] clearStoredRefreshToken: stale token cleared from DB');

@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 
-// ── Supabase service-role client (server only, bypasses RLS) ──────────────────
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  return createClient(url, key);
-}
 
 const PAGE_SIZE = 100;
 
@@ -43,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, assets: [], page, hasMore: false });
     }
 
-    const supabase = getSupabase();
+    const supabase = getServiceClient();
 
     // Try with is_deleted filter first; if the column doesn't exist yet (error
     // code 42703) fall back to a query without it so the page still loads.

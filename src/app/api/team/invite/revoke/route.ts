@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
@@ -22,13 +22,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'team_member_id is required' }, { status: 400 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
-  const db = createServiceClient(url, key);
+  const db = getServiceClient();
 
   // Mark all active invitations for this member as revoked
   const { error: revokeError } = await db

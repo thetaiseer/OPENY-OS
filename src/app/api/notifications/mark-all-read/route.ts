@@ -2,7 +2,7 @@
  * PATCH /api/notifications/mark-all-read — mark all notifications as read for a user
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
 export async function PATCH(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest) {
   try { body = await req.json(); } catch { /* ignore */ }
   const userId = typeof body.user_id === 'string' ? body.user_id : null;
 
-  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const db = getServiceClient();
 
   let query = db.from('notifications').update({ read: true }).eq('read', false);
   if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
