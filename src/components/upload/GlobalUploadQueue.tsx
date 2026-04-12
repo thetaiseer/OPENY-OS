@@ -152,6 +152,13 @@ function QueueRow({ item }: { item: UploadItem }) {
               {item.errorDetail.message}
             </p>
           )}
+
+          {/* Drive sync warning — shown for completed items when Drive sync failed */}
+          {isComplete && item.driveWarning && (
+            <p className="text-xs leading-tight line-clamp-2" style={{ color: '#d97706', opacity: 0.9 }}>
+              ⚠ Drive sync: {item.driveWarning}
+            </p>
+          )}
         </div>
 
         {/* Action buttons */}
