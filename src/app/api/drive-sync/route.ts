@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
     drive_file_id:   driveFileId,
     drive_folder_id: leafFolderId,
     web_view_link:   driveResult.webViewLink,
+    // view_url and download_url kept in sync for backward compat with
+    // older pages that reference those columns directly.
     view_url:        driveResult.webViewLink,
     download_url:    driveResult.webContentLink,
   };
