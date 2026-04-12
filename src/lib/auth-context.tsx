@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // We rendered immediately from cache — re-validate in background
             // without blocking the UI again.
             loadUser(session.user).catch(err => {
-              console.warn('[auth] Background user refresh failed:', err);
+              console.warn('[auth] Background user refresh failed for user', session.user.id, ':', err);
             });
           } else {
             await loadUser(session.user);
@@ -199,9 +199,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (mounted) {
             setUser(LOADING_USER);
             clearUserCache();
+            setLoading(false);
           }
-          if (mounted) setLoading(false);
-        }
       },
     );
 
