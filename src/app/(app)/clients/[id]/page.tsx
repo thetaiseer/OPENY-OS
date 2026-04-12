@@ -237,7 +237,8 @@ export default function ClientWorkspace() {
 
   // Pending upload batch — shown in UploadModal before handing off to UploadContext
   const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
-  const [uploadContentType, setUploadContentType] = useState<string>('SOCIAL_POSTS');
+  const [uploadMainCategory, setUploadMainCategory] = useState<string>('social-media');
+  const [uploadSubCategory, setUploadSubCategory]   = useState<string>('');
   const [uploadMonthKey, setUploadMonthKey] = useState<string>(() => new Date().toISOString().slice(0, 7));
 
   // Task quick-create
@@ -373,7 +374,8 @@ export default function ClientWorkspace() {
       uploadName: file.name.replace(/\.[^.]+$/, ''), // base name without extension
     }));
     setPendingItems(items);
-    setUploadContentType('SOCIAL_POSTS');
+    setUploadMainCategory('social-media');
+    setUploadSubCategory('');
     setUploadMonthKey(new Date().toISOString().slice(0, 7));
   };
 
@@ -386,11 +388,13 @@ export default function ClientWorkspace() {
       uploadName: i.uploadName,
     }));
     startBatch(initialItems, {
-      clientName:  client.name,
-      clientId:    id,
-      contentType: uploadContentType,
-      monthKey:    uploadMonthKey,
-      uploadedBy:  user?.name ?? user?.email ?? null,
+      clientName:   client.name,
+      clientId:     id,
+      contentType:  '',
+      mainCategory: uploadMainCategory,
+      subCategory:  uploadSubCategory,
+      monthKey:     uploadMonthKey,
+      uploadedBy:   user?.name ?? user?.email ?? null,
     });
     // Clear pending items without revoking — UploadContext owns the lifecycle
     setPendingItems([]);
@@ -964,13 +968,15 @@ export default function ClientWorkspace() {
     {pendingItems.length > 0 && client && (
       <UploadModal
         files={pendingItems}
-        contentType={uploadContentType}
+        mainCategory={uploadMainCategory}
+        subCategory={uploadSubCategory}
         monthKey={uploadMonthKey}
         clientName={client.name}
         clientId={id}
         clients={[]}
         lockClient
-        onContentTypeChange={setUploadContentType}
+        onMainCategoryChange={setUploadMainCategory}
+        onSubCategoryChange={setUploadSubCategory}
         onMonthChange={setUploadMonthKey}
         onUploadNameChange={(itemId, name) =>
           setPendingItems(prev => prev.map(i => i.id === itemId ? { ...i, uploadName: name } : i))
