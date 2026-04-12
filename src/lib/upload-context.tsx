@@ -333,7 +333,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           console.error('[UPLOAD CLIENT] user_id     :', user.id);
           console.error('[UPLOAD CLIENT] ─────────────────────────────────────────');
 
-          const errAny = storageError as Record<string, unknown>;
+          const errAny = storageError as unknown as Record<string, unknown>;
           setStage(item.id, 'failed_upload', {
             errorDetail: {
               step:         'storage_upload',
@@ -454,7 +454,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             driveFileId:   json.drive_file_id   ?? currentDriveFileId,
             driveFolderId: json.drive_folder_id ?? currentDriveFolderId,
             driveFileName: json.drive_file_name ?? currentDriveFileName,
-            fileMimeType:  currentFileMimeType  ?? item.file.type || null,
+            fileMimeType:  (currentFileMimeType ?? item.file.type) || null,
           },
         });
         setStage(item.id, 'failed_db', {
