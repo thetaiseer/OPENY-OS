@@ -11,6 +11,7 @@
 import { google } from 'googleapis';
 import type { drive_v3 } from 'googleapis';
 import { Readable } from 'stream';
+import { createClient } from '@supabase/supabase-js';
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
@@ -67,6 +68,100 @@ export class DriveFileNotFoundError extends Error {
     super(`Drive file not found: ${fileId}`);
     this.name = 'DriveFileNotFoundError';
   }
+}
+
+/**
+ * Thrown when Google rejects the stored OAuth credentials
+ * (e.g. unauthorized_client, invalid_grant, token revoked).
+ * Callers should surface "Google Drive must be reconnected" to the user.
+ */
+export class DriveAuthError extends Error {
+  constructor(detail: string) {
+    super(`Google Drive must be reconnected: ${detail}`);
+    this.name = 'DriveAuthError';
+  }
+}
+
+// ── Supabase token storage ────────────────────────────────────────────────────
+
+/** Return a service-role Supabase client, or null if env vars are missing. */
+function getSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+/**
+ * Read the stored Google OAuth refresh token from the `google_oauth_tokens`
+ * table.  Returns null if the table doesn't exist or no row is present.
+ */
+export async function getStoredRefreshToken(): Promise<string | null> {
+  const sb = getSupabaseServiceClient();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from('google_oauth_tokens')
+      .select('refresh_token')
+      .eq('key', 'default')
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data as { refresh_token: string }).refresh_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist (upsert) a Google OAuth refresh token into `google_oauth_tokens`.
+ * Silently fails if the table doesn't exist yet.
+ */
+export async function saveRefreshToken(refreshToken: string): Promise<void> {
+  const sb = getSupabaseServiceClient();
+  if (!sb) {
+    console.warn('[google-drive] saveRefreshToken: Supabase client unavailable — token not persisted');
+    return;
+  }
+  try {
+    const { error } = await sb
+      .from('google_oauth_tokens')
+      .upsert({ key: 'default', refresh_token: refreshToken });
+    if (error) {
+      console.error('[google-drive] saveRefreshToken: upsert failed', error.message);
+    } else {
+      console.log('[google-drive] saveRefreshToken: refresh token saved to DB ✓');
+    }
+  } catch (err) {
+    console.error('[google-drive] saveRefreshToken: unexpected error', err);
+  }
+}
+
+/**
+ * Clear the stored Google OAuth refresh token (e.g. when unauthorized_client
+ * is detected and a fresh reconnect is required).
+ */
+export async function clearStoredRefreshToken(): Promise<void> {
+  const sb = getSupabaseServiceClient();
+  if (!sb) return;
+  try {
+    await sb.from('google_oauth_tokens').delete().eq('key', 'default');
+    console.log('[google-drive] clearStoredRefreshToken: stale token cleared from DB');
+  } catch (err) {
+    console.error('[google-drive] clearStoredRefreshToken: error', err);
+  }
+}
+
+// ── Auth-error detection ──────────────────────────────────────────────────────
+
+/** Return true when an error from the Drive API indicates OAuth failure. */
+function isAuthError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const code = (err as { code?: number | string })?.code;
+  return (
+    /unauthorized_client|invalid_grant|invalid_credentials|token.*(expired|revoked)|auth.*fail/i.test(msg) ||
+    code === 401 ||
+    code === '401'
+  );
 }
 
 // ── OAuth helpers (interactive flow) ─────────────────────────────────────────
@@ -205,18 +300,19 @@ export async function checkDriveConnection(): Promise<DriveConfigResult> {
 
   // All vars are present — make a lightweight API call to verify credentials
   try {
-    const { drive } = getDriveClient();
+    const { drive } = await getDriveClient();
     await drive.about.get({ fields: 'user' });
     return { status: 'connected', connected: true, missingVars: [], error: null };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    const isAuthError =
+    const isAuthErr =
+      err instanceof DriveAuthError ||
       /invalid.*(grant|credentials|token)|unauthorized|401|403/i.test(msg);
     return {
-      status: isAuthError ? 'auth_failed' : 'configured',
+      status: isAuthErr ? 'auth_failed' : 'configured',
       connected: false,
       missingVars: [],
-      error: isAuthError
+      error: isAuthErr
         ? `Google Drive API authentication failed: ${msg}`
         : `Google Drive API error: ${msg}`,
     };
@@ -244,17 +340,30 @@ function extractFolderId(value: string): string {
 /**
  * Build and return an authenticated Drive client.
  * Reads credentials from environment variables (server-side only).
+ * Falls back to the `google_oauth_tokens` DB table for the refresh token
+ * when the env var is absent.
+ *
+ * @throws DriveAuthError when credentials are present but rejected by Google.
  */
-function getDriveClient(): { drive: drive_v3.Drive; rootFolderId: string } {
+async function getDriveClient(): Promise<{ drive: drive_v3.Drive; rootFolderId: string }> {
   const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
   const rawFolderId  = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   if (!clientId)     throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_ID');
   if (!clientSecret) throw new Error('Missing env var: GOOGLE_OAUTH_CLIENT_SECRET');
-  if (!refreshToken) throw new Error('Missing env var: GOOGLE_OAUTH_REFRESH_TOKEN');
   if (!rawFolderId)  throw new Error('Missing env var: GOOGLE_DRIVE_FOLDER_ID');
+
+  // Prefer env var; fall back to DB-stored token.
+  let refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  if (!refreshToken) {
+    console.log('[google-drive] GOOGLE_OAUTH_REFRESH_TOKEN not set — reading from DB');
+    refreshToken = (await getStoredRefreshToken()) || undefined;
+  }
+
+  if (!refreshToken) {
+    throw new DriveAuthError('No refresh token found — Google Drive must be reconnected');
+  }
 
   console.log('[google-drive] Env vars loaded ✓ (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, FOLDER_ID)');
 
@@ -320,7 +429,7 @@ export async function createFolderHierarchy(
   clientName: string,
   monthKey: string,
 ): Promise<string> {
-  const { drive, rootFolderId } = getDriveClient();
+  const { drive, rootFolderId } = await getDriveClient();
   const year      = monthKeyToYear(monthKey);
   const monthName = monthKeyToMonthName(monthKey);
 
@@ -356,7 +465,7 @@ export async function uploadFileToDrive(
   mimeType: string,
   fileBuffer: Buffer,
 ): Promise<DriveUploadResult> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
 
   // Convert buffer to readable stream for the googleapis media upload
   const stream = Readable.from(fileBuffer);
@@ -406,9 +515,10 @@ export async function uploadFileToDrive(
 /**
  * Delete a file from Google Drive.
  * @throws DriveFileNotFoundError when the file is already gone (404).
+ * @throws DriveAuthError when OAuth credentials are rejected by Google.
  */
 export async function deleteFromDrive(fileId: string): Promise<void> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
   try {
     await drive.files.delete({ fileId, supportsAllDrives: true });
   } catch (err: unknown) {
@@ -417,6 +527,10 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
     if (status === 404 || /not found/i.test(message)) {
       throw new DriveFileNotFoundError(fileId);
     }
+    if (isAuthError(err)) {
+      await clearStoredRefreshToken();
+      throw new DriveAuthError(message);
+    }
     throw err;
   }
 }
@@ -424,9 +538,10 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
 /**
  * Rename a file in Google Drive.
  * @throws DriveFileNotFoundError when the file is already gone (404).
+ * @throws DriveAuthError when OAuth credentials are rejected by Google.
  */
 export async function renameInDrive(fileId: string, newName: string): Promise<void> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
   try {
     await drive.files.update({
       fileId,
@@ -439,6 +554,10 @@ export async function renameInDrive(fileId: string, newName: string): Promise<vo
     if (status === 404 || /not found/i.test(message)) {
       throw new DriveFileNotFoundError(fileId);
     }
+    if (isAuthError(err)) {
+      await clearStoredRefreshToken();
+      throw new DriveAuthError(message);
+    }
     throw err;
   }
 }
@@ -447,7 +566,7 @@ export async function renameInDrive(fileId: string, newName: string): Promise<vo
  * Return true if the file exists in Google Drive, false on 404.
  */
 export async function checkDriveFileExists(fileId: string): Promise<boolean> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
   try {
     await drive.files.get({ fileId, fields: 'id', supportsAllDrives: true });
     return true;
@@ -464,7 +583,7 @@ export async function checkDriveFileExists(fileId: string): Promise<boolean> {
 export async function setFilePublicReadable(
   fileId: string,
 ): Promise<{ webViewLink: string; webContentLink: string }> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
 
   try {
     await drive.permissions.create({
@@ -531,7 +650,7 @@ async function isFolderEmpty(drive: drive_v3.Drive, folderId: string): Promise<b
  * Errors are logged but do not propagate.
  */
 export async function cleanupEmptyFoldersFromLeaf(leafFolderId: string): Promise<void> {
-  const { drive } = getDriveClient();
+  const { drive } = await getDriveClient();
   const MAX_LEVELS = 4;
 
   let currentId: string | null = leafFolderId;
@@ -632,7 +751,7 @@ async function listSyncFiles(
  * Expected structure: root / Clients / {clientName} / {year} / {monthName} / file
  */
 export async function scanDriveForSync(): Promise<DriveFileMeta[]> {
-  const { drive, rootFolderId } = getDriveClient();
+  const { drive, rootFolderId } = await getDriveClient();
   const results: DriveFileMeta[] = [];
 
   // Locate the top-level "Clients" folder
