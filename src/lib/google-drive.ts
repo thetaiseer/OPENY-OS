@@ -456,18 +456,46 @@ export async function uploadFileToDrive(
   // Convert buffer to readable stream for the googleapis media upload
   const stream = Readable.from(fileBuffer);
 
-  const res = await drive.files.create({
-    requestBody: {
-      name:    fileName,
-      parents: [folderId],
-    },
-    media: {
-      mimeType,
-      body: stream,
-    },
-    fields: 'id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink',
-    supportsAllDrives: true,
-  });
+  console.log('[google-drive] uploadFileToDrive ── request payload ───────────');
+  console.log('[google-drive] folderId  :', folderId);
+  console.log('[google-drive] fileName  :', fileName);
+  console.log('[google-drive] mimeType  :', mimeType);
+  console.log('[google-drive] fileSize  :', fileBuffer.length, 'bytes');
+  console.log('[google-drive] ─────────────────────────────────────────────────');
+
+  let res: { status: number; data: drive_v3.Schema$File };
+  try {
+    res = await drive.files.create({
+      requestBody: {
+        name:    fileName,
+        parents: [folderId],
+      },
+      media: {
+        mimeType,
+        body: stream,
+      },
+      fields: 'id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink',
+      supportsAllDrives: true,
+    }) as { status: number; data: drive_v3.Schema$File };
+    console.log('[google-drive] drive.files.create response status:', res.status);
+  } catch (err: unknown) {
+    console.error('[google-drive] uploadFileToDrive ── Drive API error ─────────');
+    console.error('[google-drive] folderId  :', folderId);
+    console.error('[google-drive] fileName  :', fileName);
+    console.error('[google-drive] mimeType  :', mimeType);
+    console.error('[google-drive] fileSize  :', fileBuffer.length, 'bytes');
+    // Use getOwnPropertyNames to capture non-enumerable Error properties (message, stack, etc.)
+    const errRecord = err instanceof Error
+      ? Object.getOwnPropertyNames(err).reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = (err as unknown as Record<string, unknown>)[key];
+          return acc;
+        }, {})
+      : err;
+    console.error('[google-drive] full error:', JSON.stringify(errRecord, null, 2));
+    console.error('[google-drive] ─────────────────────────────────────────────');
+    if (isAuthError(err)) throw new DriveAuthError(err instanceof Error ? err.message : String(err));
+    throw err;
+  }
 
   const file   = res.data;
   const fileId = file.id ?? '';

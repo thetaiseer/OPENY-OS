@@ -257,6 +257,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   // so the queue row can show a non-blocking warning.
 
   const syncToDrive = useCallback(async (itemId: string, assetId: string) => {
+    console.log('[DRIVE SYNC] triggering Drive sync for assetId:', assetId);
     try {
       const res = await fetch('/api/drive-sync', {
         method:      'POST',
@@ -268,30 +269,45 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const json = await res.json() as {
         success:          boolean;
         driveConfigured?: boolean;
+        missingVars?:     string[];
         error?:           string;
         warning?:         string;
+        driveAuthError?:  boolean;
       };
 
+      console.log('[DRIVE SYNC] /api/drive-sync response (HTTP', res.status, '):', JSON.stringify(json));
+
       // Drive not configured — skip silently (not an error).
-      if (!json.driveConfigured) return;
+      if (!json.driveConfigured) {
+        console.log('[DRIVE SYNC] Drive not configured — skipped. missingVars:', json.missingVars);
+        return;
+      }
 
       // Partial success (Drive upload OK but DB update failed) — show warning.
       if (json.success && json.warning) {
+        console.warn('[DRIVE SYNC] Drive upload succeeded but DB update failed:', json.warning);
         dispatchRef.current({ type: 'UPDATE', id: itemId, patch: { driveWarning: json.warning } });
         return;
       }
 
       // True failure — show warning.
       if (!json.success) {
+        const warning = json.error ?? 'Google Drive sync failed';
+        console.error('[DRIVE SYNC] Drive sync FAILED for assetId:', assetId,
+          '| driveAuthError:', json.driveAuthError,
+          '| error:', warning);
         dispatchRef.current({
           type:  'UPDATE',
           id:    itemId,
-          patch: { driveWarning: json.error ?? 'Google Drive sync failed' },
+          patch: { driveWarning: warning },
         });
+      } else {
+        console.log('[DRIVE SYNC] Drive sync completed successfully for assetId:', assetId);
       }
     } catch (err: unknown) {
       // Network / parse error — show warning, do not change upload status.
       const msg = err instanceof Error ? err.message : 'Network error during Drive sync';
+      console.error('[DRIVE SYNC] Drive sync exception for assetId:', assetId, ':', msg);
       dispatchRef.current({ type: 'UPDATE', id: itemId, patch: { driveWarning: msg } });
     }
   }, []);
