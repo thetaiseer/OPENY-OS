@@ -215,7 +215,7 @@ function QueueRow({ item }: { item: UploadItem }) {
             Technical details
           </p>
           <p className="text-xs font-mono" style={{ color: '#f59e0b', fontWeight: 700 }}>
-            Using bucket: {item.errorDetail.bucket ?? 'assets'}
+            Using bucket: {item.errorDetail.bucket ?? 'client-assets'}
           </p>
           {item.errorDetail.step && (
             <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
