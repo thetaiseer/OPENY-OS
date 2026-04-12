@@ -13,6 +13,11 @@
  *  2. If Storage OK + DB fails   → failed_db      (can retry DB save only)
  *  3. NEVER show "Load failed" or generic "Failed"
  *  4. Always show exact stage-based messages
+ *
+ * Storage upload strategy: direct client-side upload to Supabase Storage
+ * (browser → Supabase Storage via anon key + user session), then API call
+ * for DB metadata save only.  This bypasses the server-side Buffer path that
+ * was returning HTTP 500 from the storage service.
  */
 
 import React, {
@@ -24,6 +29,7 @@ import React, {
   useRef,
 } from 'react';
 import type { Asset } from './types';
+import { supabase } from '@/lib/supabase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -242,17 +248,20 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Core upload function ─────────────────────────────────────────────────
+  //
+  // Strategy (two-phase):
+  //   Phase 1 – Client-side Supabase Storage upload (browser → storage directly).
+  //             Skipped for failed_db retries where storage already succeeded.
+  //   Phase 2 – API call to /api/upload with retry-path fields (driveFileId etc.)
+  //             to persist metadata to the DB.  No file bytes are sent in phase 2.
 
   const doUploadItem = useCallback(async (item: UploadItem) => {
     const ctrl = new AbortController();
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
-      let xhrResult: XhrResult;
-
       // ── Client-side size check ──────────────────────────────────────────
-      // Skip for failed_db retries — the file is not re-uploaded, only metadata
-      // is sent. The file was already accepted and uploaded to Drive previously.
+      // Skip for failed_db retries — the file is not re-uploaded.
       if (item.file.size > MAX_FILE_SIZE_BYTES && !item.driveFileId) {
         setStage(item.id, 'failed_upload', {
           errorDetail: {
@@ -265,58 +274,148 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ── Build FormData ────────────────────────────────────────────────
-      const formData = new FormData();
+      // ── Carry-forward storage coords (set during Phase 1 or reconcile) ──
+      let currentDriveFileId   = item.driveFileId;
+      let currentDriveFolderId = item.driveFolderId;
+      let currentDriveFileName = item.driveFileName;
+      let currentFileMimeType  = item.fileMimeType;
 
-      if (item.driveFileId) {
-        // ── Reconcile path: Drive already done — retry DB save only ──────
-        formData.append('driveFileId',    item.driveFileId);
-        formData.append('driveFolderId',  item.driveFolderId ?? '');
-        formData.append('driveFileName',  item.driveFileName ?? item.file.name);
-        formData.append('fileMimeType',   (item.fileMimeType ?? item.file.type) || 'application/octet-stream');
-        formData.append('fileSize',       String(item.file.size));
-
-        setStage(item.id, 'uploading', { progress: 90 });
-      } else {
-        // ── Normal path: upload file to server ───────────────────────────
-        formData.append('file',       item.file);
-
+      // ── Phase 1: Direct client-side Supabase Storage upload ─────────────
+      if (!currentDriveFileId) {
         setStage(item.id, 'uploading', { progress: 0 });
+
+        // Get authenticated user from the browser Supabase client.
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          const msg = authError?.message ?? 'Not authenticated';
+          console.error('[UPLOAD CLIENT] auth error:', msg);
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:    'auth',
+              message: `Could not get current user: ${msg}`,
+              code:    'AUTH_ERROR',
+              details: null,
+            },
+          });
+          return;
+        }
+
+        const bucket           = 'assets';
+        const safeFileName     = item.file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._\-]/g, '');
+        const storagePath      = `${user.id}/${safeFileName}`;
+        const mimeType         = item.file.type || 'application/octet-stream';
+
+        // Full diagnostic log before upload attempt.
+        console.log('[UPLOAD CLIENT] ── pre-upload diagnostics ───────────────────');
+        console.log('[UPLOAD CLIENT] client_type :', 'browser (anon key + user session)');
+        console.log('[UPLOAD CLIENT] user_id     :', user.id);
+        console.log('[UPLOAD CLIENT] file_name   :', item.file.name);
+        console.log('[UPLOAD CLIENT] file_type   :', mimeType);
+        console.log('[UPLOAD CLIENT] file_size   :', item.file.size, 'bytes');
+        console.log('[UPLOAD CLIENT] bucket      :', bucket);
+        console.log('[UPLOAD CLIENT] upload_path :', storagePath);
+        console.log('[UPLOAD CLIENT] ─────────────────────────────────────────────');
+
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from(bucket)
+          .upload(storagePath, item.file, { upsert: false });
+
+        if (storageError) {
+          // Log the full Supabase error object — nothing hidden.
+          console.error('[UPLOAD CLIENT] ── storage upload FAILED ──────────────────');
+          console.error('[UPLOAD CLIENT] full_error  :', JSON.stringify(storageError, null, 2));
+          console.error('[UPLOAD CLIENT] bucket      :', bucket);
+          console.error('[UPLOAD CLIENT] upload_path :', storagePath);
+          console.error('[UPLOAD CLIENT] file_name   :', item.file.name);
+          console.error('[UPLOAD CLIENT] file_type   :', mimeType);
+          console.error('[UPLOAD CLIENT] file_size   :', item.file.size, 'bytes');
+          console.error('[UPLOAD CLIENT] user_id     :', user.id);
+          console.error('[UPLOAD CLIENT] ─────────────────────────────────────────');
+
+          const errAny = storageError as Record<string, unknown>;
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:         'storage_upload',
+              message:      storageError.message,
+              code:         String(errAny['statusCode'] ?? errAny['error'] ?? ''),
+              details:      JSON.stringify(storageError),
+              bucket,
+              path:         storagePath,
+            },
+          });
+          return;
+        }
+
+        console.log('[UPLOAD CLIENT] storage upload succeeded. path:', storageData?.path ?? storagePath);
+
+        currentDriveFileId   = storagePath;
+        currentDriveFolderId = bucket;
+        currentFileMimeType  = mimeType;
+        // Use custom name if provided, otherwise the original file name.
+        currentDriveFileName = item.uploadName.trim() || item.file.name;
+
+        // Persist storage coords on the item so reconcile retry can skip Phase 1.
+        dispatchRef.current({
+          type:  'UPDATE',
+          id:    item.id,
+          patch: {
+            driveFileId:   currentDriveFileId,
+            driveFolderId: currentDriveFolderId,
+            driveFileName: currentDriveFileName,
+            fileMimeType:  currentFileMimeType,
+          },
+        });
+
+        setStage(item.id, 'uploaded', { progress: 50 });
       }
 
-      formData.append('clientName',  item.clientName);
-      formData.append('contentType', item.contentType);
-      formData.append('monthKey',    item.monthKey);
-      if (item.clientId)   formData.append('clientId',   item.clientId);
-      if (item.uploadedBy) formData.append('uploadedBy', item.uploadedBy);
-      if (item.uploadName.trim()) formData.append('customFileName', item.uploadName.trim());
-
-      // ── Upload via XHR (for progress tracking) ──────────────────────
-      try {
-        xhrResult = await uploadViaXHR(
-          '/api/upload',
-          formData,
-          (pct) => {
-            if (!item.driveFileId) {
-              setStage(item.id, 'uploading', { progress: pct });
-            }
+      // ── Phase 2: Save metadata to DB via API route (retry/DB-only path) ──
+      if (!currentDriveFileId) {
+        // Should never happen — Phase 1 always sets currentDriveFileId.
+        // Guard against any unexpected code path.
+        setStage(item.id, 'failed_upload', {
+          errorDetail: {
+            step:    'internal',
+            message: 'Storage path unavailable after upload phase — please retry.',
+            code:    'MISSING_STORAGE_PATH',
+            details: null,
           },
-          ctrl.signal,
-        );
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('driveFileId',    currentDriveFileId);
+      formData.append('driveFolderId',  currentDriveFolderId ?? '');
+      formData.append('driveFileName',  currentDriveFileName ?? item.file.name);
+      formData.append('fileMimeType',   (currentFileMimeType ?? item.file.type) || 'application/octet-stream');
+      formData.append('fileSize',       String(item.file.size));
+      formData.append('clientName',     item.clientName);
+      formData.append('contentType',    item.contentType);
+      formData.append('monthKey',       item.monthKey);
+      if (item.clientId)            formData.append('clientId',      item.clientId);
+      if (item.uploadedBy)          formData.append('uploadedBy',    item.uploadedBy);
+      if (item.uploadName.trim())   formData.append('customFileName', item.uploadName.trim());
+
+      setStage(item.id, 'uploading', { progress: 90 });
+
+      let xhrResult: XhrResult;
+      try {
+        xhrResult = await uploadViaXHR('/api/upload', formData, () => {}, ctrl.signal);
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') throw err;
-        throw new Error(err instanceof Error ? err.message : 'Network error during upload');
+        throw new Error(err instanceof Error ? err.message : 'Network error saving metadata');
       }
 
-      // ── XHR done — bytes sent to server (or DB retry complete) ────────
       setStage(item.id, 'uploaded', { progress: 100 });
 
       // ── Parse server response ─────────────────────────────────────────
       let json: {
-        success:         boolean;
-        stage?:          string;
-        asset?:          Asset;
-        drive_file_id?:  string;
+        success:          boolean;
+        stage?:           string;
+        asset?:           Asset;
+        drive_file_id?:   string;
         drive_folder_id?: string;
         drive_file_name?: string;
         error?: { step: string; message: string; code?: string | null; details?: string | null; bucket?: string | null; path?: string | null; supabase_url?: string | null };
@@ -325,7 +424,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       try {
         json = JSON.parse(xhrResult.body);
       } catch {
-        // Unreadable response — treat 2xx as completed, others as failed
         if (xhrResult.status >= 200 && xhrResult.status < 300) {
           setStage(item.id, 'completed', { progress: 100 });
         } else {
@@ -349,15 +447,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (json.stage === 'failed_db') {
-        // Drive upload succeeded — store the Drive info for reconcile retry
         dispatchRef.current({
           type:  'UPDATE',
           id:    item.id,
           patch: {
-            driveFileId:   json.drive_file_id   ?? null,
-            driveFolderId: json.drive_folder_id ?? null,
-            driveFileName: json.drive_file_name ?? null,
-            fileMimeType:  item.file.type || null,
+            driveFileId:   json.drive_file_id   ?? currentDriveFileId,
+            driveFolderId: json.drive_folder_id ?? currentDriveFolderId,
+            driveFileName: json.drive_file_name ?? currentDriveFileName,
+            fileMimeType:  currentFileMimeType  ?? item.file.type || null,
           },
         });
         setStage(item.id, 'failed_db', {
