@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // DELETE /api/auth/sessions/[id] — revoke a single session
 export async function DELETE(
@@ -15,7 +13,7 @@ export async function DELETE(
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id: sessionId } = await params;
-  const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
+  const admin = getServiceClient();
 
   // Only allow revoking sessions that belong to this user
   const { error } = await admin

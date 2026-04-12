@@ -24,13 +24,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyTaskCreated } from '@/lib/notification-service';
 import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const VALID_STATUSES = [
   'todo', 'in_progress', 'in_review', 'review', 'waiting_client',
@@ -220,17 +218,9 @@ export async function POST(request: NextRequest) {
   if (assetId && !assetIds.includes(assetId)) assetIds.push(assetId);
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
-  if (!supabaseServiceRoleKey) {
-    console.error('[POST /api/tasks] SUPABASE_SERVICE_ROLE_KEY is not set');
-    return NextResponse.json(
-      { success: false, step: 'db_insert', error: 'Server configuration error' },
-      { status: 500 },
-    );
-  }
-
   console.log('[POST /api/tasks] db insert payload:', JSON.stringify(insertPayload));
 
-  const db = createClient(supabaseUrl, supabaseServiceRoleKey!);
+  const db = getServiceClient();
   const { data, error } = await db
     .from('tasks')
     .insert(insertPayload)

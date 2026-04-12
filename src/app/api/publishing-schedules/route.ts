@@ -16,16 +16,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyPublishingScheduled } from '@/lib/notification-service';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 const VALID_PLATFORMS = [
   'instagram', 'facebook', 'tiktok', 'linkedin',
@@ -56,7 +50,7 @@ export async function GET(req: NextRequest) {
   const postType  = searchParams.get('post_type');
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     let query = db
       .from('publishing_schedules')
@@ -150,7 +144,7 @@ export async function POST(req: NextRequest) {
   const createTask      = body.create_task !== false; // default true
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     let resolvedClientId: string | null   = clientId;
     let resolvedClientName: string | null = clientName;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient, getSupabaseUrl } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
@@ -26,16 +26,6 @@ const VALID_CONTENT_TYPES = [
   'PASSWORDS','DOCUMENTS','RAW_FILES','ADS_CREATIVES','REPORTS','OTHER',
 ] as const;
 type ValidContentType = typeof VALID_CONTENT_TYPES[number];
-
-// ── Supabase client ───────────────────────────────────────────────────────────
-
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  return createClient(url, key);
-}
 
 /** Build the public storage URL for an object in the assets bucket. */
 function buildStorageUrl(supabaseUrl: string, bucket: string, path: string): string {
@@ -156,12 +146,11 @@ export async function POST(req: NextRequest) {
     return validationError('monthKey must be in YYYY-MM format');
   }
 
-  let supabase: ReturnType<typeof getSupabase>;
+  let supabase: ReturnType<typeof getServiceClient>;
   let supabaseUrl: string;
   try {
-    supabase    = getSupabase();
-    supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    if (!supabaseUrl) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+    supabase    = getServiceClient();
+    supabaseUrl = getSupabaseUrl();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Supabase configuration error';
     console.error('[upload] Supabase client initialisation failed:', msg);
@@ -184,7 +173,7 @@ export async function POST(req: NextRequest) {
     displayName  = existingFileName!;
     fileMimeType = (formData.get('fileMimeType') as string | null) ?? 'application/octet-stream';
     fileSize     = parseInt((formData.get('fileSize') as string | null) ?? '0', 10) || null;
-    publicUrl    = buildStorageUrl(supabaseUrl, "assets", storagePath);
+    publicUrl    = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
   } else {
     // Normal upload path — file is required.
     if (!file || !(file instanceof File)) {
@@ -219,9 +208,12 @@ export async function POST(req: NextRequest) {
     // ── Upload file to Supabase Storage ──────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const bucketName = "assets";
+      const bucketName = "client-assets";
 
       // ── Pre-upload diagnostic log ─────────────────────────────────────────
+      console.log("SUPABASE URL:", supabaseUrl);
+      const { data: bucketList } = await supabase.storage.listBuckets();
+      console.log("Buckets:", bucketList);
       console.log('[UPLOAD DEBUG] ── pre-upload diagnostics ──────────────────');
       console.log('[UPLOAD DEBUG] side          : server-side (Next.js API route)');
       console.log('[UPLOAD DEBUG] client_type   : service_role (SUPABASE_SERVICE_ROLE_KEY)');
@@ -275,7 +267,7 @@ export async function POST(req: NextRequest) {
       console.log('[UPLOAD DEBUG] storage upload succeeded. path:', _uploadData?.path ?? storagePath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      const bucketName = "assets";
+      const bucketName = "client-assets";
       console.error('[UPLOAD DEBUG] ── storage upload EXCEPTION (during upload) ─');
       console.error('[UPLOAD DEBUG] exception     :', msg);
       console.error('[UPLOAD DEBUG] bucket        :', bucketName);
@@ -311,7 +303,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    publicUrl = buildStorageUrl(supabaseUrl, "assets", storagePath);
+    publicUrl = buildStorageUrl(supabaseUrl, "client-assets", storagePath);
   }
 
   // ── Step 2: Deduplication check ──────────────────────────────────────────
@@ -344,7 +336,7 @@ export async function POST(req: NextRequest) {
     file_type:        fileMimeType,
     mime_type:        fileMimeType,
     file_size:        fileSize,
-    bucket_name:      "assets",
+    bucket_name:      "client-assets",
     storage_provider: 'supabase_storage',
     drive_file_id:    null,
     drive_folder_id:  null,
@@ -381,7 +373,7 @@ export async function POST(req: NextRequest) {
         when:            'after_upload',
         location:        publicUrl,
         drive_file_id:   storagePath,
-        drive_folder_id: "assets",
+        drive_folder_id: "client-assets",
         drive_file_name: displayName,
         error:           dbError,
       },
@@ -418,7 +410,7 @@ export async function POST(req: NextRequest) {
       location:        publicUrl,
       asset:           inserted,
       drive_file_id:   storagePath,
-      drive_folder_id: "assets",
+      drive_folder_id: "client-assets",
     },
     { status: 201 },
   );

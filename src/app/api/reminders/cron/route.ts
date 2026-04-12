@@ -15,18 +15,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
 import { sendEmail, deadlineAlertEmail, logEmailSent } from '@/lib/email';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered'];
 const MS_PER_DAY = 86_400_000;
 
-function getDb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, key);
-}
 
 function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -52,7 +47,7 @@ interface AssigneeMember {
 }
 
 async function resolveAssignees(
-  db: ReturnType<typeof getDb>,
+  db: ReturnType<typeof getServiceClient>,
   assigneeIds: string[],
 ): Promise<Map<string, AssigneeMember>> {
   const map = new Map<string, AssigneeMember>();
@@ -72,7 +67,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   }
 
-  const db      = getDb();
+  const db      = getServiceClient();
   const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const now     = new Date();
   const in24h   = new Date(now.getTime() + MS_PER_DAY);

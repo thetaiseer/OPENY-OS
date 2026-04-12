@@ -151,11 +151,8 @@ export async function logEmailSent(opts: {
   error?: string;
 }): Promise<void> {
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) return;
-    const db = createClient(url, key);
+    const { getServiceClient } = await import('@/lib/supabase/service-client');
+    const db = getServiceClient();
     await db.from('email_logs').insert({
       to_address:  opts.to,
       subject:     opts.subject,

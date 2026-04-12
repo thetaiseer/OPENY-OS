@@ -15,15 +15,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -39,7 +33,7 @@ export async function GET(req: NextRequest) {
   const limit      = Math.min(Math.max(1, isNaN(rawLimit) ? 50 : rawLimit), 200);
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     let query = db
       .from('activities')
@@ -108,7 +102,7 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const { data, error } = await db
       .from('activities')

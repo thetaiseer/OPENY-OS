@@ -5,15 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
 
@@ -24,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
     const { data, error } = await db
       .from('content_items')
       .select('*, client:clients(id, name)')
@@ -59,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
     const { data, error } = await db
       .from('content_items')
       .update(updates)
@@ -78,7 +72,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
     const { error } = await db.from('content_items').delete().eq('id', id);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

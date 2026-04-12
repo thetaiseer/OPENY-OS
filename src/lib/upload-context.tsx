@@ -301,7 +301,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const bucket           = 'assets';
+        const bucket           = 'client-assets';
         const safeFileName     = item.file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._\-]/g, '');
         const storagePath      = `${user.id}/${safeFileName}`;
         const mimeType         = item.file.type || 'application/octet-stream';

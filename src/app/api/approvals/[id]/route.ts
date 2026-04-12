@@ -11,16 +11,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyApprovalDecision } from '@/lib/notification-service';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'] as const;
 
@@ -38,7 +32,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const { data, error } = await db
       .from('approvals')
@@ -83,7 +77,7 @@ export async function PATCH(
   }
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const { data: existing, error: fetchErr } = await db
       .from('approvals')

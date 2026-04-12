@@ -12,17 +12,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key);
-}
 
 function monthLabel(ym: string): string {
   const [year, month] = ym.split('-');
@@ -46,7 +40,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const db = getSupabase();
+    const db = getServiceClient();
 
     const [clientsResult, tasksResult, assetsResult, schedulesResult, approvalsResult, membersResult] =
       await Promise.allSettled([

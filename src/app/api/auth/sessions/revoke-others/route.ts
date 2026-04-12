@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // POST /api/auth/sessions/revoke-others — revoke all sessions except the current one
 export async function POST(request: NextRequest) {
   const auth = await getApiUser(request);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
+  const admin = getServiceClient();
   const currentSid = request.cookies.get('openy-sid')?.value;
 
   let query = admin

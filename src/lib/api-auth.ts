@@ -22,12 +22,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import type { UserRole } from './auth-context';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Owner email always resolves to 'owner' role — the workspace owner.
 const OWNER_EMAIL = 'thetaiseer@gmail.com';
@@ -124,12 +123,7 @@ export async function getApiUser(
 
   // 3. Fetch role from public.team_members using the service-role key so that
   //    Row Level Security does not block the read.
-  if (!supabaseServiceRoleKey) {
-    console.error('[api-auth] SUPABASE_SERVICE_ROLE_KEY is not set — cannot verify role');
-    return null;
-  }
-
-  const admin = createServiceClient(supabaseUrl, supabaseServiceRoleKey);
+  const admin = getServiceClient();
 
   const { data: member, error: memberError } = await admin
     .from('team_members')

@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
@@ -47,9 +47,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   // Production domain — used for invite links
   const INVITE_DOMAIN = 'https://openy-os.com';
 
@@ -59,11 +56,7 @@ export async function POST(request: NextRequest) {
     process.env.INVITE_FROM_EMAIL ??
     'OPENY OS <noreply@openy-os.com>';
 
-  if (!url || !key) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
-  const db = createServiceClient(url, key);
+  const db = getServiceClient();
 
   // ── 1. Check for active invite already sent to this email ────────────────
   const { data: existingInvite } = await db

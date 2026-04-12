@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
 
 // Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
 type Db = SupabaseClient<any>;
 
-function getSupabase(): Db {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 // ── Logging helpers ───────────────────────────────────────────────────────────
 
@@ -674,7 +669,7 @@ export async function POST(req: NextRequest) {
 
     // Step 4: Execute the safe action, wrapped in its own try/catch so a DB
     // error in one handler cannot crash the entire request or freeze the UI.
-    const sb = getSupabase();
+    const sb = getServiceClient() as Db;
     const userId = auth.profile.id;
     let result: ExecutionResult;
 
