@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
       console.log('[UPLOAD DEBUG] supabase_url  :', supabaseUrl);
       console.log('[UPLOAD DEBUG] ─────────────────────────────────────────────');
 
-      const { data: uploadData, error: storageError } = await supabase.storage
+      const { data: _uploadData, error: storageError } = await supabase.storage
         .from(bucketName)
         .upload(storagePath, fileBuffer, {
           contentType: fileMimeType,
@@ -272,7 +272,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log('[UPLOAD DEBUG] storage upload succeeded. path:', uploadData?.path ?? storagePath);
+      console.log('[UPLOAD DEBUG] storage upload succeeded. path:', _uploadData?.path ?? storagePath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const bucketName = "assets";
@@ -291,8 +291,10 @@ export async function POST(req: NextRequest) {
           when:      'during_upload',
           location:  null,
           error: {
-            message: msg,
-            raw:     err instanceof Error ? { name: err.name, stack: err.stack } : String(err),
+            message:    msg,
+            statusCode: null,
+            error:      err instanceof Error ? err.name : 'UnknownError',
+            stack:      err instanceof Error ? err.stack : undefined,
           },
           debug: {
             bucket:       bucketName,
