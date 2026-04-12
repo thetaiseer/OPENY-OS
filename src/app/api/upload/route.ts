@@ -195,8 +195,8 @@ export async function POST(req: NextRequest) {
     fileMimeType = file.type || 'application/octet-stream';
     fileSize     = file.size;
     // Key: {clientName}/{contentType}/{monthKey}/{displayName}
-    const safeClient = sanitizeFileName(clientName);
-    r2Key = `${safeClient}/${contentType}/${monthKey}/${displayName}`;
+    const sanitizedClientName = sanitizeFileName(clientName);
+    r2Key = `${sanitizedClientName}/${contentType}/${monthKey}/${displayName}`;
 
     // ── Upload file to Cloudflare R2 ─────────────────────────────────────────
     try {

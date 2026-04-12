@@ -249,7 +249,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   //   The server handles the R2 upload and DB save atomically.
   //   XHR upload.progress events provide real byte-level progress.
   //
-  // For failed_db retries: driveFileId (= R2 key) is set on the item;
+  // For failed_db retries: the R2 key is stored in item.driveFileId (legacy field name);
   //   the route detects this and skips the R2 upload, retrying only the DB save.
 
   const doUploadItem = useCallback(async (item: UploadItem) => {
