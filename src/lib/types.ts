@@ -212,6 +212,11 @@ export interface Asset {
   tags?: string[];
   version_number?: number;
   parent_asset_id?: string | null;
+  /** New hierarchy fields (assets v2) */
+  main_category?: string | null;
+  sub_category?: string | null;
+  /** Canonical storage key: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-{file} */
+  storage_key?: string | null;
   created_at: string;
 }
 

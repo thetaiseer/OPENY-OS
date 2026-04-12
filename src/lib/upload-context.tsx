@@ -59,11 +59,13 @@ export interface UploadItem {
   statusText:  string;
   errorDetail: UploadErrorDetail | null;
   // metadata
-  clientName:  string;
-  clientId:    string;
-  contentType: string;
-  monthKey:    string;
-  uploadedBy:  string | null;
+  clientName:   string;
+  clientId:     string;
+  contentType:  string;
+  mainCategory: string;
+  subCategory:  string;
+  monthKey:     string;
+  uploadedBy:   string | null;
   /** R2 object key — set after a successful R2 upload; used to retry DB save without re-uploading. */
   r2Key:      string | null;
   r2Bucket:   string | null;
@@ -73,11 +75,13 @@ export interface UploadItem {
 
 /** Minimal shape submitted when confirming a batch. */
 export interface BatchMeta {
-  clientName:  string;
-  clientId:    string;
-  contentType: string;
-  monthKey:    string;
-  uploadedBy:  string | null;
+  clientName:   string;
+  clientId:     string;
+  contentType:  string;
+  mainCategory: string;
+  subCategory:  string;
+  monthKey:     string;
+  uploadedBy:   string | null;
 }
 
 /** Item shape passed when opening a batch (before upload starts). */
@@ -287,9 +291,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         if (item.uploadName.trim()) formData.append('customFileName', item.uploadName.trim());
       }
 
-      formData.append('clientName',  item.clientName);
-      formData.append('contentType', item.contentType);
-      formData.append('monthKey',    item.monthKey);
+      formData.append('clientName',   item.clientName);
+      formData.append('contentType',  item.contentType);
+      formData.append('mainCategory', item.mainCategory);
+      formData.append('subCategory',  item.subCategory);
+      formData.append('monthKey',     item.monthKey);
       if (item.clientId)   formData.append('clientId',   item.clientId);
       if (item.uploadedBy) formData.append('uploadedBy', item.uploadedBy);
 
@@ -442,6 +448,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       clientName:    meta.clientName,
       clientId:      meta.clientId,
       contentType:   meta.contentType,
+      mainCategory:  meta.mainCategory,
+      subCategory:   meta.subCategory,
       monthKey:      meta.monthKey,
       uploadedBy:    meta.uploadedBy,
       r2Key:       null,

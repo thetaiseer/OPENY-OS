@@ -7,8 +7,8 @@
  * Features:
  *  - Per-file name editor with validation
  *  - Client selection (lockable when uploading from a client workspace)
- *  - "+ Create New" button that opens CreateClientModal inline
- *  - Content-type selector
+ *  - "+ Create New" button opens CreateClientModal inline
+ *  - Main Category → Subcategory selectors (new asset hierarchy)
  *  - MonthYearPicker (modern calendar-style month/year picker)
  *  - AI writing improvement on file names
  *  - Consistent design system styling
@@ -20,7 +20,11 @@ import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import CreateClientModal from '@/components/upload/CreateClientModal';
-import { contentTypeLabel } from '@/lib/asset-utils';
+import {
+  MAIN_CATEGORIES,
+  SUBCATEGORIES,
+  type MainCategorySlug,
+} from '@/lib/asset-utils';
 import type { Client } from '@/lib/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,15 +37,17 @@ export interface UploadFileItem {
 }
 
 export interface UploadModalProps {
-  files:         UploadFileItem[];
-  contentType:   string;
-  monthKey:      string;
-  clientName:    string;
-  clientId:      string;
-  clients:       Client[];
+  files:          UploadFileItem[];
+  mainCategory:   string;
+  subCategory:    string;
+  monthKey:       string;
+  clientName:     string;
+  clientId:       string;
+  clients:        Client[];
   /** When true the client field is hidden (uploading from a client workspace) */
-  lockClient?:   boolean;
-  onContentTypeChange:  (v: string) => void;
+  lockClient?:    boolean;
+  onMainCategoryChange: (v: string) => void;
+  onSubCategoryChange:  (v: string) => void;
   onMonthChange:        (v: string) => void;
   onClientChange?:      (name: string, id: string) => void;
   /** Called when a new client is created via the inline modal */
@@ -53,13 +59,6 @@ export interface UploadModalProps {
   onConfirmAndSchedule?: () => void;
   onCancel:             () => void;
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const ALLOWED_CONTENT_TYPES = [
-  'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
-  'PASSWORDS', 'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
-] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -209,13 +208,15 @@ function FileRow({
 
 export default function UploadModal({
   files,
-  contentType,
+  mainCategory,
+  subCategory,
   monthKey,
   clientName,
   clientId: _clientId,
   clients,
   lockClient = false,
-  onContentTypeChange,
+  onMainCategoryChange,
+  onSubCategoryChange,
   onMonthChange,
   onClientChange,
   onNewClientCreated,
@@ -228,12 +229,22 @@ export default function UploadModal({
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   const hasErrors  = files.some(f => validateUploadName(f.uploadName) !== null);
-  const canConfirm = files.length > 0 && !hasErrors && (lockClient || !!clientName);
+  const canConfirm = files.length > 0 && !hasErrors && (lockClient || !!clientName) && !!mainCategory;
+
+  const subcategoryOptions = mainCategory
+    ? (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? [])
+    : [];
 
   const handleClientSelect = (name: string) => {
     if (!onClientChange) return;
     const found = clients.find(c => c.name === name);
     onClientChange(name, found?.id ?? '');
+  };
+
+  const handleMainCategoryChange = (v: string) => {
+    onMainCategoryChange(v);
+    // Reset subcategory when main category changes
+    onSubCategoryChange('');
   };
 
   const handleNewClientCreated = (client: Client) => {
@@ -328,16 +339,37 @@ export default function UploadModal({
                 </div>
               )}
 
-              {/* Content Type */}
+              {/* Main Category */}
               <div>
-                <Label required>Content Type</Label>
+                <Label required>Main Category</Label>
                 <SelectDropdown
                   fullWidth
-                  value={contentType}
-                  onChange={onContentTypeChange}
-                  options={ALLOWED_CONTENT_TYPES.map(ct => ({ value: ct, label: contentTypeLabel(ct) }))}
+                  value={mainCategory}
+                  onChange={handleMainCategoryChange}
+                  placeholder="— Select a category —"
+                  options={[
+                    { value: '', label: '— Select a category —' },
+                    ...MAIN_CATEGORIES.map(c => ({ value: c.slug, label: c.label })),
+                  ]}
                 />
               </div>
+
+              {/* Subcategory (dependent on main category) */}
+              {subcategoryOptions.length > 0 && (
+                <div>
+                  <Label>Subcategory</Label>
+                  <SelectDropdown
+                    fullWidth
+                    value={subCategory}
+                    onChange={onSubCategoryChange}
+                    placeholder="— Select a subcategory —"
+                    options={[
+                      { value: '', label: '— Select a subcategory —' },
+                      ...subcategoryOptions.map(s => ({ value: s.slug, label: s.label })),
+                    ]}
+                  />
+                </div>
+              )}
 
               {/* Month / Year picker */}
               <div>
@@ -405,3 +437,5 @@ export default function UploadModal({
     </>
   );
 }
+
+

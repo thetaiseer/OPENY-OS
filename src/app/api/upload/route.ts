@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
 import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
+import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 // ── Runtime config ────────────────────────────────────────────────────────────
 // Allow up to 5 minutes for large file uploads (requires Vercel Pro).
@@ -27,6 +28,8 @@ const VALID_CONTENT_TYPES = [
   'PASSWORDS','DOCUMENTS','RAW_FILES','ADS_CREATIVES','REPORTS','OTHER',
 ] as const;
 type ValidContentType = typeof VALID_CONTENT_TYPES[number];
+
+const VALID_MAIN_CATEGORIES: string[] = MAIN_CATEGORIES.map(c => c.slug);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +69,9 @@ function buildFinalFileName(
  * Form fields:
  *   file           – the File to upload (required)
  *   clientName     – client display name (required)
- *   contentType    – one of VALID_CONTENT_TYPES (required)
+ *   contentType    – one of VALID_CONTENT_TYPES (optional, for legacy callers)
+ *   mainCategory   – new hierarchy main category slug (optional)
+ *   subCategory    – new hierarchy subcategory slug (optional)
  *   monthKey       – "YYYY-MM" (required)
  *   clientId       – Supabase client UUID (optional)
  *   uploadedBy     – uploader name/email (optional)
@@ -111,6 +116,8 @@ export async function POST(req: NextRequest) {
   const file         = formData.get('file') as File | null;
   const clientName   = (formData.get('clientName')   as string | null)?.trim() ?? '';
   const contentType  = (formData.get('contentType')  as string | null)?.trim() ?? '';
+  const mainCategory = (formData.get('mainCategory') as string | null)?.trim() ?? '';
+  const subCategory  = (formData.get('subCategory')  as string | null)?.trim() ?? '';
   const monthKey     = (formData.get('monthKey')     as string | null)?.trim() ?? '';
   const clientId     = (formData.get('clientId')     as string | null)?.trim() || null;
   const uploadedBy   = (formData.get('uploadedBy')   as string | null)?.trim() || null;
@@ -130,9 +137,19 @@ export async function POST(req: NextRequest) {
     );
 
   if (!clientName) return validationError('clientName is required');
-  if (!contentType) return validationError('contentType is required');
-  if (!VALID_CONTENT_TYPES.includes(contentType as ValidContentType)) {
+  // contentType validation: required only if mainCategory is not provided (legacy callers)
+  if (!mainCategory && !contentType) return validationError('contentType or mainCategory is required');
+  if (contentType && !VALID_CONTENT_TYPES.includes(contentType as ValidContentType)) {
     return validationError(`Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}`);
+  }
+  if (mainCategory && !VALID_MAIN_CATEGORIES.includes(mainCategory)) {
+    return validationError(`Invalid mainCategory. Must be one of: ${VALID_MAIN_CATEGORIES.join(', ')}`);
+  }
+  if (mainCategory && subCategory) {
+    const validSubs = (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? []).map(s => s.slug);
+    if (validSubs.length > 0 && !validSubs.includes(subCategory)) {
+      return validationError(`Invalid subCategory "${subCategory}" for mainCategory "${mainCategory}". Must be one of: ${validSubs.join(', ')}`);
+    }
   }
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
     return validationError('monthKey must be in YYYY-MM format');
@@ -189,12 +206,28 @@ export async function POST(req: NextRequest) {
     }
 
     // Build display name and R2 key.
-    displayName  = buildFinalFileName(file.name, customName, clientName, contentType, monthKey);
+    displayName  = buildFinalFileName(file.name, customName, clientName, contentType || mainCategory, monthKey);
     fileMimeType = file.type || 'application/octet-stream';
     fileSize     = file.size;
-    // Key: {clientName}/{contentType}/{monthKey}/{displayName}
-    const sanitizedClientName = sanitizeFileName(clientName);
-    r2Key = `${sanitizedClientName}/${contentType}/${monthKey}/${displayName}`;
+
+    // ── Build R2 storage key ──────────────────────────────────────────────────
+    // New hierarchy key (when mainCategory provided):
+    //   clients/{clientSlug}/{mainCategory}/{year}/{MM-MonthName}/{subCategory}/{timestamp}-{file}
+    // Legacy key (backward compat):
+    //   {clientName}/{contentType}/{monthKey}/{displayName}
+    if (mainCategory) {
+      r2Key = buildStorageKey({
+        clientName,
+        mainCategory,
+        subCategory:  subCategory || 'general',
+        monthKey,
+        fileName:     sanitizeFileName(file.name),
+        timestamp:    Date.now(),
+      });
+    } else {
+      const sanitizedClientName = sanitizeFileName(clientName);
+      r2Key = `${sanitizedClientName}/${contentType}/${monthKey}/${displayName}`;
+    }
 
     // ── Upload file to Cloudflare R2 ─────────────────────────────────────────
     try {
@@ -267,8 +300,11 @@ export async function POST(req: NextRequest) {
     storage_provider: 'r2',
     client_name:        clientName,
     client_folder_name: clientName,
-    content_type:     contentType,
+    content_type:     contentType || null,
     month_key:        monthKey,
+    main_category:    mainCategory || null,
+    sub_category:     subCategory  || null,
+    storage_key:      r2Key,
     preview_url:      publicUrl,
     thumbnail_url:    publicUrl,
     web_view_link:    publicUrl,
