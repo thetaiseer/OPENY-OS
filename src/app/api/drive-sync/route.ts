@@ -50,13 +50,28 @@ export async function POST(req: NextRequest) {
   // ── Quick Drive config check (no API call) ────────────────────────────────
   // GOOGLE_DRIVE_FOLDER_ID is the root folder used in getDriveClient().
   // If the basic env vars are absent we skip silently — Drive is optional.
+  const driveEnvCheck = {
+    GOOGLE_OAUTH_CLIENT_ID:     !!process.env.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: !!process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_DRIVE_FOLDER_ID:     !!process.env.GOOGLE_DRIVE_FOLDER_ID,
+    GOOGLE_OAUTH_REFRESH_TOKEN: !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+  };
+  console.log('[drive-sync] env var presence:', driveEnvCheck);
+
   const driveConfigured =
-    !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
-    !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
-    !!process.env.GOOGLE_DRIVE_FOLDER_ID;
+    driveEnvCheck.GOOGLE_OAUTH_CLIENT_ID &&
+    driveEnvCheck.GOOGLE_OAUTH_CLIENT_SECRET &&
+    driveEnvCheck.GOOGLE_DRIVE_FOLDER_ID;
 
   if (!driveConfigured) {
-    return NextResponse.json({ success: true, driveConfigured: false });
+    // GOOGLE_OAUTH_REFRESH_TOKEN is excluded from the "missing" list here because
+    // getDriveClient() also accepts a refresh token stored in the DB (google_oauth_tokens
+    // table), so its absence from env vars is not necessarily a misconfiguration.
+    const missing = Object.entries(driveEnvCheck)
+      .filter(([k, v]) => !v && k !== 'GOOGLE_OAUTH_REFRESH_TOKEN')
+      .map(([k]) => k);
+    console.log('[drive-sync] Drive not configured — missing env vars:', missing);
+    return NextResponse.json({ success: true, driveConfigured: false, missingVars: missing });
   }
 
   const supabase = getServiceClient();
@@ -94,16 +109,21 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Download file from Supabase Storage ───────────────────────────────────
+  console.log('[drive-sync] downloading from storage — bucket:', bucketName, 'path:', storagePath);
   const { data: fileBlob, error: downloadError } = await supabase.storage
     .from(bucketName)
     .download(storagePath);
 
   if (downloadError || !fileBlob) {
+    console.error('[drive-sync] storage download failed — bucket:', bucketName, 'path:', storagePath,
+      'error:', JSON.stringify(downloadError, null, 2));
     return NextResponse.json(
       { success: false, error: `Failed to download from storage: ${downloadError?.message ?? 'no data'}` },
       { status: 500 },
     );
   }
+
+  console.log('[drive-sync] storage download succeeded — size:', fileBlob.size, 'bytes');
 
   // ── Upload to Google Drive ─────────────────────────────────────────────────
   let driveFileId: string;
@@ -113,15 +133,47 @@ export async function POST(req: NextRequest) {
   try {
     // Build (or reuse) the folder path: root/Clients/{clientName}/{year}/{monthName}/
     // GOOGLE_DRIVE_FOLDER_ID (root) is read inside createFolderHierarchy → getDriveClient()
+    console.log('[drive-sync] building Drive folder hierarchy — clientName:', clientName, 'monthKey:', monthKey);
     leafFolderId = await createFolderHierarchy(clientName, monthKey);
+    console.log('[drive-sync] Drive folder hierarchy ready — leafFolderId:', leafFolderId);
 
     const fileBuffer = Buffer.from(await fileBlob.arrayBuffer());
+
+    console.log('[drive-sync] ── Drive upload request payload ─────────────────');
+    console.log('[drive-sync] folderId   :', leafFolderId);
+    console.log('[drive-sync] fileName   :', asset.name);
+    console.log('[drive-sync] mimeType   :', mimeType);
+    console.log('[drive-sync] fileSize   :', fileBuffer.length, 'bytes');
+    console.log('[drive-sync] FOLDER_ID  :', process.env.GOOGLE_DRIVE_FOLDER_ID);
+    console.log('[drive-sync] ─────────────────────────────────────────────────');
+
     driveResult  = await uploadFileToDrive(leafFolderId, asset.name as string, mimeType, fileBuffer);
     driveFileId  = driveResult.fileId;
+
+    console.log('[drive-sync] Drive upload succeeded — fileId:', driveFileId,
+      'webViewLink:', driveResult.webViewLink);
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);
     const isDriveAuth = err instanceof DriveAuthError;
-    console.error('[drive-sync] Drive upload failed for asset', assetId, ':', msg);
+    console.error('[drive-sync] ── Drive upload FAILED ──────────────────────');
+    console.error('[drive-sync] assetId       :', assetId);
+    console.error('[drive-sync] error message :', msg);
+    console.error('[drive-sync] isDriveAuth   :', isDriveAuth);
+    // Use getOwnPropertyNames to capture non-enumerable Error properties (message, stack, etc.)
+    const errRecord = err instanceof Error
+      ? Object.getOwnPropertyNames(err).reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = (err as unknown as Record<string, unknown>)[key];
+          return acc;
+        }, {})
+      : err;
+    console.error('[drive-sync] full error    :', JSON.stringify(errRecord, null, 2));
+    console.error('[drive-sync] env var check :', {
+      hasClientId:     !!process.env.GOOGLE_OAUTH_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      hasFolderId:     !!process.env.GOOGLE_DRIVE_FOLDER_ID,
+      hasRefreshToken: !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+    });
+    console.error('[drive-sync] ─────────────────────────────────────────────');
     return NextResponse.json(
       { success: false, error: msg, driveAuthError: isDriveAuth },
       { status: 500 },
