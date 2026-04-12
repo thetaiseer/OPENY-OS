@@ -37,10 +37,13 @@ export type UploadStatus =
   | 'failed_db';
 
 export interface UploadErrorDetail {
-  step:    string;
-  message: string;
-  code:    string | null;
-  details: string | null;
+  step:         string;
+  message:      string;
+  code:         string | null;
+  details:      string | null;
+  bucket?:      string | null;
+  path?:        string | null;
+  supabase_url?: string | null;
 }
 
 export interface UploadItem {
@@ -316,7 +319,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         drive_file_id?:  string;
         drive_folder_id?: string;
         drive_file_name?: string;
-        error?: { step: string; message: string; code?: string | null; details?: string | null };
+        error?: { step: string; message: string; code?: string | null; details?: string | null; bucket?: string | null; path?: string | null; supabase_url?: string | null };
       };
 
       try {
@@ -373,10 +376,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const err = json.error;
         setStage(item.id, 'failed_upload', {
           errorDetail: {
-            step:    err?.step    ?? 'upload',
-            message: err?.message ?? 'Upload failed',
-            code:    err?.code    ?? `HTTP_${xhrResult.status}`,
-            details: err?.details ?? null,
+            step:         err?.step         ?? 'upload',
+            message:      err?.message      ?? 'Upload failed',
+            code:         err?.code         ?? `HTTP_${xhrResult.status}`,
+            details:      err?.details      ?? null,
+            bucket:       err?.bucket       ?? null,
+            path:         err?.path         ?? null,
+            supabase_url: err?.supabase_url ?? null,
           },
         });
         return;

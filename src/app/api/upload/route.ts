@@ -219,30 +219,48 @@ export async function POST(req: NextRequest) {
     // ── Upload file to Supabase Storage ──────────────────────────────────────
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      console.log("Uploading to bucket:", "assets");
-      const { error: storageError } = await supabase.storage
-        .from("assets")
+      const bucketName = "assets";
+      console.log("[UPLOAD DEBUG] bucket=assets");
+      const { data: _uploadData, error: storageError } = await supabase.storage
+        .from(bucketName)
         .upload(storagePath, fileBuffer, {
           contentType: fileMimeType,
           upsert:      false,
         });
 
       if (storageError) {
-        console.error('[upload] Supabase storage upload failed:', storageError.message);
+        console.error('[upload] Supabase storage upload failed:', storageError.message, '| bucket:', bucketName, '| path:', storagePath, '| url:', supabaseUrl);
         return NextResponse.json(
           {
             success: false,
             stage:   'failed_upload',
-            error:   { step: 'storage_upload', message: storageError.message },
+            error:   {
+              step:         'storage_upload',
+              message:      storageError.message,
+              bucket:       bucketName,
+              path:         storagePath,
+              supabase_url: supabaseUrl,
+            },
           },
           { status: 500 },
         );
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] storage upload exception:', msg);
+      const bucketName = "assets";
+      console.error('[upload] storage upload exception:', msg, '| bucket:', bucketName, '| path:', storagePath, '| url:', supabaseUrl);
       return NextResponse.json(
-        { success: false, stage: 'failed_upload', error: { step: 'storage_upload', message: msg } },
+        {
+          success: false,
+          stage:   'failed_upload',
+          error:   {
+            step:         'storage_upload',
+            message:      msg,
+            bucket:       bucketName,
+            path:         storagePath,
+            supabase_url: supabaseUrl,
+          },
+        },
         { status: 500 },
       );
     }
