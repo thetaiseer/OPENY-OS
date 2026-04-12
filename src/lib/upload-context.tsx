@@ -5,12 +5,12 @@
  *
  * Upload status machine:
  *   queued → uploading → uploaded → completed
- *                                  ↘ failed_db     (Drive OK, DB save failed)
- *   queued → uploading → failed_upload (Drive upload failed)
+ *                                  ↘ failed_db     (Storage OK, DB save failed)
+ *   queued → uploading → failed_upload (Storage upload failed)
  *
  * Rules:
- *  1. If Drive upload fails      → failed_upload  (can retry full upload)
- *  2. If Drive OK + DB fails     → failed_db      (can retry DB save only)
+ *  1. If Storage upload fails    → failed_upload  (can retry full upload)
+ *  2. If Storage OK + DB fails   → failed_db      (can retry DB save only)
  *  3. NEVER show "Load failed" or generic "Failed"
  *  4. Always show exact stage-based messages
  */
@@ -152,7 +152,7 @@ function stageText(status: UploadStatus, progress?: number): string {
     case 'saved':         return 'Saved to Drive';
     case 'completed':     return 'Completed';
     case 'failed_upload': return 'Upload failed';
-    case 'failed_db':     return 'Saved to Drive, system save failed';
+    case 'failed_db':     return 'Saved to storage, system save failed';
   }
 }
 
@@ -163,7 +163,7 @@ const UPLOAD_CONCURRENCY = 2;
 /** Maximum file size before showing a client-side error (250 MB). */
 const MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024;
 
-const DB_FAIL_MESSAGE = 'File uploaded to Drive successfully, but could not be saved in the system.';
+const DB_FAIL_MESSAGE = 'File uploaded to storage successfully, but could not be saved in the system.';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -470,7 +470,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  /** Retry a failed_db item — skip Drive upload, retry DB save only. */
+  /** Retry a failed_db item — skip storage upload, retry DB save only. */
   const reconcileItem = useCallback((id: string) => {
     dispatchRef.current({
       type:  'UPDATE',

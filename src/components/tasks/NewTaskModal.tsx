@@ -7,7 +7,7 @@
  * the selected task category. Supports:
  *   - All core task fields
  *   - Content / publishing conditional sections
- *   - Inline file upload to Google Drive (mapped to the selected client)
+ *   - Inline file upload to Supabase Storage (mapped to the selected client)
  *   - Smart automation (asset linking, activity log)
  */
 
@@ -186,7 +186,7 @@ export default function NewTaskModal({
 
   interface UploadResponse {
     stage?: string;
-    file?: { id?: string };
+    asset?: { id?: string };
     success?: boolean;
     error?: { message?: string };
   }
@@ -211,9 +211,9 @@ export default function NewTaskModal({
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const json = await res.json() as UploadResponse;
 
-      if (json.stage === 'completed' && json.file?.id) {
-        setUpload(u => ({ ...u, uploading: false, uploadedAssetId: json.file!.id! }));
-        return json.file.id;
+      if (json.stage === 'completed' && json.asset?.id) {
+        setUpload(u => ({ ...u, uploading: false, uploadedAssetId: json.asset!.id! }));
+        return json.asset.id;
       }
       const errMsg = json.error?.message ?? 'Upload failed';
       setUpload(u => ({ ...u, uploading: false, error: errMsg }));
