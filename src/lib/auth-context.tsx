@@ -10,6 +10,39 @@ export type UserRole = 'owner' | 'admin' | 'manager' | 'team' | 'client';
 // Email that always resolves to the 'owner' role — the workspace owner.
 const OWNER_EMAIL = 'thetaiseer@gmail.com';
 
+// ── Session-scoped user cache ─────────────────────────────────────────────────
+// Caches the resolved user profile in sessionStorage so that subsequent page
+// loads within the same browser session skip the team_members DB round-trip and
+// show the app shell immediately.
+const CACHE_KEY = 'openy_user_v1';
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CachedUserEntry { user: User; ts: number }
+
+function readUserCache(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as CachedUserEntry;
+    if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
+    return entry.user;
+  } catch { return null; }
+}
+
+function writeUserCache(user: User): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const entry: CachedUserEntry = { user, ts: Date.now() };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+  } catch { /* ignore — storage quota or private-mode */ }
+}
+
+function clearUserCache(): void {
+  if (typeof window === 'undefined') return;
+  try { sessionStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
+}
+
 const LOADING_USER: User = {
   id: '',
   name: '',
@@ -68,7 +101,7 @@ async function fetchUserFromTeamMembers(
           error: { code: string; message: string } | null;
         }>,
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('team-member-fetch-timeout')), 6_000),
+        setTimeout(() => reject(new Error('team-member-fetch-timeout')), 3_000),
       ),
     ]);
     data = result.data;
@@ -111,13 +144,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return client;
   }, []);
 
-  const [user, setUser]       = useState<User>(LOADING_USER);
-  const [loading, setLoading] = useState(true);
+  // Seed state from sessionStorage cache so the UI renders immediately on
+  // repeat page loads without waiting for the DB round-trip.
+  // The lazy initializer runs only once, avoiding re-reads on each render.
+  const [user, setUser]       = useState<User>(() => readUserCache() ?? LOADING_USER);
+  const [loading, setLoading] = useState<boolean>(() => readUserCache() === null);
 
   const loadUser = React.useCallback(
     async (sbUser: SupabaseUser) => {
       const resolved = await fetchUserFromTeamMembers(supabase, sbUser);
       setUser(resolved);
+      writeUserCache(resolved);
       return resolved;
     },
     [supabase],
@@ -125,36 +162,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    // Determine once whether we had a cache hit at mount time.
+    const hadCache = readUserCache() !== null;
 
-    const safetyTimer = setTimeout(() => {
-      if (mounted) {
-        console.warn('[auth] Safety timeout reached — clearing loading state');
-        setLoading(false);
-      }
-    }, 8_000);
+    // Only set a safety timer if we don't already have cached data.
+    const safetyTimer = !hadCache
+      ? setTimeout(() => {
+          if (mounted) {
+            console.warn('[auth] Safety timeout reached — clearing loading state');
+            setLoading(false);
+          }
+        }, 5_000)
+      : null;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return;
-        clearTimeout(safetyTimer);
+        if (safetyTimer) clearTimeout(safetyTimer);
         if (session?.user) {
-          await loadUser(session.user);
+          if (hadCache) {
+            // We rendered immediately from cache — re-validate in background
+            // without blocking the UI again.
+            void loadUser(session.user);
+          } else {
+            await loadUser(session.user);
+            if (mounted) setLoading(false);
+          }
         } else {
-          if (mounted) setUser(LOADING_USER);
+          if (mounted) {
+            setUser(LOADING_USER);
+            clearUserCache();
+          }
+          if (mounted) setLoading(false);
         }
-        if (mounted) setLoading(false);
       },
     );
 
     return () => {
       mounted = false;
-      clearTimeout(safetyTimer);
+      if (safetyTimer) clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [supabase, loadUser]);
 
   const signOut = async () => {
     console.log('[auth] Signing out…');
+    clearUserCache();
 
     try {
       console.log('[auth] Deactivating current session…');

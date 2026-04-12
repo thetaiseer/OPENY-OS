@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -9,9 +10,19 @@ import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import { ToastProvider } from '@/lib/toast-context';
 import ToastContainer from '@/components/ui/ToastContainer';
 import { createClient } from '@/lib/supabase/client';
-import AiAssistantPanel from '@/components/ai/AiAssistantPanel';
 import { subscribeToTasks } from '@/lib/realtime';
-import NotificationRealtimeSync from '@/components/notifications/NotificationRealtimeSync';
+
+// Lazy-load non-critical panels after the page shell has rendered.
+// ssr: false ensures these are client-only (they use browser APIs) and avoids
+// adding them to the initial JS bundle parse cost.
+const AiAssistantPanel = dynamic(
+  () => import('@/components/ai/AiAssistantPanel'),
+  { ssr: false },
+);
+const NotificationRealtimeSync = dynamic(
+  () => import('@/components/notifications/NotificationRealtimeSync'),
+  { ssr: false },
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
