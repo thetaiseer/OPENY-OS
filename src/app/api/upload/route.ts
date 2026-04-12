@@ -247,7 +247,8 @@ export async function POST(req: NextRequest) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] storage upload exception:', msg, '| bucket: assets | path:', storagePath, '| url:', supabaseUrl);
+      const bucketName = "assets";
+      console.error('[upload] storage upload exception:', msg, '| bucket:', bucketName, '| path:', storagePath, '| url:', supabaseUrl);
       return NextResponse.json(
         {
           success: false,
@@ -255,7 +256,7 @@ export async function POST(req: NextRequest) {
           error:   {
             step:         'storage_upload',
             message:      msg,
-            bucket:       'assets',
+            bucket:       bucketName,
             path:         storagePath,
             supabase_url: supabaseUrl,
           },
