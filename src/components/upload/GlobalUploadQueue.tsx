@@ -214,9 +214,27 @@ function QueueRow({ item }: { item: UploadItem }) {
           <p className="text-xs font-semibold pt-2" style={{ color: 'var(--text-secondary)' }}>
             Technical details
           </p>
+          <p className="text-xs font-mono" style={{ color: '#f59e0b', fontWeight: 700 }}>
+            Using bucket: assets
+          </p>
           {item.errorDetail.step && (
             <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
               <span style={{ opacity: 0.6 }}>step: </span>{item.errorDetail.step}
+            </p>
+          )}
+          {item.errorDetail.bucket && (
+            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>bucket: </span>{item.errorDetail.bucket}
+            </p>
+          )}
+          {item.errorDetail.path && (
+            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>path: </span>{item.errorDetail.path}
+            </p>
+          )}
+          {item.errorDetail.supabase_url && (
+            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>url: </span>{item.errorDetail.supabase_url}
             </p>
           )}
           {item.errorDetail.code && (
