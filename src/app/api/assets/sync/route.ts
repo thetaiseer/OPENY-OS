@@ -399,7 +399,7 @@ async function runSync(triggeredBy: 'manual' | 'cron'): Promise<SyncResult> {
 }
 
 async function logSyncResult(
-  supabase: ReturnType<typeof getSupabase>,
+  supabase: ReturnType<typeof getServiceClient>,
   data: { added: number; updated: number; removed: number; errors: number; error_details: string[]; duration_ms: number; triggered_by: 'manual' | 'cron' },
 ) {
   const { error } = await supabase.from('drive_sync_logs').insert({

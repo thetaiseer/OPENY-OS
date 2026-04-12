@@ -56,10 +56,6 @@ export async function POST(request: NextRequest) {
     process.env.INVITE_FROM_EMAIL ??
     'OPENY OS <noreply@openy-os.com>';
 
-  if (!url || !key) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
   const db = getServiceClient();
 
   // ── 1. Check for active invite already sent to this email ────────────────

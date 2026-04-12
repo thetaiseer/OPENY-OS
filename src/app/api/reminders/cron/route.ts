@@ -47,7 +47,7 @@ interface AssigneeMember {
 }
 
 async function resolveAssignees(
-  db: ReturnType<typeof getDb>,
+  db: ReturnType<typeof getServiceClient>,
   assigneeIds: string[],
 ): Promise<Map<string, AssigneeMember>> {
   const map = new Map<string, AssigneeMember>();

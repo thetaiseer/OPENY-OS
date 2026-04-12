@@ -31,9 +31,6 @@ export async function POST(request: NextRequest) {
     process.env.RESEND_FROM_EMAIL ??
     'OPENY OS <noreply@openy-os.com>';
 
-  if (!url || !key) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
   if (!appUrl) {
     console.warn('[team/invite/resend] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
   }
