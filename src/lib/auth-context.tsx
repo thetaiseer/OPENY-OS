@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
@@ -146,9 +146,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Seed state from sessionStorage cache so the UI renders immediately on
   // repeat page loads without waiting for the DB round-trip.
-  // The lazy initializer runs only once, avoiding re-reads on each render.
-  const [user, setUser]       = useState<User>(() => readUserCache() ?? LOADING_USER);
-  const [loading, setLoading] = useState<boolean>(() => readUserCache() === null);
+  // A single useState lazy initializer reads the cache once; subsequent
+  // state calls reuse the already-computed value.
+  const [initCache] = useState<User | null>(readUserCache);
+  const [user, setUser]       = useState<User>(initCache ?? LOADING_USER);
+  const [loading, setLoading] = useState<boolean>(initCache === null);
+  // Keep a stable ref so the effect below can read the initial cache status
+  // without closing over stale state.
+  const initCacheRef = useRef(initCache);
 
   const loadUser = React.useCallback(
     async (sbUser: SupabaseUser) => {
@@ -162,8 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    // Determine once whether we had a cache hit at mount time.
-    const hadCache = readUserCache() !== null;
+    // Use the ref to avoid re-reading sessionStorage inside the effect.
+    const hadCache = initCacheRef.current !== null;
 
     // Only set a safety timer if we don't already have cached data.
     const safetyTimer = !hadCache
@@ -183,7 +188,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (hadCache) {
             // We rendered immediately from cache — re-validate in background
             // without blocking the UI again.
-            void loadUser(session.user);
+            loadUser(session.user).catch(err => {
+              console.warn('[auth] Background user refresh failed:', err);
+            });
           } else {
             await loadUser(session.user);
             if (mounted) setLoading(false);
