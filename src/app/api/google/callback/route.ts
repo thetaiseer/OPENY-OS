@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForTokens, validateGoogleOAuthEnvVars } from '@/lib/google-drive';
+import { exchangeCodeForTokens, validateGoogleOAuthEnvVars, saveRefreshToken } from '@/lib/google-drive';
 
 /**
  * GET /api/google/callback
  *
  * Receives the authorization code from Google OAuth, exchanges it for tokens,
- * then redirects the user back to /settings with a status query param.
+ * persists the refresh token to the `google_oauth_tokens` table, then redirects
+ * the user back to /settings with a status query param.
  *
  * On success:  /settings?google=connected
  * On failure:  /settings?google=error
@@ -46,8 +47,17 @@ export async function GET(req: NextRequest) {
       '[google/callback] Token exchange successful.',
       'has_refresh_token:', !!tokens.refresh_token,
     );
-    // TODO: Persist tokens.refresh_token securely (e.g. encrypted DB or env var update)
-    // For now, the token is available here and can be stored by extending this handler.
+
+    if (tokens.refresh_token) {
+      // Persist the refresh token so it survives re-deploys and does not
+      // need to be manually copied into environment variables.
+      await saveRefreshToken(tokens.refresh_token);
+    } else {
+      // Google only returns a refresh token on the first consent or when
+      // prompt=consent is set.  The existing stored token remains valid.
+      console.warn('[google/callback] No refresh_token in response — existing stored token unchanged');
+    }
+
     return NextResponse.redirect(`${settingsBase}?google=connected`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

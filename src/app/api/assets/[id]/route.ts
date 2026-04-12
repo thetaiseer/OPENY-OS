@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/api-auth';
+import {
+  deleteFromDrive,
+  renameInDrive,
+  cleanupEmptyFoldersFromLeaf,
+  DriveFileNotFoundError,
+  DriveAuthError,
+} from '@/lib/google-drive';
 
 // ── Supabase service-role client (server only) ────────────────────────────────
 function getSupabase() {
@@ -86,12 +93,45 @@ export async function DELETE(
       }
     }
   } else if (asset.storage_provider === 'google_drive') {
-    // ── Google Drive delete — BYPASSED (testing Supabase Storage only) ────────
-    console.log('[ASSET DEBUG] Google Drive integration bypassed');
-    console.log('[asset-delete] skipping Drive delete (bypassed for Supabase-only testing)', {
-      assetId: asset.id,
-      driveFileId: asset.drive_file_id ?? null,
-    });
+    // ── Google Drive delete ──────────────────────────────────────────────────
+    const driveFileId = asset.drive_file_id as string | null;
+
+    if (!driveFileId) {
+      console.warn('[asset-delete] drive_file_id missing for google_drive asset – skipping Drive deletion', {
+        assetId: asset.id,
+      });
+    } else {
+      try {
+        await deleteFromDrive(driveFileId);
+        console.log('[asset-delete] Drive delete succeeded', { assetId: asset.id, driveFileId });
+      } catch (driveErr: unknown) {
+        if (driveErr instanceof DriveFileNotFoundError) {
+          // File already gone — treat as orphaned and continue
+          warning = 'Asset record deleted. Remote Drive file was already missing.';
+          console.warn('[asset-delete] Drive file not found – treating as orphaned', {
+            assetId: asset.id,
+            driveFileId,
+          });
+        } else if (driveErr instanceof DriveAuthError) {
+          // OAuth credentials rejected — do not block the DB delete
+          warning = 'Asset record deleted. Google Drive must be reconnected to remove the remote file.';
+          console.error('[asset-delete] Drive auth error – skipping Drive delete', {
+            assetId: asset.id,
+            driveFileId,
+            error: driveErr.message,
+          });
+        } else {
+          // Other Drive error — log and continue so the UI is never blocked
+          const msg = driveErr instanceof Error ? driveErr.message : String(driveErr);
+          warning = `Asset record deleted. Drive file removal failed: ${msg}`;
+          console.error('[asset-delete] Drive delete failed (non-fatal)', {
+            assetId: asset.id,
+            driveFileId,
+            error: msg,
+          });
+        }
+      }
+    }
   }
 
   // ── 3. Delete row from assets table ──────────────────────────────────────
@@ -106,14 +146,19 @@ export async function DELETE(
 
   console.log('[asset-delete] DB delete succeeded', { assetId: asset.id });
 
-  // ── 4. Clean up empty parent folders in Google Drive — BYPASSED ──────────
-  // Google Drive folder cleanup is disabled for Supabase-only testing.
+  // ── 4. Clean up empty parent folders in Google Drive ─────────────────────
   if (asset.storage_provider === 'google_drive' && asset.drive_folder_id) {
-    console.log('[ASSET DEBUG] Google Drive integration bypassed');
-    console.log('[asset-delete] skipping Drive folder cleanup (bypassed for Supabase-only testing)', {
-      assetId: asset.id,
-      driveFolderId: asset.drive_folder_id,
-    });
+    try {
+      await cleanupEmptyFoldersFromLeaf(asset.drive_folder_id as string);
+    } catch (cleanupErr: unknown) {
+      // Non-fatal — log and continue
+      const msg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+      console.warn('[asset-delete] Drive folder cleanup failed (non-fatal)', {
+        assetId: asset.id,
+        driveFolderId: asset.drive_folder_id,
+        error: msg,
+      });
+    }
   }
 
   const successMessage = warning ?? 'Asset deleted successfully.';
@@ -174,13 +219,29 @@ export async function PATCH(
 
   console.log('[asset-rename] starting rename', { assetId: asset.id, from: asset.name, to: newName });
 
-  // ── 2. Rename in Google Drive — BYPASSED (testing Supabase Storage only) ──
+  // ── 2. Rename in Google Drive ──────────────────────────────────────────────
   if (asset.storage_provider === 'google_drive' && asset.drive_file_id) {
-    console.log('[ASSET DEBUG] Google Drive integration bypassed');
-    console.log('[asset-rename] skipping Drive rename (bypassed for Supabase-only testing)', {
-      assetId: asset.id,
-      driveFileId: asset.drive_file_id,
-    });
+    try {
+      await renameInDrive(asset.drive_file_id as string, newName);
+      console.log('[asset-rename] Drive rename succeeded', { assetId: asset.id, driveFileId: asset.drive_file_id });
+    } catch (driveErr: unknown) {
+      if (driveErr instanceof DriveFileNotFoundError) {
+        // File gone in Drive — still update the DB name
+        console.warn('[asset-rename] Drive file not found – updating DB name only', {
+          assetId: asset.id,
+          driveFileId: asset.drive_file_id,
+        });
+      } else if (driveErr instanceof DriveAuthError) {
+        // Auth failure — do not block the rename
+        console.error('[asset-rename] Drive auth error – renaming in DB only', {
+          assetId: asset.id,
+          error: driveErr.message,
+        });
+      } else {
+        const msg = driveErr instanceof Error ? driveErr.message : String(driveErr);
+        console.error('[asset-rename] Drive rename failed (non-fatal)', { assetId: asset.id, error: msg });
+      }
+    }
   }
 
   // ── 3. Update DB record ────────────────────────────────────────────────────
