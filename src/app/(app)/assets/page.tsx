@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
   Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Search, ThumbsUp, ThumbsDown, MessageSquare, RefreshCw, Pencil, Check, Loader2,
+  Search, ThumbsUp, ThumbsDown, MessageSquare, Pencil, Check, Loader2,
   ChevronDown, ChevronRight, Folder, Send, Calendar,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
@@ -90,20 +90,8 @@ function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) =>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Convert a Google Drive view URL to a direct-embed URL so browsers can render
- * the image inline.  Non-Drive URLs are returned unchanged.
- *
- * Input:  https://drive.google.com/file/d/FILE_ID/view
- * Output: https://drive.google.com/uc?export=view&id=FILE_ID
- */
 function getPreviewUrl(url?: string | null): string {
-  if (!url) return '';
-  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m?.[1]) {
-    return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-  }
-  return url;
+  return url ?? '';
 }
 
 function formatSize(bytes?: number): string {
@@ -135,25 +123,9 @@ function isAudio(name: string, type?: string): boolean {
   return /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(name) || (type?.startsWith('audio/') ?? false);
 }
 
-/**
- * Build the Google Drive embedded player URL for in-app preview of videos,
- * PDFs, and audio files.  Falls back to null if no Drive file ID is available.
- *
- * Input (any):  drive_file_id, /file/d/FILE_ID/view, uc?id=FILE_ID, etc.
- * Output:       https://drive.google.com/file/d/FILE_ID/preview
- */
-function getDriveEmbedUrl(asset: Asset): string | null {
-  // Prefer the explicit Drive file ID stored on the asset record
-  if (asset.drive_file_id) {
-    return `https://drive.google.com/file/d/${asset.drive_file_id}/preview`;
-  }
-  // Fall back to extracting from view URLs
-  const candidate = asset.file_url || asset.view_url || asset.web_view_link;
-  const m = candidate?.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m?.[1]) {
-    return `https://drive.google.com/file/d/${m[1]}/preview`;
-  }
-  return null;
+function getEmbedUrl(asset: Asset): string | null {
+  // Use file_url directly for R2 assets; fall back to view_url
+  return asset.file_url || asset.view_url || null;
 }
 
 function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string; size?: number }) {
@@ -282,17 +254,10 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
   const isVid   = isVideo(asset.name, effectiveMime);
   const isPdf_  = isPdf(asset.name, effectiveMime);
   const isAud   = isAudio(asset.name, effectiveMime);
-  const isDrive = asset.storage_provider === 'google_drive';
 
-  // Image: use uc?export=view for direct inline rendering (best quality)
-  const imgSrc = asset.preview_url || getPreviewUrl(asset.file_url);
-
-  // Video / PDF / audio from Drive: use the /preview embed URL (Drive's built-in player)
-  // For non-Drive video files, try to play the file_url directly.
-  const driveEmbedUrl = isDrive ? getDriveEmbedUrl(asset) : null;
-
-  // Link to open file in Drive
-  const driveOpenUrl = asset.web_view_link || asset.view_url;
+  const imgSrc    = asset.preview_url || getPreviewUrl(asset.file_url);
+  const embedUrl  = getEmbedUrl(asset);
+  const openUrl   = asset.web_view_link || asset.view_url || asset.file_url;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
@@ -324,55 +289,34 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           </>
         )}
 
-        {/* ── Video — Drive embed iframe or direct <video> ───────────────── */}
+        {/* ── Video ─────────────────────────────────────────────────────── */}
         {isVid && (
-          driveEmbedUrl ? (
-            <DriveEmbed
-              src={driveEmbedUrl}
-              title={asset.name}
-              allow="autoplay"
-              allowFullScreen
-              height="75vh"
-              background="#000"
-            />
-          ) : (
-            <video
-              src={asset.file_url}
-              controls
-              className="max-w-full max-h-[80vh] rounded-xl shadow-2xl"
-              style={{ background: '#000' }}
-            />
-          )
+          <video
+            src={asset.file_url}
+            controls
+            className="max-w-full max-h-[80vh] rounded-xl shadow-2xl"
+            style={{ background: '#000' }}
+          />
         )}
 
-        {/* ── PDF — Drive embed iframe ──────────────────────────────────── */}
+        {/* ── PDF — inline iframe ───────────────────────────────────────── */}
         {isPdf_ && (
           <DriveEmbed
-            src={(driveEmbedUrl || asset.view_url || asset.file_url) ?? ''}
+            src={embedUrl ?? ''}
             title={asset.name}
             height="75vh"
             background="#fff"
           />
         )}
 
-        {/* ── Audio — Drive embed iframe (has built-in audio player) ───── */}
+        {/* ── Audio ─────────────────────────────────────────────────────── */}
         {isAud && (
-          driveEmbedUrl ? (
-            <DriveEmbed
-              src={driveEmbedUrl}
-              title={asset.name}
-              allow="autoplay"
-              height="200px"
-              background="#1a1a2e"
-            />
-          ) : (
-            <audio
-              src={asset.file_url}
-              controls
-              className="w-full rounded-xl"
-              style={{ background: '#1a1a2e', padding: '1rem' }}
-            />
-          )
+          <audio
+            src={asset.file_url}
+            controls
+            className="w-full rounded-xl"
+            style={{ background: '#1a1a2e', padding: '1rem' }}
+          />
         )}
 
         {/* ── Unsupported file type fallback ────────────────────────────── */}
@@ -391,9 +335,9 @@ function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void })
           <a href={downloadUrl} download={asset.name} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
             <Download size={14} /> Download
           </a>
-          {driveOpenUrl && (
-            <a href={driveOpenUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
-              <ExternalLink size={14} /> Open in Drive
+          {openUrl && openUrl !== asset.file_url && (
+            <a href={openUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
+              <ExternalLink size={14} /> Open
             </a>
           )}
         </div>
@@ -414,7 +358,6 @@ interface AssetCardProps {
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
-  onOpenInDrive: () => void;
   onApprove: () => void;
   onReject: () => void;
   onComments: () => void;
@@ -422,7 +365,7 @@ interface AssetCardProps {
   onSchedule: () => void;
 }
 
-function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nextScheduleDate, onView, onDelete, onCopyLink, onOpenInDrive, onApprove, onReject, onComments, onRename, onSchedule }: AssetCardProps) {
+function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nextScheduleDate, onView, onDelete, onCopyLink, onApprove, onReject, onComments, onRename, onSchedule }: AssetCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName]   = useState(asset.name);
   const [renaming, setRenaming]   = useState(false);
@@ -464,10 +407,8 @@ function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nex
 
   const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
   const img      = isImage(asset.name, effectiveMime);
-  const hasDrive = asset.storage_provider === 'google_drive' && !!(asset.web_view_link || asset.view_url);
   const downloadUrl = asset.download_url ?? asset.file_url;
-  // Use thumbnail_url for card previews (faster/lighter); fall back to preview_url then Drive uc embed.
-  // If all are empty we skip the <img> entirely and go straight to the icon fallback.
+  // Use thumbnail_url for card previews (faster/lighter); fall back to preview_url then file_url.
   const cardThumbSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
   return (
     <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -609,11 +550,6 @@ function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nex
         <button onClick={onComments} title="Comments" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           <MessageSquare size={14} />
         </button>
-        {hasDrive && (
-          <button onClick={onOpenInDrive} title="Open in Google Drive" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-            <ExternalLink size={14} />
-          </button>
-        )}
         {canApprove && asset.approval_status !== 'approved' && (
           <button onClick={onApprove} title="Approve" className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70" style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}>
             <ThumbsUp size={14} />
@@ -669,18 +605,6 @@ function makePreviewUrl(file: File): string | null {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-interface SyncLog {
-  id: string;
-  synced_at: string;
-  files_added: number;
-  files_updated: number;
-  files_removed: number;
-  errors_count: number;
-  error_details: string[];
-  duration_ms: number | null;
-  triggered_by: 'manual' | 'cron';
-}
-
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
@@ -727,12 +651,6 @@ export default function AssetsPage() {
   const [clients, setClients]       = useState<Client[]>([]);
   const deferredAssets              = useDeferredValue(assets);
   const deferredSearchQuery         = useDeferredValue(searchQuery);
-
-  // Google Drive sync state
-  const [isSyncing, setIsSyncing]         = useState(false);
-  const [lastSync, setLastSync]           = useState<SyncLog | null>(null);
-  const [syncResult, setSyncResult]       = useState<SyncLog | null>(null);
-  const [showSyncResult, setShowSyncResult] = useState(false);
 
   // Publishing schedule state
   const [scheduleAsset, setScheduleAsset]           = useState<Asset | null>(null);
@@ -871,46 +789,7 @@ export default function AssetsPage() {
       });
   }, [assets]);
 
-  // Fetch last sync info on mount
-  useEffect(() => {
-    fetch('/api/assets/sync')
-      .then(r => r.json())
-      .then((json: { success: boolean; last_sync?: SyncLog | null }) => {
-        if (json.success && json.last_sync) setLastSync(json.last_sync);
-      })
-      .catch(() => {/* sync log table may not exist yet */});
-  }, []);
-
-  // ── Drive Sync ───────────────────────────────────────────────────────────────
-
-  const handleSyncDrive = useCallback(async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    setSyncResult(null);
-    setShowSyncResult(false);
-    try {
-      const res = await fetch('/api/assets/sync', { method: 'POST' });
-      const json = await res.json() as SyncLog & { success: boolean; error?: string };
-      if (!res.ok || !json.success) {
-        addToast(`Sync failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
-      } else {
-        setSyncResult(json);
-        setLastSync(json);
-        setShowSyncResult(true);
-        const summary = `Sync complete — +${json.files_added} added, ${json.files_updated} updated, ${json.files_removed} removed`;
-        addToast(summary, json.errors_count > 0 ? 'error' : 'success');
-        // Refresh the asset list
-        setPage(0);
-        fetchAssets(0);
-      }
-    } catch (err: unknown) {
-      addToast(`Sync error: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing, addToast, fetchAssets]);
-
-  // ── Filtered / sorted assets ─────────────────────────────────────────────────
+  // Fetch publishing schedule counts for all loaded assets (best-effort)
 
   const hasActiveFilters = Boolean(searchQuery || filterClient || filterContentType || filterMonthKey || filterYear || filterApproval);
 
@@ -1122,10 +1001,6 @@ export default function AssetsPage() {
     catch { addToast('Failed to copy link', 'error'); }
   };
 
-  const handleOpenInDrive = (asset: Asset) => {
-    if (asset.view_url) window.open(asset.view_url, '_blank', 'noopener,noreferrer');
-  };
-
   const handleApprovalAction = async (asset: Asset, action: 'approved' | 'rejected') => {
     const { error } = await supabase
       .from('assets')
@@ -1189,26 +1064,9 @@ export default function AssetsPage() {
             <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Manage uploaded files · Drag &amp; drop or click Upload
-              {lastSync && (
-                <span className="ml-2">
-                  · Last synced: <span className="font-medium">{new Date(lastSync.synced_at).toLocaleString()}</span>
-                </span>
-              )}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {isAdmin && (
-              <button
-                onClick={handleSyncDrive}
-                disabled={isSyncing || isUploading}
-                title="Sync Google Drive → DB"
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity border"
-                style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface)' }}
-              >
-                <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
-                {isSyncing ? 'Syncing…' : 'Sync Drive'}
-              </button>
-            )}
             {canUpload && (
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
@@ -1222,36 +1080,6 @@ export default function AssetsPage() {
           </div>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleInputChange} />
         </div>
-
-        {/* Sync result banner */}
-        {showSyncResult && syncResult && (
-          <div
-            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
-            style={{
-              background: syncResult.errors_count > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(22,163,74,0.08)',
-              borderColor: syncResult.errors_count > 0 ? '#ef4444' : '#16a34a',
-              color: syncResult.errors_count > 0 ? '#ef4444' : '#16a34a',
-            }}
-          >
-            <CheckCircle size={16} className="shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium">Sync complete</p>
-              <p className="opacity-80">
-                {syncResult.files_added} added · {syncResult.files_updated} updated · {syncResult.files_removed} removed
-                {syncResult.errors_count > 0 && ` · ${syncResult.errors_count} error(s)`}
-                {syncResult.duration_ms != null && ` · ${(syncResult.duration_ms / 1000).toFixed(1)}s`}
-              </p>
-              {syncResult.error_details && syncResult.error_details.length > 0 && (
-                <ul className="mt-1 text-xs opacity-80 list-disc list-inside space-y-0.5">
-                  {syncResult.error_details.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
-                </ul>
-              )}
-            </div>
-            <button onClick={() => setShowSyncResult(false)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
-              <X size={14} />
-            </button>
-          </div>
-        )}
 
         {/* Filter bar */}
         <div
@@ -1495,7 +1323,7 @@ export default function AssetsPage() {
                                               scheduleCount={scheduleCounts[asset.id]?.count}
                                               nextScheduleDate={scheduleCounts[asset.id]?.nextDate}
                                               onView={() => handleView(asset)} onDelete={() => void handleDelete(asset)}
-                                              onCopyLink={() => void handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                                              onCopyLink={() => void handleCopyLink(asset)}
                                               onApprove={() => void handleApprovalAction(asset, 'approved')}
                                               onReject={() => void handleApprovalAction(asset, 'rejected')}
                                               onComments={() => setCommentsAsset(asset)}
@@ -1535,7 +1363,7 @@ export default function AssetsPage() {
                   scheduleCount={scheduleCounts[asset.id]?.count}
                   nextScheduleDate={scheduleCounts[asset.id]?.nextDate}
                   onView={() => handleView(asset)} onDelete={() => handleDelete(asset)}
-                  onCopyLink={() => handleCopyLink(asset)} onOpenInDrive={() => handleOpenInDrive(asset)}
+                  onCopyLink={() => handleCopyLink(asset)}
                   onApprove={() => handleApprovalAction(asset, 'approved')}
                   onReject={() => handleApprovalAction(asset, 'rejected')}
                   onComments={() => setCommentsAsset(asset)}
