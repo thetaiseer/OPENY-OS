@@ -53,10 +53,15 @@ const POST_CONTENT_TYPES = [
   { value: 'carousel_story',  label: 'Carousel + Story' },
 ];
 
-const VALID_CONTENT_TYPES_UPLOAD = [
-  'SOCIAL_POSTS', 'REELS', 'VIDEOS', 'LOGOS', 'BRAND_ASSETS',
-  'DOCUMENTS', 'RAW_FILES', 'ADS_CREATIVES', 'REPORTS', 'OTHER',
+const UPLOAD_MAIN_CATEGORIES = [
+  { value: 'social-media', label: 'Social Media' },
+  { value: 'videos',       label: 'Videos'       },
+  { value: 'designs',      label: 'Designs'       },
+  { value: 'documents',    label: 'Documents'     },
+  { value: 'other',        label: 'Other'         },
 ] as const;
+
+const UPLOAD_MAIN_CATEGORY_OPTIONS = UPLOAD_MAIN_CATEGORIES.map(c => ({ value: c.value, label: c.label }));
 
 const COMMON_TIMEZONES = [
   'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
@@ -91,7 +96,7 @@ const INTERNAL_ONLY = new Set<TaskCategory>(['internal_task']);
 
 interface UploadState {
   file: File | null;
-  contentType: string;
+  mainCategory: string;
   uploading: boolean;
   uploadedAssetId: string | null;
   error: string | null;
@@ -134,7 +139,7 @@ export default function NewTaskModal({
 
   // ── File upload ───────────────────────────────────────────────────────────
   const [uploadState, setUpload] = useState<UploadState>({
-    file: null, contentType: 'SOCIAL_POSTS', uploading: false,
+    file: null, mainCategory: 'social-media', uploading: false,
     uploadedAssetId: null, error: null,
   });
   const [showUpload, setShowUpload] = useState(false);
@@ -153,7 +158,7 @@ export default function NewTaskModal({
       setCategory(''); setTags('');
       setPostContentType(''); setContentPurpose('');
       setCaption(''); setPlatforms([]); setPostTypes([]);
-      setUpload({ file: null, contentType: 'SOCIAL_POSTS', uploading: false, uploadedAssetId: null, error: null });
+      setUpload({ file: null, mainCategory: 'social-media', uploading: false, uploadedAssetId: null, error: null });
       setShowUpload(false); setSaving(false); setError(null);
     }
   }, [open, initialClientId]);
@@ -183,13 +188,14 @@ export default function NewTaskModal({
   }
 
   // ── File upload handler ───────────────────────────────────────────────────
+  //
+  // Uses the same presigned-URL architecture as the main upload queue:
+  //   1. POST /api/upload/presign  → presigned PUT URL + storageKey + displayName
+  //   2. PUT file directly to R2   → no bytes through the Next.js server
+  //   3. POST /api/upload/complete → save metadata to DB → return asset id
 
-  interface UploadResponse {
-    stage?: string;
-    asset?: { id?: string };
-    success?: boolean;
-    error?: { message?: string };
-  }
+  interface PresignResponse  { uploadUrl: string; storageKey: string; publicUrl: string; displayName: string }
+  interface CompleteResponse { success: boolean; stage?: string; asset?: { id?: string }; error?: string }
 
   async function handleFileUpload(): Promise<string | null> {
     if (!uploadState.file) return null;
@@ -200,22 +206,70 @@ export default function NewTaskModal({
 
     setUpload(u => ({ ...u, uploading: true, error: null }));
 
+    const file      = uploadState.file;
+    const monthKey  = nowMonthKey();
+
     try {
-      const fd = new FormData();
-      fd.append('file', uploadState.file);
-      fd.append('clientName', selectedClient.name);
-      fd.append('contentType', uploadState.contentType);
-      fd.append('monthKey', nowMonthKey());
-      fd.append('clientId', clientId);
+      // Phase 1 — obtain a presigned PUT URL from the server.
+      const presignRes = await fetch('/api/upload/presign', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          fileName:     file.name,
+          fileType:     file.type || 'application/octet-stream',
+          fileSize:     file.size,
+          clientName:   selectedClient.name,
+          clientId,
+          mainCategory: uploadState.mainCategory,
+          monthKey,
+        }),
+      });
 
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const json = await res.json() as UploadResponse;
-
-      if (json.stage === 'completed' && json.asset?.id) {
-        setUpload(u => ({ ...u, uploading: false, uploadedAssetId: json.asset!.id! }));
-        return json.asset.id;
+      if (!presignRes.ok) {
+        let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
+        try { const j = await presignRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
+        setUpload(u => ({ ...u, uploading: false, error: errMsg }));
+        return null;
       }
-      const errMsg = json.error?.message ?? 'Upload failed';
+
+      const presign = await presignRes.json() as PresignResponse;
+
+      // Phase 2 — upload file bytes directly to R2 (no server proxy).
+      const putRes = await fetch(presign.uploadUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body:    file,
+      });
+
+      if (!putRes.ok) {
+        setUpload(u => ({ ...u, uploading: false, error: `Upload to storage failed (HTTP ${putRes.status})` }));
+        return null;
+      }
+
+      // Phase 3 — save asset metadata to the database.
+      const completeRes = await fetch('/api/upload/complete', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          storageKey:   presign.storageKey,
+          displayName:  presign.displayName,
+          clientName:   selectedClient.name,
+          clientId,
+          fileType:     file.type || 'application/octet-stream',
+          fileSize:     file.size,
+          mainCategory: uploadState.mainCategory,
+          monthKey,
+        }),
+      });
+
+      const complete = await completeRes.json() as CompleteResponse;
+
+      if (complete.success && complete.asset?.id) {
+        setUpload(u => ({ ...u, uploading: false, uploadedAssetId: complete.asset!.id! }));
+        return complete.asset.id;
+      }
+
+      const errMsg = typeof complete.error === 'string' ? complete.error : 'Failed to save file in system';
       setUpload(u => ({ ...u, uploading: false, error: errMsg }));
       return null;
     } catch (err) {
@@ -450,9 +504,9 @@ export default function NewTaskModal({
           <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>File Category</label>
           <SelectDropdown
             fullWidth
-            value={uploadState.contentType}
-            onChange={v => setUpload(u => ({ ...u, contentType: v }))}
-            options={VALID_CONTENT_TYPES_UPLOAD.map(ct => ({ value: ct, label: ct.replace(/_/g, ' ') }))}
+            value={uploadState.mainCategory}
+            onChange={v => setUpload(u => ({ ...u, mainCategory: v }))}
+            options={UPLOAD_MAIN_CATEGORY_OPTIONS}
           />
         </div>
 
