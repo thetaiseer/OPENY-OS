@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 import {
-  Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
-  Trash2, Eye, Download, Link, X, CheckCircle, AlertCircle,
-  Search, ThumbsUp, ThumbsDown, MessageSquare, Pencil, Check,
-  ChevronRight, Folder, Send, Calendar, ChevronLeft, Home,
+  Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
+  Search, ChevronRight, Folder, ChevronLeft, Home,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -17,14 +15,13 @@ import UploadModal from '@/components/upload/UploadModal';
 import SchedulePublishingModal from '@/components/publishing/SchedulePublishingModal';
 import {
   MAIN_CATEGORIES,
-  SUBCATEGORIES,
   mainCategoryLabel,
   subCategoryLabel,
-  type MainCategorySlug,
 } from '@/lib/asset-utils';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
+import { AssetsGrid, isImage as isImageFile } from '@/components/ui/AssetsGrid';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -86,51 +83,7 @@ function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) =>
   );
 }
 
-// ── File type helpers ─────────────────────────────────────────────────────────
-
-function getPreviewUrl(url?: string | null): string { return url ?? ''; }
-
-function formatSize(bytes?: number): string {
-  if (!bytes) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-function formatDate(iso?: string): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function isImage(name: string, type?: string) { return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false); }
-function isPdf(name: string, type?: string)   { return /\.pdf$/i.test(name) || type === 'application/pdf'; }
-function isVideo(name: string, type?: string) { return /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || (type?.startsWith('video/') ?? false); }
-function isAudio(name: string, type?: string) { return /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(name) || (type?.startsWith('audio/') ?? false); }
-function getEmbedUrl(asset: Asset): string | null { return asset.file_url || asset.view_url || null; }
-
-function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string; size?: number }) {
-  if (isImage(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
-  if (isPdf(name, type))   return <FileText  size={size} style={{ color: '#ef4444' }} />;
-  if (isVideo(name, type)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (isAudio(name, type)) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
-  return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
-}
-
-function fileTypeLabel(name: string, type?: string): string {
-  if (type) { const sub = type.split('/')[1]?.toUpperCase(); if (sub) return sub; }
-  return name.split('.').pop()?.toUpperCase() ?? 'FILE';
-}
-
-const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00]/;
-function validateUploadName(name: string): string | null {
-  const t = name.trim();
-  if (!t) return 'Name cannot be empty';
-  if (INVALID_FILENAME_CHARS.test(t)) return 'Name contains invalid characters';
-  if (t.startsWith('.')) return 'Name cannot start with a period';
-  if (t.length > 200) return 'Name is too long (max 200 characters)';
-  return null;
-}
+// ── File helpers (upload-specific) ────────────────────────────────────────────
 
 function getFileExtension(name: string): string { const p = name.split('.'); return p.length > 1 ? `.${p.pop()!.toLowerCase()}` : ''; }
 function getFileBaseName(name: string): string { const ext = getFileExtension(name); return ext ? name.slice(0, name.length - ext.length) : name; }
@@ -202,197 +155,6 @@ function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate
   );
 }
 
-// ── Approval badge ────────────────────────────────────────────────────────────
-
-const APPROVAL_COLORS: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: 'rgba(107,114,128,0.12)', text: '#6b7280' },
-  approved:  { bg: 'rgba(22,163,74,0.12)',   text: '#16a34a' },
-  rejected:  { bg: 'rgba(220,38,38,0.12)',   text: '#dc2626' },
-  scheduled: { bg: 'rgba(124,58,237,0.12)',  text: '#7c3aed' },
-  published: { bg: 'rgba(8,145,178,0.12)',   text: '#0891b2' },
-};
-
-function ApprovalBadge({ status }: { status?: string | null }) {
-  const s = status ?? 'pending';
-  const c = APPROVAL_COLORS[s] ?? APPROVAL_COLORS.pending;
-  return <span className="text-xs px-1.5 py-0.5 rounded font-medium capitalize" style={{ background: c.bg, color: c.text }}>{s}</span>;
-}
-
-// ── Asset Card ────────────────────────────────────────────────────────────────
-
-interface AssetCardProps {
-  asset: Asset;
-  canDelete: boolean; canApprove: boolean; canRename: boolean;
-  scheduleCount?: number; nextScheduleDate?: string | null;
-  onView: () => void; onDelete: () => void; onCopyLink: () => void;
-  onApprove: () => void; onReject: () => void; onComments: () => void;
-  onRename: (n: string) => Promise<void>; onSchedule: () => void;
-}
-
-function AssetCard({ asset, canDelete, canApprove, canRename, scheduleCount, nextScheduleDate, onView, onDelete, onCopyLink, onApprove, onReject, onComments, onRename, onSchedule }: AssetCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName]   = useState(asset.name);
-  const [renaming, setRenaming]   = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setEditName(asset.name); }, [asset.name]);
-
-  const startEdit  = () => { setEditName(asset.name); setIsEditing(true); setTimeout(() => inputRef.current?.select(), 0); };
-  const cancelEdit = () => { setIsEditing(false); setEditName(asset.name); };
-  const commitEdit = async () => {
-    const trimmed = editName.trim();
-    if (!trimmed || trimmed === asset.name) { cancelEdit(); return; }
-    setRenaming(true);
-    try { await onRename(trimmed); setIsEditing(false); } finally { setRenaming(false); }
-  };
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); void commitEdit(); }
-    if (e.key === 'Escape') cancelEdit();
-  };
-
-  const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
-  const img = isImage(asset.name, effectiveMime);
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  const cardThumbSrc = asset.thumbnail_url || asset.preview_url || getPreviewUrl(asset.file_url);
-
-  return (
-    <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      {/* Thumbnail */}
-      <div className="relative overflow-hidden cursor-pointer" style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }} onClick={onView}>
-        {img && cardThumbSrc ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={cardThumbSrc} alt={asset.name} className="w-full h-full object-cover"
-              onError={e => { e.currentTarget.style.display = 'none'; const fb = e.currentTarget.nextElementSibling as HTMLElement | null; if (fb) fb.style.display = 'flex'; }} />
-            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
-              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-            </div>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-          </div>
-        )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.35)' }}>
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
-            <Eye size={18} className="text-white" />
-          </div>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
-        {isEditing ? (
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-            <input ref={inputRef} value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={handleKeyDown} disabled={renaming}
-              className="flex-1 text-sm font-medium rounded px-1 py-0.5 min-w-0 outline-none border"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', borderColor: 'var(--accent)' }} />
-            <button onClick={() => void commitEdit()} disabled={renaming} title="Save" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: '#16a34a' }}>
-              <Check size={13} />
-            </button>
-            <button onClick={cancelEdit} disabled={renaming} title="Cancel" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
-              <X size={13} />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 group/name min-w-0">
-            <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
-            {canRename && (
-              <button onClick={e => { e.stopPropagation(); startEdit(); }} title="Rename"
-                className="opacity-0 group-hover/name:opacity-100 flex items-center justify-center h-5 w-5 rounded hover:opacity-70 shrink-0"
-                style={{ color: 'var(--text-secondary)' }}>
-                <Pencil size={11} />
-              </button>
-            )}
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-            {fileTypeLabel(asset.name, effectiveMime)}
-          </span>
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatSize(asset.file_size)}</span>
-        </div>
-        {(asset.main_category || asset.sub_category) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
-            {asset.main_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
-                {mainCategoryLabel(asset.main_category)}
-              </span>
-            )}
-            {asset.sub_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                {subCategoryLabel(asset.main_category ?? '', asset.sub_category)}
-              </span>
-            )}
-          </div>
-        )}
-        {(asset.client_name || asset.month_key) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
-            {asset.client_name && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
-                {asset.client_name}
-              </span>
-            )}
-            {asset.month_key && asset.month_key.length >= 7 && (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {monthLabel(asset.month_key.slice(5, 7))} {asset.month_key.slice(0, 4)}
-              </span>
-            )}
-          </div>
-        )}
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <ApprovalBadge status={asset.approval_status} />
-          {scheduleCount != null && scheduleCount > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
-              <Send size={10} />{scheduleCount} scheduled
-            </span>
-          )}
-          {nextScheduleDate && (
-            <span className="text-xs flex items-center gap-0.5" style={{ color: '#7c3aed' }}>
-              <Calendar size={10} />{new Date(nextScheduleDate).toLocaleDateString()}
-            </span>
-          )}
-        </div>
-        <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatDate(asset.created_at)}</span>
-      </div>
-
-      {/* Actions */}
-      <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
-        <button onClick={onView} title="View" className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Eye size={13} /><span>View</span>
-        </button>
-        <button onClick={onSchedule} title="Schedule" className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
-          <Send size={13} /><span>Schedule</span>
-        </button>
-        <a href={downloadUrl} download={asset.name} title="Download" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Download size={14} />
-        </a>
-        <button onClick={onCopyLink} title="Copy link" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Link size={14} />
-        </button>
-        <button onClick={onComments} title="Comments" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <MessageSquare size={14} />
-        </button>
-        {canApprove && asset.approval_status !== 'approved' && (
-          <button onClick={onApprove} title="Approve" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}>
-            <ThumbsUp size={14} />
-          </button>
-        )}
-        {canApprove && asset.approval_status !== 'rejected' && (
-          <button onClick={onReject} title="Reject" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}>
-            <ThumbsDown size={14} />
-          </button>
-        )}
-        {canDelete && (
-          <button onClick={onDelete} title="Delete" className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70" style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Category colors ───────────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -419,7 +181,7 @@ function fileTypeFilterLabel(value: string): string {
 const FETCH_TIMEOUT_MS  = 15_000;
 const TOAST_DURATION_MS = 4500;
 function nextFileId() { return crypto.randomUUID(); }
-function makePreviewUrl(file: File): string | null { return isImage(file.name, file.type) ? URL.createObjectURL(file) : null; }
+function makePreviewUrl(file: File): string | null { return isImageFile(file.name, file.type) ? URL.createObjectURL(file) : null; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Page
@@ -835,20 +597,6 @@ export default function AssetsPage() {
     return Array.from(types).sort();
   }, [assets]);
 
-  const assetCardProps = (asset: Asset) => ({
-    asset,
-    canDelete: isAdmin, canApprove: isAdmin || user?.role === 'team', canRename: isAdmin || user?.role === 'team',
-    scheduleCount: scheduleCounts[asset.id]?.count, nextScheduleDate: scheduleCounts[asset.id]?.nextDate,
-    onView:     () => handleView(asset),
-    onDelete:   () => void handleDelete(asset),
-    onCopyLink: () => void handleCopyLink(asset),
-    onApprove:  () => void handleApprovalAction(asset, 'approved'),
-    onReject:   () => void handleApprovalAction(asset, 'rejected'),
-    onComments: () => setCommentsAsset(asset),
-    onRename:   (n: string) => handleRename(asset, n),
-    onSchedule: () => setScheduleAsset(asset),
-  });
-
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -1046,11 +794,21 @@ export default function AssetsPage() {
                 </span>
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredAssets.map(asset => (
-                <AssetCard key={asset.id} {...assetCardProps(asset)} />
-              ))}
-            </div>
+            <AssetsGrid
+              assets={filteredAssets}
+              canDelete={isAdmin}
+              canApprove={isAdmin || user?.role === 'team'}
+              canRename={isAdmin || user?.role === 'team'}
+              scheduleCounts={scheduleCounts}
+              onView={handleView}
+              onDelete={asset => void handleDelete(asset)}
+              onCopyLink={asset => void handleCopyLink(asset)}
+              onApprove={asset => void handleApprovalAction(asset, 'approved')}
+              onReject={asset => void handleApprovalAction(asset, 'rejected')}
+              onComments={asset => setCommentsAsset(asset)}
+              onRename={(asset, name) => handleRename(asset, name)}
+              onSchedule={asset => setScheduleAsset(asset)}
+            />
             {hasMore && (
               <div className="flex justify-center pt-2">
                 <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>

@@ -4,8 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Building2, Mail, Phone, Globe, Upload, Pencil, Trash2, File,
-  Calendar, User, Users, Tag, AlertCircle, Plus,
-  FileText, FileImage, FileVideo, FileAudio, Eye, Download, Link,
+  Calendar, User, Users, Tag, AlertCircle, Plus, Download,
   CheckCircle, X, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
@@ -20,6 +19,7 @@ import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModa
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
+import { AssetsGrid } from '@/components/ui/AssetsGrid';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 
@@ -46,106 +46,6 @@ function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: numb
           </button>
         </div>
       ))}
-    </div>
-  );
-}
-
-function formatAssetSize(bytes?: number): string {
-  if (!bytes) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatAssetDate(iso?: string): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function isImageFile(name: string, type?: string): boolean {
-  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false);
-}
-
-function getFileTypeLabel(name: string, type?: string): string {
-  if (type) {
-    const sub = type.split('/')[1]?.toUpperCase();
-    if (sub) return sub;
-  }
-  return name.split('.').pop()?.toUpperCase() ?? 'FILE';
-}
-
-function AssetFileIcon({ name, type, size = 36 }: { name: string; type?: string; size?: number }) {
-  if (isImageFile(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
-  if (/\.pdf$/i.test(name) || type === 'application/pdf') return <FileText size={size} style={{ color: '#ef4444' }} />;
-  if (type?.startsWith('video/')) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (type?.startsWith('audio/')) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
-  return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
-}
-
-function ClientAssetCard({ asset, onView, onDelete, onCopyLink }: {
-  asset: Asset;
-  onView: () => void;
-  onDelete: () => void;
-  onCopyLink: () => void;
-}) {
-  const img = isImageFile(asset.name, asset.file_type);
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  return (
-    <div
-      className="group rounded-2xl border overflow-hidden flex flex-col"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <div
-        className="relative overflow-hidden cursor-pointer"
-        style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }}
-        onClick={onView}
-      >
-        {img
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={asset.file_url} alt={asset.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center"><AssetFileIcon name={asset.name} type={asset.file_type} size={32} /></div>}
-        <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: 'rgba(0,0,0,0.35)' }}
-        >
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
-            <Eye size={18} className="text-white" />
-          </div>
-        </div>
-      </div>
-      <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="text-xs font-medium px-1.5 py-0.5 rounded"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-            {getFileTypeLabel(asset.name, asset.file_type)}
-          </span>
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatAssetSize(asset.file_size)}</span>
-        </div>
-        <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatAssetDate(asset.created_at)}</span>
-      </div>
-      <div className="px-3 pb-3 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-        <button onClick={onView} title="View"
-          className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Eye size={13} /><span>View</span>
-        </button>
-        <a href={downloadUrl} download={asset.name} title="Download"
-          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Download size={14} />
-        </a>
-        <button onClick={onCopyLink} title="Copy link"
-          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Link size={14} />
-        </button>
-        <button onClick={onDelete} title="Delete"
-          className="flex items-center justify-center h-8 w-8 rounded-lg transition-opacity hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
-          <Trash2 size={14} />
-        </button>
-      </div>
     </div>
   );
 }
@@ -415,6 +315,15 @@ export default function ClientWorkspace() {
     setAssets(prev => prev.filter(a => a.id !== asset.id));
     addToast('File deleted', 'success');
     await logActivity(`Asset "${asset.name}" deleted`);
+  };
+
+  const handleCopyAssetLink = async (asset: Asset) => {
+    try {
+      await navigator.clipboard.writeText(asset.view_url ?? asset.file_url);
+      addToast('Link copied', 'success');
+    } catch {
+      addToast('Failed to copy link', 'error');
+    }
   };
 
   const handleDeleteTask = async (taskId: string, taskTitle: string) => {
@@ -720,26 +629,13 @@ export default function ClientWorkspace() {
             {assets.length === 0 ? (
               <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>{t('noAssetsYet')}</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {assets.map(a => (
-                  <ClientAssetCard
-                    key={a.id}
-                    asset={a}
-                    onView={() => {
-                      setPreviewAsset(a);
-                    }}
-                    onDelete={() => handleDeleteAsset(a)}
-                    onCopyLink={async () => {
-                      try {
-                        await navigator.clipboard.writeText(a.view_url ?? a.file_url);
-                        addToast('Link copied', 'success');
-                      } catch {
-                        addToast('Failed to copy link', 'error');
-                      }
-                    }}
-                  />
-                ))}
-              </div>
+              <AssetsGrid
+                assets={assets}
+                canDelete={user?.role === 'admin' || user?.role === 'team'}
+                onView={asset => setPreviewAsset(asset)}
+                onDelete={asset => void handleDeleteAsset(asset)}
+                onCopyLink={asset => void handleCopyAssetLink(asset)}
+              />
             )}
           </div>
         )}
