@@ -182,7 +182,7 @@ export default function PortalPage() {
             name: previewAsset.name,
             url: previewAsset.preview_url || previewAsset.file_url,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
-            openUrl: null,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
             size: previewAsset.file_size ?? null,
           }}
