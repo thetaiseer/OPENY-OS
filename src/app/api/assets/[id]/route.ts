@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { requireRole } from '@/lib/api-auth';
+import { getApiUser, requireRole } from '@/lib/api-auth';
 import { deleteFromR2, R2NotFoundError, R2ConfigError } from '@/lib/r2';
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
@@ -8,15 +8,37 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Auth: only admin and team members may delete assets.
-  const auth = await requireRole(req, ['admin', 'team']);
-  if (auth instanceof NextResponse) return auth;
+  // Auth: only owner and admin may delete assets.
+  const auth = await getApiUser(req);
+  if (!auth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const { id } = await params;
+
+  const canDelete = auth.profile.role === 'owner' || auth.profile.role === 'admin';
+  if (!canDelete) {
+    console.warn('[asset-delete] unauthorized delete attempt', {
+      userId: auth.profile.id,
+      email:  auth.profile.email,
+      role:   auth.profile.role,
+      assetId: id ?? 'unknown',
+    });
+    return NextResponse.json(
+      { error: 'You do not have permission to delete this file' },
+      { status: 403 },
+    );
+  }
 
   if (!id) {
     return NextResponse.json({ error: 'Missing asset id' }, { status: 400 });
   }
+
+  // ── Soft delete mode ──────────────────────────────────────────────────────
+  // Pass ?soft=true to mark the asset as deleted without removing it from
+  // storage or the database.  Useful when you want a recycle-bin workflow.
+  const { searchParams } = new URL(req.url);
+  const softDelete = searchParams.get('soft') === 'true';
 
   const supabase = getServiceClient();
   const { data: asset, error: fetchError } = await supabase
@@ -32,10 +54,33 @@ export async function DELETE(
     );
   }
 
+  // ── 2a. Soft delete — mark as deleted without touching storage ────────────
+  if (softDelete) {
+    const { error: dbError } = await supabase
+      .from('assets')
+      .update({ is_deleted: true })
+      .eq('id', id);
+
+    if (dbError) {
+      console.error('[asset-delete] soft delete DB update failed', { assetId: asset.id, error: dbError.message });
+      return NextResponse.json(
+        { error: `Database update failed: ${dbError.message}` },
+        { status: 500 },
+      );
+    }
+
+    console.log('[asset-delete] soft delete succeeded', {
+      assetId:   asset.id,
+      deletedBy: auth.profile.email,
+    });
+    return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
+  }
+
   console.log('[asset-delete] starting delete', {
     assetId:         asset.id,
     storageProvider: asset.storage_provider,
     filePath:        asset.file_path ?? null,
+    deletedBy:       auth.profile.email,
   });
 
   // ── 2. Delete from remote storage ────────────────────────────────────────
@@ -131,7 +176,7 @@ export async function DELETE(
     );
   }
 
-  console.log('[asset-delete] DB delete succeeded', { assetId: asset.id });
+  console.log('[asset-delete] DB delete succeeded', { assetId: asset.id, deletedBy: auth.profile.email });
 
   const successMessage = warning ?? 'Asset deleted successfully.';
   return NextResponse.json({ success: true, message: successMessage, ...(warning ? { warning } : {}) });

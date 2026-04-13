@@ -156,7 +156,7 @@ function NewContentModal({ open, onClose, clients, onCreated }: NewContentModalP
 interface ContentCardProps {
   item: ContentItem;
   onStatusChange: (id: string, status: ContentItemStatus) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
@@ -216,9 +216,11 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
               Reject
             </button>
           )}
-          <button onClick={() => onDelete(item.id)} className="p-1 rounded hover:opacity-70">
-            <Trash2 size={13} style={{ color: 'var(--text-secondary)' }} />
-          </button>
+          {onDelete && (
+            <button onClick={() => onDelete(item.id)} className="p-1 rounded hover:opacity-70">
+              <Trash2 size={13} style={{ color: 'var(--text-secondary)' }} />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -229,6 +231,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 
 export default function ContentPage() {
   const { role } = useAuth();
+  const canDeleteContent = role === 'admin' || role === 'owner';
   const { toast } = useToast();
   const qc = useQueryClient();
   const [newOpen,   setNewOpen]   = useState(false);
@@ -383,7 +386,7 @@ export default function ContentPage() {
                   <ContentCard
                     item={item}
                     onStatusChange={handleStatusChange}
-                    onDelete={handleDelete}
+                    onDelete={canDeleteContent ? handleDelete : undefined}
                   />
                 </div>
               ))}
