@@ -89,7 +89,7 @@ export default function ClientWorkspace() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Global upload context — uploads run in background via GlobalUploadQueue
-  const { startBatch } = useUpload();
+  const { startBatch, latestAsset } = useUpload();
 
   const [client, setClient] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>('overview');
@@ -181,6 +181,16 @@ export default function ClientWorkspace() {
   }, [id]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Prepend newly uploaded assets belonging to this client without page refresh.
+  useEffect(() => {
+    if (!latestAsset) return;
+    if (latestAsset.client_id !== id) return;
+    setAssets(prev => {
+      if (prev.some(a => a.id === latestAsset.id)) return prev;
+      return [latestAsset, ...prev];
+    });
+  }, [latestAsset, id]);
 
   const handleEdit = () => {
     if (!client) return;
