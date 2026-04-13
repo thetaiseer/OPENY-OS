@@ -18,6 +18,10 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -216,6 +220,139 @@ export async function generatePresignedPutUrl(
     storageKey: key,
     bucket:     config.bucketName,
   };
+}
+
+// ── Multipart upload ──────────────────────────────────────────────────────────
+
+export interface MultipartInitResult {
+  uploadId:   string;
+  storageKey: string;
+  publicUrl:  string;
+  bucket:     string;
+}
+
+/**
+ * Initiate a multipart upload for a large file.
+ * Returns an uploadId that must be used for all subsequent part operations.
+ */
+export async function createMultipartUpload(
+  key:         string,
+  contentType: string,
+): Promise<MultipartInitResult> {
+  const config = getR2Config();
+  const client = buildS3Client(config);
+
+  const result = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket:      config.bucketName,
+      Key:         key,
+      ContentType: contentType,
+    }),
+  );
+
+  if (!result.UploadId) {
+    throw new Error('R2 did not return an uploadId for multipart upload');
+  }
+
+  return {
+    uploadId:   result.UploadId,
+    storageKey: key,
+    publicUrl:  buildR2Url(key, config.publicUrl),
+    bucket:     config.bucketName,
+  };
+}
+
+export interface PresignedPartResult {
+  uploadUrl:  string;
+  partNumber: number;
+}
+
+/**
+ * Generate a presigned PUT URL for a single multipart part.
+ * The browser uses this URL to upload the part chunk directly to R2.
+ *
+ * Important: To read the ETag from the browser after a CORS PUT, the R2 bucket
+ * CORS policy must include `expose-headers: etag`.  Without this the ETag header
+ * is not accessible from JavaScript and multipart completion will fail.
+ *
+ * @param key        – object key
+ * @param uploadId   – multipart upload ID from createMultipartUpload
+ * @param partNumber – 1-based part index
+ * @param expiresIn  – seconds until URL expires (default 1 hour)
+ */
+export async function generatePresignedPartUrl(
+  key:        string,
+  uploadId:   string,
+  partNumber: number,
+  expiresIn = 3600,
+): Promise<PresignedPartResult> {
+  const config = getR2Config();
+  const client = buildS3Client(config);
+
+  const command = new UploadPartCommand({
+    Bucket:     config.bucketName,
+    Key:        key,
+    UploadId:   uploadId,
+    PartNumber: partNumber,
+  });
+
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+
+  return { uploadUrl, partNumber };
+}
+
+export interface CompletedPart {
+  partNumber: number;
+  etag:       string;
+}
+
+/**
+ * Finalize a multipart upload by assembling all uploaded parts.
+ * Must be called after all parts are successfully uploaded.
+ */
+export async function completeMultipartUpload(
+  key:      string,
+  uploadId: string,
+  parts:    CompletedPart[],
+): Promise<{ publicUrl: string }> {
+  const config = getR2Config();
+  const client = buildS3Client(config);
+
+  await client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket:   config.bucketName,
+      Key:      key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: parts
+          .slice()
+          .sort((a, b) => a.partNumber - b.partNumber)
+          .map(p => ({ PartNumber: p.partNumber, ETag: p.etag })),
+      },
+    }),
+  );
+
+  return { publicUrl: buildR2Url(key, config.publicUrl) };
+}
+
+/**
+ * Abort a multipart upload and release all uploaded parts from storage.
+ * Call this whenever a multipart upload fails or is cancelled by the user.
+ */
+export async function abortMultipartUpload(
+  key:      string,
+  uploadId: string,
+): Promise<void> {
+  const config = getR2Config();
+  const client = buildS3Client(config);
+
+  await client.send(
+    new AbortMultipartUploadCommand({
+      Bucket:   config.bucketName,
+      Key:      key,
+      UploadId: uploadId,
+    }),
+  );
 }
 
 // ── Existence check ───────────────────────────────────────────────────────────

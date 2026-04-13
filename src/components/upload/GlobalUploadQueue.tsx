@@ -3,25 +3,22 @@
 /**
  * GlobalUploadQueue — Fixed-position upload progress panel.
  *
- * Mounted once in the app layout so it stays visible across all routes.
- *
  * Each upload item card shows:
- *   - file name + file size
- *   - exact current stage (Queued / Validating / Uploading / Uploaded /
- *     Saving to system / Completed / Uploaded, but not saved in system / Failed)
- *   - progress bar while active
- *   - retry button   — only if status === 'failed' (true upload failure)
- *   - reconcile button — only if status === 'failed_db' (Storage OK, DB save failed)
- *   - remove button  — always, disabled while actively uploading
- *   - expandable details section with exact technical error
- *
- * Mobile: compact bottom-sheet style, no overflowing buttons, readable stage text.
+ *   - file name + icon
+ *   - status label (Queued / Preparing / Uploading / Retrying / Completing /
+ *     Saving to system / Completed / Failed)
+ *   - uploaded bytes / total bytes (during upload)
+ *   - ETA (during upload)
+ *   - progress bar
+ *   - cancel button (while actively uploading)
+ *   - retry / reconcile buttons on failure
+ *   - expandable technical error detail
  */
 
 import { useState } from 'react';
 import {
   Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle, AlertTriangle,
-  Loader2, RotateCcw, RefreshCw, Trash2, File, FileImage,
+  Loader2, RotateCcw, RefreshCw, Trash2, X, File, FileImage,
   FileText, FileVideo, FileAudio, ChevronRight,
 } from 'lucide-react';
 import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
@@ -33,6 +30,19 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function formatEta(uploadedBytes: number, totalBytes: number, startMs: number | null): string | null {
+  if (!startMs || uploadedBytes <= 0 || totalBytes <= 0 || uploadedBytes >= totalBytes) return null;
+  const elapsed = Date.now() - startMs;
+  if (elapsed < 2000) return null; // wait 2 s before showing ETA
+  const rate = uploadedBytes / elapsed; // bytes/ms
+  const remaining = (totalBytes - uploadedBytes) / rate; // ms
+  const secs = Math.round(remaining / 1000);
+  if (secs < 5)   return 'Almost done';
+  if (secs < 60)  return `~${secs}s left`;
+  const mins = Math.ceil(secs / 60);
+  return `~${mins}m left`;
 }
 
 function isImageFile(name: string, type: string): boolean {
@@ -88,6 +98,17 @@ function QueueRow({ item }: { item: UploadItem }) {
 
   const statusColor = STATUS_COLOR[item.status];
 
+  // Byte progress (only meaningful when actively uploading).
+  const showByteProgress =
+    isActive &&
+    item.status === 'uploading' &&
+    item.totalBytes > 0 &&
+    item.uploadedBytes >= 0;
+
+  const eta = showByteProgress
+    ? formatEta(item.uploadedBytes, item.totalBytes, item.uploadStartMs ?? null)
+    : null;
+
   return (
     <div
       className="rounded-xl overflow-hidden"
@@ -120,21 +141,41 @@ function QueueRow({ item }: { item: UploadItem }) {
             {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
           </div>
 
-          {/* Size · stage text */}
+          {/* Status line */}
           <div className="flex items-center gap-1.5 flex-wrap text-xs">
+            {/* File size (total) */}
             {item.file.size > 0 && (
               <span style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
             )}
             {item.file.size > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
+
+            {/* Stage label */}
             <span style={{ color: statusColor, fontWeight: 600 }}>
-              {item.statusText}
+              {item.statusLabel ?? item.statusText}
             </span>
+
+            {/* Percentage badge */}
             {isActive && item.status === 'uploading' && (
               <span className="tabular-nums font-bold ml-auto" style={{ color: 'var(--accent)' }}>
                 {item.progress}%
               </span>
             )}
           </div>
+
+          {/* Byte progress + ETA row (large files) */}
+          {showByteProgress && item.totalBytes > 0 && (
+            <div className="flex items-center gap-1.5 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+              <span>{formatSize(item.uploadedBytes)}</span>
+              <span style={{ opacity: 0.5 }}>/</span>
+              <span>{formatSize(item.totalBytes)}</span>
+              {eta && (
+                <>
+                  <span style={{ color: 'var(--border)' }}>·</span>
+                  <span>{eta}</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Progress bar */}
           {isActive && (
@@ -146,7 +187,7 @@ function QueueRow({ item }: { item: UploadItem }) {
             </div>
           )}
 
-          {/* Brief error summary line (failed / failed_db) */}
+          {/* Brief error summary (failed / failed_db) */}
           {(isFailed || isFailedDb) && item.errorDetail && (
             <p className="text-xs leading-tight line-clamp-2" style={{ color: statusColor, opacity: 0.9 }}>
               {item.errorDetail.message}
@@ -156,6 +197,17 @@ function QueueRow({ item }: { item: UploadItem }) {
 
         {/* Action buttons */}
         <div className="flex flex-col gap-1 shrink-0 mt-0.5">
+          {/* Cancel — only while actively uploading */}
+          {isActive && (
+            <button
+              onClick={() => removeItem(item.id)}
+              title="Cancel upload"
+              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+            >
+              <X size={10} />
+            </button>
+          )}
           {/* Retry — only on true upload failures */}
           {isFailed && (
             <button
@@ -192,16 +244,17 @@ function QueueRow({ item }: { item: UploadItem }) {
               />
             </button>
           )}
-          {/* Remove */}
-          <button
-            onClick={() => removeItem(item.id)}
-            disabled={isActive}
-            title="Remove"
-            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
-            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-          >
-            <Trash2 size={10} />
-          </button>
+          {/* Remove — only when not actively uploading */}
+          {!isActive && (
+            <button
+              onClick={() => removeItem(item.id)}
+              title="Remove"
+              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
         </div>
       </div>
 
