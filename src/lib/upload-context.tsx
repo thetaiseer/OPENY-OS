@@ -4,19 +4,23 @@
  * Global upload context.
  *
  * Upload status machine:
- *   queued → uploading → uploaded → completed
- *                                  ↘ failed_db     (R2 OK, DB save failed)
- *   queued → uploading → failed_upload (R2 upload failed)
+ *   queued → uploading (direct PUT to R2) → uploaded → completed
+ *                                                      ↘ failed_db     (R2 OK, DB save failed)
+ *   queued → uploading → failed_upload (presign or R2 PUT failed)
+ *
+ * Three-phase upload — no file bytes pass through the Next.js server:
+ *   1. POST /api/upload/presign  → get presigned PUT URL + storageKey + publicUrl
+ *   2. PUT directly to R2        → browser → R2 (real byte-level XHR progress)
+ *   3. POST /api/upload/complete → save metadata to Supabase DB
+ *
+ * For failed_db retries: item.r2Key (storageKey) and item.r2FileName (displayName)
+ * are preserved so phase 3 can be retried without re-uploading the file.
  *
  * Rules:
- *  1. If R2 upload fails     → failed_upload  (can retry full upload)
- *  2. If R2 OK + DB fails    → failed_db      (can retry DB save only)
+ *  1. If presign or R2 PUT fails  → failed_upload  (retry full upload)
+ *  2. If R2 OK + DB fails         → failed_db      (retry DB save only)
  *  3. NEVER show "Load failed" or generic "Failed"
  *  4. Always show exact stage-based messages
- *
- * Upload strategy: file + metadata sent server-side via XHR to /api/upload,
- * which handles the R2 upload and DB save in one step.  XHR gives real
- * upload progress events.
  */
 
 import React, {
@@ -66,11 +70,17 @@ export interface UploadItem {
   subCategory:  string;
   monthKey:     string;
   uploadedBy:   string | null;
-  /** R2 object key — set after a successful R2 upload; used to retry DB save without re-uploading. */
+  /**
+   * R2 storage key — set after a successful presign + R2 PUT.
+   * Used to retry the DB-save step without re-uploading the file.
+   */
   r2Key:      string | null;
   r2Bucket:   string | null;
+  /** Display name returned by /api/upload/presign. */
   r2FileName: string | null;
-  fileMimeType:  string | null;
+  /** Public URL of the uploaded file in R2. */
+  publicUrl:   string | null;
+  fileMimeType: string | null;
 }
 
 /** Minimal shape submitted when confirming a batch. */
@@ -156,7 +166,7 @@ function stageText(status: UploadStatus, progress?: number): string {
   switch (status) {
     case 'queued':        return 'Queued';
     case 'uploading':     return progress != null ? `Uploading ${progress}%` : 'Uploading';
-    case 'uploaded':      return 'Uploaded';
+    case 'uploaded':      return 'Saving to system\u2026';
     case 'saved':         return 'Saved';
     case 'completed':     return 'Completed';
     case 'failed_upload': return 'Upload failed';
@@ -167,9 +177,6 @@ function stageText(status: UploadStatus, progress?: number): string {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const UPLOAD_CONCURRENCY = 2;
-
-/** Maximum file size before showing a client-side error (250 MB). */
-const MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024;
 
 const DB_FAIL_MESSAGE = 'File uploaded to storage successfully, but could not be saved in the system.';
 
@@ -186,22 +193,27 @@ const UploadContext = createContext<UploadContextValue>({
   clearCompleted: () => {},
 });
 
-// ── XHR upload helper ─────────────────────────────────────────────────────────
+// ── XHR PUT helper (direct to R2) ─────────────────────────────────────────────
 
 interface XhrResult {
   status: number;
   body:   string;
 }
 
-function uploadViaXHR(
-  url: string,
-  formData: FormData,
-  onProgress: (pct: number) => void,
-  signal: AbortSignal,
+/**
+ * PUT the file binary directly to a presigned R2 URL via XHR so we get
+ * real byte-level upload progress events.  No file bytes pass through
+ * the Next.js server.
+ */
+function putFileViaXHR(
+  url:         string,
+  file:        File,
+  contentType: string,
+  onProgress:  (pct: number) => void,
+  signal:      AbortSignal,
 ): Promise<XhrResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.withCredentials = true;
 
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
@@ -209,14 +221,17 @@ function uploadViaXHR(
       }
     });
 
-    xhr.addEventListener('load', () => resolve({ status: xhr.status, body: xhr.responseText }));
-    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+    xhr.addEventListener('load',  () => resolve({ status: xhr.status, body: xhr.responseText }));
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload to storage')));
     xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled', 'AbortError')));
 
     signal.addEventListener('abort', () => xhr.abort(), { once: true });
 
-    xhr.open('POST', url);
-    xhr.send(formData);
+    xhr.open('PUT', url);
+    // R2 requires the Content-Type header to match what was used to sign the URL.
+    xhr.setRequestHeader('Content-Type', contentType);
+    // Send the raw file bytes — no wrapping, no encoding.
+    xhr.send(file);
   });
 }
 
@@ -246,76 +261,190 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // ── Core upload function ─────────────────────────────────────────────────
+  // ── Core upload function ───────────────────────────────────────────────────
   //
-  // Strategy (single-phase):
-  //   Send the actual file + metadata to /api/upload via XHR.
-  //   The server handles the R2 upload and DB save atomically.
-  //   XHR upload.progress events provide real byte-level progress.
+  // Three-phase strategy (file bytes NEVER go through the Next.js server):
   //
-  // For failed_db retries: the R2 key is stored in item.r2Key;
-  //   the route detects this and skips the R2 upload, retrying only the DB save.
+  //   Phase 1 – Presign:
+  //     POST /api/upload/presign  with JSON metadata
+  //     → { uploadUrl, storageKey, publicUrl, displayName }
+  //
+  //   Phase 2 – Direct R2 PUT:
+  //     PUT <uploadUrl>  with raw file bytes via XHR (real progress events)
+  //
+  //   Phase 3 – Complete (DB save):
+  //     POST /api/upload/complete  with JSON metadata + storageKey
+  //
+  // For failed_db retries: item.r2Key is set → skip phases 1 and 2.
 
   const doUploadItem = useCallback(async (item: UploadItem) => {
     const ctrl = new AbortController();
     abortControllersRef.current.set(item.id, ctrl);
 
     try {
-      // ── Client-side size check ──────────────────────────────────────────
-      if (item.file.size > MAX_FILE_SIZE_BYTES && !item.r2Key) {
-        setStage(item.id, 'failed_upload', {
+      setStage(item.id, 'uploading', { progress: 0 });
+
+      let storageKey:  string;
+      let displayName: string;
+      let publicUrl:   string;
+      const fileMimeType = (item.fileMimeType ?? item.file.type) || 'application/octet-stream';
+
+      if (item.r2Key) {
+        // ── failed_db retry — R2 upload already done, skip phases 1 & 2 ──────
+        storageKey  = item.r2Key;
+        displayName = item.r2FileName ?? item.file.name;
+        // publicUrl is preserved from the original presign phase.
+        // If unavailable (edge case), the complete endpoint rebuilds it server-side.
+        publicUrl   = item.publicUrl ?? '';
+        // Jump straight to phase 3 — show "Saving to system…"
+        setStage(item.id, 'uploaded', { progress: 100 });
+      } else {
+        // ── Phase 1: request a presigned PUT URL ─────────────────────────────
+        let presignRes: Response;
+        try {
+          presignRes = await fetch('/api/upload/presign', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName:       item.file.name,
+              fileType:       fileMimeType,
+              fileSize:       item.file.size,
+              clientName:     item.clientName,
+              clientId:       item.clientId   || undefined,
+              mainCategory:   item.mainCategory,
+              subCategory:    item.subCategory || undefined,
+              monthKey:       item.monthKey,
+              uploadedBy:     item.uploadedBy  || undefined,
+              customFileName: item.uploadName.trim() || undefined,
+            }),
+            signal: ctrl.signal,
+          });
+        } catch (err: unknown) {
+          if ((err as Error)?.name === 'AbortError') throw err;
+          throw new Error('Network error while requesting upload URL');
+        }
+
+        if (!presignRes.ok) {
+          let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
+          try {
+            const errJson = await presignRes.json() as { error?: string };
+            if (errJson.error) errMsg = errJson.error;
+          } catch { /* ignore */ }
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:    'presign',
+              message: errMsg,
+              code:    `HTTP_${presignRes.status}`,
+              details: null,
+            },
+          });
+          return;
+        }
+
+        let presignData: {
+          uploadUrl:   string;
+          storageKey:  string;
+          publicUrl:   string;
+          displayName: string;
+        };
+        try {
+          presignData = await presignRes.json() as typeof presignData;
+        } catch {
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:    'presign_parse',
+              message: 'Invalid response from upload presign endpoint',
+              code:    null,
+              details: null,
+            },
+          });
+          return;
+        }
+
+        storageKey  = presignData.storageKey;
+        displayName = presignData.displayName;
+        publicUrl   = presignData.publicUrl;
+
+        // Persist storageKey + displayName + publicUrl so failed_db retry
+        // can skip phases 1 & 2 even if the tab reloads within the session.
+        dispatchRef.current({
+          type:  'UPDATE',
+          id:    item.id,
+          patch: {
+            r2Key:       storageKey,
+            r2FileName:  displayName,
+            publicUrl,
+            fileMimeType,
+          },
+        });
+
+        // ── Phase 2: PUT file bytes directly to R2 ───────────────────────────
+        let putResult: XhrResult;
+        try {
+          putResult = await putFileViaXHR(
+            presignData.uploadUrl,
+            item.file,
+            fileMimeType,
+            (pct) => setStage(item.id, 'uploading', { progress: Math.min(pct, 95) }),
+            ctrl.signal,
+          );
+        } catch (err: unknown) {
+          if ((err as Error)?.name === 'AbortError') throw err;
+          throw new Error(err instanceof Error ? err.message : 'Network error during file upload');
+        }
+
+        // R2 presigned PUT returns 200 on success; non-2xx is a failure.
+        if (putResult.status < 200 || putResult.status >= 300) {
+          setStage(item.id, 'failed_upload', {
+            errorDetail: {
+              step:    'r2_put',
+              message: `File upload to storage failed (HTTP ${putResult.status})`,
+              code:    `HTTP_${putResult.status}`,
+              details: putResult.body.slice(0, 300) || null,
+            },
+          });
+          return;
+        }
+
+        setStage(item.id, 'uploaded', { progress: 100 });
+      }
+
+      // ── Phase 3: save metadata to DB ────────────────────────────────────────
+      let completeRes: Response;
+      try {
+        completeRes = await fetch('/api/upload/complete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storageKey,
+            displayName,
+            clientName:   item.clientName,
+            clientId:     item.clientId   || undefined,
+            fileType:     fileMimeType,
+            fileSize:     item.file.size,
+            mainCategory: item.mainCategory || undefined,
+            subCategory:  item.subCategory  || undefined,
+            monthKey:     item.monthKey,
+            uploadedBy:   item.uploadedBy   || undefined,
+          }),
+          signal: ctrl.signal,
+        });
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        // Network error during DB save — file is already in R2.
+        // Mark as failed_db so user can retry just the DB save.
+        setStage(item.id, 'failed_db', {
+          progress: 100,
           errorDetail: {
-            step:    'size_limit',
-            message: `File is too large (${(item.file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.`,
-            code:    'SIZE_LIMIT_EXCEEDED',
-            details: null,
+            step:    'complete_network',
+            message: DB_FAIL_MESSAGE,
+            code:    'NETWORK_ERROR',
+            details: err instanceof Error ? err.message : null,
           },
         });
         return;
       }
 
-      setStage(item.id, 'uploading', { progress: 0 });
-
-      // ── Build form data ─────────────────────────────────────────────────
-      const formData = new FormData();
-
-      if (item.r2Key) {
-        // failed_db retry path: send R2 key + display name, skip actual file
-        formData.append('r2Key',      item.r2Key);
-        formData.append('r2FileName', item.r2FileName ?? item.file.name);
-        formData.append('fileMimeType',  item.fileMimeType ?? item.file.type ?? 'application/octet-stream');
-        formData.append('fileSize',      String(item.file.size));
-      } else {
-        // Normal upload path: include the actual file
-        formData.append('file', item.file);
-        if (item.uploadName.trim()) formData.append('customFileName', item.uploadName.trim());
-      }
-
-      formData.append('clientName',   item.clientName);
-      formData.append('contentType',  item.contentType);
-      formData.append('mainCategory', item.mainCategory);
-      formData.append('subCategory',  item.subCategory);
-      formData.append('monthKey',     item.monthKey);
-      if (item.clientId)   formData.append('clientId',   item.clientId);
-      if (item.uploadedBy) formData.append('uploadedBy', item.uploadedBy);
-
-      // ── Send via XHR (real upload progress) ────────────────────────────
-      let xhrResult: XhrResult;
-      try {
-        xhrResult = await uploadViaXHR(
-          '/api/upload',
-          formData,
-          (pct) => setStage(item.id, 'uploading', { progress: Math.min(pct, 95) }),
-          ctrl.signal,
-        );
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') throw err;
-        throw new Error(err instanceof Error ? err.message : 'Network error during upload');
-      }
-
-      setStage(item.id, 'uploaded', { progress: 100 });
-
-      // ── Parse server response ─────────────────────────────────────────
       let json: {
         success:      boolean;
         stage?:       string;
@@ -323,28 +452,28 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         r2_key?:      string;
         r2_bucket?:   string;
         r2_filename?: string;
-        error?: { step: string; message: string; code?: string | null; details?: string | null };
+        error?:       unknown;
       };
 
       try {
-        json = JSON.parse(xhrResult.body);
+        json = await completeRes.json() as typeof json;
       } catch {
-        if (xhrResult.status >= 200 && xhrResult.status < 300) {
+        if (completeRes.ok) {
           setStage(item.id, 'completed', { progress: 100 });
         } else {
-          setStage(item.id, 'failed_upload', {
+          setStage(item.id, 'failed_db', {
+            progress: 100,
             errorDetail: {
-              step:    'response_parse',
-              message: 'Upload failed with an unreadable server response',
-              code:    `HTTP_${xhrResult.status}`,
-              details: xhrResult.body.slice(0, 300),
+              step:    'complete_parse',
+              message: DB_FAIL_MESSAGE,
+              code:    `HTTP_${completeRes.status}`,
+              details: null,
             },
           });
         }
         return;
       }
 
-      // ── Handle response stage ─────────────────────────────────────────
       if (json.stage === 'completed') {
         if (json.asset) dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: json.asset });
         setStage(item.id, 'completed', { progress: 100 });
@@ -352,49 +481,39 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (json.stage === 'failed_db') {
-        // R2 upload succeeded but DB save failed — persist R2 key for retry
+        // Preserve R2 info for reconcile retry.
         dispatchRef.current({
           type:  'UPDATE',
           id:    item.id,
           patch: {
-            r2Key:       json.r2_key      ?? item.r2Key,
-            r2Bucket:    json.r2_bucket   ?? item.r2Bucket,
-            r2FileName:  json.r2_filename ?? item.r2FileName,
-            fileMimeType: item.fileMimeType ?? item.file.type ?? null,
+            r2Key:      json.r2_key      ?? storageKey,
+            r2Bucket:   json.r2_bucket   ?? null,
+            r2FileName: json.r2_filename ?? displayName,
+            publicUrl,
+            fileMimeType,
           },
         });
+        const dbErr = json.error as { message?: string; code?: string } | null | undefined;
         setStage(item.id, 'failed_db', {
           progress: 100,
           errorDetail: {
             step:    'database_insert',
             message: DB_FAIL_MESSAGE,
-            code:    json.error?.code    ?? null,
-            details: json.error?.message ?? null,
+            code:    dbErr?.code    ?? null,
+            details: dbErr?.message ?? null,
           },
         });
         return;
       }
 
-      if (json.stage === 'failed_upload' || !json.success) {
-        const err = json.error;
-        setStage(item.id, 'failed_upload', {
-          errorDetail: {
-            step:    err?.step    ?? 'upload',
-            message: err?.message ?? 'Upload failed',
-            code:    err?.code    ?? `HTTP_${xhrResult.status}`,
-            details: err?.details ?? null,
-          },
-        });
-        return;
-      }
-
-      // Unknown stage — treat as failure
-      setStage(item.id, 'failed_upload', {
+      // Unexpected response — treat as failed_db (file is already in R2).
+      setStage(item.id, 'failed_db', {
+        progress: 100,
         errorDetail: {
-          step:    'unknown',
-          message: 'Upload failed with an unexpected server response',
-          code:    null,
-          details: xhrResult.body.slice(0, 300),
+          step:    'complete_unknown',
+          message: DB_FAIL_MESSAGE,
+          code:    `HTTP_${completeRes.status}`,
+          details: null,
         },
       });
 
@@ -452,9 +571,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       subCategory:   meta.subCategory,
       monthKey:      meta.monthKey,
       uploadedBy:    meta.uploadedBy,
-      r2Key:       null,
-      r2Bucket:    null,
-      r2FileName:  null,
+      r2Key:        null,
+      r2Bucket:     null,
+      r2FileName:   null,
+      publicUrl:    null,
       fileMimeType: null,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
@@ -466,19 +586,20 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       type:  'UPDATE',
       id,
       patch: {
-        status:        'queued',
-        statusText:    stageText('queued'),
-        progress:      0,
-        errorDetail:   null,
-        r2Key:       null,
-        r2Bucket:    null,
-        r2FileName:  null,
+        status:       'queued',
+        statusText:   stageText('queued'),
+        progress:     0,
+        errorDetail:  null,
+        r2Key:        null,
+        r2Bucket:     null,
+        r2FileName:   null,
+        publicUrl:    null,
         fileMimeType: null,
       },
     });
   }, []);
 
-  /** Retry a failed_db item — skip R2 upload, retry DB save only. */
+  /** Retry a failed_db item — skip phases 1 & 2, retry DB save only. */
   const reconcileItem = useCallback((id: string) => {
     dispatchRef.current({
       type:  'UPDATE',
@@ -488,7 +609,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         statusText:  stageText('queued'),
         progress:    0,
         errorDetail: null,
-        // r2Key/r2Bucket/r2FileName preserved — doUploadItem will skip R2 upload
+        // r2Key / r2FileName / publicUrl / fileMimeType preserved — doUploadItem
+        // detects item.r2Key and skips phases 1 and 2.
       },
     });
   }, []);
