@@ -54,6 +54,12 @@ const MAX_CHUNK_RETRIES = 3;
 /** Base delay (ms) for exponential backoff between chunk retries. */
 const RETRY_BASE_DELAY_MS = 1000;
 
+/**
+ * Minimum elapsed time (ms) before upload speed is considered meaningful.
+ * Avoids wild speed estimates during the first second of a chunk upload.
+ */
+const MIN_ELAPSED_MS_FOR_SPEED = 1500;
+
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
 
@@ -720,7 +726,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               (loaded) => {
                 const totalLoaded = chunkBytesStart + loaded;
                 const elapsed     = Date.now() - speedBaseMs;
-                const speedBps    = elapsed > 1500 ? Math.round((totalLoaded / elapsed) * 1000) : null;
+                const speedBps    = elapsed > MIN_ELAPSED_MS_FOR_SPEED ? Math.round((totalLoaded / elapsed) * 1000) : null;
                 const pct = Math.round((totalLoaded / totalBytes) * 95);
                 update(item.id, {
                   progress:       pct,
