@@ -310,7 +310,6 @@ function classifyUploadError(opts: {
     raw.includes('possible cors');
 
   const isNetworkFailure =
-    isOffline                            ||
     raw.includes('fetch failed')         ||
     raw.includes('failed to fetch')      ||
     raw.includes('networkerror')         ||
@@ -319,7 +318,8 @@ function classifyUploadError(opts: {
     raw.includes('timeout')              ||
     raw.includes('etimedout')            ||
     raw.includes('econnrefused')         ||
-    raw.includes('econnreset');
+    raw.includes('econnreset')           ||
+    isOffline;
 
   let arabicMessage: string;
   let code: string;
@@ -365,7 +365,7 @@ function classifyUploadError(opts: {
       arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
       code = 'NETWORK_ERROR';
     } else if (httpStatus === 401 || httpStatus === 403) {
-      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته — جاري إعادة المحاولة تلقائياً';
+      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
       code = `HTTP_${httpStatus}`;
     } else {
       arabicMessage = 'فشل الرفع: فشل أحد أجزاء الرفع المتعدد';
