@@ -101,7 +101,7 @@ function ImagePreview({ src, alt }: { src: string; alt: string }) {
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div className="relative overflow-auto max-h-[65vh] w-full flex items-center justify-center rounded-xl" style={{ background: 'rgba(0,0,0,0.4)' }}>
+      <div className="relative overflow-auto max-h-[80vh] w-full flex items-center justify-center rounded-xl" style={{ background: 'rgba(0,0,0,0.4)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
@@ -112,7 +112,7 @@ function ImagePreview({ src, alt }: { src: string; alt: string }) {
             transformOrigin: 'center',
             transition: 'transform 0.2s ease',
             maxWidth: '100%',
-            maxHeight: '65vh',
+            maxHeight: '80vh',
             objectFit: 'contain',
             display: 'block',
           }}
@@ -165,8 +165,8 @@ function VideoPreview({ src, name }: { src: string; name: string }) {
     <div className="w-full flex items-center justify-center">
       <video
         controls
-        className="rounded-xl shadow-2xl max-w-full"
-        style={{ maxHeight: '65vh', background: '#000' }}
+        className="rounded-xl shadow-2xl"
+        style={{ maxHeight: '80vh', maxWidth: '100%', width: '100%', objectFit: 'contain', background: '#000' }}
       >
         <source src={src} type={mimeType} />
         Your browser does not support video playback.
@@ -179,7 +179,7 @@ function PdfPreview({ src, name }: { src: string; name: string }) {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden shadow-2xl" style={{ height: '65vh', background: '#fff' }}>
+    <div className="relative w-full rounded-xl overflow-hidden shadow-2xl" style={{ height: '80vh', background: '#fff' }}>
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: '#1e1e2e' }}>
           <Loader2 size={32} className="animate-spin" style={{ color: 'rgba(255,255,255,0.5)' }} />
@@ -242,7 +242,7 @@ function TextPreview({ src, name }: { src: string; name: string }) {
   if (csv) {
     const rows = content.split('\n').filter(r => r.trim()).map(r => r.split(','));
     return (
-      <div className="w-full overflow-auto rounded-xl max-h-[65vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="w-full overflow-auto rounded-xl max-h-[80vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
         <table className="w-full text-xs text-left border-collapse" style={{ color: 'rgba(255,255,255,0.85)' }}>
           <thead>
             {rows[0] && (
@@ -268,7 +268,7 @@ function TextPreview({ src, name }: { src: string; name: string }) {
   }
 
   return (
-    <div className="w-full overflow-auto rounded-xl max-h-[65vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div className="w-full overflow-auto rounded-xl max-h-[80vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <pre
         className="text-xs p-4 whitespace-pre-wrap break-words leading-relaxed"
         style={{ color: 'rgba(255,255,255,0.82)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
