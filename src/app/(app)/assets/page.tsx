@@ -164,58 +164,6 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
   );
 }
 
-// ── Client Folder Card (depth 0) ──────────────────────────────────────────────
-
-function ClientFolderCard({
-  label,
-  count,
-  onView,
-  onDownload,
-  isDownloading,
-}: {
-  label: string;
-  count: number;
-  onView: () => void;
-  onDownload: () => void;
-  isDownloading: boolean;
-}) {
-  return (
-    <div
-      className="flex flex-col gap-3 p-4 rounded-2xl border transition-all hover:border-[var(--accent)] hover:shadow-sm"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: 'rgba(99,102,241,0.1)' }}>
-          <Folder size={18} style={{ color: 'var(--accent)' }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
-        </div>
-      </div>
-      <div className="flex gap-2 mt-auto">
-        <button
-          type="button"
-          onClick={onView}
-          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
-        >
-          <FolderOpen size={12} /> View
-        </button>
-        <button
-          type="button"
-          onClick={onDownload}
-          disabled={isDownloading}
-          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <Download size={12} />{isDownloading ? '…' : 'Download'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Breadcrumb ────────────────────────────────────────────────────────────────
 
 interface BreadcrumbItem { label: string; path: FolderPath; }
@@ -641,29 +589,6 @@ export default function AssetsPage() {
     addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
-  // ── Per-client download ───────────────────────────────────────────────────
-
-  const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
-
-  const handleDownloadClient = useCallback(async (clientName: string) => {
-    setDownloadingClient(clientName);
-    try {
-      const { data, error } = await supabase
-        .from('assets')
-        .select('id')
-        .eq('client_name', clientName)
-        .neq('is_deleted', true);
-      if (error) { addToast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
-      const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
-      if (ids.length === 0) { addToast('No downloadable files found for this client', 'error'); return; }
-      await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
-    } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
-    } finally {
-      setDownloadingClient(null);
-    }
-  }, [addToast, downloadZip]);
-
   // ── Selection state ───────────────────────────────────────────────────────
   const [selectionMode, setSelectionMode]   = useState(false);
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
@@ -719,6 +644,25 @@ export default function AssetsPage() {
     }
   }, [addToast]);
 
+  const handleDownloadClient = useCallback(async (clientName: string) => {
+    setDownloadingClient(clientName);
+    try {
+      const { data, error } = await supabase
+        .from('assets')
+        .select('id')
+        .eq('client_name', clientName)
+        .neq('is_deleted', true);
+      if (error) { addToast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
+      const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
+      if (ids.length === 0) { addToast('No downloadable files found for this client', 'error'); return; }
+      await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloadingClient(null);
+    }
+  }, [addToast, downloadZip]);
+
   const handleDownloadSelected = useCallback(async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -732,51 +676,6 @@ export default function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
-  /** Download all assets belonging to a single client as a ZIP archive. */
-  const downloadClientFolder = useCallback(async (clientName: string) => {
-    if (downloadingClient) return;
-    setDownloadingClient(clientName);
-    try {
-      // Collect all asset IDs for this client across all pages
-      const allIds: string[] = [];
-      let pg = 0;
-      let more = true;
-      while (more) {
-        let res: Response;
-        try {
-          res = await fetch(`/api/assets?client_name=${encodeURIComponent(clientName)}&page=${pg}`);
-        } catch {
-          throw new Error('Network error – check your connection and try again');
-        }
-        if (!res.ok) throw new Error(`Server error (HTTP ${res.status})`);
-        const json = await res.json() as { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
-        if (!json.success) throw new Error(json.error ?? 'Failed to fetch assets');
-        for (const a of (json.assets ?? [])) allIds.push(a.id);
-        more = json.hasMore ?? false;
-        pg++;
-      }
-      if (allIds.length === 0) {
-        addToast('No downloadable files found for this client', 'error');
-        return;
-      }
-      const archiveName = `${clientName.replace(/[^a-z0-9_.\-]/gi, '_')}.zip`;
-      const res = await fetch(`/api/assets/download-zip?ids=${allIds.join(',')}`);
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        addToast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
-        return;
-      }
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      triggerDownload(url, archiveName);
-      URL.revokeObjectURL(url);
-      addToast('Download ready', 'success');
-    } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
-    } finally {
-      setDownloadingClient(null);
-    }
-  }, [downloadingClient, addToast]);
 
 
 
@@ -1059,24 +958,6 @@ export default function AssetsPage() {
                   onDownload={pathDepth === 0 ? () => void handleDownloadClient(key) : undefined}
                   isDownloading={pathDepth === 0 && downloadingClient === key}
                 />
-                pathDepth === 0 ? (
-                  <ClientFolderCard
-                    key={key}
-                    label={key}
-                    count={count}
-                    onView={() => navigateInto(key)}
-                    onDownload={() => void downloadClientFolder(key)}
-                    isDownloading={downloadingClient === key}
-                  />
-                ) : (
-                  <FolderCard
-                    key={key}
-                    label={folderCardLabel(key)}
-                    count={count}
-                    color={folderCardColor(key)}
-                    onClick={() => navigateInto(key)}
-                  />
-                )
               ))}
             </div>
             {hasMore && (
