@@ -631,7 +631,7 @@ export default function ClientWorkspace() {
             ) : (
               <AssetsGrid
                 assets={assets}
-                canDelete={user?.role === 'admin' || user?.role === 'team'}
+                canDelete={user?.role === 'admin' || user?.role === 'owner'}
                 onView={asset => setPreviewAsset(asset)}
                 onDelete={asset => void handleDeleteAsset(asset)}
                 onCopyLink={asset => void handleCopyAssetLink(asset)}

@@ -293,8 +293,8 @@ function triggerDownload(url: string, filename: string): void {
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
-  const isAdmin   = user?.role === 'admin';
-  const canUpload = isAdmin || user?.role === 'team';
+  const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
+  const canUpload = canDeleteFiles || user?.role === 'team';
 
   const { startBatch, isUploading, latestAsset } = useUpload();
 
@@ -1039,9 +1039,9 @@ export default function AssetsPage() {
             )}
             <AssetsGrid
               assets={filteredAssets}
-              canDelete={isAdmin}
-              canApprove={isAdmin || user?.role === 'team'}
-              canRename={isAdmin || user?.role === 'team'}
+              canDelete={canDeleteFiles}
+              canApprove={canDeleteFiles || user?.role === 'team'}
+              canRename={canDeleteFiles || user?.role === 'team'}
               scheduleCounts={scheduleCounts}
               selectable={selectionMode}
               selectedIds={selectedIds}
