@@ -200,6 +200,7 @@ export default function ClientWorkspace() {
   const [approvals, setApprovals] = useState<{ id: string; title: string; status: string; created_at: string }[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingZip, setDownloadingZip] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const toastIdRef = useRef(0);
@@ -368,6 +369,39 @@ export default function ClientWorkspace() {
     // Clear pending items without revoking — UploadContext owns the lifecycle
     setPendingItems([]);
     addToast(`${initialItems.length} file${initialItems.length !== 1 ? 's' : ''} queued for upload`, 'success');
+  };
+
+  const handleDownloadZip = async () => {
+    if (!client) return;
+    setDownloadingZip(true);
+    try {
+      const res = await fetch(`/api/clients/${id}/download-zip`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const msg: string = json.error ?? `Download failed (HTTP ${res.status})`;
+        // Provide a friendlier message when there are simply no R2 assets.
+        if (res.status === 404 && msg.includes('No R2-hosted assets')) {
+          addToast('No downloadable files found for this client', 'error');
+        } else {
+          addToast(msg, 'error');
+        }
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `${client.name.replace(/[^a-z0-9_\- ]/gi, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      addToast('Download ready', 'success');
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloadingZip(false);
+    }
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
@@ -655,7 +689,16 @@ export default function ClientWorkspace() {
 
         {activeTab === 'assets' && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleDownloadZip}
+                disabled={downloadingZip || assets.length === 0}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              >
+                <Download size={14} />
+                {downloadingZip ? 'Preparing download…' : 'Download Client Folder'}
+              </button>
               <button
                 onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
