@@ -61,6 +61,8 @@ const UPLOAD_MAIN_CATEGORIES = [
   { value: 'other',        label: 'Other'         },
 ] as const;
 
+const UPLOAD_MAIN_CATEGORY_OPTIONS = UPLOAD_MAIN_CATEGORIES.map(c => ({ value: c.value, label: c.label }));
+
 const COMMON_TIMEZONES = [
   'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
   'America/Los_Angeles', 'America/Sao_Paulo', 'Europe/London',
@@ -504,7 +506,7 @@ export default function NewTaskModal({
             fullWidth
             value={uploadState.mainCategory}
             onChange={v => setUpload(u => ({ ...u, mainCategory: v }))}
-            options={UPLOAD_MAIN_CATEGORIES.map(c => ({ value: c.value, label: c.label }))}
+            options={UPLOAD_MAIN_CATEGORY_OPTIONS}
           />
         </div>
 
