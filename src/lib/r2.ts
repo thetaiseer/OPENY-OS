@@ -19,6 +19,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // ── Error classes ─────────────────────────────────────────────────────────────
 
@@ -175,6 +176,49 @@ export async function deleteFromR2(key: string): Promise<void> {
     throw err;
   }
 }
+
+// ── Presigned URLs ────────────────────────────────────────────────────────────
+
+export interface PresignedPutResult {
+  uploadUrl:  string;
+  publicUrl:  string;
+  storageKey: string;
+  bucket:     string;
+}
+
+/**
+ * Generate a presigned PUT URL that lets the browser upload a file directly
+ * to R2 without routing the bytes through the Next.js server.
+ *
+ * @param key         – storage key (path within bucket)
+ * @param contentType – MIME type of the file being uploaded
+ * @param expiresIn   – seconds until the presigned URL expires (default 3600 = 1 h)
+ */
+export async function generatePresignedPutUrl(
+  key:         string,
+  contentType: string,
+  expiresIn    = 3600,
+): Promise<PresignedPutResult> {
+  const config = getR2Config();
+  const client = buildS3Client(config);
+
+  const command = new PutObjectCommand({
+    Bucket:      config.bucketName,
+    Key:         key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+
+  return {
+    uploadUrl,
+    publicUrl:  buildR2Url(key, config.publicUrl),
+    storageKey: key,
+    bucket:     config.bucketName,
+  };
+}
+
+// ── Existence check ───────────────────────────────────────────────────────────
 
 /**
  * Check whether an R2 object exists (via HeadObject).
