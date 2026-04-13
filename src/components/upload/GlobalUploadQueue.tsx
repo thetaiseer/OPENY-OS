@@ -221,7 +221,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               </p>
               {isFailed && (
                 <p className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.75 }}>
-                  يمكنك المحاولة مرة أخرى ←
+                  يمكنك المحاولة مرة أخرى →
                 </p>
               )}
             </div>

@@ -639,8 +639,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     if (!presignRes.ok) {
       let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
       let providerBody: string | null = null;
-      try { const j = await presignRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
-      try { providerBody = await presignRes.text(); } catch { /* ignore */ }
+      try {
+        providerBody = await presignRes.text();
+        const j = JSON.parse(providerBody) as { error?: string };
+        if (j.error) errMsg = j.error;
+      } catch { /* ignore */ }
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step:               'presign',
@@ -809,8 +812,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       if (!initRes.ok) {
         let errMsg = `Failed to initiate multipart upload (HTTP ${initRes.status})`;
         let providerBody: string | null = null;
-        try { const j = await initRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
-        try { providerBody = await initRes.text(); } catch { /* ignore */ }
+        try {
+          providerBody = await initRes.text();
+          const j = JSON.parse(providerBody) as { error?: string };
+          if (j.error) errMsg = j.error;
+        } catch { /* ignore */ }
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step:               'multipart_init',
@@ -1020,8 +1026,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     if (!completeRes.ok) {
       let errMsg = `Failed to complete multipart upload (HTTP ${completeRes.status})`;
       let providerBody: string | null = null;
-      try { const j = await completeRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
-      try { providerBody = await completeRes.text(); } catch { /* ignore */ }
+      try {
+        providerBody = await completeRes.text();
+        const j = JSON.parse(providerBody) as { error?: string };
+        if (j.error) errMsg = j.error;
+      } catch { /* ignore */ }
       // Don't abort — parts are already in R2; surface for manual reconciliation.
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
