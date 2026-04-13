@@ -271,6 +271,10 @@ export interface PresignedPartResult {
  * Generate a presigned PUT URL for a single multipart part.
  * The browser uses this URL to upload the part chunk directly to R2.
  *
+ * Important: To read the ETag from the browser after a CORS PUT, the R2 bucket
+ * CORS policy must include `expose-headers: etag`.  Without this the ETag header
+ * is not accessible from JavaScript and multipart completion will fail.
+ *
  * @param key        – object key
  * @param uploadId   – multipart upload ID from createMultipartUpload
  * @param partNumber – 1-based part index

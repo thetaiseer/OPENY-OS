@@ -151,8 +151,7 @@ function QueueRow({ item }: { item: UploadItem }) {
 
             {/* Stage label */}
             <span style={{ color: statusColor, fontWeight: 600 }}>
-              {/* Use the detailed statusLabel when available */}
-              {(item as UploadItem & { statusLabel?: string }).statusLabel ?? item.statusText}
+              {item.statusLabel ?? item.statusText}
             </span>
 
             {/* Percentage badge */}

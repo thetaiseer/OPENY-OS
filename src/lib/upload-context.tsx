@@ -686,7 +686,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       uploadedBytes += chunk.size;
       const etag = chunkResult.headers['etag'] ?? '';
       if (!etag) {
-        console.warn(`[upload] chunk ${partNumber} response missing ETag — R2 may not return ETag for presigned parts`);
+        // ETag is required to complete the multipart upload.
+        // This likely means R2's CORS config does not expose the ETag header.
+        // Add `expose-headers: etag` to your R2 bucket's CORS settings.
+        void abortMultipartSession(storageKey, uploadId);
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: {
+            step:    `chunk_${partNumber}_etag`,
+            message: `Part ${partNumber} response did not include an ETag header. Ensure your R2 bucket CORS configuration exposes the ETag header (expose-headers: etag).`,
+            code:    'MISSING_ETAG',
+            details: null,
+          },
+        });
+        return;
       }
       completedParts.push({ partNumber, etag });
       console.log(`[upload] chunk ${partNumber}/${totalChunks} done. ETag:`, etag || '(none)');
