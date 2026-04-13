@@ -78,6 +78,18 @@ function monthLabel(mm: string): string {
   return MONTH_NAMES[idx] ?? mm;
 }
 
+// ── Standalone helpers ────────────────────────────────────────────────────────
+
+/** Trigger a browser download without relying on component state. */
+function triggerDownload(url: string, filename: string): void {
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 // ── AssetCard ─────────────────────────────────────────────────────────────────
 
 export interface AssetCardProps {
@@ -169,12 +181,16 @@ export function AssetCard({
         {/* Selection checkbox overlay */}
         {selectable && (
           <div
+            role="checkbox"
+            aria-checked={selected}
+            tabIndex={0}
             className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors"
             style={{
               background:  selected ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
               borderColor: selected ? 'var(--accent)' : 'rgba(0,0,0,0.2)',
             }}
             onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}
+            onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggleSelect?.(); } }}
           >
             {selected && <Check size={11} className="text-white" />}
           </div>
@@ -202,8 +218,8 @@ export function AssetCard({
           </div>
         )}
         <div
-          className={`absolute inset-0 flex items-center justify-center transition-opacity ${selectable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
-          style={{ background: 'rgba(0,0,0,0.35)', cursor: selectable ? undefined : 'pointer' }}
+          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ background: 'rgba(0,0,0,0.35)', pointerEvents: selectable ? 'none' : 'auto', cursor: 'pointer' }}
           onClick={selectable ? undefined : onView}
         >
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">

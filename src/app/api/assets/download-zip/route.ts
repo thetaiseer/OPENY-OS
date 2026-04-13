@@ -225,13 +225,15 @@ export async function GET(req: NextRequest) {
   // Convert Node.js Readable → Web ReadableStream (Node.js ≥ 18).
   const webStream = Readable.toWeb(passThrough) as ReadableStream;
 
-  const archiveName = ids.length === 1 ? 'asset' : `assets-${ids.length}`;
+  const archiveName = ids.length === 1 && r2Assets[0]
+    ? `${sanitiseSegment(r2Assets[0].name)}.zip`
+    : `assets-${ids.length}.zip`;
 
   return new NextResponse(webStream, {
     status: 200,
     headers: {
       'Content-Type':        'application/zip',
-      'Content-Disposition': `attachment; filename="${archiveName}.zip"`,
+      'Content-Disposition': `attachment; filename="${archiveName}"`,
       'X-Accel-Buffering':   'no',
       'Cache-Control':       'no-store',
     },

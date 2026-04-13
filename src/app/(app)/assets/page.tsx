@@ -184,6 +184,16 @@ const TOAST_DURATION_MS = 4500;
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null { return isImageFile(file.name, file.type) ? URL.createObjectURL(file) : null; }
 
+/** Trigger a browser download from a URL without relying on component state. */
+function triggerDownload(url: string, filename: string): void {
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
@@ -562,17 +572,13 @@ export default function AssetsPage() {
     setSelectionMode(true);
   }, []);
 
-  // ── Download helpers ──────────────────────────────────────────────────────
+  const handleToggleSelectAll = useCallback(() => {
+    const allIds = filteredAssets.map(a => a.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  }, [filteredAssets, selectedIds]);
 
-  /** Trigger browser download from a URL / blob. */
-  const triggerDownload = (url: string, filename: string) => {
-    const a = document.createElement('a');
-    a.href     = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
+  // ── Download helpers ──────────────────────────────────────────────────────
 
   /** Fetch a ZIP from the API and download it. */
   const downloadZip = useCallback(async (ids: string[], archiveName: string) => {
@@ -595,7 +601,6 @@ export default function AssetsPage() {
     } finally {
       setDownloadingZip(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast]);
 
   const handleDownloadSelected = useCallback(async () => {
@@ -609,7 +614,6 @@ export default function AssetsPage() {
       }
     }
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds, filteredAssets, downloadZip]);
 
   const handleDownloadCurrentView = useCallback(async () => {
@@ -620,8 +624,7 @@ export default function AssetsPage() {
       if (asset) { triggerDownload(asset.download_url ?? asset.file_url, asset.name); return; }
     }
     await downloadZip(ids, 'assets-current-view.zip');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredAssets, downloadZip]);
+  }, [filteredAssets, downloadZip, addToast]);
 
 
 
@@ -725,20 +728,12 @@ export default function AssetsPage() {
               <>
                 {/* Select all / deselect all in current view */}
                 <button
-                  onClick={() => {
-                    const allIds = filteredAssets.map(a => a.id);
-                    const allSelected = allIds.every(id => selectedIds.has(id));
-                    if (allSelected) {
-                      setSelectedIds(new Set());
-                    } else {
-                      setSelectedIds(new Set(allIds));
-                    }
-                  }}
+                  onClick={handleToggleSelectAll}
                   className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
                   style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
                 >
                   <CheckSquare size={14} />
-                  {filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
+                  {filteredAssets.length > 0 && filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
                 </button>
                 {/* Download Selected */}
                 <button
