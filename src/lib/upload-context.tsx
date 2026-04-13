@@ -294,15 +294,31 @@ function classifyUploadError(opts: {
   } = opts;
 
   const raw = rawMessage.toLowerCase();
+
+  // "Device is offline" — thrown by putBlobViaXHR when navigator.onLine is false.
+  const isOffline =
+    raw.includes('device is offline') ||
+    raw.includes('internet connection lost');
+
+  // "Upload blocked" — thrown by putBlobViaXHR when navigator.onLine is true
+  // but XHR fires onerror, which most commonly means the R2 bucket's CORS policy
+  // is blocking the browser's PUT request.
+  const isCorsBlocked =
+    raw.includes('upload blocked') ||
+    raw.includes('cors misconfiguration') ||
+    raw.includes('cors') ||
+    raw.includes('possible cors');
+
   const isNetworkFailure =
-    raw.includes('fetch failed')    ||
-    raw.includes('failed to fetch') ||
-    raw.includes('networkerror')    ||
-    raw.includes('network error')   ||
+    isOffline                            ||
+    raw.includes('fetch failed')         ||
+    raw.includes('failed to fetch')      ||
+    raw.includes('networkerror')         ||
+    raw.includes('network error')        ||
     (raw.includes('typeerror') && (raw.includes('fetch') || raw.includes('network'))) ||
-    raw.includes('timeout')         ||
-    raw.includes('etimedout')       ||
-    raw.includes('econnrefused')    ||
+    raw.includes('timeout')              ||
+    raw.includes('etimedout')            ||
+    raw.includes('econnrefused')         ||
     raw.includes('econnreset');
 
   let arabicMessage: string;
@@ -320,8 +336,18 @@ function classifyUploadError(opts: {
 
   // ── CORS / ETag missing ───────────────────────────────────────────────────
   } else if (step.endsWith('_etag') || step === 'missing_etag') {
-    arabicMessage = 'فشل الرفع: خطأ في إعدادات التخزين أو الصلاحيات (ETag مفقود — تحقق من إعدادات CORS)';
+    arabicMessage = 'فشل الرفع: خطأ في إعدادات التخزين (ETag مفقود) — يجب إضافة ExposeHeaders: ["ETag"] في إعدادات CORS للـ Bucket';
     code = 'CORS_MISCONFIGURED';
+
+  // ── CORS blocked (browser rejected PUT before reaching R2) ──────────────
+  } else if (isCorsBlocked) {
+    arabicMessage = 'فشل الرفع: طلب الرفع مرفوض من المتصفح (CORS) — تحقق من إعدادات CORS على الـ Bucket (AllowedHeaders وExposeHeaders)';
+    code = 'CORS_MISCONFIGURED';
+
+  // ── Device offline ────────────────────────────────────────────────────────
+  } else if (isOffline) {
+    arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف — تحقق من اتصالك وأعد المحاولة';
+    code = 'NETWORK_ERROR';
 
   // ── Multipart completion ──────────────────────────────────────────────────
   } else if (step === 'multipart_complete') {
@@ -339,7 +365,7 @@ function classifyUploadError(opts: {
       arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
       code = 'NETWORK_ERROR';
     } else if (httpStatus === 401 || httpStatus === 403) {
-      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
+      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته — جاري إعادة المحاولة تلقائياً';
       code = `HTTP_${httpStatus}`;
     } else {
       arabicMessage = 'فشل الرفع: فشل أحد أجزاء الرفع المتعدد';
@@ -361,7 +387,7 @@ function classifyUploadError(opts: {
     code = 'HTTP_404';
 
   } else if (httpStatus === 413) {
-    arabicMessage = 'فشل الرفع: حجم الملف أكبر من الحد المسموح';
+    arabicMessage = 'فشل الرفع: حجم الملف أكبر من الحد المسموح به';
     code = 'HTTP_413';
 
   } else if (httpStatus === 415) {
@@ -431,6 +457,13 @@ interface XhrResult {
 /**
  * PUT a Blob directly to a presigned R2 URL via XHR.
  * Reports progress via `onProgress(loadedBytes)`.
+ *
+ * XHR `onerror` fires for two distinct situations:
+ *   1. The device has no internet connection (navigator.onLine === false).
+ *   2. The browser blocked the request due to CORS misconfiguration.
+ *      In this case the browser never gets an HTTP status — the request is
+ *      rejected before it reaches R2, making it appear identical to a network
+ *      failure.  We distinguish these by checking navigator.onLine.
  */
 function putBlobViaXHR(
   url:         string,
@@ -458,7 +491,19 @@ function putBlobViaXHR(
       resolve({ status: xhr.status, body: xhr.responseText, headers });
     });
 
-    xhr.addEventListener('error', () => reject(new Error('Network error during upload to storage')));
+    xhr.addEventListener('error', () => {
+      // Check navigator.onLine to distinguish device offline from CORS blocking.
+      // When CORS blocks the request the browser fires onerror with no status —
+      // the same as a genuine network failure, but navigator.onLine stays true.
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        reject(new Error('Device is offline — internet connection lost during upload'));
+      } else {
+        // The upload URL itself succeeded the network path but the request was
+        // blocked.  Most common cause is missing / misconfigured CORS on the R2
+        // bucket (AllowedHeaders, ExposeHeaders, AllowedOrigins).
+        reject(new Error('Upload blocked — possible CORS misconfiguration on storage bucket'));
+      }
+    });
     xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled', 'AbortError')));
 
     signal.addEventListener('abort', () => xhr.abort(), { once: true });
@@ -611,79 +656,86 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       uploadedBytes: 0,
     });
 
-    // Phase 1: get presigned PUT URL.
-    let presignRes: Response;
-    try {
-      presignRes = await fetch('/api/upload/presign', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName:       item.file.name,
-          fileType:       mimeType,
-          fileSize:       item.file.size,
-          clientName:     item.clientName,
-          clientId:       item.clientId   || undefined,
-          mainCategory:   item.mainCategory,
-          subCategory:    item.subCategory || undefined,
-          monthKey:       item.monthKey,
-          uploadedBy:     item.uploadedBy  || undefined,
-          customFileName: item.uploadName.trim() || undefined,
-        }),
-        signal: ctrl.signal,
-      });
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') throw err;
-      throw new Error('Network error while requesting upload URL');
-    }
-
-    if (!presignRes.ok) {
-      let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
-      let providerBody: string | null = null;
+    // Helper: fetch a fresh presigned PUT URL from the server.
+    async function fetchPresignedUrl(): Promise<{ uploadUrl: string; storageKey: string; publicUrl: string; displayName: string } | null> {
+      let presignRes: Response;
       try {
-        providerBody = await presignRes.text();
-        const j = JSON.parse(providerBody) as { error?: string };
-        if (j.error) errMsg = j.error;
-      } catch { /* ignore */ }
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'presign',
-          rawMessage:         errMsg,
-          httpStatus:         presignRes.status,
-          providerBody,
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
+        presignRes = await fetch('/api/upload/presign', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName:       item.file.name,
+            fileType:       mimeType,
+            fileSize:       item.file.size,
+            clientName:     item.clientName,
+            clientId:       item.clientId   || undefined,
+            mainCategory:   item.mainCategory,
+            subCategory:    item.subCategory || undefined,
+            monthKey:       item.monthKey,
+            uploadedBy:     item.uploadedBy  || undefined,
+            customFileName: item.uploadName.trim() || undefined,
+          }),
+          signal: ctrl.signal,
+        });
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        throw new Error('Network error while requesting upload URL');
+      }
+
+      if (!presignRes.ok) {
+        let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
+        let providerBody: string | null = null;
+        try {
+          providerBody = await presignRes.text();
+          const j = JSON.parse(providerBody) as { error?: string };
+          if (j.error) errMsg = j.error;
+        } catch { /* ignore */ }
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: classifyUploadError({
+            step:               'presign',
+            rawMessage:         errMsg,
+            httpStatus:         presignRes.status,
+            providerBody,
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
+        });
+        return null;
+      }
+
+      try {
+        return await presignRes.json() as { uploadUrl: string; storageKey: string; publicUrl: string; displayName: string };
+      } catch {
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: classifyUploadError({
+            step:               'presign_parse',
+            rawMessage:         'Invalid response from upload presign endpoint',
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
+        });
+        return null;
+      }
     }
 
-    let presignData: { uploadUrl: string; storageKey: string; publicUrl: string; displayName: string };
-    try {
-      presignData = await presignRes.json() as typeof presignData;
-    } catch {
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'presign_parse',
-          rawMessage:         'Invalid response from upload presign endpoint',
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
+    // Phase 1: get presigned PUT URL.
+    const presignData = await fetchPresignedUrl();
+    if (!presignData) return;
 
     const { storageKey, displayName, publicUrl } = presignData;
+    let   { uploadUrl } = presignData;
 
     // Persist key info immediately in case tab reloads during upload.
     update(item.id, { r2Key: storageKey, r2FileName: displayName, publicUrl, fileMimeType: mimeType });
 
     // Phase 2: direct PUT to R2.
+    // On 401/403 (expired presign URL), automatically regenerate and retry once.
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
     let putResult: XhrResult;
     try {
       putResult = await putBlobViaXHR(
-        presignData.uploadUrl,
+        uploadUrl,
         item.file,
         mimeType,
         (loaded) => {
@@ -700,6 +752,40 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') throw err;
       throw new Error(err instanceof Error ? err.message : 'Network error during file upload');
+    }
+
+    // Auto-refresh expired/unauthorised presign URL and retry once.
+    if (putResult.status === 401 || putResult.status === 403) {
+      console.warn('[upload] presign URL rejected (HTTP', putResult.status, ') — refreshing URL and retrying');
+      update(item.id, { statusText: 'Refreshing upload URL\u2026', statusLabel: 'Preparing' });
+
+      const refreshed = await fetchPresignedUrl();
+      if (!refreshed) return; // fetchPresignedUrl already set the failed stage
+
+      uploadUrl = refreshed.uploadUrl;
+
+      setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
+
+      try {
+        putResult = await putBlobViaXHR(
+          uploadUrl,
+          item.file,
+          mimeType,
+          (loaded) => {
+            const pct = Math.round((loaded / item.file.size) * 95);
+            update(item.id, {
+              progress:     pct,
+              uploadedBytes: loaded,
+              statusText:   `Uploading ${pct}%`,
+              statusLabel:  'Uploading',
+            });
+          },
+          ctrl.signal,
+        );
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        throw new Error(err instanceof Error ? err.message : 'Network error during file upload');
+      }
     }
 
     if (putResult.status < 200 || putResult.status >= 300) {
