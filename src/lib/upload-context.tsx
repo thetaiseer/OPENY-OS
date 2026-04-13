@@ -68,6 +68,7 @@ export type UploadStatus =
   | 'uploaded'
   | 'saved'
   | 'completed'
+  | 'paused'
   | 'failed_upload'
   | 'failed_db';
 
@@ -81,6 +82,7 @@ export type UploadStatusLabel =
   | 'Saving to system\u2026'
   | 'Saved'
   | 'Completed'
+  | 'Paused'
   | 'Upload failed'
   | 'Saved to storage, system save failed';
 
@@ -126,13 +128,20 @@ export interface UploadItem {
   isMultipart:  boolean;
   /** Multipart upload session ID (set after multipart-init). */
   uploadId:     string | null;
+  /**
+   * Parts successfully uploaded so far. Persisted after each chunk completes
+   * so the upload can be resumed from the correct position after a pause.
+   */
+  completedParts: { partNumber: number; etag: string }[];
   // ── progress detail ──────────────────────────────────────────
   /** Bytes uploaded so far (used for display). */
   uploadedBytes: number;
   /** Total file size in bytes (used for display). */
   totalBytes:    number;
-  /** Unix timestamp (ms) when the upload started. */
+  /** Unix timestamp (ms) when the upload started (reset on resume). */
   uploadStartMs: number | null;
+  /** Current upload speed in bytes/second (rolling average; null when unavailable). */
+  uploadSpeedBps: number | null;
 }
 
 /** Minimal shape submitted when confirming a batch. */
@@ -167,6 +176,10 @@ interface UploadContextValue {
   startBatch:     (items: InitialUploadItem[], meta: BatchMeta) => void;
   retryItem:      (id: string) => void;
   reconcileItem:  (id: string) => void;
+  /** Pause an active multipart upload without aborting the R2 session. */
+  pauseItem:      (id: string) => void;
+  /** Resume a previously paused multipart upload from the last completed part. */
+  resumeItem:     (id: string) => void;
   removeItem:     (id: string) => void;
   clearCompleted: () => void;
 }
@@ -222,6 +235,7 @@ function stageText(status: UploadStatus, label?: UploadStatusLabel): string {
     case 'uploaded':      return 'Saving to system\u2026';
     case 'saved':         return 'Saved';
     case 'completed':     return 'Completed';
+    case 'paused':        return 'Paused';
     case 'failed_upload': return 'Upload failed';
     case 'failed_db':     return 'Saved to storage, system save failed';
   }
@@ -236,6 +250,8 @@ const UploadContext = createContext<UploadContextValue>({
   startBatch:     () => {},
   retryItem:      () => {},
   reconcileItem:  () => {},
+  pauseItem:      () => {},
+  resumeItem:     () => {},
   removeItem:     () => {},
   clearCompleted: () => {},
 });
@@ -326,6 +342,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { queue: [], latestAsset: null });
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const runningRef          = useRef<Set<string>>(new Set());
+  /** IDs of items currently being intentionally paused (used to distinguish pause vs cancel abort). */
+  const pauseIntentRef      = useRef<Set<string>>(new Set());
   const dispatchRef         = useRef(dispatch);
   dispatchRef.current = dispatch;
 
@@ -362,6 +380,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const fileMimeType = (item.fileMimeType ?? item.file.type) || 'application/octet-stream';
 
     try {
+      // ── multipart resume — uploadId still active, resume from last completed part ──
+      if (item.uploadId && item.r2Key && item.isMultipart) {
+        console.log('[upload] resuming multipart:', {
+          key:           item.r2Key,
+          uploadId:      item.uploadId,
+          resumeFromPart: item.completedParts.length + 1,
+        });
+        await doMultipartUpload(item, fileMimeType, ctrl);
+        return;
+      }
+
       // ── failed_db retry — R2 upload already done, skip to phase 3 ──────────
       if (item.r2Key) {
         setStage(item.id, 'uploaded', 'Saving to system\u2026', {
@@ -523,79 +552,127 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const totalBytes  = item.file.size;
     const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
 
-    setStage(item.id, 'uploading', 'Preparing', {
-      progress:      0,
-      isMultipart:   true,
-      uploadStartMs: Date.now(),
-      totalBytes,
-      uploadedBytes: 0,
-    });
+    // ── Resume or fresh start ─────────────────────────────────────────────────
+    const isResuming = !!item.uploadId && !!item.r2Key && item.completedParts.length > 0;
+    let storageKey: string;
+    let uploadId:   string;
+    let publicUrl:  string;
+    let displayName: string;
+    let completedParts: { partNumber: number; etag: string }[];
+    let uploadedBytes:  number;
+    let startFromPart:  number;
 
-    // Phase 1: initiate multipart upload.
-    console.log('[upload] multipart init:', { key: item.file.name, totalChunks });
+    if (isResuming) {
+      storageKey    = item.r2Key!;
+      uploadId      = item.uploadId!;
+      publicUrl     = item.publicUrl!;
+      displayName   = item.r2FileName ?? item.file.name;
+      completedParts = [...item.completedParts];
+      uploadedBytes  = item.uploadedBytes;
+      startFromPart  = item.completedParts.length + 1;
 
-    let initRes: Response;
-    try {
-      initRes = await fetch('/api/upload/multipart-init', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName:       item.file.name,
-          fileType:       mimeType,
-          fileSize:       totalBytes,
-          clientName:     item.clientName,
-          clientId:       item.clientId    || undefined,
-          mainCategory:   item.mainCategory,
-          subCategory:    item.subCategory  || undefined,
-          monthKey:       item.monthKey,
-          uploadedBy:     item.uploadedBy   || undefined,
-          customFileName: item.uploadName.trim() || undefined,
-        }),
-        signal: ctrl.signal,
+      setStage(item.id, 'uploading', 'Uploading', {
+        isMultipart:   true,
+        uploadStartMs: Date.now(), // reset speed calculation on resume
+        totalBytes,
+        uploadedBytes,
+        progress: Math.round((uploadedBytes / totalBytes) * 95),
       });
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') throw err;
-      throw new Error('Network error while initiating multipart upload');
+
+      console.log('[upload] multipart resumed:', {
+        key:       storageKey,
+        uploadId,
+        startFrom: startFromPart,
+        totalChunks,
+      });
+    } else {
+      completedParts = [];
+      uploadedBytes  = 0;
+      startFromPart  = 1;
+
+      setStage(item.id, 'uploading', 'Preparing', {
+        progress:      0,
+        isMultipart:   true,
+        uploadStartMs: Date.now(),
+        totalBytes,
+        uploadedBytes: 0,
+        completedParts: [],
+      });
+
+      // Phase 1: initiate multipart upload.
+      console.log('[upload] multipart init:', { key: item.file.name, totalChunks });
+
+      let initRes: Response;
+      try {
+        initRes = await fetch('/api/upload/multipart-init', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName:       item.file.name,
+            fileType:       mimeType,
+            fileSize:       totalBytes,
+            clientName:     item.clientName,
+            clientId:       item.clientId    || undefined,
+            mainCategory:   item.mainCategory,
+            subCategory:    item.subCategory  || undefined,
+            monthKey:       item.monthKey,
+            uploadedBy:     item.uploadedBy   || undefined,
+            customFileName: item.uploadName.trim() || undefined,
+          }),
+          signal: ctrl.signal,
+        });
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        throw new Error('Network error while initiating multipart upload');
+      }
+
+      if (!initRes.ok) {
+        let errMsg = `Failed to initiate multipart upload (HTTP ${initRes.status})`;
+        try { const j = await initRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: { step: 'multipart_init', message: errMsg, code: `HTTP_${initRes.status}`, details: null },
+        });
+        return;
+      }
+
+      let initData: { uploadId: string; storageKey: string; publicUrl: string; displayName: string };
+      try {
+        initData = await initRes.json() as typeof initData;
+      } catch {
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: { step: 'multipart_init_parse', message: 'Invalid response from multipart-init endpoint', code: null, details: null },
+        });
+        return;
+      }
+
+      ({ uploadId, storageKey, publicUrl, displayName } = initData);
+      console.log('[upload] multipart uploadId:', uploadId, '| key:', storageKey);
+
+      // Persist immediately so pause/resume and failed_db retry can reference these.
+      update(item.id, {
+        uploadId,
+        r2Key:         storageKey,
+        r2FileName:    displayName,
+        publicUrl,
+        fileMimeType:  mimeType,
+        completedParts: [],
+      });
     }
 
-    if (!initRes.ok) {
-      let errMsg = `Failed to initiate multipart upload (HTTP ${initRes.status})`;
-      try { const j = await initRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'multipart_init', message: errMsg, code: `HTTP_${initRes.status}`, details: null },
-      });
-      return;
-    }
-
-    let initData: { uploadId: string; storageKey: string; publicUrl: string; displayName: string };
-    try {
-      initData = await initRes.json() as typeof initData;
-    } catch {
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'multipart_init_parse', message: 'Invalid response from multipart-init endpoint', code: null, details: null },
-      });
-      return;
-    }
-
-    const { uploadId, storageKey, publicUrl, displayName } = initData;
-    console.log('[upload] multipart uploadId:', uploadId, '| key:', storageKey);
-
-    // Persist immediately so failed_db retry can reference these.
-    update(item.id, {
-      uploadId,
-      r2Key:      storageKey,
-      r2FileName: displayName,
-      publicUrl,
-      fileMimeType: mimeType,
-    });
-
-    // Phase 2: upload parts.
-    const completedParts: { partNumber: number; etag: string }[] = [];
-    let   uploadedBytes = 0;
-
-    for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
+    // Phase 2: upload parts (from startFromPart).
+    for (let partNumber = startFromPart; partNumber <= totalChunks; partNumber++) {
       if (ctrl.signal.aborted) {
-        // User cancelled — abort the multipart session server-side.
+        if (pauseIntentRef.current.has(item.id)) {
+          // Intentional pause — preserve the multipart session in R2.
+          pauseIntentRef.current.delete(item.id);
+          setStage(item.id, 'paused', 'Paused', {
+            // completedParts already persisted to state after each chunk
+            uploadedBytes,
+          });
+          console.log('[upload] multipart paused:', { storageKey, uploadId, partsCompleted: completedParts.length });
+          return;
+        }
+        // Real cancel — abort the multipart session server-side.
         void abortMultipartSession(storageKey, uploadId);
         throw new DOMException('Upload cancelled', 'AbortError');
       }
@@ -633,6 +710,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
             const partData = await partRes.json() as { uploadUrl: string };
             const chunkBytesStart = uploadedBytes;
+            // Capture upload start time snapshot for speed calculation.
+            const speedBaseMs    = item.uploadStartMs ?? Date.now();
 
             const result = await putBlobViaXHR(
               partData.uploadUrl,
@@ -640,12 +719,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               mimeType,
               (loaded) => {
                 const totalLoaded = chunkBytesStart + loaded;
+                const elapsed     = Date.now() - speedBaseMs;
+                const speedBps    = elapsed > 1500 ? Math.round((totalLoaded / elapsed) * 1000) : null;
                 const pct = Math.round((totalLoaded / totalBytes) * 95);
                 update(item.id, {
-                  progress:      pct,
-                  uploadedBytes: totalLoaded,
-                  statusText:    `Uploading part ${partNumber}/${totalChunks} — ${pct}%`,
-                  statusLabel:   'Uploading',
+                  progress:       pct,
+                  uploadedBytes:  totalLoaded,
+                  statusText:     `Uploading part ${partNumber}/${totalChunks} — ${pct}%`,
+                  statusLabel:    'Uploading',
+                  uploadSpeedBps: speedBps,
                 });
               },
               ctrl.signal,
@@ -665,6 +747,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         );
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') {
+          if (pauseIntentRef.current.has(item.id)) {
+            // Abort during in-flight XHR due to pause intent.
+            pauseIntentRef.current.delete(item.id);
+            // completedParts up to (but not including) current chunk are valid.
+            setStage(item.id, 'paused', 'Paused', { uploadedBytes });
+            console.log('[upload] multipart paused mid-chunk:', { storageKey, uploadId, partsCompleted: completedParts.length });
+            return;
+          }
           void abortMultipartSession(storageKey, uploadId);
           throw err;
         }
@@ -701,6 +791,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       completedParts.push({ partNumber, etag });
+      // Persist completed parts to state immediately for pause/resume.
+      update(item.id, { completedParts: [...completedParts], uploadedBytes });
       console.log(`[upload] chunk ${partNumber}/${totalChunks} done. ETag:`, etag || '(none)');
     }
 
@@ -909,11 +1001,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       r2FileName:   null,
       publicUrl:    null,
       fileMimeType: null,
-      isMultipart:  false,
-      uploadId:     null,
-      uploadedBytes: 0,
-      totalBytes:    i.file.size,
-      uploadStartMs: null,
+      isMultipart:    false,
+      uploadId:       null,
+      completedParts: [],
+      uploadedBytes:  0,
+      totalBytes:     i.file.size,
+      uploadStartMs:  null,
+      uploadSpeedBps: null,
     }));
     dispatch({ type: 'ENQUEUE', items: queueItems });
   }, []);
@@ -934,10 +1028,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         r2FileName:   null,
         publicUrl:    null,
         fileMimeType: null,
-        isMultipart:  false,
-        uploadId:     null,
-        uploadedBytes: 0,
-        uploadStartMs: null,
+        isMultipart:    false,
+        uploadId:       null,
+        completedParts: [],
+        uploadedBytes:  0,
+        uploadStartMs:  null,
+        uploadSpeedBps: null,
       },
     });
   }, []);
@@ -958,7 +1054,45 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /**
+   * Pause an active multipart upload.
+   * Aborts the current in-flight XHR but does NOT abort the R2 multipart
+   * session, so the upload can be resumed from the last completed part.
+   * Only works for multipart uploads; single-part uploads are too small to
+   * benefit from pause/resume.
+   */
+  const pauseItem = useCallback((id: string) => {
+    // Signal that this abort is intentional (pause, not cancel).
+    pauseIntentRef.current.add(id);
+    const ctrl = abortControllersRef.current.get(id);
+    if (ctrl) ctrl.abort();
+    // doMultipartUpload detects the pause intent and transitions to 'paused'.
+  }, []);
+
+  /**
+   * Resume a previously paused multipart upload.
+   * Re-queues the item with its uploadId and completedParts intact so
+   * doMultipartUpload can continue from the last completed part.
+   */
+  const resumeItem = useCallback((id: string) => {
+    dispatchRef.current({
+      type:  'UPDATE',
+      id,
+      patch: {
+        status:        'queued',
+        statusText:    stageText('queued'),
+        statusLabel:   'Queued',
+        errorDetail:   null,
+        uploadStartMs: null,
+        uploadSpeedBps: null,
+        // uploadId, r2Key, r2FileName, publicUrl, completedParts, uploadedBytes preserved.
+      },
+    });
+    console.log('[upload] resuming item:', id);
+  }, []);
+
   const removeItem = useCallback((id: string) => {
+    pauseIntentRef.current.delete(id); // clear any pending pause intent
     const ctrl = abortControllersRef.current.get(id);
     if (ctrl) { ctrl.abort(); abortControllersRef.current.delete(id); }
     runningRef.current.delete(id);
@@ -981,6 +1115,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       startBatch,
       retryItem,
       reconcileItem,
+      pauseItem,
+      resumeItem,
       removeItem,
       clearCompleted,
     }}>
