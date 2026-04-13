@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 import {
   Upload, FolderOpen, File, FileText, FileImage, FileVideo, FileAudio,
-  Trash2, Eye, Download, Link, X, CheckCircle, ExternalLink, AlertCircle,
-  Search, ThumbsUp, ThumbsDown, MessageSquare, Pencil, Check, Loader2,
+  Trash2, Eye, Download, Link, X, CheckCircle, AlertCircle,
+  Search, ThumbsUp, ThumbsDown, MessageSquare, Pencil, Check,
   ChevronRight, Folder, Send, Calendar, ChevronLeft, Home,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
@@ -24,6 +24,7 @@ import {
 } from '@/lib/asset-utils';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -198,86 +199,6 @@ function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate
         </span>
       ))}
     </nav>
-  );
-}
-
-// ── Preview modal ─────────────────────────────────────────────────────────────
-
-function EmbedPreview({ src, title, height, background }: { src: string; title: string; height: string; background?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <div className="relative w-full rounded-xl overflow-hidden shadow-2xl" style={{ height, background: background ?? '#000' }}>
-      {!loaded && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: background ?? '#000' }}>
-          <Loader2 size={32} className="animate-spin text-white/60" />
-          <p className="text-white/50 text-xs">Loading preview…</p>
-        </div>
-      )}
-      <iframe src={src} title={title} onLoad={() => setLoaded(true)}
-        style={{ width: '100%', height: '100%', border: 0, opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }} />
-    </div>
-  );
-}
-
-function PreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  const isImg  = isImage(asset.name, effectiveMime);
-  const isVid  = isVideo(asset.name, effectiveMime);
-  const isPdf_ = isPdf(asset.name, effectiveMime);
-  const isAud  = isAudio(asset.name, effectiveMime);
-  const imgSrc   = asset.preview_url || getPreviewUrl(asset.file_url);
-  const embedUrl = getEmbedUrl(asset);
-  const openUrl  = asset.web_view_link || asset.view_url || asset.file_url;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
-      <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
-          <X size={18} />
-        </button>
-        {isImg && (
-          <>
-            {imgSrc
-              ? /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={imgSrc} alt={asset.name} className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
-                  onError={e => { e.currentTarget.style.display = 'none'; const fb = e.currentTarget.nextElementSibling as HTMLElement | null; if (fb) fb.style.display = 'flex'; }} />
-              : null}
-            <div className="flex flex-col items-center gap-4 py-12" style={{ display: imgSrc ? 'none' : 'flex' }}>
-              <FileTypeIcon name={asset.name} type={effectiveMime} size={64} />
-              <p className="text-white/80 text-sm">{asset.name}</p>
-            </div>
-          </>
-        )}
-        {isVid  && <video src={asset.file_url} controls className="max-w-full max-h-[80vh] rounded-xl shadow-2xl" style={{ background: '#000' }} />}
-        {isPdf_ && <EmbedPreview src={embedUrl ?? ''} title={asset.name} height="75vh" background="#fff" />}
-        {isAud  && <audio src={asset.file_url} controls className="w-full rounded-xl" style={{ background: '#1a1a2e', padding: '1rem' }} />}
-        {!isImg && !isVid && !isPdf_ && !isAud && (
-          <div className="flex flex-col items-center gap-4 py-12">
-            <FileTypeIcon name={asset.name} type={effectiveMime} size={64} />
-            <p className="text-white/80 text-sm">{asset.name}</p>
-            <p className="text-white/50 text-xs text-center max-w-xs">This file type cannot be previewed inline.</p>
-          </div>
-        )}
-        <p className="mt-3 text-white/70 text-sm truncate max-w-full px-4">{asset.name}</p>
-        <div className="mt-3 flex gap-3 flex-wrap justify-center">
-          <a href={downloadUrl} download={asset.name} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
-            <Download size={14} /> Download
-          </a>
-          {openUrl && openUrl !== asset.file_url && (
-            <a href={openUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors" onClick={e => e.stopPropagation()}>
-              <ExternalLink size={14} /> Open
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1182,7 +1103,19 @@ export default function AssetsPage() {
       )}
 
       {/* ── Preview modal ─────────────────────────────────────────────────── */}
-      {previewAsset && <PreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
+      {previewAsset && (
+        <FilePreviewModal
+          file={{
+            name: previewAsset.name,
+            url: previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size: previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
+      )}
 
       {/* ── Comments modal ────────────────────────────────────────────────── */}
       {commentsAsset && (
