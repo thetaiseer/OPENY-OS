@@ -58,7 +58,9 @@ export async function POST(req: NextRequest) {
   if (!storageKey)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'storageKey is required' }, { status: 400 });
   if (!displayName) return NextResponse.json({ success: false, stage: 'failed_db', error: 'displayName is required' }, { status: 400 });
   if (!clientName)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'clientName is required' }, { status: 400 });
-  if (!monthKey)    return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey is required' }, { status: 400 });
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
+    return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' }, { status: 400 });
+  }
 
   let publicUrl: string;
   try {

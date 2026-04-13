@@ -119,9 +119,11 @@ export async function POST(req: NextRequest) {
   // Determine display name (custom name takes precedence).
   let displayName: string;
   if (customName) {
-    const base   = sanitizeFileName(customName);
-    const dotExt = ext ? `.${ext}` : '';
-    displayName  = base.toLowerCase().endsWith(dotExt.toLowerCase()) ? base : `${base}${dotExt}`;
+    const base        = sanitizeFileName(customName);
+    const dotExt      = ext ? `.${ext}` : '';
+    const baseLower   = base.toLowerCase();
+    const extLower    = dotExt.toLowerCase();
+    displayName = (dotExt && baseLower.endsWith(extLower)) ? base : `${base}${dotExt}`;
   } else {
     displayName = `${timestamp}-${sanitizedFile}`;
   }

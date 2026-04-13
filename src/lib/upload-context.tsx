@@ -293,7 +293,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         // ── failed_db retry — R2 upload already done, skip phases 1 & 2 ──────
         storageKey  = item.r2Key;
         displayName = item.r2FileName ?? item.file.name;
-        publicUrl   = item.publicUrl  ?? '';
+        // publicUrl is preserved from the original presign phase.
+        // If unavailable (edge case), the complete endpoint rebuilds it server-side.
+        publicUrl   = item.publicUrl ?? '';
         // Jump straight to phase 3 — show "Saving to system…"
         setStage(item.id, 'uploaded', { progress: 100 });
       } else {
