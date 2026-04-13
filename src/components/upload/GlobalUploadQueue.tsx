@@ -15,13 +15,14 @@
  *   - expandable technical error detail
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle, AlertTriangle,
   Loader2, RotateCcw, RefreshCw, Trash2, X, File, FileImage,
   FileText, FileVideo, FileAudio, ChevronRight, Pause, Play,
 } from 'lucide-react';
 import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
+import { useToast } from '@/lib/toast-context';
 
 // ── Speed formatter ──────────────────────────────────────────────────────────
 
@@ -367,7 +368,20 @@ function QueueRow({ item }: { item: UploadItem }) {
 
 export default function GlobalUploadQueue() {
   const { queue, clearCompleted } = useUpload();
+  const { toast } = useToast();
   const [minimised, setMinimised] = useState(false);
+  const toastedIds = useRef<Set<string>>(new Set());
+
+  // Show a success toast the first time each item reaches 'completed'.
+  useEffect(() => {
+    for (const item of queue) {
+      if (item.status === 'completed' && !toastedIds.current.has(item.id)) {
+        toastedIds.current.add(item.id);
+        const name = getDisplayName(item);
+        toast(`"${name}" uploaded successfully`, 'success');
+      }
+    }
+  }, [queue, toast]);
 
   if (queue.length === 0) return null;
 
