@@ -105,22 +105,62 @@ function getAssetYear(asset: Asset): string {
 
 // ── Folder Card ───────────────────────────────────────────────────────────────
 
-function FolderCard({ label, count, color, onClick }: { label: string; count: number; color?: string; onClick: () => void }) {
+interface FolderCardProps {
+  label: string;
+  count: number;
+  color?: string;
+  onClick: () => void;
+  onView?: () => void;
+  onDownload?: () => void;
+  isDownloading?: boolean;
+}
+
+function FolderCard({ label, count, color, onClick, onView, onDownload, isDownloading }: FolderCardProps) {
+  const hasActions = onView || onDownload;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border text-left transition-all hover:border-[var(--accent)] hover:shadow-sm"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 100 }}
+    <div
+      className="flex flex-col gap-2 p-4 rounded-2xl border transition-all hover:border-[var(--accent)] hover:shadow-sm"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}>
-        <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
-      </div>
-      <div className="text-center min-w-0 w-full">
-        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
-      </div>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center"
+      >
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}>
+          <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
+        </div>
+        <div className="min-w-0 w-full">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
+        </div>
+      </button>
+      {hasActions && (
+        <div className="flex gap-1.5 mt-auto">
+          {onView && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onView(); }}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              <FolderOpen size={11} /> View
+            </button>
+          )}
+          {onDownload && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onDownload(); }}
+              disabled={isDownloading}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', border: '1px solid rgba(99,102,241,0.3)' }}
+            >
+              <Download size={11} />{isDownloading ? 'Zipping…' : 'Download'}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -549,6 +589,29 @@ export default function AssetsPage() {
     addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
+  // ── Per-client download ───────────────────────────────────────────────────
+
+  const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
+
+  const handleDownloadClient = useCallback(async (clientName: string) => {
+    setDownloadingClient(clientName);
+    try {
+      const { data, error } = await supabase
+        .from('assets')
+        .select('id')
+        .eq('client_name', clientName)
+        .neq('is_deleted', true);
+      if (error) { addToast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
+      const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
+      if (ids.length === 0) { addToast('No downloadable files found for this client', 'error'); return; }
+      await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloadingClient(null);
+    }
+  }, [addToast, downloadZip]);
+
   // ── Selection state ───────────────────────────────────────────────────────
   const [selectionMode, setSelectionMode]   = useState(false);
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
@@ -704,15 +767,15 @@ export default function AssetsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {/* Download Current View */}
-            {!selectionMode && filteredAssets.length > 0 && (
+            {/* Upload File */}
+            {canUpload && !selectionMode && (
               <button
-                onClick={() => void handleDownloadCurrentView()}
-                disabled={downloadingZip}
-                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                onClick={() => !isUploading && fileRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                style={{ background: 'var(--accent)' }}
               >
-                <Download size={14} />{downloadingZip ? 'Preparing…' : 'Download View'}
+                <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
               </button>
             )}
             {/* Select Files / Cancel Selection */}
@@ -754,16 +817,6 @@ export default function AssetsPage() {
                   <X size={14} /> Cancel
                 </button>
               </>
-            )}
-            {canUpload && !selectionMode && (
-              <button
-                onClick={() => !isUploading && fileRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
-              </button>
             )}
           </div>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleInputChange} />
@@ -913,6 +966,9 @@ export default function AssetsPage() {
                   count={count}
                   color={folderCardColor(key)}
                   onClick={() => navigateInto(key)}
+                  onView={pathDepth === 0 ? () => navigateInto(key) : undefined}
+                  onDownload={pathDepth === 0 ? () => void handleDownloadClient(key) : undefined}
+                  isDownloading={pathDepth === 0 && downloadingClient === key}
                 />
               ))}
             </div>
