@@ -89,6 +89,10 @@ export interface AssetCardProps {
   /** Optional schedule summary */
   scheduleCount?: number;
   nextScheduleDate?: string | null;
+  /** Selection mode */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
   /** Required action callbacks */
   onView: () => void;
   onDelete: () => void;
@@ -108,6 +112,9 @@ export function AssetCard({
   canRename = false,
   scheduleCount,
   nextScheduleDate,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
   onView,
   onDelete,
   onCopyLink,
@@ -143,13 +150,35 @@ export function AssetCard({
   const cardThumbSrc = asset.thumbnail_url || asset.preview_url || asset.file_url || '';
 
   return (
-    <div className="group rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <div
+      className="group rounded-2xl border overflow-hidden flex flex-col"
+      style={{
+        background:   'var(--surface)',
+        borderColor:  selected ? 'var(--accent)' : 'var(--border)',
+        boxShadow:    selected ? '0 0 0 2px var(--accent)' : undefined,
+        cursor:       selectable ? 'pointer' : undefined,
+      }}
+      onClick={selectable ? onToggleSelect : undefined}
+    >
       {/* Thumbnail */}
       <div
-        className="relative overflow-hidden cursor-pointer"
+        className="relative overflow-hidden"
         style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }}
-        onClick={onView}
+        onClick={selectable ? undefined : onView}
       >
+        {/* Selection checkbox overlay */}
+        {selectable && (
+          <div
+            className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors"
+            style={{
+              background:  selected ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
+              borderColor: selected ? 'var(--accent)' : 'rgba(0,0,0,0.2)',
+            }}
+            onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}
+          >
+            {selected && <Check size={11} className="text-white" />}
+          </div>
+        )}
         {img && cardThumbSrc ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,8 +202,9 @@ export function AssetCard({
           </div>
         )}
         <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: 'rgba(0,0,0,0.35)' }}
+          className={`absolute inset-0 flex items-center justify-center transition-opacity ${selectable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+          style={{ background: 'rgba(0,0,0,0.35)', cursor: selectable ? undefined : 'pointer' }}
+          onClick={selectable ? undefined : onView}
         >
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
             <Eye size={18} className="text-white" />
@@ -370,6 +400,10 @@ export interface AssetsGridProps {
   canRename?: boolean;
   /** Per-asset schedule summary — key is asset.id */
   scheduleCounts?: Record<string, { count: number; nextDate: string | null }>;
+  /** Selection mode */
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
   /** Required action callbacks */
   onView: (asset: Asset) => void;
   onDelete: (asset: Asset) => void;
@@ -388,6 +422,9 @@ export function AssetsGrid({
   canApprove = false,
   canRename = false,
   scheduleCounts,
+  selectable = false,
+  selectedIds,
+  onToggleSelect,
   onView,
   onDelete,
   onCopyLink,
@@ -408,6 +445,9 @@ export function AssetsGrid({
           canRename={canRename}
           scheduleCount={scheduleCounts?.[asset.id]?.count}
           nextScheduleDate={scheduleCounts?.[asset.id]?.nextDate}
+          selectable={selectable}
+          selected={selectedIds?.has(asset.id) ?? false}
+          onToggleSelect={onToggleSelect ? () => onToggleSelect(asset.id) : undefined}
           onView={() => onView(asset)}
           onDelete={() => onDelete(asset)}
           onCopyLink={() => onCopyLink(asset)}

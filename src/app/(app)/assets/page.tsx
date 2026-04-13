@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
+  Download, Square, CheckSquare,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -538,7 +539,91 @@ export default function AssetsPage() {
     addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+  // ── Selection state ───────────────────────────────────────────────────────
+  const [selectionMode, setSelectionMode]   = useState(false);
+  const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
+  const [downloadingZip, setDownloadingZip] = useState(false);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const enterSelectionMode = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectionMode(true);
+  }, []);
+
+  // ── Download helpers ──────────────────────────────────────────────────────
+
+  /** Trigger browser download from a URL / blob. */
+  const triggerDownload = (url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  /** Fetch a ZIP from the API and download it. */
+  const downloadZip = useCallback(async (ids: string[], archiveName: string) => {
+    if (ids.length === 0) return;
+    setDownloadingZip(true);
+    try {
+      const res = await fetch(`/api/assets/download-zip?ids=${ids.join(',')}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        addToast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      triggerDownload(url, archiveName);
+      URL.revokeObjectURL(url);
+      addToast('Download ready', 'success');
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloadingZip(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addToast]);
+
+  const handleDownloadSelected = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (ids.length === 1) {
+      const asset = filteredAssets.find(a => a.id === ids[0]);
+      if (asset) {
+        triggerDownload(asset.download_url ?? asset.file_url, asset.name);
+        return;
+      }
+    }
+    await downloadZip(ids, `assets-selected-${ids.length}.zip`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, filteredAssets, downloadZip]);
+
+  const handleDownloadCurrentView = useCallback(async () => {
+    const ids = filteredAssets.map(a => a.id);
+    if (ids.length === 0) { addToast('No files in current view to download', 'error'); return; }
+    if (ids.length === 1) {
+      const asset = filteredAssets[0];
+      if (asset) { triggerDownload(asset.download_url ?? asset.file_url, asset.name); return; }
+    }
+    await downloadZip(ids, 'assets-current-view.zip');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredAssets, downloadZip]);
+
+
 
   const handleDelete = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
@@ -615,8 +700,67 @@ export default function AssetsPage() {
               Manage uploaded files · Drag &amp; drop or click Upload
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {canUpload && (
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Download Current View */}
+            {!selectionMode && filteredAssets.length > 0 && (
+              <button
+                onClick={() => void handleDownloadCurrentView()}
+                disabled={downloadingZip}
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              >
+                <Download size={14} />{downloadingZip ? 'Preparing…' : 'Download View'}
+              </button>
+            )}
+            {/* Select Files / Cancel Selection */}
+            {!selectionMode ? (
+              <button
+                onClick={enterSelectionMode}
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              >
+                <Square size={14} /> Select
+              </button>
+            ) : (
+              <>
+                {/* Select all / deselect all in current view */}
+                <button
+                  onClick={() => {
+                    const allIds = filteredAssets.map(a => a.id);
+                    const allSelected = allIds.every(id => selectedIds.has(id));
+                    if (allSelected) {
+                      setSelectedIds(new Set());
+                    } else {
+                      setSelectedIds(new Set(allIds));
+                    }
+                  }}
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                >
+                  <CheckSquare size={14} />
+                  {filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
+                </button>
+                {/* Download Selected */}
+                <button
+                  onClick={() => void handleDownloadSelected()}
+                  disabled={selectedIds.size === 0 || downloadingZip}
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
+                >
+                  <Download size={14} />
+                  {downloadingZip ? 'Preparing…' : selectedIds.size > 0 ? `Download (${selectedIds.size})` : 'Download Selected'}
+                </button>
+                {/* Cancel Selection */}
+                <button
+                  onClick={exitSelectionMode}
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                >
+                  <X size={14} /> Cancel
+                </button>
+              </>
+            )}
+            {canUpload && !selectionMode && (
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
                 disabled={isUploading}
@@ -800,6 +944,9 @@ export default function AssetsPage() {
               canApprove={isAdmin || user?.role === 'team'}
               canRename={isAdmin || user?.role === 'team'}
               scheduleCounts={scheduleCounts}
+              selectable={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
               onView={handleView}
               onDelete={asset => void handleDelete(asset)}
               onCopyLink={asset => void handleCopyLink(asset)}
