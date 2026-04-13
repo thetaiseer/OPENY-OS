@@ -19,7 +19,7 @@ import {
   mainCategoryLabel,
   subCategoryLabel,
 } from '@/lib/asset-utils';
-import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
+import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isImage as isImageFile } from '@/components/ui/AssetsGrid';
@@ -679,15 +679,6 @@ export default function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
-  const handleDownloadCurrentView = useCallback(async () => {
-    const ids = filteredAssets.map(a => a.id);
-    if (ids.length === 0) { addToast('No files in current view to download', 'error'); return; }
-    if (ids.length === 1) {
-      const asset = filteredAssets[0];
-      if (asset) { triggerDownload(asset.download_url ?? asset.file_url, asset.name); return; }
-    }
-    await downloadZip(ids, 'assets-current-view.zip');
-  }, [filteredAssets, downloadZip, addToast]);
 
 
 
