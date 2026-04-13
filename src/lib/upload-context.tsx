@@ -63,8 +63,8 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
 
-const DB_FAIL_MESSAGE =
-  'File uploaded to storage successfully, but could not be saved in the system.';
+const DB_FAIL_ARABIC =
+  'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -93,10 +93,18 @@ export type UploadStatusLabel =
   | 'Saved to storage, system save failed';
 
 export interface UploadErrorDetail {
-  step:    string;
-  message: string;
-  code:    string | null;
-  details: string | null;
+  step:               string;
+  code:               string | null;
+  /** HTTP status code from the failing request, if available. */
+  status:             number | null;
+  /** Arabic-language friendly message shown prominently in the UI. */
+  message:            string;
+  /** Raw error text from the storage provider or server, if available. */
+  providerMessage:    string | null;
+  /** True when the file bytes successfully reached cloud storage before the failure. */
+  fileReachedStorage: boolean;
+  /** True when the database save was confirmed. */
+  dbSaved:            boolean;
 }
 
 export interface UploadItem {
@@ -245,6 +253,156 @@ function stageText(status: UploadStatus, label?: UploadStatusLabel): string {
     case 'failed_upload': return 'Upload failed';
     case 'failed_db':     return 'Saved to storage, system save failed';
   }
+}
+
+// ── Error classification ──────────────────────────────────────────────────────
+
+/**
+ * Maps a raw upload error (exception message, HTTP status, step) into a
+ * structured `UploadErrorDetail` with a human-readable Arabic message.
+ *
+ * Arabic message catalogue:
+ *   NETWORK_ERROR           → انقطاع الاتصال بالإنترنت
+ *   URL_EXPIRED             → رابط الرفع انتهت صلاحيته
+ *   UNAUTHORIZED            → طلب غير مصرح به
+ *   NOT_FOUND               → مسار الرفع غير موجود
+ *   FILE_TOO_LARGE          → حجم الملف أكبر من الحد المسموح
+ *   UNSUPPORTED_TYPE        → نوع الملف غير مدعوم
+ *   PRESIGN_FAILED          → تعذر إنشاء رابط الرفع
+ *   STORAGE_REJECTED        → السيرفر رفض رفع الملف
+ *   CORS_MISCONFIGURED      → خطأ في إعدادات التخزين أو الصلاحيات
+ *   CHUNK_FAILED            → فشل أحد أجزاء الرفع المتعدد
+ *   MULTIPART_COMPLETE_FAILED → تعذر إكمال الرفع المتعدد
+ *   DB_SAVE_FAILED          → تم الرفع لكن فشل حفظه في قاعدة البيانات
+ *   UPLOAD_ERROR            → خطأ غير متوقع من السيرفر
+ */
+function classifyUploadError(opts: {
+  step:                string;
+  rawMessage:          string;
+  httpStatus?:         number | null;
+  providerBody?:       string | null;
+  fileReachedStorage?: boolean;
+  dbSaved?:            boolean;
+}): UploadErrorDetail {
+  const {
+    step,
+    rawMessage,
+    httpStatus         = null,
+    providerBody       = null,
+    fileReachedStorage = false,
+    dbSaved            = false,
+  } = opts;
+
+  const raw = rawMessage.toLowerCase();
+  const isNetworkFailure =
+    raw.includes('fetch failed')    ||
+    raw.includes('failed to fetch') ||
+    raw.includes('networkerror')    ||
+    raw.includes('network error')   ||
+    (raw.includes('typeerror') && (raw.includes('fetch') || raw.includes('network'))) ||
+    raw.includes('timeout')         ||
+    raw.includes('etimedout')       ||
+    raw.includes('econnrefused')    ||
+    raw.includes('econnreset');
+
+  let arabicMessage: string;
+  let code: string;
+
+  // ── DB-save steps (file already in storage) ───────────────────────────────
+  if (
+    step === 'database_insert' ||
+    step === 'complete_network' ||
+    step === 'complete_parse'   ||
+    step === 'complete_unknown'
+  ) {
+    arabicMessage = DB_FAIL_ARABIC;
+    code = step === 'complete_network' ? 'NETWORK_ERROR' : 'DB_SAVE_FAILED';
+
+  // ── CORS / ETag missing ───────────────────────────────────────────────────
+  } else if (step.endsWith('_etag') || step === 'missing_etag') {
+    arabicMessage = 'فشل الرفع: خطأ في إعدادات التخزين أو الصلاحيات (ETag مفقود — تحقق من إعدادات CORS)';
+    code = 'CORS_MISCONFIGURED';
+
+  // ── Multipart completion ──────────────────────────────────────────────────
+  } else if (step === 'multipart_complete') {
+    if (isNetworkFailure) {
+      arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء إكمال الرفع المتعدد';
+      code = 'NETWORK_ERROR';
+    } else {
+      arabicMessage = 'فشل الرفع: تعذر إكمال الرفع المتعدد';
+      code = httpStatus ? `HTTP_${httpStatus}` : 'MULTIPART_COMPLETE_FAILED';
+    }
+
+  // ── Multipart chunk ───────────────────────────────────────────────────────
+  } else if (step.startsWith('chunk_')) {
+    if (isNetworkFailure) {
+      arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
+      code = 'NETWORK_ERROR';
+    } else if (httpStatus === 401 || httpStatus === 403) {
+      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
+      code = `HTTP_${httpStatus}`;
+    } else {
+      arabicMessage = 'فشل الرفع: فشل أحد أجزاء الرفع المتعدد';
+      code = 'CHUNK_FAILED';
+    }
+
+  // ── Network layer ─────────────────────────────────────────────────────────
+  } else if (isNetworkFailure) {
+    arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
+    code = 'NETWORK_ERROR';
+
+  // ── HTTP status codes ─────────────────────────────────────────────────────
+  } else if (httpStatus === 401 || httpStatus === 403) {
+    arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
+    code = `HTTP_${httpStatus}`;
+
+  } else if (httpStatus === 404) {
+    arabicMessage = 'فشل الرفع: مسار الرفع أو التخزين غير موجود — تحقق من إعدادات التخزين';
+    code = 'HTTP_404';
+
+  } else if (httpStatus === 413) {
+    arabicMessage = 'فشل الرفع: حجم الملف أكبر من الحد المسموح';
+    code = 'HTTP_413';
+
+  } else if (httpStatus === 415) {
+    arabicMessage = 'فشل الرفع: نوع الملف غير مدعوم';
+    code = 'HTTP_415';
+
+  } else if (httpStatus === 500) {
+    if (step === 'presign' || step === 'presign_parse' || step === 'multipart_init' || step === 'multipart_init_parse') {
+      arabicMessage = 'فشل الرفع: تعذر إنشاء رابط الرفع من السيرفر (خطأ داخلي)';
+    } else {
+      arabicMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
+    }
+    code = 'HTTP_500';
+
+  } else if (httpStatus && httpStatus >= 400) {
+    arabicMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
+    code = `HTTP_${httpStatus}`;
+
+  // ── Step-based fallbacks ──────────────────────────────────────────────────
+  } else if (step === 'presign' || step === 'presign_parse' || step === 'multipart_init' || step === 'multipart_init_parse') {
+    arabicMessage = 'فشل الرفع: تعذر إنشاء رابط الرفع من السيرفر';
+    code = 'PRESIGN_FAILED';
+
+  } else if (step === 'r2_put') {
+    arabicMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
+    code = 'STORAGE_REJECTED';
+
+  } else {
+    arabicMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
+    code = 'UPLOAD_ERROR';
+  }
+
+  return {
+    step,
+    code,
+    status:             httpStatus ?? null,
+    message:            arabicMessage,
+    providerMessage:    providerBody ? providerBody.slice(0, 400) : null,
+    fileReachedStorage,
+    dbSaved,
+  };
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -429,7 +587,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[upload] unhandled error for item', item.id, msg);
       setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'upload', message: msg, code: 'UPLOAD_ERROR', details: null },
+        errorDetail: classifyUploadError({ step: 'upload', rawMessage: msg, fileReachedStorage: false, dbSaved: false }),
       });
     } finally {
       abortControllersRef.current.delete(item.id);
@@ -480,9 +638,21 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     if (!presignRes.ok) {
       let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
-      try { const j = await presignRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
+      let providerBody: string | null = null;
+      try {
+        providerBody = await presignRes.text();
+        const j = JSON.parse(providerBody) as { error?: string };
+        if (j.error) errMsg = j.error;
+      } catch { /* ignore */ }
       setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'presign', message: errMsg, code: `HTTP_${presignRes.status}`, details: null },
+        errorDetail: classifyUploadError({
+          step:               'presign',
+          rawMessage:         errMsg,
+          httpStatus:         presignRes.status,
+          providerBody,
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -492,7 +662,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       presignData = await presignRes.json() as typeof presignData;
     } catch {
       setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'presign_parse', message: 'Invalid response from upload presign endpoint', code: null, details: null },
+        errorDetail: classifyUploadError({
+          step:               'presign_parse',
+          rawMessage:         'Invalid response from upload presign endpoint',
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -529,12 +704,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     if (putResult.status < 200 || putResult.status >= 300) {
       setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: {
-          step:    'r2_put',
-          message: `File upload to storage failed (HTTP ${putResult.status})`,
-          code:    `HTTP_${putResult.status}`,
-          details: putResult.body.slice(0, 300) || null,
-        },
+        errorDetail: classifyUploadError({
+          step:               'r2_put',
+          rawMessage:         `File upload to storage failed (HTTP ${putResult.status})`,
+          httpStatus:         putResult.status,
+          providerBody:       putResult.body.slice(0, 400) || null,
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -634,9 +811,21 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       if (!initRes.ok) {
         let errMsg = `Failed to initiate multipart upload (HTTP ${initRes.status})`;
-        try { const j = await initRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
+        let providerBody: string | null = null;
+        try {
+          providerBody = await initRes.text();
+          const j = JSON.parse(providerBody) as { error?: string };
+          if (j.error) errMsg = j.error;
+        } catch { /* ignore */ }
         setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: { step: 'multipart_init', message: errMsg, code: `HTTP_${initRes.status}`, details: null },
+          errorDetail: classifyUploadError({
+            step:               'multipart_init',
+            rawMessage:         errMsg,
+            httpStatus:         initRes.status,
+            providerBody,
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
         });
         return;
       }
@@ -646,7 +835,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         initData = await initRes.json() as typeof initData;
       } catch {
         setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: { step: 'multipart_init_parse', message: 'Invalid response from multipart-init endpoint', code: null, details: null },
+          errorDetail: classifyUploadError({
+            step:               'multipart_init_parse',
+            rawMessage:         'Invalid response from multipart-init endpoint',
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
         });
         return;
       }
@@ -769,12 +963,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[upload] chunk ${partNumber} permanently failed:`, msg);
         setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: {
-            step:    `chunk_${partNumber}`,
-            message: `Upload failed at part ${partNumber}/${totalChunks}: ${msg}`,
-            code:    'CHUNK_FAILED',
-            details: null,
-          },
+          errorDetail: classifyUploadError({
+            step:               `chunk_${partNumber}`,
+            rawMessage:         msg,
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
         });
         return;
       }
@@ -787,12 +981,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         // Add `expose-headers: etag` to your R2 bucket's CORS settings.
         void abortMultipartSession(storageKey, uploadId);
         setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: {
-            step:    `chunk_${partNumber}_etag`,
-            message: `Part ${partNumber} response did not include an ETag header. Ensure your R2 bucket CORS configuration exposes the ETag header (expose-headers: etag).`,
-            code:    'MISSING_ETAG',
-            details: null,
-          },
+          errorDetail: classifyUploadError({
+            step:               `chunk_${partNumber}_etag`,
+            rawMessage:         `Part ${partNumber} response did not include an ETag header. Ensure R2 CORS exposes the ETag header (expose-headers: etag).`,
+            providerBody:       'Missing ETag header in PUT response',
+            fileReachedStorage: false,
+            dbSaved:            false,
+          }),
         });
         return;
       }
@@ -830,10 +1025,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     if (!completeRes.ok) {
       let errMsg = `Failed to complete multipart upload (HTTP ${completeRes.status})`;
-      try { const j = await completeRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
+      let providerBody: string | null = null;
+      try {
+        providerBody = await completeRes.text();
+        const j = JSON.parse(providerBody) as { error?: string };
+        if (j.error) errMsg = j.error;
+      } catch { /* ignore */ }
       // Don't abort — parts are already in R2; surface for manual reconciliation.
       setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: { step: 'multipart_complete', message: errMsg, code: `HTTP_${completeRes.status}`, details: null },
+        errorDetail: classifyUploadError({
+          step:               'multipart_complete',
+          rawMessage:         errMsg,
+          httpStatus:         completeRes.status,
+          providerBody,
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -882,12 +1089,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       if ((err as Error)?.name === 'AbortError') throw err;
       setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
         progress: 100,
-        errorDetail: {
-          step:    'complete_network',
-          message: DB_FAIL_MESSAGE,
-          code:    'NETWORK_ERROR',
-          details: err instanceof Error ? err.message : null,
-        },
+        errorDetail: classifyUploadError({
+          step:               'complete_network',
+          rawMessage:         err instanceof Error ? err.message : String(err),
+          fileReachedStorage: true,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -910,7 +1117,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       } else {
         setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
           progress: 100,
-          errorDetail: { step: 'complete_parse', message: DB_FAIL_MESSAGE, code: `HTTP_${completeRes.status}`, details: null },
+          errorDetail: classifyUploadError({
+            step:               'complete_parse',
+            rawMessage:         `Invalid response from complete endpoint (HTTP ${completeRes.status})`,
+            httpStatus:         completeRes.status,
+            fileReachedStorage: true,
+            dbSaved:            false,
+          }),
         });
       }
       return;
@@ -933,12 +1146,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const dbErr = json.error as { message?: string; code?: string } | null | undefined;
       setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
         progress: 100,
-        errorDetail: {
-          step:    'database_insert',
-          message: DB_FAIL_MESSAGE,
-          code:    dbErr?.code    ?? null,
-          details: dbErr?.message ?? null,
-        },
+        errorDetail: classifyUploadError({
+          step:               'database_insert',
+          rawMessage:         dbErr?.message ?? 'Database insert failed',
+          providerBody:       dbErr?.code    ?? null,
+          fileReachedStorage: true,
+          dbSaved:            false,
+        }),
       });
       return;
     }
@@ -946,7 +1160,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Unexpected response — treat as failed_db.
     setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
       progress: 100,
-      errorDetail: { step: 'complete_unknown', message: DB_FAIL_MESSAGE, code: `HTTP_${completeRes.status}`, details: null },
+      errorDetail: classifyUploadError({
+        step:               'complete_unknown',
+        rawMessage:         `Unexpected response from complete endpoint (HTTP ${completeRes.status})`,
+        httpStatus:         completeRes.status,
+        fileReachedStorage: true,
+        dbSaved:            false,
+      }),
     });
   }
 

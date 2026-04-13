@@ -213,11 +213,18 @@ function QueueRow({ item }: { item: UploadItem }) {
             </div>
           )}
 
-          {/* Brief error summary (failed / failed_db) */}
+      {/* Brief error summary (failed / failed_db) */}
           {(isFailed || isFailedDb) && item.errorDetail && (
-            <p className="text-xs leading-tight line-clamp-2" style={{ color: statusColor, opacity: 0.9 }}>
-              {item.errorDetail.message}
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs leading-snug" style={{ color: statusColor, opacity: 0.95 }}>
+                {item.errorDetail.message}
+              </p>
+              {isFailed && (
+                <p className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.75 }}>
+                  يمكنك المحاولة مرة أخرى →
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -313,7 +320,7 @@ function QueueRow({ item }: { item: UploadItem }) {
           style={{ borderTop: '1px solid var(--border)' }}
         >
           <p className="text-xs font-semibold pt-2" style={{ color: 'var(--text-secondary)' }}>
-            Technical details
+            التفاصيل التقنية
           </p>
           {item.errorDetail.step && (
             <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
@@ -325,12 +332,29 @@ function QueueRow({ item }: { item: UploadItem }) {
               <span style={{ opacity: 0.6 }}>code: </span>{item.errorDetail.code}
             </p>
           )}
-          {item.errorDetail.details && (
+          {item.errorDetail.status != null && (
+            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: 0.6 }}>http status: </span>{item.errorDetail.status}
+            </p>
+          )}
+          <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ opacity: 0.6 }}>reached storage: </span>
+            <span style={{ color: item.errorDetail.fileReachedStorage ? '#16a34a' : '#ef4444' }}>
+              {item.errorDetail.fileReachedStorage ? 'yes' : 'no'}
+            </span>
+          </p>
+          <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+            <span style={{ opacity: 0.6 }}>db saved: </span>
+            <span style={{ color: item.errorDetail.dbSaved ? '#16a34a' : '#ef4444' }}>
+              {item.errorDetail.dbSaved ? 'yes' : 'no'}
+            </span>
+          </p>
+          {item.errorDetail.providerMessage && (
             <p
               className="text-xs font-mono break-all leading-relaxed"
               style={{ color: 'var(--text-secondary)', opacity: 0.85 }}
             >
-              {item.errorDetail.details}
+              <span style={{ opacity: 0.6 }}>provider: </span>{item.errorDetail.providerMessage}
             </p>
           )}
         </div>
