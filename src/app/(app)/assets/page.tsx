@@ -796,11 +796,7 @@ export default function AssetsPage() {
   };
 
   const handleView = (asset: Asset) => {
-    if (isImage(asset.name, asset.file_type) || isVideo(asset.name, asset.file_type) || isPdf(asset.name, asset.file_type) || isAudio(asset.name, asset.file_type)) {
-      setPreviewAsset(asset);
-    } else {
-      window.open(asset.view_url ?? asset.file_url, '_blank', 'noopener,noreferrer');
-    }
+    setPreviewAsset(asset);
   };
 
   const handleCopyLink = async (asset: Asset) => {

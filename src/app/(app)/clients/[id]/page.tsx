@@ -19,6 +19,7 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import { contentTypeLabel } from '@/lib/asset-utils';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 
 
@@ -144,38 +145,6 @@ function ClientAssetCard({ asset, onView, onDelete, onCopyLink }: {
           style={{ background: 'var(--surface-2)', color: '#ef4444' }}>
           <Trash2 size={14} />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function ClientPreviewModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
-      <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center"
-        onClick={e => e.stopPropagation()}>
-        <button onClick={onClose}
-          className="absolute -top-10 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
-          <X size={18} />
-        </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={asset.file_url} alt={asset.name}
-          className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl" />
-        <p className="mt-3 text-white/70 text-sm truncate max-w-full px-4">{asset.name}</p>
-        <div className="mt-3 flex gap-3">
-          <a href={downloadUrl} download={asset.name}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
-            onClick={e => e.stopPropagation()}>
-            <Download size={14} /> Download
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -714,11 +683,7 @@ export default function ClientWorkspace() {
                     key={a.id}
                     asset={a}
                     onView={() => {
-                      if (isImageFile(a.name, a.file_type)) {
-                        setPreviewAsset(a);
-                      } else {
-                        window.open(a.view_url ?? a.file_url, '_blank', 'noopener,noreferrer');
-                      }
+                      setPreviewAsset(a);
                     }}
                     onDelete={() => handleDeleteAsset(a)}
                     onCopyLink={async () => {
@@ -959,9 +924,19 @@ export default function ClientWorkspace() {
       </Modal>
     </div>
 
-    {/* Image preview lightbox */}
+    {/* Asset preview modal */}
     {previewAsset && (
-      <ClientPreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />
+      <FilePreviewModal
+        file={{
+          name: previewAsset.name,
+          url: previewAsset.preview_url || previewAsset.file_url,
+          downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+          openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+          mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+          size: previewAsset.file_size ?? null,
+        }}
+        onClose={() => setPreviewAsset(null)}
+      />
     )}
 
     {/* Upload modal — shared component, client locked */}

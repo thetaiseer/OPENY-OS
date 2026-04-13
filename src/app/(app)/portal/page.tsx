@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, CheckCircle, Clock, Eye, Download, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import type { Asset, Approval } from '@/lib/types';
 
 /** Map asset_id → latest approval record (from the approvals table). */
@@ -18,6 +20,7 @@ type ApprovalMap = Record<string, Approval>;
  */
 export default function PortalPage() {
   const { user, clientId } = useAuth();
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
   const { data: assets, isLoading: assetsLoading } = useQuery<Asset[]>({
     queryKey: ['portal-assets', user.id, clientId],
@@ -26,7 +29,7 @@ export default function PortalPage() {
       const supabase = createClient();
       let q = supabase
         .from('assets')
-        .select('id, name, content_type, file_url, view_url, web_view_link, download_url, client_id, created_at')
+        .select('id, name, content_type, file_url, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       // Scope to the client's own records when client_id is known
@@ -82,7 +85,8 @@ export default function PortalPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <>
+      <div className="max-w-5xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
           Welcome, {user.name} 👋
@@ -127,7 +131,6 @@ export default function PortalPage() {
             {assets.map(a => {
               const badge = approvalBadge(a.id);
               const approval = approvalMap?.[a.id];
-              const viewLink  = a.web_view_link ?? a.view_url ?? null;
               return (
                 <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
@@ -149,10 +152,15 @@ export default function PortalPage() {
                     {badge.label}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
-                    {viewLink && (
-                      <a href={viewLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="View">
+                    {(a.web_view_link ?? a.view_url ?? a.file_url) && (
+                      <button
+                        onClick={() => setPreviewAsset(a)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
+                        style={{ background: 'var(--surface-2)' }}
+                        title="View"
+                      >
                         <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
-                      </a>
+                      </button>
                     )}
                     {a.download_url && (
                       <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
@@ -166,6 +174,21 @@ export default function PortalPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+      {previewAsset && (
+        <FilePreviewModal
+          file={{
+            name: previewAsset.name,
+            url: previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size: previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
+      )}
+    </>
   );
 }
