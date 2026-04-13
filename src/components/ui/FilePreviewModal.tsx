@@ -59,7 +59,10 @@ function formatSize(bytes?: number | null): string {
 }
 
 function fileTypeLabel(name: string, mime?: string | null): string {
-  if (mime) { const sub = mime.split('/')[1]?.toUpperCase(); if (sub && sub !== 'OCTET-STREAM') return sub; }
+  if (mime) {
+    const sub = mime.split('/')[1]?.toUpperCase();
+    if (sub && sub !== 'OCTET-STREAM') return sub;
+  }
   return name.split('.').pop()?.toUpperCase() ?? 'FILE';
 }
 
@@ -147,10 +150,16 @@ function ImagePreview({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+const VIDEO_TYPE_MAP: Record<string, string> = {
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/mp4',
+  ogg: 'video/ogg',
+};
+
 function VideoPreview({ src, name }: { src: string; name: string }) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  const typeMap: Record<string, string> = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/mp4', ogg: 'video/ogg' };
-  const mimeType = typeMap[ext] ?? 'video/mp4';
+  const mimeType = VIDEO_TYPE_MAP[ext] ?? 'video/mp4';
 
   return (
     <div className="w-full flex items-center justify-center">
@@ -239,16 +248,16 @@ function TextPreview({ src, name }: { src: string; name: string }) {
             {rows[0] && (
               <tr style={{ background: 'rgba(99,102,241,0.2)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 {rows[0].map((cell, i) => (
-                  <th key={i} className="px-3 py-2 font-semibold whitespace-nowrap">{cell.replace(/^"|"$/g, '')}</th>
+                  <th key={`h-${i}`} className="px-3 py-2 font-semibold whitespace-nowrap">{cell.replace(/^"|"$/g, '')}</th>
                 ))}
               </tr>
             )}
           </thead>
           <tbody>
             {rows.slice(1).map((row, ri) => (
-              <tr key={ri} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <tr key={`r-${ri}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 {row.map((cell, ci) => (
-                  <td key={ci} className="px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate">{cell.replace(/^"|"$/g, '')}</td>
+                  <td key={`r-${ri}-c-${ci}`} className="px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate">{cell.replace(/^"|"$/g, '')}</td>
                 ))}
               </tr>
             ))}
