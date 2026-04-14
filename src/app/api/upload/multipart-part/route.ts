@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
  *   partNumber  – echoed back for client convenience
  */
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;

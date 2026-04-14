@@ -67,7 +67,7 @@ BEGIN
   ) THEN
     ALTER TABLE public.profiles
       ADD CONSTRAINT profiles_role_check_v2
-      CHECK (role IN ('admin', 'manager', 'team', 'client'));
+      CHECK (role IN ('admin', 'manager', 'team_member', 'client'));
   END IF;
 END $$;
 

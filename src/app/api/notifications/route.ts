@@ -8,7 +8,7 @@ import { requireRole } from '@/lib/api-auth';
 
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team', 'client']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member', 'client']);
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);

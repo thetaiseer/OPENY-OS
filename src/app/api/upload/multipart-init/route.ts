@@ -45,7 +45,7 @@ function sanitizeFileName(name: string): string {
  *   displayName – sanitized display name
  */
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   // Rate limit: shared budget with /api/upload/presign

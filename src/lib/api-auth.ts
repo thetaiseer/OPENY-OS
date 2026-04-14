@@ -137,11 +137,11 @@ export async function getApiUser(
     id:    user.id,
     name:  member?.full_name ?? user.user_metadata?.name ?? email.split('@')[0] ?? '',
     email,
-    role:  member ? (member.role as UserRole) || 'team' : 'team',
+    role:  member ? (member.role as UserRole) || 'team_member' : 'team_member',
   };
 
   if (!member) {
-    console.warn('[api-auth] No team_member row found for email:', email, '— defaulting to team role');
+    console.warn('[api-auth] No team_member row found for email:', email, '— defaulting to team_member role');
   }
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
@@ -157,7 +157,7 @@ export async function getApiUser(
  * The "owner" role always passes — it bypasses all role restrictions.
  *
  * Usage:
- *   const result = await requireRole(request, ['admin', 'team']);
+ *   const result = await requireRole(request, ['admin', 'team_member']);
  *   if (result instanceof NextResponse) return result;
  *   const { profile } = result;
  */

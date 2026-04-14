@@ -58,8 +58,8 @@ CREATE TABLE IF NOT EXISTS public.workspace_members (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  role         text NOT NULL DEFAULT 'team'
-    CHECK (role IN ('admin', 'manager', 'team', 'client')),
+  role         text NOT NULL DEFAULT 'team_member'
+    CHECK (role IN ('admin', 'manager', 'team_member', 'client')),
   joined_at    timestamptz NOT NULL DEFAULT now(),
   UNIQUE(workspace_id, user_id)
 );

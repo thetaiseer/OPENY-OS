@@ -5,7 +5,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 
-export type UserRole = 'owner' | 'admin' | 'manager' | 'team' | 'client';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 
 // Email that always resolves to the 'owner' role — the workspace owner.
 const OWNER_EMAIL = 'thetaiseer@gmail.com';
@@ -47,7 +47,7 @@ const LOADING_USER: User = {
   id: '',
   name: '',
   email: '',
-  role: 'team',
+  role: 'team_member',
 };
 
 interface AuthContextType {
@@ -62,7 +62,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: LOADING_USER,
-  role: 'team',
+  role: 'team_member',
   clientId: null,
   loading: true,
   signOut: async () => {},
@@ -113,7 +113,7 @@ async function fetchUserFromTeamMembers(
   }
 
   if (data) {
-    const resolvedRole = (data.role as UserRole) || 'team';
+    const resolvedRole = (data.role as UserRole) || 'team_member';
     console.log('[auth] Resolved role from team_members:', resolvedRole);
     return {
       id:    supabaseUser.id,
@@ -124,12 +124,12 @@ async function fetchUserFromTeamMembers(
   }
 
   // No team_member row found — return a safe fallback.
-  console.warn('[auth] No team_member row found for email:', email, '— defaulting to team role');
+  console.warn('[auth] No team_member row found for email:', email, '— defaulting to team_member role');
   return {
     id:    supabaseUser.id,
     name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
     email,
-    role:  'team',
+    role:  'team_member',
   };
 }
 
@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const role     = (user.role as UserRole) || 'team';
+  const role     = (user.role as UserRole) || 'team_member';
   const clientId = null;
 
   return (

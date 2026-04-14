@@ -2,7 +2,7 @@
  * PATCH /api/tasks/[id]  — Update a task (title, status, priority, dates, etc.)
  * DELETE /api/tasks/[id] — Hard-delete a task.
  *
- * Auth: requires 'admin', 'manager', or 'team' role.
+ * Auth: requires 'admin', 'manager', or 'team_member' role.
  *
  * PATCH request body (JSON):
  *   Partial task fields — only supplied fields are updated.
@@ -59,7 +59,7 @@ export async function PATCH(
   console.log('[PATCH /api/tasks/[id]] request received — id:', id);
 
   // Auth
-  const auth = await requireRole(request, ['admin', 'manager', 'team']);
+  const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   console.log('[PATCH /api/tasks/[id]] caller:', auth.profile.email, '| role:', auth.profile.role);
@@ -207,7 +207,7 @@ export async function DELETE(
   console.log('[DELETE /api/tasks/[id]] request received — id:', id);
 
   // Auth
-  const auth = await requireRole(request, ['admin', 'manager', 'team']);
+  const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   console.log('[DELETE /api/tasks/[id]] caller:', auth.profile.email, '| role:', auth.profile.role);

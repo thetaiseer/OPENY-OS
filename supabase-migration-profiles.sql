@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   name        text        NOT NULL DEFAULT '',
   email       text        NOT NULL DEFAULT '',
   role        text        NOT NULL DEFAULT 'client'
-                CHECK (role IN ('admin', 'team', 'client')),
+                CHECK (role IN ('admin', 'team_member', 'client')),
   client_id   uuid        REFERENCES public.clients (id) ON DELETE SET NULL,
   created_at  timestamptz NOT NULL DEFAULT now()
 );

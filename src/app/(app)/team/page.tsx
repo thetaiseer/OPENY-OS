@@ -20,13 +20,13 @@ const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', borde
 // ── System access roles ───────────────────────────────────────────────────────
 // These are the valid values for team_members.role (access control).
 // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team', 'viewer', 'client'] as const;
+const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
 
 const ACCESS_ROLE_OPTIONS = [
-  { value: 'admin',   label: 'Admin — full access' },
-  { value: 'manager', label: 'Manager — manage tasks & team' },
-  { value: 'team',    label: 'Team Member — standard access' },
-  { value: 'viewer',  label: 'Viewer — read-only access' },
+  { value: 'admin',       label: 'Admin — full access' },
+  { value: 'manager',     label: 'Manager — manage tasks & team' },
+  { value: 'team_member', label: 'Team Member — standard access' },
+  { value: 'viewer',      label: 'Viewer — read-only access' },
 ];
 
 // ── Marketing roles list (job titles) ────────────────────────────────────────
