@@ -109,13 +109,16 @@ export async function POST(req: NextRequest) {
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
-  // ── Resolve thumbnail URL ──────────────────────────────────────────────────
-  // For images: the file itself is the thumbnail (preview_url).
-  // For videos: use the separately-uploaded thumbnail, or null.
-  // For PDFs: use the separately-uploaded preview, or null.
-  // For other types: null.
+  // ── Resolve thumbnail and preview URLs ────────────────────────────────────
+  // thumbnail_url — the card thumbnail image:
+  //   Images  → the file itself
+  //   Videos  → the separately-uploaded frame grab (thumbnailStorageKey)
+  //   Others  → null
+  // preview_url — the larger preview / cover image:
+  //   Images  → the file itself
+  //   PDFs    → the separately-uploaded first-page render (previewStorageKey)
+  //   Others  → null
   const isImage = fileType.startsWith('image/');
-  const isPdf   = fileType === 'application/pdf';
   let thumbnailUrl: string | null = null;
   let resolvedPreviewUrl: string | null = null;
   if (thumbnailStorageKey) {
@@ -127,9 +130,6 @@ export async function POST(req: NextRequest) {
     try { resolvedPreviewUrl = buildR2Url(previewStorageKey); } catch { /* ignore */ }
   } else if (isImage) {
     resolvedPreviewUrl = publicUrl;
-  } else if (isPdf && thumbnailUrl) {
-    // If a thumbnail was generated (e.g. via pdf-preview path reuse), use it.
-    resolvedPreviewUrl = thumbnailUrl;
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────

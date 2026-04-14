@@ -35,13 +35,12 @@ export async function generatePdfPreview(file: File): Promise<PdfPreviewResult |
     // Dynamically import pdfjs-dist to keep it out of the initial bundle.
     const pdfjsLib = await import('pdfjs-dist');
 
-    // Configure the worker using the locally installed package to avoid CDN
-    // dependencies and potential supply-chain risks.
+    // Configure the worker using a statically served copy of the worker file
+    // from the /public directory. This avoids CDN dependencies and reliably
+    // resolves in Next.js browser bundles (import.meta.url resolves to the
+    // bundle, not the node_modules source tree).
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-        'pdfjs-dist/build/pdf.worker.min.mjs',
-        import.meta.url,
-      ).href;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     }
 
     const arrayBuffer = await file.arrayBuffer();

@@ -67,7 +67,7 @@ export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: s
 /** Hidden fallback shown when a preview image fails to load. */
 function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
   return (
-    <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+    <div className="flex hidden w-full h-full items-center justify-center">
       <FileTypeIcon name={name} type={type} size={36} />
     </div>
   );
@@ -236,9 +236,9 @@ export function AssetCard({
               className="w-full h-full object-cover"
               loading="lazy"
               onError={e => {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                if (fb) fb.style.display = 'flex';
+                fb?.classList.remove('hidden');
               }}
             />
             <ThumbFallback name={asset.name} type={effectiveMime} />
@@ -252,9 +252,9 @@ export function AssetCard({
               className="w-full h-full object-cover"
               loading="lazy"
               onError={e => {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                if (fb) fb.style.display = 'flex';
+                fb?.classList.remove('hidden');
               }}
             />
             {/* Play icon overlay */}
@@ -294,9 +294,9 @@ export function AssetCard({
               className="w-full h-full object-cover"
               loading="lazy"
               onError={e => {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                if (fb) fb.style.display = 'flex';
+                fb?.classList.remove('hidden');
               }}
             />
             <ThumbFallback name={asset.name} type={effectiveMime} />
