@@ -19,9 +19,10 @@ import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModa
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
-import { AssetsGrid } from '@/components/ui/AssetsGrid';
+import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
+import { generatePdfPreview } from '@/lib/pdf-preview';
 
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -249,11 +250,13 @@ export default function ClientWorkspace() {
     if (fileRef.current) fileRef.current.value = '';
     if (!files.length) return;
     const items: UploadFileItem[] = files.map(file => ({
-      id:            crypto.randomUUID(),
+      id:              crypto.randomUUID(),
       file,
-      previewUrl:    /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
-      uploadName:    file.name.replace(/\.[^.]+$/, ''), // base name without extension
-      thumbnailBlob: null,
+      previewUrl:      /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
+      uploadName:      file.name.replace(/\.[^.]+$/, ''), // base name without extension
+      thumbnailBlob:   null,
+      durationSeconds: null,
+      previewBlob:     null,
     }));
     setPendingItems(items);
     setUploadMainCategory('social-media');
@@ -268,7 +271,22 @@ export default function ClientWorkspace() {
         setPendingItems(prev =>
           prev.map(i =>
             i.id === item.id
-              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob }
+              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob, durationSeconds: result.durationSeconds }
+              : i,
+          ),
+        );
+      });
+    });
+
+    // Asynchronously generate first-page previews for PDF files.
+    items.forEach(item => {
+      if (!isPdfFile(item.file.name, item.file.type)) return;
+      void generatePdfPreview(item.file).then(result => {
+        if (!result) return;
+        setPendingItems(prev =>
+          prev.map(i =>
+            i.id === item.id
+              ? { ...i, previewUrl: result.blobUrl, previewBlob: result.blob }
               : i,
           ),
         );
@@ -279,11 +297,13 @@ export default function ClientWorkspace() {
   const handleUploadConfirm = () => {
     if (!pendingItems.length || !client) return;
     const initialItems: InitialUploadItem[] = pendingItems.map(i => ({
-      id:            i.id,
-      file:          i.file,
-      previewUrl:    i.previewUrl,
-      uploadName:    i.uploadName,
-      thumbnailBlob: i.thumbnailBlob,
+      id:              i.id,
+      file:            i.file,
+      previewUrl:      i.previewUrl,
+      uploadName:      i.uploadName,
+      thumbnailBlob:   i.thumbnailBlob,
+      durationSeconds: i.durationSeconds,
+      previewBlob:     i.previewBlob,
     }));
     startBatch(initialItems, {
       clientName:   client.name,

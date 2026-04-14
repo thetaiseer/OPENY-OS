@@ -142,6 +142,16 @@ export interface UploadItem {
    * Uploaded to R2 before metadata is saved; null for non-video files.
    */
   thumbnailBlob: Blob | null;
+  /**
+   * Duration of the video in seconds, captured during thumbnail generation.
+   * null for non-video files or when duration could not be determined.
+   */
+  durationSeconds: number | null;
+  /**
+   * Compressed JPEG blob of the document's first-page preview (e.g. PDF).
+   * Uploaded to R2 before metadata is saved; null for non-document files.
+   */
+  previewBlob: Blob | null;
   // ── multipart state ──────────────────────────────────────────
   /** True when this item is using the multipart upload path. */
   isMultipart:  boolean;
@@ -185,6 +195,15 @@ export interface InitialUploadItem {
    * When present the upload flow will upload it to R2 and save the URL in the DB.
    */
   thumbnailBlob?: Blob | null;
+  /**
+   * Duration of the video in seconds, captured during thumbnail generation.
+   */
+  durationSeconds?: number | null;
+  /**
+   * Compressed JPEG blob of a document's first-page preview (e.g. PDF).
+   * When present the upload flow will upload it to R2 and save the URL in the DB.
+   */
+  previewBlob?: Blob | null;
 }
 
 // Keep legacy alias for pages that reference UploadQueueItem
@@ -1205,6 +1224,47 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // ── Optional: upload document preview (e.g. PDF first page) to R2 ──────
+    let previewStorageKey: string | undefined;
+
+    if (item.previewBlob) {
+      try {
+        const presignRes = await fetch('/api/upload/preview-presign', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ fileStorageKey: storageKey }),
+          signal,
+        });
+
+        if (presignRes.ok) {
+          const presignData = await presignRes.json() as {
+            uploadUrl:         string;
+            previewStorageKey: string;
+          };
+
+          const putRes = await fetch(presignData.uploadUrl, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'image/jpeg' },
+            body:    item.previewBlob,
+            signal,
+          });
+
+          if (putRes.ok) {
+            previewStorageKey = presignData.previewStorageKey;
+            console.log('[upload] preview uploaded:', previewStorageKey);
+          } else {
+            console.warn('[upload] preview PUT failed:', putRes.status);
+          }
+        } else {
+          console.warn('[upload] preview presign failed:', presignRes.status);
+        }
+      } catch (err: unknown) {
+        // Preview upload failure is non-fatal — continue without it.
+        if ((err as Error)?.name === 'AbortError') throw err;
+        console.warn('[upload] preview upload error (non-fatal):', err instanceof Error ? err.message : err);
+      }
+    }
+
     let completeRes: Response;
     try {
       completeRes = await fetch('/api/upload/complete', {
@@ -1221,7 +1281,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           subCategory:         item.subCategory  || undefined,
           monthKey:            item.monthKey,
           uploadedBy:          item.uploadedBy   || undefined,
-          ...(thumbnailStorageKey ? { thumbnailStorageKey } : {}),
+          ...(thumbnailStorageKey                          ? { thumbnailStorageKey }                         : {}),
+          ...(previewStorageKey                            ? { previewStorageKey }                           : {}),
+          ...(item.durationSeconds !== null && item.durationSeconds !== undefined ? { durationSeconds: item.durationSeconds } : {}),
         }),
         signal,
       });
@@ -1367,7 +1429,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       r2FileName:   null,
       publicUrl:    null,
       fileMimeType: null,
-      thumbnailBlob: i.thumbnailBlob ?? null,
+      thumbnailBlob:   i.thumbnailBlob ?? null,
+      durationSeconds: i.durationSeconds ?? null,
+      previewBlob:     i.previewBlob ?? null,
       isMultipart:    false,
       uploadId:       null,
       completedParts: [],

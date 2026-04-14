@@ -205,6 +205,10 @@ export interface Asset {
   preview_url?: string | null;
   thumbnail_url?: string | null;
   web_view_link?: string | null;
+  /** Duration of the video in seconds (null for non-video assets). */
+  duration_seconds?: number | null;
+  /** Preview generation state: pending | generating | ready | failed */
+  preview_status?: string | null;
   last_synced_at?: string | null;
   source_updated_at?: string | null;
   is_deleted?: boolean;

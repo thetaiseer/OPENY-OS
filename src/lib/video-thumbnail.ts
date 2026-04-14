@@ -25,6 +25,8 @@ export interface VideoThumbnailResult {
   blobUrl: string;
   /** The compressed JPEG Blob – pass this to the upload flow for permanent storage. */
   blob:    Blob;
+  /** Duration of the video in seconds (may be NaN or Infinity for live streams). */
+  durationSeconds: number | null;
 }
 
 /**
@@ -79,11 +81,18 @@ export function generateVideoThumbnail(
 
         ctx.drawImage(video, 0, 0, width, height);
 
+        // Capture duration while we still have the video element.
+        const rawDuration = video.duration;
+        const durationSeconds =
+          typeof rawDuration === 'number' && isFinite(rawDuration) && rawDuration > 0
+            ? rawDuration
+            : null;
+
         canvas.toBlob(
           (blob) => {
             if (!blob) { finish(null); return; }
             const blobUrl = URL.createObjectURL(blob);
-            finish({ blobUrl, blob });
+            finish({ blobUrl, blob, durationSeconds });
           },
           'image/jpeg',
           JPEG_QUALITY,

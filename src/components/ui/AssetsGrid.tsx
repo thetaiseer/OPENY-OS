@@ -43,6 +43,17 @@ export function getFileTypeLabel(name: string, type?: string | null): string {
   return name.split('.').pop()?.toUpperCase() ?? 'FILE';
 }
 
+/** Format a duration in seconds as MM:SS (or H:MM:SS for ≥ 1 hour). */
+export function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !isFinite(seconds) || seconds < 0) return null;
+  const total = Math.round(seconds);
+  const h     = Math.floor(total / 3600);
+  const m     = Math.floor((total % 3600) / 60);
+  const s     = total % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string | null; size?: number }) {
@@ -159,13 +170,19 @@ export function AssetCard({
   const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
   const img     = isImage(asset.name, effectiveMime);
   const vid     = isVideo(asset.name, effectiveMime);
+  const pdf     = isPdf(asset.name, effectiveMime);
   const downloadUrl = asset.download_url ?? asset.file_url;
   // For images: use thumbnail_url → preview_url → file_url.
   // For videos: use thumbnail_url only (a proper image thumbnail uploaded separately).
+  // For PDFs: use preview_url (first-page render) if available.
   const imgThumbSrc = img ? (asset.thumbnail_url || asset.preview_url || asset.file_url || '') : '';
   const vidThumbSrc = vid ? (asset.thumbnail_url || '') : '';
+  const pdfThumbSrc = pdf ? (asset.preview_url || asset.thumbnail_url || '') : '';
   const showImageThumb = img && !!imgThumbSrc;
   const showVideoThumb = vid && !!vidThumbSrc;
+  const showPdfThumb   = pdf && !!pdfThumbSrc;
+
+  const durationLabel = vid ? formatDuration(asset.duration_seconds) : null;
 
   return (
     <div
@@ -233,7 +250,7 @@ export function AssetCard({
                 if (fb) fb.style.display = 'flex';
               }}
             />
-            {/* Play icon badge on video thumbnail */}
+            {/* Play icon overlay */}
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
               aria-hidden="true"
@@ -245,6 +262,38 @@ export function AssetCard({
                 <Play size={18} className="text-white ml-0.5" />
               </div>
             </div>
+            {/* Duration badge */}
+            {durationLabel && (
+              <div
+                className="absolute bottom-1.5 right-1.5 pointer-events-none"
+                aria-label={`Duration: ${durationLabel}`}
+              >
+                <span
+                  className="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded"
+                  style={{ background: 'rgba(0,0,0,0.65)', color: '#fff', backdropFilter: 'blur(2px)' }}
+                >
+                  {durationLabel}
+                </span>
+              </div>
+            )}
+            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
+            </div>
+          </>
+        ) : showPdfThumb ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pdfThumbSrc}
+              alt={asset.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                if (fb) fb.style.display = 'flex';
+              }}
+            />
             <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
               <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
             </div>
