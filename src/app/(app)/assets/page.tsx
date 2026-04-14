@@ -132,7 +132,7 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
         transition-all duration-200 ease-out
         hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
         active:translate-y-0 active:scale-[0.99] active:shadow-sm
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
       <div className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center">
@@ -201,7 +201,7 @@ function ClientFolderCard({
         transition-all duration-200 ease-out
         hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
         active:translate-y-0 active:scale-[0.99] active:shadow-sm
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
       <div className="flex items-center gap-2 min-w-0">
