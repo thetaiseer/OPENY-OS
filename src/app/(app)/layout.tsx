@@ -12,12 +12,13 @@ import ToastContainer from '@/components/ui/ToastContainer';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
+import { AiProvider, useAi } from '@/lib/ai-context';
 
 // Lazy-load non-critical panels after the page shell has rendered.
 // ssr: false ensures these are client-only (they use browser APIs) and avoids
 // adding them to the initial JS bundle parse cost.
-const AiAssistantPanel = dynamic(
-  () => import('@/components/ai/AiAssistantPanel'),
+const AiCommandCenter = dynamic(
+  () => import('@/components/ai/AiCommandCenter'),
   { ssr: false },
 );
 const NotificationRealtimeSync = dynamic(
@@ -57,6 +58,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
   const { isOpen: paletteOpen, close: closePalette } = useCommandPalette();
+  const { open: openAi } = useAi();
 
   useEffect(() => {
     const supabaseClient = createClient();
@@ -110,12 +112,22 @@ function AppShell({ children }: { children: React.ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ['activities'] });
     });
 
+    // ── 4. Cmd/Ctrl+J opens the AI Command Center ────────────────────────────
+    function handleAiShortcut(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault();
+        openAi();
+      }
+    }
+    window.addEventListener('keydown', handleAiShortcut);
+
     return () => {
       if (checkTimer.current)    clearInterval(checkTimer.current);
       if (activityTimer.current) clearInterval(activityTimer.current);
       unsubTasks();
+      window.removeEventListener('keydown', handleAiShortcut);
     };
-  }, []);
+  }, [openAi]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
@@ -128,7 +140,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
       <ToastContainer />
-      <AiAssistantPanel />
+      <AiCommandCenter />
       {/* Real-time notification sync: subscribes to Supabase Realtime and fires toasts */}
       <NotificationRealtimeSync />
       {/* Universal command palette — CMD+K */}
@@ -145,7 +157,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ToastProvider>
         <UploadProvider>
           <CommandPaletteProvider>
-            <AppShell>{children}</AppShell>
+            <AiProvider>
+              <AppShell>{children}</AppShell>
+            </AiProvider>
           </CommandPaletteProvider>
         </UploadProvider>
       </ToastProvider>

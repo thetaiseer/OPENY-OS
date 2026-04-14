@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Sun, Moon, Menu, Globe } from 'lucide-react';
+import { Sun, Moon, Menu, Globe, Sparkles } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -9,6 +9,7 @@ import AccountMenu from './AccountMenu';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
+import { useAi } from '@/lib/ai-context';
 
 interface HeaderProps { onMenuClick?: () => void; }
 
@@ -17,6 +18,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { toggleLang } = useLang();
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
+  const { open: openAi, isOpen: aiOpen } = useAi();
 
   // Global CMD+K / Ctrl+K shortcut
   useEffect(() => {
@@ -69,6 +71,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </button>
 
         <NotificationDropdown />
+
+        {/* AI Command Center button */}
+        <button
+          onClick={() => openAi()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
+          style={{
+            background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
+            color: aiOpen ? '#fff' : 'var(--accent)',
+            border: `1px solid ${aiOpen ? 'var(--accent)' : 'transparent'}`,
+          }}
+          title="AI Command Center (⌘J)"
+        >
+          <Sparkles size={13} />
+          <span className="hidden sm:inline">AI</span>
+        </button>
 
         <AccountMenu placement="header">
           <div
