@@ -8,7 +8,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
  * Returns tasks completed per team member this month.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'team_member', 'manager']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   try {

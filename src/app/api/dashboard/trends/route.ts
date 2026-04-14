@@ -8,7 +8,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
  * Returns task completion counts grouped by date for the last 30 days.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'team_member', 'manager']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   try {

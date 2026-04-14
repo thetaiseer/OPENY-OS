@@ -141,12 +141,17 @@ BEGIN
   -- policy's USING / WITH CHECK expression by dropping and re-creating it.
   --
   -- This loop finds and drops all affected policies.
+  -- A policy is considered outdated if it references the literal 'team'
+  -- (without '_member') in either its USING or WITH CHECK expression.
   FOR rec IN
     SELECT schemaname, tablename, policyname
     FROM   pg_policies
     WHERE  schemaname = 'public'
-      AND  (qual LIKE $q$%'team'%$q$ OR with_check LIKE $q$%'team'%$q$)
-      AND  (qual NOT LIKE $q$%'team_member'%$q$ OR with_check NOT LIKE $q$%'team_member'%$q$)
+      AND  (
+        (qual       LIKE $q$%'team'%$q$ AND qual       NOT LIKE $q$%'team_member'%$q$)
+        OR
+        (with_check LIKE $q$%'team'%$q$ AND with_check NOT LIKE $q$%'team_member'%$q$)
+      )
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I',
       rec.policyname, rec.schemaname, rec.tablename);
