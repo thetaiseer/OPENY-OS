@@ -474,8 +474,8 @@ export default function CalendarPage() {
                         </div>
                         <div className="space-y-2">
                           {selectedTasks.map(t => {
-                            const clientSlug = (t as unknown as { client?: { slug?: string } }).client?.slug;
-                            const taskLink = clientSlug ? `/clients/${clientSlug}/tasks` : '/tasks/all';
+                            const taskClient = (t as unknown as { client?: { slug?: string; name?: string } }).client;
+                            const taskLink = taskClient?.slug ? `/clients/${taskClient.slug}/tasks` : '/tasks/all';
                             return (
                               <Link
                                 key={t.id}
@@ -487,9 +487,9 @@ export default function CalendarPage() {
                                   <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t.title}</p>
                                   <ExternalLink size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
                                 </div>
-                                {(t as unknown as { client?: { name?: string } }).client?.name && (
+                                {taskClient?.name && (
                                   <p className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>
-                                    {(t as unknown as { client?: { name?: string } }).client!.name}
+                                    {taskClient.name}
                                   </p>
                                 )}
                                 <div className="flex gap-2 mt-1">
@@ -556,8 +556,8 @@ export default function CalendarPage() {
                         </div>
                         <div className="space-y-2">
                           {selectedContent.map(c => {
-                            const clientSlug = (c as unknown as { client?: { slug?: string } }).client?.slug;
-                            const contentLink = clientSlug ? `/clients/${clientSlug}/content` : '/content';
+                            const contentClient = (c as unknown as { client?: { slug?: string; name?: string } }).client;
+                            const contentLink = contentClient?.slug ? `/clients/${contentClient.slug}/content` : '/content';
                             return (
                               <Link
                                 key={c.id}
@@ -571,9 +571,9 @@ export default function CalendarPage() {
                                   </p>
                                   <ExternalLink size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
                                 </div>
-                                {(c as unknown as { client?: { name?: string } }).client?.name && (
+                                {contentClient?.name && (
                                   <p className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>
-                                    {(c as unknown as { client?: { name?: string } }).client!.name}
+                                    {contentClient.name}
                                   </p>
                                 )}
                                 <span
