@@ -13,6 +13,7 @@ import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
+import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', ['invited', 'pending'])   // 'pending' kept for backward-compat with older rows
+    .in('status', [INVITATION_STATUS.INVITED])   // only 'invited' is a valid active status
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, role: access_role, job_title: job_title || null, status: 'invited' })
+    .insert({ full_name, email, role: access_role, job_title: job_title || null, status: MEMBER_STATUS.INVITED })
     .select()
     .single();
 
@@ -119,9 +120,9 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
-      role:       access_role,   // required NOT NULL column
+      role:       access_role,
       token,
-      status:     'invited',     // must match DB CHECK (invited|accepted|expired|revoked)
+      status:     INVITATION_STATUS.INVITED,
       invited_by: auth.profile.id,
       expires_at: expiresAt,
     })
