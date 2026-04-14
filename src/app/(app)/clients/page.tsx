@@ -267,7 +267,7 @@ export default function ClientsPage() {
           {filteredClients.map(client => (
             <Link
               key={client.id}
-              href={`/clients/${client.id}`}
+              href={`/clients/${client.slug}`}
               className="flex items-center gap-4 px-6 py-4 hover:bg-[var(--surface-2)] transition-colors border-b last:border-b-0"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >

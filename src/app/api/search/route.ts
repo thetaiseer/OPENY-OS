@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Clients
     db
       .from('clients')
-      .select('id, name, email, status')
+      .select('id, name, email, status, slug')
       .or(`name.ilike.${pattern},email.ilike.${pattern}`)
       .limit(limit),
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         title: c.name,
         subtitle: c.email || undefined,
         badge: c.status,
-        href: `/clients/${c.id}`,
+        href: `/clients/${c.slug}`,
       });
     }
   }

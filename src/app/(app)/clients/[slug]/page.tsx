@@ -84,7 +84,7 @@ function fmtDate(d?: string) {
 }
 
 export default function ClientWorkspace() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { t } = useLang();
   const { user } = useAuth();
@@ -94,6 +94,7 @@ export default function ClientWorkspace() {
   const { startBatch, latestAsset } = useUpload();
 
   const [client, setClient] = useState<Client | null>(null);
+  const [clientId, setClientId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>('overview');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [content, setContent] = useState<ContentItem[]>([]);
@@ -124,7 +125,7 @@ export default function ClientWorkspace() {
   const [saving, setSaving] = useState(false);
 
   const logActivity = async (description: string) => {
-    await supabase.from('activities').insert({ type: 'client', description, client_id: id });
+    await supabase.from('activities').insert({ type: 'client', description, client_id: clientId });
   };
 
   const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -150,23 +151,33 @@ export default function ClientWorkspace() {
     const FETCH_TIMEOUT_MS = 15_000;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
+      // Fetch client by slug first to resolve the UUID
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients').select('*').eq('slug', slug).single();
+      if (clientError || !clientData) {
+        console.error('[client workspace] client not found:', clientError);
+        setLoading(false);
+        return;
+      }
+      setClient(clientData as Client);
+      const resolvedId = clientData.id;
+      setClientId(resolvedId);
+
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
       });
-      const [c, tk, ct, a, act, appr, tm] = await Promise.race([
+      const [tk, ct, a, act, appr, tm] = await Promise.race([
         Promise.allSettled([
-          supabase.from('clients').select('*').eq('id', id).single(),
-          supabase.from('tasks').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('content_items').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('assets').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('activities').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('approvals').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(50),
+          supabase.from('tasks').select('*').eq('client_id', resolvedId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('content_items').select('*').eq('client_id', resolvedId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('assets').select('*').eq('client_id', resolvedId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('activities').select('*').eq('client_id', resolvedId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('approvals').select('*').eq('client_id', resolvedId).order('created_at', { ascending: false }).limit(50),
           supabase.from('team_members').select('*').order('full_name'),
         ]),
         timeoutPromise,
       ]);
 
-      if (c.status === 'fulfilled' && !c.value.error) setClient(c.value.data as Client);
       if (tk.status === 'fulfilled' && !tk.value.error) setTasks((tk.value.data ?? []) as Task[]);
       if (ct.status === 'fulfilled' && !ct.value.error) setContent((ct.value.data ?? []) as ContentItem[]);
       if (a.status === 'fulfilled' && !a.value.error) setAssets((a.value.data ?? []) as Asset[]);
@@ -180,19 +191,19 @@ export default function ClientWorkspace() {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLoading(false);
     }
-  }, [id]);
+  }, [slug]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
   // Prepend newly uploaded assets belonging to this client without page refresh.
   useEffect(() => {
     if (!latestAsset) return;
-    if (latestAsset.client_id !== id) return;
+    if (!clientId || latestAsset.client_id !== clientId) return;
     setAssets(prev => {
       if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
-  }, [latestAsset, id]);
+  }, [latestAsset, clientId]);
 
   const handleEdit = () => {
     if (!client) return;
@@ -215,7 +226,7 @@ export default function ClientWorkspace() {
       const { data, error } = await supabase
         .from('clients')
         .update({ ...editForm, updated_at: new Date().toISOString() })
-        .eq('id', id)
+        .eq('id', client!.id)
         .select()
         .single();
       if (error) throw error;
@@ -233,7 +244,7 @@ export default function ClientWorkspace() {
   const handleDelete = async () => {
     if (!client) return;
     if (!confirm(`Delete client "${client.name}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from('clients').delete().eq('id', id);
+    const { error } = await supabase.from('clients').delete().eq('id', client.id);
     if (error) {
       if (process.env.NODE_ENV === 'development') console.error('[client delete]', error);
       alert(error.message);
@@ -307,7 +318,7 @@ export default function ClientWorkspace() {
     }));
     startBatch(initialItems, {
       clientName:   client.name,
-      clientId:     id,
+      clientId:     clientId,
       contentType:  '',
       mainCategory: uploadMainCategory,
       subCategory:  uploadSubCategory,
@@ -323,7 +334,7 @@ export default function ClientWorkspace() {
     if (!client) return;
     setDownloadingZip(true);
     try {
-      const res = await fetch(`/api/clients/${id}/download-zip`);
+      const res = await fetch(`/api/clients/${clientId}/download-zip`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         const msg: string = json.error ?? `Download failed (HTTP ${res.status})`;
@@ -393,7 +404,7 @@ export default function ClientWorkspace() {
         due_date: taskForm.due_date || null,
         assigned_to: taskForm.assigned_to || null,
         status: taskForm.status,
-        client_id: id,
+        client_id: clientId,
       });
       if (error) throw error;
       await logActivity(`Task "${taskForm.title}" created`);
@@ -714,7 +725,7 @@ export default function ClientWorkspace() {
                         <button
                           onClick={async () => {
                             await supabase.from('assets').update({ approval_status: 'approved' }).eq('id', a.id);
-                            await supabase.from('activities').insert({ type: 'approve', description: `Asset "${a.name}" approved`, client_id: id });
+                            await supabase.from('activities').insert({ type: 'approve', description: `Asset "${a.name}" approved`, client_id: clientId });
                             void loadAll();
                           }}
                           className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
@@ -725,7 +736,7 @@ export default function ClientWorkspace() {
                         <button
                           onClick={async () => {
                             await supabase.from('assets').update({ approval_status: 'rejected' }).eq('id', a.id);
-                            await supabase.from('activities').insert({ type: 'reject', description: `Asset "${a.name}" rejected`, client_id: id });
+                            await supabase.from('activities').insert({ type: 'reject', description: `Asset "${a.name}" rejected`, client_id: clientId });
                             void loadAll();
                           }}
                           className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
@@ -765,7 +776,7 @@ export default function ClientWorkspace() {
 
         {activeTab === 'activity' && (
           <div className="rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <ActivityLog clientId={id} limit={30} />
+            <ActivityLog clientId={clientId} limit={30} />
           </div>
         )}
       </div>
@@ -934,7 +945,7 @@ export default function ClientWorkspace() {
         subCategory={uploadSubCategory}
         monthKey={uploadMonthKey}
         clientName={client.name}
-        clientId={id}
+        clientId={clientId}
         clients={[]}
         lockClient
         onMainCategoryChange={setUploadMainCategory}
