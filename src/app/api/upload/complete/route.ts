@@ -109,16 +109,13 @@ export async function POST(req: NextRequest) {
   // For images: the file itself is the thumbnail (preview_url).
   // For videos: use the separately-uploaded thumbnail, or null.
   // For other types: null.
-  const isImage   = fileType.startsWith('image/');
-  const isVideo   = fileType.startsWith('video/');
+  const isImage = fileType.startsWith('image/');
   let thumbnailUrl: string | null = null;
   if (thumbnailStorageKey) {
     try { thumbnailUrl = buildR2Url(thumbnailStorageKey); } catch { /* ignore */ }
   } else if (isImage) {
     thumbnailUrl = publicUrl;
   }
-  // For videos without a thumbnail, keep thumbnailUrl = null so the UI falls back to the video icon.
-  void isVideo; // prevent unused-var lint warning
 
   // ── Insert metadata ────────────────────────────────────────────────────────
   const insertRow: Record<string, unknown> = {

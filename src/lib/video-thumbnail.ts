@@ -96,7 +96,7 @@ export function generateVideoThumbnail(
     video.addEventListener('loadedmetadata', () => {
       // Seek to target time; fall back to 10 % of duration for very short clips.
       const target = video.duration > 0
-        ? Math.min(seekTime, video.duration * 0.1 > 0 ? video.duration * 0.1 : seekTime)
+        ? Math.min(seekTime, video.duration * 0.1)
         : 0;
       video.currentTime = target;
     });
@@ -118,6 +118,11 @@ export function generateVideoThumbnail(
 
 /** Returns true for MIME types or file names that represent video files. */
 export function isVideoFile(name: string, mimeType?: string | null): boolean {
+  // mp4, webm, ogg, mov, and m4v have broad browser support.
+  // avi, mkv, 3gp, and flv are included so the helper can correctly classify
+  // them as video files for UI purposes (e.g. choosing an icon), even though
+  // thumbnail generation will fall back gracefully to null for these formats
+  // when the browser's <video> element cannot decode them.
   return (
     /\.(mp4|webm|ogg|mov|avi|mkv|m4v|3gp|flv)$/i.test(name) ||
     (mimeType?.startsWith('video/') ?? false)
