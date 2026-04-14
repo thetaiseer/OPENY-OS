@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X, FileText } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import type { Task, CalendarAsset, PublishingSchedule } from '@/lib/types';
+import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -73,18 +73,23 @@ export default function CalendarPage() {
       const startDate = `${year}-${pad(month + 1)}-01`;
       const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
 
-      const [tasksRes, assetsRes, schedulesRes] = await Promise.allSettled([
+      const [tasksRes, assetsRes, schedulesRes, contentRes] = await Promise.allSettled([
         supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
         supabase.from('assets')
           .select('id, name, publish_date, content_type, client_name')
           .gte('publish_date', startDate)
           .lte('publish_date', endDate),
         supabase.from('publishing_schedules')
-          .select('*, asset:assets(id, name, content_type, preview_url)')
+          .select('*, asset:assets(id, name, content_type, preview_url), content_item:content_items(id, title, status)')
           .gte('scheduled_date', startDate)
           .lte('scheduled_date', endDate)
           .neq('status', 'cancelled')
           .order('scheduled_time', { ascending: true }),
+        supabase.from('content_items')
+          .select('id, title, status, schedule_date, client_id')
+          .in('status', ['scheduled', 'approved'])
+          .gte('schedule_date', startDate)
+          .lte('schedule_date', endDate),
       ]);
 
       if (tasksRes.status === 'rejected') console.error('[calendar] tasks fetch rejected:', tasksRes.reason);
@@ -98,6 +103,7 @@ export default function CalendarPage() {
         tasks:     (tasksRes.status     === 'fulfilled' && !tasksRes.value.error)     ? (tasksRes.value.data     ?? []) as Task[]               : [],
         assets:    (assetsRes.status    === 'fulfilled' && !assetsRes.value.error)    ? (assetsRes.value.data    ?? []) as CalendarAsset[]        : [],
         schedules: (schedulesRes.status === 'fulfilled' && !schedulesRes.value.error) ? (schedulesRes.value.data ?? []) as PublishingSchedule[]   : [],
+        content:   (contentRes.status   === 'fulfilled' && !contentRes.value.error)   ? (contentRes.value.data   ?? []) as Pick<ContentItem, 'id' | 'title' | 'status' | 'schedule_date'>[] : [],
       };
     },
     // staleTime inherited from QueryClient defaults (2 minutes)
@@ -106,6 +112,7 @@ export default function CalendarPage() {
   const tasks     = calendarData?.tasks     ?? [];
   const assets    = calendarData?.assets    ?? [];
   const schedules = calendarData?.schedules ?? [];
+  const content   = calendarData?.content   ?? [];
 
   const error = calendarError ? (calendarError as Error).message : null;
 
@@ -157,9 +164,21 @@ export default function CalendarPage() {
     return map;
   }, [schedules]);
 
+  const contentByDay = useMemo(() => {
+    const map: Record<number, Pick<ContentItem, 'id' | 'title' | 'status' | 'schedule_date'>[]> = {};
+    for (const c of content) {
+      if (!c.schedule_date) continue;
+      const d = new Date(c.schedule_date + 'T00:00:00').getDate();
+      if (!map[d]) map[d] = [];
+      map[d].push(c);
+    }
+    return map;
+  }, [content]);
+
   const selectedTasks     = selectedDay ? (tasksByDay[selectedDay]     ?? []) : [];
   const selectedAssets    = selectedDay ? (assetsByDay[selectedDay]    ?? []) : [];
   const selectedSchedules = selectedDay ? (schedulesByDay[selectedDay] ?? []) : [];
+  const selectedContent   = selectedDay ? (contentByDay[selectedDay]   ?? []) : [];
 
   // ── Mark as published ───────────────────────────────────────────────────────
   const handleMarkPublished = async (schedule: PublishingSchedule) => {
@@ -194,7 +213,7 @@ export default function CalendarPage() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Calendar</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            View tasks, assets, and publishing schedules by date
+            View tasks, content, assets, and publishing schedules by date
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -225,6 +244,7 @@ export default function CalendarPage() {
       <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#2563eb' }} />Tasks</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#7c3aed' }} />Publishing schedules</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#0891b2' }} />Content</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#6b7280' }} />Assets</span>
       </div>
 
@@ -292,7 +312,8 @@ export default function CalendarPage() {
                   const dayTasks      = tasksByDay[day]      ?? [];
                   const dayAssets     = assetsByDay[day]     ?? [];
                   const daySchedules  = schedulesByDay[day]  ?? [];
-                  const totalVisible  = dayTasks.length + dayAssets.length + daySchedules.length;
+                  const dayContent    = contentByDay[day]    ?? [];
+                  const totalVisible  = dayTasks.length + dayAssets.length + daySchedules.length + dayContent.length;
 
                   return (
                     <div
@@ -324,10 +345,20 @@ export default function CalendarPage() {
                             }}
                           >
                             <Send size={8} className="shrink-0" />
-                            <span className="truncate">{s.client_name ?? s.asset?.name ?? 'Schedule'}</span>
+                            <span className="truncate">{s.client_name ?? (s as unknown as { content_item?: { title: string } }).content_item?.title ?? s.asset?.name ?? 'Schedule'}</span>
                           </div>
                         ))}
-                        {dayTasks.slice(0, Math.max(0, 2 - daySchedules.length)).map(t => (
+                        {dayContent.slice(0, Math.max(0, 2 - daySchedules.length)).map(c => (
+                          <div
+                            key={c.id}
+                            className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
+                            style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                          >
+                            <FileText size={8} className="shrink-0" />
+                            <span className="truncate">{c.title}</span>
+                          </div>
+                        ))}
+                        {dayTasks.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length)).map(t => (
                           <div
                             key={t.id}
                             className="text-xs px-1 py-0.5 rounded truncate"
@@ -339,7 +370,7 @@ export default function CalendarPage() {
                             {t.title}
                           </div>
                         ))}
-                        {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayTasks.length)).map(a => (
+                        {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length - dayTasks.length)).map(a => (
                           <div
                             key={a.id}
                             className="text-xs px-1 py-0.5 rounded truncate"
@@ -377,7 +408,7 @@ export default function CalendarPage() {
                   {MONTH_NAMES[month]} {selectedDay}, {year}
                 </h3>
 
-                {selectedTasks.length === 0 && selectedAssets.length === 0 && selectedSchedules.length === 0 ? (
+                {selectedTasks.length === 0 && selectedAssets.length === 0 && selectedSchedules.length === 0 && selectedContent.length === 0 ? (
                   <p className="text-sm py-4" style={{ color: 'var(--text-secondary)' }}>
                     Nothing scheduled for this day
                   </p>
@@ -493,6 +524,36 @@ export default function CalendarPage() {
                                   </span>
                                 )}
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedContent.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText size={14} style={{ color: '#0891b2' }} />
+                          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                            CONTENT ({selectedContent.length})
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {selectedContent.map(c => (
+                            <div
+                              key={c.id}
+                              className="rounded-lg p-2.5"
+                              style={{ background: 'var(--surface-2)' }}
+                            >
+                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                                {c.title}
+                              </p>
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                              >
+                                {c.status}
+                              </span>
                             </div>
                           ))}
                         </div>

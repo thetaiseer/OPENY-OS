@@ -68,6 +68,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'title is required' }, { status: 400 });
   }
 
+  const scheduleDate = typeof body.schedule_date === 'string' ? body.schedule_date.trim() : null;
+
   const payload: Record<string, unknown> = {
     title,
     status,
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
     post_types:      Array.isArray(body.post_types)        ? body.post_types                 : [],
     purpose:         typeof body.purpose          === 'string' ? body.purpose                : null,
     created_by:      auth.profile.id,
+    ...(scheduleDate ? { schedule_date: scheduleDate } : {}),
   };
 
   try {
@@ -103,6 +106,23 @@ export async function POST(req: NextRequest) {
       entity_type: 'content_item',
       entity_id:   data?.id ?? null,
     });
+
+    // Auto-create calendar event when content has a schedule_date or scheduled status
+    if (data?.id && (scheduleDate || status === 'scheduled')) {
+      const calStartsAt = scheduleDate
+        ? `${scheduleDate}T09:00:00`
+        : `${new Date().toISOString().slice(0, 10)}T09:00:00`;
+      void db.from('calendar_events').insert({
+        title:      `Content: ${title}`,
+        event_type: 'publishing',
+        starts_at:  calStartsAt,
+        client_id:  clientId || null,
+        status:     'active',
+        notes:      null,
+      }).then(({ error: calErr }) => {
+        if (calErr) console.warn('[POST /api/content-items] calendar event auto-create failed:', calErr.message);
+      });
+    }
 
     return NextResponse.json({ success: true, item: data }, { status: 201 });
   } catch (err) {

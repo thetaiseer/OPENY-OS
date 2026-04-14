@@ -277,6 +277,23 @@ export async function POST(request: NextRequest) {
     console.warn('[POST /api/tasks] activity log network error:', err instanceof Error ? err.message : String(err));
   });
 
+  // Auto-create calendar event for tasks with a due date (fire-and-forget)
+  if (data?.id && dueDate) {
+    const calStartsAt = dueTime ? `${dueDate}T${dueTime}` : `${dueDate}T09:00:00`;
+    void db.from('calendar_events').insert({
+      title:      title,
+      event_type: 'task',
+      starts_at:  calStartsAt,
+      client_id:  clientId || null,
+      task_id:    data.id,
+      status:     'active',
+      notes:      description || null,
+    }).then(({ error: calErr }) => {
+      if (calErr) console.warn('[POST /api/tasks] calendar event auto-create failed:', calErr.message);
+      else console.log('[POST /api/tasks] calendar event auto-created for task:', data.id);
+    });
+  }
+
   // Auto-create publishing schedule for publishing_task category
   if (taskCategory === 'publishing_task' && data?.id && dueDate) {
     void (async () => {
