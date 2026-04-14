@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
-  Users, Plus, Pencil, Trash2, Mail, Briefcase,
-  Send, RotateCcw, XCircle, Link2, Clock, CheckCircle,
+  Users, Pencil, Trash2, Mail, Briefcase,
+  Send, RotateCcw, XCircle, Link2, Clock, CheckCircle, Crown,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -65,6 +65,79 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
     return member.role;
   }
   return null;
+}
+
+// ── Group label mapping ───────────────────────────────────────────────────────
+// Maps a job_title → friendly section name. Falls back to role-based section.
+const JOB_TITLE_TO_GROUP: Record<string, string> = {
+  'Content Creator':            'Content Creators',
+  'Copywriter':                 'Content Creators',
+  'Email Marketing Specialist': 'Content Creators',
+  'Photographer':               'Content Creators',
+  'Graphic Designer':           'Graphic Designers',
+  'UX/UI Designer':             'Graphic Designers',
+  'Video Editor':               'Video Editors',
+  'Social Media Manager':       'Managers',
+  'Marketing Manager':          'Managers',
+  'Account Manager':            'Managers',
+  'Project Manager':            'Managers',
+  'Brand Strategist':           'Managers',
+  'Influencer Manager':         'Managers',
+  'PR Specialist':              'Managers',
+  'SEO Specialist':             'Developers',
+  'Paid Ads Specialist':        'Developers',
+  'Analytics Specialist':       'Developers',
+};
+
+const ROLE_TO_GROUP: Record<string, string> = {
+  admin:       'Admins',
+  manager:     'Managers',
+  team_member: 'Team Members',
+  viewer:      'Viewers',
+  client:      'Clients',
+};
+
+// Preferred display order for sections
+const SECTION_ORDER = [
+  'Admins',
+  'Managers',
+  'Graphic Designers',
+  'Video Editors',
+  'Content Creators',
+  'Developers',
+  'Team Members',
+  'Viewers',
+  'Clients',
+];
+
+function getGroupLabel(member: TeamMember): string {
+  const jt = member.job_title?.trim();
+  if (jt && JOB_TITLE_TO_GROUP[jt]) return JOB_TITLE_TO_GROUP[jt];
+  if (jt) return jt; // keep non-standard job title as its own section label
+  return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
+}
+
+/** Group an array of members into ordered sections by role/job title. */
+function groupMembers(members: TeamMember[]): { label: string; members: TeamMember[] }[] {
+  const map = new Map<string, TeamMember[]>();
+  for (const m of members) {
+    const label = getGroupLabel(m);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(m);
+  }
+
+  // Sort sections: known order first, then alphabetical for the rest
+  const sections = Array.from(map.entries()).map(([label, mems]) => ({ label, members: mems }));
+  sections.sort((a, b) => {
+    const ai = SECTION_ORDER.indexOf(a.label);
+    const bi = SECTION_ORDER.indexOf(b.label);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.label.localeCompare(b.label);
+  });
+
+  return sections;
 }
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
@@ -353,11 +426,22 @@ export default function TeamPage() {
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteMember) return;
-    const { error } = await supabase.from('team_members').delete().eq('id', deleteMember.id);
-    if (error) { toast(error.message, 'error'); return; }
-    setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
-    setDeleteMember(null);
-    toast('Member removed', 'info');
+    // Owner is never deletable — guard at both UI and API level.
+    if (deleteMember.role === 'owner') {
+      toast('The workspace owner cannot be removed.', 'error');
+      setDeleteMember(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/team/members/${deleteMember.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(data.error ?? 'Failed to remove member.', 'error'); return; }
+      setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
+      setDeleteMember(null);
+      toast('Member removed', 'info');
+    } catch {
+      toast('Network error. Please try again.', 'error');
+    }
   };
 
   // ── Resend invite ─────────────────────────────────────────────────────────
@@ -410,17 +494,19 @@ export default function TeamPage() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const activeMembers  = members.filter(m => !m.status || m.status === 'active');
+  const ownerMembers   = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
+  const activeMembers  = members.filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'));
   const invitedMembers = members.filter(m => m.status === 'invited');
+  const groupedActive  = groupMembers(activeMembers);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('team')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {activeMembers.length} active · {invitedMembers.length} pending
+            {activeMembers.length + ownerMembers.length} active · {invitedMembers.length} pending
           </p>
         </div>
         {canManage && (
@@ -459,14 +545,29 @@ export default function TeamPage() {
         />
       ) : (
         <>
-          {/* Active members */}
-          {activeMembers.length > 0 && (
+          {/* ── 1. Workspace Owner ─────────────────────────────────────────── */}
+          {ownerMembers.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                <CheckCircle size={14} />Active Members
-              </h2>
+              <SectionHeader icon={<Crown size={14} />} label="Workspace Owner" count={ownerMembers.length} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeMembers.map(m => (
+                {ownerMembers.map(m => (
+                  <OwnerCard
+                    key={m.id}
+                    member={m}
+                    canManage={canManage}
+                    onEdit={openEdit}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── 2. Active members grouped by role / job title ──────────────── */}
+          {groupedActive.map(({ label, members: sectionMembers }) => (
+            <section key={label}>
+              <SectionHeader icon={<CheckCircle size={14} />} label={label} count={sectionMembers.length} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sectionMembers.map(m => (
                   <MemberCard
                     key={m.id}
                     member={m}
@@ -481,14 +582,10 @@ export default function TeamPage() {
                 ))}
               </div>
             </section>
-          )}
-
-          {/* Invited / pending members */}
+          ))}
           {invitedMembers.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                <Clock size={14} />Pending Invitations
-              </h2>
+              <SectionHeader icon={<Clock size={14} />} label="Pending Invitations" count={invitedMembers.length} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {invitedMembers.map(m => (
                   <MemberCard
@@ -548,6 +645,98 @@ export default function TeamPage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── SectionHeader ─────────────────────────────────────────────────────────────
+function SectionHeader({ icon, label, count }: { icon: ReactNode; label: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+      <span style={{ color: 'var(--text-secondary)' }}>{icon}</span>
+      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</h2>
+      {count !== undefined && (
+        <span
+          className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium"
+          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── OwnerCard — special elevated card for the workspace owner ─────────────────
+function OwnerCard({
+  member,
+  canManage,
+  onEdit,
+}: {
+  member: TeamMember;
+  canManage: boolean;
+  onEdit: (m: TeamMember) => void;
+}) {
+  return (
+    <div
+      className="rounded-xl border-2 p-5 flex flex-col gap-3 relative overflow-hidden"
+      style={{
+        background:   'var(--surface)',
+        borderColor:  'var(--accent)',
+      }}
+    >
+      {/* subtle accent stripe at top */}
+      <div
+        className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
+        style={{ background: 'var(--accent)' }}
+      />
+      <div className="flex items-start gap-3">
+        <div className="relative shrink-0">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-white"
+            style={{ background: 'var(--accent)' }}
+          >
+            {member.full_name.charAt(0).toUpperCase()}
+          </div>
+          <span
+            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+            title="Workspace Owner"
+          >
+            <Crown size={10} />
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
+          <span
+            className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
+            <Crown size={9} />Owner
+          </span>
+          {resolveDisplayJobTitle(member) && (
+            <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-secondary)' }}>
+              <Briefcase size={11} />{resolveDisplayJobTitle(member)}
+            </p>
+          )}
+          {member.email && (
+            <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+              <Mail size={11} />{member.email}
+            </p>
+          )}
+        </div>
+        {/* Edit only — owner is never deletable */}
+        {canManage && (
+          <button
+            onClick={() => onEdit(member)}
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors shrink-0"
+            style={{ color: 'var(--text-secondary)' }}
+            title="Edit owner profile"
+          >
+            <Pencil size={13} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
