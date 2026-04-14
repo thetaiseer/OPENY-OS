@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         title: c.name,
         subtitle: c.email || undefined,
         badge: c.status,
-        href: `/clients/${c.id}`,
+        href: `/clients/${c.slug}`,
       });
     }
   }
