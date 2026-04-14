@@ -49,8 +49,8 @@ export async function GET(
   }
 
   if (invitation.status === 'expired' || new Date(invitation.expires_at) <= new Date()) {
-    // Mark as expired in DB if not already
-    if (invitation.status === 'invited') {
+    // Mark as expired in DB if not already (handle both 'invited' and legacy 'pending' status)
+    if (invitation.status === 'invited' || invitation.status === 'pending') {
       await db
         .from('team_invitations')
         .update({ status: 'expired', updated_at: new Date().toISOString() })

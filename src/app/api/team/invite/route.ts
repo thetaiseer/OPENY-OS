@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Production domain — used for invite links
-  const INVITE_DOMAIN = 'https://openy-os.com';
+  // Domain used for invite links — prefer NEXT_PUBLIC_APP_URL so the link
+  // works in all environments (staging, preview, production).
+  const INVITE_DOMAIN = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://openy-os.com').replace(/\/$/, '');
 
   // Sender address: prefer RESEND_FROM_EMAIL, then INVITE_FROM_EMAIL, then default
   const fromEmail =
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', ['pending', 'invited'])
+    .in('status', ['invited', 'pending'])   // 'pending' kept for backward-compat with older rows
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -115,8 +116,9 @@ export async function POST(request: NextRequest) {
     .insert({
       team_member_id: member.id,
       email,
+      role:       access_role,   // required NOT NULL column
       token,
-      status:     'pending',
+      status:     'invited',     // must match DB CHECK (invited|accepted|expired|revoked)
       invited_by: auth.profile.id,
       expires_at: expiresAt,
     })
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'pending' });
+  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'invited' });
 
   // ── 5. Send invite email ──────────────────────────────────────────────────
   const inviteUrl = `${INVITE_DOMAIN}/invite?token=${token}`;

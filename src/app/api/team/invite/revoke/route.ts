@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
 
   const db = getServiceClient();
 
-  // Mark all active invitations for this member as revoked
+  // Mark all active invitations for this member as revoked.
+  // Use .in() to catch both 'invited' rows (current schema) and legacy 'pending' rows.
   const { error: revokeError } = await db
     .from('team_invitations')
     .update({ status: 'revoked', updated_at: new Date().toISOString() })
     .eq('team_member_id', teamMemberId)
-    .eq('status', 'pending');
+    .in('status', ['invited', 'pending']);
 
   if (revokeError) {
     return NextResponse.json({ error: revokeError.message }, { status: 500 });

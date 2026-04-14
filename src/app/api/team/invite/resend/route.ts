@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('*, team_member:team_members(full_name, role)')
     .eq('team_member_id', teamMemberId)
-    .in('status', ['pending', 'expired'])
+    .in('status', ['invited', 'pending', 'expired'])  // 'pending' kept for backward-compat
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .update({
       token:      newToken,
-      status:     'pending',
+      status:     'invited',     // must match DB CHECK (invited|accepted|expired|revoked)
       expires_at: newExpiresAt,
       updated_at: new Date().toISOString(),
     })
