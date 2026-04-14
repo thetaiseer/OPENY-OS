@@ -13,12 +13,12 @@ import { requireRole } from '@/lib/api-auth';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireRole(request, ['owner', 'admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
 
-  const { id } = params;
+  const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
   }
