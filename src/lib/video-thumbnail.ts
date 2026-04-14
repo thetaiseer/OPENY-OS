@@ -94,10 +94,8 @@ export function generateVideoThumbnail(
     };
 
     video.addEventListener('loadedmetadata', () => {
-      // Seek to target time; fall back to 10 % of duration for very short clips.
-      const target = video.duration > 0
-        ? Math.min(seekTime, video.duration * 0.1)
-        : 0;
+      // Seek to seekTime, or 10 % of the total duration for very short clips.
+      const target = video.duration < seekTime ? video.duration * 0.1 : seekTime;
       video.currentTime = target;
     });
 

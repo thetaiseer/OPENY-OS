@@ -242,7 +242,7 @@ export function AssetCard({
                 className="flex items-center justify-center w-10 h-10 rounded-full"
                 style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
               >
-                <Play size={18} className="text-white" style={{ marginLeft: 2 }} />
+                <Play size={18} className="text-white ml-0.5" />
               </div>
             </div>
             <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
