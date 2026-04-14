@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { INVITATION_STATUS } from '@/lib/invitation-status';
 
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request, ['admin', 'manager']);
@@ -25,12 +26,11 @@ export async function POST(request: NextRequest) {
   const db = getServiceClient();
 
   // Mark all active invitations for this member as revoked.
-  // Use .in() to catch both 'invited' rows (current schema) and legacy 'pending' rows.
   const { error: revokeError } = await db
     .from('team_invitations')
-    .update({ status: 'revoked', updated_at: new Date().toISOString() })
+    .update({ status: INVITATION_STATUS.REVOKED, updated_at: new Date().toISOString() })
     .eq('team_member_id', teamMemberId)
-    .in('status', ['invited', 'pending']);
+    .in('status', [INVITATION_STATUS.INVITED]);
 
   if (revokeError) {
     return NextResponse.json({ error: revokeError.message }, { status: 500 });
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     .from('team_members')
     .delete()
     .eq('id', teamMemberId)
-    .eq('status', 'invited');
+    .eq('status', INVITATION_STATUS.INVITED);
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 });

@@ -12,6 +12,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
+import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('*, team_member:team_members(full_name, role)')
     .eq('team_member_id', teamMemberId)
-    .in('status', ['invited', 'pending', 'expired'])  // 'pending' kept for backward-compat
+    .in('status', [INVITATION_STATUS.INVITED, INVITATION_STATUS.EXPIRED])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .update({
       token:      newToken,
-      status:     'invited',     // must match DB CHECK (invited|accepted|expired|revoked)
+      status:     INVITATION_STATUS.INVITED,
       expires_at: newExpiresAt,
       updated_at: new Date().toISOString(),
     })
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
   // Also reset team_member status to invited in case it was changed
   await db
     .from('team_members')
-    .update({ status: 'invited', updated_at: new Date().toISOString() })
+    .update({ status: MEMBER_STATUS.INVITED, updated_at: new Date().toISOString() })
     .eq('id', teamMemberId);
 
   // Send email

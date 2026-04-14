@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 
 export async function POST(
   request: NextRequest,
@@ -55,18 +56,18 @@ export async function POST(
     : invitation.team_member;
   const invitationFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
 
-  if (invitation.status === 'accepted') {
+  if (invitation.status === INVITATION_STATUS.ACCEPTED) {
     return NextResponse.json({ error: 'This invitation has already been accepted.' }, { status: 410 });
   }
-  if (invitation.status === 'revoked') {
+  if (invitation.status === INVITATION_STATUS.REVOKED) {
     return NextResponse.json({ error: 'This invitation has been revoked.' }, { status: 410 });
   }
-  if (invitation.status === 'expired' || new Date(invitation.expires_at) <= new Date()) {
+  if (invitation.status === INVITATION_STATUS.EXPIRED || new Date(invitation.expires_at) <= new Date()) {
     await db
       .from('team_invitations')
-      .update({ status: 'expired', updated_at: new Date().toISOString() })
+      .update({ status: INVITATION_STATUS.EXPIRED, updated_at: new Date().toISOString() })
       .eq('id', invitation.id)
-      .in('status', ['invited', 'pending']); // only update if still in an active state
+      .eq('status', INVITATION_STATUS.INVITED); // only update if still active
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
   }
 
@@ -96,7 +97,7 @@ export async function POST(
 
   // ── 3. Activate team member ──────────────────────────────────────────────
   const updatePayload: Record<string, unknown> = {
-    status:     'active',
+    status:     MEMBER_STATUS.ACTIVE,
     updated_at: new Date().toISOString(),
   };
   if (authUserId) updatePayload.profile_id = authUserId;
@@ -110,7 +111,7 @@ export async function POST(
   await db
     .from('team_invitations')
     .update({
-      status:      'accepted',
+      status:      INVITATION_STATUS.ACCEPTED,
       accepted_at: new Date().toISOString(),
       updated_at:  new Date().toISOString(),
     })

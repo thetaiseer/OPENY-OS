@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { INVITATION_STATUS } from '@/lib/invitation-status';
 
 export async function GET(
   _request: NextRequest,
@@ -40,20 +41,20 @@ export async function GET(
     // for backward compatibility with rows created before the schema migration.
     ?? (invitation as { role?: string }).role ?? '';
 
-  if (invitation.status === 'revoked') {
+  if (invitation.status === INVITATION_STATUS.REVOKED) {
     return NextResponse.json({ error: 'This invitation has been revoked.' }, { status: 410 });
   }
 
-  if (invitation.status === 'accepted') {
+  if (invitation.status === INVITATION_STATUS.ACCEPTED) {
     return NextResponse.json({ error: 'This invitation has already been accepted.' }, { status: 410 });
   }
 
-  if (invitation.status === 'expired' || new Date(invitation.expires_at) <= new Date()) {
-    // Mark as expired in DB if not already (handle both 'invited' and legacy 'pending' status)
-    if (invitation.status === 'invited' || invitation.status === 'pending') {
+  if (invitation.status === INVITATION_STATUS.EXPIRED || new Date(invitation.expires_at) <= new Date()) {
+    // Mark as expired in DB if not already
+    if (invitation.status === INVITATION_STATUS.INVITED) {
       await db
         .from('team_invitations')
-        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .update({ status: INVITATION_STATUS.EXPIRED, updated_at: new Date().toISOString() })
         .eq('id', invitation.id);
     }
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
