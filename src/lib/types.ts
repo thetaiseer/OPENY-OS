@@ -75,7 +75,6 @@ export type TaskCategory =
   | 'internal_task'
   | 'content_creation'
   | 'design_task'
-  | 'approval_task'
   | 'publishing_task'
   | 'asset_upload_task'
   | 'follow_up_task';
@@ -117,8 +116,6 @@ export interface Task {
   created_by_id?: string | null;
   /** FK to content_items */
   content_item_id?: string | null;
-  /** FK to approvals */
-  approval_id?: string | null;
   mentions?: string[];
   tags?: string[];
   client?: { id: string; name: string };
@@ -158,8 +155,6 @@ export interface ContentItem {
   client_id?: string;
   /** FK to tasks */
   task_id?: string | null;
-  /** FK to approvals */
-  approval_id?: string | null;
   /** UUID FK to profiles */
   created_by?: string | null;
   client?: Client;
@@ -196,12 +191,6 @@ export interface Asset {
   /** Denormalized for search/display — source of truth is clients.name */
   client_name?: string | null;
   uploaded_by?: string | null;
-  /** @deprecated use approvals table */
-  publish_date?: string | null;
-  /** @deprecated use approvals table */
-  approval_status?: 'pending' | 'approved' | 'rejected' | 'scheduled' | 'published' | null;
-  /** @deprecated use approvals table */
-  approval_notes?: string | null;
   mime_type?: string | null;
   preview_url?: string | null;
   thumbnail_url?: string | null;
@@ -225,32 +214,16 @@ export interface Asset {
   created_at: string;
 }
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-
-export interface Approval {
+/**
+ * Lightweight asset shape used in calendar views.
+ * Matches the partial select: id, name, publish_date, content_type, client_name.
+ */
+export interface CalendarAsset {
   id: string;
-  title?: string | null;
-  status: ApprovalStatus;
-  client_id?: string | null;
-  /** FK to tasks */
-  task_id?: string | null;
-  /** FK to content_items */
-  content_item_id?: string | null;
-  /** FK to assets */
-  asset_id?: string | null;
-  /** UUID FK to profiles (the reviewer) */
-  reviewer_id?: string | null;
-  notes?: string | null;
-  approved_at?: string | null;
-  rejected_at?: string | null;
-  created_at: string;
-  updated_at: string;
-  /** Joined relations */
-  client?: Pick<Client, 'id' | 'name'> | null;
-  reviewer?: Pick<TeamMember, 'id' | 'full_name' | 'email' | 'avatar'> | null;
-  task?: Pick<Task, 'id' | 'title'> | null;
-  asset?: Pick<Asset, 'id' | 'name'> | null;
-  content_item?: Pick<ContentItem, 'id' | 'title'> | null;
+  name: string;
+  publish_date: string | null;
+  content_type?: string | null;
+  client_name?: string | null;
 }
 
 export interface Activity {
@@ -262,7 +235,7 @@ export interface Activity {
   /** UUID FK to profiles */
   user_uuid?: string | null;
   client_id?: string;
-  /** The type of entity this activity relates to (task, asset, approval, etc.) */
+  /** The type of entity this activity relates to (task, asset, etc.) */
   entity_type?: string | null;
   /** The UUID of the related entity */
   entity_id?: string | null;
@@ -323,16 +296,6 @@ export interface Notification {
   entity_id?: string | null;
   action_url?: string | null;
   event_type?: string | null;
-  created_at: string;
-}
-
-export interface ApprovalHistory {
-  id: string;
-  asset_id: string;
-  action: 'approved' | 'rejected' | 'pending' | 'scheduled' | 'published';
-  user_id?: string | null;
-  user_name?: string | null;
-  notes?: string | null;
   created_at: string;
 }
 

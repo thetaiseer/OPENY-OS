@@ -33,10 +33,6 @@ const EVENT_LABEL: Record<string, string> = {
   publishing_scheduled:   'Publishing Scheduled',
   publishing_rescheduled: 'Rescheduled',
   publishing_published:   'Published',
-  approval_requested:     'Approval Requested',
-  approval_approved:      'Approved',
-  approval_rejected:      'Rejected',
-  approval_needs_changes: 'Needs Changes',
   asset_uploaded:         'Asset Uploaded',
   asset_linked:           'Asset Linked',
   client_created:         'Client Created',
@@ -145,7 +141,7 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <EmptyState icon={Bell} title="No notifications yet" description="You'll see task assignments, approvals, and publishing updates here." />
+        <EmptyState icon={Bell} title="No notifications yet" description="You'll see task assignments, asset uploads, and publishing updates here." />
       ) : (
         <div className="space-y-2">
           {notifications.map(n => {

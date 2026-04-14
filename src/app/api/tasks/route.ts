@@ -11,7 +11,7 @@
  *     notes?, client_id?, client_name?, assigned_to?, assignee_id?,
  *     created_by?, created_by_id?, mentions?, tags?,
  *     platforms?, post_types?, publishing_schedule_id?,
- *     asset_id?, asset_ids?, content_item_id?, approval_id? }
+ *     asset_id?, asset_ids?, content_item_id? }
  *
  * client_id and assigned_to are required unless task_category is 'internal_task'.
  * asset_ids: array of asset UUIDs — creates task_asset_links entries.
@@ -39,7 +39,7 @@ const VALID_STATUSES = [
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
 
 const VALID_TASK_CATEGORIES = [
-  'internal_task', 'content_creation', 'design_task', 'approval_task',
+  'internal_task', 'content_creation', 'design_task',
   'publishing_task', 'asset_upload_task', 'follow_up_task',
 ] as const;
 
@@ -203,9 +203,6 @@ export async function POST(request: NextRequest) {
 
   const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
   if (contentItemId) insertPayload.content_item_id = contentItemId;
-
-  const approvalId = typeof body.approval_id === 'string' ? body.approval_id.trim() : '';
-  if (approvalId) insertPayload.approval_id = approvalId;
 
   // Collect asset_ids array for task_asset_links
   const assetIds: string[] = [];

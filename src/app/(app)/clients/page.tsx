@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Users2, AlertCircle, X, FolderOpen, CheckSquare, FileText } from 'lucide-react';
-import Link from 'next/link';
+import { Plus, Search, Users2, AlertCircle, X, FolderOpen } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -271,15 +270,18 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredClients.map(client => (
-            <Link
+            <div
               key={client.id}
-              href={`/clients/${client.slug}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/clients/${client.slug}`)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.slug}`); } }}
               className="flex flex-col gap-3 p-5 rounded-2xl border cursor-pointer select-none
                 transition-all duration-200 ease-out
                 hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
                 active:translate-y-0 active:scale-[0.99] active:shadow-sm
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', textDecoration: 'none' }}
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               {/* Header row */}
               <div className="flex items-start justify-between gap-3">
@@ -305,22 +307,24 @@ export default function ClientsPage() {
                 <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{client.email}</p>
               )}
 
-              {/* Open workspace hint */}
-              <div className="flex items-center gap-3 mt-auto pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <FolderOpen size={12} />
-                  <span>Assets</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <CheckSquare size={12} />
-                  <span>Tasks</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <FileText size={12} />
-                  <span>Content</span>
-                </div>
+              {/* Action buttons — same style as Assets ClientFolderCard */}
+              <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
+                <a
+                  href={`/clients/${client.slug}/overview`}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', textDecoration: 'none' }}
+                >
+                  <FolderOpen size={12} /> Open
+                </a>
+                <a
+                  href={`/clients/${client.slug}/assets`}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
+                >
+                  Assets
+                </a>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

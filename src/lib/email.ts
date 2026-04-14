@@ -74,49 +74,6 @@ export function taskAssignedEmail(opts: {
 </div>`;
 }
 
-export function approvalRequestEmail(opts: {
-  recipientName: string;
-  taskTitle: string;
-  clientName?: string;
-  requestedBy?: string;
-  appUrl: string;
-}): string {
-  return `
-<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-  <h2 style="margin:0 0 8px;font-size:20px;color:#d97706">🔍 Approval Requested</h2>
-  <p style="margin:0 0 24px;color:#555">Hi ${opts.recipientName}, your review is needed.</p>
-  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 24px;margin-bottom:24px">
-    <p style="margin:0 0 4px;font-weight:600;color:#111">${opts.taskTitle}</p>
-    ${opts.clientName  ? `<p style="margin:0 0 4px;color:#555">Client: ${opts.clientName}</p>` : ''}
-    ${opts.requestedBy ? `<p style="margin:0;color:#555">Requested by: ${opts.requestedBy}</p>` : ''}
-  </div>
-  <a href="${opts.appUrl}/my-tasks" style="display:inline-block;background:#d97706;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">Review Now →</a>
-</div>`;
-}
-
-export function approvalDecisionEmail(opts: {
-  recipientName: string;
-  taskTitle: string;
-  decision: 'approved' | 'rejected' | 'needs_changes';
-  notes?: string;
-  appUrl: string;
-}): string {
-  const isApproved = opts.decision === 'approved';
-  const color = isApproved ? '#16a34a' : opts.decision === 'rejected' ? '#dc2626' : '#d97706';
-  const emoji = isApproved ? '✅' : opts.decision === 'rejected' ? '❌' : '🔄';
-  const label = isApproved ? 'Approved' : opts.decision === 'rejected' ? 'Rejected' : 'Needs Changes';
-  return `
-<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-  <h2 style="margin:0 0 8px;font-size:20px;color:${color}">${emoji} Task ${label}</h2>
-  <p style="margin:0 0 24px;color:#555">Hi ${opts.recipientName},</p>
-  <div style="background:#f5f5f5;border-radius:12px;padding:20px 24px;margin-bottom:24px">
-    <p style="margin:0 0 4px;font-weight:600;color:#111">${opts.taskTitle}</p>
-    ${opts.notes ? `<p style="margin:8px 0 0;color:#555;font-style:italic">"${opts.notes}"</p>` : ''}
-  </div>
-  <a href="${opts.appUrl}/my-tasks" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">View Task →</a>
-</div>`;
-}
-
 export function publishingScheduledEmail(opts: {
   recipientName: string;
   clientName?: string;

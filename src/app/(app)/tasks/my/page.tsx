@@ -80,7 +80,7 @@ function statusLabel(s: string): string {
 function categoryLabel(cat?: string | null): string {
   const labels: Record<string, string> = {
     internal_task: 'Internal', content_creation: 'Content',
-    design_task: 'Design', approval_task: 'Approval',
+    design_task: 'Design',
     publishing_task: 'Publishing', asset_upload_task: 'Asset Upload',
     follow_up_task: 'Follow-up',
   };
@@ -90,7 +90,7 @@ function categoryLabel(cat?: string | null): string {
 function categoryColor(cat?: string | null): string {
   const colors: Record<string, string> = {
     internal_task: '#6b7280', content_creation: '#2563eb',
-    design_task: '#d946ef', approval_task: '#d97706',
+    design_task: '#d946ef',
     publishing_task: '#7c3aed', asset_upload_task: '#0891b2',
     follow_up_task: '#16a34a',
   };
@@ -113,7 +113,6 @@ const CATEGORY_FILTERS = [
   { value: 'content_creation', label: 'Content' },
   { value: 'publishing_task',  label: 'Publishing' },
   { value: 'design_task',      label: 'Design' },
-  { value: 'approval_task',    label: 'Approval' },
   { value: 'internal_task',    label: 'Internal' },
   { value: 'follow_up_task',   label: 'Follow-up' },
   { value: 'asset_upload_task',label: 'Asset Upload' },

@@ -27,7 +27,6 @@ const TASK_CATEGORIES: { value: TaskCategory; label: string; description: string
   { value: 'internal_task',    label: 'Internal Task',     description: 'Team work, meetings, internal processes' },
   { value: 'content_creation', label: 'Content Creation',  description: 'Writing, design, creative work for clients' },
   { value: 'design_task',      label: 'Design Task',       description: 'Visual design, branding, graphics' },
-  { value: 'approval_task',    label: 'Approval Task',     description: 'Requires review and approval from stakeholders' },
   { value: 'publishing_task',  label: 'Publishing Task',   description: 'Social media scheduling and publishing' },
   { value: 'asset_upload_task',label: 'Asset Upload Task', description: 'File delivery and asset management' },
   { value: 'follow_up_task',   label: 'Follow-up Task',    description: 'Client follow-up, reminders, check-ins' },
