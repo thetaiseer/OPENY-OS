@@ -11,6 +11,7 @@ import { ToastProvider } from '@/lib/toast-context';
 import ToastContainer from '@/components/ui/ToastContainer';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks } from '@/lib/realtime';
+import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
 
 // Lazy-load non-critical panels after the page shell has rendered.
 // ssr: false ensures these are client-only (they use browser APIs) and avoids
@@ -21,6 +22,10 @@ const AiAssistantPanel = dynamic(
 );
 const NotificationRealtimeSync = dynamic(
   () => import('@/components/notifications/NotificationRealtimeSync'),
+  { ssr: false },
+);
+const CommandPalette = dynamic(
+  () => import('@/components/search/CommandPalette'),
   { ssr: false },
 );
 
@@ -39,10 +44,13 @@ const SESSION_CHECK_INTERVAL = 3 * 60 * 1000; // 3 minutes
 // How often to update last_seen_at (ms)
 const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// ── Inner layout — needs access to CommandPaletteContext ──────────────────────
+
+function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { isOpen: paletteOpen, close: closePalette } = useCommandPalette();
 
   useEffect(() => {
     const supabaseClient = createClient();
@@ -104,22 +112,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+      </div>
+
+      {/* Global upload queue panel — visible across all routes */}
+      <GlobalUploadQueue />
+      <ToastContainer />
+      <AiAssistantPanel />
+      {/* Real-time notification sync: subscribes to Supabase Realtime and fires toasts */}
+      <NotificationRealtimeSync />
+      {/* Universal command palette — CMD+K */}
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
+    </div>
+  );
+}
+
+// ── Root layout ───────────────────────────────────────────────────────────────
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-          <UploadProvider>
-          <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              <Header onMenuClick={() => setSidebarOpen(true)} />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
-            </div>
-          </div>
-          {/* Global upload queue panel — visible across all routes */}
-          <GlobalUploadQueue />
-          <ToastContainer />
-          <AiAssistantPanel />
-          {/* Real-time notification sync: subscribes to Supabase Realtime and fires toasts */}
-          <NotificationRealtimeSync />
+        <UploadProvider>
+          <CommandPaletteProvider>
+            <AppShell>{children}</AppShell>
+          </CommandPaletteProvider>
         </UploadProvider>
       </ToastProvider>
     </QueryClientProvider>
