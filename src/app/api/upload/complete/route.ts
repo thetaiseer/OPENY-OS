@@ -183,6 +183,8 @@ export async function POST(req: NextRequest) {
   void supabase.from('activities').insert({
     type:        'asset',
     description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
+    entity_type: 'asset',
+    entity_id:   inserted?.id as string | undefined ?? null,
     ...(clientId ? { client_id: clientId } : {}),
   }).then(({ error }) => {
     if (error) console.warn('[upload/complete] activity log failed:', error.message);

@@ -3,9 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
-  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send,
+  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis } from 'recharts';
+import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
@@ -13,7 +14,7 @@ import { useDashboardStats } from '@/lib/queries';
 import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
-import type { Activity as ActivityType, PublishingSchedule } from '@/lib/types';
+import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
 
 interface Stats {
   totalClients: number;
@@ -246,6 +247,33 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  const { data: recentAssets } = useQuery<Asset[]>({
+    queryKey: ['dashboard-recent-assets'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('assets')
+        .select('id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      return (data ?? []) as Asset[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: activeClients } = useQuery<Client[]>({
+    queryKey: ['dashboard-active-clients'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, name, slug, status, updated_at')
+        .eq('status', 'active')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+      return (data ?? []) as Client[];
+    },
+    staleTime: 60_000,
+  });
+
   const contentDistItems = useMemo(() => {
     if (!assetRows) return [];
     const counts: Record<string, number> = {};
@@ -377,6 +405,101 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* ── Recent Assets + Active Clients ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Assets */}
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <ImageIcon size={16} style={{ color: 'var(--accent)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Recent Assets</h2>
+            </div>
+            <Link href="/assets" className="text-xs hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
+              View all
+            </Link>
+          </div>
+          {!recentAssets ? (
+            <div className="grid grid-cols-3 gap-2">
+              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}
+            </div>
+          ) : recentAssets.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {recentAssets.map(asset => (
+                <div key={asset.id} className="rounded-xl overflow-hidden border"
+                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
+                    <img
+                      src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
+                      alt={asset.name}
+                      className="w-full aspect-square object-cover"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square flex items-center justify-center"
+                      style={{ background: 'var(--surface)' }}>
+                      <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
+                    </div>
+                  )}
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] font-medium truncate" style={{ color: 'var(--text)' }}>{asset.name}</p>
+                    {asset.client_name && (
+                      <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{asset.client_name}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Active Clients */}
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Users2 size={16} style={{ color: 'var(--accent)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Active Clients</h2>
+            </div>
+            <Link href="/clients" className="text-xs hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
+              View all
+            </Link>
+          </div>
+          {!activeClients ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+          ) : activeClients.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No active clients</p>
+          ) : (
+            <div className="space-y-2">
+              {activeClients.map(client => (
+                <Link
+                  key={client.id}
+                  href={`/clients/${client.slug ?? client.id}/overview`}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--surface-2)' }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Updated {new Date(client.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
+                    style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
+                    active
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
