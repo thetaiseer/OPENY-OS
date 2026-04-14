@@ -124,22 +124,29 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
   const hasActions = onView || onDownload;
   return (
     <div
-      className="flex flex-col gap-2 p-4 rounded-2xl border transition-all hover:border-[var(--accent)] hover:shadow-sm"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className="flex flex-col gap-2 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center"
-      >
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}>
+      <div className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center">
+        <div
+          className="flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200"
+          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
+        >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
         <div className="min-w-0 w-full">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
         </div>
-      </button>
+      </div>
       {hasActions && (
         <div className="flex gap-1.5 mt-auto">
           {onView && (
@@ -186,11 +193,19 @@ function ClientFolderCard({
 }) {
   return (
     <div
-      className="flex flex-col gap-3 p-4 rounded-2xl border transition-all hover:border-[var(--accent)] hover:shadow-sm"
+      role="button"
+      tabIndex={0}
+      onClick={onView}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(); } }}
+      className="flex flex-col gap-3 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: 'rgba(99,102,241,0.1)' }}>
+        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-colors duration-200" style={{ background: 'rgba(99,102,241,0.1)' }}>
           <Folder size={18} style={{ color: 'var(--accent)' }} />
         </div>
         <div className="min-w-0 flex-1">
@@ -201,7 +216,7 @@ function ClientFolderCard({
       <div className="flex gap-2 mt-auto">
         <button
           type="button"
-          onClick={onView}
+          onClick={e => { e.stopPropagation(); onView(); }}
           className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
@@ -209,7 +224,7 @@ function ClientFolderCard({
         </button>
         <button
           type="button"
-          onClick={onDownload}
+          onClick={e => { e.stopPropagation(); onDownload(); }}
           disabled={isDownloading}
           className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
