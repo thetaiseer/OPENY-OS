@@ -29,14 +29,6 @@ function priorityColor(p: string): string {
   return '#2563eb';
 }
 
-function approvalColor(s?: string | null): string {
-  if (s === 'approved')  return '#16a34a';
-  if (s === 'rejected')  return '#dc2626';
-  if (s === 'scheduled') return '#7c3aed';
-  if (s === 'published') return '#0891b2';
-  return '#6b7280';
-}
-
 function scheduleStatusColor(s?: string): string {
   if (s === 'published')      return '#0891b2';
   if (s === 'approved')       return '#16a34a';
@@ -93,7 +85,7 @@ export default function CalendarPage() {
           Promise.allSettled([
             supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
             supabase.from('assets')
-              .select('id, name, publish_date, approval_status, content_type, client_name')
+              .select('id, name, publish_date, content_type, client_name')
               .gte('publish_date', startDate)
               .lte('publish_date', endDate),
             supabase.from('publishing_schedules')
@@ -375,8 +367,8 @@ export default function CalendarPage() {
                             key={a.id}
                             className="text-xs px-1 py-0.5 rounded truncate"
                             style={{
-                              background: `${approvalColor(a.approval_status)}20`,
-                              color:      approvalColor(a.approval_status),
+                              background: 'rgba(99,102,241,0.12)',
+                              color:      'var(--accent)',
                             }}
                           >
                             {a.name}
@@ -518,15 +510,6 @@ export default function CalendarPage() {
                                 {a.name}
                               </p>
                               <div className="flex gap-2 mt-1 flex-wrap">
-                                <span
-                                  className="text-xs px-1.5 py-0.5 rounded"
-                                  style={{
-                                    background: `${approvalColor(a.approval_status)}20`,
-                                    color:      approvalColor(a.approval_status),
-                                  }}
-                                >
-                                  {a.approval_status ?? 'pending'}
-                                </span>
                                 {a.client_name && (
                                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                                     {a.client_name}

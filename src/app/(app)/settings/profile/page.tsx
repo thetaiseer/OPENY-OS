@@ -181,7 +181,7 @@ export default function SettingsProfilePage() {
   const roleDescriptions: Record<string, string> = {
     admin:  'Full access to all data and settings',
     team:   'Access to assigned clients — can upload assets and create tasks',
-    client: 'Can view own assets and submit approvals',
+    client: 'Can view own assets',
   };
 
   async function handleSignOut() {

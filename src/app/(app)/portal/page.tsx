@@ -2,27 +2,22 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, CheckCircle, Clock, Eye, Download, XCircle } from 'lucide-react';
+import { FolderOpen, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
-import type { Asset, Approval } from '@/lib/types';
-
-/** Map asset_id → latest approval record (from the approvals table). */
-type ApprovalMap = Record<string, Approval>;
+import type { Asset } from '@/lib/types';
 
 /**
- * Client read-only portal — shows their own assets and approval status.
- * Approval status is read from the `approvals` table (not the deprecated
- * `assets.approval_status` column).
+ * Client read-only portal — shows their own assets.
  * Accessible by the 'client' role only (enforced via middleware).
  */
 export default function PortalPage() {
   const { user, clientId } = useAuth();
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
-  const { data: assets, isLoading: assetsLoading } = useQuery<Asset[]>({
+  const { data: assets, isLoading } = useQuery<Asset[]>({
     queryKey: ['portal-assets', user.id, clientId],
     enabled: !!user.id,
     queryFn: async () => {
@@ -32,7 +27,6 @@ export default function PortalPage() {
         .select('id, name, content_type, file_url, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
-      // Scope to the client's own records when client_id is known
       if (clientId) q = q.eq('client_id', clientId);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
@@ -41,48 +35,7 @@ export default function PortalPage() {
     staleTime: 30_000,
   });
 
-  // Fetch approvals from the authoritative `approvals` table — keyed by asset_id
-  const { data: approvalMap, isLoading: approvalsLoading } = useQuery<ApprovalMap>({
-    queryKey: ['portal-approvals', clientId],
-    enabled: !!user.id,
-    queryFn: async () => {
-      const supabase = createClient();
-      let q = supabase
-        .from('approvals')
-        .select('id, asset_id, status, notes, approved_at, rejected_at, created_at, updated_at')
-        .not('asset_id', 'is', null)
-        .order('created_at', { ascending: false });
-      if (clientId) q = q.eq('client_id', clientId);
-      const { data, error } = await q;
-      if (error) throw new Error(error.message);
-      // Keep only the most-recent approval per asset
-      const map: ApprovalMap = {};
-      for (const row of (data ?? []) as Approval[]) {
-        if (row.asset_id && !map[row.asset_id]) map[row.asset_id] = row;
-      }
-      return map;
-    },
-    staleTime: 30_000,
-  });
-
-  const isLoading = assetsLoading || approvalsLoading;
-
-  const approved = assets?.filter(a => (approvalMap?.[a.id]?.status ?? 'pending') === 'approved') ?? [];
-  const pending  = assets?.filter(a => {
-    const status = approvalMap?.[a.id]?.status;
-    return !status || status === 'pending';
-  }) ?? [];
-  const total    = assets?.length ?? 0;
-
-  function approvalBadge(assetId: string) {
-    const a = approvalMap?.[assetId];
-    const status = a?.status ?? 'pending';
-    if (status === 'approved')
-      return { label: 'Approved', style: { background: 'rgba(22,163,74,0.1)', color: '#16a34a' } };
-    if (status === 'rejected')
-      return { label: 'Rejected', style: { background: 'rgba(239,68,68,0.1)', color: '#ef4444' } };
-    return { label: 'Pending Review', style: { background: 'rgba(217,119,6,0.1)', color: '#d97706' } };
-  }
+  const total = assets?.length ?? 0;
 
   return (
     <>
@@ -92,27 +45,21 @@ export default function PortalPage() {
           Welcome, {user.name} 👋
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Your client portal — view your assets and approvals
+          Your client portal — view your assets
         </p>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary card */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Total Assets',   value: total,           icon: <FolderOpen size={18} />,   color: '#6366f1' },
-          { label: 'Approved',       value: approved.length, icon: <CheckCircle size={18} />,  color: '#16a34a' },
-          { label: 'Pending Review', value: pending.length,  icon: <Clock size={18} />,        color: '#d97706' },
-        ].map(c => (
-          <div key={c.label} className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${c.color}18`, color: c.color }}>
-              {c.icon}
-            </div>
-            <div>
-              <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{c.value}</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{c.label}</p>
-            </div>
+        <div className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+            <FolderOpen size={18} />
           </div>
-        ))}
+          <div>
+            <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{total}</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Total Assets</p>
+          </div>
+        </div>
       </div>
 
       {/* Asset list */}
@@ -128,49 +75,36 @@ export default function PortalPage() {
           </div>
         ) : (
           <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            {assets.map(a => {
-              const badge = approvalBadge(a.id);
-              const approval = approvalMap?.[a.id];
-              return (
-                <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
-                    <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
-                    </p>
-                    {approval?.notes && (
-                      <p className="text-xs mt-1 italic" style={{ color: 'var(--text-secondary)' }}>
-                        Note: {approval.notes}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-xs font-medium px-2 py-1 rounded-full shrink-0" style={badge.style}>
-                    {badge.style.color === '#16a34a' ? <CheckCircle size={10} className="inline mr-1" /> : badge.style.color === '#ef4444' ? <XCircle size={10} className="inline mr-1" /> : <Clock size={10} className="inline mr-1" />}
-                    {badge.label}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {(a.web_view_link ?? a.view_url ?? a.file_url) && (
-                      <button
-                        onClick={() => setPreviewAsset(a)}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
-                        style={{ background: 'var(--surface-2)' }}
-                        title="View"
-                      >
-                        <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
-                      </button>
-                    )}
-                    {a.download_url && (
-                      <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
-                        <Download size={14} style={{ color: 'var(--text-secondary)' }} />
-                      </a>
-                    )}
-                  </div>
+            {assets.map(a => (
+              <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
+                  <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
                 </div>
-              );
-            })}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {(a.web_view_link ?? a.view_url ?? a.file_url) && (
+                    <button
+                      onClick={() => setPreviewAsset(a)}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
+                      style={{ background: 'var(--surface-2)' }}
+                      title="View"
+                    >
+                      <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
+                    </button>
+                  )}
+                  {a.download_url && (
+                    <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
+                      <Download size={14} style={{ color: 'var(--text-secondary)' }} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

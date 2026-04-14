@@ -178,7 +178,6 @@ export function useNotifications(
 export interface DashboardStats {
   totalClients: number;
   activeTasks: number;
-  pendingApprovals: number;
   overdueTasks: number;
   tasksDueThisWeek: number;
   totalAssets: number;
@@ -197,7 +196,6 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
       const settled = await Promise.allSettled([
         sb.from('clients').select('id', { count: 'exact', head: true }),
         sb.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
-        sb.from('approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         sb.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
         sb.from('tasks').select('id', { count: 'exact', head: true })
           .gte('due_date', todayStr)
@@ -206,11 +204,10 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
         sb.from('assets').select('id', { count: 'exact', head: true }),
       ]);
 
-      const [clients, tasks, approvals, overdue, dueThisWeek, assets] = settled;
+      const [clients, tasks, overdue, dueThisWeek, assets] = settled;
       return {
         totalClients:     clients.status     === 'fulfilled' ? (clients.value.count     ?? 0) : 0,
         activeTasks:      tasks.status       === 'fulfilled' ? (tasks.value.count       ?? 0) : 0,
-        pendingApprovals: approvals.status   === 'fulfilled' ? (approvals.value.count   ?? 0) : 0,
         overdueTasks:     overdue.status     === 'fulfilled' ? (overdue.value.count     ?? 0) : 0,
         tasksDueThisWeek: dueThisWeek.status === 'fulfilled' ? (dueThisWeek.value.count ?? 0) : 0,
         totalAssets:      assets.status      === 'fulfilled' ? (assets.value.count      ?? 0) : 0,
