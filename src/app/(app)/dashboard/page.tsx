@@ -81,21 +81,26 @@ function TeamPerformance({ data }: { data: { id: string; name: string; completed
 
 // ── Overdue risk ──────────────────────────────────────────────────────────────
 
-function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?: string; client?: { name: string } | null }[] }) {
+function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?: string; status: string; client?: { name: string; slug?: string } | null }[] }) {
   if (!tasks.length) return <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>🎉 No at-risk tasks!</p>;
   return (
     <div className="space-y-2">
       {tasks.map(t => {
         const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date).getTime() - Date.now()) / 86400000) : null;
+        const isOverdue = daysLeft !== null && daysLeft < 0;
         return (
-          <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(239,68,68,0.07)' }}>
+          <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: isOverdue ? 'rgba(239,68,68,0.07)' : 'rgba(217,119,6,0.07)' }}>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{t.title}</p>
-              {t.client && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.client.name}</p>}
+              {t.client && (
+                t.client.slug
+                  ? <Link href={`/clients/${t.client.slug}/tasks`} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>{t.client.name}</Link>
+                  : <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.client.name}</p>
+              )}
             </div>
             {daysLeft !== null && (
-              <span className="text-xs font-semibold shrink-0" style={{ color: daysLeft < 0 ? '#ef4444' : '#d97706' }}>
-                {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+              <span className="text-xs font-semibold shrink-0" style={{ color: isOverdue ? '#ef4444' : '#d97706' }}>
+                {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
               </span>
             )}
           </div>
@@ -237,12 +242,12 @@ export default function DashboardPage() {
       const soonStr = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
       const { data } = await supabase
         .from('tasks')
-        .select('id, title, due_date, status, client:clients(id,name)')
+        .select('id, title, due_date, status, client:clients(id,name,slug)')
         .lte('due_date', soonStr)
-        .not('status', 'in', '("done","delivered")')
+        .not('status', 'in', '("done","delivered","completed","published","cancelled")')
         .order('due_date', { ascending: true })
         .limit(5);
-      return (data ?? []) as unknown as Array<{ id: string; title: string; due_date?: string; client?: { name: string } | null }>;
+      return (data ?? []) as unknown as Array<{ id: string; title: string; due_date?: string; status: string; client?: { name: string; slug?: string } | null }>;
     },
     staleTime: 60_000,
   });

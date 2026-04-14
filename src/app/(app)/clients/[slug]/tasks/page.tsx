@@ -2,24 +2,25 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Plus, Calendar, User, Users, Tag, AlertCircle, Trash2,
+  Plus, Calendar, User, Tag, AlertCircle, Trash2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useToast } from '@/lib/toast-context';
 import Badge from '@/components/ui/Badge';
-import Modal from '@/components/ui/Modal';
-import AiImproveButton from '@/components/ui/AiImproveButton';
-import SelectDropdown from '@/components/ui/SelectDropdown';
+import NewTaskModal from '@/components/tasks/NewTaskModal';
 import { useClientWorkspace } from '../client-context';
-import type { Task, TeamMember } from '@/lib/types';
+import type { Task, TeamMember, Client } from '@/lib/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const COMPLETED_STATUSES = new Set(['done', 'delivered', 'completed', 'published', 'cancelled']);
+
 const taskStatusVariant = (s: string) => {
-  if (s === 'done')        return 'success' as const;
+  if (s === 'done' || s === 'completed' || s === 'delivered') return 'success' as const;
   if (s === 'overdue')     return 'danger'  as const;
-  if (s === 'in_progress') return 'info'    as const;
+  if (s === 'in_progress' || s === 'in_review') return 'info' as const;
+  if (s === 'waiting_client') return 'warning' as const;
   return 'default' as const;
 };
 
@@ -30,7 +31,7 @@ const taskPriorityVariant = (p: string) => {
 };
 
 function isOverdue(due_date?: string, status?: string) {
-  if (!due_date || status === 'done') return false;
+  if (!due_date || COMPLETED_STATUSES.has(status ?? '')) return false;
   return new Date(due_date) < new Date(new Date().toDateString());
 }
 
@@ -39,22 +40,21 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function humanStatus(s: string): string {
+  return s.replace(/_/g, ' ');
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ClientTasksPage() {
-  const { clientId } = useClientWorkspace();
+  const { client, clientId } = useClientWorkspace();
   const { t } = useLang();
   const { toast: addToast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [team,  setTeam]  = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [taskForm, setTaskForm] = useState({
-    title: '', priority: 'medium', due_date: '', assigned_to: '', status: 'todo',
-  });
-  const [taskSaving, setTaskSaving] = useState(false);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -75,36 +75,18 @@ export default function ClientTasksPage() {
     const { error } = await supabase.from('tasks').delete().eq('id', taskId);
     if (error) { addToast(error.message, 'error'); return; }
     setTasks(prev => prev.filter(t => t.id !== taskId));
-    await supabase.from('activities').insert({
-      type: 'task', description: `Task "${taskTitle}" deleted`, client_id: clientId,
+    // Log deletion activity via API so user_uuid and entity_id are tracked properly
+    void fetch('/api/activities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'task_deleted',
+        description: `Task "${taskTitle}" deleted`,
+        client_id: clientId,
+        entity_type: 'task',
+        entity_id: taskId,
+      }),
     });
-  };
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!taskForm.title.trim()) return;
-    setTaskSaving(true);
-    try {
-      const { error } = await supabase.from('tasks').insert({
-        title:       taskForm.title.trim(),
-        priority:    taskForm.priority,
-        due_date:    taskForm.due_date || null,
-        assigned_to: taskForm.assigned_to || null,
-        status:      taskForm.status,
-        client_id:   clientId,
-      });
-      if (error) throw error;
-      await supabase.from('activities').insert({
-        type: 'task', description: `Task "${taskForm.title}" created`, client_id: clientId,
-      });
-      setTaskModalOpen(false);
-      setTaskForm({ title: '', priority: 'medium', due_date: '', assigned_to: '', status: 'todo' });
-      void load();
-    } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Failed to create task', 'error');
-    } finally {
-      setTaskSaving(false);
-    }
   };
 
   if (loading) {
@@ -117,11 +99,14 @@ export default function ClientTasksPage() {
     );
   }
 
+  // Build client array for NewTaskModal (just the current client)
+  const clientsForModal: Client[] = client ? [client] : [];
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <button
-          onClick={() => setTaskModalOpen(true)}
+          onClick={() => setNewTaskOpen(true)}
           className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
           style={{ background: 'var(--accent)' }}
         >
@@ -134,10 +119,10 @@ export default function ClientTasksPage() {
       ) : (
         <div className="space-y-3">
           {tasks.map(task => {
-            const overdue         = isOverdue(task.due_date, task.status);
-            const assignee        = team.find(m => m.id === task.assigned_to);
-            const creator         = team.find(m => m.id === task.created_by);
+            const overdue = isOverdue(task.due_date, task.status);
+            const assignee = team.find(m => m.id === task.assigned_to || m.id === task.assignee_id || m.profile_id === task.assignee_id);
             const mentionedMembers = (task.mentions ?? []).map(mid => team.find(m => m.id === mid)).filter(Boolean) as TeamMember[];
+            const isCompleted = COMPLETED_STATUSES.has(task.status);
             return (
               <div
                 key={task.id}
@@ -145,7 +130,7 @@ export default function ClientTasksPage() {
                 style={{
                   background:  'var(--surface)',
                   borderColor: 'var(--border)',
-                  borderLeft:  `3px solid ${overdue ? '#ef4444' : task.status === 'done' ? '#22c55e' : 'var(--border)'}`,
+                  borderLeft:  `3px solid ${overdue ? '#ef4444' : isCompleted ? '#22c55e' : 'var(--border)'}`,
                 }}
               >
                 <div className="flex items-start gap-2">
@@ -153,6 +138,11 @@ export default function ClientTasksPage() {
                     <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{task.title}</p>
                     {task.description && (
                       <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+                    )}
+                    {task.task_category && (
+                      <p className="text-[10px] mt-0.5 font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                        {task.task_category.replace(/_/g, ' ')}
+                      </p>
                     )}
                   </div>
                   <button
@@ -177,14 +167,9 @@ export default function ClientTasksPage() {
                       <User size={10} />{assignee.full_name}
                     </span>
                   )}
-                  {creator && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-                      by {creator.full_name}
-                    </span>
-                  )}
                   {mentionedMembers.length > 0 && (
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-                      <Users size={10} />{mentionedMembers.map(m => `@${m.full_name}`).join(', ')}
+                      {mentionedMembers.map(m => `@${m.full_name}`).join(', ')}
                     </span>
                   )}
                   {task.tags && task.tags.length > 0 && task.tags.map(tag => (
@@ -195,7 +180,7 @@ export default function ClientTasksPage() {
                 </div>
                 <div className="flex gap-2">
                   <Badge variant={taskStatusVariant(task.status)}>
-                    {t(task.status === 'in_progress' ? 'inProgress' : task.status)}
+                    {humanStatus(task.status)}
                   </Badge>
                   <Badge variant={taskPriorityVariant(task.priority)}>{t(task.priority)}</Badge>
                 </div>
@@ -205,86 +190,18 @@ export default function ClientTasksPage() {
         </div>
       )}
 
-      {/* Quick-create task modal */}
-      <Modal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title={t('newTask')} size="sm">
-        <form onSubmit={e => void handleCreateTask(e)} className="space-y-4">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
-              <AiImproveButton
-                value={taskForm.title}
-                onImproved={v => setTaskForm(f => ({ ...f, title: v }))}
-              />
-            </div>
-            <input
-              required
-              value={taskForm.title}
-              onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              placeholder="Task title"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-              <SelectDropdown
-                fullWidth
-                value={taskForm.priority}
-                onChange={v => setTaskForm(f => ({ ...f, priority: v }))}
-                options={[
-                  { value: 'low',    label: t('low')    },
-                  { value: 'medium', label: t('medium') },
-                  { value: 'high',   label: t('high')   },
-                ]}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')}</label>
-              <input
-                type="date"
-                value={taskForm.due_date}
-                onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              />
-            </div>
-          </div>
-          {team.length > 0 && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')}</label>
-              <SelectDropdown
-                fullWidth
-                value={taskForm.assigned_to}
-                onChange={v => setTaskForm(f => ({ ...f, assigned_to: v }))}
-                placeholder={t('unassigned')}
-                options={[
-                  { value: '', label: t('unassigned') },
-                  ...team.map(m => ({ value: m.id, label: m.full_name })),
-                ]}
-              />
-            </div>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setTaskModalOpen(false)}
-              className="h-9 px-4 rounded-lg text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={taskSaving}
-              className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
-            >
-              {taskSaving ? t('loading') : t('save')}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {/* Full-featured task creation modal — triggers calendar events, notifications, emails */}
+      <NewTaskModal
+        open={newTaskOpen}
+        onClose={() => setNewTaskOpen(false)}
+        onCreated={task => {
+          setTasks(prev => [task, ...prev]);
+          setNewTaskOpen(false);
+        }}
+        clients={clientsForModal}
+        team={team}
+        initialClientId={clientId}
+      />
     </div>
   );
 }

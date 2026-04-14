@@ -193,14 +193,21 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
       weekLater.setDate(weekLater.getDate() + 7);
       const weekLaterStr = weekLater.toISOString().slice(0, 10);
 
+      // All statuses considered "completed" or terminal — exclude from active counts
+      const terminalStatuses = '("done","delivered","completed","published","cancelled")';
+
       const settled = await Promise.allSettled([
         sb.from('clients').select('id', { count: 'exact', head: true }),
-        sb.from('tasks').select('id', { count: 'exact', head: true }).neq('status', 'done'),
-        sb.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+        // Active tasks: not in any terminal status
+        sb.from('tasks').select('id', { count: 'exact', head: true }).not('status', 'in', terminalStatuses),
+        // Overdue tasks: due_date is in the past AND not terminal (computed, not relying on status field)
+        sb.from('tasks').select('id', { count: 'exact', head: true })
+          .lt('due_date', todayStr)
+          .not('status', 'in', terminalStatuses),
         sb.from('tasks').select('id', { count: 'exact', head: true })
           .gte('due_date', todayStr)
           .lte('due_date', weekLaterStr)
-          .not('status', 'in', '("done","delivered")'),
+          .not('status', 'in', terminalStatuses),
         sb.from('assets').select('id', { count: 'exact', head: true }),
       ]);
 
