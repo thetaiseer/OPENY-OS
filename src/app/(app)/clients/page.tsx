@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Search, Users2, ExternalLink, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
@@ -26,6 +27,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
+  const router = useRouter();
   const canManageClients = role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,7 @@ export default function ClientsPage() {
       });
 
       const res = await fetchWithTimeout;
-      let result: { success: boolean; client?: { id?: string }; step?: string; error?: string };
+      let result: { success: boolean; client?: { id?: string; slug?: string }; step?: string; error?: string };
       try {
         result = await res.json() as typeof result;
       } catch {
@@ -166,26 +168,30 @@ export default function ClientsPage() {
       console.log('[client create] insert success, id:', result.client?.id);
 
       // — SUCCESS PATH —
-      // Close modal and reset form immediately; the list refresh is non-blocking.
+      // Close modal and reset form immediately; navigation is non-blocking.
       setModalOpen(false);
       setForm({ name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '' });
-
-      // Show success toast (auto-dismiss after 4 s)
-      setSuccessMsg(`Client "${form.name}" created successfully.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
 
       // Fire-and-forget activity log — never blocks the UI
       logActivity(`Client "${form.name}" created`, result.client?.id);
 
-      // Refresh list non-blocking — show warning if it fails, but never block modal
-      console.log('[client create] triggering list refetch');
-      void fetchClients(true).then(ok => {
-        console.log('[client create] list refetch result, ok:', ok);
-        if (!ok) {
-          setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
-          setTimeout(() => setWarnMsg(null), 6000);
-        }
-      });
+      // Navigate to the new client's page if slug is available, otherwise show toast
+      if (result.client?.slug) {
+        router.push(`/clients/${result.client.slug}`);
+      } else {
+        setSuccessMsg(`Client "${form.name}" created successfully.`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+
+        // Refresh list non-blocking
+        console.log('[client create] triggering list refetch');
+        void fetchClients(true).then(ok => {
+          console.log('[client create] list refetch result, ok:', ok);
+          if (!ok) {
+            setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
+            setTimeout(() => setWarnMsg(null), 6000);
+          }
+        });
+      }
     } catch (err: unknown) {
       console.error('[client create] error:', err);
       const message = err instanceof Error

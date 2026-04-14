@@ -29,7 +29,7 @@ const translations: Record<string, Record<string, string>> = {
     pendingApprovals: 'Pending Approvals',
     overdueTasks: 'Overdue Tasks',
     recentActivity: 'Recent Activity',
-    newClient: 'New Client',
+    newClient: 'Add Client',
     companyName: 'Company Name',
     email: 'Email',
     phone: 'Phone',
