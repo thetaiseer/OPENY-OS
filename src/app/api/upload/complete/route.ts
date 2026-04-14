@@ -56,6 +56,10 @@ export async function POST(req: NextRequest) {
   const monthKey            = (body.monthKey            as string | undefined)?.trim() ?? '';
   const uploadedBy          = (body.uploadedBy          as string | undefined)?.trim() || null;
   const thumbnailStorageKey = (body.thumbnailStorageKey as string | undefined)?.trim() || null;
+  const previewStorageKey   = (body.previewStorageKey   as string | undefined)?.trim() || null;
+  const durationSeconds     = typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
+    ? (body.durationSeconds as number)
+    : null;
 
   if (!storageKey)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'storageKey is required' }, { status: 400 });
   if (!displayName) return NextResponse.json({ success: false, stage: 'failed_db', error: 'displayName is required' }, { status: 400 });
@@ -105,16 +109,27 @@ export async function POST(req: NextRequest) {
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
-  // ── Resolve thumbnail URL ──────────────────────────────────────────────────
-  // For images: the file itself is the thumbnail (preview_url).
-  // For videos: use the separately-uploaded thumbnail, or null.
-  // For other types: null.
+  // ── Resolve thumbnail and preview URLs ────────────────────────────────────
+  // thumbnail_url — the card thumbnail image:
+  //   Images  → the file itself
+  //   Videos  → the separately-uploaded frame grab (thumbnailStorageKey)
+  //   Others  → null
+  // preview_url — the larger preview / cover image:
+  //   Images  → the file itself
+  //   PDFs    → the separately-uploaded first-page render (previewStorageKey)
+  //   Others  → null
   const isImage = fileType.startsWith('image/');
   let thumbnailUrl: string | null = null;
+  let resolvedPreviewUrl: string | null = null;
   if (thumbnailStorageKey) {
     try { thumbnailUrl = buildR2Url(thumbnailStorageKey); } catch { /* ignore */ }
   } else if (isImage) {
     thumbnailUrl = publicUrl;
+  }
+  if (previewStorageKey) {
+    try { resolvedPreviewUrl = buildR2Url(previewStorageKey); } catch { /* ignore */ }
+  } else if (isImage) {
+    resolvedPreviewUrl = publicUrl;
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────
@@ -135,9 +150,10 @@ export async function POST(req: NextRequest) {
     main_category:    mainCategory,
     sub_category:     subCategory,
     storage_key:      storageKey,
-    preview_url:      isImage ? publicUrl : null,
+    preview_url:      resolvedPreviewUrl,
     thumbnail_url:    thumbnailUrl,
     web_view_link:    publicUrl,
+    ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
     ...(clientId   ? { client_id:   clientId   } : {}),
     ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
   };

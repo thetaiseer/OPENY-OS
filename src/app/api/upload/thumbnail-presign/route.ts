@@ -11,8 +11,10 @@ export const dynamic = 'force-dynamic';
  * thumbnail (JPEG) directly to Cloudflare R2 without routing the bytes through
  * the Next.js / Vercel server.
  *
- * The thumbnail is stored at:
- *   thumbnails/{videoStorageKey}.jpg
+ * The thumbnail is stored as a sibling of the original video inside a
+ * `thumbnails/` subdirectory, preserving the organised path structure:
+ *   Original:  clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-video.mp4
+ *   Thumbnail: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/thumbnails/{ts}-video.jpg
  *
  * Request body (JSON):
  *   videoStorageKey – R2 key of the parent video file (required)
@@ -39,8 +41,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'videoStorageKey is required' }, { status: 400 });
   }
 
-  // Derive a thumbnail key from the video key.
-  const thumbnailStorageKey = `thumbnails/${videoStorageKey}.jpg`;
+  // Derive a thumbnail key that is a sibling of the video inside a
+  // `thumbnails/` subdirectory, stripping the original file extension and
+  // replacing it with `.jpg`.
+  //
+  // e.g. clients/acme/social/2024/01/reels/1735000000-video.mp4
+  //   →  clients/acme/social/2024/01/reels/thumbnails/1735000000-video.jpg
+  const lastSlash = videoStorageKey.lastIndexOf('/');
+  const dir       = lastSlash >= 0 ? videoStorageKey.slice(0, lastSlash) : '';
+  const filename  = lastSlash >= 0 ? videoStorageKey.slice(lastSlash + 1) : videoStorageKey;
+  // Remove original extension and add .jpg
+  const baseName  = filename.replace(/\.[^.]+$/, '');
+  const thumbnailStorageKey = dir
+    ? `${dir}/thumbnails/${baseName}.jpg`
+    : `thumbnails/${baseName}.jpg`;
 
   try {
     const result = await generatePresignedPutUrl(thumbnailStorageKey, 'image/jpeg');

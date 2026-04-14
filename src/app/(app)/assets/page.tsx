@@ -22,8 +22,9 @@ import {
 import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
-import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile } from '@/components/ui/AssetsGrid';
+import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
+import { generatePdfPreview } from '@/lib/pdf-preview';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -56,11 +57,13 @@ function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void 
 }
 
 interface FileUploadItem {
-  id:            string;
-  file:          File;
-  previewUrl:    string | null;
-  uploadName:    string;
-  thumbnailBlob: Blob | null;
+  id:              string;
+  file:            File;
+  previewUrl:      string | null;
+  uploadName:      string;
+  thumbnailBlob:   Blob | null;
+  durationSeconds: number | null;
+  previewBlob:     Blob | null;
 }
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
@@ -577,11 +580,13 @@ export default function AssetsPage() {
 
   const filesToItems = (files: File[]): FileUploadItem[] =>
     files.map(file => ({
-      id:            nextFileId(),
+      id:              nextFileId(),
       file,
-      previewUrl:    makePreviewUrl(file),
-      uploadName:    getFileBaseName(file.name),
-      thumbnailBlob: null,
+      previewUrl:      makePreviewUrl(file),
+      uploadName:      getFileBaseName(file.name),
+      thumbnailBlob:   null,
+      durationSeconds: null,
+      previewBlob:     null,
     }));
 
   const revokeItemUrls = useCallback((items: FileUploadItem[]) => {
@@ -604,7 +609,7 @@ export default function AssetsPage() {
       setUploadClientId('');
     }
 
-    // Asynchronously generate thumbnails for video files and update the item state.
+    // Asynchronously generate thumbnails for video files.
     items.forEach(item => {
       if (!isVideoFile(item.file.name, item.file.type)) return;
       void generateVideoThumbnail(item.file).then(result => {
@@ -612,7 +617,22 @@ export default function AssetsPage() {
         setPendingItems(prev =>
           prev.map(i =>
             i.id === item.id
-              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob }
+              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob, durationSeconds: result.durationSeconds }
+              : i,
+          ),
+        );
+      });
+    });
+
+    // Asynchronously generate first-page previews for PDF files.
+    items.forEach(item => {
+      if (!isPdfFile(item.file.name, item.file.type)) return;
+      void generatePdfPreview(item.file).then(result => {
+        if (!result) return;
+        setPendingItems(prev =>
+          prev.map(i =>
+            i.id === item.id
+              ? { ...i, previewUrl: result.blobUrl, previewBlob: result.blob }
               : i,
           ),
         );
@@ -654,11 +674,13 @@ export default function AssetsPage() {
     if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
     startBatch(items.map(i => ({
-      id:            i.id,
-      file:          i.file,
-      previewUrl:    i.previewUrl,
-      uploadName:    i.uploadName,
-      thumbnailBlob: i.thumbnailBlob,
+      id:              i.id,
+      file:            i.file,
+      previewUrl:      i.previewUrl,
+      uploadName:      i.uploadName,
+      thumbnailBlob:   i.thumbnailBlob,
+      durationSeconds: i.durationSeconds,
+      previewBlob:     i.previewBlob,
     })), {
       clientName:   uploadClientName,
       clientId:     uploadClientId,
