@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Download, Link, Trash2,
   File, FileText, FileImage, FileVideo, FileAudio,
-  ThumbsUp, ThumbsDown, MessageSquare, Send, Calendar,
+  MessageSquare, Send, Calendar,
   Pencil, Check, X, Play,
 } from 'lucide-react';
 import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
@@ -73,24 +73,6 @@ function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
   );
 }
 
-const APPROVAL_COLORS: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: 'rgba(107,114,128,0.12)', text: '#6b7280' },
-  approved:  { bg: 'rgba(22,163,74,0.12)',   text: '#16a34a' },
-  rejected:  { bg: 'rgba(220,38,38,0.12)',   text: '#dc2626' },
-  scheduled: { bg: 'rgba(124,58,237,0.12)',  text: '#7c3aed' },
-  published: { bg: 'rgba(8,145,178,0.12)',   text: '#0891b2' },
-};
-
-function ApprovalBadge({ status }: { status?: string | null }) {
-  const s = status ?? 'pending';
-  const c = APPROVAL_COLORS[s] ?? APPROVAL_COLORS.pending;
-  return (
-    <span className="text-xs px-1.5 py-0.5 rounded font-medium capitalize" style={{ background: c.bg, color: c.text }}>
-      {s}
-    </span>
-  );
-}
-
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function monthLabel(mm: string): string {
   const idx = parseInt(mm, 10) - 1;
@@ -116,7 +98,6 @@ export interface AssetCardProps {
   asset: Asset;
   /** Permission flags */
   canDelete?: boolean;
-  canApprove?: boolean;
   canRename?: boolean;
   /** Optional schedule summary */
   scheduleCount?: number;
@@ -130,8 +111,6 @@ export interface AssetCardProps {
   onDelete: () => void;
   onCopyLink: () => void;
   /** Optional action callbacks — button only shown when callback is provided */
-  onApprove?: () => void;
-  onReject?: () => void;
   onComments?: () => void;
   onRename?: (name: string) => Promise<void>;
   onSchedule?: () => void;
@@ -140,7 +119,6 @@ export interface AssetCardProps {
 export function AssetCard({
   asset,
   canDelete = false,
-  canApprove = false,
   canRename = false,
   scheduleCount,
   nextScheduleDate,
@@ -150,8 +128,6 @@ export function AssetCard({
   onView,
   onDelete,
   onCopyLink,
-  onApprove,
-  onReject,
   onComments,
   onRename,
   onSchedule,
@@ -391,7 +367,6 @@ export function AssetCard({
         )}
 
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <ApprovalBadge status={asset.approval_status} />
           {scheduleCount != null && scheduleCount > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
               <Send size={10} />{scheduleCount} scheduled
@@ -458,28 +433,6 @@ export function AssetCard({
           </button>
         )}
 
-        {canApprove && onApprove && asset.approval_status !== 'approved' && (
-          <button
-            onClick={onApprove}
-            title="Approve"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-            style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}
-          >
-            <ThumbsUp size={14} />
-          </button>
-        )}
-
-        {canApprove && onReject && asset.approval_status !== 'rejected' && (
-          <button
-            onClick={onReject}
-            title="Reject"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-            style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}
-          >
-            <ThumbsDown size={14} />
-          </button>
-        )}
-
         {canDelete && (
           <button
             onClick={onDelete}
@@ -501,7 +454,6 @@ export interface AssetsGridProps {
   assets: Asset[];
   /** Permission flags */
   canDelete?: boolean;
-  canApprove?: boolean;
   canRename?: boolean;
   /** Per-asset schedule summary — key is asset.id */
   scheduleCounts?: Record<string, { count: number; nextDate: string | null }>;
@@ -514,8 +466,6 @@ export interface AssetsGridProps {
   onDelete: (asset: Asset) => void;
   onCopyLink: (asset: Asset) => void;
   /** Optional callbacks — buttons only rendered when provided */
-  onApprove?: (asset: Asset) => void;
-  onReject?: (asset: Asset) => void;
   onComments?: (asset: Asset) => void;
   onRename?: (asset: Asset, name: string) => Promise<void>;
   onSchedule?: (asset: Asset) => void;
@@ -524,7 +474,6 @@ export interface AssetsGridProps {
 export function AssetsGrid({
   assets,
   canDelete = false,
-  canApprove = false,
   canRename = false,
   scheduleCounts,
   selectable = false,
@@ -533,8 +482,6 @@ export function AssetsGrid({
   onView,
   onDelete,
   onCopyLink,
-  onApprove,
-  onReject,
   onComments,
   onRename,
   onSchedule,
@@ -546,7 +493,6 @@ export function AssetsGrid({
           key={asset.id}
           asset={asset}
           canDelete={canDelete}
-          canApprove={canApprove}
           canRename={canRename}
           scheduleCount={scheduleCounts?.[asset.id]?.count}
           nextScheduleDate={scheduleCounts?.[asset.id]?.nextDate}
@@ -556,8 +502,6 @@ export function AssetsGrid({
           onView={() => onView(asset)}
           onDelete={() => onDelete(asset)}
           onCopyLink={() => onCopyLink(asset)}
-          onApprove={onApprove ? () => onApprove(asset) : undefined}
-          onReject={onReject ? () => onReject(asset) : undefined}
           onComments={onComments ? () => onComments(asset) : undefined}
           onRename={onRename ? (name) => onRename(asset, name) : undefined}
           onSchedule={onSchedule ? () => onSchedule(asset) : undefined}

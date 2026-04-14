@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Users2, ExternalLink, AlertCircle, X } from 'lucide-react';
+import { Plus, Search, Users2, AlertCircle, X, FolderOpen, CheckSquare, FileText } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -246,9 +246,9 @@ export default function ClientsPage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
       ) : filteredClients.length === 0 ? (
@@ -269,31 +269,57 @@ export default function ClientsPage() {
           }
         />
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredClients.map(client => (
             <Link
               key={client.id}
               href={`/clients/${client.slug}`}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-[var(--surface-2)] transition-colors border-b last:border-b-0"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+              className="flex flex-col gap-3 p-5 rounded-2xl border cursor-pointer select-none
+                transition-all duration-200 ease-out
+                hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+                active:translate-y-0 active:scale-[0.99] active:shadow-sm
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', textDecoration: 'none' }}
             >
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold text-white shrink-0"
-                style={{ background: 'var(--accent)' }}
-              >
-                {client.name?.charAt(0).toUpperCase()}
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {client.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
+                    {client.industry && (
+                      <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{client.industry}</p>
+                    )}
+                  </div>
+                </div>
+                <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{client.name}</p>
+
+              {/* Email if present */}
+              {client.email && (
                 <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{client.email}</p>
-              </div>
-              {client.industry && (
-                <span className="text-xs hidden sm:block" style={{ color: 'var(--text-secondary)' }}>
-                  {client.industry}
-                </span>
               )}
-              <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
-              <ExternalLink size={16} className="shrink-0 opacity-50" style={{ color: 'var(--text-secondary)' }} />
+
+              {/* Open workspace hint */}
+              <div className="flex items-center gap-3 mt-auto pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <FolderOpen size={12} />
+                  <span>Assets</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <CheckSquare size={12} />
+                  <span>Tasks</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <FileText size={12} />
+                  <span>Content</span>
+                </div>
+              </div>
             </Link>
           ))}
         </div>

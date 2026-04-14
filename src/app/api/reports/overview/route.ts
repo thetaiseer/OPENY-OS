@@ -42,13 +42,12 @@ export async function GET(req: NextRequest) {
   try {
     const db = getServiceClient();
 
-    const [clientsResult, tasksResult, assetsResult, schedulesResult, approvalsResult, membersResult] =
+    const [clientsResult, tasksResult, assetsResult, schedulesResult, membersResult] =
       await Promise.allSettled([
         db.from('clients').select('id, name'),
         db.from('tasks').select('id, status, priority, due_date, client_id, assignee_id, created_at'),
         db.from('assets').select('id, client_id, content_type, created_at'),
         db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
-        db.from('approvals').select('id, status, client_id, created_at, approved_at, rejected_at'),
         db.from('team_members').select('id, full_name, role, profile_id').neq('status', 'invited'),
       ]);
 
@@ -56,7 +55,6 @@ export async function GET(req: NextRequest) {
     const tasks     = tasksResult.status     === 'fulfilled' ? (tasksResult.value.data     ?? []) : [];
     const assets    = assetsResult.status    === 'fulfilled' ? (assetsResult.value.data    ?? []) : [];
     const schedules = schedulesResult.status === 'fulfilled' ? (schedulesResult.value.data ?? []) : [];
-    const approvals = approvalsResult.status === 'fulfilled' ? (approvalsResult.value.data ?? []) : [];
     const members   = membersResult.status   === 'fulfilled' ? (membersResult.value.data   ?? []) : [];
 
     const today = new Date().toISOString().slice(0, 10);
@@ -67,24 +65,11 @@ export async function GET(req: NextRequest) {
     const completedTaskCount = tasks.filter((t: Record<string, string>) => completedStatuses.has(t.status)).length;
     const publishedCount = schedules.filter((s: Record<string, string>) => s.status === 'published').length;
 
-    const resolvedApprovals = approvals.filter((a: Record<string, string | null>) =>
-      a.status !== 'pending' && (a.approved_at || a.rejected_at),
-    );
-    let approvalCycleAvgDays: number | null = null;
-    if (resolvedApprovals.length > 0) {
-      const totalMs = resolvedApprovals.reduce((sum: number, a: Record<string, string | null>) => {
-        const resolved = a.approved_at ?? a.rejected_at!;
-        return sum + (new Date(resolved).getTime() - new Date(a.created_at!).getTime());
-      }, 0);
-      approvalCycleAvgDays = Math.round((totalMs / resolvedApprovals.length / 86400000) * 10) / 10;
-    }
-
     // ── Client stats ──────────────────────────────────────────────────────────
 
     const clientStats = clients.map((c: Record<string, string>) => {
       const cTasks = tasks.filter((t: Record<string, string>) => t.client_id === c.id);
       const cAssets = assets.filter((a: Record<string, string>) => a.client_id === c.id);
-      const cApprovals = approvals.filter((a: Record<string, string>) => a.client_id === c.id);
       return {
         id: c.id,
         name: c.name,
@@ -93,7 +78,6 @@ export async function GET(req: NextRequest) {
         pendingTasks: cTasks.filter((t: Record<string, string>) => !completedStatuses.has(t.status) && t.status !== 'cancelled').length,
         overdueTasks: cTasks.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status)).length,
         totalAssets: cAssets.length,
-        pendingApprovals: cApprovals.filter((a: Record<string, string>) => a.status === 'pending').length,
       };
     }).sort((a: { totalTasks: number }, b: { totalTasks: number }) => b.totalTasks - a.totalTasks).slice(0, 15);
 
@@ -166,7 +150,6 @@ export async function GET(req: NextRequest) {
           totalAssets: assets.length,
           totalPublished: publishedCount,
           completionRate: tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0,
-          approvalCycleAvgDays,
         },
         clientStats,
         teamStats,

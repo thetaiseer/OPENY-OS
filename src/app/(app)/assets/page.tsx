@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
-  Download, Square, CheckSquare,
+  Download, Square, CheckSquare, Users2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -181,12 +181,14 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
 function ClientFolderCard({
   label,
   count,
+  slug,
   onView,
   onDownload,
   isDownloading,
 }: {
   label: string;
   count: number;
+  slug?: string;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
@@ -213,24 +215,34 @@ function ClientFolderCard({
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
         </div>
       </div>
-      <div className="flex gap-2 mt-auto">
+      <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
-          onClick={e => { e.stopPropagation(); onView(); }}
+          onClick={onView}
           className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
           <FolderOpen size={12} /> View
         </button>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onDownload(); }}
-          disabled={isDownloading}
-          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        >
-          <Download size={12} />{isDownloading ? '…' : 'Download'}
-        </button>
+        {slug ? (
+          <a
+            href={`/clients/${slug}/assets`}
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
+          >
+            <Users2 size={12} /> Workspace
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={isDownloading}
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          >
+            <Download size={12} />{isDownloading ? '…' : 'Download'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -345,7 +357,7 @@ export default function AssetsPage() {
   // ── Filters ───────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]     = useState('');
   const [filterFileType, setFilterFileType] = useState('');
-  const [filterApproval, setFilterApproval] = useState('');
+
   const [sortBy, setSortBy]               = useState<'newest' | 'oldest' | 'largest'>('newest');
 
   // ── Upload modal state ────────────────────────────────────────────────────
@@ -430,7 +442,7 @@ export default function AssetsPage() {
   }, [latestAsset]);
 
   useEffect(() => {
-    supabase.from('clients').select('id, name').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
+    supabase.from('clients').select('id, name, slug').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
   }, []);
 
   useEffect(() => {
@@ -489,14 +501,13 @@ export default function AssetsPage() {
       );
     }
     if (filterFileType) result = result.filter(a => (a.file_type ?? a.mime_type ?? '').startsWith(filterFileType));
-    if (filterApproval) result = result.filter(a => (a.approval_status ?? 'pending') === filterApproval);
 
     if (sortBy === 'oldest')       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     else if (sortBy === 'largest') result.sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0));
     else                           result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return result;
-  }, [deferredAssets, deferredSearchQuery, folderPath, filterFileType, filterApproval, sortBy]);
+  }, [deferredAssets, deferredSearchQuery, folderPath, filterFileType, sortBy]);
 
   // ── Folder entries for next level ─────────────────────────────────────────
 
@@ -824,14 +835,6 @@ export default function AssetsPage() {
     catch { addToast('Failed to copy link', 'error'); }
   };
 
-  const handleApprovalAction = async (asset: Asset, action: 'approved' | 'rejected') => {
-    const { error } = await supabase.from('assets').update({ approval_status: action }).eq('id', asset.id);
-    if (error) { addToast(`Failed to ${action}: ${error.message}`, 'error'); return; }
-    void supabase.from('activities').insert({ type: action, description: `Asset "${asset.name}" was ${action} by ${user?.name ?? 'user'}`, user_id: user?.id, client_id: asset.client_id ?? null });
-    setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, approval_status: action } : a));
-    addToast(`Asset ${action}`, 'success');
-  };
-
   const handleScheduleCreated = (schedule: PublishingSchedule) => {
     if (schedule.asset_id) {
       const assetId = schedule.asset_id;
@@ -846,8 +849,8 @@ export default function AssetsPage() {
     addToast('Publishing scheduled successfully!', 'success');
   };
 
-  const hasActiveFilters = Boolean(searchQuery || filterFileType || filterApproval);
-  const clearFilters = useCallback(() => { setSearchQuery(''); setFilterFileType(''); setFilterApproval(''); }, []);
+  const hasActiveFilters = Boolean(searchQuery || filterFileType);
+  const clearFilters = useCallback(() => { setSearchQuery(''); setFilterFileType(''); }, []);
 
   const availableFileTypes = useMemo(() => {
     const types = new Set<string>();
@@ -974,19 +977,6 @@ export default function AssetsPage() {
               ]}
             />
             <SelectDropdown
-              value={filterApproval}
-              onChange={setFilterApproval}
-              placeholder="All statuses"
-              options={[
-                { value: '',          label: 'All statuses' },
-                { value: 'pending',   label: 'Pending' },
-                { value: 'approved',  label: 'Approved' },
-                { value: 'rejected',  label: 'Rejected' },
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'published', label: 'Published' },
-              ]}
-            />
-            <SelectDropdown
               value={sortBy}
               onChange={v => setSortBy(v as 'newest' | 'oldest' | 'largest')}
               options={[
@@ -1004,7 +994,6 @@ export default function AssetsPage() {
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-1.5">
               {filterFileType && <FilterBadge label={fileTypeFilterLabel(filterFileType)} onRemove={() => setFilterFileType('')} />}
-              {filterApproval && <FilterBadge label={filterApproval} onRemove={() => setFilterApproval('')} />}
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
             </div>
           )}
@@ -1072,6 +1061,7 @@ export default function AssetsPage() {
                     key={key}
                     label={key}
                     count={count}
+                    slug={clients.find(c => c.name === key)?.slug}
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
                     isDownloading={downloadingClient === key}
@@ -1107,7 +1097,6 @@ export default function AssetsPage() {
             <AssetsGrid
               assets={filteredAssets}
               canDelete={canDeleteFiles}
-              canApprove={canDeleteFiles || user?.role === 'team_member'}
               canRename={canDeleteFiles || user?.role === 'team_member'}
               scheduleCounts={scheduleCounts}
               selectable={selectionMode}
@@ -1116,8 +1105,6 @@ export default function AssetsPage() {
               onView={handleView}
               onDelete={asset => void handleDelete(asset)}
               onCopyLink={asset => void handleCopyLink(asset)}
-              onApprove={asset => void handleApprovalAction(asset, 'approved')}
-              onReject={asset => void handleApprovalAction(asset, 'rejected')}
               onComments={asset => setCommentsAsset(asset)}
               onRename={(asset, name) => handleRename(asset, name)}
               onSchedule={asset => setScheduleAsset(asset)}

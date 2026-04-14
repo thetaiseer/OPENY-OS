@@ -98,12 +98,6 @@ export function clientStatusVariant(s: string): BadgeVariant {
   return 'info';
 }
 
-export function approvalStatusVariant(s: string): BadgeVariant {
-  if (s === 'approved') return 'success';
-  if (s === 'rejected') return 'danger';
-  return 'warning';
-}
-
 export function contentStatusVariant(s: string): BadgeVariant {
   if (s === 'published') return 'success';
   if (s === 'approved') return 'success';

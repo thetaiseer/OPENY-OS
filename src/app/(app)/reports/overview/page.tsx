@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart2, Users2, CheckSquare, Clock, FolderOpen, TrendingUp,
+  BarChart2, Users2, CheckSquare, FolderOpen, TrendingUp,
   Send, AlertCircle, Download, RefreshCw,
 } from 'lucide-react';
 import {
@@ -13,7 +13,7 @@ import {
 
 interface ClientStat {
   id: string; name: string; totalTasks: number; completedTasks: number;
-  pendingTasks: number; overdueTasks: number; totalAssets: number; pendingApprovals: number;
+  pendingTasks: number; overdueTasks: number; totalAssets: number;
 }
 interface TeamMemberStat {
   id: string; name: string; completedTasks: number; totalAssigned: number;
@@ -23,7 +23,7 @@ interface PlatformStat { platform: string; published: number; scheduled: number;
 interface MonthlyTrend { month: string; label: string; completedTasks: number; publishedPosts: number; newAssets: number; }
 interface ReportsSummary {
   totalClients: number; totalTasks: number; totalAssets: number; totalPublished: number;
-  completionRate: number; approvalCycleAvgDays: number | null;
+  completionRate: number;
 }
 interface ReportsData {
   summary: ReportsSummary;
@@ -97,7 +97,7 @@ export default function ReportsPage() {
 
   function exportClients() {
     if (!report) return;
-    downloadCSV(toCSV<ClientStat>(report.clientStats, ['name', 'totalTasks', 'completedTasks', 'pendingTasks', 'overdueTasks', 'totalAssets', 'pendingApprovals']), 'openy-client-report.csv');
+    downloadCSV(toCSV<ClientStat>(report.clientStats, ['name', 'totalTasks', 'completedTasks', 'pendingTasks', 'overdueTasks', 'totalAssets']), 'openy-client-report.csv');
   }
   function exportTeam() {
     if (!report) return;
@@ -156,12 +156,6 @@ export default function ReportsPage() {
                   icon={<TrendingUp size={18} />}
                   color="#06b6d4"
                   sub={report.summary.completionRate >= 80 ? 'On track' : report.summary.completionRate >= 50 ? 'Needs attention' : 'At risk'}
-                />
-                <SummaryCard
-                  label="Avg Approval Cycle"
-                  value={report.summary.approvalCycleAvgDays != null ? `${report.summary.approvalCycleAvgDays}d` : 'N/A'}
-                  icon={<Clock size={18} />}
-                  color="#84cc16"
                 />
               </div>
 
@@ -233,7 +227,7 @@ export default function ReportsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 11 }}>
-                        {['Client', 'Total Tasks', 'Completed', 'Pending', 'Overdue', 'Assets', 'Pending Approvals'].map(h => (
+                        {['Client', 'Total Tasks', 'Completed', 'Pending', 'Overdue', 'Assets'].map(h => (
                           <th key={h} className="text-left px-4 py-3 font-medium">{h}</th>
                         ))}
                       </tr>
@@ -247,7 +241,6 @@ export default function ReportsPage() {
                           <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.pendingTasks}</td>
                           <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.overdueTasks > 0 ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)', color: c.overdueTasks > 0 ? '#ef4444' : 'var(--text-secondary)' }}>{c.overdueTasks}</span></td>
                           <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.totalAssets}</td>
-                          <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.pendingApprovals}</td>
                         </tr>
                       ))}
                     </tbody>

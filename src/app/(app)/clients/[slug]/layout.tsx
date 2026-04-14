@@ -46,7 +46,7 @@ function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: numb
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const tabs = ['overview', 'tasks', 'content', 'assets', 'approvals', 'activity'] as const;
+const tabs = ['overview', 'tasks', 'content', 'assets', 'activity'] as const;
 type TabSlug = typeof tabs[number];
 
 const statusVariant = (s: string) => {

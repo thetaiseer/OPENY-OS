@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
-  Users2, CheckSquare, Clock, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send,
+  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis } from 'recharts';
 import supabase from '@/lib/supabase';
@@ -18,7 +18,6 @@ import type { Activity as ActivityType, PublishingSchedule } from '@/lib/types';
 interface Stats {
   totalClients: number;
   activeTasks: number;
-  pendingApprovals: number;
   overdueTasks: number;
   tasksDueThisWeek: number;
 }
@@ -271,11 +270,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stat cards ── */}
-      {statsLoading ? <SkeletonStatGrid count={6} /> : (
+      {statsLoading ? <SkeletonStatGrid count={5} /> : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard label={t('totalClients')}     value={stats?.totalClients     ?? 0} icon={<Users2 size={20} />}        color="blue"   />
           <StatCard label={t('activeTasks')}      value={stats?.activeTasks      ?? 0} icon={<CheckSquare size={20} />}   color="mint"   />
-          <StatCard label={t('pendingApprovals')} value={stats?.pendingApprovals ?? 0} icon={<Clock size={20} />}         color="amber"  />
           <StatCard label={t('overdueTasks')}     value={stats?.overdueTasks     ?? 0} icon={<AlertTriangle size={20} />} color="rose"   />
           <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={20} />}  color="violet" />
           <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
