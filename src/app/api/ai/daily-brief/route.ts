@@ -104,11 +104,11 @@ export async function POST(req: NextRequest) {
     };
 
     const dueTodayList = (dueToday.data ?? []).slice(0, 5)
-      .map((t: { title: string; priority: string }) => `• ${t.title} [${t.priority}]`)
+      .map((t: { title: string; priority: string; id: string; status: string; client_id: string | null }) => `• ${t.title} [${t.priority}]`)
       .join('\n');
 
     const overdueList = (overdue.data ?? []).slice(0, 5)
-      .map((t: { title: string; due_date: string }) => `• ${t.title} (due: ${t.due_date})`)
+      .map((t: { title: string; due_date: string; id: string; status: string; priority: string; client_id: string | null }) => `• ${t.title} (due: ${t.due_date})`)
       .join('\n');
 
     const dataBlock = [

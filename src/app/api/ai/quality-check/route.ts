@@ -46,13 +46,6 @@ export async function POST(req: NextRequest) {
 
     // ── Run all quality checks in parallel ─────────────────────────────────────
 
-    let taskBaseQuery = sb.from('tasks').select('id', { count: 'exact', head: true })
-      .not('status', 'in', '("completed","cancelled","published")');
-
-    if (clientId) {
-      taskBaseQuery = taskBaseQuery.eq('client_id', clientId);
-    }
-
     const [
       noAssignee,
       noDueDate,

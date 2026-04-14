@@ -103,7 +103,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AiContextValue>(
     () => ({ isOpen, mode, section, clientContext, initialPrompt, open, close, setMode }),
-    [isOpen, mode, section, clientContext, initialPrompt, open, close],
+    [isOpen, mode, section, clientContext, initialPrompt, open, close, setMode],
   );
 
   return <AiCtx.Provider value={value}>{children}</AiCtx.Provider>;

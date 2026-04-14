@@ -467,7 +467,7 @@ export default function AiCommandCenter() {
         setMessages(prev => [...prev, {
           id: genId(),
           role: 'assistant',
-          content: json.clarification_question!,
+          content: json.clarification_question ?? 'Could you please clarify your request?',
           timestamp: new Date(),
           status: 'clarification',
         }]);
