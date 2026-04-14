@@ -64,6 +64,15 @@ export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: s
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
+/** Hidden fallback shown when a preview image fails to load. */
+function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
+  return (
+    <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+      <FileTypeIcon name={name} type={type} size={36} />
+    </div>
+  );
+}
+
 const APPROVAL_COLORS: Record<string, { bg: string; text: string }> = {
   pending:   { bg: 'rgba(107,114,128,0.12)', text: '#6b7280' },
   approved:  { bg: 'rgba(22,163,74,0.12)',   text: '#16a34a' },
@@ -232,9 +241,7 @@ export function AssetCard({
                 if (fb) fb.style.display = 'flex';
               }}
             />
-            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
-              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-            </div>
+            <ThumbFallback name={asset.name} type={effectiveMime} />
           </>
         ) : showVideoThumb ? (
           <>
@@ -276,9 +283,7 @@ export function AssetCard({
                 </span>
               </div>
             )}
-            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
-              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-            </div>
+            <ThumbFallback name={asset.name} type={effectiveMime} />
           </>
         ) : showPdfThumb ? (
           <>
@@ -294,9 +299,7 @@ export function AssetCard({
                 if (fb) fb.style.display = 'flex';
               }}
             />
-            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
-              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-            </div>
+            <ThumbFallback name={asset.name} type={effectiveMime} />
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">

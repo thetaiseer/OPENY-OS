@@ -1281,9 +1281,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           subCategory:         item.subCategory  || undefined,
           monthKey:            item.monthKey,
           uploadedBy:          item.uploadedBy   || undefined,
-          ...(thumbnailStorageKey                          ? { thumbnailStorageKey }                         : {}),
-          ...(previewStorageKey                            ? { previewStorageKey }                           : {}),
-          ...(item.durationSeconds !== null && item.durationSeconds !== undefined ? { durationSeconds: item.durationSeconds } : {}),
+          ...(thumbnailStorageKey           ? { thumbnailStorageKey }                              : {}),
+          ...(previewStorageKey             ? { previewStorageKey }                                : {}),
+          ...(item.durationSeconds != null  ? { durationSeconds: item.durationSeconds }           : {}),
         }),
         signal,
       });
