@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, Users2, AlertCircle, X, FolderOpen } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -21,16 +22,12 @@ const statusVariant = (s: string) => {
 const WARN_TOAST_BG    = '#d97706';
 const SUCCESS_TOAST_BG = '#16a34a';
 
-const FETCH_TIMEOUT_MS = 15_000;
-
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const canManageClients = role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -41,55 +38,25 @@ export default function ClientsPage() {
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
 
-  // silent=true → background refresh after mutations; does not touch the error
-  // banner, does not clear existing data, and does not flip the loading spinner.
-  //
-  // NOTE: search is intentionally NOT in the dependency array. All clients are
-  // fetched once (up to 200) and filtered client-side via `filteredClients`.
-  // Putting `search` here would cause a new DB round-trip on every keystroke,
-  // creating race conditions where stale results overwrite newer ones.
-  const fetchClients = useCallback(async (silent = false): Promise<boolean> => {
-    if (!silent) setFetchError(null);
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-      });
-      const query = supabase
+  // React Query caches the client list across navigations — re-visiting this
+  // page within the staleTime window renders the cached list immediately
+  // without a loading spinner, then background-refetches to stay fresh.
+  const { data: clients = [], isLoading: loading, error: fetchErrorObj } = useQuery<Client[]>({
+    queryKey: ['clients-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
-      const { data, error } = await Promise.race([query, timeoutPromise]);
-      if (error) {
-        console.error('[clients fetch]', error);
-        if (!silent) {
-          setFetchError('Failed to load clients. Please try again.');
-          setClients([]);
-        }
-        return false;
-      } else {
-        setClients((data ?? []) as Client[]);
-        return true;
-      }
-    } catch (err: unknown) {
-      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-      const msg = isTimeout
-        ? 'Clients took too long to load. Please try again.'
-        : 'Failed to load clients. Please try again.';
-      console.error('[clients fetch] unexpected error:', err);
-      if (!silent) {
-        setFetchError(msg);
-        setClients([]);
-      }
-      return false;
-    } finally {
-      clearTimeout(timeoutId);
-      if (!silent) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchClients(); }, [fetchClients]);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Client[];
+    },
+    // Clients change infrequently — keep cache fresh for 2 min (inherited from
+    // QueryClient defaults) but also accept a longer gcTime so the list is
+    // retained in memory while the user browses other sections.
+  });
+  const fetchError = fetchErrorObj ? (fetchErrorObj as Error).message : null;
 
   // Client-side search filter — no extra round-trips, no race conditions.
   const filteredClients = useMemo(() => {
@@ -181,15 +148,9 @@ export default function ClientsPage() {
         setSuccessMsg(`Client "${form.name}" created successfully.`);
         setTimeout(() => setSuccessMsg(null), 4000);
 
-        // Refresh list non-blocking
+        // Refresh list non-blocking via React Query cache invalidation
         console.log('[client create] triggering list refetch');
-        void fetchClients(true).then(ok => {
-          console.log('[client create] list refetch result, ok:', ok);
-          if (!ok) {
-            setWarnMsg('Client was created but the list failed to refresh. Please reload the page.');
-            setTimeout(() => setWarnMsg(null), 6000);
-          }
-        });
+        void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       }
     } catch (err: unknown) {
       console.error('[client create] error:', err);

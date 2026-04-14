@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule } from '@/lib/types';
@@ -51,94 +52,62 @@ function postTypeLabel(value: string): string {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-const FETCH_TIMEOUT_MS = 15_000;
-
 export default function CalendarPage() {
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [tasks,     setTasks]     = useState<Task[]>([]);
-  const [assets,    setAssets]    = useState<CalendarAsset[]>([]);
-  const [schedules, setSchedules] = useState<PublishingSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   // Selected schedule for detail view
   const [selectedSchedule, setSelectedSchedule] = useState<PublishingSchedule | null>(null);
   const [markingPublished, setMarkingPublished] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const startDate = `${year}-${pad(month + 1)}-01`;
-        const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
+  const queryClient = useQueryClient();
 
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-        });
+  // React Query caches each month independently — switching months is instant
+  // for previously-visited months, and navigating away/back to the calendar
+  // shows cached data immediately without a loading skeleton.
+  const { data: calendarData, isLoading: loading, error: calendarError } = useQuery({
+    queryKey: ['calendar', year, month],
+    queryFn: async () => {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const startDate = `${year}-${pad(month + 1)}-01`;
+      const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
 
-        const settled = await Promise.race([
-          Promise.allSettled([
-            supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
-            supabase.from('assets')
-              .select('id, name, publish_date, content_type, client_name')
-              .gte('publish_date', startDate)
-              .lte('publish_date', endDate),
-            supabase.from('publishing_schedules')
-              .select('*, asset:assets(id, name, content_type, preview_url)')
-              .gte('scheduled_date', startDate)
-              .lte('scheduled_date', endDate)
-              .neq('status', 'cancelled')
-              .order('scheduled_time', { ascending: true }),
-          ]),
-          timeoutPromise,
-        ]);
+      const [tasksRes, assetsRes, schedulesRes] = await Promise.allSettled([
+        supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
+        supabase.from('assets')
+          .select('id, name, publish_date, content_type, client_name')
+          .gte('publish_date', startDate)
+          .lte('publish_date', endDate),
+        supabase.from('publishing_schedules')
+          .select('*, asset:assets(id, name, content_type, preview_url)')
+          .gte('scheduled_date', startDate)
+          .lte('scheduled_date', endDate)
+          .neq('status', 'cancelled')
+          .order('scheduled_time', { ascending: true }),
+      ]);
 
-        const [tasksRes, assetsRes, schedulesRes] = settled;
+      if (tasksRes.status === 'rejected') console.error('[calendar] tasks fetch rejected:', tasksRes.reason);
+      else if (tasksRes.value.error) console.error('[calendar] tasks fetch error:', tasksRes.value.error);
+      if (assetsRes.status === 'rejected') console.error('[calendar] assets fetch rejected:', assetsRes.reason);
+      else if (assetsRes.value.error) console.error('[calendar] assets fetch error:', assetsRes.value.error);
+      if (schedulesRes.status === 'rejected') { if (process.env.NODE_ENV === 'development') console.warn('[calendar] schedules fetch rejected:', schedulesRes.reason); }
+      else if (schedulesRes.value.error) { if (process.env.NODE_ENV === 'development') console.warn('[calendar] schedules fetch error:', schedulesRes.value.error); }
 
-        if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
-          setTasks((tasksRes.value.data ?? []) as Task[]);
-        } else {
-          console.error('[calendar] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
-          setTasks([]);
-        }
-        if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
-          setAssets(assetsRes.value.data ?? []);
-        } else {
-          console.error('[calendar] assets fetch error:', assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error);
-          setAssets([]);
-        }
-        if (schedulesRes.status === 'fulfilled' && !schedulesRes.value.error) {
-          setSchedules((schedulesRes.value.data ?? []) as PublishingSchedule[]);
-        } else {
-          // publishing_schedules table may not exist on first install before migration is run.
-          // This is non-fatal — calendar still shows tasks and assets.
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[calendar] schedules fetch skipped/failed:', schedulesRes.status === 'rejected' ? schedulesRes.reason : schedulesRes.value.error);
-          }
-          setSchedules([]);
-        }
-      } catch (err) {
-        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-        const msg = isTimeout
-          ? 'Calendar data took too long to load. Please try again.'
-          : 'Failed to load calendar data.';
-        console.error('[calendar] load error:', err);
-        setError(msg);
-        setTasks([]);
-        setAssets([]);
-        setSchedules([]);
-      } finally {
-        clearTimeout(timeoutId);
-        setLoading(false);
-      }
-    };
-    load();
-  }, [year, month]);
+      return {
+        tasks:     (tasksRes.status     === 'fulfilled' && !tasksRes.value.error)     ? (tasksRes.value.data     ?? []) as Task[]               : [],
+        assets:    (assetsRes.status    === 'fulfilled' && !assetsRes.value.error)    ? (assetsRes.value.data    ?? []) as CalendarAsset[]        : [],
+        schedules: (schedulesRes.status === 'fulfilled' && !schedulesRes.value.error) ? (schedulesRes.value.data ?? []) as PublishingSchedule[]   : [],
+      };
+    },
+    // staleTime inherited from QueryClient defaults (2 minutes)
+  });
+
+  const tasks     = calendarData?.tasks     ?? [];
+  const assets    = calendarData?.assets    ?? [];
+  const schedules = calendarData?.schedules ?? [];
+
+  const error = calendarError ? (calendarError as Error).message : null;
 
   const prevMonth = () => {
     setSelectedDay(null);
@@ -202,7 +171,15 @@ export default function CalendarPage() {
         body: JSON.stringify({ status: 'published' }),
       });
       if (res.ok) {
-        setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, status: 'published' } : s));
+        // Optimistic update via React Query cache so the UI reflects the change
+        // immediately and the update persists if the user navigates away and back.
+        queryClient.setQueryData<typeof calendarData>(['calendar', year, month], old => {
+          if (!old) return old;
+          return {
+            ...old,
+            schedules: old.schedules.map(s => s.id === schedule.id ? { ...s, status: 'published' as const } : s),
+          };
+        });
         setSelectedSchedule(prev => prev?.id === schedule.id ? { ...prev, status: 'published' } : prev);
       }
     } finally {

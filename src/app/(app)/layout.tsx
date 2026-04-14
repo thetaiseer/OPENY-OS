@@ -34,7 +34,13 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 30_000,
+      // Keep data fresh for 2 minutes — re-navigating within this window
+      // shows cached data instantly without a loading spinner.
+      staleTime: 2 * 60 * 1000,
+      // Keep inactive query data in cache for 10 minutes so coming back to a
+      // page after browsing elsewhere still shows the previous result while
+      // a background refresh runs in parallel.
+      gcTime: 10 * 60 * 1000,
     },
   },
 });
