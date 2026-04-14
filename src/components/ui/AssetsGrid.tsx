@@ -5,7 +5,7 @@ import {
   Eye, Download, Link, Trash2,
   File, FileText, FileImage, FileVideo, FileAudio,
   ThumbsUp, ThumbsDown, MessageSquare, Send, Calendar,
-  Pencil, Check, X,
+  Pencil, Check, X, Play,
 } from 'lucide-react';
 import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
 import type { Asset } from '@/lib/types';
@@ -157,9 +157,15 @@ export function AssetCard({
   };
 
   const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
-  const img = isImage(asset.name, effectiveMime);
+  const img     = isImage(asset.name, effectiveMime);
+  const vid     = isVideo(asset.name, effectiveMime);
   const downloadUrl = asset.download_url ?? asset.file_url;
-  const cardThumbSrc = asset.thumbnail_url || asset.preview_url || asset.file_url || '';
+  // For images: use thumbnail_url → preview_url → file_url.
+  // For videos: use thumbnail_url only (a proper image thumbnail uploaded separately).
+  const imgThumbSrc = img ? (asset.thumbnail_url || asset.preview_url || asset.file_url || '') : '';
+  const vidThumbSrc = vid ? (asset.thumbnail_url || '') : '';
+  const showImageThumb = img && !!imgThumbSrc;
+  const showVideoThumb = vid && !!vidThumbSrc;
 
   return (
     <div
@@ -195,19 +201,50 @@ export function AssetCard({
             {selected && <Check size={11} className="text-white" />}
           </div>
         )}
-        {img && cardThumbSrc ? (
+        {showImageThumb ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={cardThumbSrc}
+              src={imgThumbSrc}
               alt={asset.name}
               className="w-full h-full object-cover"
+              loading="lazy"
               onError={e => {
                 e.currentTarget.style.display = 'none';
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
                 if (fb) fb.style.display = 'flex';
               }}
             />
+            <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+              <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
+            </div>
+          </>
+        ) : showVideoThumb ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={vidThumbSrc}
+              alt={asset.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                if (fb) fb.style.display = 'flex';
+              }}
+            />
+            {/* Play icon badge on video thumbnail */}
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              aria-hidden="true"
+            >
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-full"
+                style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+              >
+                <Play size={18} className="text-white ml-0.5" />
+              </div>
+            </div>
             <div className="w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
               <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
             </div>

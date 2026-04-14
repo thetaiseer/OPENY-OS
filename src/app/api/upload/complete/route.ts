@@ -15,16 +15,17 @@ export const dynamic = 'force-dynamic';
  * bytes are accepted or processed here.
  *
  * Request body (JSON):
- *   storageKey    – R2 object key returned by /api/upload/presign (required)
- *   displayName   – display name for the asset (required)
- *   clientName    – client display name (required)
- *   clientId      – Supabase client UUID (optional)
- *   fileType      – MIME type (required)
- *   fileSize      – file size in bytes (required)
- *   mainCategory  – main category slug (required)
- *   subCategory   – subcategory slug (optional)
- *   monthKey      – "YYYY-MM" (required)
- *   uploadedBy    – uploader name/email for activity log (optional)
+ *   storageKey           – R2 object key returned by /api/upload/presign (required)
+ *   displayName          – display name for the asset (required)
+ *   clientName           – client display name (required)
+ *   clientId             – Supabase client UUID (optional)
+ *   fileType             – MIME type (required)
+ *   fileSize             – file size in bytes (required)
+ *   mainCategory         – main category slug (required)
+ *   subCategory          – subcategory slug (optional)
+ *   monthKey             – "YYYY-MM" (required)
+ *   uploadedBy           – uploader name/email for activity log (optional)
+ *   thumbnailStorageKey  – R2 key of the pre-uploaded thumbnail image (optional)
  *
  * Response:
  *   { success: true,  stage: 'completed', asset }
@@ -44,16 +45,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const storageKey   = (body.storageKey   as string | undefined)?.trim() ?? '';
-  const displayName  = (body.displayName  as string | undefined)?.trim() ?? '';
-  const clientName   = (body.clientName   as string | undefined)?.trim() ?? '';
-  const clientId     = (body.clientId     as string | undefined)?.trim() || null;
-  const fileType     = (body.fileType     as string | undefined)?.trim() ?? 'application/octet-stream';
-  const fileSize     = Number(body.fileSize ?? 0) || null;
-  const mainCategory = (body.mainCategory as string | undefined)?.trim() || null;
-  const subCategory  = (body.subCategory  as string | undefined)?.trim() || null;
-  const monthKey     = (body.monthKey     as string | undefined)?.trim() ?? '';
-  const uploadedBy   = (body.uploadedBy   as string | undefined)?.trim() || null;
+  const storageKey          = (body.storageKey          as string | undefined)?.trim() ?? '';
+  const displayName         = (body.displayName         as string | undefined)?.trim() ?? '';
+  const clientName          = (body.clientName          as string | undefined)?.trim() ?? '';
+  const clientId            = (body.clientId            as string | undefined)?.trim() || null;
+  const fileType            = (body.fileType            as string | undefined)?.trim() ?? 'application/octet-stream';
+  const fileSize            = Number(body.fileSize ?? 0) || null;
+  const mainCategory        = (body.mainCategory        as string | undefined)?.trim() || null;
+  const subCategory         = (body.subCategory         as string | undefined)?.trim() || null;
+  const monthKey            = (body.monthKey            as string | undefined)?.trim() ?? '';
+  const uploadedBy          = (body.uploadedBy          as string | undefined)?.trim() || null;
+  const thumbnailStorageKey = (body.thumbnailStorageKey as string | undefined)?.trim() || null;
 
   if (!storageKey)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'storageKey is required' }, { status: 400 });
   if (!displayName) return NextResponse.json({ success: false, stage: 'failed_db', error: 'displayName is required' }, { status: 400 });
@@ -103,6 +105,18 @@ export async function POST(req: NextRequest) {
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
+  // ── Resolve thumbnail URL ──────────────────────────────────────────────────
+  // For images: the file itself is the thumbnail (preview_url).
+  // For videos: use the separately-uploaded thumbnail, or null.
+  // For other types: null.
+  const isImage = fileType.startsWith('image/');
+  let thumbnailUrl: string | null = null;
+  if (thumbnailStorageKey) {
+    try { thumbnailUrl = buildR2Url(thumbnailStorageKey); } catch { /* ignore */ }
+  } else if (isImage) {
+    thumbnailUrl = publicUrl;
+  }
+
   // ── Insert metadata ────────────────────────────────────────────────────────
   const insertRow: Record<string, unknown> = {
     name:             displayName,
@@ -121,8 +135,8 @@ export async function POST(req: NextRequest) {
     main_category:    mainCategory,
     sub_category:     subCategory,
     storage_key:      storageKey,
-    preview_url:      publicUrl,
-    thumbnail_url:    publicUrl,
+    preview_url:      isImage ? publicUrl : null,
+    thumbnail_url:    thumbnailUrl,
     web_view_link:    publicUrl,
     ...(clientId   ? { client_id:   clientId   } : {}),
     ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
