@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
 
   // Domain used for invite links — prefer NEXT_PUBLIC_APP_URL so the link
   // works in all environments (staging, preview, production).
-  const INVITE_DOMAIN = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://openy-os.com').replace(/\/$/, '');
+  const INVITE_DOMAIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  if (!INVITE_DOMAIN) {
+    console.warn('[team/invite] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
+  }
 
   // Sender address: prefer RESEND_FROM_EMAIL, then INVITE_FROM_EMAIL, then default
   const fromEmail =
