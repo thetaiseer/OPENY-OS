@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS assets_tags_gin_idx ON public.assets USING GIN (tags)
 -- Example for text column with CHECK constraint (adjust as needed):
 -- ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 -- ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
---   CHECK (role IN ('admin', 'manager', 'team', 'client'));
+--   CHECK (role IN ('admin', 'manager', 'team_member', 'viewer', 'client'));
 
 -- ── Notifications table (if not yet created) ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.notifications (

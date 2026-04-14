@@ -54,7 +54,7 @@ function countWords(text: string): number {
 export async function POST(req: NextRequest) {
   try {
     // Auth — any logged-in role may use AI features
-    const auth = await requireRole(req, ['admin', 'team', 'client', 'manager']);
+    const auth = await requireRole(req, ['admin', 'team_member', 'client', 'manager']);
     if (auth instanceof NextResponse) return auth;
 
     // Rate limit: 30 requests per minute per user

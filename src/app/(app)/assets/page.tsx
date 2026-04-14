@@ -299,7 +299,7 @@ export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
-  const canUpload = canDeleteFiles || user?.role === 'team';
+  const canUpload = canDeleteFiles || user?.role === 'team_member';
 
   const { startBatch, isUploading, latestAsset } = useUpload();
 
@@ -1092,8 +1092,8 @@ export default function AssetsPage() {
             <AssetsGrid
               assets={filteredAssets}
               canDelete={canDeleteFiles}
-              canApprove={canDeleteFiles || user?.role === 'team'}
-              canRename={canDeleteFiles || user?.role === 'team'}
+              canApprove={canDeleteFiles || user?.role === 'team_member'}
+              canRename={canDeleteFiles || user?.role === 'team_member'}
               scheduleCounts={scheduleCounts}
               selectable={selectionMode}
               selectedIds={selectedIds}

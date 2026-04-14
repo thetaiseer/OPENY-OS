@@ -22,7 +22,7 @@ import { requireRole } from '@/lib/api-auth';
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 // ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;

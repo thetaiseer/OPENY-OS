@@ -3,7 +3,7 @@
  *
  * Creates a new task record.
  *
- * Auth: requires 'admin', 'manager', or 'team' role.
+ * Auth: requires 'admin', 'manager', or 'team_member' role.
  *
  * Request body (JSON):
  *   { title, description?, status?, priority?, start_date?, due_date?,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   console.log('[POST /api/tasks] request received');
 
   // 1. Auth & role check
-  const auth = await requireRole(request, ['admin', 'manager', 'team']);
+  const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   console.log('[POST /api/tasks] caller:', auth.profile.email, '| role:', auth.profile.role);

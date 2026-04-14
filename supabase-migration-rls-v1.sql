@@ -92,7 +92,7 @@ CREATE POLICY "clients: client self read"
 -- team/editor/manager/admin: read all clients
 CREATE POLICY "clients: staff read all"
   ON public.clients FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- manager/admin: insert clients
 CREATE POLICY "clients: manager admin insert"
@@ -128,17 +128,17 @@ CREATE POLICY "assets: client scoped read"
 -- staff read all
 CREATE POLICY "assets: staff read all"
   ON public.assets FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- team/manager/admin: insert
 CREATE POLICY "assets: staff insert"
   ON public.assets FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- team/manager/admin: update
 CREATE POLICY "assets: staff update"
   ON public.assets FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin/manager only: delete
 CREATE POLICY "assets: admin manager delete"
@@ -164,17 +164,17 @@ CREATE POLICY "tasks: client scoped read"
 -- staff read all
 CREATE POLICY "tasks: staff read all"
   ON public.tasks FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- all staff can insert tasks
 CREATE POLICY "tasks: staff insert"
   ON public.tasks FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- all staff can update tasks
 CREATE POLICY "tasks: staff update"
   ON public.tasks FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin/manager only: delete tasks
 CREATE POLICY "tasks: admin manager delete"
@@ -200,16 +200,16 @@ CREATE POLICY "approvals: client scoped read"
 -- staff: read all
 CREATE POLICY "approvals: staff read all"
   ON public.approvals FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- staff: insert/update
 CREATE POLICY "approvals: staff insert"
   ON public.approvals FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "approvals: staff update"
   ON public.approvals FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin/manager: delete
 CREATE POLICY "approvals: admin manager delete"
@@ -232,7 +232,7 @@ CREATE POLICY "notifications: self read"
 -- Server-side inserts via service role bypass RLS. Allow staff inserts from browser too.
 CREATE POLICY "notifications: staff insert"
   ON public.notifications FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- Users can update (mark read) their own notifications
 CREATE POLICY "notifications: self update"
@@ -263,16 +263,16 @@ CREATE POLICY "publishing_schedules: client scoped read"
 -- staff: read all
 CREATE POLICY "publishing_schedules: staff read all"
   ON public.publishing_schedules FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- staff: insert/update
 CREATE POLICY "publishing_schedules: staff write"
   ON public.publishing_schedules FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "publishing_schedules: staff update"
   ON public.publishing_schedules FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin/manager: delete
 CREATE POLICY "publishing_schedules: admin manager delete"
@@ -290,12 +290,12 @@ DROP POLICY IF EXISTS "allow all activities" ON public.activities;
 -- staff: read all activities
 CREATE POLICY "activities: staff read all"
   ON public.activities FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- staff: insert activities
 CREATE POLICY "activities: staff insert"
   ON public.activities FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin: delete
 CREATE POLICY "activities: admin delete"
@@ -321,16 +321,16 @@ CREATE POLICY "content_items: client scoped read"
 -- staff: read all
 CREATE POLICY "content_items: staff read all"
   ON public.content_items FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- staff: insert/update
 CREATE POLICY "content_items: staff write"
   ON public.content_items FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "content_items: staff update"
   ON public.content_items FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 -- admin/manager: delete
 CREATE POLICY "content_items: admin manager delete"
@@ -360,15 +360,15 @@ CREATE POLICY "calendar_events: client scoped read"
 
 CREATE POLICY "calendar_events: staff read all"
   ON public.calendar_events FOR SELECT
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "calendar_events: staff write"
   ON public.calendar_events FOR INSERT
-  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team'));
+  WITH CHECK (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "calendar_events: staff update"
   ON public.calendar_events FOR UPDATE
-  USING (public.current_user_role() IN ('admin', 'manager', 'team'));
+  USING (public.current_user_role() IN ('admin', 'manager', 'team_member'));
 
 CREATE POLICY "calendar_events: admin manager delete"
   ON public.calendar_events FOR DELETE

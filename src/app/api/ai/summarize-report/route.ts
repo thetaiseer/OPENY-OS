@@ -10,7 +10,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
  */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireRole(req, ['admin', 'team', 'manager', 'client']);
+    const auth = await requireRole(req, ['admin', 'team_member', 'manager', 'client']);
     if (auth instanceof NextResponse) return auth;
 
     const rl = checkRateLimit(`ai:user:${auth.profile.id}`, { limit: 30, windowMs: 60_000 });

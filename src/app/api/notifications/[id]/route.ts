@@ -11,7 +11,7 @@ interface Params { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
-  const auth = await requireRole(req, ['admin', 'manager', 'team', 'client']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member', 'client']);
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown> = {};
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
-  const auth = await requireRole(req, ['admin', 'manager', 'team', 'client']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member', 'client']);
   if (auth instanceof NextResponse) return auth;
 
   const db = getServiceClient();

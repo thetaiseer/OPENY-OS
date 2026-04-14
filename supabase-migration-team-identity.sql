@@ -31,10 +31,10 @@ ALTER TABLE public.team_members
 UPDATE public.team_members
 SET
   job_title = role,
-  role      = 'team'
+  role      = 'team_member'
 WHERE
   role IS NOT NULL
-  AND lower(role) NOT IN ('owner', 'admin', 'manager', 'team', 'member', 'viewer', 'client')
+  AND lower(role) NOT IN ('owner', 'admin', 'manager', 'team', 'team_member', 'member', 'viewer', 'client')
   AND job_title IS NULL;  -- only migrate if job_title not already set
 
 -- ══════════════════════════════════════════════════════════════════════════════

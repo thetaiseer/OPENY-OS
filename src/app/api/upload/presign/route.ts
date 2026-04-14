@@ -46,7 +46,7 @@ function sanitizeFileName(name: string): string {
  *   displayName – the sanitized display name used as the file name
  */
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   // Rate limit: same budget as /api/upload (60 per hour per user)

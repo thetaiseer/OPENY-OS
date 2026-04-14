@@ -14,7 +14,7 @@ const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'pub
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const auth = await requireRole(req, ['admin', 'manager', 'team']);
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
 
