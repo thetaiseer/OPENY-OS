@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
@@ -630,7 +631,6 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
   );
 }
 
-const FETCH_TIMEOUT_MS    = 15_000;
 const MUTATION_TIMEOUT_MS = 15_000;
 
 
@@ -640,13 +640,61 @@ export default function TasksPage() {
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team_member';
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // ── React Query: fetch and cache tasks, clients, and team ────────────────
+  // Caching across navigations means re-visiting this page within the
+  // staleTime window renders data immediately without a loading spinner,
+  // then background-refetches to stay fresh.
+  const { data: queryData, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['tasks-all'],
+    queryFn: async () => {
+      const [tasksRes, clientsRes, teamRes] = await Promise.allSettled([
+        supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
+        supabase.from('clients').select('id,name').order('name'),
+        // Select only the columns the UI actually uses to reduce payload size.
+        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
+      ]);
+
+      if (tasksRes.status === 'rejected') {
+        console.error('[tasks] tasks fetch rejected:', tasksRes.reason);
+      } else if (tasksRes.value.error) {
+        console.error('[tasks] tasks fetch error:', tasksRes.value.error);
+        throw new Error(tasksRes.value.error.message);
+      }
+      if (clientsRes.status === 'rejected') console.error('[tasks] clients fetch rejected:', clientsRes.reason);
+      else if (clientsRes.value.error) console.error('[tasks] clients fetch error:', clientsRes.value.error);
+      if (teamRes.status === 'rejected') console.error('[tasks] team fetch rejected:', teamRes.reason);
+      else if (teamRes.value.error) console.error('[tasks] team fetch error:', teamRes.value.error);
+
+      return {
+        tasks:   (tasksRes.status   === 'fulfilled' && !tasksRes.value.error)   ? (tasksRes.value.data   ?? []) as Task[]       : [],
+        clients: (clientsRes.status === 'fulfilled' && !clientsRes.value.error) ? (clientsRes.value.data ?? []) as Client[]     : [],
+        team:    (teamRes.status    === 'fulfilled' && !teamRes.value.error)    ? (teamRes.value.data    ?? []) as TeamMember[]  : [],
+      };
+    },
+  });
+
+  const fetchError = queryError ? (queryError as Error).message : null;
+
+  // Local state for optimistic updates — seeded from React Query cache on
+  // first render and kept in sync when the background fetch completes.
+  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; team: TeamMember[] }>(['tasks-all']);
+  const [tasks,   setTasks]   = useState<Task[]>      (() => cachedOnMount?.tasks   ?? []);
+  const [clients, setClients] = useState<Client[]>    (() => cachedOnMount?.clients ?? []);
+  const [team,    setTeam]    = useState<TeamMember[]>(() => cachedOnMount?.team    ?? []);
+
+  // Keep local state in sync when React Query data arrives / updates.
+  useEffect(() => {
+    if (queryData) {
+      setTasks(queryData.tasks);
+      setClients(queryData.clients);
+      setTeam(queryData.team);
+    }
+  }, [queryData]);
+
   const [saving, setSaving] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -670,83 +718,6 @@ export default function TasksPage() {
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
-
-  // ── Fire-and-forget activity logger ─────────────────────────────────────
-  // Note: activity logging for create/edit/delete is handled server-side in
-  // the API routes. This helper is kept for any future client-side use.
-
-
-  // ── fetch ────────────────────────────────────────────────────────────────
-  // silent=true → background refresh after mutations; no loading spinner,
-  // no error banner, and existing data is NOT cleared on failure.
-  // Returns true if tasks were fetched successfully (used to detect refresh failures).
-  const fetchAll = useCallback(async (silent = false): Promise<boolean> => {
-    if (!silent) {
-      setLoading(true);
-      setFetchError(null);
-    }
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const dataPromise = Promise.allSettled([
-        supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
-        supabase.from('clients').select('id,name').order('name'),
-        supabase.from('team_members').select('*').order('full_name'),
-      ]);
-
-      const settled = silent
-        ? await dataPromise
-        : await Promise.race([
-            dataPromise,
-            new Promise<never>((_, reject) => {
-              timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-            }),
-          ]);
-
-      const [tasksRes, clientsRes, teamRes] = settled;
-
-      let tasksOk = false;
-      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error) {
-        setTasks((tasksRes.value.data ?? []) as Task[]);
-        tasksOk = true;
-      } else {
-        console.error('[tasks] tasks fetch error:', tasksRes.status === 'rejected' ? tasksRes.reason : tasksRes.value.error);
-        if (!silent) setTasks([]);
-      }
-      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
-        setClients((clientsRes.value.data ?? []) as Client[]);
-      } else {
-        console.error('[tasks] clients fetch error:', clientsRes.status === 'rejected' ? clientsRes.reason : clientsRes.value.error);
-        if (!silent) setClients([]);
-      }
-      if (teamRes.status === 'fulfilled' && !teamRes.value.error) {
-        setTeam((teamRes.value.data ?? []) as TeamMember[]);
-      } else {
-        console.error('[tasks] team fetch error:', teamRes.status === 'rejected' ? teamRes.reason : teamRes.value.error);
-        if (!silent) setTeam([]);
-      }
-      return tasksOk;
-    } catch (err) {
-      if (!silent) {
-        const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-        const msg = isTimeout
-          ? 'Tasks data took too long to load. Please refresh the page.'
-          : 'Failed to load tasks. Please try again.';
-        console.error('[tasks] fetchAll error:', err);
-        setFetchError(msg);
-        setTasks([]);
-        setClients([]);
-        setTeam([]);
-      } else {
-        console.warn('[tasks] silent refresh failed (ignored):', err);
-      }
-      return false;
-    } finally {
-      clearTimeout(timeoutId);
-      if (!silent) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── filtered tasks ───────────────────────────────────────────────────────
   const filtered = tasks.filter(task => {
@@ -826,16 +797,9 @@ export default function TasksPage() {
       setCreateForm({ ...blankForm });
       toast(`Task "${createForm.title}" created successfully.`, 'success');
 
-      // Refresh list non-blocking — warn if it fails
+      // Refresh list non-blocking via React Query cache invalidation
       console.log('[task create] triggering list refetch');
-      void fetchAll(true).then(ok => {
-        console.log('[task create] list refetch result, ok:', ok);
-        if (!ok) {
-          toast('Task was created but the list failed to refresh. Please reload the page.', 'warning', 6000);
-        }
-      }).catch((err: unknown) => {
-        console.warn('[task create] list refetch threw unexpectedly:', err);
-      });
+      void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
     } catch (err: unknown) {
       console.error('[task create] error:', err);
       const message = err instanceof Error
@@ -930,14 +894,8 @@ export default function TasksPage() {
       setEditTask(null);
       toast(`Task "${editForm.title}" updated successfully.`, 'success');
 
-      // Background refresh
-      void fetchAll(true).then(ok => {
-        if (!ok) {
-          toast('Task was updated but the list failed to refresh. Please reload the page.', 'warning', 6000);
-        }
-      }).catch((err: unknown) => {
-        console.warn('[task edit] list refetch threw unexpectedly:', err);
-      });
+      // Background refresh via React Query cache invalidation
+      void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
     } catch (err: unknown) {
       console.error('[task edit] error:', err);
       const message = err instanceof Error

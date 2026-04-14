@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Pencil, Trash2, Mail, Briefcase,
   Send, RotateCcw, XCircle, Link2, Clock, CheckCircle, Crown,
@@ -320,11 +321,30 @@ export default function TeamPage() {
   const { t } = useLang();
   const { role: myRole } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const canManage = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
 
-  const [members, setMembers]           = useState<TeamMember[]>([]);
-  const [invitations, setInvitations]   = useState<TeamInvitation[]>([]);
-  const [loading, setLoading]           = useState(true);
+  // ── React Query: fetch and cache team members and invitations ─────────────
+  const { data: teamData, isLoading: loading } = useQuery({
+    queryKey: ['team-data'],
+    queryFn: async () => {
+      const [membersRes, invitesRes] = await Promise.all([
+        // Select only the columns the UI actually uses to reduce payload size.
+        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
+        supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
+      ]);
+      if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
+      if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
+      return {
+        members:     (!membersRes.error  ? (membersRes.data  ?? []) : []) as TeamMember[],
+        invitations: (!invitesRes.error  ? (invitesRes.data  ?? []) : []) as TeamInvitation[],
+      };
+    },
+  });
+
+  const members     = teamData?.members     ?? [];
+  const invitations = teamData?.invitations ?? [];
+
   const [saving, setSaving]             = useState(false);
   const [actionError, setActionError]   = useState('');
 
@@ -336,26 +356,6 @@ export default function TeamPage() {
   // Forms — all at the top level, never re-created during render
   const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
   const [editForm, setEditForm]         = useState({ ...blankForm });
-
-  // ── Fetch ─────────────────────────────────────────────────────────────────
-  const fetchData = useCallback(async () => {
-    try {
-      const [membersRes, invitesRes] = await Promise.all([
-        supabase.from('team_members').select('*').order('full_name'),
-        supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
-      ]);
-      if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
-      else setMembers((membersRes.data ?? []) as TeamMember[]);
-      if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
-      else setInvitations((invitesRes.data ?? []) as TeamInvitation[]);
-    } catch (err) {
-      console.error('[team] fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Latest invitation per member (for status display)
   const inviteByMember = useCallback((memberId: string): TeamInvitation | undefined => {
@@ -387,7 +387,7 @@ export default function TeamPage() {
       setInviteOpen(false);
       setInviteForm({ ...blankInviteForm });
       toast(`Invitation sent to ${inviteForm.email}`, 'success');
-      fetchData();
+      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       setActionError('Network error. Please try again.');
     } finally {
@@ -415,7 +415,7 @@ export default function TeamPage() {
       if (error) throw error;
       setEditMember(null);
       toast('Member updated successfully', 'success');
-      fetchData();
+      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to update member', 'error');
     } finally {
@@ -436,9 +436,9 @@ export default function TeamPage() {
       const res = await fetch(`/api/team/members/${deleteMember.id}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { toast(data.error ?? 'Failed to remove member.', 'error'); return; }
-      setMembers(prev => prev.filter(m => m.id !== deleteMember.id));
       setDeleteMember(null);
       toast('Member removed', 'info');
+      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
     }
@@ -455,7 +455,7 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) { toast(data.error ?? 'Failed to resend invitation.', 'error'); return; }
       toast(`Invitation resent to ${member.email}`, 'success');
-      fetchData();
+      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
     }
@@ -473,7 +473,7 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) { toast(data.error ?? 'Failed to revoke invitation.', 'error'); return; }
       toast('Invitation revoked', 'info');
-      fetchData();
+      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
     }

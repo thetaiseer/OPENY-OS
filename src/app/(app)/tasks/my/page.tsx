@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckSquare, AlertCircle, Calendar, User,
   Clock, CheckCheck, LayoutList, Plus, Send,
@@ -244,47 +245,46 @@ export default function MyTasksPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [tasks, setTasks]       = useState<Task[]>([]);
-  const [team, setTeam]         = useState<TeamMember[]>([]);
-  const [clients, setClients]   = useState<Client[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['tasks-my'],
+    queryFn: async () => {
+      const [tasksRes, teamRes, clientsRes] = await Promise.allSettled([
+        supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
+        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
+        supabase.from('clients').select('id,name,status').order('name'),
+      ]);
+      if (tasksRes.status === 'rejected') console.error('[my-tasks] tasks fetch rejected:', tasksRes.reason);
+      else if (tasksRes.value.error) console.error('[my-tasks] tasks fetch error:', tasksRes.value.error);
+      if (teamRes.status === 'rejected') console.error('[my-tasks] team fetch rejected:', teamRes.reason);
+      if (clientsRes.status === 'rejected') console.error('[my-tasks] clients fetch rejected:', clientsRes.reason);
+      return {
+        tasks:   (tasksRes.status   === 'fulfilled' && !tasksRes.value.error)   ? (tasksRes.value.data   ?? []) as Task[]       : [],
+        team:    (teamRes.status    === 'fulfilled' && !teamRes.value.error)    ? (teamRes.value.data    ?? []) as TeamMember[]  : [],
+        clients: (clientsRes.status === 'fulfilled' && !clientsRes.value.error) ? (clientsRes.value.data ?? []) as Client[]     : [],
+      };
+    },
+  });
+
+  // Seed local state from React Query cache for instant display on re-navigation
+  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; team: TeamMember[]; clients: Client[] }>(['tasks-my']);
+  const [tasks,   setTasks]   = useState<Task[]>      (() => cachedOnMount?.tasks   ?? []);
+  const [team,    setTeam]    = useState<TeamMember[]>(() => cachedOnMount?.team    ?? []);
+  const [clients, setClients] = useState<Client[]>    (() => cachedOnMount?.clients ?? []);
+
+  useEffect(() => {
+    if (queryData) {
+      setTasks(queryData.tasks);
+      setTeam(queryData.team);
+      setClients(queryData.clients);
+    }
+  }, [queryData]);
+
   const [selectedMember, setSelectedMember] = useState<string>('');
   const [activeSection, setActiveSection]   = useState<SectionKey>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [showNewTask, setShowNewTask]       = useState(false);
-
-  const fetchData = useCallback(async () => {
-    const FETCH_TIMEOUT_MS = 15_000;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), FETCH_TIMEOUT_MS);
-      });
-      const [tasksRes, teamRes, clientsRes] = await Promise.race([
-        Promise.allSettled([
-          supabase.from('tasks').select('*, client:clients(id,name)').order('due_date', { ascending: true }).limit(500),
-          supabase.from('team_members').select('*').order('full_name'),
-          supabase.from('clients').select('id,name,status').order('name'),
-        ]),
-        timeoutPromise,
-      ]);
-      if (tasksRes.status === 'fulfilled' && !tasksRes.value.error)
-        setTasks((tasksRes.value.data ?? []) as Task[]);
-      if (teamRes.status === 'fulfilled' && !teamRes.value.error)
-        setTeam((teamRes.value.data ?? []) as TeamMember[]);
-      if (clientsRes.status === 'fulfilled' && !clientsRes.value.error)
-        setClients((clientsRes.value.data ?? []) as Client[]);
-    } catch (err) {
-      const isTimeout = err instanceof Error && err.message === 'TIMEOUT';
-      console.error('[my-tasks] fetch error:', isTimeout ? 'timeout' : err);
-    } finally {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   const memberTasks = useMemo(() => {
     let result = tasks;
