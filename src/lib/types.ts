@@ -214,6 +214,18 @@ export interface Asset {
   created_at: string;
 }
 
+/**
+ * Lightweight asset shape used in calendar views.
+ * Matches the partial select: id, name, publish_date, content_type, client_name.
+ */
+export interface CalendarAsset {
+  id: string;
+  name: string;
+  publish_date: string | null;
+  content_type?: string | null;
+  client_name?: string | null;
+}
+
 export interface Activity {
   id: string;
   type: string;

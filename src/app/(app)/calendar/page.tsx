@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import type { Task, Asset, PublishingSchedule } from '@/lib/types';
+import type { Task, CalendarAsset, PublishingSchedule } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export default function CalendarPage() {
   const [year,  setYear]  = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [tasks,     setTasks]     = useState<Task[]>([]);
-  const [assets,    setAssets]    = useState<Asset[]>([]);
+  const [assets,    setAssets]    = useState<CalendarAsset[]>([]);
   const [schedules, setSchedules] = useState<PublishingSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export default function CalendarPage() {
           setTasks([]);
         }
         if (assetsRes.status === 'fulfilled' && !assetsRes.value.error) {
-          setAssets((assetsRes.value.data ?? []) as Asset[]);
+          setAssets(assetsRes.value.data ?? []);
         } else {
           console.error('[calendar] assets fetch error:', assetsRes.status === 'rejected' ? assetsRes.reason : assetsRes.value.error);
           setAssets([]);
@@ -167,7 +167,7 @@ export default function CalendarPage() {
   }, [tasks]);
 
   const assetsByDay = useMemo(() => {
-    const map: Record<number, Asset[]> = {};
+    const map: Record<number, CalendarAsset[]> = {};
     for (const a of assets) {
       if (!a.publish_date) continue;
       const d = new Date(a.publish_date).getDate();
