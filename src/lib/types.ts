@@ -19,6 +19,7 @@ export interface Client {
   status: 'active' | 'inactive' | 'prospect';
   logo?: string;
   notes?: string;
+  slug?: string;
   created_at: string;
   updated_at: string;
 }

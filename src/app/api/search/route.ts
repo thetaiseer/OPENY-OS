@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Clients
     db
       .from('clients')
-      .select('id, name, email, status')
+      .select('id, name, email, status, slug')
       .or(`name.ilike.${pattern},email.ilike.${pattern}`)
       .limit(limit),
 
