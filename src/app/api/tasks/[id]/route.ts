@@ -31,7 +31,7 @@ const VALID_STATUSES = [
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
 
 const VALID_TASK_CATEGORIES = [
-  'internal_task', 'content_creation', 'design_task', 'approval_task',
+  'internal_task', 'content_creation', 'design_task',
   'publishing_task', 'asset_upload_task', 'follow_up_task',
 ] as const;
 
@@ -171,9 +171,6 @@ export async function PATCH(
   }
   if (typeof body.content_item_id === 'string') {
     updatePayload.content_item_id = body.content_item_id.trim() || null;
-  }
-  if (typeof body.approval_id === 'string') {
-    updatePayload.approval_id = body.approval_id.trim() || null;
   }
 
   const db = getServiceClient();

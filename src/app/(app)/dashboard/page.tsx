@@ -190,7 +190,7 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
-  // F2 fix: use publishing_schedules instead of deprecated assets.publish_date / approval_status
+  // F2 fix: use publishing_schedules instead of deprecated assets.publish_date
   const { data: scheduled } = useQuery<PublishingSchedule[]>({
     queryKey: ['scheduled-posts'],
     queryFn: async () => {

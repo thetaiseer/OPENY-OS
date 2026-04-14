@@ -17,10 +17,6 @@ export type NotificationEventType =
   | 'publishing_scheduled'
   | 'publishing_rescheduled'
   | 'publishing_published'
-  | 'approval_requested'
-  | 'approval_approved'
-  | 'approval_rejected'
-  | 'approval_needs_changes'
   | 'asset_uploaded'
   | 'asset_linked'
   | 'client_created'
@@ -130,27 +126,6 @@ export async function notifyTaskUpdated(opts: {
   });
 }
 
-export async function notifyApprovalRequested(opts: {
-  taskId?: string | null;
-  taskTitle?: string | null;
-  reviewerId?: string | null;
-  clientId?: string | null;
-  approvalId: string;
-}): Promise<void> {
-  await createNotification({
-    title:       'Approval Requested',
-    message:     opts.taskTitle ? `Review requested for: "${opts.taskTitle}"` : 'A new approval review has been requested',
-    type:        'warning',
-    event_type:  'approval_requested',
-    user_id:     opts.reviewerId ?? null,
-    client_id:   opts.clientId,
-    task_id:     opts.taskId,
-    entity_type: 'approval',
-    entity_id:   opts.approvalId,
-    action_url:  `/my-tasks`,
-  });
-}
-
 export async function notifyPublishingScheduled(opts: {
   scheduleId: string;
   taskId?: string | null;
@@ -191,48 +166,6 @@ export async function notifyAssetUploaded(opts: {
     entity_type: 'asset',
     entity_id:   opts.assetId,
     action_url:  `/assets`,
-  });
-}
-
-export async function notifyApprovalDecision(opts: {
-  approvalId: string;
-  taskId?: string | null;
-  taskTitle?: string | null;
-  decision: 'approved' | 'rejected' | 'needs_changes';
-  decidedByName?: string | null;
-  requestedById?: string | null;
-  clientId?: string | null;
-}): Promise<void> {
-  const labels: Record<string, string> = {
-    approved:      'Approved',
-    rejected:      'Rejected',
-    needs_changes: 'Needs Changes',
-  };
-  const types: Record<string, 'success' | 'error' | 'warning'> = {
-    approved:      'success',
-    rejected:      'error',
-    needs_changes: 'warning',
-  };
-  const label = labels[opts.decision] ?? opts.decision;
-  const type  = types[opts.decision]  ?? 'info';
-  const eventMap: Record<string, NotificationEventType> = {
-    approved:      'approval_approved',
-    rejected:      'approval_rejected',
-    needs_changes: 'approval_needs_changes',
-  };
-  await createNotification({
-    title:       `Task ${label}`,
-    message:     opts.taskTitle
-      ? `"${opts.taskTitle}" has been ${label.toLowerCase()}${opts.decidedByName ? ` by ${opts.decidedByName}` : ''}`
-      : `Your approval request was ${label.toLowerCase()}`,
-    type,
-    event_type:  eventMap[opts.decision],
-    user_id:     opts.requestedById ?? null,
-    client_id:   opts.clientId,
-    task_id:     opts.taskId ?? null,
-    entity_type: 'approval',
-    entity_id:   opts.approvalId,
-    action_url:  `/my-tasks`,
   });
 }
 

@@ -3,7 +3,7 @@
  *   List activity log entries with optional filters.
  *   Query params:
  *     client_id      — filter by client
- *     entity_type    — filter by entity type (task, asset, approval, etc.)
+ *     entity_type    — filter by entity type (task, asset, etc.)
  *     entity_id      — filter by specific entity UUID
  *     limit          — max number of results (default: 50, max: 200)
  *
