@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X, FileText, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
@@ -74,7 +75,7 @@ export default function CalendarPage() {
       const endDate   = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
 
       const [tasksRes, assetsRes, schedulesRes, contentRes] = await Promise.allSettled([
-        supabase.from('tasks').select('*').gte('due_date', startDate).lte('due_date', endDate),
+        supabase.from('tasks').select('*, client:clients(id, name, slug)').gte('due_date', startDate).lte('due_date', endDate),
         supabase.from('assets')
           .select('id, name, publish_date, content_type, client_name')
           .gte('publish_date', startDate)
@@ -86,7 +87,7 @@ export default function CalendarPage() {
           .neq('status', 'cancelled')
           .order('scheduled_time', { ascending: true }),
         supabase.from('content_items')
-          .select('id, title, status, schedule_date, client_id')
+          .select('id, title, status, schedule_date, client_id, client:clients(id, name, slug)')
           .in('status', ['scheduled', 'approved'])
           .gte('schedule_date', startDate)
           .lte('schedule_date', endDate),
@@ -472,29 +473,42 @@ export default function CalendarPage() {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {selectedTasks.map(t => (
-                            <div
-                              key={t.id}
-                              className="rounded-lg p-2.5"
-                              style={{ background: 'var(--surface-2)' }}
-                            >
-                              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t.title}</p>
-                              <div className="flex gap-2 mt-1">
-                                <span
-                                  className="text-xs px-1.5 py-0.5 rounded"
-                                  style={{
-                                    background: `${priorityColor(t.priority)}20`,
-                                    color:      priorityColor(t.priority),
-                                  }}
-                                >
-                                  {t.priority}
-                                </span>
-                                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                  {t.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                          {selectedTasks.map(t => {
+                            const clientSlug = (t as unknown as { client?: { slug?: string } }).client?.slug;
+                            const taskLink = clientSlug ? `/clients/${clientSlug}/tasks` : '/tasks/all';
+                            return (
+                              <Link
+                                key={t.id}
+                                href={taskLink}
+                                className="block rounded-lg p-2.5 hover:opacity-80 transition-opacity"
+                                style={{ background: 'var(--surface-2)' }}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t.title}</p>
+                                  <ExternalLink size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
+                                </div>
+                                {(t as unknown as { client?: { name?: string } }).client?.name && (
+                                  <p className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>
+                                    {(t as unknown as { client?: { name?: string } }).client!.name}
+                                  </p>
+                                )}
+                                <div className="flex gap-2 mt-1">
+                                  <span
+                                    className="text-xs px-1.5 py-0.5 rounded"
+                                    style={{
+                                      background: `${priorityColor(t.priority)}20`,
+                                      color:      priorityColor(t.priority),
+                                    }}
+                                  >
+                                    {t.priority}
+                                  </span>
+                                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                    {t.status.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -509,22 +523,24 @@ export default function CalendarPage() {
                         </div>
                         <div className="space-y-2">
                           {selectedAssets.map(a => (
-                            <div
+                            <Link
                               key={a.id}
-                              className="rounded-lg p-2.5"
+                              href="/assets"
+                              className="block rounded-lg p-2.5 hover:opacity-80 transition-opacity"
                               style={{ background: 'var(--surface-2)' }}
                             >
-                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                                {a.name}
-                              </p>
-                              <div className="flex gap-2 mt-1 flex-wrap">
-                                {a.client_name && (
-                                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                    {a.client_name}
-                                  </span>
-                                )}
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                                  {a.name}
+                                </p>
+                                <ExternalLink size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
                               </div>
-                            </div>
+                              {a.client_name && (
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>
+                                  {a.client_name}
+                                </p>
+                              )}
+                            </Link>
                           ))}
                         </div>
                       </div>
@@ -539,23 +555,36 @@ export default function CalendarPage() {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {selectedContent.map(c => (
-                            <div
-                              key={c.id}
-                              className="rounded-lg p-2.5"
-                              style={{ background: 'var(--surface-2)' }}
-                            >
-                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                                {c.title}
-                              </p>
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                          {selectedContent.map(c => {
+                            const clientSlug = (c as unknown as { client?: { slug?: string } }).client?.slug;
+                            const contentLink = clientSlug ? `/clients/${clientSlug}/content` : '/content';
+                            return (
+                              <Link
+                                key={c.id}
+                                href={contentLink}
+                                className="block rounded-lg p-2.5 hover:opacity-80 transition-opacity"
+                                style={{ background: 'var(--surface-2)' }}
                               >
-                                {c.status}
-                              </span>
-                            </div>
-                          ))}
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                                    {c.title}
+                                  </p>
+                                  <ExternalLink size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
+                                </div>
+                                {(c as unknown as { client?: { name?: string } }).client?.name && (
+                                  <p className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>
+                                    {(c as unknown as { client?: { name?: string } }).client!.name}
+                                  </p>
+                                )}
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                  style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                                >
+                                  {c.status.replace(/_/g, ' ')}
+                                </span>
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
