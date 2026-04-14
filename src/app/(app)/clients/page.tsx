@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Users2, AlertCircle, X, FolderOpen } from 'lucide-react';
+import {
+  Plus, Search, Users2, AlertCircle, X,
+  FolderOpen, Image as ImageIcon, CheckSquare, FileText, Activity, Globe,
+} from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
-import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -21,6 +23,31 @@ const statusVariant = (s: string) => {
 
 const WARN_TOAST_BG    = '#d97706';
 const SUCCESS_TOAST_BG = '#16a34a';
+
+/** Lightweight relative-time formatter (no external dep). */
+function formatRelative(iso: string): string {
+  try {
+    const diff    = Date.now() - new Date(iso).getTime();
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60)  return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60)  return `${minutes}m ago`;
+    const hours   = Math.floor(minutes / 60);
+    if (hours < 24)    return `${hours}h ago`;
+    const days    = Math.floor(hours / 24);
+    if (days === 1)    return 'Yesterday';
+    if (days < 7)      return `${days}d ago`;
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+}
+
+interface ClientStats {
+  assets:       number;
+  tasks:        number;
+  content:      number;
+  lastActivity: string | null; // ISO or null
+  lastDesc:     string | null; // short description or null
+}
 
 export default function ClientsPage() {
   const { t } = useLang();
@@ -57,6 +84,52 @@ export default function ClientsPage() {
     // retained in memory while the user browses other sections.
   });
   const fetchError = fetchErrorObj ? (fetchErrorObj as Error).message : null;
+
+  // Fetch per-client stats in a single parallel batch.
+  // Each query only pulls the client_id column (lightweight).
+  const { data: statsMap = {} } = useQuery<Record<string, ClientStats>>({
+    queryKey: ['clients-stats'],
+    queryFn: async () => {
+      const [assetRows, taskRows, contentRows, activityRows] = await Promise.all([
+        supabase.from('assets').select('client_id').not('client_id', 'is', null),
+        supabase.from('tasks').select('client_id').not('client_id', 'is', null),
+        supabase.from('content_items').select('client_id').not('client_id', 'is', null),
+        supabase
+          .from('activities')
+          .select('client_id, created_at, description')
+          .not('client_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(600),
+      ]);
+
+      const map: Record<string, ClientStats> = {};
+
+      const inc = (rows: { client_id: string }[] | null, key: 'assets' | 'tasks' | 'content') => {
+        for (const r of rows ?? []) {
+          if (!r.client_id) continue;
+          if (!map[r.client_id]) map[r.client_id] = { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+          map[r.client_id][key]++;
+        }
+      };
+
+      inc(assetRows.data as { client_id: string }[] | null, 'assets');
+      inc(taskRows.data   as { client_id: string }[] | null, 'tasks');
+      inc(contentRows.data as { client_id: string }[] | null, 'content');
+
+      // Activities are ordered newest first — first one per client wins.
+      for (const row of (activityRows.data ?? []) as { client_id: string; created_at: string; description: string }[]) {
+        if (!row.client_id) continue;
+        if (!map[row.client_id]) map[row.client_id] = { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+        if (!map[row.client_id].lastActivity) {
+          map[row.client_id].lastActivity = row.created_at;
+          map[row.client_id].lastDesc     = row.description ?? null;
+        }
+      }
+
+      return map;
+    },
+    staleTime: 2 * 60 * 1000, // 2 min
+  });
 
   // Client-side search filter — no extra round-trips, no race conditions.
   const filteredClients = useMemo(() => {
@@ -166,7 +239,7 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('clients')}</h1>
@@ -206,87 +279,141 @@ export default function ClientsPage() {
       )}
 
       {loading ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: 'var(--surface)' }} />
+            <div key={i} className="rounded-2xl animate-pulse" style={{ background: 'var(--surface)', height: 220 }} />
           ))}
         </div>
       ) : filteredClients.length === 0 ? (
-        <EmptyState
-          icon={Users2}
-          title={t('noClientsYet')}
-          description={t('noClientsDesc')}
-          action={
-            canManageClients ? (
-              <button
-                onClick={() => setModalOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Plus size={16} />{t('newClient')}
-              </button>
-            ) : undefined
-          }
-        />
+        <div
+          className="flex flex-col items-center justify-center py-24 text-center rounded-2xl border"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5"
+            style={{ background: 'var(--surface-2)' }}
+          >
+            <Users2 size={36} style={{ color: 'var(--text-secondary)' }} />
+          </div>
+          <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text)' }}>{t('noClientsYet')}</h3>
+          <p className="text-sm max-w-xs mb-6" style={{ color: 'var(--text-secondary)' }}>{t('noClientsDesc')}</p>
+          {canManageClients && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 h-10 px-5 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+              style={{ background: 'var(--accent)' }}
+            >
+              <Plus size={16} />{t('newClient')}
+            </button>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredClients.map(client => (
-            <div
-              key={client.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => router.push(`/clients/${client.slug}`)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.slug}`); } }}
-              className="flex flex-col gap-3 p-5 rounded-2xl border cursor-pointer select-none
-                transition-all duration-200 ease-out
-                hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
-                active:translate-y-0 active:scale-[0.99] active:shadow-sm
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              {/* Header row */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    {client.name?.charAt(0).toUpperCase()}
+          {filteredClients.map(client => {
+            const stats = statsMap[client.id] ?? { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+
+            return (
+              <div
+                key={client.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/clients/${client.slug}`)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.slug}`); } }}
+                className="group flex flex-col p-5 rounded-2xl border cursor-pointer select-none
+                  transition-all duration-200 ease-out
+                  hover:-translate-y-0.5 hover:shadow-lg hover:border-[var(--accent)]
+                  active:translate-y-0 active:scale-[0.99] active:shadow-sm
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', gap: 0 }}
+              >
+                {/* ── Header ──────────────────────────────────────────────── */}
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0 shadow-sm"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      {client.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold leading-snug truncate" style={{ color: 'var(--text)' }}>
+                        {client.name}
+                      </p>
+                      {(client.industry || client.website) && (
+                        <p className="text-xs truncate mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                          {client.website && <Globe size={10} className="shrink-0" />}
+                          {client.industry ?? client.website}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
-                    {client.industry && (
-                      <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{client.industry}</p>
-                    )}
+                  <div className="shrink-0 pt-0.5">
+                    <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
                   </div>
                 </div>
-                <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
-              </div>
 
-              {/* Email if present */}
-              {client.email && (
-                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{client.email}</p>
-              )}
+                {/* ── Quick stats ──────────────────────────────────────────── */}
+                <div
+                  className="grid grid-cols-3 gap-2 rounded-xl px-3 py-2.5 mb-4"
+                  style={{ background: 'var(--surface-2)' }}
+                >
+                  {[
+                    { icon: <ImageIcon size={13} />,       label: 'Assets',  value: stats.assets  },
+                    { icon: <CheckSquare size={13} />, label: 'Tasks',   value: stats.tasks   },
+                    { icon: <FileText size={13} />,    label: 'Content', value: stats.content },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex flex-col items-center gap-0.5">
+                      <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                        {icon}
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{value}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Action buttons — same style as Assets ClientFolderCard */}
-              <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
-                <a
-                  href={`/clients/${client.slug}/overview`}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', textDecoration: 'none' }}
-                >
-                  <FolderOpen size={12} /> Open
-                </a>
-                <a
-                  href={`/clients/${client.slug}/assets`}
-                  className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
-                >
-                  Assets
-                </a>
+                {/* ── Activity hint ────────────────────────────────────────── */}
+                <div className="flex items-center gap-1.5 mb-4 min-h-[18px]">
+                  <Activity size={11} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
+                  {stats.lastActivity ? (
+                    <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                      {stats.lastDesc
+                        ? <>{stats.lastDesc.length > 48 ? stats.lastDesc.slice(0, 48) + '…' : stats.lastDesc} &middot; {formatRelative(stats.lastActivity)}</>
+                        : <>Updated {formatRelative(stats.lastActivity)}</>
+                      }
+                    </p>
+                  ) : (
+                    <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
+                  )}
+                </div>
+
+                {/* ── Actions ──────────────────────────────────────────────── */}
+                <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
+                  <a
+                    href={`/clients/${client.slug}/overview`}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', textDecoration: 'none' }}
+                  >
+                    <FolderOpen size={12} /> Open
+                  </a>
+                  <a
+                    href={`/clients/${client.slug}/assets`}
+                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
+                  >
+                    <ImageIcon size={11} /> Assets
+                  </a>
+                  <a
+                    href={`/clients/${client.slug}/tasks`}
+                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
+                  >
+                    <CheckSquare size={11} /> Tasks
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
