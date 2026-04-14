@@ -137,6 +137,11 @@ export interface UploadItem {
   /** Public URL of the uploaded file. */
   publicUrl:  string | null;
   fileMimeType: string | null;
+  /**
+   * Compressed JPEG blob of the video's first frame.
+   * Uploaded to R2 before metadata is saved; null for non-video files.
+   */
+  thumbnailBlob: Blob | null;
   // ── multipart state ──────────────────────────────────────────
   /** True when this item is using the multipart upload path. */
   isMultipart:  boolean;
@@ -171,10 +176,15 @@ export interface BatchMeta {
 
 /** Item shape passed when opening a batch (before upload starts). */
 export interface InitialUploadItem {
-  id:         string;
-  file:       File;
-  previewUrl: string | null;
-  uploadName: string;
+  id:            string;
+  file:          File;
+  previewUrl:    string | null;
+  uploadName:    string;
+  /**
+   * Compressed JPEG blob of the video's first frame, generated on the frontend.
+   * When present the upload flow will upload it to R2 and save the URL in the DB.
+   */
+  thumbnailBlob?: Blob | null;
 }
 
 // Keep legacy alias for pages that reference UploadQueueItem
@@ -1152,6 +1162,49 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     mimeType:    string,
     signal:      AbortSignal,
   ) {
+    // ── Optional: upload video thumbnail to R2 ─────────────────────────────
+    let thumbnailStorageKey: string | undefined;
+
+    if (item.thumbnailBlob) {
+      try {
+        // Get a presigned URL for the thumbnail.
+        const presignRes = await fetch('/api/upload/thumbnail-presign', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ videoStorageKey: storageKey }),
+          signal,
+        });
+
+        if (presignRes.ok) {
+          const presignData = await presignRes.json() as {
+            uploadUrl:           string;
+            thumbnailStorageKey: string;
+          };
+
+          // PUT thumbnail blob directly to R2.
+          const putRes = await fetch(presignData.uploadUrl, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'image/jpeg' },
+            body:    item.thumbnailBlob,
+            signal,
+          });
+
+          if (putRes.ok) {
+            thumbnailStorageKey = presignData.thumbnailStorageKey;
+            console.log('[upload] thumbnail uploaded:', thumbnailStorageKey);
+          } else {
+            console.warn('[upload] thumbnail PUT failed:', putRes.status);
+          }
+        } else {
+          console.warn('[upload] thumbnail presign failed:', presignRes.status);
+        }
+      } catch (err: unknown) {
+        // Thumbnail upload failure is non-fatal — continue without it.
+        if ((err as Error)?.name === 'AbortError') throw err;
+        console.warn('[upload] thumbnail upload error (non-fatal):', err instanceof Error ? err.message : err);
+      }
+    }
+
     let completeRes: Response;
     try {
       completeRes = await fetch('/api/upload/complete', {
@@ -1160,14 +1213,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           storageKey,
           displayName,
-          clientName:   item.clientName,
-          clientId:     item.clientId   || undefined,
-          fileType:     mimeType,
-          fileSize:     item.file.size,
-          mainCategory: item.mainCategory || undefined,
-          subCategory:  item.subCategory  || undefined,
-          monthKey:     item.monthKey,
-          uploadedBy:   item.uploadedBy   || undefined,
+          clientName:          item.clientName,
+          clientId:            item.clientId   || undefined,
+          fileType:            mimeType,
+          fileSize:            item.file.size,
+          mainCategory:        item.mainCategory || undefined,
+          subCategory:         item.subCategory  || undefined,
+          monthKey:            item.monthKey,
+          uploadedBy:          item.uploadedBy   || undefined,
+          ...(thumbnailStorageKey ? { thumbnailStorageKey } : {}),
         }),
         signal,
       });
@@ -1313,6 +1367,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       r2FileName:   null,
       publicUrl:    null,
       fileMimeType: null,
+      thumbnailBlob: i.thumbnailBlob ?? null,
       isMultipart:    false,
       uploadId:       null,
       completedParts: [],

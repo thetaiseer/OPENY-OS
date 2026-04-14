@@ -21,6 +21,7 @@ import { contentTypeLabel } from '@/lib/asset-utils';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid } from '@/components/ui/AssetsGrid';
 import type { Client, Task, ContentItem, Asset, Activity, TeamMember } from '@/lib/types';
+import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -248,24 +249,41 @@ export default function ClientWorkspace() {
     if (fileRef.current) fileRef.current.value = '';
     if (!files.length) return;
     const items: UploadFileItem[] = files.map(file => ({
-      id:         crypto.randomUUID(),
+      id:            crypto.randomUUID(),
       file,
-      previewUrl: /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
-      uploadName: file.name.replace(/\.[^.]+$/, ''), // base name without extension
+      previewUrl:    /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
+      uploadName:    file.name.replace(/\.[^.]+$/, ''), // base name without extension
+      thumbnailBlob: null,
     }));
     setPendingItems(items);
     setUploadMainCategory('social-media');
     setUploadSubCategory('');
     setUploadMonthKey(new Date().toISOString().slice(0, 7));
+
+    // Asynchronously generate thumbnails for video files.
+    items.forEach(item => {
+      if (!isVideoFile(item.file.name, item.file.type)) return;
+      void generateVideoThumbnail(item.file).then(result => {
+        if (!result) return;
+        setPendingItems(prev =>
+          prev.map(i =>
+            i.id === item.id
+              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob }
+              : i,
+          ),
+        );
+      });
+    });
   };
 
   const handleUploadConfirm = () => {
     if (!pendingItems.length || !client) return;
     const initialItems: InitialUploadItem[] = pendingItems.map(i => ({
-      id:         i.id,
-      file:       i.file,
-      previewUrl: i.previewUrl,
-      uploadName: i.uploadName,
+      id:            i.id,
+      file:          i.file,
+      previewUrl:    i.previewUrl,
+      uploadName:    i.uploadName,
+      thumbnailBlob: i.thumbnailBlob,
     }));
     startBatch(initialItems, {
       clientName:   client.name,

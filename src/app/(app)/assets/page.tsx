@@ -22,7 +22,8 @@ import {
 import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
-import { AssetsGrid, isImage as isImageFile } from '@/components/ui/AssetsGrid';
+import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile } from '@/components/ui/AssetsGrid';
+import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -55,10 +56,11 @@ function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void 
 }
 
 interface FileUploadItem {
-  id: string;
-  file: File;
-  previewUrl: string | null;
-  uploadName: string;
+  id:            string;
+  file:          File;
+  previewUrl:    string | null;
+  uploadName:    string;
+  thumbnailBlob: Blob | null;
 }
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
@@ -574,7 +576,13 @@ export default function AssetsPage() {
   // ── File helpers ──────────────────────────────────────────────────────────
 
   const filesToItems = (files: File[]): FileUploadItem[] =>
-    files.map(file => ({ id: nextFileId(), file, previewUrl: makePreviewUrl(file), uploadName: getFileBaseName(file.name) }));
+    files.map(file => ({
+      id:            nextFileId(),
+      file,
+      previewUrl:    makePreviewUrl(file),
+      uploadName:    getFileBaseName(file.name),
+      thumbnailBlob: null,
+    }));
 
   const revokeItemUrls = useCallback((items: FileUploadItem[]) => {
     items.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
@@ -582,7 +590,8 @@ export default function AssetsPage() {
 
   const openPendingBatch = useCallback((files: File[]) => {
     if (!files.length) return;
-    setPendingItems(filesToItems(files));
+    const items = filesToItems(files);
+    setPendingItems(items);
     setUploadMainCategory(folderPath.mainCategory ?? MAIN_CATEGORIES[0].slug);
     setUploadSubCategory(folderPath.subCategory ?? '');
     setUploadMonth(folderPath.month ?? new Date().toISOString().slice(0, 7));
@@ -594,6 +603,21 @@ export default function AssetsPage() {
       setUploadClientName('');
       setUploadClientId('');
     }
+
+    // Asynchronously generate thumbnails for video files and update the item state.
+    items.forEach(item => {
+      if (!isVideoFile(item.file.name, item.file.type)) return;
+      void generateVideoThumbnail(item.file).then(result => {
+        if (!result) return;
+        setPendingItems(prev =>
+          prev.map(i =>
+            i.id === item.id
+              ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob }
+              : i,
+          ),
+        );
+      });
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folderPath, clients]);
 
@@ -629,7 +653,13 @@ export default function AssetsPage() {
     setPendingItems([]);
     if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
-    startBatch(items.map(i => ({ id: i.id, file: i.file, previewUrl: i.previewUrl, uploadName: i.uploadName })), {
+    startBatch(items.map(i => ({
+      id:            i.id,
+      file:          i.file,
+      previewUrl:    i.previewUrl,
+      uploadName:    i.uploadName,
+      thumbnailBlob: i.thumbnailBlob,
+    })), {
       clientName:   uploadClientName,
       clientId:     uploadClientId,
       contentType:  '',

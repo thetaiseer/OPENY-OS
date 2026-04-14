@@ -30,10 +30,11 @@ import type { Client } from '@/lib/types';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface UploadFileItem {
-  id:         string;
-  file:       File;
-  previewUrl: string | null;
-  uploadName: string; // user-editable base name (without extension)
+  id:            string;
+  file:          File;
+  previewUrl:    string | null;
+  uploadName:    string; // user-editable base name (without extension)
+  thumbnailBlob: Blob | null;
 }
 
 export interface UploadModalProps {
