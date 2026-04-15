@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 const navItems = [
   { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard'     },
@@ -29,6 +30,10 @@ interface SidebarProps { open?: boolean; onClose?: () => void; }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+    ? 'Go to OPENY DOCS dashboard'
+    : 'Go to OPENY OS dashboard';
   const { t } = useLang();
   const { user } = useAuth();
 
@@ -55,7 +60,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
-            <OpenyLogo className="hidden xl:block" width={96} height={28} />
+            <Link
+              href={dashboardHref}
+              onClick={onClose}
+              aria-label={dashboardAriaLabel}
+              className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-85"
+            >
+              <OpenyLogo width={96} height={28} />
+            </Link>
             <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
             <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>OS</span>
           </div>
