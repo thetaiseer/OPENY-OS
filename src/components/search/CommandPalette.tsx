@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Shield, CalendarDays, FileText, Upload,
-  Plus, UserCheck, Settings, Zap, Clock, Tag, BookOpen, BookMarked,
+  Plus, UserCheck, Settings, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -82,7 +82,7 @@ export default function CommandPalette({
       icon: LayoutDashboard,
       group: 'Navigate',
       keywords: ['home', 'dash', 'overview'],
-      action: () => go('/dashboard'),
+      action: () => go('/os/dashboard'),
     },
     {
       id: 'go-my-tasks',
@@ -90,7 +90,7 @@ export default function CommandPalette({
       icon: UserCheck,
       group: 'Navigate',
       keywords: ['my', 'tasks', 'assigned'],
-      action: () => go('/my-tasks'),
+      action: () => go('/os/tasks'),
     },
     {
       id: 'go-clients',
@@ -98,7 +98,7 @@ export default function CommandPalette({
       icon: Users2,
       group: 'Navigate',
       keywords: ['clients', 'companies', 'accounts'],
-      action: () => go('/clients'),
+      action: () => go('/os/clients'),
     },
     {
       id: 'go-tasks',
@@ -106,7 +106,7 @@ export default function CommandPalette({
       icon: CheckSquare,
       group: 'Navigate',
       keywords: ['tasks', 'work', 'todos'],
-      action: () => go('/tasks'),
+      action: () => go('/os/tasks'),
     },
     {
       id: 'go-content',
@@ -114,7 +114,7 @@ export default function CommandPalette({
       icon: FileText,
       group: 'Navigate',
       keywords: ['content', 'posts', 'social'],
-      action: () => go('/content'),
+      action: () => go('/os/content'),
     },
     {
       id: 'go-calendar',
@@ -122,7 +122,7 @@ export default function CommandPalette({
       icon: CalendarDays,
       group: 'Navigate',
       keywords: ['calendar', 'schedule', 'dates', 'events'],
-      action: () => go('/calendar'),
+      action: () => go('/os/calendar'),
     },
     {
       id: 'go-assets',
@@ -130,7 +130,7 @@ export default function CommandPalette({
       icon: FolderOpen,
       group: 'Navigate',
       keywords: ['assets', 'files', 'drive', 'media'],
-      action: () => go('/assets'),
+      action: () => go('/os/assets'),
     },
     {
       id: 'go-reports',
@@ -138,7 +138,7 @@ export default function CommandPalette({
       icon: BarChart2,
       group: 'Navigate',
       keywords: ['reports', 'analytics', 'stats'],
-      action: () => go('/reports'),
+      action: () => go('/os/reports'),
     },
     {
       id: 'go-team',
@@ -146,7 +146,7 @@ export default function CommandPalette({
       icon: Users,
       group: 'Navigate',
       keywords: ['team', 'members', 'invite', 'people'],
-      action: () => go('/team'),
+      action: () => go('/os/team'),
     },
     {
       id: 'go-security',
@@ -154,7 +154,7 @@ export default function CommandPalette({
       icon: Shield,
       group: 'Navigate',
       keywords: ['security', 'sessions', 'permissions'],
-      action: () => go('/security'),
+      action: () => go('/os/security'),
     },
     {
       id: 'go-settings',
@@ -162,98 +162,7 @@ export default function CommandPalette({
       icon: Settings,
       group: 'Navigate',
       keywords: ['settings', 'preferences', 'account'],
-      action: () => go('/settings'),
-    },
-    // ── New v3 modules ──
-    {
-      id: 'go-notes',
-      label: 'Go to Notes & Docs',
-      icon: BookOpen,
-      group: 'Navigate',
-      keywords: ['notes', 'docs', 'documents', 'wiki'],
-      action: () => go('/notes'),
-    },
-    {
-      id: 'go-time-tracking',
-      label: 'Go to Time Tracking',
-      icon: Clock,
-      group: 'Navigate',
-      keywords: ['time', 'timer', 'track', 'hours', 'log'],
-      action: () => go('/time-tracking'),
-    },
-    {
-      id: 'go-tags',
-      label: 'Go to Tag Manager',
-      icon: Tag,
-      group: 'Navigate',
-      keywords: ['tags', 'labels', 'taxonomy'],
-      action: () => go('/tags'),
-    },
-    {
-      id: 'go-automations',
-      label: 'Go to Automations',
-      icon: Zap,
-      group: 'Navigate',
-      keywords: ['automation', 'rules', 'trigger', 'workflow'],
-      action: () => go('/automations'),
-    },
-    // ── OPENY DOCS ──
-    {
-      id: 'go-docs',
-      label: 'Go to OPENY DOCS',
-      description: 'Business documents, HR, Employees & Accounting',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['docs', 'documents', 'invoice', 'quotation', 'contract', 'hr', 'employees', 'accounting'],
-      action: () => go('/docs'),
-    },
-    {
-      id: 'go-docs-invoice',
-      label: 'DOCS: Invoice',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['invoice', 'billing', 'docs'],
-      action: () => go('/docs/invoice'),
-    },
-    {
-      id: 'go-docs-quotation',
-      label: 'DOCS: Quotation',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['quotation', 'quote', 'proposal', 'docs'],
-      action: () => go('/docs/quotation'),
-    },
-    {
-      id: 'go-docs-client-contract',
-      label: 'DOCS: Client Contract',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['client contract', 'agreement', 'docs'],
-      action: () => go('/docs/client-contract'),
-    },
-    {
-      id: 'go-docs-hr-contract',
-      label: 'DOCS: HR Contract',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['hr contract', 'employment', 'employee contract', 'docs'],
-      action: () => go('/docs/hr-contract'),
-    },
-    {
-      id: 'go-docs-employees',
-      label: 'DOCS: Employees',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['employees', 'staff', 'payroll', 'docs'],
-      action: () => go('/docs/employees'),
-    },
-    {
-      id: 'go-docs-accounting',
-      label: 'DOCS: Accounting',
-      icon: BookMarked,
-      group: 'Navigate',
-      keywords: ['accounting', 'ledger', 'finance', 'revenue', 'docs'],
-      action: () => go('/docs/accounting'),
+      action: () => go('/os/settings'),
     },
     // ── AI workflows ──
     {

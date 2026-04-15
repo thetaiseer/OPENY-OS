@@ -63,6 +63,15 @@ interface AiContextValue {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function pathnameToSection(pathname: string): AppSection {
+  if (pathname.startsWith('/os/dashboard')) return 'dashboard';
+  if (pathname.startsWith('/os/clients'))   return 'clients';
+  if (pathname.startsWith('/os/tasks'))     return 'tasks';
+  if (pathname.startsWith('/os/content'))   return 'content';
+  if (pathname.startsWith('/os/calendar'))  return 'calendar';
+  if (pathname.startsWith('/os/assets'))    return 'assets';
+  if (pathname.startsWith('/os/reports'))   return 'reports';
+  if (pathname.startsWith('/os/team'))      return 'team';
+  if (pathname.startsWith('/os/settings'))  return 'settings';
   if (pathname.startsWith('/dashboard')) return 'dashboard';
   if (pathname.startsWith('/clients'))   return 'clients';
   if (pathname.startsWith('/tasks'))     return 'tasks';

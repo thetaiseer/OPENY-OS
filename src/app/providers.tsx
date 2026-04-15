@@ -1,0 +1,45 @@
+'use client';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '@/lib/toast-context';
+import ToastContainer from '@/components/ui/ToastContainer';
+
+// Singleton QueryClient shared across all route trees (OS, Docs, workspace selector).
+// Instantiated once at module scope so it survives React re-renders.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      // Keep data fresh for 2 minutes — re-navigating within this window
+      // shows cached data instantly without a loading spinner.
+      staleTime: 2 * 60 * 1000,
+      // Keep inactive query data in cache for 10 minutes so coming back to a
+      // page after browsing elsewhere still shows the previous result while
+      // a background refresh runs in parallel.
+      gcTime: 10 * 60 * 1000,
+    },
+  },
+});
+
+export { queryClient };
+
+/**
+ * Global providers that must be available in every route tree:
+ *   - QueryClientProvider  (react-query)
+ *   - ToastProvider        (in-app toasts)
+ *   - ToastContainer       (renders toast DOM nodes)
+ *
+ * Placed in the root layout so that /os, /docs, and /select-workspace
+ * all receive the same QueryClient instance.
+ */
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        {children}
+        <ToastContainer />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+}

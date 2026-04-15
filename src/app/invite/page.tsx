@@ -187,8 +187,8 @@ export default function InviteAcceptPage() {
         return;
       }
 
-      // Redirect to dashboard
-      router.replace('/dashboard');
+      // Redirect to workspace selector
+      router.replace('/select-workspace');
     } catch {
       setFormError('Network error. Please try again.');
     } finally {

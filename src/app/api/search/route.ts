@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         title: c.name,
         subtitle: c.email || undefined,
         badge: c.status,
-        href: `/clients/${c.slug}`,
+        href: `/os/clients/${c.slug}`,
       });
     }
   }
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         title: t.title,
         subtitle: client?.name,
         badge: t.status,
-        href: `/tasks`,
+        href: `/os/tasks`,
       });
     }
   }
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
         title: a.name,
         subtitle: a.client_name || a.content_type || undefined,
         badge: a.file_type || undefined,
-        href: `/assets`,
+        href: `/os/assets`,
       });
     }
   }
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
         title: ci.title,
         subtitle: client?.name,
         badge: ci.status,
-        href: `/content`,
+        href: `/os/content`,
       });
     }
   }
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
         title: m.full_name,
         subtitle: m.email,
         badge: m.role || undefined,
-        href: `/team`,
+        href: `/os/team`,
       });
     }
   }

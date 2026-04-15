@@ -21,7 +21,7 @@ function LoginForm() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        const next = searchParams.get('next') ?? '/dashboard';
+        const next = searchParams.get('next') ?? '/select-workspace';
         router.replace(next);
       } else {
         setChecking(false);
@@ -67,7 +67,7 @@ function LoginForm() {
       console.warn('[login] Session creation error (login still succeeds):', err);
     }
 
-    const next = searchParams.get('next') ?? '/dashboard';
+    const next = searchParams.get('next') ?? '/select-workspace';
     router.push(next);
     router.refresh();
   };

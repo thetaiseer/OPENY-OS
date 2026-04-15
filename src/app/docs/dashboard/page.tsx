@@ -7,7 +7,7 @@ import {
 
 const MODULES = [
   {
-    href:        '/docs/invoice',
+    href:        '/docs/documents/invoice',
     icon:        FileText,
     label:       'Invoice',
     description: 'Generate, manage and export client invoices with platform budget allocation.',
@@ -15,7 +15,7 @@ const MODULES = [
     bg:          'rgba(37,99,235,0.08)',
   },
   {
-    href:        '/docs/quotation',
+    href:        '/docs/documents/quotation',
     icon:        ClipboardList,
     label:       'Quotation',
     description: 'Create professional quotations with deliverables, pricing and payment terms.',
@@ -23,7 +23,7 @@ const MODULES = [
     bg:          'rgba(124,58,237,0.08)',
   },
   {
-    href:        '/docs/client-contract',
+    href:        '/docs/documents/client-contract',
     icon:        FileSignature,
     label:       'Client Contract',
     description: 'Bilingual client agreements with legal clauses, services and signatures.',
@@ -31,7 +31,7 @@ const MODULES = [
     bg:          'rgba(8,145,178,0.08)',
   },
   {
-    href:        '/docs/hr-contract',
+    href:        '/docs/documents/hr-contract',
     icon:        BookOpen,
     label:       'HR Contract',
     description: 'Employee contracts with job details, salary, benefits and legal clauses.',
@@ -39,7 +39,7 @@ const MODULES = [
     bg:          'rgba(5,150,105,0.08)',
   },
   {
-    href:        '/docs/employees',
+    href:        '/docs/documents/employees',
     icon:        Users,
     label:       'Employees',
     description: 'Full employee management — profiles, payroll history and salary adjustments.',
@@ -47,7 +47,7 @@ const MODULES = [
     bg:          'rgba(217,119,6,0.08)',
   },
   {
-    href:        '/docs/accounting',
+    href:        '/docs/documents/accounting',
     icon:        BarChart2,
     label:       'Accounting',
     description: 'Client ledger, expenses and partner-based settlement summaries.',

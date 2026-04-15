@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Settings, X, CalendarDays, Shield, FileText,
-  Tag, Clock, Zap, BookMarked,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -13,21 +12,16 @@ import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 
 const navItems = [
-  { href: '/dashboard',         base: '/dashboard',       icon: LayoutDashboard, key: 'dashboard'     },
-  { href: '/clients',           base: '/clients',          icon: Users2,          key: 'clients'        },
-  { href: '/tasks/all',         base: '/tasks',            icon: CheckSquare,     key: 'tasks'          },
-  { href: '/content',           base: '/content',          icon: FileText,        key: 'content'        },
-  { href: '/calendar',          base: '/calendar',         icon: CalendarDays,    key: 'calendar'       },
-  { href: '/assets',            base: '/assets',           icon: FolderOpen,      key: 'assets'         },
-  { href: '/notes',             base: '/notes',            icon: FileText,        label: 'Notes'        },
-  { href: '/time-tracking',     base: '/time-tracking',    icon: Clock,           label: 'Time Tracking' },
-  { href: '/tags',              base: '/tags',             icon: Tag,             label: 'Tags'         },
-  { href: '/automations',       base: '/automations',      icon: Zap,             label: 'Automations'  },
-  { href: '/docs',              base: '/docs',             icon: BookMarked,      label: 'OPENY DOCS'   },
-  { href: '/reports/overview',  base: '/reports',          icon: BarChart2,       key: 'reports'        },
-  { href: '/team',              base: '/team',             icon: Users,           key: 'team'           },
-  { href: '/security/sessions', base: '/security',         icon: Shield,          key: 'security'       },
-  { href: '/settings/profile',  base: '/settings',         icon: Settings,        key: 'settings'       },
+  { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard'     },
+  { href: '/os/clients',        base: '/os/clients',       icon: Users2,          key: 'clients'        },
+  { href: '/os/tasks',          base: '/os/tasks',         icon: CheckSquare,     key: 'tasks'          },
+  { href: '/os/content',        base: '/os/content',       icon: FileText,        key: 'content'        },
+  { href: '/os/calendar',       base: '/os/calendar',      icon: CalendarDays,    key: 'calendar'       },
+  { href: '/os/assets',         base: '/os/assets',        icon: FolderOpen,      key: 'assets'         },
+  { href: '/os/reports',        base: '/os/reports',       icon: BarChart2,       key: 'reports'        },
+  { href: '/os/team',           base: '/os/team',          icon: Users,           key: 'team'           },
+  { href: '/os/security',       base: '/os/security',      icon: Shield,          key: 'security'       },
+  { href: '/os/settings',       base: '/os/settings',      icon: Settings,        key: 'settings'       },
 ];
 
 interface SidebarProps { open?: boolean; onClose?: () => void; }
@@ -71,11 +65,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, base, icon: Icon, key, label }) => {
+          {navItems.map(({ href, base, icon: Icon, key }) => {
             const active =
               pathname === href ||
-              (base !== '/dashboard' && pathname.startsWith(base));
-            const displayLabel = label ?? (key ? t(key) : href);
+              (base !== '/os/dashboard' && pathname.startsWith(base));
+            const displayLabel = key ? t(key) : href;
             return (
               <Link
                 key={href}
