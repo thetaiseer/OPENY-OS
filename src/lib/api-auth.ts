@@ -75,6 +75,10 @@ export interface UserProfile {
 export async function getApiUser(
   request: NextRequest,
 ): Promise<{ profile: UserProfile } | null> {
+  const isDocsApiPath =
+    request.nextUrl.pathname === '/api/docs' ||
+    request.nextUrl.pathname.startsWith('/api/docs/');
+
   // 1. Build a server-side Supabase client that reads session cookies from the request.
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -119,6 +123,12 @@ export async function getApiUser(
     };
     setCachedProfile(user.id, ownerProfile);
     return { profile: ownerProfile };
+  }
+
+  // OPENY DOCS API is strictly owner-only.
+  if (isDocsApiPath) {
+    console.warn('[api-auth] docs api access denied for non-owner email:', email);
+    return null;
   }
 
   // 3. Fetch role from public.team_members using the service-role key so that
