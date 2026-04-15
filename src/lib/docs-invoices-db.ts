@@ -95,12 +95,15 @@ export function calculateInvoiceTotals(branchGroups: InvoiceBranchGroup[], ourFe
 function isSchemaIssue(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false;
   const text = `${error.message ?? ''}`.toLowerCase();
+  const messageIndicatesMissingDocsTable = (
+    /could not find table ['"]public\.docs_invoices['"]/.test(text) ||
+    /relation ["']docs_invoices["'] does not exist/.test(text) ||
+    /relation ["']docs_invoice_(branches|platforms|rows)["'] does not exist/.test(text)
+  );
   return (
     error.code === PG_UNDEFINED_TABLE ||
     error.code === 'PGRST204' ||
-    text.includes('could not find table') ||
-    text.includes('docs_invoice') ||
-    text.includes('docs_invoices')
+    messageIndicatesMissingDocsTable
   );
 }
 

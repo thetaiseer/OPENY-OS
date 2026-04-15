@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
     const hydrated = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
     return NextResponse.json({ invoice: hydrated[0] }, { status: 201 });
   } catch (nestedError) {
-    // Parent delete cascades to nested invoice branches/platforms/rows.
+    // DB-level ON DELETE CASCADE is defined in supabase-migration-docs-invoice-nested-tables.sql,
+    // so deleting docs_invoices also removes docs_invoice_branches/platforms/rows.
     const { error: rollbackError } = await db.schema('public').from('docs_invoices').delete().eq('id', data.id);
     if (rollbackError) {
       console.error('[docs/invoices] Failed to rollback invoice after nested save error:', rollbackError);
