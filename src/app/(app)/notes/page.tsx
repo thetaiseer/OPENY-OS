@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Pin, PinOff, Trash2, Pencil, X, Check } from 'lucide-react';
 import type { Note } from '@/lib/types';
@@ -28,6 +28,7 @@ async function fetchNotes(search: string): Promise<Note[]> {
 
 export default function NotesPage() {
   const queryClient = useQueryClient();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [search, setSearch]   = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,11 +37,10 @@ export default function NotesPage() {
   const [saving, setSaving]   = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
-  const debounce = (fn: () => void) => { setTimeout(fn, 300); };
-
   const handleSearchChange = (v: string) => {
     setSearch(v);
-    debounce(() => setDebouncedSearch(v));
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(v), 300);
   };
 
   const { data: notes = [], isLoading } = useQuery<Note[]>({

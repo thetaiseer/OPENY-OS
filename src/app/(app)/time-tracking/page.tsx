@@ -41,10 +41,11 @@ async function fetchClients(): Promise<Client[]> {
 export default function TimeTrackingPage() {
   const queryClient = useQueryClient();
 
-  const { data: entries = [], isLoading } = useQuery<TimeEntry[]>({
+  const { data: entries = [], isLoading, refetch: refetchEntries } = useQuery<TimeEntry[]>({
     queryKey: ['time-entries'],
     queryFn:  fetchEntries,
-    refetchInterval: 5000, // refresh every 5 s to update running timers
+    // No polling - timer elapsed is tracked client-side; refetch only after mutations
+    staleTime: 30_000,
   });
 
   const { data: tasks  = [] } = useQuery<Task[]>({ queryKey: ['tasks-select'], queryFn: fetchTasks });
@@ -92,6 +93,7 @@ export default function TimeTrackingPage() {
       });
     }
     void queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+    void refetchEntries();
   };
 
   const handleManualEntry = async (e: React.FormEvent) => {

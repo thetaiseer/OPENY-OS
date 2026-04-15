@@ -936,13 +936,12 @@ async function executeCleanWorkspaceWorkflow(
     actions.push(`Marked ${overdueTasks.length} tasks as overdue`);
   }
 
-  // 2. Find tasks without due dates (warn only)
-  const { data: noDueDateTasks, count: noDueDateCount } = await sb
+  // 2. Find tasks without due dates (warn only — count only, head: true avoids fetching rows)
+  const { count: noDueDateCount } = await sb
     .from('tasks')
-    .select('id', { count: 'exact' })
+    .select('*', { count: 'exact', head: true })
     .is('due_date', null)
-    .not('status', 'in', '("completed","cancelled")')
-    .limit(1);
+    .not('status', 'in', '("completed","cancelled")');
 
   if ((noDueDateCount ?? 0) > 0) {
     issues.push(`${noDueDateCount} tasks missing a due date`);
@@ -958,8 +957,6 @@ async function executeCleanWorkspaceWorkflow(
     data: { issues, overdue_count: overdueTasks?.length ?? 0, no_due_date_count: noDueDateCount ?? 0 },
     actions_taken: actions.length > 0 ? actions : ['Workspace audit completed'],
   };
-  // suppress unused warning
-  void noDueDateTasks;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

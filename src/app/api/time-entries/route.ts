@@ -51,11 +51,23 @@ export async function POST(req: NextRequest) {
 
   // If starting a timer — stop any currently running entry for this user first
   if (body.is_running === true) {
-    await db
+    // Calculate duration for the timer being auto-stopped before stopping it
+    const { data: runningTimers } = await db
       .from('time_entries')
-      .update({ is_running: false, ended_at: new Date().toISOString() })
+      .select('id, started_at')
       .eq('user_id', auth.profile.id)
       .eq('is_running', true);
+
+    for (const running of (runningTimers ?? []) as { id: string; started_at: string }[]) {
+      const autoStopTime  = new Date().toISOString();
+      const autoStopSecs  = Math.round(
+        (new Date(autoStopTime).getTime() - new Date(running.started_at).getTime()) / 1000,
+      );
+      await db
+        .from('time_entries')
+        .update({ is_running: false, ended_at: autoStopTime, duration_seconds: autoStopSecs })
+        .eq('id', running.id);
+    }
   }
 
   const startedAt = typeof body.started_at === 'string' ? body.started_at : new Date().toISOString();

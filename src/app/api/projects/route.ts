@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true, projects: data ?? [] });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[api/projects] error:', message);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
