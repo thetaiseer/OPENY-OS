@@ -27,7 +27,7 @@ export default function OpenyLogo({
       src={src}
       alt={alt}
       className={className}
-      loading="lazy"
+      loading="eager"
       width={width}
       height={height}
       style={{

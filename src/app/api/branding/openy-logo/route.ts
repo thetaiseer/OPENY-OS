@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
   try {
     const res = await fetch(source, {
       headers: { 'User-Agent': 'OPENY-OS branding proxy' },
-      cache: 'force-cache',
       next: { revalidate: 60 * 60 * 24 },
     });
 
