@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OPENY_LOGO_DARK_SOURCE_URL, OPENY_LOGO_LIGHT_SOURCE_URL } from '@/lib/openy-brand';
 
+const LOGO_CACHE_SECONDS = 60 * 60 * 24;
+
 function fallbackSvg(variant: 'light' | 'dark') {
   const dark = variant === 'dark';
   const bg = dark ? '#020617' : '#ffffff';
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(bytes, {
       headers: {
         'Content-Type': res.headers.get('content-type') ?? 'image/png',
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Cache-Control': `public, max-age=${LOGO_CACHE_SECONDS}, stale-while-revalidate=604800`,
       },
     });
   } catch (error) {
