@@ -849,7 +849,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       const updateMap = new Map<string, { status: Task['status']; position: number }>();
       reordered.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(sourceColumn), position: index }));
       const updates = reordered
-        .filter(task => updateMap.has(task.id) && task.position !== updateMap.get(task.id)!.position)
+        .filter(task => updateMap.has(task.id) && getPosition(task) !== updateMap.get(task.id)!.position)
         .map(task => ({ id: task.id, ...updateMap.get(task.id)! }));
       if (updates.length === 0) return;
       const nextTasks = tasks.map(task => updateMap.has(task.id)
@@ -874,7 +874,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       .map(([id, value]) => ({ id, ...value }))
       .filter(update => {
         const current = tasks.find(task => task.id === update.id);
-        return current && (current.status !== update.status || current.position !== update.position);
+        return current && (current.status !== update.status || getPosition(current) !== update.position);
       });
     if (updates.length === 0) return;
 
@@ -1282,8 +1282,8 @@ export default function TasksPage() {
   };
 
   const invalidateTaskRelatedQueries = useCallback(() => {
-    if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current);
-    invalidateTimerRef.current = setTimeout(() => {
+    const previousTimer = invalidateTimerRef.current;
+    const nextTimer = setTimeout(() => {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tasks-all'] }),
         queryClient.invalidateQueries({ queryKey: ['tasks-my'] }),
@@ -1292,8 +1292,12 @@ export default function TasksPage() {
         queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] }),
         queryClient.invalidateQueries({ queryKey: ['reports-overview'] }),
-      ]);
+      ]).catch((err: unknown) => {
+        console.warn('[tasks] query invalidation failed:', err);
+      });
     }, 120);
+    invalidateTimerRef.current = nextTimer;
+    if (previousTimer) clearTimeout(previousTimer);
   }, [queryClient]);
 
   // ── status change ─────────────────────────────────────────────────────────
