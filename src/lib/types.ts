@@ -93,6 +93,7 @@ export interface Task {
   title: string;
   description?: string;
   status: TaskStatus;
+  position?: number | null;
   priority: 'low' | 'medium' | 'high';
   start_date?: string;
   due_date?: string;

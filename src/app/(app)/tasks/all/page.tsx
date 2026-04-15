@@ -1,7 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
@@ -67,7 +86,7 @@ const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', borde
 
 function statusLabel(s: string, t: (k: string) => string): string {
   if (s === 'in_progress') return t('inProgress');
-  if (s === 'review')      return t('review');
+  if (s === 'in_review' || s === 'review') return t('review');
   if (s === 'delivered')   return t('delivered');
   return t(s);
 }
@@ -192,7 +211,7 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
             options={[
               { value: 'todo',        label: t('todo') },
               { value: 'in_progress', label: t('inProgress') },
-              { value: 'review',      label: t('review') },
+              { value: 'in_review',   label: t('review') },
               { value: 'done',        label: t('done') },
               { value: 'delivered',   label: t('delivered') },
             ]}
@@ -421,7 +440,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           {statusOpen && (
             <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              {['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => (
+              {['todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'].map(s => (
                 <button
                   key={s}
                   onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
@@ -496,13 +515,234 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
 
 // ─── KanbanBoard ─────────────────────────────────────────────────────────────
 
-const KANBAN_COLS: { key: Task['status']; label: string }[] = [
-  { key: 'todo',        label: 'todo'        },
-  { key: 'in_progress', label: 'inProgress'  },
-  { key: 'review',      label: 'review'      },
-  { key: 'done',        label: 'done'        },
-  { key: 'delivered',   label: 'delivered'   },
+type KanbanColumnId = 'todo' | 'in_progress' | 'in_review' | 'done';
+
+const KANBAN_COLS: { key: KanbanColumnId; label: string }[] = [
+  { key: 'todo', label: 'todo' },
+  { key: 'in_progress', label: 'inProgress' },
+  { key: 'in_review', label: 'review' },
+  { key: 'done', label: 'done' },
 ];
+
+const KANBAN_STATUS_MAP: Record<KanbanColumnId, Task['status'][]> = {
+  todo: ['todo'],
+  in_progress: ['in_progress'],
+  in_review: ['in_review', 'review'],
+  done: ['done', 'completed', 'delivered', 'published'],
+};
+
+function getKanbanColumn(status: Task['status']): KanbanColumnId | null {
+  if (KANBAN_STATUS_MAP.todo.includes(status)) return 'todo';
+  if (KANBAN_STATUS_MAP.in_progress.includes(status)) return 'in_progress';
+  if (KANBAN_STATUS_MAP.in_review.includes(status)) return 'in_review';
+  if (KANBAN_STATUS_MAP.done.includes(status)) return 'done';
+  return null;
+}
+
+function getPersistedStatus(col: KanbanColumnId): Task['status'] {
+  if (col === 'in_review') return 'in_review';
+  if (col === 'done') return 'done';
+  return col;
+}
+
+function getPosition(task: Task): number {
+  if (typeof task.position === 'number' && Number.isFinite(task.position)) return task.position;
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function sortKanbanTasks(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    const pos = getPosition(a) - getPosition(b);
+    if (pos !== 0) return pos;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+}
+
+type KanbanPatch = { id: string; status: Task['status']; position: number };
+
+const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t }: { task: Task; team: TeamMember[]; t: (k: string) => string }) {
+  const assignee = team.find(m => m.id === task.assigned_to);
+  const overdue = isOverdue(task.due_date, task.status);
+  return (
+    <div
+      className="rounded-xl border p-3 space-y-2 shadow-lg opacity-95"
+      style={{
+        width: '17rem',
+        background: 'var(--surface-2)',
+        borderColor: 'var(--border)',
+        borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
+      }}
+    >
+      <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
+      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+        {task.client && (
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+            <User size={10} />{task.client.name}
+          </span>
+        )}
+        {assignee && (
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+            <User size={10} />{assignee.full_name}
+          </span>
+        )}
+        {task.due_date && (
+          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
+            style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
+            <Calendar size={10} />{fmtDate(task.due_date)}
+          </span>
+        )}
+      </div>
+      <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+    </div>
+  );
+});
+
+const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
+  task,
+  team,
+  onView,
+  onEdit,
+  onDelete,
+  t,
+  showDropIndicator,
+}: {
+  task: Task;
+  team: TeamMember[];
+  onView: (t: Task) => void;
+  onEdit: (t: Task) => void;
+  onDelete: (t: Task) => void;
+  t: (k: string) => string;
+  showDropIndicator: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { type: 'task', taskId: task.id },
+  });
+  const overdue = isOverdue(task.due_date, task.status);
+  const assignee = team.find(m => m.id === task.assigned_to);
+
+  return (
+    <div className="space-y-2">
+      {showDropIndicator && (
+        <div className="h-1 rounded-full" style={{ background: 'var(--accent)' }} />
+      )}
+      <div
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        className="rounded-xl border p-3 space-y-2 transition-all duration-200 ease-out hover:shadow-sm cursor-grab active:cursor-grabbing select-none"
+        style={{
+          transform: CSS.Transform.toString(transform),
+          transition,
+          opacity: isDragging ? 0.45 : 1,
+          background: 'var(--surface-2)',
+          borderColor: 'var(--border)',
+          borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
+        }}
+      >
+        <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
+        <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {task.client && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+              <User size={10} />{task.client.name}
+            </span>
+          )}
+          {assignee && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
+              <User size={10} />{assignee.full_name}
+            </span>
+          )}
+          {task.due_date && (
+            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
+              style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
+              <Calendar size={10} />{fmtDate(task.due_date)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+          <div className="flex items-center gap-1">
+            <button onClick={(e) => { e.stopPropagation(); onView(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Eye size={13} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Pencil size={13} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={13} /></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function KanbanColumn({
+  col,
+  colTasks,
+  team,
+  onView,
+  onEdit,
+  onDelete,
+  t,
+  isOver,
+  overTaskId,
+}: {
+  col: { key: KanbanColumnId; label: string };
+  colTasks: Task[];
+  team: TeamMember[];
+  onView: (t: Task) => void;
+  onEdit: (t: Task) => void;
+  onDelete: (t: Task) => void;
+  t: (k: string) => string;
+  isOver: boolean;
+  overTaskId: string | null;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: `column-${col.key}`,
+    data: { type: 'column', columnId: col.key },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex-shrink-0 w-72 rounded-2xl border flex flex-col transition-all duration-200"
+      style={{
+        background: 'var(--surface)',
+        borderColor: isOver ? 'var(--accent)' : 'var(--border)',
+        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent)' : 'none',
+      }}
+    >
+      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t(col.label)}</span>
+        <span
+          className="text-xs font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center"
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        >
+          {colTasks.length}
+        </span>
+      </div>
+      <SortableContext items={colTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[calc(100vh-280px)]">
+          {colTasks.length === 0 ? (
+            <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
+          ) : (
+            colTasks.map(task => (
+              <DraggableKanbanTaskCard
+                key={task.id}
+                task={task}
+                team={team}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                t={t}
+                showDropIndicator={overTaskId === task.id}
+              />
+            ))
+          )}
+          {isOver && colTasks.length > 0 && !overTaskId && (
+            <div className="h-1 rounded-full mt-2" style={{ background: 'var(--accent)' }} />
+          )}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -510,97 +750,177 @@ interface KanbanBoardProps {
   onView: (t: Task) => void;
   onEdit: (t: Task) => void;
   onDelete: (t: Task) => void;
-  onStatusChange: (t: Task, s: string) => void;
   t: (k: string) => string;
+  onReorder: (nextTasks: Task[], previousTasks: Task[], updates: KanbanPatch[]) => void;
 }
 
-function KanbanBoard({ tasks, team, onView, onEdit, onDelete, onStatusChange, t }: KanbanBoardProps) {
+function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: KanbanBoardProps) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<KanbanColumnId | null>(null);
+  const [overTaskId, setOverTaskId] = useState<string | null>(null);
+
+  const columns = useMemo(() => {
+    const mapped: Record<KanbanColumnId, Task[]> = {
+      todo: [],
+      in_progress: [],
+      in_review: [],
+      done: [],
+    };
+    for (const task of tasks) {
+      const col = getKanbanColumn(task.status);
+      if (!col) continue;
+      mapped[col].push(task);
+    }
+    return {
+      todo: sortKanbanTasks(mapped.todo),
+      in_progress: sortKanbanTasks(mapped.in_progress),
+      in_review: sortKanbanTasks(mapped.in_review),
+      done: sortKanbanTasks(mapped.done),
+    };
+  }, [tasks]);
+
+  const activeTask = activeTaskId ? tasks.find(task => task.id === activeTaskId) ?? null : null;
+
+  const getColumnByTaskId = useCallback((taskId: string): KanbanColumnId | null => {
+    const task = tasks.find(t => t.id === taskId);
+    return task ? getKanbanColumn(task.status) : null;
+  }, [tasks]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveTaskId(String(event.active.id));
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const over = event.over;
+    if (!over) {
+      setOverColumnId(null);
+      setOverTaskId(null);
+      return;
+    }
+
+    const overId = String(over.id);
+    if (overId.startsWith('column-')) {
+      setOverColumnId(overId.replace('column-', '') as KanbanColumnId);
+      setOverTaskId(null);
+      return;
+    }
+
+    const col = getColumnByTaskId(overId);
+    setOverColumnId(col);
+    setOverTaskId(overId);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveTaskId(null);
+    setOverColumnId(null);
+    setOverTaskId(null);
+
+    const over = event.over;
+    const activeId = String(event.active.id);
+    if (!over || !activeId) return;
+
+    const overId = String(over.id);
+    const activeTask = tasks.find(task => task.id === activeId);
+    if (!activeTask) return;
+
+    const sourceColumn = getKanbanColumn(activeTask.status);
+    if (!sourceColumn) return;
+
+    const destinationColumn = overId.startsWith('column-')
+      ? (overId.replace('column-', '') as KanbanColumnId)
+      : getColumnByTaskId(overId);
+    if (!destinationColumn) return;
+
+    const sourceTasks = [...columns[sourceColumn]];
+    const destinationTasks = sourceColumn === destinationColumn
+      ? sourceTasks
+      : [...columns[destinationColumn]];
+    const oldIndex = sourceTasks.findIndex(task => task.id === activeId);
+    if (oldIndex < 0) return;
+
+    if (sourceColumn === destinationColumn) {
+      const newIndex = overId.startsWith('column-')
+        ? sourceTasks.length - 1
+        : sourceTasks.findIndex(task => task.id === overId);
+      if (newIndex < 0 || newIndex === oldIndex) return;
+
+      const reordered = arrayMove(sourceTasks, oldIndex, newIndex);
+      const updateMap = new Map<string, { status: Task['status']; position: number }>();
+      reordered.forEach((task, index) => updateMap.set(task.id, { status: task.status, position: index }));
+      const updates = reordered
+        .filter(task => updateMap.has(task.id) && (
+          task.status !== updateMap.get(task.id)!.status ||
+          getPosition(task) !== updateMap.get(task.id)!.position
+        ))
+        .map(task => ({ id: task.id, ...updateMap.get(task.id)! }));
+      if (updates.length === 0) return;
+      const nextTasks = tasks.map(task => updateMap.has(task.id)
+        ? { ...task, status: updateMap.get(task.id)!.status, position: updateMap.get(task.id)!.position }
+        : task);
+      onReorder(nextTasks, tasks, updates);
+      return;
+    }
+
+    const [movedTask] = sourceTasks.splice(oldIndex, 1);
+    const targetIndex = overId.startsWith('column-')
+      ? destinationTasks.length
+      : destinationTasks.findIndex(task => task.id === overId);
+    const insertAt = targetIndex < 0 ? destinationTasks.length : targetIndex;
+    destinationTasks.splice(insertAt, 0, movedTask);
+
+    const updateMap = new Map<string, { status: Task['status']; position: number }>();
+    sourceTasks.forEach((task, index) => updateMap.set(task.id, { status: task.status, position: index }));
+    destinationTasks.forEach((task, index) => updateMap.set(task.id, {
+      status: task.id === movedTask.id ? getPersistedStatus(destinationColumn) : task.status,
+      position: index,
+    }));
+
+    const updates = Array.from(updateMap.entries())
+      .map(([id, value]) => ({ id, ...value }))
+      .filter(update => {
+        const current = tasks.find(task => task.id === update.id);
+        return current && (current.status !== update.status || getPosition(current) !== update.position);
+      });
+    if (updates.length === 0) return;
+
+    const nextTasks = tasks.map(task =>
+      updateMap.has(task.id)
+        ? { ...task, status: updateMap.get(task.id)!.status, position: updateMap.get(task.id)!.position }
+        : task,
+    );
+    onReorder(nextTasks, tasks, updates);
+  };
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {KANBAN_COLS.map(col => {
-        const colTasks = tasks.filter(task => task.status === col.key);
-        return (
-          <div
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => { setActiveTaskId(null); setOverColumnId(null); setOverTaskId(null); }}
+    >
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {KANBAN_COLS.map(col => (
+          <KanbanColumn
             key={col.key}
-            className="flex-shrink-0 w-72 rounded-2xl border flex flex-col"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            {/* Column header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t(col.label)}</span>
-              <span
-                className="text-xs font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-              >
-                {colTasks.length}
-              </span>
-            </div>
-            {/* Cards */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-280px)]">
-              {colTasks.length === 0 ? (
-                <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
-              ) : (
-                colTasks.map(task => {
-                  const overdue = isOverdue(task.due_date, task.status);
-                  const assignee = team.find(m => m.id === task.assigned_to);
-                  return (
-                    <div
-                      key={task.id}
-                      className="rounded-xl border p-3 space-y-2 transition-shadow hover:shadow-sm cursor-pointer"
-                      style={{
-                        background: 'var(--surface-2)',
-                        borderColor: 'var(--border)',
-                        borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
-                      }}
-                    >
-                      <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
-                      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {task.client && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-                            <User size={10} />{task.client.name}
-                          </span>
-                        )}
-                        {assignee && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-                            <User size={10} />{assignee.full_name}
-                          </span>
-                        )}
-                        {task.due_date && (
-                          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-                            style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
-                            <Calendar size={10} />{fmtDate(task.due_date)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => onView(task)} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Eye size={13} /></button>
-                          <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Pencil size={13} /></button>
-                          <button onClick={() => onDelete(task)} className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"><Trash2 size={13} /></button>
-                        </div>
-                      </div>
-                      {/* Quick status change */}
-                      <div onClick={e => e.stopPropagation()}>
-                        <SelectDropdown
-                          fullWidth
-                          value={task.status}
-                          onChange={v => onStatusChange(task, v)}
-                          options={['todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'].map(s => ({
-                            value: s,
-                            label: statusLabel(s, t),
-                          }))}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            col={col}
+            colTasks={columns[col.key]}
+            team={team}
+            onView={onView}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            t={t}
+            isOver={overColumnId === col.key}
+            overTaskId={overColumnId === col.key ? overTaskId : null}
+          />
+        ))}
+      </div>
+      <DragOverlay>
+        {activeTask ? <KanbanPreviewCard task={activeTask} team={team} t={t} /> : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -632,6 +952,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
 }
 
 const MUTATION_TIMEOUT_MS = 15_000;
+const INVALIDATION_DELAY_MS = 120;
 
 
 
@@ -641,6 +962,7 @@ export default function TasksPage() {
   const { role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team_member';
 
   // ── React Query: fetch and cache tasks, clients, and team ────────────────
@@ -694,6 +1016,10 @@ export default function TasksPage() {
     }
   }, [queryData]);
 
+  useEffect(() => () => {
+    if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current);
+  }, []);
+
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
@@ -713,14 +1039,23 @@ export default function TasksPage() {
   const [platformFilter, setPlatformFilter] = useState('');
   const [postTypeFilter, setPostTypeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [view, setView] = useState<'list' | 'kanban'>('kanban');
+
+  useEffect(() => {
+    const savedView = window.localStorage.getItem('tasks-all-view');
+    if (savedView === 'list' || savedView === 'kanban') setView(savedView);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('tasks-all-view', view);
+  }, [view]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── filtered tasks ───────────────────────────────────────────────────────
-  const filtered = tasks.filter(task => {
+  const filtered = useMemo(() => tasks.filter(task => {
     if (statusFilter !== 'all' && task.status !== statusFilter) return false;
     if (clientFilter && task.client_id !== clientFilter) return false;
     if (assignedFilter && task.assigned_to !== assignedFilter) return false;
@@ -729,7 +1064,7 @@ export default function TasksPage() {
     if (postTypeFilter && !(task.post_types ?? []).includes(postTypeFilter)) return false;
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
-  });
+  }), [tasks, statusFilter, clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]);
 
   // ── create ───────────────────────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
@@ -962,6 +1297,25 @@ export default function TasksPage() {
     }
   };
 
+  const invalidateTaskRelatedQueries = useCallback(() => {
+    const previousTimer = invalidateTimerRef.current;
+    const nextTimer = setTimeout(() => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tasks-all'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks-my'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] }),
+        queryClient.invalidateQueries({ queryKey: ['reports-overview'] }),
+      ]).catch((err: unknown) => {
+        console.warn('[tasks] query invalidation failed:', err);
+      });
+    }, INVALIDATION_DELAY_MS);
+    invalidateTimerRef.current = nextTimer;
+    if (previousTimer) clearTimeout(previousTimer);
+  }, [queryClient]);
+
   // ── status change ─────────────────────────────────────────────────────────
   const handleStatusChange = async (task: Task, newStatus: string) => {
     // Optimistically update local state first for instant UI feedback
@@ -986,6 +1340,7 @@ export default function TasksPage() {
         toast(`Failed to update status: ${result.error ?? 'Unknown error'}`, 'warning');
       } else {
         console.log('[task status] update success — id:', task.id);
+        invalidateTaskRelatedQueries();
       }
     } catch (err) {
       console.error('[task status] network error:', err);
@@ -994,7 +1349,28 @@ export default function TasksPage() {
     }
   };
 
-  const statuses = ['all', 'todo', 'in_progress', 'review', 'done', 'delivered', 'overdue'];
+  const handleKanbanReorder = useCallback(async (nextTasks: Task[], previousTasks: Task[], updates: KanbanPatch[]) => {
+    setTasks(nextTasks);
+    try {
+      const results = await Promise.all(updates.map(async (update) => {
+        const res = await fetch(`/api/tasks/${update.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: update.status, position: update.position }),
+        });
+        const json = await res.json() as { success: boolean; error?: string };
+        return { ok: res.ok && json.success, error: json.error };
+      }));
+      const failed = results.find(r => !r.ok);
+      if (failed) throw new Error(failed.error ?? 'Failed to update task order');
+      invalidateTaskRelatedQueries();
+    } catch (err) {
+      setTasks(previousTasks);
+      toast(err instanceof Error ? err.message : 'Failed to move task. Changes were reverted.', 'warning');
+    }
+  }, [invalidateTaskRelatedQueries, setTasks, toast]);
+
+  const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -1186,8 +1562,8 @@ export default function TasksPage() {
           onView={setViewTask}
           onEdit={openEdit}
           onDelete={setDeleteTask}
-          onStatusChange={handleStatusChange}
           t={t}
+          onReorder={handleKanbanReorder}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1240,5 +1616,3 @@ export default function TasksPage() {
     </div>
   );
 }
-
-
