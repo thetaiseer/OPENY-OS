@@ -26,6 +26,15 @@ type InvoiceBranchRecord = {
   position: number | null;
 };
 
+function groupPush<K, V>(map: Map<K, V[]>, key: K, value: V) {
+  const existing = map.get(key);
+  if (existing) {
+    existing.push(value);
+    return;
+  }
+  map.set(key, [value]);
+}
+
 function n(v: unknown) {
   const parsed = Number(v);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -156,27 +165,15 @@ export async function hydrateInvoiceBranchGroups(
 
   const rowsByPlatform = new Map<string, InvoiceRowRecord[]>();
 
-  (rows ?? []).forEach((row) => {
-    const list = rowsByPlatform.get(row.platform_id) ?? [];
-    list.push(row);
-    rowsByPlatform.set(row.platform_id, list);
-  });
+  (rows ?? []).forEach((row) => groupPush(rowsByPlatform, row.platform_id, row));
 
   const platformsByBranch = new Map<string, InvoicePlatformRecord[]>();
 
-  (platforms ?? []).forEach((platform) => {
-    const list = platformsByBranch.get(platform.branch_id) ?? [];
-    list.push(platform);
-    platformsByBranch.set(platform.branch_id, list);
-  });
+  (platforms ?? []).forEach((platform) => groupPush(platformsByBranch, platform.branch_id, platform));
 
   const branchesByInvoice = new Map<string, InvoiceBranchRecord[]>();
 
-  branches.forEach((branch) => {
-    const list = branchesByInvoice.get(branch.invoice_id) ?? [];
-    list.push(branch);
-    branchesByInvoice.set(branch.invoice_id, list);
-  });
+  branches.forEach((branch) => groupPush(branchesByInvoice, branch.invoice_id, branch));
 
   return invoices.map((invoice) => {
     const invoiceBranches = branchesByInvoice.get(invoice.id) ?? [];

@@ -567,6 +567,10 @@ export default function InvoicePage() {
 
   const computedFinalBudget = useMemo(() => calcFinalBudget(form.branch_groups ?? []), [form.branch_groups]);
   const computedGrandTotal = useMemo(() => round2(computedFinalBudget + n(form.our_fees)), [computedFinalBudget, form.our_fees]);
+  const branchSubtotals = useMemo(
+    () => new Map(form.branch_groups.map(branch => [branch.id, calcBranchSubtotal(branch)])),
+    [form.branch_groups],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1010,7 +1014,7 @@ export default function InvoicePage() {
 
               <div className="space-y-3">
                 {form.branch_groups.map((branch, branchIndex) => {
-                  const branchSubtotal = calcBranchSubtotal(branch);
+                  const branchSubtotal = branchSubtotals.get(branch.id) ?? 0;
                   return (
                   <div key={branch.id} className="border rounded-lg p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                     <div className="flex items-center gap-2">
