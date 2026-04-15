@@ -1,5 +1,7 @@
-export const OPENY_LOGO_LIGHT_URL = 'https://i.postimg.cc/ZRjtKs2G/OPENY.png';
-export const OPENY_LOGO_DARK_URL = 'https://i.postimg.cc/3N1gZhb8/White-OPENY-Logo.png';
+export const OPENY_LOGO_LIGHT_SOURCE_URL = 'https://i.postimg.cc/ZRjtKs2G/OPENY.png';
+export const OPENY_LOGO_DARK_SOURCE_URL = 'https://i.postimg.cc/3N1gZhb8/White-OPENY-Logo.png';
+export const OPENY_LOGO_LIGHT_URL = '/api/branding/openy-logo?variant=light';
+export const OPENY_LOGO_DARK_URL = '/api/branding/openy-logo?variant=dark';
 
 export const OPENY_DOC_STYLE = {
   text: '#0f172a',

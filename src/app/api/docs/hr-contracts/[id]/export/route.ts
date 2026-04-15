@@ -4,8 +4,9 @@ import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 
 interface Params { id: string }
 
-export async function GET(_: NextRequest, { params }: { params: Promise<Params> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
+  const logoUrl = new URL(OPENY_LOGO_LIGHT_URL, req.nextUrl.origin).toString();
   const db = getServiceClient();
   const { data, error } = await db.from('docs_hr_contracts').select('*').eq('id', id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -64,7 +65,7 @@ table{width:100%;border-collapse:collapse}td{padding:6px 10px;border-bottom:1px 
     <h1>${isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}</h1>
     <p class="meta">${c.contract_number} &middot; ${c.contract_date ?? ''}</p>
   </div>
-  <div class="brand"><img src="${OPENY_LOGO_LIGHT_URL}" alt="OPENY" /></div>
+  <div class="brand"><img src="${logoUrl}" alt="OPENY" /></div>
 </div>
 <p style="text-align:center;color:#64748b;margin:14px 0 18px">${isAr ? 'Official OPENY HR Agreement' : 'Official OPENY HR Agreement'}</p>
 <div class="section"><table>
