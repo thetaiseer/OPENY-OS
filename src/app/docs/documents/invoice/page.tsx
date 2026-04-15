@@ -8,6 +8,17 @@ import {
 import clsx from 'clsx';
 import type { DocsInvoice, InvoicePlatform, InvoiceDeliverable } from '@/lib/docs-types';
 import { DEFAULT_INVOICE_PLATFORMS, DOCS_CURRENCIES } from '@/lib/docs-types';
+import {
+  OpenyDocumentHeader,
+  OpenyDocumentPage,
+  OpenySectionTitle,
+  openyMetaKeyStyle,
+  openyStatusPillStyle,
+  openyTableHeaderStyle,
+  openyTdStyle,
+  openyThStyle,
+} from '@/components/docs/DocumentDesign';
+import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,49 +164,30 @@ function InvoicePreview({ form }: { form: FormState }) {
   const delivTotal = form.deliverables.reduce((s, d) => s + d.total, 0);
 
   return (
-    <div
-      id="invoice-preview"
-      className="bg-white text-gray-900 w-full"
-      style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, minHeight: 1123 }}
-    >
-      {/* Header */}
-      <div style={{ background: '#1e40af', color: '#fff', padding: '28px 36px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: 1 }}>INVOICE</div>
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>{form.invoice_number}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>OPENY</div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>Digital Marketing Agency</div>
-          </div>
-        </div>
-      </div>
-
+    <OpenyDocumentPage id="invoice-preview" fontSize={13}>
+      <OpenyDocumentHeader
+        title="INVOICE"
+        number={form.invoice_number}
+        subtitle="Digital Marketing Agency"
+      />
       <div style={{ padding: '24px 36px' }}>
-        {/* Meta row */}
         <div style={{ display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', color: '#6b7280', marginBottom: 4 }}>Bill To</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', color: OPENY_DOC_STYLE.textMuted, marginBottom: 4 }}>Bill To</div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{form.client_name || '—'}</div>
-            {form.custom_client && <div style={{ fontSize: 12, color: '#6b7280' }}>{form.custom_client}</div>}
+            {form.custom_client && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted }}>{form.custom_client}</div>}
             {form.custom_project && <div style={{ fontSize: 12 }}>{form.custom_project}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
             <table style={{ fontSize: 12 }}>
               <tbody>
-                <tr><td style={{ color: '#6b7280', paddingRight: 12 }}>Date:</td><td style={{ fontWeight: 600 }}>{form.invoice_date || '—'}</td></tr>
-                <tr><td style={{ color: '#6b7280' }}>Period:</td><td style={{ fontWeight: 600 }}>{form.campaign_month || '—'}</td></tr>
-                <tr><td style={{ color: '#6b7280' }}>Currency:</td><td style={{ fontWeight: 600 }}>{form.currency}</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Date:</td><td style={{ fontWeight: 600 }}>{form.invoice_date || '—'}</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Period:</td><td style={{ fontWeight: 600 }}>{form.campaign_month || '—'}</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Currency:</td><td style={{ fontWeight: 600 }}>{form.currency}</td></tr>
                 <tr>
-                  <td style={{ color: '#6b7280' }}>Status:</td>
+                  <td style={openyMetaKeyStyle()}>Status:</td>
                   <td>
-                    <span style={{
-                      display: 'inline-block', padding: '1px 8px', borderRadius: 10,
-                      background: form.status === 'paid' ? '#dcfce7' : '#fef9c3',
-                      color: form.status === 'paid' ? '#166534' : '#854d0e',
-                      fontWeight: 700, fontSize: 11,
-                    }}>
+                    <span style={openyStatusPillStyle(form.status)}>
                       {form.status.toUpperCase()}
                     </span>
                   </td>
@@ -205,26 +197,25 @@ function InvoicePreview({ form }: { form: FormState }) {
           </div>
         </div>
 
-        {/* Deliverables */}
         {form.deliverables.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: '#1e40af' }}>Services & Deliverables</div>
+            <OpenySectionTitle>Services & Deliverables</OpenySectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#f3f4f6' }}>
-                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Description</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 60 }}>Qty</th>
-                  <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 100 }}>Unit Price</th>
-                  <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 100 }}>Total</th>
+                <tr style={openyTableHeaderStyle()}>
+                  <th style={openyThStyle('left')}>Description</th>
+                  <th style={openyThStyle('center', { width: 60 })}>Qty</th>
+                  <th style={openyThStyle('right', { width: 100 })}>Unit Price</th>
+                  <th style={openyThStyle('right', { width: 100 })}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {form.deliverables.map((d) => (
                   <tr key={d.id}>
-                    <td style={{ padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{d.description}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{d.quantity}</td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{fmt(d.unitPrice, form.currency)}</td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{fmt(d.total, form.currency)}</td>
+                    <td style={openyTdStyle('left')}>{d.description}</td>
+                    <td style={openyTdStyle('center')}>{d.quantity}</td>
+                    <td style={openyTdStyle('right')}>{fmt(d.unitPrice, form.currency)}</td>
+                    <td style={openyTdStyle('right', true)}>{fmt(d.total, form.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -232,31 +223,30 @@ function InvoicePreview({ form }: { form: FormState }) {
           </div>
         )}
 
-        {/* Platform allocation */}
         {enabledPlatforms.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: '#1e40af' }}>Campaign Budget Allocation</div>
+            <OpenySectionTitle>Campaign Budget Allocation</OpenySectionTitle>
             {totalPct !== 100 && (
-              <div style={{ color: '#dc2626', fontSize: 11, marginBottom: 8 }}>
+              <div style={{ color: OPENY_DOC_STYLE.alert, fontSize: 11, marginBottom: 8 }}>
                 ⚠ Allocation is {totalPct}% — must equal 100%
               </div>
             )}
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#f3f4f6' }}>
-                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Platform</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Campaigns</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Allocation</th>
-                  <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Budget</th>
+                <tr style={openyTableHeaderStyle()}>
+                  <th style={openyThStyle('left')}>Platform</th>
+                  <th style={openyThStyle('center')}>Campaigns</th>
+                  <th style={openyThStyle('center')}>Allocation</th>
+                  <th style={openyThStyle('right')}>Budget</th>
                 </tr>
               </thead>
               <tbody>
                 {enabledPlatforms.map(p => (
                   <tr key={p.key}>
-                    <td style={{ padding: '5px 10px', borderBottom: '1px solid #f3f4f6', fontWeight: 600 }}>{p.label}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{p.count}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 10px', borderBottom: '1px solid #f3f4f6' }}>{p.budgetPct}%</td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', borderBottom: '1px solid #f3f4f6', fontWeight: 700 }}>
+                    <td style={openyTdStyle('left', true)}>{p.label}</td>
+                    <td style={openyTdStyle('center')}>{p.count}</td>
+                    <td style={openyTdStyle('center')}>{p.budgetPct}%</td>
+                    <td style={openyTdStyle('right', true)}>
                       {fmt(form.total_budget * (p.budgetPct / 100), form.currency)}
                     </td>
                   </tr>
@@ -266,25 +256,24 @@ function InvoicePreview({ form }: { form: FormState }) {
           </div>
         )}
 
-        {/* Totals */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
           <table style={{ fontSize: 13, minWidth: 260 }}>
             <tbody>
               {delivTotal > 0 && (
                 <tr>
-                  <td style={{ padding: '4px 16px', color: '#6b7280' }}>Deliverables subtotal</td>
+                  <td style={{ padding: '4px 16px', color: OPENY_DOC_STYLE.textMuted }}>Deliverables subtotal</td>
                   <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>{fmt(delivTotal, form.currency)}</td>
                 </tr>
               )}
               {form.total_budget > 0 && (
                 <tr>
-                  <td style={{ padding: '4px 16px', color: '#6b7280' }}>Campaign budget</td>
+                  <td style={{ padding: '4px 16px', color: OPENY_DOC_STYLE.textMuted }}>Campaign budget</td>
                   <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>{fmt(form.total_budget, form.currency)}</td>
                 </tr>
               )}
               <tr>
                 <td style={{ padding: '8px 16px', fontWeight: 700, fontSize: 15 }}>Total</td>
-                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 800, fontSize: 15, color: '#1e40af', borderTop: '2px solid #1e40af' }}>
+                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 800, fontSize: 15, color: OPENY_DOC_STYLE.title, borderTop: `2px solid ${OPENY_DOC_STYLE.title}` }}>
                   {fmt(delivTotal + form.total_budget, form.currency)}
                 </td>
               </tr>
@@ -292,15 +281,14 @@ function InvoicePreview({ form }: { form: FormState }) {
           </table>
         </div>
 
-        {/* Notes */}
         {form.notes && (
-          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: '#6b7280' }}>NOTES</div>
+          <div style={{ borderTop: `1px solid ${OPENY_DOC_STYLE.border}`, paddingTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: OPENY_DOC_STYLE.textMuted }}>NOTES</div>
             <div style={{ fontSize: 12 }}>{form.notes}</div>
           </div>
         )}
       </div>
-    </div>
+    </OpenyDocumentPage>
   );
 }
 
@@ -951,14 +939,14 @@ export default function InvoicePage() {
           <button
             onClick={exportPDF}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
-            style={{ background: '#dc2626' }}
+            style={{ background: '#0f172a' }}
           >
             <Printer size={15} /> PDF
           </button>
           <button
             onClick={exportCSV}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
-            style={{ background: '#16a34a' }}
+            style={{ background: '#475569' }}
           >
             <Download size={15} /> Excel / CSV
           </button>

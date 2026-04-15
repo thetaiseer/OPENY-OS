@@ -8,6 +8,8 @@ import {
 import clsx from 'clsx';
 import type { DocsHrContract, ContractClause } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS, DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
+import { OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
+import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -57,97 +59,93 @@ function HrContractPreview({ form }: { form: SF }) {
   const isAr = form.language === 'ar';
 
   return (
-    <div id="hr-contract-preview" className="bg-white text-gray-900 w-full" dir={isAr ? 'rtl' : 'ltr'} style={{ fontFamily: isAr ? "'Cairo',Arial,sans-serif" : "Arial,sans-serif", fontSize: 12, minHeight: 1123 }}>
-      <div style={{ background: '#059669', color: '#fff', padding: '28px 36px 20px' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}</div>
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{form.contract_number}</div>
-        </div>
-      </div>
+    <OpenyDocumentPage
+      id="hr-contract-preview"
+      dir={isAr ? 'rtl' : 'ltr'}
+      fontFamily={isAr ? "'Cairo',Arial,sans-serif" : 'Arial,sans-serif'}
+      fontSize={12}
+    >
+      <OpenyDocumentHeader
+        title={isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}
+        number={form.contract_number}
+        centerTitle
+      />
       <div style={{ padding: '24px 36px' }}>
-        {/* Contract info */}
         <table style={{ width: '100%', marginBottom: 20, fontSize: 12 }}>
           <tbody>
-            <tr><td style={{ color: '#6b7280', width: 160 }}>Date:</td><td style={{ fontWeight: 600 }}>{form.contract_date}</td><td style={{ color: '#6b7280', width: 160 }}>Duration:</td><td style={{ fontWeight: 600 }}>{form.duration}</td></tr>
-            <tr><td style={{ color: '#6b7280' }}>Status:</td><td style={{ fontWeight: 600 }}>{form.status}</td><td style={{ color: '#6b7280' }}>Language:</td><td style={{ fontWeight: 600 }}>{isAr ? 'Arabic' : 'English'}</td></tr>
+            <tr><td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Date:</td><td style={{ fontWeight: 600 }}>{form.contract_date}</td><td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Duration:</td><td style={{ fontWeight: 600 }}>{form.duration}</td></tr>
+            <tr><td style={{ color: OPENY_DOC_STYLE.textMuted }}>Status:</td><td style={{ fontWeight: 600 }}>{form.status}</td><td style={{ color: OPENY_DOC_STYLE.textMuted }}>Language:</td><td style={{ fontWeight: 600 }}>{isAr ? 'Arabic' : 'English'}</td></tr>
           </tbody>
         </table>
 
-        {/* Company & Employee */}
         <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-          <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Employer</div>
-            {[['Company', form.company_name],['Representative', form.company_representative],['Address', form.company_address],['Email', form.company_email],['Phone', form.company_phone]].map(([l,v]) => v ? <div key={l} style={{ fontSize: 11, marginBottom: 2 }}><span style={{ color: '#6b7280' }}>{l}: </span>{v}</div> : null)}
+          <div style={{ flex: 1, border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, background: OPENY_DOC_STYLE.surface }}>
+            <OpenySectionTitle>Employer</OpenySectionTitle>
+            {[['Company', form.company_name],['Representative', form.company_representative],['Address', form.company_address],['Email', form.company_email],['Phone', form.company_phone]].map(([l,v]) => v ? <div key={l} style={{ fontSize: 11, marginBottom: 2 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>{v}</div> : null)}
           </div>
-          <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Employee</div>
-            {[['Name', form.employee_full_name],['ID / Passport', form.employee_national_id],['Address', form.employee_address],['Phone', form.employee_phone],['Email', form.employee_email],['Nationality', form.employee_nationality],['Marital Status', form.employee_marital_status]].map(([l,v]) => v ? <div key={l} style={{ fontSize: 11, marginBottom: 2 }}><span style={{ color: '#6b7280' }}>{l}: </span>{v}</div> : null)}
+          <div style={{ flex: 1, border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, background: OPENY_DOC_STYLE.surface }}>
+            <OpenySectionTitle>Employee</OpenySectionTitle>
+            {[['Name', form.employee_full_name],['ID / Passport', form.employee_national_id],['Address', form.employee_address],['Phone', form.employee_phone],['Email', form.employee_email],['Nationality', form.employee_nationality],['Marital Status', form.employee_marital_status]].map(([l,v]) => v ? <div key={l} style={{ fontSize: 11, marginBottom: 2 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>{v}</div> : null)}
           </div>
         </div>
 
-        {/* Job details */}
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Job Details</div>
+        <div style={{ border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, marginBottom: 16, background: OPENY_DOC_STYLE.surface }}>
+          <OpenySectionTitle>Job Details</OpenySectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px', fontSize: 12 }}>
-            {[['Title', form.job_title],['Department', form.department],['Manager', form.direct_manager],['Type', form.employment_type]].map(([l,v]) => v ? <div key={l}><span style={{ color: '#6b7280' }}>{l}: </span><span style={{ fontWeight: 600 }}>{v}</span></div> : null)}
+            {[['Title', form.job_title],['Department', form.department],['Manager', form.direct_manager],['Type', form.employment_type]].map(([l,v]) => v ? <div key={l}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span><span style={{ fontWeight: 600 }}>{v}</span></div> : null)}
           </div>
         </div>
 
-        {/* Employment terms */}
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Employment Terms</div>
+        <div style={{ border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, marginBottom: 16, background: OPENY_DOC_STYLE.surface }}>
+          <OpenySectionTitle>Employment Terms</OpenySectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px', fontSize: 12 }}>
-            {[['Start Date', form.start_date],['Duration', form.contract_duration],['Probation', form.probation_period],['Workplace', form.workplace]].map(([l,v]) => v ? <div key={l}><span style={{ color: '#6b7280' }}>{l}: </span><span style={{ fontWeight: 600 }}>{v}</span></div> : null)}
+            {[['Start Date', form.start_date],['Duration', form.contract_duration],['Probation', form.probation_period],['Workplace', form.workplace]].map(([l,v]) => v ? <div key={l}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span><span style={{ fontWeight: 600 }}>{v}</span></div> : null)}
           </div>
         </div>
 
-        {/* Salary */}
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Salary & Benefits</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#059669', marginBottom: 8 }}>{fmt(form.salary, form.currency)} / month</div>
-          <div style={{ fontSize: 12, marginBottom: 4 }}><span style={{ color: '#6b7280' }}>Payment: </span>{form.payment_method} · {form.payment_date}</div>
-          {form.benefits.length > 0 && <div style={{ fontSize: 12 }}><span style={{ color: '#6b7280' }}>Benefits: </span>{form.benefits.join(', ')}</div>}
+        <div style={{ border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, marginBottom: 16, background: OPENY_DOC_STYLE.surface }}>
+          <OpenySectionTitle>Salary & Benefits</OpenySectionTitle>
+          <div style={{ fontSize: 15, fontWeight: 800, color: OPENY_DOC_STYLE.title, marginBottom: 8 }}>{fmt(form.salary, form.currency)} / month</div>
+          <div style={{ fontSize: 12, marginBottom: 4 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Payment: </span>{form.payment_method} · {form.payment_date}</div>
+          {form.benefits.length > 0 && <div style={{ fontSize: 12 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Benefits: </span>{form.benefits.join(', ')}</div>}
         </div>
 
-        {/* Working hours */}
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Working Hours</div>
+        <div style={{ border: `1px solid ${OPENY_DOC_STYLE.border}`, borderRadius: 8, padding: 14, marginBottom: 16, background: OPENY_DOC_STYLE.surface }}>
+          <OpenySectionTitle>Working Hours</OpenySectionTitle>
           <div style={{ display: 'flex', gap: 24, fontSize: 12 }}>
-            <div><span style={{ color: '#6b7280' }}>Daily: </span><span style={{ fontWeight: 600 }}>{form.daily_hours}h</span></div>
-            <div><span style={{ color: '#6b7280' }}>Days: </span><span style={{ fontWeight: 600 }}>{form.work_days}</span></div>
-            <div><span style={{ color: '#6b7280' }}>Annual Leave: </span><span style={{ fontWeight: 600 }}>{form.annual_leave} days</span></div>
+            <div><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Daily: </span><span style={{ fontWeight: 600 }}>{form.daily_hours}h</span></div>
+            <div><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Days: </span><span style={{ fontWeight: 600 }}>{form.work_days}</span></div>
+            <div><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Annual Leave: </span><span style={{ fontWeight: 600 }}>{form.annual_leave} days</span></div>
           </div>
         </div>
 
-        {/* Legal clauses */}
         {form.legal_clauses.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, color: '#059669', marginBottom: 8 }}>Legal Clauses</div>
+            <OpenySectionTitle>Legal Clauses</OpenySectionTitle>
             {form.legal_clauses.map((cl, i) => (
               <div key={cl.id} style={{ marginBottom: 10 }}>
                 <div style={{ fontWeight: 600, fontSize: 12 }}>{i + 1}. {cl.title}</div>
-                <div style={{ fontSize: 11, color: '#4b5563', paddingLeft: 14, marginTop: 2 }}>{cl.content}</div>
+                <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted, paddingLeft: 14, marginTop: 2 }}>{cl.content}</div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Signatures */}
         <div style={{ display: 'flex', gap: 40, marginTop: 32 }}>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ minHeight: 40, borderBottom: '1px solid #d1d5db', marginBottom: 8 }}>{form.sig_company_rep}</div>
-            <div style={{ fontSize: 11, color: '#6b7280' }}>Company Representative</div>
+            <div style={{ minHeight: 40, borderBottom: `1px solid ${OPENY_DOC_STYLE.borderStrong}`, marginBottom: 8 }}>{form.sig_company_rep}</div>
+            <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>Company Representative</div>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ minHeight: 40, borderBottom: '1px solid #d1d5db', marginBottom: 8 }}>{form.sig_employee_name}</div>
-            <div style={{ fontSize: 11, color: '#6b7280' }}>Employee Signature</div>
+            <div style={{ minHeight: 40, borderBottom: `1px solid ${OPENY_DOC_STYLE.borderStrong}`, marginBottom: 8 }}>{form.sig_employee_name}</div>
+            <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>Employee Signature</div>
           </div>
         </div>
-        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: '#6b7280' }}>
+        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>
           {form.sig_place && `${form.sig_place} · `}{form.sig_date}
         </div>
       </div>
-    </div>
+    </OpenyDocumentPage>
   );
 }
 
@@ -484,7 +482,7 @@ export default function HrContractPage() {
             </Sec>
 
             <div className="pb-4">
-              <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#059669' }}>
+              <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                 {saved ? <><Check size={16} /> Saved!</> : saving ? 'Saving…' : <><Save size={16} /> {editingId ? 'Update Contract' : 'Save Contract'}</>}
               </button>
             </div>
@@ -496,8 +494,8 @@ export default function HrContractPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#dc2626' }}><Printer size={15} /> PDF</button>
-          <button onClick={() => { const html = document.getElementById('hr-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#2563eb' }}><Download size={15} /> Word / DOC</button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={() => { const html = document.getElementById('hr-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
           <HrContractPreview form={form} />

@@ -8,6 +8,17 @@ import {
 import clsx from 'clsx';
 import type { DocsQuotation, QuotationDeliverable } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
+import {
+  OpenyDocumentHeader,
+  OpenyDocumentPage,
+  OpenySectionTitle,
+  openyMetaKeyStyle,
+  openyStatusPillStyle,
+  openyTableHeaderStyle,
+  openyTdStyle,
+  openyThStyle,
+} from '@/components/docs/DocumentDesign';
+import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function fmt(n: number, cur: string) {
@@ -52,38 +63,31 @@ function QuotationPreview({ form }: { form: FormState }) {
   const total = form.total_value || delivTotal;
 
   return (
-    <div id="quotation-preview" className="bg-white text-gray-900 w-full" style={{ fontFamily: 'Arial, sans-serif', fontSize: 13, minHeight: 1123 }}>
-      <div style={{ background: '#7c3aed', color: '#fff', padding: '28px 36px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>QUOTATION</div>
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>{form.quote_number}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>OPENY</div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>Digital Marketing Agency</div>
-          </div>
-        </div>
-      </div>
+    <OpenyDocumentPage id="quotation-preview" fontSize={13}>
+      <OpenyDocumentHeader
+        title="QUOTATION"
+        number={form.quote_number}
+        subtitle="Digital Marketing Agency"
+      />
       <div style={{ padding: '24px 36px' }}>
         <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', color: '#6b7280', marginBottom: 4 }}>Prepared For</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', color: OPENY_DOC_STYLE.textMuted, marginBottom: 4 }}>Prepared For</div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{form.client_name || '—'}</div>
-            {form.company_brand && <div style={{ fontSize: 12, color: '#6b7280' }}>{form.company_brand}</div>}
+            {form.company_brand && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted }}>{form.company_brand}</div>}
             {form.project_title && <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{form.project_title}</div>}
-            {form.project_description && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{form.project_description}</div>}
+            {form.project_description && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted, marginTop: 2 }}>{form.project_description}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
             <table style={{ fontSize: 12 }}>
               <tbody>
-                <tr><td style={{ color: '#6b7280', paddingRight: 12 }}>Date:</td><td style={{ fontWeight: 600 }}>{form.quote_date || '—'}</td></tr>
-                <tr><td style={{ color: '#6b7280' }}>Currency:</td><td style={{ fontWeight: 600 }}>{form.currency}</td></tr>
-                <tr><td style={{ color: '#6b7280' }}>Due in:</td><td style={{ fontWeight: 600 }}>{form.payment_due_days} days</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Date:</td><td style={{ fontWeight: 600 }}>{form.quote_date || '—'}</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Currency:</td><td style={{ fontWeight: 600 }}>{form.currency}</td></tr>
+                <tr><td style={openyMetaKeyStyle()}>Due in:</td><td style={{ fontWeight: 600 }}>{form.payment_due_days} days</td></tr>
                 <tr>
-                  <td style={{ color: '#6b7280' }}>Status:</td>
+                  <td style={openyMetaKeyStyle()}>Status:</td>
                   <td>
-                    <span style={{ padding: '1px 8px', borderRadius: 10, background: form.status === 'paid' ? '#dcfce7' : '#fef9c3', color: form.status === 'paid' ? '#166534' : '#854d0e', fontWeight: 700, fontSize: 11 }}>
+                    <span style={openyStatusPillStyle(form.status)}>
                       {form.status.toUpperCase()}
                     </span>
                   </td>
@@ -95,23 +99,23 @@ function QuotationPreview({ form }: { form: FormState }) {
 
         {form.deliverables.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: '#7c3aed' }}>Scope of Work</div>
+            <OpenySectionTitle>Scope of Work</OpenySectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#f5f3ff' }}>
-                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>Description</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 60 }}>Qty</th>
-                  <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 110 }}>Unit Price</th>
-                  <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb', width: 110 }}>Total</th>
+                <tr style={openyTableHeaderStyle()}>
+                  <th style={openyThStyle('left')}>Description</th>
+                  <th style={openyThStyle('center', { width: 60 })}>Qty</th>
+                  <th style={openyThStyle('right', { width: 110 })}>Unit Price</th>
+                  <th style={openyThStyle('right', { width: 110 })}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {form.deliverables.map(d => (
                   <tr key={d.id}>
-                    <td style={{ padding: '5px 10px', borderBottom: '1px solid #f5f3ff' }}>{d.description}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 10px', borderBottom: '1px solid #f5f3ff' }}>{d.quantity}</td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', borderBottom: '1px solid #f5f3ff' }}>{fmt(d.unitPrice, form.currency)}</td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', borderBottom: '1px solid #f5f3ff', fontWeight: 600 }}>{fmt(d.total, form.currency)}</td>
+                    <td style={openyTdStyle('left')}>{d.description}</td>
+                    <td style={openyTdStyle('center')}>{d.quantity}</td>
+                    <td style={openyTdStyle('right')}>{fmt(d.unitPrice, form.currency)}</td>
+                    <td style={openyTdStyle('right', true)}>{fmt(d.total, form.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -124,13 +128,13 @@ function QuotationPreview({ form }: { form: FormState }) {
             <tbody>
               {delivTotal > 0 && form.total_value > 0 && delivTotal !== form.total_value && (
                 <tr>
-                  <td style={{ padding: '4px 16px', color: '#6b7280' }}>Subtotal</td>
+                  <td style={{ padding: '4px 16px', color: OPENY_DOC_STYLE.textMuted }}>Subtotal</td>
                   <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>{fmt(delivTotal, form.currency)}</td>
                 </tr>
               )}
               <tr>
                 <td style={{ padding: '8px 16px', fontWeight: 700, fontSize: 15 }}>Total Quote Value</td>
-                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 800, fontSize: 15, color: '#7c3aed', borderTop: '2px solid #7c3aed' }}>
+                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 800, fontSize: 15, color: OPENY_DOC_STYLE.title, borderTop: `2px solid ${OPENY_DOC_STYLE.title}` }}>
                   {fmt(total, form.currency)}
                 </td>
               </tr>
@@ -139,28 +143,28 @@ function QuotationPreview({ form }: { form: FormState }) {
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#7c3aed' }}>Payment Terms</div>
-          <div style={{ fontSize: 12, marginBottom: 4 }}><span style={{ color: '#6b7280' }}>Method: </span>{form.payment_method === 'Custom' ? form.custom_payment_method : form.payment_method}</div>
-          <div style={{ fontSize: 12 }}><span style={{ color: '#6b7280' }}>Due in: </span>{form.payment_due_days} days from invoice date</div>
+          <OpenySectionTitle>Payment Terms</OpenySectionTitle>
+          <div style={{ fontSize: 12, marginBottom: 4 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Method: </span>{form.payment_method === 'Custom' ? form.custom_payment_method : form.payment_method}</div>
+          <div style={{ fontSize: 12 }}><span style={{ color: OPENY_DOC_STYLE.textMuted }}>Due in: </span>{form.payment_due_days} days from invoice date</div>
         </div>
 
         {form.additional_notes && (
-          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>NOTES</div>
+          <div style={{ borderTop: `1px solid ${OPENY_DOC_STYLE.border}`, paddingTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: OPENY_DOC_STYLE.textMuted, marginBottom: 4 }}>NOTES</div>
             <div style={{ fontSize: 12 }}>{form.additional_notes}</div>
           </div>
         )}
 
         <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between' }}>
           <div style={{ textAlign: 'center', width: 200 }}>
-            <div style={{ borderTop: '1px solid #d1d5db', paddingTop: 8, fontSize: 11, color: '#6b7280' }}>Prepared by / Signature</div>
+            <div style={{ borderTop: `1px solid ${OPENY_DOC_STYLE.borderStrong}`, paddingTop: 8, fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>Prepared by / Signature</div>
           </div>
           <div style={{ textAlign: 'center', width: 200 }}>
-            <div style={{ borderTop: '1px solid #d1d5db', paddingTop: 8, fontSize: 11, color: '#6b7280' }}>Client Acceptance / Date</div>
+            <div style={{ borderTop: `1px solid ${OPENY_DOC_STYLE.borderStrong}`, paddingTop: 8, fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>Client Acceptance / Date</div>
           </div>
         </div>
       </div>
-    </div>
+    </OpenyDocumentPage>
   );
 }
 
@@ -465,7 +469,7 @@ export default function QuotationPage() {
             </section>
 
             <div className="pb-4">
-              <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#7c3aed' }}>
+              <button onClick={save} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                 {saved ? <><Check size={16} /> Saved!</> : saving ? 'Saving…' : <><Save size={16} /> {editingId ? 'Update Quotation' : 'Save Quotation'}</>}
               </button>
             </div>
@@ -477,8 +481,8 @@ export default function QuotationPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#dc2626' }}><Printer size={15} /> PDF</button>
-          <button onClick={() => { const rows = [['Quote No','Client','Date','Currency','Value','Status'],[form.quote_number,form.client_name,form.quote_date,form.currency,String(form.total_value),form.status]]; const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`${form.quote_number}.csv`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#16a34a' }}><Download size={15} /> Excel / CSV</button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={() => { const rows = [['Quote No','Client','Date','Currency','Value','Status'],[form.quote_number,form.client_name,form.quote_date,form.currency,String(form.total_value),form.status]]; const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`${form.quote_number}.csv`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Excel / CSV</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
           <QuotationPreview form={form} />

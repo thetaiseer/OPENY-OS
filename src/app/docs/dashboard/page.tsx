@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2,
 } from 'lucide-react';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const MODULES = [
   {
@@ -61,9 +62,10 @@ export default function DocsLandingPage() {
     <div className="flex-1 overflow-y-auto p-6 sm:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text)' }}>
-          OPENY DOCS
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <OpenyLogo width={120} height={34} />
+          <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+        </div>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Internal business document platform — invoices, contracts, employees & accounting.
         </p>

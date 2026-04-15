@@ -143,7 +143,7 @@ function ExpenseModal({ initial, monthKey: mk, onClose, onDone }: {
         </div>
         <div className="flex gap-3 mt-4">
           <button onClick={onClose} className="flex-1 py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white disabled:opacity-60" style={{ background: '#dc2626' }}>{saving ? 'Saving…' : initial ? 'Update' : 'Add Expense'}</button>
+          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white disabled:opacity-60" style={{ background: '#0f172a' }}>{saving ? 'Saving…' : initial ? 'Update' : 'Add Expense'}</button>
         </div>
       </div>
     </div>
@@ -242,7 +242,7 @@ export default function AccountingPage() {
             href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}`}
             download
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white"
-            style={{ background: '#16a34a' }}
+            style={{ background: '#0f172a' }}
           >
             <Download size={14} /> Export
           </a>
@@ -343,7 +343,7 @@ export default function AccountingPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Expenses</h2>
-                <button onClick={() => setAddExpense(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: '#dc2626' }}><Plus size={14} /> Add Expense</button>
+                <button onClick={() => setAddExpense(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: '#0f172a' }}><Plus size={14} /> Add Expense</button>
               </div>
 
               <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
