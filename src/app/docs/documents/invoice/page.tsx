@@ -1009,7 +1009,9 @@ export default function InvoicePage() {
               </div>
 
               <div className="space-y-3">
-                {form.branch_groups.map((branch, branchIndex) => (
+                {form.branch_groups.map((branch, branchIndex) => {
+                  const branchSubtotal = calcBranchSubtotal(branch);
+                  return (
                   <div key={branch.id} className="border rounded-lg p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                     <div className="flex items-center gap-2">
                       <button
@@ -1023,7 +1025,7 @@ export default function InvoicePage() {
                       </button>
                       <input className={inputCls} value={branch.branch_name} onChange={e => updateBranchName(branchIndex, e.target.value)} placeholder="Branch name" />
                       <div className="text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap" style={{ color: 'var(--text)', background: 'var(--surface-2)' }}>
-                        {fmt(calcBranchSubtotal(branch), form.currency)}
+                        {fmt(branchSubtotal, form.currency)}
                       </div>
                       <button onClick={() => removeBranch(branchIndex)} className="p-2 rounded-lg hover:bg-red-50" title="Remove branch">
                         <Trash2 size={14} style={{ color: '#ef4444' }} />
@@ -1086,13 +1088,14 @@ export default function InvoicePage() {
                             <Plus size={12} /> Add Platform
                           </button>
                           <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
-                            Branch Subtotal: {fmt(calcBranchSubtotal(branch), form.currency)}
+                            Branch Subtotal: {fmt(branchSubtotal, form.currency)}
                           </div>
                         </div>
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
             <section>

@@ -230,72 +230,99 @@ export async function replaceInvoiceBranchGroups(
     throw deleteError;
   }
 
-  for (let branchIndex = 0; branchIndex < branchGroups.length; branchIndex++) {
-    const branch = branchGroups[branchIndex];
-    const { data: branchData, error: branchError } = await db
-      .schema('public')
-      .from('docs_invoice_branches')
-      .insert({
-        invoice_id: invoiceId,
-        branch_name: branch.branch_name || 'Branch',
-        position: branchIndex,
-      })
-      .select('id')
-      .single();
+  const branchPayload = branchGroups.map((branch, branchIndex) => ({
+    invoice_id: invoiceId,
+    branch_name: branch.branch_name || 'Branch',
+    position: branchIndex,
+  }));
 
-    if (branchError) throw branchError;
-    const branchId = branchData.id as string;
-    const platformsPayload = branch.platform_groups.map((platform, platformIndex) => ({
-      branch_id: branchId,
-      platform_name: platform.platform_name || 'Platform',
-      position: platformIndex,
-    }));
+  if (!branchPayload.length) return;
 
-    if (!platformsPayload.length) continue;
+  const { data: insertedBranches, error: branchInsertError } = await db
+    .schema('public')
+    .from('docs_invoice_branches')
+    .insert(branchPayload)
+    .select('id, position');
 
-    const { data: insertedPlatforms, error: platformsInsertError } = await db
-      .schema('public')
-      .from('docs_invoice_platforms')
-      .insert(platformsPayload)
-      .select('id, position');
+  if (branchInsertError) throw branchInsertError;
 
-    if (platformsInsertError) throw platformsInsertError;
+  const branchIdByPosition = new Map<number, string>();
+  (insertedBranches ?? []).forEach((branch) => {
+    branchIdByPosition.set(branch.position ?? 0, branch.id as string);
+  });
 
-    const sourceByPosition = new Map<number, InvoicePlatformGroup>();
-    branch.platform_groups.forEach((platform, index) => sourceByPosition.set(index, platform));
+  const platformSources: Array<{
+    branch_id: string;
+    platform_position: number;
+    platform: InvoicePlatformGroup;
+  }> = [];
 
-    const rowsPayload: Array<{
-      platform_id: string;
-      ad_name: string;
-      date: string | null;
-      results: string;
-      cost: number;
-      position: number;
-    }> = [];
-
-    (insertedPlatforms ?? []).forEach((insertedPlatform) => {
-      const sourcePlatform = sourceByPosition.get(insertedPlatform.position ?? 0);
-      if (!sourcePlatform) return;
-
-      sourcePlatform.campaign_rows.forEach((row, rowIndex) => {
-        rowsPayload.push({
-          platform_id: insertedPlatform.id as string,
-          ad_name: row.ad_name || '',
-          date: row.date || null,
-          results: row.results || '',
-          cost: round2(n(row.cost)),
-          position: rowIndex,
-        });
+  branchGroups.forEach((branch, branchIndex) => {
+    const branchId = branchIdByPosition.get(branchIndex);
+    if (!branchId) return;
+    branch.platform_groups.forEach((platform, platformIndex) => {
+      platformSources.push({
+        branch_id: branchId,
+        platform_position: platformIndex,
+        platform,
       });
     });
+  });
 
-    if (!rowsPayload.length) continue;
+  if (!platformSources.length) return;
 
-    const { error: rowsInsertError } = await db
-      .schema('public')
-      .from('docs_invoice_rows')
-      .insert(rowsPayload);
+  const platformsPayload = platformSources.map((entry) => ({
+    branch_id: entry.branch_id,
+    platform_name: entry.platform.platform_name || 'Platform',
+    position: entry.platform_position,
+  }));
 
-    if (rowsInsertError) throw rowsInsertError;
-  }
+  const { data: insertedPlatforms, error: platformsInsertError } = await db
+    .schema('public')
+    .from('docs_invoice_platforms')
+    .insert(platformsPayload)
+    .select('id, branch_id, position');
+
+  if (platformsInsertError) throw platformsInsertError;
+
+  const sourceByBranchAndPosition = new Map<string, InvoicePlatformGroup>();
+  platformSources.forEach((entry) => {
+    sourceByBranchAndPosition.set(`${entry.branch_id}:${entry.platform_position}`, entry.platform);
+  });
+
+  const rowsPayload: Array<{
+    platform_id: string;
+    ad_name: string;
+    date: string | null;
+    results: string;
+    cost: number;
+    position: number;
+  }> = [];
+
+  (insertedPlatforms ?? []).forEach((insertedPlatform) => {
+    const sourcePlatform = sourceByBranchAndPosition.get(
+      `${insertedPlatform.branch_id}:${insertedPlatform.position ?? 0}`,
+    );
+    if (!sourcePlatform) return;
+
+    sourcePlatform.campaign_rows.forEach((row, rowIndex) => {
+      rowsPayload.push({
+        platform_id: insertedPlatform.id as string,
+        ad_name: row.ad_name || '',
+        date: row.date || null,
+        results: row.results || '',
+        cost: round2(n(row.cost)),
+        position: rowIndex,
+      });
+    });
+  });
+
+  if (!rowsPayload.length) return;
+
+  const { error: rowsInsertError } = await db
+    .schema('public')
+    .from('docs_invoice_rows')
+    .insert(rowsPayload);
+
+  if (rowsInsertError) throw rowsInsertError;
 }

@@ -91,6 +91,15 @@ export async function POST(req: NextRequest) {
     const hydrated = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
     return NextResponse.json({ invoice: hydrated[0] }, { status: 201 });
   } catch (nestedError) {
+    const { error: nestedRollbackError } = await db
+      .schema('public')
+      .from('docs_invoice_branches')
+      .delete()
+      .eq('invoice_id', data.id);
+    if (nestedRollbackError) {
+      console.error('[docs/invoices] Failed to rollback invoice nested rows after save error:', nestedRollbackError);
+    }
+
     const { error: rollbackError } = await db.schema('public').from('docs_invoices').delete().eq('id', data.id);
     if (rollbackError) {
       console.error('[docs/invoices] Failed to rollback invoice after nested save error:', rollbackError);

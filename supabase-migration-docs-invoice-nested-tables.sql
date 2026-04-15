@@ -116,4 +116,4 @@ using (true)
 with check (true);
 
 -- Force PostgREST (Supabase API) schema cache refresh.
-select pg_notify('pgrst', 'reload schema');
+select pg_notify('pgrst', 'reload');
