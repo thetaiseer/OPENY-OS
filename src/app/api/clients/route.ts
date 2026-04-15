@@ -19,6 +19,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
+export async function GET(req: NextRequest) {
+  const { getApiUser } = await import('@/lib/api-auth');
+  const auth = await getApiUser(req);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const db = getServiceClient();
+  const { data, error } = await db
+    .from('clients')
+    .select('id,name,slug,status,created_at,updated_at')
+    .order('name', { ascending: true });
+
+  if (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, clients: data ?? [] });
+}
+
 
 export async function POST(request: NextRequest) {
   console.log('[POST /api/clients] request received');

@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const month_key = searchParams.get('month_key') ?? new Date().toISOString().slice(0, 7).replace('-', '');
+  const documentCode = (searchParams.get('document_code') ?? '').trim();
 
   const db = getServiceClient();
   const [{ data: entriesData }, { data: expensesData }] = await Promise.all([
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="accounting-${month_key}.csv"`,
+      'Content-Disposition': `attachment; filename="${(documentCode || `accounting-${month_key}`).replace(/[\\/:*?"<>|]+/g, '-')}.csv"`,
     },
   });
 }

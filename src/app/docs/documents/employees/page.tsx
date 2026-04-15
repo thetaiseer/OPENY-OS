@@ -7,6 +7,9 @@ import {
 import clsx from 'clsx';
 import type { DocsEmployee, DocsSalaryAdjustment } from '@/lib/docs-types';
 import { DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
@@ -187,6 +190,8 @@ export default function EmployeesPage() {
   const [editModal, setEditModal]   = useState<DocsEmployee | null>(null);
   const [salaryModal, setSalaryModal] = useState<DocsEmployee | null>(null);
   const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,6 +207,8 @@ export default function EmployeesPage() {
   }, [search, statusF, typeF]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
+  const selectedProfile = profiles.find(p => p.client_id === selectedClientId) ?? null;
 
   async function deleteEmp(id: string) {
     if (!confirm('Delete this employee? All salary history will also be deleted.')) return;
@@ -218,7 +225,7 @@ export default function EmployeesPage() {
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `payroll-${payrollMonth}.csv`;
+    a.download = `${(selectedProfile?.client_slug || 'payroll').replace(/[\\/:*?"<>|]+/g, '-')}-${payrollMonth}.csv`;
     a.click();
   }
 
@@ -368,6 +375,12 @@ export default function EmployeesPage() {
               </div>
               <button onClick={exportPayrollCSV} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white" style={{ background: '#0f172a' }}><Download size={15} /> Export CSV</button>
             </div>
+            <ClientProfileSelector
+              profiles={profiles}
+              selectedClientId={selectedClientId}
+              onSelectClientId={setSelectedClientId}
+              label="Client context"
+            />
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {[

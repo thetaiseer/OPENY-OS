@@ -5,6 +5,9 @@ import { Plus, Trash2, Edit2, X, Check, Download, Search, Archive } from 'lucide
 import clsx from 'clsx';
 import type { DocsAccountingEntry, DocsAccountingExpense } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
 
 type Tab = 'ledger' | 'summary';
 
@@ -24,8 +27,12 @@ interface EntryForm {
   entry_date: string; notes: string;
 }
 
-function EntryModal({ initial, monthKey: mk, onClose, onDone }: {
-  initial?: DocsAccountingEntry; monthKey: string; onClose: () => void; onDone: () => void;
+function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }: {
+  initial?: DocsAccountingEntry;
+  monthKey: string;
+  onClose: () => void;
+  onDone: () => void;
+  selectedProfile?: DocsClientProfile | null;
 }) {
   const [form, setForm] = useState<EntryForm>(() => initial ? {
     client_name: initial.client_name, service: initial.service ?? '', amount: initial.amount,
@@ -40,17 +47,31 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone }: {
   const [error, setError]   = useState('');
 
   function setF<K extends keyof EntryForm>(k: K, v: EntryForm[K]) { setForm(f => ({ ...f, [k]: v })); }
+  useEffect(() => {
+    if (initial) return;
+    if (!selectedProfile) return;
+    setForm(prev => ({
+      ...prev,
+      client_name: selectedProfile.client_name,
+      currency: selectedProfile.default_currency,
+      notes: prev.notes || selectedProfile.notes || '',
+    }));
+  }, [initial, selectedProfile]);
 
   async function submit() {
     if (!form.client_name.trim()) { setError('Client name is required'); return; }
     setSaving(true); setError('');
     try {
       const url = initial ? `/api/docs/accounting/entries/${initial.id}` : '/api/docs/accounting/entries';
-      const res = await fetch(url, {
-        method: initial ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, month_key: mk }),
-      });
+        const res = await fetch(url, {
+          method: initial ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            month_key: mk,
+            client_profile_id: selectedProfile && !selectedProfile.id.startsWith('virtual-') ? selectedProfile.id : null,
+          }),
+        });
       if (!res.ok) { setError((await res.json()).error ?? 'Save failed'); return; }
       onDone(); onClose();
     } finally { setSaving(false); }
@@ -164,6 +185,8 @@ export default function AccountingPage() {
   const [editExpense, setEditExpense] = useState<DocsAccountingExpense | null>(null);
   const [search, setSearch]         = useState('');
   const [collectorF, setCollectorF] = useState('all');
+  const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
 
   const mk = monthKey(month);
 
@@ -181,6 +204,8 @@ export default function AccountingPage() {
   }, [mk]);
 
   useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
+  const selectedProfile = profiles.find(p => p.client_id === selectedClientId) ?? null;
 
   async function deleteEntry(id: string) {
     if (!confirm('Delete this entry?')) return;
@@ -239,7 +264,7 @@ export default function AccountingPage() {
         <div className="flex items-center gap-2">
           <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={month} onChange={e => setMonth(e.target.value)} />
           <a
-            href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}`}
+            href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${selectedProfile ? `&document_code=${encodeURIComponent(`${selectedProfile.client_slug.toUpperCase()}-${mk}`)}` : ''}`}
             download
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white"
             style={{ background: '#0f172a' }}
@@ -291,6 +316,14 @@ export default function AccountingPage() {
                   </select>
                   <button onClick={() => setAddEntry(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: 'var(--accent)' }}><Plus size={14} /> Add Entry</button>
                 </div>
+              </div>
+              <div className="mb-3">
+                <ClientProfileSelector
+                  profiles={profiles}
+                  selectedClientId={selectedClientId}
+                  onSelectClientId={setSelectedClientId}
+                  label="Client context"
+                />
               </div>
 
               <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
@@ -470,8 +503,8 @@ export default function AccountingPage() {
       </div>
 
       {/* Modals */}
-      {addEntry  && <EntryModal monthKey={mk} onClose={() => setAddEntry(false)} onDone={loadData} />}
-      {editEntry && <EntryModal initial={editEntry} monthKey={mk} onClose={() => setEditEntry(null)} onDone={loadData} />}
+      {addEntry  && <EntryModal monthKey={mk} selectedProfile={selectedProfile} onClose={() => setAddEntry(false)} onDone={loadData} />}
+      {editEntry && <EntryModal initial={editEntry} monthKey={mk} selectedProfile={selectedProfile} onClose={() => setEditEntry(null)} onDone={loadData} />}
       {addExpense   && <ExpenseModal monthKey={mk} onClose={() => setAddExpense(false)} onDone={loadData} />}
       {editExpense  && <ExpenseModal initial={editExpense} monthKey={mk} onClose={() => setEditExpense(null)} onDone={loadData} />}
     </div>
