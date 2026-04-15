@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
-  Download, Printer, ChevronDown, Check, X, AlertCircle,
+  Download, Printer, ChevronDown, Check, X, AlertCircle, Archive, ExternalLink,
 } from 'lucide-react';
 import clsx from 'clsx';
 import type { DocsInvoice, InvoicePlatform, InvoiceDeliverable } from '@/lib/docs-types';
@@ -304,23 +304,84 @@ function InvoicePreview({ form }: { form: FormState }) {
   );
 }
 
+// ── Backup Modal ──────────────────────────────────────────────────────────────
+
+function BackupModal({ module, onClose, onRestore }: {
+  module: string; onClose: () => void; onRestore: (data: unknown) => void;
+}) {
+  const [backups, setBackups] = useState<Array<{ id: string; label: string | null; created_at: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/docs/backups?module=${module}`)
+      .then(r => r.json())
+      .then(j => setBackups(j.backups ?? []))
+      .finally(() => setLoading(false));
+  }, [module]);
+
+  async function restore(id: string) {
+    const r = await fetch(`/api/docs/backups/${id}`);
+    const j = await r.json();
+    if (j.backup?.data) { onRestore(j.backup.data); onClose(); }
+  }
+
+  async function deleteBackup(id: string) {
+    await fetch(`/api/docs/backups/${id}`, { method: 'DELETE' });
+    setBackups(b => b.filter(x => x.id !== id));
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Restore Backup</h2>
+          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
+        </div>
+        {loading && <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>Loading backups…</p>}
+        {!loading && backups.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>No backups found</p>}
+        <div className="space-y-2 max-h-80 overflow-y-auto">
+          {backups.map(b => (
+            <div key={b.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <div>
+                <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{b.label ?? 'Backup'}</div>
+                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{new Date(b.created_at).toLocaleString()}</div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => restore(b.id)} className="px-2.5 py-1 text-xs rounded-lg font-medium text-white" style={{ background: 'var(--accent)' }}>Restore</button>
+                <button onClick={() => deleteBackup(b.id)} className="p-1.5 rounded-lg hover:bg-red-50"><Trash2 size={12} style={{ color: '#ef4444' }} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ── History Panel ─────────────────────────────────────────────────────────────
 
 function HistoryPanel({
-  invoices, loading, onEdit, onDuplicate, onDelete, onReload,
+  invoices, loading, onEdit, onDuplicate, onDelete, onReload, onBackup, onClearAll, onRestoreData,
 }: {
-  invoices:    DocsInvoice[];
-  loading:     boolean;
-  onEdit:      (inv: DocsInvoice) => void;
-  onDuplicate: (inv: DocsInvoice) => void;
-  onDelete:    (id: string) => void;
-  onReload:    () => void;
+  invoices:      DocsInvoice[];
+  loading:       boolean;
+  onEdit:        (inv: DocsInvoice) => void;
+  onDuplicate:   (inv: DocsInvoice) => void;
+  onDelete:      (id: string) => void;
+  onReload:      () => void;
+  onBackup:      () => Promise<void>;
+  onClearAll:    () => Promise<void>;
+  onRestoreData: (data: unknown) => void;
 }) {
   const [search, setSearch]       = useState('');
   const [statusF, setStatusF]     = useState<'all' | 'paid' | 'unpaid'>('all');
   const [clientF, setClientF]     = useState('');
   const [sortF, setSortF]         = useState('created_at');
   const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('desc');
+  const [showRestore, setShowRestore] = useState(false);
+  const [backing, setBacking]         = useState(false);
+  const [clearing, setClearing]       = useState(false);
 
   const visible = invoices.filter(inv => {
     if (statusF !== 'all' && inv.status !== statusF) return false;
@@ -355,6 +416,33 @@ function HistoryPanel({
             title="Refresh"
           >
             <RotateCcw size={14} style={{ color: 'var(--text-secondary)' }} />
+          </button>
+          <button
+            onClick={async () => { setBacking(true); try { await onBackup(); } finally { setBacking(false); } }}
+            disabled={backing}
+            className="p-1.5 rounded-lg hover:bg-[var(--accent-soft)] transition-colors"
+            title="Backup all invoices"
+          >
+            <Archive size={14} style={{ color: backing ? 'var(--text-secondary)' : 'var(--accent)' }} />
+          </button>
+          <button
+            onClick={() => setShowRestore(true)}
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+            title="Restore from backup"
+          >
+            <RotateCcw size={14} style={{ color: '#f59e0b' }} />
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm('Clear ALL invoices? This cannot be undone.')) return;
+              setClearing(true);
+              try { await onClearAll(); } finally { setClearing(false); }
+            }}
+            disabled={clearing}
+            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+            title="Clear all invoices"
+          >
+            <Trash2 size={14} style={{ color: '#ef4444' }} />
           </button>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -422,6 +510,15 @@ function HistoryPanel({
                 <div className="text-xs font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>
                   {fmt(inv.total_budget, inv.currency)}
                 </div>
+                <a
+                  href={`/api/docs/invoices/${inv.id}/export`}
+                  download
+                  onClick={e => e.stopPropagation()}
+                  className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <ExternalLink size={9} /> CSV
+                </a>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button
@@ -450,6 +547,9 @@ function HistoryPanel({
           </div>
         ))}
       </div>
+      {showRestore && (
+        <BackupModal module="invoices" onClose={() => setShowRestore(false)} onRestore={onRestoreData} />
+      )}
     </div>
   );
 }
@@ -596,6 +696,40 @@ export default function InvoicePage() {
     await fetch(`/api/docs/invoices/${id}`, { method: 'DELETE' });
     await load();
     if (editingId === id) resetForm();
+  }
+
+  async function handleBackup() {
+    const label = `Backup ${new Date().toLocaleDateString()} (${invoices.length} invoices)`;
+    await fetch('/api/docs/backups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ module: 'invoices', data: invoices, label }),
+    });
+  }
+
+  async function handleClearAll() {
+    await Promise.all(invoices.map(inv => fetch(`/api/docs/invoices/${inv.id}`, { method: 'DELETE' })));
+    await load();
+    resetForm();
+  }
+
+  async function handleRestoreData(data: unknown) {
+    if (!Array.isArray(data) || data.length === 0) { alert('Invalid or empty backup data.'); return; }
+    if (!confirm(`Restore ${data.length} invoice(s) from backup? They will be created as new records.`)) return;
+    let count = 0;
+    for (const item of data as DocsInvoice[]) {
+      const { id: _id, created_at: _ca, updated_at: _ua, created_by: _cb,
+              export_pdf_url: _ep, export_excel_url: _ee, is_duplicate: _dup, original_id: _oid,
+              ...rest } = item;
+      const res = await fetch('/api/docs/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rest),
+      });
+      if (res.ok) count++;
+    }
+    await load();
+    alert(`Restored ${count} of ${data.length} invoice(s).`);
   }
 
   function exportPDF() {
@@ -800,6 +934,9 @@ export default function InvoicePage() {
             onDuplicate={duplicateInvoice}
             onDelete={deleteInvoice}
             onReload={load}
+            onBackup={handleBackup}
+            onClearAll={handleClearAll}
+            onRestoreData={handleRestoreData}
           />
         )}
       </div>

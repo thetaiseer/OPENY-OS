@@ -43,6 +43,20 @@ export async function POST(req: NextRequest) {
   if (!invoice_number?.trim()) return NextResponse.json({ error: 'invoice_number is required' }, { status: 400 });
   if (!client_name?.trim())    return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
 
+  // Validate platform allocation if platforms provided
+  if (Array.isArray(body.platforms)) {
+    const enabled = (body.platforms as Array<{ enabled: boolean; budgetPct: number }>).filter(p => p.enabled);
+    if (enabled.length > 0) {
+      const total = enabled.reduce((s, p) => s + (Number(p.budgetPct) || 0), 0);
+      if (Math.abs(total - 100) > 0.01) {
+        return NextResponse.json(
+          { error: `Platform allocation must sum to 100% (currently ${total}%)` },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
   const db = getServiceClient();
   const { data, error } = await db
     .from('docs_invoices')
