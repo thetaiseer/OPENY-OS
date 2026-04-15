@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { hydrateInvoiceBranchGroups, mapInvoiceDbError } from '@/lib/docs-invoices-db';
 
 interface Params { id: string }
 
@@ -19,11 +20,27 @@ type BranchGroup = {
 export async function GET(_: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.from('docs_invoices').select('*').eq('id', id).maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();
+  if (error) {
+    return NextResponse.json(
+      { error: mapInvoiceDbError(error, 'Unable to export invoice right now.') },
+      { status: 500 },
+    );
+  }
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const inv = data as Record<string, unknown> & {
+  let invoiceData: { id: string; branch_groups?: unknown } | Record<string, unknown> = data as { id: string; branch_groups?: unknown };
+  try {
+    const [hydrated] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
+    if (hydrated) invoiceData = hydrated;
+  } catch (nestedError) {
+    return NextResponse.json(
+      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to export invoice details right now.') },
+      { status: 500 },
+    );
+  }
+
+  const inv = invoiceData as Record<string, unknown> & {
     invoice_number: string;
     client_name: string;
     invoice_date: string | null;
