@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Download, Search } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Download, Search, Archive } from 'lucide-react';
 import clsx from 'clsx';
 import type { DocsAccountingEntry, DocsAccountingExpense } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
@@ -218,22 +218,13 @@ export default function AccountingPage() {
     else byCollector[c].overseas += e.amount;
   }
 
-  function exportCSV() {
-    const rows = [
-      ['Type', 'Client/Description', 'Service', 'Amount', 'Currency', 'Collection', 'Collector', 'Date', 'Notes'],
-      ...entries.map(e => ['Revenue', e.client_name, e.service ?? '', String(e.amount), e.currency, e.collection_type, e.collector ?? '', e.entry_date, e.notes ?? '']),
-      ...expenses.map(x => ['Expense', x.description, '', String(x.amount), x.currency, '', '', x.expense_date, x.notes ?? '']),
-      [],
-      ['Summary', '', '', '', '', '', '', '', ''],
-      ['Total Revenue', String(totalRevenue), '', '', '', '', '', '', ''],
-      ['Total Expenses', String(totalExpenses), '', '', '', '', '', '', ''],
-      ['Net Result', String(netResult), '', '', '', '', '', '', ''],
-    ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `accounting-${month}.csv`;
-    a.click();
+  async function handleBackup() {
+    const label = `Backup ${month} (accounting)`;
+    await fetch('/api/docs/backups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ module: 'accounting', data: { entries, expenses }, label }),
+    });
   }
 
   return (
@@ -247,7 +238,22 @@ export default function AccountingPage() {
         </div>
         <div className="flex items-center gap-2">
           <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={month} onChange={e => setMonth(e.target.value)} />
-          <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: '#16a34a' }}><Download size={14} /> Export</button>
+          <a
+            href={`/api/docs/accounting/export?month_key=${mk}`}
+            download
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white"
+            style={{ background: '#16a34a' }}
+          >
+            <Download size={14} /> Export
+          </a>
+          <button
+            onClick={handleBackup}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            title="Backup current month data"
+          >
+            <Archive size={14} /> Backup
+          </button>
         </div>
       </div>
 
