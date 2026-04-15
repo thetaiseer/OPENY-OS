@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -524,11 +524,18 @@ const KANBAN_COLS: { key: KanbanColumnId; label: string }[] = [
   { key: 'done', label: 'done' },
 ];
 
+const KANBAN_STATUS_MAP: Record<KanbanColumnId, Task['status'][]> = {
+  todo: ['todo'],
+  in_progress: ['in_progress'],
+  in_review: ['in_review', 'review'],
+  done: ['done', 'completed', 'delivered', 'published'],
+};
+
 function getKanbanColumn(status: Task['status']): KanbanColumnId | null {
-  if (status === 'todo') return 'todo';
-  if (status === 'in_progress') return 'in_progress';
-  if (status === 'in_review' || status === 'review') return 'in_review';
-  if (status === 'done' || status === 'completed' || status === 'delivered' || status === 'published') return 'done';
+  if (KANBAN_STATUS_MAP.todo.includes(status)) return 'todo';
+  if (KANBAN_STATUS_MAP.in_progress.includes(status)) return 'in_progress';
+  if (KANBAN_STATUS_MAP.in_review.includes(status)) return 'in_review';
+  if (KANBAN_STATUS_MAP.done.includes(status)) return 'done';
   return null;
 }
 
@@ -842,7 +849,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       const updateMap = new Map<string, { status: Task['status']; position: number }>();
       reordered.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(sourceColumn), position: index }));
       const updates = reordered
-        .filter(task => task.position !== updateMap.get(task.id)?.position)
+        .filter(task => updateMap.has(task.id) && task.position !== updateMap.get(task.id)!.position)
         .map(task => ({ id: task.id, ...updateMap.get(task.id)! }));
       if (updates.length === 0) return;
       const nextTasks = tasks.map(task => updateMap.has(task.id)
@@ -948,6 +955,7 @@ export default function TasksPage() {
   const { role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team_member';
 
   // ── React Query: fetch and cache tasks, clients, and team ────────────────
@@ -1000,6 +1008,10 @@ export default function TasksPage() {
       setTeam(queryData.team);
     }
   }, [queryData]);
+
+  useEffect(() => () => {
+    if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current);
+  }, []);
 
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -1270,13 +1282,18 @@ export default function TasksPage() {
   };
 
   const invalidateTaskRelatedQueries = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
-    void queryClient.invalidateQueries({ queryKey: ['tasks-my'] });
-    void queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    void queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] });
-    void queryClient.invalidateQueries({ queryKey: ['reports-overview'] });
+    if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current);
+    invalidateTimerRef.current = setTimeout(() => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tasks-all'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks-my'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] }),
+        queryClient.invalidateQueries({ queryKey: ['reports-overview'] }),
+      ]);
+    }, 120);
   }, [queryClient]);
 
   // ── status change ─────────────────────────────────────────────────────────
