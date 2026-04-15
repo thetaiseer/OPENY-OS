@@ -1331,7 +1331,7 @@ export default function TasksPage() {
       setTasks(previousTasks);
       toast(err instanceof Error ? err.message : 'Failed to move task. Changes were reverted.', 'warning');
     }
-  }, [invalidateTaskRelatedQueries, toast]);
+  }, [invalidateTaskRelatedQueries, setTasks, toast]);
 
   const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
 
