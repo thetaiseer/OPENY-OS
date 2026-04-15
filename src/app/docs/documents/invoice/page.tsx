@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
-  Download, Printer, Check, X, AlertCircle, Archive, ExternalLink,
+  Download, Printer, Check, X, AlertCircle, Archive, ExternalLink, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
@@ -208,6 +208,16 @@ function getCsvRows(form: FormState) {
   return rows;
 }
 
+async function getResponseErrorMessage(response: Response, fallback: string) {
+  try {
+    const json = await response.json() as { error?: string };
+    if (json?.error && typeof json.error === 'string') return json.error;
+  } catch {
+    // ignore JSON parse errors
+  }
+  return fallback;
+}
+
 function InvoicePreview({ form }: { form: FormState }) {
   const tableRows = form.branch_groups.map((branch) => {
     const branchRows = branch.platform_groups.flatMap((platform) => {
@@ -272,7 +282,7 @@ function InvoicePreview({ form }: { form: FormState }) {
                 <th style={previewHeaderCell}>AD NAME</th>
                 <th style={previewHeaderCell}>DATE</th>
                 <th style={previewHeaderCell}>RESULTS</th>
-                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST (EGP)</th>
+                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST ({form.currency})</th>
               </tr>
             </thead>
             <tbody>
@@ -553,6 +563,7 @@ export default function InvoicePage() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FormState>(() => blankForm('INV-0001'));
+  const [collapsedBranches, setCollapsedBranches] = useState<Set<string>>(new Set());
 
   const computedFinalBudget = useMemo(() => calcFinalBudget(form.branch_groups ?? []), [form.branch_groups]);
   const computedGrandTotal = useMemo(() => round2(computedFinalBudget + n(form.our_fees)), [computedFinalBudget, form.our_fees]);
@@ -561,8 +572,14 @@ export default function InvoicePage() {
     setLoading(true);
     try {
       const res = await fetch('/api/docs/invoices');
-      const json = await res.json();
+      if (!res.ok) {
+        setError(await getResponseErrorMessage(res, 'Unable to load invoices right now.'));
+        return;
+      }
+      const json = await res.json() as { invoices?: DocsInvoice[] };
       setInvoices(json.invoices ?? []);
+    } catch {
+      setError('Unable to load invoices right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -578,15 +595,40 @@ export default function InvoicePage() {
     setForm(prev => ({ ...prev, branch_groups: updater(prev.branch_groups) }));
   }
 
+  function toggleBranchCollapse(branchId: string) {
+    setCollapsedBranches(prev => {
+      const next = new Set(prev);
+      if (next.has(branchId)) next.delete(branchId);
+      else next.add(branchId);
+      return next;
+    });
+  }
+
+  function setAllBranchesCollapsed(collapsed: boolean) {
+    if (!collapsed) {
+      setCollapsedBranches(new Set());
+      return;
+    }
+    setCollapsedBranches(new Set(form.branch_groups.map(branch => branch.id)));
+  }
+
   function addBranch() {
     setBranchGroups(prev => [...prev, { ...blankBranchGroup(), branch_name: 'New Branch' }]);
   }
 
   function removeBranch(branchIndex: number) {
+    const removedId = form.branch_groups[branchIndex]?.id;
     setBranchGroups(prev => {
       const next = prev.filter((_, i) => i !== branchIndex);
       return next.length ? next : defaultBranchGroups();
     });
+    if (removedId) {
+      setCollapsedBranches(prev => {
+        const next = new Set(prev);
+        next.delete(removedId);
+        return next;
+      });
+    }
   }
 
   function updateBranchName(branchIndex: number, name: string) {
@@ -675,6 +717,7 @@ export default function InvoicePage() {
   function resetForm() {
     setEditingId(null);
     setForm(blankForm(nextInvoiceNum(invoices)));
+    setCollapsedBranches(new Set());
     setError('');
     setActiveTab('editor');
   }
@@ -703,6 +746,7 @@ export default function InvoicePage() {
       custom_project: inv.custom_project ?? '',
       notes: inv.notes ?? '',
     });
+    setCollapsedBranches(new Set());
     setActiveTab('editor');
   }
 
@@ -730,6 +774,7 @@ export default function InvoicePage() {
       custom_project: inv.custom_project ?? '',
       notes: inv.notes ?? '',
     });
+    setCollapsedBranches(new Set());
     setActiveTab('editor');
   }
 
@@ -757,8 +802,7 @@ export default function InvoicePage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        setError(err.error ?? 'Save failed');
+        setError(await getResponseErrorMessage(res, 'Could not save invoice. Please try again.'));
         return;
       }
 
@@ -766,6 +810,8 @@ export default function InvoicePage() {
       setTimeout(() => setSaved(false), 2000);
       await load();
       if (!editingId) resetForm();
+    } catch {
+      setError('Could not save invoice. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -773,28 +819,48 @@ export default function InvoicePage() {
 
   async function deleteInvoice(id: string) {
     if (!confirm('Delete this invoice?')) return;
-    await fetch(`/api/docs/invoices/${id}`, { method: 'DELETE' });
-    await load();
-    if (editingId === id) resetForm();
+    try {
+      const res = await fetch(`/api/docs/invoices/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setError(await getResponseErrorMessage(res, 'Could not delete invoice. Please try again.'));
+        return;
+      }
+      await load();
+      if (editingId === id) resetForm();
+    } catch {
+      setError('Could not delete invoice. Please try again.');
+    }
   }
 
   async function handleBackup() {
     const label = `Backup ${new Date().toLocaleDateString()} (${invoices.length} invoices)`;
-    await fetch('/api/docs/backups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ module: 'invoices', data: invoices, label }),
-    });
+    try {
+      const res = await fetch('/api/docs/backups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module: 'invoices', data: invoices, label }),
+      });
+      if (!res.ok) setError(await getResponseErrorMessage(res, 'Could not create backup right now.'));
+    } catch {
+      setError('Could not create backup right now.');
+    }
   }
 
   async function handleClearAll() {
-    await Promise.all(invoices.map(inv => fetch(`/api/docs/invoices/${inv.id}`, { method: 'DELETE' })));
-    await load();
-    resetForm();
+    try {
+      await Promise.all(invoices.map(inv => fetch(`/api/docs/invoices/${inv.id}`, { method: 'DELETE' })));
+      await load();
+      resetForm();
+    } catch {
+      setError('Could not clear invoices right now.');
+    }
   }
 
   async function handleRestoreData(data: unknown) {
-    if (!Array.isArray(data) || data.length === 0) { alert('Invalid or empty backup data.'); return; }
+    if (!Array.isArray(data) || data.length === 0) {
+      setError('Invalid or empty backup data.');
+      return;
+    }
     if (!confirm(`Restore ${data.length} invoice(s) from backup? They will be created as new records.`)) return;
 
     let count = 0;
@@ -820,7 +886,11 @@ export default function InvoicePage() {
     }
 
     await load();
-    alert(`Restored ${count} of ${data.length} invoice(s).`);
+    if (count !== data.length) {
+      setError(`Restored ${count} of ${data.length} invoices. Some invoices could not be restored.`);
+      return;
+    }
+    setError('');
   }
 
   function exportPDF() {
@@ -868,7 +938,7 @@ export default function InvoicePage() {
           ))}
         </div>
         {activeTab === 'editor' ? (
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-6">
             {editingId && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}>
                 <Edit2 size={14} />
@@ -886,7 +956,7 @@ export default function InvoicePage() {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Document Setup</h3>
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Field label="Invoice Number">
                     <input className={inputCls} value={form.invoice_number} onChange={e => setField('invoice_number', e.target.value)} />
                   </Field>
@@ -894,7 +964,7 @@ export default function InvoicePage() {
                     <input type="date" className={inputCls} value={form.invoice_date} onChange={e => setField('invoice_date', e.target.value)} />
                   </Field>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Field label="Currency">
                     <select className={inputCls} value={form.currency} onChange={e => setField('currency', e.target.value)}>
                       {DOCS_CURRENCIES.map(c => <option key={c}>{c}</option>)}
@@ -923,24 +993,45 @@ export default function InvoicePage() {
             </section>
 
             <section>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                 <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Branches</h3>
-                <button onClick={addBranch} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-                  <Plus size={12} /> Add Branch
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setAllBranchesCollapsed(false)} className="px-2 py-1 text-xs rounded-lg font-medium border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    Expand all
+                  </button>
+                  <button onClick={() => setAllBranchesCollapsed(true)} className="px-2 py-1 text-xs rounded-lg font-medium border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    Collapse all
+                  </button>
+                  <button onClick={addBranch} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                    <Plus size={12} /> Add Branch
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {form.branch_groups.map((branch, branchIndex) => (
                   <div key={branch.id} className="border rounded-lg p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleBranchCollapse(branch.id)}
+                        className="p-2 rounded-lg hover:bg-[var(--surface-2)]"
+                        title={collapsedBranches.has(branch.id) ? 'Expand branch' : 'Collapse branch'}
+                      >
+                        {collapsedBranches.has(branch.id)
+                          ? <ChevronRight size={14} style={{ color: 'var(--text-secondary)' }} />
+                          : <ChevronDown size={14} style={{ color: 'var(--text-secondary)' }} />}
+                      </button>
                       <input className={inputCls} value={branch.branch_name} onChange={e => updateBranchName(branchIndex, e.target.value)} placeholder="Branch name" />
+                      <div className="text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap" style={{ color: 'var(--text)', background: 'var(--surface-2)' }}>
+                        {fmt(calcBranchSubtotal(branch), form.currency)}
+                      </div>
                       <button onClick={() => removeBranch(branchIndex)} className="p-2 rounded-lg hover:bg-red-50" title="Remove branch">
                         <Trash2 size={14} style={{ color: '#ef4444' }} />
                       </button>
                     </div>
 
-                    <div className="space-y-3">
+                    {!collapsedBranches.has(branch.id) && (
+                      <div className="space-y-3">
                       {branch.platform_groups.map((platform, platformIndex) => (
                         <div key={platform.id} className="border rounded-md p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                           <div className="flex items-center gap-2">
@@ -999,6 +1090,8 @@ export default function InvoicePage() {
                         Branch Subtotal: {fmt(calcBranchSubtotal(branch), form.currency)}
                       </div>
                     </div>
+                    </div>
+                    )}
                   </div>
                 ))}
               </div>

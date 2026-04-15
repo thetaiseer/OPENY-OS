@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import {
+  calculateInvoiceTotals,
+  hydrateInvoiceBranchGroups,
+  mapInvoiceDbError,
+  normalizeInvoiceBranchGroups,
+  replaceInvoiceBranchGroups,
+} from '@/lib/docs-invoices-db';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -17,7 +24,7 @@ export async function GET(req: NextRequest) {
   const dateTo     = searchParams.get('date_to')     ?? '';
 
   const db = getServiceClient();
-  let q = db.from('docs_invoices').select('*').order(sort, { ascending: order });
+  let q = db.schema('public').from('docs_invoices').select('*').order(sort, { ascending: order });
 
   if (status)   q = q.eq('status', status);
   if (client)   q = q.ilike('client_name', `%${client}%`);
@@ -26,9 +33,22 @@ export async function GET(req: NextRequest) {
   if (search)   q = q.or(`invoice_number.ilike.%${search}%,client_name.ilike.%${search}%`);
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { error: mapInvoiceDbError(error, 'Unable to load invoices right now.') },
+      { status: 500 },
+    );
+  }
 
-  return NextResponse.json({ invoices: data ?? [] });
+  try {
+    const invoices = await hydrateInvoiceBranchGroups(db, (data ?? []) as Array<{ id: string; branch_groups?: unknown }>);
+    return NextResponse.json({ invoices });
+  } catch (nestedError) {
+    return NextResponse.json(
+      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to load invoice details right now.') },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -43,27 +63,38 @@ export async function POST(req: NextRequest) {
   if (!invoice_number?.trim()) return NextResponse.json({ error: 'invoice_number is required' }, { status: 400 });
   if (!client_name?.trim())    return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
 
-  // Validate platform allocation if platforms provided
-  if (Array.isArray(body.platforms)) {
-    const enabled = (body.platforms as Array<{ enabled: boolean; budgetPct: number }>).filter(p => p.enabled);
-    if (enabled.length > 0) {
-      const total = enabled.reduce((s, p) => s + (Number(p.budgetPct) || 0), 0);
-      if (Math.abs(total - 100) > 0.01) {
-        return NextResponse.json(
-          { error: `Platform allocation must sum to 100% (currently ${total}%)` },
-          { status: 400 },
-        );
-      }
-    }
-  }
+  const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
+  const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
+  const payload = {
+    ...body,
+    branch_groups: branchGroups,
+    ...totals,
+  };
 
   const db = getServiceClient();
   const { data, error } = await db
+    .schema('public')
     .from('docs_invoices')
-    .insert({ ...body, created_by: auth.profile.id })
+    .insert({ ...payload, created_by: auth.profile.id })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ invoice: data }, { status: 201 });
+  if (error) {
+    return NextResponse.json(
+      { error: mapInvoiceDbError(error, 'Unable to save invoice right now.') },
+      { status: 500 },
+    );
+  }
+
+  try {
+    await replaceInvoiceBranchGroups(db, data.id as string, branchGroups);
+    const hydrated = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
+    return NextResponse.json({ invoice: hydrated[0] }, { status: 201 });
+  } catch (nestedError) {
+    await db.schema('public').from('docs_invoices').delete().eq('id', data.id);
+    return NextResponse.json(
+      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to save invoice line items right now.') },
+      { status: 500 },
+    );
+  }
 }
