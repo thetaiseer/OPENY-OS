@@ -91,7 +91,10 @@ export async function POST(req: NextRequest) {
     const hydrated = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
     return NextResponse.json({ invoice: hydrated[0] }, { status: 201 });
   } catch (nestedError) {
-    await db.schema('public').from('docs_invoices').delete().eq('id', data.id);
+    const { error: rollbackError } = await db.schema('public').from('docs_invoices').delete().eq('id', data.id);
+    if (rollbackError) {
+      console.error('[docs/invoices] Failed to rollback invoice after nested save error:', rollbackError);
+    }
     return NextResponse.json(
       { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to save invoice line items right now.') },
       { status: 500 },

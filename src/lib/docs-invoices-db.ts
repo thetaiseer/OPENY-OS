@@ -245,40 +245,57 @@ export async function replaceInvoiceBranchGroups(
 
     if (branchError) throw branchError;
     const branchId = branchData.id as string;
+    const platformsPayload = branch.platform_groups.map((platform, platformIndex) => ({
+      branch_id: branchId,
+      platform_name: platform.platform_name || 'Platform',
+      position: platformIndex,
+    }));
 
-    for (let platformIndex = 0; platformIndex < branch.platform_groups.length; platformIndex++) {
-      const platform = branch.platform_groups[platformIndex];
-      const { data: platformData, error: platformError } = await db
-        .schema('public')
-        .from('docs_invoice_platforms')
-        .insert({
-          branch_id: branchId,
-          platform_name: platform.platform_name || 'Platform',
-          position: platformIndex,
-        })
-        .select('id')
-        .single();
+    if (!platformsPayload.length) continue;
 
-      if (platformError) throw platformError;
-      const platformId = platformData.id as string;
+    const { data: insertedPlatforms, error: platformsInsertError } = await db
+      .schema('public')
+      .from('docs_invoice_platforms')
+      .insert(platformsPayload)
+      .select('id, position');
 
-      const rowsPayload = platform.campaign_rows.map((row, rowIndex) => ({
-        platform_id: platformId,
-        ad_name: row.ad_name || '',
-        date: row.date || null,
-        results: row.results || '',
-        cost: round2(n(row.cost)),
-        position: rowIndex,
-      }));
+    if (platformsInsertError) throw platformsInsertError;
 
-      if (!rowsPayload.length) continue;
+    const sourceByPosition = new Map<number, InvoicePlatformGroup>();
+    branch.platform_groups.forEach((platform, index) => sourceByPosition.set(index, platform));
 
-      const { error: rowsInsertError } = await db
-        .schema('public')
-        .from('docs_invoice_rows')
-        .insert(rowsPayload);
+    const rowsPayload: Array<{
+      platform_id: string;
+      ad_name: string;
+      date: string | null;
+      results: string;
+      cost: number;
+      position: number;
+    }> = [];
 
-      if (rowsInsertError) throw rowsInsertError;
-    }
+    (insertedPlatforms ?? []).forEach((insertedPlatform) => {
+      const sourcePlatform = sourceByPosition.get(insertedPlatform.position ?? 0);
+      if (!sourcePlatform) return;
+
+      sourcePlatform.campaign_rows.forEach((row, rowIndex) => {
+        rowsPayload.push({
+          platform_id: insertedPlatform.id as string,
+          ad_name: row.ad_name || '',
+          date: row.date || null,
+          results: row.results || '',
+          cost: round2(n(row.cost)),
+          position: rowIndex,
+        });
+      });
+    });
+
+    if (!rowsPayload.length) continue;
+
+    const { error: rowsInsertError } = await db
+      .schema('public')
+      .from('docs_invoice_rows')
+      .insert(rowsPayload);
+
+    if (rowsInsertError) throw rowsInsertError;
   }
 }
