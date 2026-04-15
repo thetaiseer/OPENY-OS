@@ -42,7 +42,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       )}
       <aside
         className={clsx(
-          'fixed top-0 left-0 h-full w-60 z-40 flex flex-col',
+          'fixed top-0 left-0 h-full w-64 xl:w-64 lg:w-[88px] z-40 flex flex-col',
           'border-r transition-transform duration-200',
           'lg:translate-x-0 lg:static lg:z-auto',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -54,9 +54,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           className="flex items-center justify-between h-16 px-5 border-b"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="flex items-center gap-2.5">
-            <OpenyLogo width={96} height={28} />
-            <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>OS</span>
+          <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
+            <OpenyLogo className="hidden xl:block" width={96} height={28} />
+            <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
+            <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>OS</span>
           </div>
           {onClose && (
             <button onClick={onClose} className="lg:hidden p-1 rounded hover:opacity-70">
@@ -77,15 +78,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 key={href}
                 href={href}
                 onClick={onClose}
+                title={displayLabel}
                 className={clsx(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'lg:justify-center xl:justify-start',
                   active
                     ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
               >
                 <Icon size={18} strokeWidth={1.8} />
-                <span>{displayLabel}</span>
+                <span className="lg:hidden xl:inline">{displayLabel}</span>
               </Link>
             );
           })}
@@ -94,14 +97,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* User */}
         <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <AccountMenu placement="sidebar">
-            <div className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--surface-2)] transition-colors cursor-pointer">
+            <div className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
                 style={{ background: 'var(--accent)' }}
               >
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 lg:hidden xl:block">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                   {user.name}
                 </p>
