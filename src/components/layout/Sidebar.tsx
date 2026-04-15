@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Settings, X, CalendarDays, Shield, FileText,
-  Tag, Clock, Zap,
+  Tag, Clock, Zap, BookMarked,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -23,6 +23,7 @@ const navItems = [
   { href: '/time-tracking',     base: '/time-tracking',    icon: Clock,           label: 'Time Tracking' },
   { href: '/tags',              base: '/tags',             icon: Tag,             label: 'Tags'         },
   { href: '/automations',       base: '/automations',      icon: Zap,             label: 'Automations'  },
+  { href: '/docs',              base: '/docs',             icon: BookMarked,      label: 'OPENY DOCS'   },
   { href: '/reports/overview',  base: '/reports',          icon: BarChart2,       key: 'reports'        },
   { href: '/team',              base: '/team',             icon: Users,           key: 'team'           },
   { href: '/security/sessions', base: '/security',         icon: Shield,          key: 'security'       },

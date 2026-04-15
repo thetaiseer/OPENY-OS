@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Shield, CalendarDays, FileText, Upload,
-  Plus, UserCheck, Settings, Zap, Clock, Tag, BookOpen,
+  Plus, UserCheck, Settings, Zap, Clock, Tag, BookOpen, BookMarked,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -196,6 +196,64 @@ export default function CommandPalette({
       group: 'Navigate',
       keywords: ['automation', 'rules', 'trigger', 'workflow'],
       action: () => go('/automations'),
+    },
+    // ── OPENY DOCS ──
+    {
+      id: 'go-docs',
+      label: 'Go to OPENY DOCS',
+      description: 'Business documents, HR, Employees & Accounting',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['docs', 'documents', 'invoice', 'quotation', 'contract', 'hr', 'employees', 'accounting'],
+      action: () => go('/docs'),
+    },
+    {
+      id: 'go-docs-invoice',
+      label: 'DOCS: Invoice',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['invoice', 'billing', 'docs'],
+      action: () => go('/docs/invoice'),
+    },
+    {
+      id: 'go-docs-quotation',
+      label: 'DOCS: Quotation',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['quotation', 'quote', 'proposal', 'docs'],
+      action: () => go('/docs/quotation'),
+    },
+    {
+      id: 'go-docs-client-contract',
+      label: 'DOCS: Client Contract',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['client contract', 'agreement', 'docs'],
+      action: () => go('/docs/client-contract'),
+    },
+    {
+      id: 'go-docs-hr-contract',
+      label: 'DOCS: HR Contract',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['hr contract', 'employment', 'employee contract', 'docs'],
+      action: () => go('/docs/hr-contract'),
+    },
+    {
+      id: 'go-docs-employees',
+      label: 'DOCS: Employees',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['employees', 'staff', 'payroll', 'docs'],
+      action: () => go('/docs/employees'),
+    },
+    {
+      id: 'go-docs-accounting',
+      label: 'DOCS: Accounting',
+      icon: BookMarked,
+      group: 'Navigate',
+      keywords: ['accounting', 'ledger', 'finance', 'revenue', 'docs'],
+      action: () => go('/docs/accounting'),
     },
     // ── AI workflows ──
     {
