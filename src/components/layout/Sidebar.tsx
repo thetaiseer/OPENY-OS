@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Settings, X, CalendarDays, Shield, FileText,
+  Tag, Clock, Zap,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -12,16 +13,20 @@ import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 
 const navItems = [
-  { href: '/dashboard',         base: '/dashboard',  icon: LayoutDashboard, key: 'dashboard' },
-  { href: '/clients',           base: '/clients',    icon: Users2,          key: 'clients'   },
-  { href: '/tasks/all',         base: '/tasks',      icon: CheckSquare,     key: 'tasks'     },
-  { href: '/content',           base: '/content',    icon: FileText,        key: 'content'   },
-  { href: '/calendar',          base: '/calendar',   icon: CalendarDays,    key: 'calendar'  },
-  { href: '/assets',            base: '/assets',     icon: FolderOpen,      key: 'assets'    },
-  { href: '/reports/overview',  base: '/reports',    icon: BarChart2,       key: 'reports'   },
-  { href: '/team',              base: '/team',       icon: Users,           key: 'team'      },
-  { href: '/security/sessions', base: '/security',   icon: Shield,          key: 'security'  },
-  { href: '/settings/profile',  base: '/settings',   icon: Settings,        key: 'settings'  },
+  { href: '/dashboard',         base: '/dashboard',       icon: LayoutDashboard, key: 'dashboard'     },
+  { href: '/clients',           base: '/clients',          icon: Users2,          key: 'clients'        },
+  { href: '/tasks/all',         base: '/tasks',            icon: CheckSquare,     key: 'tasks'          },
+  { href: '/content',           base: '/content',          icon: FileText,        key: 'content'        },
+  { href: '/calendar',          base: '/calendar',         icon: CalendarDays,    key: 'calendar'       },
+  { href: '/assets',            base: '/assets',           icon: FolderOpen,      key: 'assets'         },
+  { href: '/notes',             base: '/notes',            icon: FileText,        label: 'Notes'        },
+  { href: '/time-tracking',     base: '/time-tracking',    icon: Clock,           label: 'Time Tracking' },
+  { href: '/tags',              base: '/tags',             icon: Tag,             label: 'Tags'         },
+  { href: '/automations',       base: '/automations',      icon: Zap,             label: 'Automations'  },
+  { href: '/reports/overview',  base: '/reports',          icon: BarChart2,       key: 'reports'        },
+  { href: '/team',              base: '/team',             icon: Users,           key: 'team'           },
+  { href: '/security/sessions', base: '/security',         icon: Shield,          key: 'security'       },
+  { href: '/settings/profile',  base: '/settings',         icon: Settings,        key: 'settings'       },
 ];
 
 interface SidebarProps { open?: boolean; onClose?: () => void; }
@@ -65,10 +70,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, base, icon: Icon, key }) => {
+          {navItems.map(({ href, base, icon: Icon, key, label }) => {
             const active =
               pathname === href ||
               (base !== '/dashboard' && pathname.startsWith(base));
+            const displayLabel = label ?? (key ? t(key) : href);
             return (
               <Link
                 key={href}
@@ -82,7 +88,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 )}
               >
                 <Icon size={18} strokeWidth={1.8} />
-                <span>{t(key)}</span>
+                <span>{displayLabel}</span>
               </Link>
             );
           })}
