@@ -10,6 +10,7 @@ import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const navItems = [
   { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard'     },
@@ -53,9 +54,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           className="flex items-center justify-between h-16 px-5 border-b"
           style={{ borderColor: 'var(--border)' }}
         >
-          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text)' }}>
-            OPENY <span style={{ color: 'var(--accent)' }}>OS</span>
-          </span>
+          <div className="flex items-center gap-2.5">
+            <OpenyLogo width={96} height={28} />
+            <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>OS</span>
+          </div>
           {onClose && (
             <button onClick={onClose} className="lg:hidden p-1 rounded hover:opacity-70">
               <X size={18} />

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { BookOpenText, NotepadText, FileText, FolderTree, Shield, Archive, Settings, Grid2X2 } from 'lucide-react';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const docsNav = [
   { href: '/docs/dashboard', label: 'Dashboard', icon: Grid2X2 },
@@ -21,9 +22,10 @@ export default function DocsSidebar() {
   return (
     <aside className="w-64 border-r h-screen hidden lg:flex lg:flex-col" style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}>
       <div className="h-16 px-5 border-b flex items-center" style={{ borderColor: 'var(--border)' }}>
-        <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text)' }}>
-          OPENY <span style={{ color: 'var(--accent)' }}>DOCS</span>
-        </span>
+        <div className="flex items-center gap-2.5">
+          <OpenyLogo width={96} height={28} />
+          <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+        </div>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {docsNav.map(({ href, label, icon: Icon }) => {

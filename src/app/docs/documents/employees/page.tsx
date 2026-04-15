@@ -366,7 +366,7 @@ export default function EmployeesPage() {
                 <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Payroll Sheet</h2>
                 <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={payrollMonth} onChange={e => setPayrollMonth(e.target.value)} />
               </div>
-              <button onClick={exportPayrollCSV} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white" style={{ background: '#16a34a' }}><Download size={15} /> Export CSV</button>
+              <button onClick={exportPayrollCSV} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white" style={{ background: '#0f172a' }}><Download size={15} /> Export CSV</button>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 
 interface Params { id: string }
 
@@ -47,15 +48,25 @@ export async function GET(_: NextRequest, { params }: { params: Promise<Params> 
 <html lang="${isAr ? 'ar' : 'en'}" dir="${isAr ? 'rtl' : 'ltr'}">
 <head><meta charset="UTF-8"><title>${c.contract_number}</title>
 <style>
-body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;font-size:13px}
-h1{text-align:center;color:#059669}
-.section{margin-bottom:16px;padding:12px 16px;border:1px solid #e5e7eb;border-radius:8px}
-table{width:100%;border-collapse:collapse}td{padding:5px 10px}
-.sig-box{display:inline-block;width:45%;text-align:center;min-height:60px;border-bottom:1px solid #d1d5db;margin-top:40px}
+body{font-family:Arial,sans-serif;max-width:840px;margin:0 auto;padding:34px 40px;font-size:13px;color:#0f172a}
+.head{display:flex;justify-content:space-between;align-items:flex-start;background:#0b0f19;color:#fff;padding:20px 24px;border-radius:10px}
+.brand{text-align:right}
+.brand img{width:120px;height:34px;object-fit:contain}
+h1{margin:0;font-size:22px;letter-spacing:.5px}
+.section{margin-bottom:16px;padding:12px 16px;border:1px solid #dbe0e6;border-radius:8px;background:#f8fafc}
+table{width:100%;border-collapse:collapse}td{padding:6px 10px;border-bottom:1px solid #dbe0e6}
+.sig-box{display:inline-block;width:45%;text-align:center;min-height:60px;border-bottom:1px solid #c6ced8;margin-top:40px}
+.meta{color:#64748b}
 </style></head>
 <body>
-<h1>${isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}</h1>
-<p style="text-align:center;color:#6b7280">${c.contract_number} &middot; ${c.contract_date ?? ''}</p>
+<div class="head">
+  <div>
+    <h1>${isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}</h1>
+    <p class="meta">${c.contract_number} &middot; ${c.contract_date ?? ''}</p>
+  </div>
+  <div class="brand"><img src="${OPENY_LOGO_LIGHT_URL}" alt="OPENY" /></div>
+</div>
+<p style="text-align:center;color:#64748b;margin:14px 0 18px">${isAr ? 'Official OPENY HR Agreement' : 'Official OPENY HR Agreement'}</p>
 <div class="section"><table>
 <tr>
 <td><strong>${isAr ? 'الشركة' : 'Company'}:</strong></td><td>${c.company_name ?? ''}</td>
@@ -87,7 +98,7 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
 <div class="sig-box">${c.sig_company_rep ?? ''}<br><small>${isAr ? 'ممثل الشركة' : 'Company Representative'}</small></div>
 <div class="sig-box">${c.sig_employee_name ?? ''}<br><small>${isAr ? 'الموظف' : 'Employee'}</small></div>
 </div>
-<p style="text-align:center;margin-top:8px;font-size:11px;color:#6b7280">${c.sig_place ?? ''} ${c.sig_date ?? ''}</p>
+<p style="text-align:center;margin-top:8px;font-size:11px;color:#64748b">${c.sig_place ?? ''} ${c.sig_date ?? ''}</p>
 </body></html>`;
 
   return new NextResponse(html, {
