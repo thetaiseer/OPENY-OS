@@ -245,7 +245,8 @@ export async function replaceInvoiceBranchGroups(
 
   const branchIdByPosition = new Map<number, string>();
   (insertedBranches ?? []).forEach((branch) => {
-    branchIdByPosition.set(branch.position ?? 0, branch.id as string);
+    if (typeof branch.position !== 'number') return;
+    branchIdByPosition.set(branch.position, branch.id as string);
   });
 
   const platformSources: Array<{
@@ -297,8 +298,9 @@ export async function replaceInvoiceBranchGroups(
   }> = [];
 
   (insertedPlatforms ?? []).forEach((insertedPlatform) => {
+    if (typeof insertedPlatform.position !== 'number') return;
     const sourcePlatform = sourceByBranchAndPosition.get(
-      `${insertedPlatform.branch_id}:${insertedPlatform.position ?? 0}`,
+      `${insertedPlatform.branch_id}:${insertedPlatform.position}`,
     );
     if (!sourcePlatform) return;
 
