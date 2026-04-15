@@ -33,6 +33,26 @@ export interface InvoiceDeliverable {
   total:       number;
 }
 
+export interface InvoiceCampaignRow {
+  id:      string;
+  ad_name: string;
+  date:    string;
+  results: string;
+  cost:    number;
+}
+
+export interface InvoicePlatformGroup {
+  id:            string;
+  platform_name: string;
+  campaign_rows: InvoiceCampaignRow[];
+}
+
+export interface InvoiceBranchGroup {
+  id:              string;
+  branch_name:     string;
+  platform_groups: InvoicePlatformGroup[];
+}
+
 export interface DocsInvoice {
   id:               string;
   invoice_number:   string;
@@ -40,8 +60,12 @@ export interface DocsInvoice {
   campaign_month:   string | null;
   invoice_date:     string | null;
   total_budget:     number;
+  final_budget?:    number | null;
+  our_fees?:        number | null;
+  grand_total?:     number | null;
   currency:         DocsCurrency;
   status:           DocsStatus;
+  branch_groups?:   InvoiceBranchGroup[];
   platforms:        InvoicePlatform[];
   deliverables:     InvoiceDeliverable[];
   custom_client:    string | null;
