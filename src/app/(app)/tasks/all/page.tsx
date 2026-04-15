@@ -849,7 +849,10 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       const updateMap = new Map<string, { status: Task['status']; position: number }>();
       reordered.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(sourceColumn), position: index }));
       const updates = reordered
-        .filter(task => updateMap.has(task.id) && getPosition(task) !== updateMap.get(task.id)!.position)
+        .filter(task => updateMap.has(task.id) && (
+          task.status !== updateMap.get(task.id)!.status ||
+          getPosition(task) !== updateMap.get(task.id)!.position
+        ))
         .map(task => ({ id: task.id, ...updateMap.get(task.id)! }));
       if (updates.length === 0) return;
       const nextTasks = tasks.map(task => updateMap.has(task.id)
@@ -946,6 +949,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
 }
 
 const MUTATION_TIMEOUT_MS = 15_000;
+const INVALIDATION_DELAY_MS = 120;
 
 
 
@@ -1295,7 +1299,7 @@ export default function TasksPage() {
       ]).catch((err: unknown) => {
         console.warn('[tasks] query invalidation failed:', err);
       });
-    }, 120);
+    }, INVALIDATION_DELAY_MS);
     invalidateTimerRef.current = nextTimer;
     if (previousTimer) clearTimeout(previousTimer);
   }, [queryClient]);
