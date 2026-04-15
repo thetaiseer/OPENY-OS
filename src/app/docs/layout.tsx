@@ -7,13 +7,17 @@ import { Menu, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
+import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
+  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+    ? 'Go to OPENY DOCS dashboard'
+    : 'Go to OPENY OS dashboard';
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
@@ -34,12 +38,12 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             <Link
               href={dashboardHref}
               onClick={() => setSidebarOpen(false)}
-              aria-label="Go to OPENY DOCS dashboard"
+              aria-label={dashboardAriaLabel}
               className="cursor-pointer transition-opacity duration-150 hover:opacity-85"
             >
               <OpenyLogo width={80} height={24} />
             </Link>
-            <span className="text-[10px] sm:text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+            <span className="text-[10px] sm:text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
           </div>
           <div className="flex-1" />
           <button

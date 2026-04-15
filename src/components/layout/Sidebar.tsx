@@ -31,6 +31,9 @@ interface SidebarProps { open?: boolean; onClose?: () => void; }
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+    ? 'Go to OPENY DOCS dashboard'
+    : 'Go to OPENY OS dashboard';
   const { t } = useLang();
   const { user } = useAuth();
 
@@ -60,7 +63,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <Link
               href={dashboardHref}
               onClick={onClose}
-              aria-label="Go to OPENY OS dashboard"
+              aria-label={dashboardAriaLabel}
               className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-85"
             >
               <OpenyLogo width={96} height={28} />

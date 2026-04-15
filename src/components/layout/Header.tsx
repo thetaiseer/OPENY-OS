@@ -13,13 +13,17 @@ import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
 import { useAi } from '@/lib/ai-context';
 import OpenyLogo from '@/components/branding/OpenyLogo';
-import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
+import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
 
 interface HeaderProps { onMenuClick?: () => void; }
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
+  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+    ? 'Go to OPENY DOCS dashboard'
+    : 'Go to OPENY OS dashboard';
   const { theme, toggleTheme } = useTheme();
   const { toggleLang } = useLang();
   const { user } = useAuth();
@@ -51,11 +55,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </button>
       <Link
         href={dashboardHref}
-        aria-label="Go to OPENY OS dashboard"
+        aria-label={dashboardAriaLabel}
         className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
       >
         <OpenyLogo width={82} height={24} />
-        <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>OS</span>
+        <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
       </Link>
 
       {/* Global search — replaces the dead input */}

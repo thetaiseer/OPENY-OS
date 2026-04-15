@@ -25,6 +25,9 @@ interface DocsSidebarProps {
 export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+    ? 'Go to OPENY DOCS dashboard'
+    : 'Go to OPENY OS dashboard';
 
   return (
     <>
@@ -48,7 +51,7 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
             <Link
               href={dashboardHref}
               onClick={onClose}
-              aria-label="Go to OPENY DOCS dashboard"
+              aria-label={dashboardAriaLabel}
               className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-85"
             >
               <OpenyLogo width={96} height={28} />
