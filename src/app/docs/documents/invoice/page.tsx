@@ -1,298 +1,345 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
-  Download, Printer, ChevronDown, Check, X, AlertCircle, Archive, ExternalLink,
+  Download, Printer, Check, X, AlertCircle, Archive, ExternalLink,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsInvoice, InvoicePlatform, InvoiceDeliverable } from '@/lib/docs-types';
-import { DEFAULT_INVOICE_PLATFORMS, DOCS_CURRENCIES } from '@/lib/docs-types';
-import {
-  OpenyDocumentHeader,
-  OpenyDocumentPage,
-  OpenySectionTitle,
-  openyMetaKeyStyle,
-  openyStatusPillStyle,
-  openyTableHeaderStyle,
-  openyTdStyle,
-  openyThStyle,
-} from '@/components/docs/DocumentDesign';
-import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import OpenyLogo from '@/components/branding/OpenyLogo';
+import type {
+  DocsInvoice,
+  InvoiceBranchGroup,
+  InvoiceCampaignRow,
+  InvoicePlatformGroup,
+} from '@/lib/docs-types';
+import { DOCS_CURRENCIES } from '@/lib/docs-types';
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+const INVOICE_BLACK = '#000';
+const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
+const INVOICE_EMAIL = 'info@openytalk.com';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
-function fmt(n: number, cur: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, minimumFractionDigits: 2 }).format(n);
-}
 function today() { return new Date().toISOString().slice(0, 10); }
+function fmt(n: number, cur: string) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, minimumFractionDigits: 2 }).format(n || 0);
+}
+function n(v: unknown) {
+  const parsed = Number(v);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function round2(v: number) {
+  return Math.round(v * 100) / 100;
+}
+function getInvoiceAmount(inv: Pick<DocsInvoice, 'grand_total' | 'final_budget' | 'total_budget'>) {
+  return n(inv.grand_total ?? inv.final_budget ?? inv.total_budget);
+}
+function resolveFinalBudget(inv: DocsInvoice, branchGroups: InvoiceBranchGroup[]) {
+  if (inv.final_budget !== null && inv.final_budget !== undefined) return n(inv.final_budget);
+  if (branchGroups.length > 0) return calcFinalBudget(branchGroups);
+  return n(inv.total_budget);
+}
 function nextInvoiceNum(list: DocsInvoice[]) {
   const nums = list.map(i => parseInt(i.invoice_number.replace(/\D/g, '') || '0')).filter(Boolean);
   const max = nums.length ? Math.max(...nums) : 0;
   return `INV-${String(max + 1).padStart(4, '0')}`;
 }
 
-function blankForm(num: string): FormState {
-  return {
-    invoice_number: num,
-    client_name:    '',
-    campaign_month: '',
-    invoice_date:   today(),
-    total_budget:   0,
-    currency:       'SAR',
-    status:         'unpaid',
-    platforms:      DEFAULT_INVOICE_PLATFORMS.map(p => ({ ...p })),
-    deliverables:   [],
-    custom_client:  '',
-    custom_project: '',
-    notes:          '',
-  };
+function blankCampaignRow(): InvoiceCampaignRow {
+  return { id: uid(), ad_name: '', date: today(), results: '', cost: 0 };
+}
+function blankPlatformGroup(): InvoicePlatformGroup {
+  return { id: uid(), platform_name: 'Meta', campaign_rows: [blankCampaignRow()] };
+}
+function blankBranchGroup(): InvoiceBranchGroup {
+  return { id: uid(), branch_name: 'Main Branch', platform_groups: [blankPlatformGroup()] };
+}
+function defaultBranchGroups(): InvoiceBranchGroup[] {
+  return [
+    { id: uid(), branch_name: 'Riyadh Branch', platform_groups: [blankPlatformGroup()] },
+    { id: uid(), branch_name: 'Jeddah Branch', platform_groups: [blankPlatformGroup()] },
+    { id: uid(), branch_name: 'Khobar Branch', platform_groups: [blankPlatformGroup()] },
+  ];
+}
+
+function calcBranchSubtotal(branch: InvoiceBranchGroup) {
+  return round2(branch.platform_groups.reduce((sum, platform) => (
+    sum + platform.campaign_rows.reduce((sub, row) => sub + n(row.cost), 0)
+  ), 0));
+}
+function calcFinalBudget(branchGroups: InvoiceBranchGroup[]) {
+  return round2(branchGroups.reduce((sum, branch) => sum + calcBranchSubtotal(branch), 0));
+}
+
+function sanitizeBranchGroups(branchGroups: unknown): InvoiceBranchGroup[] {
+  if (!Array.isArray(branchGroups) || branchGroups.length === 0) return defaultBranchGroups();
+
+  const safe = branchGroups.map((branch) => {
+    const b = branch as Partial<InvoiceBranchGroup>;
+    const platformGroups = Array.isArray(b.platform_groups) && b.platform_groups.length > 0
+      ? b.platform_groups.map((platform) => {
+          const p = platform as Partial<InvoicePlatformGroup>;
+          const campaignRows = Array.isArray(p.campaign_rows) && p.campaign_rows.length > 0
+            ? p.campaign_rows.map((row) => {
+                const r = row as Partial<InvoiceCampaignRow>;
+                return {
+                  id: r.id || uid(),
+                  ad_name: r.ad_name || '',
+                  date: r.date || today(),
+                  results: r.results || '',
+                  cost: n(r.cost),
+                };
+              })
+            : [blankCampaignRow()];
+
+          return {
+            id: p.id || uid(),
+            platform_name: p.platform_name || 'Platform',
+            campaign_rows: campaignRows,
+          };
+        })
+      : [blankPlatformGroup()];
+
+    return {
+      id: b.id || uid(),
+      branch_name: b.branch_name || 'Branch',
+      platform_groups: platformGroups,
+    };
+  });
+
+  return safe.length ? safe : defaultBranchGroups();
+}
+
+function legacyToBranchGroups(inv: DocsInvoice): InvoiceBranchGroup[] {
+  const platforms = (inv.platforms || []).filter(p => p.enabled);
+  if (!platforms.length) return defaultBranchGroups();
+  return [{
+    id: uid(),
+    branch_name: 'Main Branch',
+    platform_groups: platforms.map((platform) => ({
+      id: uid(),
+      platform_name: platform.label,
+      campaign_rows: [{
+        id: uid(),
+        ad_name: `${platform.label} Campaign`,
+        date: inv.invoice_date || today(),
+        results: '',
+        cost: round2(n(inv.total_budget) * (n(platform.budgetPct) / 100)),
+      }],
+    })),
+  }];
 }
 
 interface FormState {
   invoice_number: string;
-  client_name:    string;
+  client_name: string;
   campaign_month: string;
-  invoice_date:   string;
-  total_budget:   number;
-  currency:       string;
-  status:         'paid' | 'unpaid';
-  platforms:      InvoicePlatform[];
-  deliverables:   InvoiceDeliverable[];
-  custom_client:  string;
+  invoice_date: string;
+  currency: string;
+  status: 'paid' | 'unpaid';
+  branch_groups: InvoiceBranchGroup[];
+  final_budget: number;
+  total_budget: number;
+  our_fees: number;
+  grand_total: number;
+  platforms: DocsInvoice['platforms'];
+  deliverables: DocsInvoice['deliverables'];
+  custom_client: string;
   custom_project: string;
-  notes:          string;
+  notes: string;
 }
 
-// ── Deliverable row ───────────────────────────────────────────────────────────
-
-function DeliverableRow({
-  item, onChange, onRemove,
-}: {
-  item: InvoiceDeliverable;
-  onChange: (updated: InvoiceDeliverable) => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        className="flex-1 px-3 py-1.5 text-sm rounded-lg border outline-none focus:ring-2"
-        style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)', '--tw-ring-color': 'var(--accent)' } as React.CSSProperties}
-        placeholder="Description"
-        value={item.description}
-        onChange={e => onChange({ ...item, description: e.target.value })}
-      />
-      <input
-        type="number" min={1}
-        className="w-16 px-2 py-1.5 text-sm rounded-lg border outline-none text-center"
-        style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        placeholder="Qty"
-        value={item.quantity}
-        onChange={e => {
-          const q = Math.max(1, Number(e.target.value));
-          onChange({ ...item, quantity: q, total: q * item.unitPrice });
-        }}
-      />
-      <input
-        type="number" min={0}
-        className="w-24 px-2 py-1.5 text-sm rounded-lg border outline-none text-right"
-        style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        placeholder="Unit price"
-        value={item.unitPrice}
-        onChange={e => {
-          const p = Math.max(0, Number(e.target.value));
-          onChange({ ...item, unitPrice: p, total: item.quantity * p });
-        }}
-      />
-      <button onClick={onRemove} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors shrink-0">
-        <Trash2 size={14} />
-      </button>
-    </div>
-  );
+function blankForm(num: string): FormState {
+  return {
+    invoice_number: num,
+    client_name: '',
+    campaign_month: '',
+    invoice_date: today(),
+    currency: 'EGP',
+    status: 'unpaid',
+    branch_groups: defaultBranchGroups(),
+    final_budget: 0,
+    total_budget: 0,
+    our_fees: 0,
+    grand_total: 0,
+    platforms: [],
+    deliverables: [],
+    custom_client: '',
+    custom_project: '',
+    notes: '',
+  };
 }
+function getCsvRows(form: FormState) {
+  const rows: string[][] = [
+    ['Invoice No', 'Client', 'Date', 'Month', 'Currency', 'Final Budget', 'Our Fees', 'Grand Total', 'Status'],
+    [
+      form.invoice_number,
+      form.client_name,
+      form.invoice_date,
+      form.campaign_month,
+      form.currency,
+      String(form.final_budget),
+      String(form.our_fees),
+      String(form.grand_total),
+      form.status,
+    ],
+    [],
+    ['Branch', 'Platform', 'Ad Name', 'Date', 'Results', 'Cost'],
+  ];
 
-// ── Platform row ──────────────────────────────────────────────────────────────
+  form.branch_groups.forEach((branch) => {
+    branch.platform_groups.forEach((platform) => {
+      platform.campaign_rows.forEach((row) => {
+        rows.push([
+          branch.branch_name,
+          platform.platform_name,
+          row.ad_name,
+          row.date,
+          row.results,
+          String(n(row.cost)),
+        ]);
+      });
+    });
+    rows.push([`${branch.branch_name} Subtotal`, '', '', '', '', String(calcBranchSubtotal(branch))]);
+  });
 
-function PlatformRow({
-  platform, budget, onChange,
-}: {
-  platform: InvoicePlatform;
-  budget:   number;
-  onChange: (updated: InvoicePlatform) => void;
-}) {
-  const computed = budget * (platform.budgetPct / 100);
-  return (
-    <div className={clsx('flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors', platform.enabled ? 'bg-[var(--accent-soft)]' : 'opacity-50')}>
-      <input
-        type="checkbox"
-        checked={platform.enabled}
-        onChange={e => onChange({ ...platform, enabled: e.target.checked })}
-        className="accent-[var(--accent)]"
-      />
-      <span className="w-24 text-sm font-medium" style={{ color: 'var(--text)' }}>{platform.label}</span>
-      <input
-        type="number" min={1}
-        className="w-14 px-2 py-1 text-sm rounded border text-center outline-none"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        disabled={!platform.enabled}
-        value={platform.count}
-        onChange={e => onChange({ ...platform, count: Math.max(1, Number(e.target.value)) })}
-      />
-      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>camps</span>
-      <input
-        type="number" min={0} max={100}
-        className="w-16 px-2 py-1 text-sm rounded border text-center outline-none"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        disabled={!platform.enabled}
-        value={platform.budgetPct}
-        onChange={e => onChange({ ...platform, budgetPct: Math.min(100, Math.max(0, Number(e.target.value))), budget: computed })}
-      />
-      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>%</span>
-      <span className="ml-auto text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-        {fmt(computed, 'SAR')}
-      </span>
-    </div>
-  );
+  if (form.notes.trim()) rows.push([], ['Notes'], [form.notes]);
+  return rows;
 }
-
-// ── Live A4 Preview ───────────────────────────────────────────────────────────
 
 function InvoicePreview({ form }: { form: FormState }) {
-  const enabledPlatforms = form.platforms.filter(p => p.enabled);
-  const totalPct = enabledPlatforms.reduce((s, p) => s + p.budgetPct, 0);
-  const delivTotal = form.deliverables.reduce((s, d) => s + d.total, 0);
+  const tableRows = form.branch_groups.map((branch) => {
+    const branchRows = branch.platform_groups.flatMap((platform) => {
+      const rows = platform.campaign_rows.length ? platform.campaign_rows : [blankCampaignRow()];
+      return rows.map((row, rowIndex) => ({
+        branch: branch.branch_name,
+        platform: platform.platform_name,
+        ad_name: row.ad_name,
+        date: row.date,
+        results: row.results,
+        cost: n(row.cost),
+        showPlatform: rowIndex === 0,
+        platformSpan: rows.length,
+      }));
+    });
+
+    return {
+      branch,
+      subtotal: calcBranchSubtotal(branch),
+      rows: branchRows,
+      span: Math.max(1, branchRows.length),
+    };
+  });
 
   return (
-    <OpenyDocumentPage id="invoice-preview" fontSize={13}>
-      <OpenyDocumentHeader
-        title="INVOICE"
-        number={form.invoice_number}
-        subtitle="Digital Marketing Agency"
-      />
-      <div style={{ padding: '24px 36px' }}>
-        <div style={{ display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', color: OPENY_DOC_STYLE.textMuted, marginBottom: 4 }}>Bill To</div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{form.client_name || '—'}</div>
-            {form.custom_client && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted }}>{form.custom_client}</div>}
-            {form.custom_project && <div style={{ fontSize: 12 }}>{form.custom_project}</div>}
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <table style={{ fontSize: 12 }}>
-              <tbody>
-                <tr><td style={openyMetaKeyStyle()}>Date:</td><td style={{ fontWeight: 600 }}>{form.invoice_date || '—'}</td></tr>
-                <tr><td style={openyMetaKeyStyle()}>Period:</td><td style={{ fontWeight: 600 }}>{form.campaign_month || '—'}</td></tr>
-                <tr><td style={openyMetaKeyStyle()}>Currency:</td><td style={{ fontWeight: 600 }}>{form.currency}</td></tr>
-                <tr>
-                  <td style={openyMetaKeyStyle()}>Status:</td>
-                  <td>
-                    <span style={openyStatusPillStyle(form.status)}>
-                      {form.status.toUpperCase()}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <div id="invoice-preview" style={{ background: '#fff', color: INVOICE_BLACK, width: '100%', minHeight: 1123, padding: '44px 48px', fontSize: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div>
+          <OpenyLogo forceVariant="light" width={124} height={34} />
+          <div style={{ marginTop: 8, fontSize: 11, lineHeight: 1.5 }}>
+            {INVOICE_ADDRESS}<br />
+            {INVOICE_EMAIL}
           </div>
         </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 1 }}>INVOICE</div>
+          <div style={{ fontSize: 11, marginTop: 8 }}>REF: <b>{form.invoice_number || '—'}</b></div>
+          <div style={{ fontSize: 11, marginTop: 3 }}>DATE: <b>{form.invoice_date || '—'}</b></div>
+        </div>
+      </div>
 
-        {form.deliverables.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <OpenySectionTitle>Services & Deliverables</OpenySectionTitle>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={openyTableHeaderStyle()}>
-                  <th style={openyThStyle('left')}>Description</th>
-                  <th style={openyThStyle('center', { width: 60 })}>Qty</th>
-                  <th style={openyThStyle('right', { width: 100 })}>Unit Price</th>
-                  <th style={openyThStyle('right', { width: 100 })}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.deliverables.map((d) => (
-                  <tr key={d.id}>
-                    <td style={openyTdStyle('left')}>{d.description}</td>
-                    <td style={openyTdStyle('center')}>{d.quantity}</td>
-                    <td style={openyTdStyle('right')}>{fmt(d.unitPrice, form.currency)}</td>
-                    <td style={openyTdStyle('right', true)}>{fmt(d.total, form.currency)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div style={{ borderTop: `2px solid ${INVOICE_BLACK}`, marginBottom: 16 }} />
+
+      <div style={{ marginBottom: 16 }}>
+        <span style={{ background: INVOICE_BLACK, color: '#fff', padding: '4px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.4 }}>
+          BILLED TO
+        </span>
+        <div style={{ marginTop: 9, fontSize: 16, fontWeight: 700 }}>{form.client_name || '—'}</div>
+        <div style={{ marginTop: 3, fontSize: 12 }}>Campaign Month: {form.campaign_month || '—'}</div>
+      </div>
+
+      {tableRows.map(({ branch, rows, span, subtotal }) => (
+        <div key={branch.id} style={{ marginBottom: 16 }}>
+          <div style={{ background: INVOICE_BLACK, color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 10px' }}>
+            {branch.branch_name || 'Branch'}
           </div>
-        )}
-
-        {enabledPlatforms.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <OpenySectionTitle>Campaign Budget Allocation</OpenySectionTitle>
-            {totalPct !== 100 && (
-              <div style={{ color: OPENY_DOC_STYLE.alert, fontSize: 11, marginBottom: 8 }}>
-                ⚠ Allocation is {totalPct}% — must equal 100%
-              </div>
-            )}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={openyTableHeaderStyle()}>
-                  <th style={openyThStyle('left')}>Platform</th>
-                  <th style={openyThStyle('center')}>Campaigns</th>
-                  <th style={openyThStyle('center')}>Allocation</th>
-                  <th style={openyThStyle('right')}>Budget</th>
-                </tr>
-              </thead>
-              <tbody>
-                {enabledPlatforms.map(p => (
-                  <tr key={p.key}>
-                    <td style={openyTdStyle('left', true)}>{p.label}</td>
-                    <td style={openyTdStyle('center')}>{p.count}</td>
-                    <td style={openyTdStyle('center')}>{p.budgetPct}%</td>
-                    <td style={openyTdStyle('right', true)}>
-                      {fmt(form.total_budget * (p.budgetPct / 100), form.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
-          <table style={{ fontSize: 13, minWidth: 260 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: INVOICE_BLACK, color: '#fff' }}>
+                <th style={previewHeaderCell}>BRANCH</th>
+                <th style={previewHeaderCell}>PLATFORM</th>
+                <th style={previewHeaderCell}>AD NAME</th>
+                <th style={previewHeaderCell}>DATE</th>
+                <th style={previewHeaderCell}>RESULTS</th>
+                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST (EGP)</th>
+              </tr>
+            </thead>
             <tbody>
-              {delivTotal > 0 && (
+              {rows.length === 0 ? (
                 <tr>
-                  <td style={{ padding: '4px 16px', color: OPENY_DOC_STYLE.textMuted }}>Deliverables subtotal</td>
-                  <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>{fmt(delivTotal, form.currency)}</td>
+                  <td style={previewCell}>{branch.branch_name}</td>
+                  <td style={previewCell}>—</td>
+                  <td style={previewCell}>—</td>
+                  <td style={previewCell}>—</td>
+                  <td style={previewCell}>—</td>
+                  <td style={{ ...previewCell, textAlign: 'right' }}>{fmt(0, form.currency)}</td>
                 </tr>
-              )}
-              {form.total_budget > 0 && (
-                <tr>
-                  <td style={{ padding: '4px 16px', color: OPENY_DOC_STYLE.textMuted }}>Campaign budget</td>
-                  <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>{fmt(form.total_budget, form.currency)}</td>
+              ) : rows.map((row, index) => (
+                <tr key={`${branch.id}-${index}`}>
+                  {index === 0 && (
+                    <td rowSpan={span} style={{ ...previewCell, fontWeight: 600 }}>{row.branch || '—'}</td>
+                  )}
+                  {row.showPlatform && (
+                    <td rowSpan={row.platformSpan} style={previewCell}>{row.platform || '—'}</td>
+                  )}
+                  <td style={previewCell}>{row.ad_name || '—'}</td>
+                  <td style={previewCell}>{row.date || '—'}</td>
+                  <td style={previewCell}>{row.results || '—'}</td>
+                  <td style={{ ...previewCell, textAlign: 'right', fontWeight: 600 }}>{fmt(row.cost, form.currency)}</td>
                 </tr>
-              )}
+              ))}
               <tr>
-                <td style={{ padding: '8px 16px', fontWeight: 700, fontSize: 15 }}>Total</td>
-                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: 800, fontSize: 15, color: OPENY_DOC_STYLE.title, borderTop: `2px solid ${OPENY_DOC_STYLE.title}` }}>
-                  {fmt(delivTotal + form.total_budget, form.currency)}
+                <td colSpan={5} style={{ ...previewCell, background: '#f1f1f1', textAlign: 'right', fontWeight: 700 }}>
+                  Subtotal ({branch.branch_name || 'Branch'})
+                </td>
+                <td style={{ ...previewCell, background: '#f1f1f1', textAlign: 'right', fontWeight: 700 }}>
+                  {fmt(subtotal, form.currency)}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      ))}
 
-        {form.notes && (
-          <div style={{ borderTop: `1px solid ${OPENY_DOC_STYLE.border}`, paddingTop: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: OPENY_DOC_STYLE.textMuted }}>NOTES</div>
-            <div style={{ fontSize: 12 }}>{form.notes}</div>
-          </div>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+        <table style={{ minWidth: 310, borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr>
+               <td style={totalsLabel}>Final Budget (Ad Spend)</td>
+              <td style={totalsValue}>{fmt(form.final_budget, form.currency)}</td>
+            </tr>
+            <tr>
+              <td style={totalsLabel}>Our Fees</td>
+              <td style={totalsValue}>{fmt(form.our_fees, form.currency)}</td>
+            </tr>
+            <tr>
+              <td style={{ ...totalsLabel, fontWeight: 900, background: INVOICE_BLACK, color: '#fff' }}>GRAND TOTAL</td>
+              <td style={{ ...totalsValue, fontWeight: 900, background: INVOICE_BLACK, color: '#fff' }}>{fmt(form.grand_total, form.currency)}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </OpenyDocumentPage>
+
+      {form.notes.trim() && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>NOTES</div>
+          <div style={{ fontSize: 11 }}>{form.notes}</div>
+        </div>
+      )}
+    </div>
   );
 }
-
-// ── Backup Modal ──────────────────────────────────────────────────────────────
 
 function BackupModal({ module, onClose, onRestore }: {
   module: string; onClose: () => void; onRestore: (data: unknown) => void;
@@ -347,45 +394,36 @@ function BackupModal({ module, onClose, onRestore }: {
   );
 }
 
-// ── History Panel ─────────────────────────────────────────────────────────────
-
 function HistoryPanel({
   invoices, loading, onEdit, onDuplicate, onDelete, onReload, onBackup, onClearAll, onRestoreData,
 }: {
-  invoices:      DocsInvoice[];
-  loading:       boolean;
-  onEdit:        (inv: DocsInvoice) => void;
-  onDuplicate:   (inv: DocsInvoice) => void;
-  onDelete:      (id: string) => void;
-  onReload:      () => void;
-  onBackup:      () => Promise<void>;
-  onClearAll:    () => Promise<void>;
+  invoices: DocsInvoice[];
+  loading: boolean;
+  onEdit: (inv: DocsInvoice) => void;
+  onDuplicate: (inv: DocsInvoice) => void;
+  onDelete: (id: string) => void;
+  onReload: () => void;
+  onBackup: () => Promise<void>;
+  onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
-  const [search, setSearch]       = useState('');
-  const [statusF, setStatusF]     = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [clientF, setClientF]     = useState('');
-  const [sortF, setSortF]         = useState('created_at');
-  const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('desc');
+  const [search, setSearch] = useState('');
+  const [statusF, setStatusF] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [clientF, setClientF] = useState('');
   const [showRestore, setShowRestore] = useState(false);
-  const [backing, setBacking]         = useState(false);
-  const [clearing, setClearing]       = useState(false);
+  const [backing, setBacking] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const visible = invoices.filter(inv => {
     if (statusF !== 'all' && inv.status !== statusF) return false;
     if (clientF && !inv.client_name.toLowerCase().includes(clientF.toLowerCase())) return false;
     if (search && !inv.invoice_number.toLowerCase().includes(search.toLowerCase()) &&
-        !inv.client_name.toLowerCase().includes(search.toLowerCase())) return false;
+      !inv.client_name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }).sort((a, b) => {
-    const av = (a as unknown as Record<string, string>)[sortF] ?? '';
-    const bv = (b as unknown as Record<string, string>)[sortF] ?? '';
-    return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
   });
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Filters */}
+    <div className="history-panel flex flex-col h-full">
       <div className="p-4 border-b space-y-2" style={{ borderColor: 'var(--border)' }}>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -398,11 +436,7 @@ function HistoryPanel({
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <button
-            onClick={onReload}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-            title="Refresh"
-          >
+          <button onClick={onReload} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" title="Refresh">
             <RotateCcw size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button
@@ -413,11 +447,7 @@ function HistoryPanel({
           >
             <Archive size={14} style={{ color: backing ? 'var(--text-secondary)' : 'var(--accent)' }} />
           </button>
-          <button
-            onClick={() => setShowRestore(true)}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-            title="Restore from backup"
-          >
+          <button onClick={() => setShowRestore(true)} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" title="Restore from backup">
             <RotateCcw size={14} style={{ color: '#f59e0b' }} />
           </button>
           <button
@@ -450,91 +480,63 @@ function HistoryPanel({
             value={clientF}
             onChange={e => setClientF(e.target.value)}
           />
-          <select
-            className="px-2 py-1 text-xs rounded-lg border outline-none"
-            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            value={`${sortF}:${sortDir}`}
-            onChange={e => {
-              const [f, d] = e.target.value.split(':');
-              setSortF(f);
-              setSortDir(d as 'asc' | 'desc');
-            }}
-          >
-            <option value="created_at:desc">Newest first</option>
-            <option value="created_at:asc">Oldest first</option>
-            <option value="client_name:asc">Client A–Z</option>
-            <option value="invoice_date:desc">Date ↓</option>
-          </select>
         </div>
       </div>
 
-      {/* List */}
       <div className="flex-1 overflow-y-auto divide-y" style={{ borderColor: 'var(--border)' }}>
-        {loading && (
-          <div className="p-6 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>Loading…</div>
-        )}
-        {!loading && visible.length === 0 && (
-          <div className="p-6 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>No invoices found</div>
-        )}
-        {visible.map(inv => (
-          <div key={inv.id} className="p-3 hover:bg-[var(--surface-2)] transition-colors">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{inv.invoice_number}</span>
-                  <span
-                    className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                    style={{
-                      background: inv.status === 'paid' ? 'rgba(22,163,74,0.1)' : 'rgba(234,179,8,0.1)',
-                      color: inv.status === 'paid' ? '#16a34a' : '#ca8a04',
-                    }}
+        {loading && <div className="p-6 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>Loading…</div>}
+        {!loading && visible.length === 0 && <div className="p-6 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>No invoices found</div>}
+        {visible.map(inv => {
+          const amount = getInvoiceAmount(inv);
+          return (
+            <div key={inv.id} className="p-3 hover:bg-[var(--surface-2)] transition-colors">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{inv.invoice_number}</span>
+                    <span
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{
+                        background: inv.status === 'paid' ? 'rgba(22,163,74,0.1)' : 'rgba(234,179,8,0.1)',
+                        color: inv.status === 'paid' ? '#16a34a' : '#ca8a04',
+                      }}
+                    >
+                      {inv.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    {inv.client_name} · {inv.invoice_date ?? '—'}
+                  </div>
+                  <div className="text-xs font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>
+                    {fmt(amount, inv.currency)}
+                  </div>
+                  <a
+                    href={`/api/docs/invoices/${inv.id}/export`}
+                    download
+                    onClick={e => e.stopPropagation()}
+                    className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
-                    {inv.status.toUpperCase()}
-                  </span>
+                    <ExternalLink size={9} /> CSV
+                  </a>
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {inv.client_name} · {inv.invoice_date ?? '—'}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => onEdit(inv)} className="p-1.5 rounded-lg hover:bg-[var(--accent-soft)] transition-colors" title="Edit">
+                    <Edit2 size={13} style={{ color: 'var(--accent)' }} />
+                  </button>
+                  <button onClick={() => onDuplicate(inv)} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" title="Duplicate as new">
+                    <Copy size={13} style={{ color: 'var(--text-secondary)' }} />
+                  </button>
+                  <button onClick={() => onDelete(inv.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                    <Trash2 size={13} style={{ color: '#ef4444' }} />
+                  </button>
                 </div>
-                <div className="text-xs font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>
-                  {fmt(inv.total_budget, inv.currency)}
-                </div>
-                <a
-                  href={`/api/docs/invoices/${inv.id}/export`}
-                  download
-                  onClick={e => e.stopPropagation()}
-                  className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <ExternalLink size={9} /> CSV
-                </a>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => onEdit(inv)}
-                  className="p-1.5 rounded-lg hover:bg-[var(--accent-soft)] transition-colors"
-                  title="Edit"
-                >
-                  <Edit2 size={13} style={{ color: 'var(--accent)' }} />
-                </button>
-                <button
-                  onClick={() => onDuplicate(inv)}
-                  className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-                  title="Duplicate as new"
-                >
-                  <Copy size={13} style={{ color: 'var(--text-secondary)' }} />
-                </button>
-                <button
-                  onClick={() => onDelete(inv.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={13} style={{ color: '#ef4444' }} />
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
       {showRestore && (
         <BackupModal module="invoices" onClose={() => setShowRestore(false)} onRestore={onRestoreData} />
       )}
@@ -542,18 +544,18 @@ function HistoryPanel({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function InvoicePage() {
-  const [invoices, setInvoices]   = useState<DocsInvoice[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
+  const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [error, setError]         = useState('');
-  const [saved, setSaved]         = useState(false);
-  const [form, setForm]           = useState<FormState>(() => blankForm('INV-0001'));
-  const previewRef                = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState<FormState>(() => blankForm('INV-0001'));
+
+  const computedFinalBudget = useMemo(() => calcFinalBudget(form.branch_groups ?? []), [form.branch_groups]);
+  const computedGrandTotal = useMemo(() => round2(computedFinalBudget + n(form.our_fees)), [computedFinalBudget, form.our_fees]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -568,39 +570,106 @@ export default function InvoicePage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const enabledPlatforms = form.platforms.filter(p => p.enabled);
-  const totalPct = enabledPlatforms.reduce((s, p) => s + p.budgetPct, 0);
-  const allocationValid = enabledPlatforms.length === 0 || totalPct === 100;
-
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }));
   }
 
-  function updatePlatform(idx: number, updated: InvoicePlatform) {
-    setForm(f => {
-      const platforms = [...f.platforms];
-      platforms[idx] = updated;
-      return { ...f, platforms };
+  function setBranchGroups(updater: (prev: InvoiceBranchGroup[]) => InvoiceBranchGroup[]) {
+    setForm(prev => ({ ...prev, branch_groups: updater(prev.branch_groups) }));
+  }
+
+  function addBranch() {
+    setBranchGroups(prev => [...prev, { ...blankBranchGroup(), branch_name: 'New Branch' }]);
+  }
+
+  function removeBranch(branchIndex: number) {
+    setBranchGroups(prev => {
+      const next = prev.filter((_, i) => i !== branchIndex);
+      return next.length ? next : defaultBranchGroups();
     });
   }
 
-  function addDeliverable() {
-    setForm(f => ({
-      ...f,
-      deliverables: [...f.deliverables, { id: uid(), description: '', quantity: 1, unitPrice: 0, total: 0 }],
+  function updateBranchName(branchIndex: number, name: string) {
+    setBranchGroups(prev => prev.map((b, i) => i === branchIndex ? { ...b, branch_name: name } : b));
+  }
+
+  function addPlatform(branchIndex: number) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: [...branch.platform_groups, { ...blankPlatformGroup(), platform_name: 'New Platform' }],
+      };
     }));
   }
 
-  function updateDeliverable(idx: number, d: InvoiceDeliverable) {
-    setForm(f => {
-      const deliverables = [...f.deliverables];
-      deliverables[idx] = d;
-      return { ...f, deliverables };
-    });
+  function removePlatform(branchIndex: number, platformIndex: number) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      const nextPlatforms = branch.platform_groups.filter((_, idx) => idx !== platformIndex);
+      return { ...branch, platform_groups: nextPlatforms.length ? nextPlatforms : [blankPlatformGroup()] };
+    }));
   }
 
-  function removeDeliverable(idx: number) {
-    setForm(f => ({ ...f, deliverables: f.deliverables.filter((_, i) => i !== idx) }));
+  function updatePlatformName(branchIndex: number, platformIndex: number, name: string) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, idx) => idx === platformIndex ? { ...platform, platform_name: name } : platform),
+      };
+    }));
+  }
+
+  function addCampaignRow(branchIndex: number, platformIndex: number) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, idx) => {
+          if (idx !== platformIndex) return platform;
+          return { ...platform, campaign_rows: [...platform.campaign_rows, blankCampaignRow()] };
+        }),
+      };
+    }));
+  }
+
+  function updateCampaignRow(
+    branchIndex: number,
+    platformIndex: number,
+    rowIndex: number,
+    patch: Partial<InvoiceCampaignRow>,
+  ) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => {
+          if (pIdx !== platformIndex) return platform;
+          return {
+            ...platform,
+            campaign_rows: platform.campaign_rows.map((row, rIdx) => (
+              rIdx === rowIndex
+                ? { ...row, ...patch, cost: n(patch.cost ?? row.cost) }
+                : row
+            )),
+          };
+        }),
+      };
+    }));
+  }
+  function removeCampaignRow(branchIndex: number, platformIndex: number, rowIndex: number) {
+    setBranchGroups(prev => prev.map((branch, i) => {
+      if (i !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => {
+          if (pIdx !== platformIndex) return platform;
+          const rows = platform.campaign_rows.filter((_, rIdx) => rIdx !== rowIndex);
+          return { ...platform, campaign_rows: rows.length ? rows : [blankCampaignRow()] };
+        }),
+      };
+    }));
   }
 
   function resetForm() {
@@ -611,40 +680,55 @@ export default function InvoicePage() {
   }
 
   function loadInvoiceIntoForm(inv: DocsInvoice) {
+    const branchGroups = sanitizeBranchGroups(inv.branch_groups?.length ? inv.branch_groups : legacyToBranchGroups(inv));
+    const finalBudget = resolveFinalBudget(inv, branchGroups);
+    const ourFees = n(inv.our_fees);
+
     setEditingId(inv.id);
     setForm({
       invoice_number: inv.invoice_number,
-      client_name:    inv.client_name,
+      client_name: inv.client_name,
       campaign_month: inv.campaign_month ?? '',
-      invoice_date:   inv.invoice_date ?? today(),
-      total_budget:   inv.total_budget,
-      currency:       inv.currency,
-      status:         inv.status,
-      platforms:      inv.platforms.length ? inv.platforms : DEFAULT_INVOICE_PLATFORMS.map(p => ({ ...p })),
-      deliverables:   inv.deliverables,
-      custom_client:  inv.custom_client ?? '',
+      invoice_date: inv.invoice_date ?? today(),
+      currency: inv.currency,
+      status: inv.status,
+      branch_groups: branchGroups,
+      final_budget: finalBudget,
+      total_budget: finalBudget,
+      our_fees: ourFees,
+      grand_total: n(inv.grand_total ?? finalBudget + ourFees),
+      platforms: Array.isArray(inv.platforms) ? inv.platforms : [],
+      deliverables: Array.isArray(inv.deliverables) ? inv.deliverables : [],
+      custom_client: inv.custom_client ?? '',
       custom_project: inv.custom_project ?? '',
-      notes:          inv.notes ?? '',
+      notes: inv.notes ?? '',
     });
     setActiveTab('editor');
   }
 
   function duplicateInvoice(inv: DocsInvoice) {
-    const newNum = nextInvoiceNum(invoices);
+    const branchGroups = sanitizeBranchGroups(inv.branch_groups?.length ? inv.branch_groups : legacyToBranchGroups(inv));
+    const finalBudget = resolveFinalBudget(inv, branchGroups);
+    const ourFees = n(inv.our_fees);
+
     setEditingId(null);
     setForm({
-      invoice_number: newNum,
-      client_name:    inv.client_name,
+      invoice_number: nextInvoiceNum(invoices),
+      client_name: inv.client_name,
       campaign_month: inv.campaign_month ?? '',
-      invoice_date:   today(),
-      total_budget:   inv.total_budget,
-      currency:       inv.currency,
-      status:         'unpaid',
-      platforms:      inv.platforms.length ? inv.platforms.map(p => ({ ...p })) : DEFAULT_INVOICE_PLATFORMS.map(p => ({ ...p })),
-      deliverables:   inv.deliverables.map(d => ({ ...d, id: uid() })),
-      custom_client:  inv.custom_client ?? '',
+      invoice_date: today(),
+      currency: inv.currency,
+      status: 'unpaid',
+      branch_groups: branchGroups,
+      final_budget: finalBudget,
+      total_budget: finalBudget,
+      our_fees: ourFees,
+      grand_total: n(inv.grand_total ?? finalBudget + ourFees),
+      platforms: Array.isArray(inv.platforms) ? inv.platforms.map(p => ({ ...p })) : [],
+      deliverables: Array.isArray(inv.deliverables) ? inv.deliverables.map(d => ({ ...d, id: uid() })) : [],
+      custom_client: inv.custom_client ?? '',
       custom_project: inv.custom_project ?? '',
-      notes:          inv.notes ?? '',
+      notes: inv.notes ?? '',
     });
     setActiveTab('editor');
   }
@@ -652,24 +736,32 @@ export default function InvoicePage() {
   async function saveInvoice() {
     if (!form.client_name.trim()) { setError('Client name is required'); return; }
     if (!form.invoice_number.trim()) { setError('Invoice number is required'); return; }
-    if (!allocationValid) { setError('Platform allocation must sum to 100%'); return; }
 
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form };
-      const url  = editingId ? `/api/docs/invoices/${editingId}` : '/api/docs/invoices';
+      const payload = {
+        ...form,
+        branch_groups: sanitizeBranchGroups(form.branch_groups),
+        final_budget: computedFinalBudget,
+        total_budget: computedFinalBudget,
+        grand_total: computedGrandTotal,
+      };
+
+      const url = editingId ? `/api/docs/invoices/${editingId}` : '/api/docs/invoices';
       const method = editingId ? 'PATCH' : 'POST';
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
         const err = await res.json();
         setError(err.error ?? 'Save failed');
         return;
       }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       await load();
@@ -704,11 +796,21 @@ export default function InvoicePage() {
   async function handleRestoreData(data: unknown) {
     if (!Array.isArray(data) || data.length === 0) { alert('Invalid or empty backup data.'); return; }
     if (!confirm(`Restore ${data.length} invoice(s) from backup? They will be created as new records.`)) return;
+
     let count = 0;
     for (const item of data as DocsInvoice[]) {
-      const { id: _id, created_at: _ca, updated_at: _ua, created_by: _cb,
-              export_pdf_url: _ep, export_excel_url: _ee, is_duplicate: _dup, original_id: _oid,
-              ...rest } = item;
+      const {
+        id: _id,
+        created_at: _ca,
+        updated_at: _ua,
+        created_by: _cb,
+        export_pdf_url: _ep,
+        export_excel_url: _ee,
+        is_duplicate: _dup,
+        original_id: _oid,
+        ...rest
+      } = item;
+
       const res = await fetch('/api/docs/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -716,6 +818,7 @@ export default function InvoicePage() {
       });
       if (res.ok) count++;
     }
+
     await load();
     alert(`Restored ${count} of ${data.length} invoice(s).`);
   }
@@ -725,33 +828,29 @@ export default function InvoicePage() {
   }
 
   function exportCSV() {
-    const rows = [
-      ['Invoice No', 'Client', 'Date', 'Month', 'Currency', 'Budget', 'Status'],
-      [form.invoice_number, form.client_name, form.invoice_date, form.campaign_month, form.currency, String(form.total_budget), form.status],
-      [],
-      ['Deliverables', '', '', '', '', '', ''],
-      ['Description', 'Qty', 'Unit Price', 'Total', '', '', ''],
-      ...form.deliverables.map(d => [d.description, String(d.quantity), String(d.unitPrice), String(d.total), '', '', '']),
-      [],
-      ['Platform Allocation', '', '', '', '', '', ''],
-      ['Platform', 'Campaigns', 'Allocation %', 'Budget', '', '', ''],
-      ...form.platforms.filter(p => p.enabled).map(p => [p.label, String(p.count), String(p.budgetPct) + '%', String(form.total_budget * p.budgetPct / 100), '', '', '']),
-    ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const nextForm = {
+      ...form,
+      final_budget: computedFinalBudget,
+      total_budget: computedFinalBudget,
+      grand_total: computedGrandTotal,
+    };
+
+    const csv = getCsvRows(nextForm)
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
     a.download = `${form.invoice_number}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* ── Left panel ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col w-full lg:w-[480px] shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        {/* Tabs */}
+    <div className="invoice-workspace flex h-full overflow-hidden">
+      <div className="editor-panel flex flex-col w-full lg:w-[520px] shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(['editor', 'history'] as const).map(tab => (
             <button
@@ -768,10 +867,8 @@ export default function InvoicePage() {
             </button>
           ))}
         </div>
-
         {activeTab === 'editor' ? (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {/* Edit mode banner */}
             {editingId && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}>
                 <Edit2 size={14} />
@@ -786,7 +883,6 @@ export default function InvoicePage() {
               </div>
             )}
 
-            {/* Document setup */}
             <section>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Document Setup</h3>
               <div className="space-y-3">
@@ -799,28 +895,10 @@ export default function InvoicePage() {
                   </Field>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Total Budget">
-                    <input type="number" min={0} className={inputCls} value={form.total_budget} onChange={e => setField('total_budget', Number(e.target.value))} />
-                  </Field>
                   <Field label="Currency">
                     <select className={inputCls} value={form.currency} onChange={e => setField('currency', e.target.value)}>
                       {DOCS_CURRENCIES.map(c => <option key={c}>{c}</option>)}
                     </select>
-                  </Field>
-                </div>
-              </div>
-            </section>
-
-            {/* Client info */}
-            <section>
-              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Client</h3>
-              <div className="space-y-3">
-                <Field label="Client Name *">
-                  <input className={inputCls} value={form.client_name} onChange={e => setField('client_name', e.target.value)} placeholder="e.g. Acme Corp" />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Campaign Month">
-                    <input className={inputCls} value={form.campaign_month} onChange={e => setField('campaign_month', e.target.value)} placeholder="e.g. January 2026" />
                   </Field>
                   <Field label="Status">
                     <select className={inputCls} value={form.status} onChange={e => setField('status', e.target.value as 'paid' | 'unpaid')}>
@@ -829,152 +907,161 @@ export default function InvoicePage() {
                     </select>
                   </Field>
                 </div>
-                <Field label="Custom Client (optional)">
-                  <input className={inputCls} value={form.custom_client} onChange={e => setField('custom_client', e.target.value)} placeholder="Additional client info" />
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Client Information</h3>
+              <div className="space-y-3">
+                <Field label="Client Name *">
+                  <input className={inputCls} value={form.client_name} onChange={e => setField('client_name', e.target.value)} placeholder="e.g. Acme Corp" />
                 </Field>
-                <Field label="Custom Project (optional)">
-                  <input className={inputCls} value={form.custom_project} onChange={e => setField('custom_project', e.target.value)} placeholder="Project description" />
+                <Field label="Campaign Month">
+                  <input className={inputCls} value={form.campaign_month} onChange={e => setField('campaign_month', e.target.value)} placeholder="e.g. January 2026" />
                 </Field>
               </div>
             </section>
 
-            {/* Deliverables */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Deliverables / Services</h3>
-                <button
-                  onClick={addDeliverable}
-                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                >
-                  <Plus size={12} /> Add
+                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Branches</h3>
+                <button onClick={addBranch} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  <Plus size={12} /> Add Branch
                 </button>
               </div>
-              <div className="space-y-2">
-                {form.deliverables.map((d, i) => (
-                  <DeliverableRow
-                    key={d.id}
-                    item={d}
-                    onChange={u => updateDeliverable(i, u)}
-                    onRemove={() => removeDeliverable(i)}
-                  />
+
+              <div className="space-y-3">
+                {form.branch_groups.map((branch, branchIndex) => (
+                  <div key={branch.id} className="border rounded-lg p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                    <div className="flex items-center gap-2">
+                      <input className={inputCls} value={branch.branch_name} onChange={e => updateBranchName(branchIndex, e.target.value)} placeholder="Branch name" />
+                      <button onClick={() => removeBranch(branchIndex)} className="p-2 rounded-lg hover:bg-red-50" title="Remove branch">
+                        <Trash2 size={14} style={{ color: '#ef4444' }} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {branch.platform_groups.map((platform, platformIndex) => (
+                        <div key={platform.id} className="border rounded-md p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                          <div className="flex items-center gap-2">
+                            <input className={inputCls} value={platform.platform_name} onChange={e => updatePlatformName(branchIndex, platformIndex, e.target.value)} placeholder="Platform name" />
+                            <button onClick={() => removePlatform(branchIndex, platformIndex)} className="p-2 rounded-lg hover:bg-red-50" title="Remove platform">
+                              <Trash2 size={14} style={{ color: '#ef4444' }} />
+                            </button>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
+                              <thead>
+                                <tr style={{ background: INVOICE_BLACK, color: '#fff' }}>
+                                  <th className="px-2 py-1.5 text-left">Ad Name</th>
+                                  <th className="px-2 py-1.5 text-left">Date</th>
+                                  <th className="px-2 py-1.5 text-left">Results</th>
+                                  <th className="px-2 py-1.5 text-right">Cost</th>
+                                  <th className="px-2 py-1.5 text-center">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {platform.campaign_rows.map((row, rowIndex) => (
+                                  <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <td className="p-1.5"><input className={inputCls} value={row.ad_name} onChange={e => updateCampaignRow(branchIndex, platformIndex, rowIndex, { ad_name: e.target.value })} /></td>
+                                    <td className="p-1.5"><input type="date" className={inputCls} value={row.date} onChange={e => updateCampaignRow(branchIndex, platformIndex, rowIndex, { date: e.target.value })} /></td>
+                                    <td className="p-1.5"><input className={inputCls} value={row.results} onChange={e => updateCampaignRow(branchIndex, platformIndex, rowIndex, { results: e.target.value })} /></td>
+                                    <td className="p-1.5"><input type="number" min={0} className={inputCls} value={row.cost} onChange={e => updateCampaignRow(branchIndex, platformIndex, rowIndex, { cost: n(e.target.value) })} /></td>
+                                    <td className="p-1.5 text-center">
+                                      <button onClick={() => removeCampaignRow(branchIndex, platformIndex, rowIndex)} className="p-1.5 rounded hover:bg-red-50">
+                                        <Trash2 size={12} style={{ color: '#ef4444' }} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <button onClick={() => addCampaignRow(branchIndex, platformIndex)} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: INVOICE_BLACK, color: '#fff' }}>
+                              <Plus size={12} /> Add Row
+                            </button>
+                            <div className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                              Platform Subtotal: {fmt(platform.campaign_rows.reduce((sum, row) => sum + n(row.cost), 0), form.currency)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => addPlatform(branchIndex)} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: INVOICE_BLACK, color: '#fff' }}>
+                        <Plus size={12} /> Add Platform
+                      </button>
+                      <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
+                        Branch Subtotal: {fmt(calcBranchSubtotal(branch), form.currency)}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-                {form.deliverables.length === 0 && (
-                  <p className="text-xs text-center py-3" style={{ color: 'var(--text-secondary)' }}>No deliverables added</p>
-                )}
               </div>
             </section>
-
-            {/* Platform allocation */}
             <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  Campaign Budget Allocation
-                </h3>
-                {enabledPlatforms.length > 0 && (
-                  <span className={clsx('text-xs font-bold', allocationValid ? 'text-green-600' : 'text-red-500')}>
-                    {totalPct}% {allocationValid ? <Check size={12} className="inline" /> : '≠ 100%'}
-                  </span>
-                )}
-              </div>
-              <div className="space-y-1">
-                {form.platforms.map((p, i) => (
-                  <PlatformRow
-                    key={p.key}
-                    platform={p}
-                    budget={form.total_budget}
-                    onChange={u => updatePlatform(i, u)}
-                  />
-                ))}
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Totals Summary</h3>
+              <div className="space-y-3">
+                <Field label="Final Budget (computed)">
+                  <input className={inputCls} value={computedFinalBudget} readOnly aria-readonly="true" />
+                </Field>
+                <Field label="Our Fees">
+                  <input type="number" min={0} className={inputCls} value={form.our_fees} onChange={e => setField('our_fees', n(e.target.value))} />
+                </Field>
+                <Field label="Grand Total (computed)">
+                  <input className={inputCls} value={computedGrandTotal} readOnly aria-readonly="true" />
+                </Field>
               </div>
             </section>
 
-            {/* Notes */}
             <section>
-              <Field label="Notes">
-                <textarea
-                  className={inputCls}
-                  rows={3}
-                  value={form.notes}
-                  onChange={e => setField('notes', e.target.value)}
-                  placeholder="Additional notes…"
-                />
-              </Field>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Notes (optional)</h3>
+              <textarea className={inputCls} rows={3} value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Additional notes…" />
             </section>
 
-            {/* Save */}
             <div className="pb-4">
-              <button
-                onClick={saveInvoice}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
+              <button onClick={saveInvoice} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                 {saved ? <><Check size={16} /> Saved!</> : saving ? 'Saving…' : <><Save size={16} /> {editingId ? 'Update Invoice' : 'Save Invoice'}</>}
               </button>
             </div>
           </div>
         ) : (
-          <HistoryPanel
-            invoices={invoices}
-            loading={loading}
-            onEdit={loadInvoiceIntoForm}
-            onDuplicate={duplicateInvoice}
-            onDelete={deleteInvoice}
-            onReload={load}
-            onBackup={handleBackup}
-            onClearAll={handleClearAll}
-            onRestoreData={handleRestoreData}
-          />
+          <HistoryPanel invoices={invoices} loading={loading} onEdit={loadInvoiceIntoForm} onDuplicate={duplicateInvoice} onDelete={deleteInvoice} onReload={load} onBackup={handleBackup} onClearAll={handleClearAll} onRestoreData={handleRestoreData} />
         )}
       </div>
 
-      {/* ── Right panel: A4 Preview ─────────────────────────────────────────── */}
-      <div
-        className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto"
-        style={{ background: 'var(--surface-2)' }}
-      >
-        {/* Floating export dock */}
+      <div className="preview-panel hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50 no-print">
-          <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
-            style={{ background: '#0f172a' }}
-          >
+          <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90" style={{ background: INVOICE_BLACK }}>
             <Printer size={15} /> PDF
           </button>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
-            style={{ background: '#475569' }}
-          >
-            <Download size={15} /> Excel / CSV
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90" style={{ background: '#303030' }}>
+            <Download size={15} /> CSV
           </button>
         </div>
 
-        {/* A4 paper */}
-        <div
-          ref={previewRef}
-          className="bg-white shadow-2xl rounded-sm"
-          style={{ width: 794, minHeight: 1123, transformOrigin: 'top center' }}
-        >
-          <InvoicePreview form={form} />
+        <div className="preview-shell bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+          <InvoicePreview form={{ ...form, final_budget: computedFinalBudget, total_budget: computedFinalBudget, grand_total: computedGrandTotal }} />
         </div>
       </div>
 
-      {/* Print styles */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #invoice-preview { display: block !important; }
-          .no-print { display: none !important; }
+          .editor-panel, .no-print, .history-panel { display: none !important; }
+          .preview-panel { display: block !important; width: 100% !important; max-width: 100% !important; overflow: visible !important; padding: 0 !important; background: #fff !important; }
+          .preview-shell { width: 100% !important; min-height: auto !important; box-shadow: none !important; border-radius: 0 !important; }
+          #invoice-preview { width: 100% !important; min-height: auto !important; padding: 24px 28px !important; }
         }
       `}</style>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</label>
@@ -982,6 +1069,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+const previewHeaderCell: CSSProperties = {
+  border: `1px solid ${INVOICE_BLACK}`,
+  padding: '7px 8px',
+  textAlign: 'left',
+  fontSize: 11,
+  letterSpacing: 0.2,
+};
+
+const previewCell: CSSProperties = {
+  border: `1px solid ${INVOICE_BLACK}`,
+  padding: '6px 8px',
+  verticalAlign: 'top',
+};
+
+const totalsLabel: CSSProperties = {
+  border: `1px solid ${INVOICE_BLACK}`,
+  padding: '8px 10px',
+  fontWeight: 700,
+  textAlign: 'right',
+};
+
+const totalsValue: CSSProperties = {
+  border: `1px solid ${INVOICE_BLACK}`,
+  padding: '8px 10px',
+  fontWeight: 700,
+  textAlign: 'right',
+};
 
 const inputCls = [
   'w-full px-3 py-1.5 text-sm rounded-lg border outline-none',
