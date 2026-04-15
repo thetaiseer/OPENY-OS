@@ -280,6 +280,14 @@ export interface Comment {
   user_name: string;
   asset_id?: string | null;
   task_id?: string | null;
+  /** v2 cross-entity fields */
+  entity_type?: string | null;
+  entity_id?: string | null;
+  parent_id?: string | null;
+  mentions?: string[] | null;
+  is_resolved?: boolean;
+  /** Nested replies (joined) */
+  replies?: Comment[];
   created_at: string;
 }
 
@@ -354,4 +362,321 @@ export interface PublishingSchedule {
   updated_at: string;
   /** Joined from assets table when fetching schedules */
   asset?: Pick<Asset, 'id' | 'name' | 'content_type' | 'file_url' | 'preview_url' | 'client_name'> | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v3 UNIFIED WORKSPACE TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+
+export interface Project {
+  id: string;
+  workspace_id?: string | null;
+  client_id?: string | null;
+  name: string;
+  description?: string | null;
+  status: ProjectStatus;
+  start_date?: string | null;
+  end_date?: string | null;
+  color?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Joined */
+  client?: Pick<Client, 'id' | 'name' | 'slug'> | null;
+  task_count?: number;
+}
+
+// ── Entity Links (relational graph) ──────────────────────────────────────────
+
+export type EntityType = 'task' | 'asset' | 'content' | 'client' | 'project' | 'note' | 'template';
+export type LinkType   = 'related' | 'blocks' | 'blocked_by' | 'parent' | 'child' | 'duplicate';
+
+export interface EntityLink {
+  id: string;
+  workspace_id?: string | null;
+  source_type: EntityType;
+  source_id: string;
+  target_type: EntityType;
+  target_id: string;
+  link_type: LinkType;
+  metadata?: Record<string, unknown> | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+// ── Custom Fields ──────────────────────────────────────────────────────────────
+
+export type CustomFieldType =
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'multi_select'
+  | 'date'
+  | 'boolean'
+  | 'url'
+  | 'email';
+
+export interface CustomFieldOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+export interface CustomFieldDefinition {
+  id: string;
+  workspace_id?: string | null;
+  entity_type: 'task' | 'client' | 'project' | 'content' | 'asset';
+  name: string;
+  field_key: string;
+  field_type: CustomFieldType;
+  options?: CustomFieldOption[] | null;
+  required: boolean;
+  default_value?: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface CustomFieldValue {
+  id: string;
+  definition_id: string;
+  entity_type: string;
+  entity_id: string;
+  value_text?: string | null;
+  value_number?: number | null;
+  value_date?: string | null;
+  value_boolean?: boolean | null;
+  value_json?: unknown;
+  created_at: string;
+  updated_at: string;
+  /** Joined */
+  definition?: CustomFieldDefinition | null;
+}
+
+// ── Notes ──────────────────────────────────────────────────────────────────────
+
+export interface Note {
+  id: string;
+  workspace_id?: string | null;
+  title: string;
+  content?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  is_pinned: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  search_vector?: unknown;
+}
+
+export interface NoteLink {
+  id: string;
+  source_note_id: string;
+  target_note_id?: string | null;
+  target_entity_type?: string | null;
+  target_entity_id?: string | null;
+  created_at: string;
+}
+
+// ── Templates ──────────────────────────────────────────────────────────────────
+
+export type TemplateEntityType = 'task' | 'client' | 'project' | 'content';
+
+export interface Template {
+  id: string;
+  workspace_id?: string | null;
+  name: string;
+  description?: string | null;
+  entity_type: TemplateEntityType;
+  template_data: Record<string, unknown>;
+  is_global: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: TemplateItem[];
+}
+
+export interface TemplateItem {
+  id: string;
+  template_id: string;
+  title: string;
+  description?: string | null;
+  item_type: 'task' | 'note' | 'checklist_item' | 'content';
+  sort_order: number;
+  item_data: Record<string, unknown>;
+}
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
+export interface Tag {
+  id: string;
+  workspace_id?: string | null;
+  name: string;
+  color: string;
+  description?: string | null;
+  created_at: string;
+}
+
+export interface TagLink {
+  id: string;
+  tag_id: string;
+  entity_type: string;
+  entity_id: string;
+  created_at: string;
+  /** Joined */
+  tag?: Tag | null;
+}
+
+// ── Time Entries ──────────────────────────────────────────────────────────────
+
+export interface TimeEntry {
+  id: string;
+  workspace_id?: string | null;
+  task_id?: string | null;
+  client_id?: string | null;
+  user_id?: string | null;
+  description?: string | null;
+  started_at: string;
+  ended_at?: string | null;
+  duration_seconds?: number | null;
+  is_running: boolean;
+  billable: boolean;
+  created_at: string;
+  updated_at: string;
+  /** Joined */
+  task?: Pick<Task, 'id' | 'title'> | null;
+  client?: Pick<Client, 'id' | 'name'> | null;
+}
+
+// ── Saved Views ───────────────────────────────────────────────────────────────
+
+export type ViewType = 'list' | 'kanban' | 'calendar' | 'timeline' | 'table' | 'grid' | 'pipeline';
+
+export interface SavedView {
+  id: string;
+  workspace_id?: string | null;
+  user_id?: string | null;
+  entity_type: 'task' | 'asset' | 'content' | 'client' | 'project';
+  name: string;
+  view_type: ViewType;
+  filters: Record<string, unknown>;
+  sort_config: Record<string, unknown>;
+  group_by?: string | null;
+  columns?: string[];
+  is_default: boolean;
+  is_shared: boolean;
+  created_at: string;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export interface DashboardLayout {
+  id: string;
+  workspace_id?: string | null;
+  user_id?: string | null;
+  name: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+  widgets?: DashboardWidget[];
+}
+
+export type DashboardWidgetType =
+  | 'tasks_summary'
+  | 'assets_count'
+  | 'content_pipeline'
+  | 'team_workload'
+  | 'recent_activity'
+  | 'client_list'
+  | 'time_tracking'
+  | 'overdue_tasks'
+  | 'upcoming_schedule'
+  | 'trend_chart';
+
+export interface DashboardWidget {
+  id: string;
+  layout_id: string;
+  widget_type: DashboardWidgetType;
+  title?: string | null;
+  config: Record<string, unknown>;
+  grid_x: number;
+  grid_y: number;
+  grid_w: number;
+  grid_h: number;
+  created_at: string;
+}
+
+// ── AI Audit ──────────────────────────────────────────────────────────────────
+
+export interface AiSession {
+  id: string;
+  workspace_id?: string | null;
+  user_id?: string | null;
+  mode: 'ask' | 'do' | 'suggest' | 'review';
+  section?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  created_at: string;
+}
+
+export interface AiAction {
+  id: string;
+  session_id?: string | null;
+  workspace_id?: string | null;
+  user_id?: string | null;
+  intent: string;
+  prompt: string;
+  actions_taken: string[];
+  response_text?: string | null;
+  status: 'success' | 'error' | 'partial' | 'pending';
+  error_message?: string | null;
+  duration_ms?: number | null;
+  created_at: string;
+}
+
+// ── Automation Rules ──────────────────────────────────────────────────────────
+
+export interface AutomationRule {
+  id: string;
+  workspace_id?: string | null;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  trigger_type: string;
+  trigger_config: Record<string, unknown>;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  run_count: number;
+  last_run_at?: string | null;
+  error_count: number;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutomationCondition {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'gt' | 'lt' | 'is_set' | 'is_empty';
+  value?: unknown;
+}
+
+export interface AutomationAction {
+  type: 'send_notification' | 'create_task' | 'update_field' | 'assign_member' | 'add_tag' | 'send_email' | 'log_activity';
+  config: Record<string, unknown>;
+}
+
+// ── Workspace Events ──────────────────────────────────────────────────────────
+
+export interface WorkspaceEvent {
+  id: string;
+  workspace_id?: string | null;
+  event_type: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  actor_id?: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
 }

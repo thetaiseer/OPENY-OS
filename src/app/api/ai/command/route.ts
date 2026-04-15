@@ -37,6 +37,15 @@ const ALLOWED_INTENTS = new Set([
   'summarize_client_status',
   'summarize_workspace_status',
   'generate_content_ideas',
+  // v3 new intents
+  'create_project',
+  'create_note',
+  'start_timer',
+  'stop_timer',
+  'apply_template',
+  'start_new_client_workflow',
+  'prepare_month_workflow',
+  'clean_workspace_workflow',
   'unknown',
 ]);
 
@@ -90,6 +99,14 @@ Supported intents:
 - summarize_client_status
 - summarize_workspace_status
 - generate_content_ideas
+- create_project
+- create_note
+- start_timer
+- stop_timer
+- apply_template
+- start_new_client_workflow
+- prepare_month_workflow
+- clean_workspace_workflow
 - unknown
 
 For dates: resolve relative dates (Monday = next Monday, الاثنين = next Monday) to ISO format YYYY-MM-DD. Today is {TODAY}.
@@ -604,6 +621,347 @@ async function executeGenerateContentIdeas(
   };
 }
 
+// ── v3 workflow executors ─────────────────────────────────────────────────────
+
+async function executeCreateProject(
+  sb: Db,
+  parsed: ParsedCommand,
+  userId: string
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+  const actions: string[] = [];
+
+  let clientId: string | null = null;
+  let clientName: string | null = null;
+  if (entities.client_name) {
+    const client = await findBestClientMatch(sb, entities.client_name);
+    if (client) { clientId = client.id; clientName = client.name; }
+  }
+
+  const name = parsed.professional_title ?? entities.task_title ?? 'New Project';
+  logAction('create_project', `name="${name}" client="${clientName ?? 'none'}"`);
+
+  const { data, error } = await sb.from('projects').insert({
+    name,
+    description: parsed.professional_description ?? entities.task_description ?? null,
+    client_id:   clientId,
+    status:      'active',
+    created_by:  userId,
+  }).select().single();
+
+  if (error) throw new Error(error.message);
+  actions.push(`Created project: "${name}"`);
+  if (clientName) actions.push(`Linked to client: ${clientName}`);
+
+  void sb.from('activities').insert({
+    type:        'project_created',
+    description: `AI created project: ${name}`,
+    entity_type: 'project',
+    entity_id:   (data as { id: string }).id,
+    user_uuid:   userId,
+    client_id:   clientId,
+  });
+
+  return {
+    success: true,
+    message: `Project "${name}" created successfully${clientName ? ` for ${clientName}` : ''}.`,
+    data: data as Record<string, unknown>,
+    actions_taken: actions,
+  };
+}
+
+async function executeCreateNote(
+  sb: Db,
+  parsed: ParsedCommand,
+  userId: string
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+  const title = parsed.professional_title ?? entities.task_title ?? 'New Note';
+  logAction('create_note', `title="${title}"`);
+
+  const { data, error } = await sb.from('notes').insert({
+    title,
+    content:    parsed.professional_description ?? entities.task_description ?? null,
+    created_by: userId,
+  }).select().single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    success: true,
+    message: `Note "${title}" created.`,
+    data: data as Record<string, unknown>,
+    actions_taken: [`Created note: "${title}"`],
+  };
+}
+
+async function executeStartTimer(
+  sb: Db,
+  parsed: ParsedCommand,
+  userId: string
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+
+  // Stop any running timer for this user first
+  await sb.from('time_entries')
+    .update({ is_running: false, ended_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('is_running', true);
+
+  let taskId: string | null = null;
+  if (entities.task_title) {
+    const { data: tasks } = await sb.from('tasks').select('id').ilike('title', `%${entities.task_title}%`).limit(1);
+    if (tasks?.length) taskId = (tasks[0] as { id: string }).id;
+  }
+
+  let clientId: string | null = null;
+  if (entities.client_name) {
+    const client = await findBestClientMatch(sb, entities.client_name);
+    if (client) clientId = client.id;
+  }
+
+  logAction('start_timer', `task_id=${taskId ?? 'none'}`);
+
+  const { data, error } = await sb.from('time_entries').insert({
+    task_id:    taskId,
+    client_id:  clientId,
+    user_id:    userId,
+    description: entities.task_description ?? null,
+    started_at: new Date().toISOString(),
+    is_running: true,
+  }).select().single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    success: true,
+    message: 'Timer started.',
+    data: data as Record<string, unknown>,
+    actions_taken: ['Started time tracking timer'],
+  };
+}
+
+async function executeStopTimer(
+  sb: Db,
+  userId: string
+): Promise<ExecutionResult> {
+  logAction('stop_timer', `user=${userId}`);
+  const endedAt = new Date().toISOString();
+
+  const { data: running } = await sb
+    .from('time_entries')
+    .select('id, started_at')
+    .eq('user_id', userId)
+    .eq('is_running', true)
+    .single();
+
+  if (!running) {
+    return { success: false, message: 'No running timer found.', actions_taken: [] };
+  }
+
+  const durationSeconds = Math.round(
+    (new Date(endedAt).getTime() - new Date((running as { started_at: string }).started_at).getTime()) / 1000,
+  );
+
+  const { error } = await sb.from('time_entries').update({
+    is_running:       false,
+    ended_at:         endedAt,
+    duration_seconds: durationSeconds,
+  }).eq('id', (running as { id: string }).id);
+
+  if (error) throw new Error(error.message);
+
+  const mins = Math.floor(durationSeconds / 60);
+  const secs = durationSeconds % 60;
+  return {
+    success: true,
+    message: `Timer stopped. Duration: ${mins}m ${secs}s.`,
+    data: { duration_seconds: durationSeconds, mins, secs },
+    actions_taken: [`Stopped timer after ${mins}m ${secs}s`],
+  };
+}
+
+async function executeStartNewClientWorkflow(
+  sb: Db,
+  parsed: ParsedCommand,
+  userId: string
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+  const clientName = entities.client_name ?? parsed.professional_title ?? 'New Client';
+  const actions: string[] = [];
+  logAction('start_new_client_workflow', `client="${clientName}"`);
+
+  // 1. Create client
+  const { data: client, error: cErr } = await sb.from('clients').insert({
+    name:       clientName,
+    email:      entities.email ?? null,
+    status:     'active',
+    created_by: userId,
+  }).select().single();
+  if (cErr) throw new Error(cErr.message);
+  actions.push(`Created client: ${clientName}`);
+  const clientId = (client as { id: string }).id;
+
+  // 2. Create onboarding project
+  const { data: project } = await sb.from('projects').insert({
+    name:       `${clientName} — Onboarding`,
+    client_id:  clientId,
+    status:     'active',
+    created_by: userId,
+  }).select().single();
+  if (project) actions.push('Created onboarding project');
+
+  // 3. Create default onboarding tasks
+  const defaultTasks = [
+    { title: 'Client Kickoff Call', priority: 'high', status: 'todo' },
+    { title: 'Collect Brand Assets', priority: 'medium', status: 'todo' },
+    { title: 'Set Up Client Workspace', priority: 'medium', status: 'todo' },
+  ];
+  const projectId = project ? (project as { id: string }).id : null;
+  for (const task of defaultTasks) {
+    await sb.from('tasks').insert({
+      ...task,
+      client_id:    clientId,
+      project_id:   projectId,
+      created_by_id: userId,
+      due_date:     new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    });
+  }
+  actions.push(`Created ${defaultTasks.length} onboarding tasks`);
+
+  // 4. Create welcome note
+  await sb.from('notes').insert({
+    title:       `${clientName} — Welcome Brief`,
+    content:     `Welcome brief for ${clientName}.\n\nAdd goals, brand guidelines, and key contacts here.`,
+    entity_type: 'client',
+    entity_id:   clientId,
+    created_by:  userId,
+  });
+  actions.push('Created welcome brief note');
+
+  void sb.from('activities').insert({
+    type:        'client_created',
+    description: `AI onboarded client: ${clientName}`,
+    entity_type: 'client',
+    entity_id:   clientId,
+    user_uuid:   userId,
+    client_id:   clientId,
+  });
+
+  return {
+    success: true,
+    message: `Client "${clientName}" onboarded! Created project, ${defaultTasks.length} tasks, and a welcome brief.`,
+    data: { client, project },
+    actions_taken: actions,
+  };
+}
+
+async function executePrepareMonthWorkflow(
+  sb: Db,
+  parsed: ParsedCommand,
+  userId: string
+): Promise<ExecutionResult> {
+  const { entities } = parsed;
+  const actions: string[] = [];
+  logAction('prepare_month_workflow', `month=${entities.month ?? 'current'}`);
+
+  // Get all active clients
+  const { data: clients } = await sb.from('clients').select('id, name').eq('status', 'active').limit(20);
+  if (!clients?.length) {
+    return { success: false, message: 'No active clients found.', actions_taken: [] };
+  }
+
+  // Compute next month
+  const now = new Date();
+  const targetMonth = entities.month
+    ? new Date(`${entities.month} 1, ${entities.year ?? now.getFullYear()}`)
+    : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const monthStr  = targetMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthKey  = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
+  const dueDate   = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+
+  let taskCount = 0;
+  for (const c of clients as { id: string; name: string }[]) {
+    // Create monthly planning task for each client
+    const { error } = await sb.from('tasks').insert({
+      title:        `${c.name} — ${monthStr} Content Plan`,
+      description:  `Plan and schedule all content for ${c.name} in ${monthStr}.`,
+      client_id:    c.id,
+      status:       'todo',
+      priority:     'medium',
+      due_date:     dueDate,
+      created_by_id: userId,
+    });
+    if (!error) taskCount++;
+  }
+  actions.push(`Created ${taskCount} monthly planning tasks`);
+
+  // Create a workspace-level planning note
+  await sb.from('notes').insert({
+    title:      `${monthStr} — Monthly Plan`,
+    content:    `Monthly content and project plan for ${monthStr}.\n\nClients: ${clients.map((c: { name: string }) => c.name).join(', ')}`,
+    created_by: userId,
+  });
+  actions.push('Created monthly plan note');
+
+  return {
+    success: true,
+    message: `Month prepared: created ${taskCount} planning tasks for ${clients.length} clients and a monthly plan note.`,
+    data: { month: monthStr, month_key: monthKey, client_count: clients.length, task_count: taskCount },
+    actions_taken: actions,
+  };
+}
+
+async function executeCleanWorkspaceWorkflow(
+  sb: Db,
+  userId: string
+): Promise<ExecutionResult> {
+  const actions: string[] = [];
+  const issues: string[] = [];
+  logAction('clean_workspace_workflow', `user=${userId}`);
+
+  // 1. Find overdue tasks
+  const today = new Date().toISOString().split('T')[0];
+  const { data: overdueTasks } = await sb
+    .from('tasks')
+    .select('id, title, due_date')
+    .lt('due_date', today)
+    .not('status', 'in', '("completed","cancelled","overdue")')
+    .limit(50);
+
+  if (overdueTasks?.length) {
+    const ids = (overdueTasks as { id: string }[]).map(t => t.id);
+    await sb.from('tasks').update({ status: 'overdue' }).in('id', ids);
+    issues.push(`${overdueTasks.length} overdue tasks marked`);
+    actions.push(`Marked ${overdueTasks.length} tasks as overdue`);
+  }
+
+  // 2. Find tasks without due dates (warn only)
+  const { data: noDueDateTasks, count: noDueDateCount } = await sb
+    .from('tasks')
+    .select('id', { count: 'exact' })
+    .is('due_date', null)
+    .not('status', 'in', '("completed","cancelled")')
+    .limit(1);
+
+  if ((noDueDateCount ?? 0) > 0) {
+    issues.push(`${noDueDateCount} tasks missing a due date`);
+  }
+
+  const message = issues.length > 0
+    ? `Workspace cleaned. Issues found: ${issues.join('; ')}.`
+    : 'Workspace is clean — no issues found!';
+
+  return {
+    success: true,
+    message,
+    data: { issues, overdue_count: overdueTasks?.length ?? 0, no_due_date_count: noDueDateCount ?? 0 },
+    actions_taken: actions.length > 0 ? actions : ['Workspace audit completed'],
+  };
+  // suppress unused warning
+  void noDueDateTasks;
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -672,6 +1030,7 @@ export async function POST(req: NextRequest) {
     const sb = getServiceClient() as Db;
     const userId = auth.profile.id;
     let result: ExecutionResult;
+    const actionStartMs = Date.now();
 
     try {
       switch (parsed.intent) {
@@ -703,6 +1062,28 @@ export async function POST(req: NextRequest) {
         case 'generate_content_ideas':
           result = await executeGenerateContentIdeas(parsed);
           break;
+        // v3 new intents
+        case 'create_project':
+          result = await executeCreateProject(sb, parsed, userId);
+          break;
+        case 'create_note':
+          result = await executeCreateNote(sb, parsed, userId);
+          break;
+        case 'start_timer':
+          result = await executeStartTimer(sb, parsed, userId);
+          break;
+        case 'stop_timer':
+          result = await executeStopTimer(sb, userId);
+          break;
+        case 'start_new_client_workflow':
+          result = await executeStartNewClientWorkflow(sb, parsed, userId);
+          break;
+        case 'prepare_month_workflow':
+          result = await executePrepareMonthWorkflow(sb, parsed, userId);
+          break;
+        case 'clean_workspace_workflow':
+          result = await executeCleanWorkspaceWorkflow(sb, userId);
+          break;
         case 'create_content_item': {
           let clientId: string | null = null;
           let clientName: string | null = null;
@@ -732,7 +1113,7 @@ export async function POST(req: NextRequest) {
         default:
           result = {
             success: false,
-            message: "I didn't understand that command. Try asking me to create a task, schedule a post, search for a client, or invite a team member.",
+            message: "I didn't understand that command. Try asking me to create a task, project, schedule a post, search for a client, start a timer, or kick off a new client workflow.",
             actions_taken: [],
           };
       }
@@ -741,6 +1122,22 @@ export async function POST(req: NextRequest) {
       // This prevents UI freezing — the assistant panel shows the error message.
       logFailure(parsed.intent, actionErr);
       const errMsg = actionErr instanceof Error ? actionErr.message : String(actionErr);
+
+      // AI audit log (best-effort)
+      void (async () => {
+        try {
+          await sb.from('ai_actions').insert({
+            user_id:       userId,
+            intent:        parsed.intent,
+            prompt:        message,
+            status:        'error',
+            error_message: errMsg,
+            duration_ms:   Date.now() - actionStartMs,
+            actions_taken: [],
+          });
+        } catch { /* ignore */ }
+      })();
+
       return NextResponse.json({
         ok: false,
         success: false,
@@ -751,6 +1148,21 @@ export async function POST(req: NextRequest) {
         needs_clarification: false,
       });
     }
+
+    // AI audit log (best-effort, fire-and-forget)
+    void (async () => {
+      try {
+        await sb.from('ai_actions').insert({
+          user_id:       userId,
+          intent:        parsed.intent,
+          prompt:        message,
+          status:        result.success ? 'success' : 'partial',
+          response_text: result.message,
+          actions_taken: result.actions_taken ?? [],
+          duration_ms:   Date.now() - actionStartMs,
+        });
+      } catch { /* ignore */ }
+    })();
 
     return NextResponse.json({
       success: result.success,

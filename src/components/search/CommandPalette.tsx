@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Shield, CalendarDays, FileText, Upload,
-  Plus, UserCheck, Settings, ArrowRight, Zap,
+  Plus, UserCheck, Settings, Zap, Clock, Tag, BookOpen,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -163,6 +163,67 @@ export default function CommandPalette({
       group: 'Navigate',
       keywords: ['settings', 'preferences', 'account'],
       action: () => go('/settings'),
+    },
+    // ── New v3 modules ──
+    {
+      id: 'go-notes',
+      label: 'Go to Notes & Docs',
+      icon: BookOpen,
+      group: 'Navigate',
+      keywords: ['notes', 'docs', 'documents', 'wiki'],
+      action: () => go('/notes'),
+    },
+    {
+      id: 'go-time-tracking',
+      label: 'Go to Time Tracking',
+      icon: Clock,
+      group: 'Navigate',
+      keywords: ['time', 'timer', 'track', 'hours', 'log'],
+      action: () => go('/time-tracking'),
+    },
+    {
+      id: 'go-tags',
+      label: 'Go to Tag Manager',
+      icon: Tag,
+      group: 'Navigate',
+      keywords: ['tags', 'labels', 'taxonomy'],
+      action: () => go('/tags'),
+    },
+    {
+      id: 'go-automations',
+      label: 'Go to Automations',
+      icon: Zap,
+      group: 'Navigate',
+      keywords: ['automation', 'rules', 'trigger', 'workflow'],
+      action: () => go('/automations'),
+    },
+    // ── AI workflows ──
+    {
+      id: 'ai-start-client',
+      label: 'AI: Onboard new client',
+      description: 'Let AI create client, project, tasks, and brief',
+      icon: Zap,
+      group: 'AI Workflows',
+      keywords: ['ai', 'client', 'onboard', 'new client', 'workflow'],
+      action: () => { onClose(); },
+    },
+    {
+      id: 'ai-prepare-month',
+      label: 'AI: Prepare next month',
+      description: 'Create monthly planning tasks for all active clients',
+      icon: Zap,
+      group: 'AI Workflows',
+      keywords: ['ai', 'month', 'plan', 'prepare', 'schedule'],
+      action: () => { onClose(); },
+    },
+    {
+      id: 'ai-clean-workspace',
+      label: 'AI: Clean workspace',
+      description: 'Find overdue tasks, orphaned records, and missing fields',
+      icon: Zap,
+      group: 'AI Workflows',
+      keywords: ['ai', 'clean', 'audit', 'overdue', 'workspace'],
+      action: () => { onClose(); },
     },
   ];
 
@@ -330,10 +391,14 @@ export default function CommandPalette({
                         </p>
                       )}
                     </div>
-                    <ArrowRight
-                      size={14}
-                      style={{ color: 'var(--text-secondary)', opacity: isActive ? 1 : 0 }}
-                    />
+                    <span
+                      style={{
+                        color: 'var(--text-secondary)',
+                        opacity: isActive ? 1 : 0,
+                        fontSize: 14,
+                        lineHeight: 1,
+                      }}
+                    >↵</span>
                   </button>
                 );
               })}
