@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function LegacyDocsclientcontractPage() {
+export default function LegacyDocsClientContractPage() {
   redirect('/docs/documents/client-contract');
 }

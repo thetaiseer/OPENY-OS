@@ -4,12 +4,11 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
+import { OWNER_EMAIL } from './constants/auth';
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 
 // Email that always resolves to the 'owner' role — the workspace owner.
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
-
 // ── Session-scoped user cache ─────────────────────────────────────────────────
 // Caches the resolved user profile in sessionStorage so that subsequent page
 // loads within the same browser session skip the team_members DB round-trip and

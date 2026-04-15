@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function LegacyDocsinvoicePage() {
+export default function LegacyDocsInvoicePage() {
   redirect('/docs/documents/invoice');
 }

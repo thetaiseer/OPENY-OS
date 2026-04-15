@@ -1,10 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { OWNER_EMAIL } from '@/lib/constants/auth';
 
 const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
-
 const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
   '/clients': '/os/clients',

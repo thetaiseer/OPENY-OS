@@ -239,7 +239,7 @@ export default function AccountingPage() {
         <div className="flex items-center gap-2">
           <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={month} onChange={e => setMonth(e.target.value)} />
           <a
-            href={`/api/docs/accounting/export?month_key=${mk}`}
+            href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}`}
             download
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white"
             style={{ background: '#16a34a' }}

@@ -24,12 +24,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import type { UserRole } from './auth-context';
+import { OWNER_EMAIL } from './constants/auth';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Owner email always resolves to 'owner' role — the workspace owner.
-const OWNER_EMAIL = 'thetaiseer@gmail.com';
 
 // ── Profile cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache that avoids a redundant Supabase round-trip on

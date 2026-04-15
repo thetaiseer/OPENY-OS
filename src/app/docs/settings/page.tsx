@@ -1,4 +1,4 @@
-export default function DocssettingsPage() {
+export default function DocsSettingsPage() {
   return (
     <div className="p-6 sm:p-8">
       <h1 className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>settings</h1>

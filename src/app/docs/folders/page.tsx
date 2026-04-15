@@ -1,4 +1,4 @@
-export default function DocsfoldersPage() {
+export default function DocsFoldersPage() {
   return (
     <div className="p-6 sm:p-8">
       <h1 className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>folders</h1>

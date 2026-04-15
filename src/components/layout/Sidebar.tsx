@@ -65,11 +65,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, base, icon: Icon, key, label }) => {
+          {navItems.map(({ href, base, icon: Icon, key }) => {
             const active =
               pathname === href ||
               (base !== '/os/dashboard' && pathname.startsWith(base));
-            const displayLabel = label ?? (key ? t(key) : href);
+            const displayLabel = key ? t(key) : href;
             return (
               <Link
                 key={href}

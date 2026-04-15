@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function LegacyDocsquotationPage() {
+export default function LegacyDocsQuotationPage() {
   redirect('/docs/documents/quotation');
 }
