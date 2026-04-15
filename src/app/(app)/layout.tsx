@@ -2,17 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
-import { ToastProvider } from '@/lib/toast-context';
-import ToastContainer from '@/components/ui/ToastContainer';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
 import { AiProvider, useAi } from '@/lib/ai-context';
+import { queryClient } from '@/app/providers';
 
 // Lazy-load non-critical panels after the page shell has rendered.
 // ssr: false ensures these are client-only (they use browser APIs) and avoids
@@ -29,22 +27,6 @@ const CommandPalette = dynamic(
   () => import('@/components/search/CommandPalette'),
   { ssr: false },
 );
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      // Keep data fresh for 2 minutes — re-navigating within this window
-      // shows cached data instantly without a loading spinner.
-      staleTime: 2 * 60 * 1000,
-      // Keep inactive query data in cache for 10 minutes so coming back to a
-      // page after browsing elsewhere still shows the previous result while
-      // a background refresh runs in parallel.
-      gcTime: 10 * 60 * 1000,
-    },
-  },
-});
 
 // How often to check if the session has been revoked (ms)
 const SESSION_CHECK_INTERVAL = 3 * 60 * 1000; // 3 minutes
@@ -139,7 +121,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
-      <ToastContainer />
       <AiCommandCenter />
       {/* Real-time notification sync: subscribes to Supabase Realtime and fires toasts */}
       <NotificationRealtimeSync />
@@ -153,17 +134,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <UploadProvider>
-          <CommandPaletteProvider>
-            <AiProvider>
-              <AppShell>{children}</AppShell>
-            </AiProvider>
-          </CommandPaletteProvider>
-        </UploadProvider>
-      </ToastProvider>
-    </QueryClientProvider>
+    <UploadProvider>
+      <CommandPaletteProvider>
+        <AiProvider>
+          <AppShell>{children}</AppShell>
+        </AiProvider>
+      </CommandPaletteProvider>
+    </UploadProvider>
   );
 }
 

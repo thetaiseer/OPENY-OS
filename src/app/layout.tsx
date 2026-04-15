@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
 import { AuthProvider } from '@/lib/auth-context';
+import Providers from './providers';
 
 export const metadata: Metadata = {
   title: 'OPENY OS',
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
-              {children}
+              <Providers>
+                {children}
+              </Providers>
             </AuthProvider>
           </LangProvider>
         </ThemeProvider>
