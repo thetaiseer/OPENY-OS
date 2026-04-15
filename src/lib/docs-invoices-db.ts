@@ -2,6 +2,30 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { InvoiceBranchGroup, InvoiceCampaignRow, InvoicePlatformGroup } from '@/lib/docs-types';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
+type InvoiceRowRecord = {
+  id: string;
+  platform_id: string;
+  ad_name: string | null;
+  date: string | null;
+  results: string | null;
+  cost: number | null;
+  position: number | null;
+};
+
+type InvoicePlatformRecord = {
+  id: string;
+  branch_id: string;
+  platform_name: string | null;
+  position: number | null;
+};
+
+type InvoiceBranchRecord = {
+  id: string;
+  invoice_id: string;
+  branch_name: string | null;
+  position: number | null;
+};
+
 function n(v: unknown) {
   const parsed = Number(v);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -130,15 +154,7 @@ export async function hydrateInvoiceBranchGroups(
     throw rowsErr;
   }
 
-  const rowsByPlatform = new Map<string, Array<{
-    id: string;
-    platform_id: string;
-    ad_name: string | null;
-    date: string | null;
-    results: string | null;
-    cost: number | null;
-    position: number | null;
-  }>>();
+  const rowsByPlatform = new Map<string, InvoiceRowRecord[]>();
 
   (rows ?? []).forEach((row) => {
     const list = rowsByPlatform.get(row.platform_id) ?? [];
@@ -146,12 +162,7 @@ export async function hydrateInvoiceBranchGroups(
     rowsByPlatform.set(row.platform_id, list);
   });
 
-  const platformsByBranch = new Map<string, Array<{
-    id: string;
-    branch_id: string;
-    platform_name: string | null;
-    position: number | null;
-  }>>();
+  const platformsByBranch = new Map<string, InvoicePlatformRecord[]>();
 
   (platforms ?? []).forEach((platform) => {
     const list = platformsByBranch.get(platform.branch_id) ?? [];
@@ -159,12 +170,7 @@ export async function hydrateInvoiceBranchGroups(
     platformsByBranch.set(platform.branch_id, list);
   });
 
-  const branchesByInvoice = new Map<string, Array<{
-    id: string;
-    invoice_id: string;
-    branch_name: string | null;
-    position: number | null;
-  }>>();
+  const branchesByInvoice = new Map<string, InvoiceBranchRecord[]>();
 
   branches.forEach((branch) => {
     const list = branchesByInvoice.get(branch.invoice_id) ?? [];

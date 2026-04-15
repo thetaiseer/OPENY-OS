@@ -1008,7 +1008,7 @@ export default function InvoicePage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {form.branch_groups.map((branch, branchIndex) => (
                   <div key={branch.id} className="border rounded-lg p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                     <div className="flex items-center gap-2">

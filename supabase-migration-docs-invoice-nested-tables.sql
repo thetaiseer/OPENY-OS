@@ -41,11 +41,11 @@ create table if not exists public.docs_invoice_branches (
 
 create table if not exists public.docs_invoice_platforms (
   id            uuid primary key default gen_random_uuid(),
-  branch_id      uuid not null references public.docs_invoice_branches(id) on delete cascade,
-  platform_name  text not null default 'Platform',
-  position       integer not null default 0,
-  created_at     timestamptz not null default now(),
-  updated_at     timestamptz not null default now()
+  branch_id     uuid not null references public.docs_invoice_branches(id) on delete cascade,
+  platform_name text not null default 'Platform',
+  position      integer not null default 0,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
 );
 
 create table if not exists public.docs_invoice_rows (
