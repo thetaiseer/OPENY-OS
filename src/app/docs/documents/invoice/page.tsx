@@ -17,7 +17,7 @@ import type {
 } from '@/lib/docs-types';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { printPreviewDocument } from '@/lib/docs-print';
 
 const INVOICE_BLACK = '#000';
@@ -921,9 +921,13 @@ export default function InvoicePage() {
     const profile = profiles.find(p => p.client_id === clientId);
     if (!profile) return;
     const hasManualEdits = !!(
-      form.client_name.trim() ||
-      form.notes.trim() ||
-      form.branch_groups.some(branch => branch.branch_name !== 'Main Branch')
+      form.client_name.trim()
+      || form.notes.trim()
+      || form.branch_groups.some((branch) => (
+        branch.platform_groups.some((platform) => (
+          platform.campaign_rows.some((row) => n(row.cost) > 0 || row.ad_name.trim() || row.results.trim())
+        ))
+      ))
     );
     if (hasManualEdits && !confirm('Replace current invoice defaults with the selected client template?')) return;
 
@@ -951,7 +955,7 @@ export default function InvoicePage() {
 
     setForm(prev => ({
       ...prev,
-      client_profile_id: profile.id.startsWith('virtual-') ? null : profile.id,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
       client_name: profile.client_name,
       currency: profile.default_currency,
       branch_groups: nextBranchGroups,

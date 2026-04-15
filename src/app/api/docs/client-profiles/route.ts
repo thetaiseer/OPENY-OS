@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { buildClientSlug, VIRTUAL_PROFILE_PREFIX } from '@/lib/docs-client-profiles';
 
 function emptyObject(value: unknown) {
   return (value && typeof value === 'object' && !Array.isArray(value)) ? value : {};
@@ -25,15 +26,16 @@ export async function GET(req: NextRequest) {
   if (profilesError) return NextResponse.json({ error: profilesError.message }, { status: 500 });
 
   const profileMap = new Map((profiles ?? []).map(p => [p.client_id as string, p as Record<string, unknown>]));
+  const virtualTimestamp = new Date().toISOString();
   const result = (clients ?? [])
     .filter(c => c.status !== 'inactive')
     .map((client) => {
       const profile = profileMap.get(client.id);
       return {
-        id: (profile?.id as string | undefined) ?? `virtual-${client.id}`,
+        id: (profile?.id as string | undefined) ?? `${VIRTUAL_PROFILE_PREFIX}${client.id}`,
         client_id: client.id,
         client_name: client.name,
-        client_slug: client.slug ?? client.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        client_slug: client.slug ?? buildClientSlug(client.name),
         default_currency: (profile?.default_currency as string | undefined) ?? 'SAR',
         invoice_type: (profile?.invoice_type as string | undefined) ?? null,
         quotation_type: (profile?.quotation_type as string | undefined) ?? null,
@@ -55,8 +57,8 @@ export async function GET(req: NextRequest) {
         hr_contract_template_config: emptyObject(profile?.hr_contract_template_config),
         employees_template_config: emptyObject(profile?.employees_template_config),
         accounting_template_config: emptyObject(profile?.accounting_template_config),
-        created_at: (profile?.created_at as string | undefined) ?? new Date(0).toISOString(),
-        updated_at: (profile?.updated_at as string | undefined) ?? new Date(0).toISOString(),
+        created_at: (profile?.created_at as string | undefined) ?? virtualTimestamp,
+        updated_at: (profile?.updated_at as string | undefined) ?? virtualTimestamp,
       };
     });
 

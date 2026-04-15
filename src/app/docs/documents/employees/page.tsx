@@ -9,7 +9,7 @@ import type { DocsEmployee, DocsSalaryAdjustment } from '@/lib/docs-types';
 import { DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
@@ -225,7 +225,8 @@ export default function EmployeesPage() {
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `${(selectedProfile?.client_slug || 'payroll').replace(/[\\/:*?"<>|]+/g, '-')}-${payrollMonth}.csv`;
+    const payrollCodeBase = selectedProfile?.client_slug || selectedProfile?.client_name || 'payroll';
+    a.download = `${sanitizeDocCode(payrollCodeBase, 'payroll')}-${payrollMonth}.csv`;
     a.click();
   }
 

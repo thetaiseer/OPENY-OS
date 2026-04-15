@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Download, Search, Archive } from 'lucide-react';
 import clsx from 'clsx';
 import type { DocsAccountingEntry, DocsAccountingExpense } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
 
 type Tab = 'ledger' | 'summary';
 
@@ -63,15 +63,15 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }:
     setSaving(true); setError('');
     try {
       const url = initial ? `/api/docs/accounting/entries/${initial.id}` : '/api/docs/accounting/entries';
-        const res = await fetch(url, {
-          method: initial ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...form,
-            month_key: mk,
-            client_profile_id: selectedProfile && !selectedProfile.id.startsWith('virtual-') ? selectedProfile.id : null,
-          }),
-        });
+      const res = await fetch(url, {
+        method: initial ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          month_key: mk,
+          client_profile_id: selectedProfile && !isVirtualDocsProfileId(selectedProfile.id) ? selectedProfile.id : null,
+        }),
+      });
       if (!res.ok) { setError((await res.json()).error ?? 'Save failed'); return; }
       onDone(); onClose();
     } finally { setSaving(false); }
@@ -189,6 +189,11 @@ export default function AccountingPage() {
   const [selectedClientId, setSelectedClientId] = useState('');
 
   const mk = monthKey(month);
+  const accountingDocumentCode = useMemo(() => {
+    if (!selectedProfile) return '';
+    const slug = sanitizeDocCode(selectedProfile.client_slug || selectedProfile.client_name || 'accounting', 'accounting');
+    return `${slug.toUpperCase()}-${mk}`;
+  }, [selectedProfile, mk]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -264,7 +269,7 @@ export default function AccountingPage() {
         <div className="flex items-center gap-2">
           <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={month} onChange={e => setMonth(e.target.value)} />
           <a
-            href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${selectedProfile ? `&document_code=${encodeURIComponent(`${selectedProfile.client_slug.toUpperCase()}-${mk}`)}` : ''}`}
+            href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
             download
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white"
             style={{ background: '#0f172a' }}

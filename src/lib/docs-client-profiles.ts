@@ -38,6 +38,16 @@ export interface DocsClientProfile {
   updated_at: string;
 }
 
+export const VIRTUAL_PROFILE_PREFIX = 'virtual-';
+
+export function isVirtualDocsProfileId(id: string | null | undefined) {
+  return typeof id === 'string' && id.startsWith(VIRTUAL_PROFILE_PREFIX);
+}
+
+export function buildClientSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 export async function fetchDocsClientProfiles(): Promise<DocsClientProfile[]> {
   const res = await fetch('/api/docs/client-profiles', { cache: 'no-store' });
   if (!res.ok) throw new Error('Unable to load client document profiles.');
@@ -47,6 +57,9 @@ export async function fetchDocsClientProfiles(): Promise<DocsClientProfile[]> {
 
 export function sanitizeDocCode(code: string, fallback: string) {
   const value = (code || '').trim();
-  if (!value) return fallback;
-  return value.replace(/[\\/:*?"<>|]+/g, '-');
+  const normalized = (value || fallback)
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return normalized || fallback;
 }

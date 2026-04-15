@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 
 type EditableProfile = DocsClientProfile & {
@@ -96,14 +96,14 @@ export default function ClientProfilesPage() {
       employees_template_config: profile.employees_template_config,
       accounting_template_config: profile.accounting_template_config,
     };
-    const endpoint = profile.id.startsWith('virtual-')
+    const endpoint = isVirtualDocsProfileId(profile.id)
       ? '/api/docs/client-profiles'
       : `/api/docs/client-profiles/${profile.id}`;
-    const method = profile.id.startsWith('virtual-') ? 'POST' : 'PATCH';
+    const method = isVirtualDocsProfileId(profile.id) ? 'POST' : 'PATCH';
     const res = await fetch(endpoint, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profile.id.startsWith('virtual-') ? { client_id: profile.client_id, ...payload } : payload),
+      body: JSON.stringify(isVirtualDocsProfileId(profile.id) ? { client_id: profile.client_id, ...payload } : payload),
     });
     if (!res.ok) {
       setError('Unable to save client profile.');
@@ -113,7 +113,7 @@ export default function ClientProfilesPage() {
   }
 
   async function deleteProfile(profile: EditableProfile) {
-    if (profile.id.startsWith('virtual-')) return;
+    if (isVirtualDocsProfileId(profile.id)) return;
     if (!confirm(`Delete profile for ${profile.client_name}?`)) return;
     const res = await fetch(`/api/docs/client-profiles/${profile.id}`, { method: 'DELETE' });
     if (!res.ok) {

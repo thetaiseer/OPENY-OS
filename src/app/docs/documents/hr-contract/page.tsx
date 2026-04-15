@@ -12,7 +12,7 @@ import { OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/com
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { printPreviewDocument } from '@/lib/docs-print';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -347,7 +347,7 @@ export default function HrContractPage() {
     const cfg = profile.hr_contract_template_config ?? {};
     setForm(prev => ({
       ...prev,
-      client_profile_id: profile.id.startsWith('virtual-') ? null : profile.id,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
       company_name: profile.client_name,
       currency: profile.default_currency,
       company_address: prev.company_address || profile.billing_address || '',

@@ -1,6 +1,6 @@
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 
-function escHtml(input: string) {
+function escapeHtml(input: string) {
   return input
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -23,7 +23,7 @@ export function printPreviewDocument(previewId: string, documentCode: string, fa
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escHtml(safeCode)}</title>
+    <title>${escapeHtml(safeCode)}</title>
     <style>
       :root { color-scheme: light only; }
       html, body { margin: 0; padding: 0; background: #fff; }

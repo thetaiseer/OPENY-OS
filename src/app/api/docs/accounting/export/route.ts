@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${(documentCode || `accounting-${month_key}`).replace(/[\\/:*?"<>|]+/g, '-')}.csv"`,
+      'Content-Disposition': `attachment; filename="${sanitizeDocCode(documentCode, `accounting-${month_key}`)}.csv"`,
     },
   });
 }

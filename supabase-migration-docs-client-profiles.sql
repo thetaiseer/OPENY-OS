@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS docs_client_document_profiles (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id                  UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE UNIQUE,
+  client_id                  UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
   default_currency           TEXT NOT NULL DEFAULT 'SAR',
   invoice_type               TEXT,
   quotation_type             TEXT,
@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS docs_client_document_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_docs_client_profiles_client_id
+  ON docs_client_document_profiles(client_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_docs_client_profiles_client_id
   ON docs_client_document_profiles(client_id);
 
 ALTER TABLE docs_client_document_profiles ENABLE ROW LEVEL SECURITY;

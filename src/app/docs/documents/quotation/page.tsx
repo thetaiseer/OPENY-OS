@@ -10,7 +10,7 @@ import type { DocsQuotation, QuotationDeliverable } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { printPreviewDocument } from '@/lib/docs-print';
 import {
   OpenyDocumentHeader,
@@ -361,12 +361,19 @@ export default function QuotationPage() {
     }
     const profile = profiles.find(p => p.client_id === clientId);
     if (!profile) return;
-    const hasManualEdits = !!(form.client_name.trim() || form.project_title.trim() || form.deliverables.length > 0);
+    const hasManualEdits = !!(
+      form.client_name.trim()
+      || form.company_brand.trim()
+      || form.project_title.trim()
+      || form.project_description.trim()
+      || form.deliverables.length > 0
+      || form.additional_notes.trim()
+    );
     if (hasManualEdits && !confirm('Replace current quotation defaults with selected client template?')) return;
     const quotationConfig = profile.quotation_template_config ?? {};
     setForm(prev => ({
       ...prev,
-      client_profile_id: profile.id.startsWith('virtual-') ? null : profile.id,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
       client_name: profile.client_name,
       currency: profile.default_currency,
       company_brand: (quotationConfig.company_brand as string | undefined) ?? prev.company_brand,
