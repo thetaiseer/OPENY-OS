@@ -847,7 +847,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
 
       const reordered = arrayMove(sourceTasks, oldIndex, newIndex);
       const updateMap = new Map<string, { status: Task['status']; position: number }>();
-      reordered.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(sourceColumn), position: index }));
+      reordered.forEach((task, index) => updateMap.set(task.id, { status: task.status, position: index }));
       const updates = reordered
         .filter(task => updateMap.has(task.id) && (
           task.status !== updateMap.get(task.id)!.status ||
@@ -870,8 +870,11 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
     destinationTasks.splice(insertAt, 0, movedTask);
 
     const updateMap = new Map<string, { status: Task['status']; position: number }>();
-    sourceTasks.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(sourceColumn), position: index }));
-    destinationTasks.forEach((task, index) => updateMap.set(task.id, { status: getPersistedStatus(destinationColumn), position: index }));
+    sourceTasks.forEach((task, index) => updateMap.set(task.id, { status: task.status, position: index }));
+    destinationTasks.forEach((task, index) => updateMap.set(task.id, {
+      status: task.id === movedTask.id ? getPersistedStatus(destinationColumn) : task.status,
+      position: index,
+    }));
 
     const updates = Array.from(updateMap.entries())
       .map(([id, value]) => ({ id, ...value }))
@@ -1037,6 +1040,15 @@ export default function TasksPage() {
   const [postTypeFilter, setPostTypeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
+
+  useEffect(() => {
+    const savedView = window.localStorage.getItem('tasks-all-view');
+    if (savedView === 'list' || savedView === 'kanban') setView(savedView);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('tasks-all-view', view);
+  }, [view]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
