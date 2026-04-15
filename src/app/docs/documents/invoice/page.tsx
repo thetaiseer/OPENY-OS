@@ -1032,8 +1032,8 @@ export default function InvoicePage() {
 
                     {!collapsedBranches.has(branch.id) && (
                       <div className="space-y-3">
-                      {branch.platform_groups.map((platform, platformIndex) => (
-                        <div key={platform.id} className="border rounded-md p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                        {branch.platform_groups.map((platform, platformIndex) => (
+                          <div key={platform.id} className="border rounded-md p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                           <div className="flex items-center gap-2">
                             <input className={inputCls} value={platform.platform_name} onChange={e => updatePlatformName(branchIndex, platformIndex, e.target.value)} placeholder="Platform name" />
                             <button onClick={() => removePlatform(branchIndex, platformIndex)} className="p-2 rounded-lg hover:bg-red-50" title="Remove platform">
@@ -1078,19 +1078,18 @@ export default function InvoicePage() {
                               Platform Subtotal: {fmt(platform.campaign_rows.reduce((sum, row) => sum + n(row.cost), 0), form.currency)}
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                          </div>
+                        ))}
 
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => addPlatform(branchIndex)} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: INVOICE_BLACK, color: '#fff' }}>
-                        <Plus size={12} /> Add Platform
-                      </button>
-                      <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
-                        Branch Subtotal: {fmt(calcBranchSubtotal(branch), form.currency)}
+                        <div className="flex items-center justify-between">
+                          <button onClick={() => addPlatform(branchIndex)} className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg font-medium transition-colors" style={{ background: INVOICE_BLACK, color: '#fff' }}>
+                            <Plus size={12} /> Add Platform
+                          </button>
+                          <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
+                            Branch Subtotal: {fmt(calcBranchSubtotal(branch), form.currency)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    </div>
                     )}
                   </div>
                 ))}

@@ -33,7 +33,7 @@ export function normalizeInvoiceBranchGroups(branchGroups: unknown): InvoiceBran
             return {
               id: r.id || `row-${branchIndex + 1}-${platformIndex + 1}-${rowIndex + 1}`,
               ad_name: r.ad_name || '',
-              date: r.date || null,
+              date: r.date || '',
               results: r.results || '',
               cost: round2(n(r.cost)),
             };
