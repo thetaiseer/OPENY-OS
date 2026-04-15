@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useTheme } from '@/lib/theme-context';
 import { OPENY_LOGO_DARK_URL, OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 
@@ -23,17 +24,13 @@ export default function OpenyLogo({
   const src = variant === 'dark' ? OPENY_LOGO_DARK_URL : OPENY_LOGO_LIGHT_URL;
 
   return (
-    <img
+    <Image
       src={src}
       alt={alt}
       className={className}
       width={width}
       height={height}
-      style={{
-        width,
-        height,
-        objectFit: 'contain',
-      }}
+      style={{ width, height, objectFit: 'contain' }}
     />
   );
 }

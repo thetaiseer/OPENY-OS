@@ -34,7 +34,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="h-16 px-4 sm:px-6 flex items-center gap-3 border-b sticky top-0 z-20"
+      className="h-16 px-3 sm:px-4 lg:px-6 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20"
       style={{ background: 'var(--header-bg)', borderColor: 'var(--border)' }}
     >
       <button
@@ -45,13 +45,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </button>
 
       {/* Global search — replaces the dead input */}
-      <div className="flex-1 max-w-sm">
+      <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm">
         <GlobalSearch />
       </div>
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
         <button
           onClick={toggleLang}
           className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
@@ -75,7 +75,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {/* AI Command Center button */}
         <button
           onClick={() => openAi()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
           style={{
             background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
             color: aiOpen ? '#fff' : 'var(--accent)',

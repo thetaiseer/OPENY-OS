@@ -15,6 +15,11 @@
   --sidebar-bg: #ffffff;
   --sidebar-border: #e5e7eb;
   --header-bg: #ffffff;
+  --shell-gap: 1rem;
+  --shell-pad-x: 0.75rem;
+  --shell-pad-y: 0.875rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 }
 
 .dark {
@@ -38,8 +43,56 @@ body {
   color: var(--text);
   font-family: 'Inter', 'Cairo', sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  text-rendering: optimizeLegibility;
 }
 
 [dir="rtl"] body {
   font-family: 'Cairo', 'Inter', sans-serif;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+.app-shell-main {
+  padding: var(--shell-pad-y) var(--shell-pad-x);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --shell-pad-x: 1rem;
+    --shell-pad-y: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --shell-pad-x: 1.25rem;
+    --shell-pad-y: 1.25rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --shell-pad-x: 1.75rem;
+    --shell-pad-y: 1.5rem;
+  }
+}
+
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
 }
