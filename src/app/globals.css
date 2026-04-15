@@ -43,6 +43,7 @@ body {
   color: var(--text);
   font-family: 'Inter', 'Cairo', sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
   min-height: 100dvh;
   text-rendering: optimizeLegibility;
 }

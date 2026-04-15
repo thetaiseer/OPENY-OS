@@ -61,7 +61,7 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
                 key={href}
                 href={href}
                 onClick={onClose}
-                title={label}
+                aria-label={label}
                 className={clsx(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   'lg:justify-center xl:justify-start',
@@ -77,7 +77,13 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
           })}
         </nav>
         <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          <Link href="/select-workspace" onClick={onClose} className="text-xs inline-flex items-center gap-1 lg:justify-center xl:justify-start w-full" style={{ color: 'var(--text-secondary)' }}>
+          <Link
+            href="/select-workspace"
+            onClick={onClose}
+            aria-label="Switch workspace"
+            className="text-xs inline-flex items-center gap-1 lg:justify-center xl:justify-start w-full"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <BookOpenText size={13} /> <span className="lg:hidden xl:inline">Switch workspace</span>
           </Link>
         </div>

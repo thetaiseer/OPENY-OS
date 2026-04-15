@@ -24,8 +24,7 @@ export default function SelectWorkspacePage() {
     <div
       className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:py-14"
       style={{
-        background:
-          'radial-gradient(1000px 420px at 50% -20%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 65%), var(--bg)',
+        background: 'radial-gradient(1000px 420px at 50% -20%, rgba(37,99,235,0.14), transparent 65%), var(--bg)',
       }}
     >
       <div className="max-w-6xl mx-auto">
@@ -59,7 +58,7 @@ export default function SelectWorkspacePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
             <Link
               href="/os/dashboard"
-              className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(37,99,235,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(37,99,235,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-300"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-4 sm:mb-5" style={{ background: 'var(--accent-soft)' }}>
@@ -77,7 +76,7 @@ export default function SelectWorkspacePage() {
             {isOwner ? (
               <Link
                 href="/docs/dashboard"
-                className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(15,23,42,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(15,23,42,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-300"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
               >
                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-4 sm:mb-5" style={{ background: 'var(--surface-2)' }}>
