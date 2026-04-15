@@ -64,9 +64,11 @@ export function OpenyDocumentHeader({
   );
 }
 
-export function OpenySectionTitle({ children }: { children: ReactNode }) {
+export function OpenyDocumentSectionTitle({ children }: { children: ReactNode }) {
   return <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: OPENY_DOC_STYLE.title }}>{children}</div>;
 }
+
+export const OpenySectionTitle = OpenyDocumentSectionTitle;
 
 export function openyTableHeaderStyle(): CSSProperties {
   return { background: OPENY_DOC_STYLE.surface };

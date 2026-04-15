@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OPENY_LOGO_DARK_SOURCE_URL, OPENY_LOGO_LIGHT_SOURCE_URL } from '@/lib/openy-brand';
 
-const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80" viewBox="0 0 300 80"><rect width="300" height="80" fill="white"/><text x="24" y="51" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="black">OPENY</text></svg>`;
+function fallbackSvg(variant: 'light' | 'dark') {
+  const dark = variant === 'dark';
+  const bg = dark ? '#020617' : '#ffffff';
+  const text = dark ? '#ffffff' : '#000000';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80" viewBox="0 0 300 80"><rect width="300" height="80" fill="${bg}"/><text x="24" y="51" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="${text}">OPENY</text></svg>`;
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -26,7 +31,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('[branding] failed to fetch OPENY logo', error);
-    return new NextResponse(FALLBACK_SVG, {
+    return new NextResponse(fallbackSvg(variant), {
       headers: {
         'Content-Type': 'image/svg+xml; charset=utf-8',
         'Cache-Control': 'public, max-age=600',
