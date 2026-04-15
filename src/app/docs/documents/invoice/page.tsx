@@ -17,8 +17,8 @@ import type {
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 
 const INVOICE_BLACK = '#000';
-const INVOICE_ADDRESS = 'Riyadh, Saudi Arabia';
-const INVOICE_EMAIL = 'info@openy.ai';
+const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
+const INVOICE_EMAIL = 'info@openytalk.com';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -55,6 +55,13 @@ function blankPlatformGroup(): InvoicePlatformGroup {
 function blankBranchGroup(): InvoiceBranchGroup {
   return { id: uid(), branch_name: 'Main Branch', platform_groups: [blankPlatformGroup()] };
 }
+function defaultBranchGroups(): InvoiceBranchGroup[] {
+  return [
+    { id: uid(), branch_name: 'Riyadh Branch', platform_groups: [blankPlatformGroup()] },
+    { id: uid(), branch_name: 'Jeddah Branch', platform_groups: [blankPlatformGroup()] },
+    { id: uid(), branch_name: 'Khobar Branch', platform_groups: [blankPlatformGroup()] },
+  ];
+}
 
 function calcBranchSubtotal(branch: InvoiceBranchGroup) {
   return round2(branch.platform_groups.reduce((sum, platform) => (
@@ -66,7 +73,7 @@ function calcFinalBudget(branchGroups: InvoiceBranchGroup[]) {
 }
 
 function sanitizeBranchGroups(branchGroups: unknown): InvoiceBranchGroup[] {
-  if (!Array.isArray(branchGroups) || branchGroups.length === 0) return [blankBranchGroup()];
+  if (!Array.isArray(branchGroups) || branchGroups.length === 0) return defaultBranchGroups();
 
   const safe = branchGroups.map((branch) => {
     const b = branch as Partial<InvoiceBranchGroup>;
@@ -101,12 +108,12 @@ function sanitizeBranchGroups(branchGroups: unknown): InvoiceBranchGroup[] {
     };
   });
 
-  return safe.length ? safe : [blankBranchGroup()];
+  return safe.length ? safe : defaultBranchGroups();
 }
 
 function legacyToBranchGroups(inv: DocsInvoice): InvoiceBranchGroup[] {
   const platforms = (inv.platforms || []).filter(p => p.enabled);
-  if (!platforms.length) return [blankBranchGroup()];
+  if (!platforms.length) return defaultBranchGroups();
   return [{
     id: uid(),
     branch_name: 'Main Branch',
@@ -149,9 +156,9 @@ function blankForm(num: string): FormState {
     client_name: '',
     campaign_month: '',
     invoice_date: today(),
-    currency: 'SAR',
+    currency: 'EGP',
     status: 'unpaid',
-    branch_groups: [blankBranchGroup()],
+    branch_groups: defaultBranchGroups(),
     final_budget: 0,
     total_budget: 0,
     our_fees: 0,
@@ -249,7 +256,7 @@ function InvoicePreview({ form }: { form: FormState }) {
           BILLED TO
         </span>
         <div style={{ marginTop: 9, fontSize: 16, fontWeight: 700 }}>{form.client_name || '—'}</div>
-        <div style={{ marginTop: 3, fontSize: 12 }}>{form.campaign_month || '—'}</div>
+        <div style={{ marginTop: 3, fontSize: 12 }}>Campaign Month: {form.campaign_month || '—'}</div>
       </div>
 
       {tableRows.map(({ branch, rows, span, subtotal }) => (
@@ -260,12 +267,12 @@ function InvoicePreview({ form }: { form: FormState }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: INVOICE_BLACK, color: '#fff' }}>
-                <th style={previewHeaderCell}>Branch</th>
-                <th style={previewHeaderCell}>Platform</th>
-                <th style={previewHeaderCell}>Ad Name</th>
-                <th style={previewHeaderCell}>Date</th>
-                <th style={previewHeaderCell}>Results</th>
-                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>Cost</th>
+                <th style={previewHeaderCell}>BRANCH</th>
+                <th style={previewHeaderCell}>PLATFORM</th>
+                <th style={previewHeaderCell}>AD NAME</th>
+                <th style={previewHeaderCell}>DATE</th>
+                <th style={previewHeaderCell}>RESULTS</th>
+                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST (EGP)</th>
               </tr>
             </thead>
             <tbody>
@@ -309,7 +316,7 @@ function InvoicePreview({ form }: { form: FormState }) {
         <table style={{ minWidth: 310, borderCollapse: 'collapse' }}>
           <tbody>
             <tr>
-              <td style={totalsLabel}>Final Budget</td>
+               <td style={totalsLabel}>Final Budget (Ad Spend)</td>
               <td style={totalsValue}>{fmt(form.final_budget, form.currency)}</td>
             </tr>
             <tr>
@@ -578,7 +585,7 @@ export default function InvoicePage() {
   function removeBranch(branchIndex: number) {
     setBranchGroups(prev => {
       const next = prev.filter((_, i) => i !== branchIndex);
-      return next.length ? next : [blankBranchGroup()];
+      return next.length ? next : defaultBranchGroups();
     });
   }
 
