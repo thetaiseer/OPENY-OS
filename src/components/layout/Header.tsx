@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { Sun, Moon, Menu, Globe, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -10,10 +12,14 @@ import NotificationDropdown from '@/components/notifications/NotificationDropdow
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
 import { useAi } from '@/lib/ai-context';
+import OpenyLogo from '@/components/branding/OpenyLogo';
+import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 interface HeaderProps { onMenuClick?: () => void; }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const pathname = usePathname();
+  const dashboardHref = getWorkspaceDashboardHref(pathname);
   const { theme, toggleTheme } = useTheme();
   const { toggleLang } = useLang();
   const { user } = useAuth();
@@ -43,6 +49,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
       >
         <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
       </button>
+      <Link
+        href={dashboardHref}
+        aria-label="Go to OPENY OS dashboard"
+        className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
+      >
+        <OpenyLogo width={82} height={24} />
+        <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>OS</span>
+      </Link>
 
       {/* Global search — replaces the dead input */}
       <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm">

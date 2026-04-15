@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { BookOpenText, NotepadText, FileText, FolderTree, Shield, Archive, Settings, Grid2X2, X } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 const docsNav = [
   { href: '/docs/dashboard', label: 'Dashboard', icon: Grid2X2 },
@@ -23,6 +24,7 @@ interface DocsSidebarProps {
 
 export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
   const pathname = usePathname();
+  const dashboardHref = getWorkspaceDashboardHref(pathname);
 
   return (
     <>
@@ -43,7 +45,14 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
       >
         <div className="h-16 px-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
-            <OpenyLogo className="hidden xl:block" width={96} height={28} />
+            <Link
+              href={dashboardHref}
+              onClick={onClose}
+              aria-label="Go to OPENY DOCS dashboard"
+              className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-85"
+            >
+              <OpenyLogo width={96} height={28} />
+            </Link>
             <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
             <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
           </div>

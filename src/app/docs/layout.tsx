@@ -6,10 +6,14 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { Menu, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const pathname = usePathname();
+  const dashboardHref = getWorkspaceDashboardHref(pathname);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
@@ -26,9 +30,16 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           >
             <Menu size={20} />
           </button>
-          <div className="hidden sm:flex lg:hidden items-center gap-2">
-            <OpenyLogo width={88} height={26} />
-            <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+          <div className="flex lg:hidden items-center gap-2">
+            <Link
+              href={dashboardHref}
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Go to OPENY DOCS dashboard"
+              className="cursor-pointer transition-opacity duration-150 hover:opacity-85"
+            >
+              <OpenyLogo width={80} height={24} />
+            </Link>
+            <span className="text-[10px] sm:text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
           </div>
           <div className="flex-1" />
           <button
