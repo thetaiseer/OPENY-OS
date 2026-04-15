@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       },
     });
-  } catch {
+  } catch (error) {
+    console.error('[branding] failed to fetch OPENY logo', error);
     return new NextResponse(FALLBACK_SVG, {
       headers: {
         'Content-Type': 'image/svg+xml; charset=utf-8',

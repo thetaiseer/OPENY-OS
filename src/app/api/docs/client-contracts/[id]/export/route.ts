@@ -64,7 +64,7 @@ td,th{padding:7px 10px;border-bottom:1px solid #dbe0e6}th{background:#f8fafc;tex
   </div>
   <div class="brand"><img src="${logoUrl}" alt="OPENY" /></div>
 </div>
-<p style="text-align:center;color:#64748b;margin:14px 0 18px">${isAr ? 'Official OPENY Client Agreement' : 'Official OPENY Client Agreement'}</p>
+<p style="text-align:center;color:#64748b;margin:14px 0 18px">Official OPENY Client Agreement</p>
 <div class="section">
 <table><tr>
 <td><strong>${isAr ? 'مدة العقد' : 'Duration'}:</strong></td><td>${c.duration_months} ${isAr ? 'شهر' : 'months'}</td>

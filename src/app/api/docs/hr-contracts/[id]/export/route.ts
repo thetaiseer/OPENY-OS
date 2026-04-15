@@ -67,7 +67,7 @@ table{width:100%;border-collapse:collapse}td{padding:6px 10px;border-bottom:1px 
   </div>
   <div class="brand"><img src="${logoUrl}" alt="OPENY" /></div>
 </div>
-<p style="text-align:center;color:#64748b;margin:14px 0 18px">${isAr ? 'Official OPENY HR Agreement' : 'Official OPENY HR Agreement'}</p>
+<p style="text-align:center;color:#64748b;margin:14px 0 18px">Official OPENY HR Agreement</p>
 <div class="section"><table>
 <tr>
 <td><strong>${isAr ? 'الشركة' : 'Company'}:</strong></td><td>${c.company_name ?? ''}</td>
