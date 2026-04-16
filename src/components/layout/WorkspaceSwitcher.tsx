@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -18,7 +18,7 @@ export default function WorkspaceSwitcher() {
   const { user, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+  const [supabase] = useState(() => createClient());
 
   const [open, setOpen] = useState(false);
   const [memberships, setMemberships] = useState<WorkspaceMembershipInfo[]>([]);
@@ -111,7 +111,7 @@ export default function WorkspaceSwitcher() {
                   role="menuitem"
                   disabled={!canAccess}
                   onClick={() => {
-                    if (!canAccess || isCurrent) return;
+                    if (isCurrent) return;
                     setOpen(false);
                     switchWorkspace(router, workspace.key);
                   }}
