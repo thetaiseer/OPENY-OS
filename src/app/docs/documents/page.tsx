@@ -12,9 +12,9 @@ const items = [
 
 export default function DocsDocumentsPage() {
   return (
-    <div className="p-6 sm:p-8">
-      <h1 className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>Documents</h1>
-      <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Owner-only business documentation modules.</p>
+    <div className="docs-app p-6 sm:p-8">
+      <h1 className="docs-page-title">Documents</h1>
+      <p className="docs-page-subtitle">Owner-only business documentation modules.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 max-w-5xl">
         {items.map(({ href, icon: Icon, title }) => (
           <Link key={href} href={href} className="rounded-2xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>

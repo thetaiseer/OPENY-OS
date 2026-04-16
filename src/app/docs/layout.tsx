@@ -13,14 +13,14 @@ import { subscribeToTableChanges } from '@/lib/realtime';
 const DOCS_REALTIME_REFRESH_DEBOUNCE_MS = 120;
 
 function getRealtimeTablesForPath(path: string): string[] {
-  if (path.includes('/docs/documents/client-profiles')) return ['clients', 'templates', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/invoice')) return ['invoices', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/quotation')) return ['quotations', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/client-contract')) return ['client_contracts', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/hr-contract')) return ['hr_contracts', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/employees')) return ['employees', 'docs_client_profiles'];
-  if (path.includes('/docs/documents/accounting')) return ['accounting_entries', 'accounting_expenses', 'docs_client_profiles'];
-  return ['docs_client_profiles'];
+  if (path.includes('/docs/documents/client-profiles')) return ['clients', 'templates', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/invoice')) return ['invoices', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/quotation')) return ['quotations', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/client-contract')) return ['client_contracts', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/hr-contract')) return ['hr_contracts', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/employees')) return ['employees', 'docs_client_document_profiles'];
+  if (path.includes('/docs/documents/accounting')) return ['accounting_entries', 'accounting_expenses', 'docs_client_document_profiles'];
+  return ['docs_client_document_profiles'];
 }
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

@@ -432,7 +432,7 @@ export default function QuotationPage() {
   const inputCls = 'w-full px-3 py-1.5 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="docs-app flex h-full overflow-hidden">
       <div className="flex flex-col w-full lg:w-[480px] shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(['editor', 'history'] as const).map(tab => (

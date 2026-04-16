@@ -112,3 +112,151 @@ select {
 select option {
   white-space: normal;
 }
+
+/* OPENY DOCS unified UI shell */
+.docs-app {
+  --docs-input-h: 2.5rem;
+  --docs-radius: 0.75rem;
+}
+
+.docs-app .docs-input,
+.docs-app .docs-textarea,
+.docs-app input[type='text'],
+.docs-app input[type='number'],
+.docs-app input[type='date'],
+.docs-app input[type='month'],
+.docs-app input[type='email'],
+.docs-app input[type='tel'],
+.docs-app input[type='search'],
+.docs-app select,
+.docs-app textarea {
+  width: 100%;
+  min-height: var(--docs-input-h);
+  border-radius: var(--docs-radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.docs-app .docs-textarea,
+.docs-app textarea {
+  min-height: 5rem;
+}
+
+.docs-app .docs-input:focus,
+.docs-app .docs-textarea:focus,
+.docs-app input:focus,
+.docs-app select:focus,
+.docs-app textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.docs-app label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.docs-app .docs-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1rem;
+}
+
+.docs-app .docs-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.docs-app .docs-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.docs-app .docs-card-subtitle {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.docs-app .docs-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0;
+}
+
+.docs-app .docs-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.docs-app .docs-page-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.docs-app .docs-page-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.docs-app .docs-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+}
+
+.docs-app .docs-tab {
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.docs-app .docs-tab-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docs-app .docs-state {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  font-size: 0.9rem;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.docs-app .docs-error-state {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+.docs-app .docs-empty-state h3 {
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.docs-app .docs-empty-state p {
+  margin: 0.35rem 0 0.75rem;
+}

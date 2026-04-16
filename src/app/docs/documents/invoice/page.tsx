@@ -985,7 +985,7 @@ export default function InvoicePage() {
   }
 
   return (
-    <div className="invoice-workspace flex h-full overflow-hidden">
+    <div className="docs-app invoice-workspace flex h-full overflow-hidden">
       <div className="editor-panel flex flex-col w-full lg:w-[520px] shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(['editor', 'history'] as const).map(tab => (

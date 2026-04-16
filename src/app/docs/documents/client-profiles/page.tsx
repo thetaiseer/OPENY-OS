@@ -2,29 +2,54 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Plus, Save, Search, Trash2 } from 'lucide-react';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { buildClientSlug, fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
+import {
+  AppEmptyState,
+  AppErrorState,
+  AppInput,
+  AppLoadingState,
+  AppPageHeader,
+  AppSectionCard,
+  AppSelect,
+  AppTextarea,
+} from '@/components/docs/DocsUi';
 
 type EditableProfile = DocsClientProfile & {
   isDirty?: boolean;
 };
+
+const SUPPORTED_DOC_TYPES = ['Invoice', 'Quotation', 'Client Contract', 'HR Contract', 'Employees', 'Accounting'];
+
+const LAYOUT_MODE_OPTIONS = [
+  { value: 'branch_platform', label: 'Branch / Platform' },
+  { value: 'simple_service', label: 'Simple Service' },
+  { value: 'global', label: 'Global' },
+];
+
+const BOOL_OPTIONS = [
+  { value: 'true', label: 'Enabled' },
+  { value: 'false', label: 'Disabled' },
+];
 
 export default function ClientProfilesPage() {
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [newClientName, setNewClientName] = useState('');
+  const [query, setQuery] = useState('');
+  const [success, setSuccess] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const data = await fetchDocsClientProfiles();
-      setProfiles(data.map(p => ({ ...p, isDirty: false })));
+      setProfiles(data.map((p) => ({ ...p, isDirty: false })));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to load client profiles.');
+      setError(e instanceof Error ? e.message : 'Unable to load client document profiles.');
     } finally {
       setLoading(false);
     }
@@ -32,13 +57,24 @@ export default function ClientProfilesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const sorted = useMemo(
-    () => [...profiles].sort((a, b) => a.client_name.localeCompare(b.client_name)),
-    [profiles],
-  );
+  const filteredProfiles = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const sorted = [...profiles].sort((a, b) => a.client_name.localeCompare(b.client_name));
+    if (!term) return sorted;
+    return sorted.filter((p) => (
+      p.client_name.toLowerCase().includes(term)
+      || (p.client_slug ?? '').toLowerCase().includes(term)
+      || (p.default_currency ?? '').toLowerCase().includes(term)
+    ));
+  }, [profiles, query]);
 
   function patchProfile(id: string, patch: Partial<EditableProfile>) {
-    setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...patch, isDirty: true } : p));
+    setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch, isDirty: true } : p)));
+  }
+
+  function showSuccess(message: string) {
+    setSuccess(message);
+    setTimeout(() => setSuccess(''), 2400);
   }
 
   async function createClientAndProfile() {
@@ -69,36 +105,8 @@ export default function ClientProfilesPage() {
       setError('Client created but profile could not be initialized.');
       return;
     }
-    const profileJson = await createProfile.json() as { profile?: Partial<DocsClientProfile> };
-    const createdProfileId = typeof profileJson.profile?.id === 'string'
-      ? profileJson.profile.id
-      : `virtual-${clientId}`;
-    setProfiles(prev => [
-      {
-        id: createdProfileId,
-        client_id: clientId,
-        client_name: name,
-        client_slug: buildClientSlug(name),
-        default_currency: (profileJson.profile?.default_currency as string) ?? 'SAR',
-        invoice_layout_mode: (profileJson.profile?.invoice_layout_mode as string) ?? 'branch_platform',
-        supports_branch_breakdown: Boolean(profileJson.profile?.supports_branch_breakdown ?? true),
-        default_platforms: Array.isArray(profileJson.profile?.default_platforms) ? profileJson.profile.default_platforms : [],
-        default_branch_names: Array.isArray(profileJson.profile?.default_branch_names) ? profileJson.profile.default_branch_names : [],
-        default_fees_logic: (profileJson.profile?.default_fees_logic as Record<string, unknown>) ?? {},
-        default_totals_logic: (profileJson.profile?.default_totals_logic as Record<string, unknown>) ?? {},
-        invoice_template_config: (profileJson.profile?.invoice_template_config as Record<string, unknown>) ?? {},
-        quotation_template_config: (profileJson.profile?.quotation_template_config as Record<string, unknown>) ?? {},
-        contract_template_config: (profileJson.profile?.contract_template_config as Record<string, unknown>) ?? {},
-        hr_contract_template_config: (profileJson.profile?.hr_contract_template_config as Record<string, unknown>) ?? {},
-        employees_template_config: (profileJson.profile?.employees_template_config as Record<string, unknown>) ?? {},
-        accounting_template_config: (profileJson.profile?.accounting_template_config as Record<string, unknown>) ?? {},
-        created_at: (profileJson.profile?.created_at as string) ?? new Date().toISOString(),
-        updated_at: (profileJson.profile?.updated_at as string) ?? new Date().toISOString(),
-        isDirty: false,
-      },
-      ...prev.filter(p => p.client_id !== clientId),
-    ]);
     setNewClientName('');
+    showSuccess('Client profile created.');
     void load();
   }
 
@@ -138,7 +146,8 @@ export default function ClientProfilesPage() {
       setError('Unable to save client profile.');
       return;
     }
-    setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, isDirty: false } : p));
+    showSuccess(`Saved ${profile.client_name}.`);
+    setProfiles((prev) => prev.map((p) => (p.id === profile.id ? { ...p, isDirty: false } : p)));
     void load();
   }
 
@@ -150,146 +159,186 @@ export default function ClientProfilesPage() {
       setError('Unable to delete profile.');
       return;
     }
-    setProfiles(prev => prev.filter(p => p.id !== profile.id));
+    showSuccess(`Deleted ${profile.client_name}.`);
+    setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
     void load();
   }
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text)' }}>Clients & Templates</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Manage client-specific document templates and defaults across all OPENY DOCS modules.
-          </p>
-        </div>
-        <Link
-          href="/docs/documents"
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-        >
-          <ArrowLeft size={14} /> Back
-        </Link>
-      </div>
+    <div className="docs-app p-6 sm:p-8 space-y-5">
+      <AppPageHeader
+        title="Clients & Templates"
+        subtitle="Manage client-specific document defaults, template behavior, and supported DOCS workflows."
+        actions={(
+          <Link
+            href="/docs/documents"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium hover:bg-[var(--surface-2)]"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <ArrowLeft size={14} /> Back
+          </Link>
+        )}
+      />
 
-      <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        <div className="flex gap-2">
-          <input
+      <AppSectionCard
+        title="Create Client Profile"
+        subtitle="Add a client, then configure invoice, quotation, contract, HR, employees, and accounting defaults."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+          <AppInput
             value={newClientName}
             onChange={(e) => setNewClientName(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]"
-            placeholder="Add new client name"
+            placeholder="Client name"
           />
           <button
             onClick={createClientAndProfile}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white"
+            className="inline-flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-semibold text-white"
             style={{ background: 'var(--accent)' }}
           >
             <Plus size={14} /> Add Client
           </button>
         </div>
-      </div>
+      </AppSectionCard>
 
-      {error && (
-        <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>
-          {error}
+      <AppSectionCard>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:items-center">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
+            <AppInput
+              className="pl-9"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search clients, slug, or currency"
+            />
+          </div>
+          <div className="text-xs md:text-right" style={{ color: 'var(--text-secondary)' }}>
+            {filteredProfiles.length} profile{filteredProfiles.length === 1 ? '' : 's'} found
+          </div>
         </div>
-      )}
+      </AppSectionCard>
 
-      {loading ? (
-        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading client profiles…</div>
-      ) : (
+      {success ? (
+        <div className="docs-state" style={{ borderColor: 'rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.08)', color: '#047857' }}>
+          <div className="inline-flex items-center gap-2"><CheckCircle2 size={15} /> {success}</div>
+        </div>
+      ) : null}
+
+      {error ? <AppErrorState message={error} /> : null}
+      {loading ? <AppLoadingState label="Loading client document profiles…" /> : null}
+
+      {!loading && filteredProfiles.length === 0 ? (
+        <AppEmptyState
+          title="No client profiles found"
+          description={query ? 'Try a different search term or clear filters.' : 'Create your first client profile to start using templates.'}
+        />
+      ) : null}
+
+      {!loading && filteredProfiles.length > 0 ? (
         <div className="space-y-4">
-          {sorted.map((profile) => (
-            <div
-              key={profile.id}
-              className="rounded-2xl border p-4"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-            >
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="font-semibold" style={{ color: 'var(--text)' }}>{profile.client_name}</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => void saveProfile(profile)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    <Save size={12} /> Save
-                  </button>
-                  <button
-                    onClick={() => void deleteProfile(profile)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-                    style={{ background: '#dc2626' }}
-                  >
-                    <Trash2 size={12} /> Delete
-                  </button>
+          {filteredProfiles.map((profile) => {
+            const templateStatus = profile.isDirty ? 'Unsaved changes' : 'Synced';
+            return (
+              <AppSectionCard
+                key={profile.id}
+                title={profile.client_name}
+                subtitle={`Slug: ${profile.client_slug} · Template status: ${templateStatus}`}
+                actions={(
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => void saveProfile(profile)}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-white"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      <Save size={12} /> Save
+                    </button>
+                    <button
+                      onClick={() => void deleteProfile(profile)}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-white"
+                      style={{ background: '#dc2626' }}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                )}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <Field label="Default Currency">
+                    <AppSelect
+                      value={String(profile.default_currency ?? 'SAR')}
+                      onChange={(value) => patchProfile(profile.id, { default_currency: value })}
+                      options={DOCS_CURRENCIES.map((currency) => ({ value: currency, label: currency }))}
+                    />
+                  </Field>
+                  <Field label="Invoice Layout Mode">
+                    <AppSelect
+                      value={profile.invoice_layout_mode || 'branch_platform'}
+                      onChange={(value) => patchProfile(profile.id, { invoice_layout_mode: value })}
+                      options={LAYOUT_MODE_OPTIONS}
+                    />
+                  </Field>
+                  <Field label="Supports Branch Breakdown">
+                    <AppSelect
+                      value={profile.supports_branch_breakdown ? 'true' : 'false'}
+                      onChange={(value) => patchProfile(profile.id, { supports_branch_breakdown: value === 'true' })}
+                      options={BOOL_OPTIONS}
+                    />
+                  </Field>
+                  <Field label="Invoice Type">
+                    <AppInput value={profile.invoice_type ?? ''} onChange={(e) => patchProfile(profile.id, { invoice_type: e.target.value })} />
+                  </Field>
+                  <Field label="Quotation Type">
+                    <AppInput value={profile.quotation_type ?? ''} onChange={(e) => patchProfile(profile.id, { quotation_type: e.target.value })} />
+                  </Field>
+                  <Field label="Contract Type">
+                    <AppInput value={profile.contract_type ?? ''} onChange={(e) => patchProfile(profile.id, { contract_type: e.target.value })} />
+                  </Field>
+                  <Field label="Default Branch Names (comma-separated)">
+                    <AppInput
+                      value={profile.default_branch_names.join(', ')}
+                      onChange={(e) => patchProfile(profile.id, { default_branch_names: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) })}
+                    />
+                  </Field>
+                  <Field label="Default Platforms (comma-separated)">
+                    <AppInput
+                      value={profile.default_platforms.join(', ')}
+                      onChange={(e) => patchProfile(profile.id, { default_platforms: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) })}
+                    />
+                  </Field>
+                  <Field label="Updated At">
+                    <AppInput value={(profile.updated_at ?? '').slice(0, 10)} readOnly />
+                  </Field>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <Field label="Default Currency">
-                  <select
-                    className={inputCls}
-                    value={profile.default_currency}
-                    onChange={(e) => patchProfile(profile.id, { default_currency: e.target.value })}
-                  >
-                    {DOCS_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Invoice Layout Mode">
-                  <select
-                    className={inputCls}
-                    value={profile.invoice_layout_mode || 'branch_platform'}
-                    onChange={(e) => patchProfile(profile.id, { invoice_layout_mode: e.target.value })}
-                  >
-                    <option value="branch_platform">Branch / Platform</option>
-                    <option value="simple_service">Simple Service</option>
-                    <option value="global">Global</option>
-                  </select>
-                </Field>
-                <Field label="Supports Branch Breakdown">
-                  <select
-                    className={inputCls}
-                    value={profile.supports_branch_breakdown ? 'true' : 'false'}
-                    onChange={(e) => patchProfile(profile.id, { supports_branch_breakdown: e.target.value === 'true' })}
-                  >
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
-                </Field>
-                <Field label="Invoice Type">
-                  <input className={inputCls} value={profile.invoice_type ?? ''} onChange={(e) => patchProfile(profile.id, { invoice_type: e.target.value })} />
-                </Field>
-                <Field label="Quotation Type">
-                  <input className={inputCls} value={profile.quotation_type ?? ''} onChange={(e) => patchProfile(profile.id, { quotation_type: e.target.value })} />
-                </Field>
-                <Field label="Contract Type">
-                  <input className={inputCls} value={profile.contract_type ?? ''} onChange={(e) => patchProfile(profile.id, { contract_type: e.target.value })} />
-                </Field>
-                <Field label="Default Branch Names (comma-separated)">
-                  <input
-                    className={inputCls}
-                    value={profile.default_branch_names.join(', ')}
-                    onChange={(e) => patchProfile(profile.id, { default_branch_names: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
-                  />
-                </Field>
-                <Field label="Default Platforms (comma-separated)">
-                  <input
-                    className={inputCls}
-                    value={profile.default_platforms.join(', ')}
-                    onChange={(e) => patchProfile(profile.id, { default_platforms: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })}
-                  />
-                </Field>
-                <Field label="Service Description Default">
-                  <input className={inputCls} value={profile.service_description_default ?? ''} onChange={(e) => patchProfile(profile.id, { service_description_default: e.target.value })} />
-                </Field>
-              </div>
-              <Field label="Notes">
-                <textarea className={inputCls} rows={2} value={profile.notes ?? ''} onChange={(e) => patchProfile(profile.id, { notes: e.target.value })} />
-              </Field>
-            </div>
-          ))}
+                <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <Field label="Service Description Default">
+                    <AppInput
+                      value={profile.service_description_default ?? ''}
+                      onChange={(e) => patchProfile(profile.id, { service_description_default: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Supported Document Types">
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {SUPPORTED_DOC_TYPES.map((docType) => (
+                        <span
+                          key={docType}
+                          className="px-2 py-1 rounded-full text-[11px] font-semibold"
+                          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                        >
+                          {docType}
+                        </span>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+                <div className="mt-3">
+                  <Field label="Notes">
+                    <AppTextarea rows={3} value={profile.notes ?? ''} onChange={(e) => patchProfile(profile.id, { notes: e.target.value })} />
+                  </Field>
+                </div>
+              </AppSectionCard>
+            );
+          })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -297,10 +346,8 @@ export default function ClientProfilesPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</label>
+      <label className="block">{label}</label>
       {children}
     </div>
   );
 }
-
-const inputCls = 'w-full px-3 py-1.5 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';

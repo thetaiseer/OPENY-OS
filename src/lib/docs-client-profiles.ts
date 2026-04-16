@@ -50,7 +50,16 @@ export function buildClientSlug(name: string) {
 
 export async function fetchDocsClientProfiles(): Promise<DocsClientProfile[]> {
   const res = await fetch('/api/docs/client-profiles', { cache: 'no-store' });
-  if (!res.ok) throw new Error('Unable to load client document profiles.');
+  if (!res.ok) {
+    let apiError = '';
+    try {
+      const json = await res.json() as { error?: string };
+      apiError = json?.error ?? '';
+    } catch {
+      // ignore parse and fallback
+    }
+    throw new Error(apiError || 'Unable to load client document profiles.');
+  }
   const json = await res.json() as { profiles?: DocsClientProfile[] };
   return json.profiles ?? [];
 }

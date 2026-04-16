@@ -10,6 +10,7 @@ import { DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { AppDateField } from '@/components/docs/DocsUi';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
@@ -247,7 +248,7 @@ export default function EmployeesPage() {
   const statusColor = (s: string) => s === 'active' ? { bg: 'rgba(22,163,74,0.1)', color: '#16a34a' } : s === 'inactive' ? { bg: 'rgba(234,179,8,0.1)', color: '#ca8a04' } : { bg: 'rgba(239,68,68,0.08)', color: '#ef4444' };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="docs-app flex flex-col h-full overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b shrink-0 px-6" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         {([['overview','Overview'],['employees','Employees'],['payroll','Payroll']] as [Tab, string][]).map(([t, l]) => (
@@ -372,7 +373,7 @@ export default function EmployeesPage() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Payroll Sheet</h2>
-                <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={payrollMonth} onChange={e => setPayrollMonth(e.target.value)} />
+                <AppDateField value={payrollMonth} onChange={setPayrollMonth} mode="month" placeholder="Payroll month" />
               </div>
               <button onClick={exportPayrollCSV} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white" style={{ background: '#0f172a' }}><Download size={15} /> Export CSV</button>
             </div>
