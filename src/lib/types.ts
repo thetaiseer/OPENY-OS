@@ -20,6 +20,7 @@ export interface Client {
   logo?: string;
   notes?: string;
   slug?: string;
+  default_currency?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -115,6 +116,8 @@ export interface Task {
   created_by?: string;
   /** UUID FK to profiles — canonical creator reference */
   created_by_id?: string | null;
+  /** FK to projects */
+  project_id?: string | null;
   /** FK to content_items */
   content_item_id?: string | null;
   mentions?: string[];

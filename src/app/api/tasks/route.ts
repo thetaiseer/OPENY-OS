@@ -9,7 +9,7 @@
  *   { title, description?, status?, priority?, start_date?, due_date?,
  *     due_time?, timezone?, task_category?, content_purpose?, caption?,
  *     notes?, client_id?, client_name?, assigned_to?, assignee_id?,
- *     created_by?, created_by_id?, mentions?, tags?,
+ *     created_by?, created_by_id?, project_id?, mentions?, tags?,
  *     platforms?, post_types?, publishing_schedule_id?,
  *     asset_id?, asset_ids?, content_item_id? }
  *
@@ -203,6 +203,8 @@ export async function POST(request: NextRequest) {
 
   const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
   if (contentItemId) insertPayload.content_item_id = contentItemId;
+  const projectId = typeof body.project_id === 'string' ? body.project_id.trim() : '';
+  if (projectId) insertPayload.project_id = projectId;
   if (typeof body.position === 'number' && Number.isFinite(body.position)) {
     insertPayload.position = Math.max(0, Math.trunc(body.position));
   }

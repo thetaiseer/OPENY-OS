@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   const { data, error } = await db
     .from('clients')
-    .select('id,name,slug,status,created_at,updated_at')
+    .select('id,name,slug,status,default_currency,created_at,updated_at')
     .order('name', { ascending: true });
 
   if (error) {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
   // 4. Build insert payload (only allow known fields)
   const insertPayload: Record<string, string> = { name };
-  const optionalFields = ['email', 'phone', 'website', 'industry', 'status', 'notes'] as const;
+  const optionalFields = ['email', 'phone', 'website', 'industry', 'status', 'notes', 'default_currency'] as const;
   for (const field of optionalFields) {
     const val = body[field];
     if (typeof val === 'string' && val.trim() !== '') {

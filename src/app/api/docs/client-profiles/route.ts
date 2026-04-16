@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
 
   const db = getServiceClient();
   const [{ data: clients, error: clientsError }, { data: profiles, error: profilesError }] = await Promise.all([
-    db.from('clients').select('id,name,slug,status').order('name', { ascending: true }),
-    db.from('docs_client_document_profiles').select('*').order('created_at', { ascending: false }),
+    db.from('clients').select('id,name,slug,status,default_currency').order('name', { ascending: true }),
+    db.from('client_document_profiles').select('*').order('created_at', { ascending: false }),
   ]);
 
   if (clientsError) return NextResponse.json({ error: clientsError.message }, { status: 500 });
@@ -36,7 +36,10 @@ export async function GET(req: NextRequest) {
         client_id: client.id,
         client_name: client.name,
         client_slug: client.slug ?? buildClientSlug(client.name),
-        default_currency: (profile?.default_currency as string | undefined) ?? 'SAR',
+        default_currency:
+          (profile?.default_currency as string | undefined)
+          ?? (client.default_currency as string | undefined)
+          ?? 'SAR',
         invoice_type: (profile?.invoice_type as string | undefined) ?? null,
         quotation_type: (profile?.quotation_type as string | undefined) ?? null,
         contract_type: (profile?.contract_type as string | undefined) ?? null,
@@ -103,10 +106,19 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('docs_client_document_profiles')
+    .from('client_document_profiles')
     .upsert(payload, { onConflict: 'client_id' })
     .select('*')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (typeof payload.default_currency === 'string' && payload.default_currency.trim()) {
+    const { error: clientUpdateError } = await db
+      .from('clients')
+      .update({ default_currency: payload.default_currency })
+      .eq('id', client_id);
+    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
+  }
+
   return NextResponse.json({ profile: data }, { status: 201 });
 }

@@ -36,7 +36,7 @@ import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
-import type { Task, Client, TeamMember } from '@/lib/types';
+import type { Task, Client, TeamMember, Project } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ function statusLabel(s: string, t: (k: string) => string): string {
 
 const blankForm = {
   title: '', description: '', status: 'todo', priority: 'medium',
-  start_date: '', due_date: '', client_id: '', assigned_to: '', created_by: '',
+  start_date: '', due_date: '', client_id: '', project_id: '', assigned_to: '', created_by: '',
   mentions: [] as string[], tags: '',
 };
 
@@ -105,13 +105,16 @@ interface TaskFormProps {
   form: typeof blankForm;
   setForm: React.Dispatch<React.SetStateAction<typeof blankForm>>;
   clients: Client[];
+  projects: Project[];
   team: TeamMember[];
   saving: boolean;
   onCancel: () => void;
   t: (k: string) => string;
 }
 
-function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFormProps) {
+function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t }: TaskFormProps) {
+  const projectOptions = projects.filter(p => !form.client_id || p.client_id === form.client_id);
+
   const toggleMention = (id: string) => {
     setForm(f => ({
       ...f,
@@ -160,7 +163,7 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
         />
       </div>
 
-      {/* Client + Start Date + Deadline */}
+      {/* Client + Project */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')} *</label>
@@ -176,15 +179,30 @@ function TaskForm({ form, setForm, clients, team, saving, onCancel, t }: TaskFor
           />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
-          <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} style={inputStyle} />
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Project</label>
+          <SelectDropdown
+            fullWidth
+            value={form.project_id}
+            onChange={v => setForm(f => ({ ...f, project_id: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...projectOptions.map(p => ({ value: p.id, label: p.name })),
+            ]}
+          />
         </div>
       </div>
 
-      {/* Deadline */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')} *</label>
-        <input required type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
+      {/* Start Date + Deadline */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
+          <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} style={inputStyle} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')} *</label>
+          <input required type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
+        </div>
       </div>
 
       {/* Priority + Status */}
@@ -972,9 +990,10 @@ export default function TasksPage() {
   const { data: queryData, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['tasks-all'],
     queryFn: async () => {
-      const [tasksRes, clientsRes, teamRes] = await Promise.allSettled([
+      const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
         supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
         supabase.from('clients').select('id,name').order('name'),
+        supabase.from('projects').select('id,name,client_id').order('name'),
         // Select only the columns the UI actually uses to reduce payload size.
         supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
       ]);
@@ -987,12 +1006,15 @@ export default function TasksPage() {
       }
       if (clientsRes.status === 'rejected') console.error('[tasks] clients fetch rejected:', clientsRes.reason);
       else if (clientsRes.value.error) console.error('[tasks] clients fetch error:', clientsRes.value.error);
+      if (projectsRes.status === 'rejected') console.error('[tasks] projects fetch rejected:', projectsRes.reason);
+      else if (projectsRes.value.error) console.error('[tasks] projects fetch error:', projectsRes.value.error);
       if (teamRes.status === 'rejected') console.error('[tasks] team fetch rejected:', teamRes.reason);
       else if (teamRes.value.error) console.error('[tasks] team fetch error:', teamRes.value.error);
 
       return {
         tasks:   (tasksRes.status   === 'fulfilled' && !tasksRes.value.error)   ? (tasksRes.value.data   ?? []) as Task[]       : [],
         clients: (clientsRes.status === 'fulfilled' && !clientsRes.value.error) ? (clientsRes.value.data ?? []) as Client[]     : [],
+        projects: (projectsRes.status === 'fulfilled' && !projectsRes.value.error) ? (projectsRes.value.data ?? []) as Project[] : [],
         team:    (teamRes.status    === 'fulfilled' && !teamRes.value.error)    ? (teamRes.value.data    ?? []) as TeamMember[]  : [],
       };
     },
@@ -1002,9 +1024,10 @@ export default function TasksPage() {
 
   // Local state for optimistic updates — seeded from React Query cache on
   // first render and kept in sync when the background fetch completes.
-  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; team: TeamMember[] }>(['tasks-all']);
+  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(['tasks-all']);
   const [tasks,   setTasks]   = useState<Task[]>      (() => cachedOnMount?.tasks   ?? []);
   const [clients, setClients] = useState<Client[]>    (() => cachedOnMount?.clients ?? []);
+  const [projects, setProjects] = useState<Project[]>(() => cachedOnMount?.projects ?? []);
   const [team,    setTeam]    = useState<TeamMember[]>(() => cachedOnMount?.team    ?? []);
 
   // Keep local state in sync when React Query data arrives / updates.
@@ -1012,6 +1035,7 @@ export default function TasksPage() {
     if (queryData) {
       setTasks(queryData.tasks);
       setClients(queryData.clients);
+      setProjects(queryData.projects ?? []);
       setTeam(queryData.team);
     }
   }, [queryData]);
@@ -1087,6 +1111,7 @@ export default function TasksPage() {
         start_date:  createForm.start_date || null,
         due_date:    createForm.due_date,
         client_id:   createForm.client_id,
+        project_id:  createForm.project_id || null,
         assigned_to: createForm.assigned_to,
         created_by:  createForm.created_by || null,
         mentions:    Array.isArray(createForm.mentions) ? createForm.mentions : [],
@@ -1135,7 +1160,7 @@ export default function TasksPage() {
       if (result.task) {
         const createdTask = result.task;
         setTasks(prev => [createdTask, ...prev.filter(t => t.id !== createdTask.id)]);
-        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; team: TeamMember[] }>(
+        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(
           ['tasks-all'],
           old => old
             ? { ...old, tasks: [createdTask, ...old.tasks.filter(t => t.id !== createdTask.id)] }
@@ -1168,6 +1193,7 @@ export default function TasksPage() {
       start_date: task.start_date ?? '',
       due_date: task.due_date ?? '',
       client_id: task.client_id ?? '',
+      project_id: task.project_id ?? '',
       assigned_to: task.assigned_to ?? '',
       created_by: task.created_by ?? '',
       mentions: task.mentions ?? [],
@@ -1192,6 +1218,7 @@ export default function TasksPage() {
         start_date:  editForm.start_date || null,
         due_date:    editForm.due_date || null,
         client_id:   editForm.client_id || null,
+        project_id:  editForm.project_id || null,
         assigned_to: editForm.assigned_to || null,
         created_by:  editForm.created_by || null,
         mentions:    Array.isArray(editForm.mentions) ? editForm.mentions : [],
@@ -1602,7 +1629,7 @@ export default function TasksPage() {
               <span>{createError}</span>
             </div>
           )}
-          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} team={team} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
+          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
         </form>
       </Modal>
 
@@ -1615,7 +1642,7 @@ export default function TasksPage() {
               <span>{editError}</span>
             </div>
           )}
-          <TaskForm form={editForm} setForm={setEditForm} clients={clients} team={team} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
+          <TaskForm form={editForm} setForm={setEditForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
         </form>
       </Modal>
 
