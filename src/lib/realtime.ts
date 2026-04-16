@@ -51,7 +51,7 @@ export function subscribeToTableChanges(
     .on(
       'postgres_changes',
       { event, schema, table: config.table },
-      () => { onChange(); },
+      (_payload) => { onChange(); },
     )
     .subscribe();
 

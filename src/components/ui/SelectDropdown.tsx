@@ -20,9 +20,16 @@
  *   fullWidth   – stretches trigger + dropdown to 100% (for form fields)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, X, Check } from 'lucide-react';
+
+const SELECT_DROPDOWN_MIN_WIDTH_PX = 180;
+const SELECT_DROPDOWN_VIEWPORT_PADDING_PX = 8;
+const SELECT_DROPDOWN_VIEWPORT_DOUBLE_PADDING_PX = SELECT_DROPDOWN_VIEWPORT_PADDING_PX * 2;
+const SELECT_DROPDOWN_MIN_VIEWPORT_WIDTH_PX = 220;
+const SELECT_DROPDOWN_CHAR_WIDTH_ESTIMATE_PX = 8.5;
+const SELECT_DROPDOWN_LABEL_PADDING_ESTIMATE_PX = 64;
 
 export interface SelectOption {
   value: string;
@@ -63,6 +70,11 @@ export default function SelectDropdown({
   const selected = options.find(o => o.value === value);
   const label = selected?.label ?? placeholder;
   const hasValue = !!value;
+  const estimatedLongestLabelWidth = useMemo(() => (
+    Math.max(...options.map(option => option.label.length), placeholder.length) *
+      SELECT_DROPDOWN_CHAR_WIDTH_ESTIMATE_PX +
+      SELECT_DROPDOWN_LABEL_PADDING_ESTIMATE_PX
+  ), [options, placeholder]);
 
   // Track mount state so createPortal is only called client-side
   useEffect(() => { setMounted(true); }, []);
@@ -120,16 +132,15 @@ export default function SelectDropdown({
   // Compute portal dropdown position from the trigger's bounding rect
   const portalStyle: React.CSSProperties = rect
     ? (() => {
-      const estimatedLongestLabelWidth = Math.max(
-        ...options.map(option => option.label.length),
-        placeholder.length,
-      ) * 8.5 + 64;
-      const minWidth = Math.max(rect.width, 180);
-      const viewportMaxWidth = Math.max(220, window.innerWidth - 16);
+      const minWidth = Math.max(rect.width, SELECT_DROPDOWN_MIN_WIDTH_PX);
+      const viewportMaxWidth = Math.max(
+        SELECT_DROPDOWN_MIN_VIEWPORT_WIDTH_PX,
+        window.innerWidth - SELECT_DROPDOWN_VIEWPORT_DOUBLE_PADDING_PX,
+      );
       const width = Math.min(Math.max(minWidth, estimatedLongestLabelWidth), viewportMaxWidth);
       const unclampedLeft = rect.left;
-      const maxLeft = window.innerWidth - width - 8;
-      const left = Math.max(8, Math.min(unclampedLeft, maxLeft));
+      const maxLeft = window.innerWidth - width - SELECT_DROPDOWN_VIEWPORT_PADDING_PX;
+      const left = Math.max(SELECT_DROPDOWN_VIEWPORT_PADDING_PX, Math.min(unclampedLeft, maxLeft));
       return {
         position: 'fixed',
         top: rect.bottom + 6,
@@ -161,14 +172,14 @@ export default function SelectDropdown({
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3 py-2 min-h-9 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
+                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
                   style={{
                     background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
                     color:      isSelected ? 'var(--accent)' : 'var(--text)',
                     fontWeight: isSelected ? 600 : 400,
                   }}
                 >
-                  <span className="whitespace-normal break-words leading-5">{option.label}</span>
+                  <span className="whitespace-normal break-words leading-5" title={option.label}>{option.label}</span>
                   {isSelected && (
                     <Check size={13} className="shrink-0 ml-2" style={{ color: 'var(--accent)' }} />
                   )}
