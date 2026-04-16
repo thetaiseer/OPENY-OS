@@ -124,6 +124,19 @@ function getGroupLabel(member: TeamMember): string {
   return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
 }
 
+function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
+  if (!data || typeof data !== 'object') return false;
+  const payload = data as { member?: Partial<TeamMember>; invitation?: Partial<TeamInvitation> };
+  return Boolean(
+    payload.member?.id
+    && payload.member?.full_name
+    && payload.member?.email
+    && payload.invitation?.id
+    && payload.invitation?.team_member_id
+    && payload.invitation?.email,
+  );
+}
+
 /** Group an array of members into ordered sections by role/job title. */
 function groupMembers(members: TeamMember[]): { label: string; members: TeamMember[] }[] {
   const map = new Map<string, TeamMember[]>();
@@ -464,7 +477,7 @@ export default function TeamPage() {
         if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
         return;
       }
-      if (!data?.member || !data?.invitation || !data.invitation.id) {
+      if (!hasInviteInsertResult(data)) {
         setActionError('Invite request succeeded but no invitation row was returned.');
         console.error('[team] Missing insert result after invite:', data);
         return;
@@ -483,15 +496,19 @@ export default function TeamPage() {
         ) => {
           if (!prev) {
             return {
-              members: [data.member as TeamMember],
-              invitations: [data.invitation as TeamInvitation],
+              members: [data.member],
+              invitations: [data.invitation],
               workspaceAccess: {},
             };
           }
+          const nextMembers = [data.member, ...prev.members.filter(m => m.id !== data.member.id)]
+            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+          const nextInvitations = [data.invitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return {
             ...prev,
-            members: [data.member as TeamMember, ...prev.members.filter(m => m.id !== data.member.id)],
-            invitations: [data.invitation as TeamInvitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)],
+            members: nextMembers,
+            invitations: nextInvitations,
           };
         },
       );
@@ -500,7 +517,6 @@ export default function TeamPage() {
       setInviteForm({ ...blankInviteForm });
       toast(`Invitation sent to ${inviteForm.email}`, 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
-      void queryClient.refetchQueries({ queryKey: ['team-data'] });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Network error. Please try again.');
     } finally {

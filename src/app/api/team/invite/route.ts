@@ -22,6 +22,7 @@ const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS
 type InsertResult = {
   invitation: Record<string, unknown> | null;
   errorMessage: string | null;
+  attemptedErrors: string[];
 };
 
 async function insertInvitationWithFallback(
@@ -48,6 +49,11 @@ async function insertInvitationWithFallback(
     created_at: nowIso,
   };
 
+  // Schema-compatibility fallbacks:
+  // - Some DBs still use `name`, others `full_name`, and some have neither on invitations.
+  // - Some DBs support `workspace_access`/`workspace_roles`, older ones do not.
+  // - Some DBs use `pending`, older constraints still allow only `invited`.
+  // - A few legacy deployments used `access_role` instead of `role`.
   const variants: Array<Record<string, unknown>> = [
     {
       ...commonPayload,
@@ -112,10 +118,10 @@ async function insertInvitationWithFallback(
       .single();
 
     if (!error && invitation?.id) {
-      return { invitation: invitation as Record<string, unknown>, errorMessage: null };
+      return { invitation: invitation as Record<string, unknown>, errorMessage: null, attemptedErrors: [] };
     }
 
-    const message = error?.message ?? 'Insert succeeded but no row was returned.';
+    const message = error?.message ?? (!invitation ? 'Insert succeeded but no row was returned.' : 'Unknown invitation insert error.');
     errors.push(message);
     console.error('[team/invite] team_invitations insert attempt failed:', {
       message,
@@ -129,6 +135,7 @@ async function insertInvitationWithFallback(
   return {
     invitation: null,
     errorMessage: errors[errors.length - 1] ?? 'Failed to create invitation',
+    attemptedErrors: errors,
   };
 }
 
@@ -252,7 +259,7 @@ export async function POST(request: NextRequest) {
 
   console.log('[team/invite] Generated token (prefix):', token.slice(0, 8) + '...', '— expires', expiresAt);
 
-  const { invitation, errorMessage: inviteInsertError } = await insertInvitationWithFallback(db, {
+  const { invitation, errorMessage: inviteInsertError, attemptedErrors } = await insertInvitationWithFallback(db, {
     team_member_id: member.id,
     email,
     role: access_role,
@@ -272,6 +279,7 @@ export async function POST(request: NextRequest) {
       {
         error: inviteInsertError ?? 'Failed to create invitation',
         dbError: inviteInsertError ?? null,
+        attemptedErrors,
       },
       { status: 500 },
     );
