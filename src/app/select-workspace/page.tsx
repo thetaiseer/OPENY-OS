@@ -38,8 +38,10 @@ export default function SelectWorkspacePage() {
     },
   ]), []);
 
+  const isAuthenticated = Boolean(user.id && user.email);
+
   const handleEnter = (key: 'os' | 'docs', route: string) => {
-    if (!user.id) {
+    if (!isAuthenticated) {
       router.push(`/${key}/login?next=${encodeURIComponent(route)}`);
       return;
     }
@@ -48,9 +50,7 @@ export default function SelectWorkspacePage() {
       return;
     }
     setEntering(key);
-    setTimeout(() => {
-      router.push(route);
-    }, 180);
+    router.push(route);
   };
 
   if (loading) {

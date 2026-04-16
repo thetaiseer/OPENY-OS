@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -11,6 +11,22 @@ interface Props {
 }
 
 export default function WorkspaceLoginCard({ workspace }: Props) {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-sm rounded-3xl border p-7 sm:p-8 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="h-24 flex items-center justify-center">
+            <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+          </div>
+        </div>
+      }
+    >
+      <WorkspaceLoginCardInner workspace={workspace} />
+    </Suspense>
+  );
+}
+
+function WorkspaceLoginCardInner({ workspace }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -24,7 +40,7 @@ export default function WorkspaceLoginCard({ workspace }: Props) {
   const workspaceLabel = workspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS';
   const defaultNext = workspace === 'docs' ? '/docs/dashboard' : '/os/dashboard';
 
-  const checkAndRoute = async () => {
+  const checkAndRoute = useCallback(async () => {
     const next = searchParams.get('next') ?? defaultNext;
     const res = await fetch(`/api/auth/workspace-access?workspace=${workspace}`, { credentials: 'include' });
     if (!res.ok) {
@@ -38,7 +54,7 @@ export default function WorkspaceLoginCard({ workspace }: Props) {
     }
     router.replace(next);
     router.refresh();
-  };
+  }, [defaultNext, router, searchParams, workspace]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -48,8 +64,7 @@ export default function WorkspaceLoginCard({ workspace }: Props) {
         setChecking(false);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
+  }, [checkAndRoute, supabase.auth]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -140,4 +155,3 @@ export default function WorkspaceLoginCard({ workspace }: Props) {
     </div>
   );
 }
-

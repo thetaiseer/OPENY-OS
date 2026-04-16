@@ -14,7 +14,7 @@ import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
-import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -56,15 +56,9 @@ export async function POST(request: NextRequest) {
   }
 
   const workspace_access: WorkspaceKey[] = requestedWorkspaceAccess
-    .map(v => normalizeWorkspaceKey(v))
-    .filter((v): v is WorkspaceKey => Boolean(v));
-  const effectiveWorkspaceAccess = workspace_access.length > 0 ? workspace_access : ['os'];
-
-  const mapAccessRoleToWorkspaceRole = (value: string): 'admin' | 'member' | 'viewer' => {
-    if (value === 'admin' || value === 'manager') return 'admin';
-    if (value === 'viewer') return 'viewer';
-    return 'member';
-  };
+    .map((v: unknown) => normalizeWorkspaceKey(v))
+    .filter((v: WorkspaceKey | null): v is WorkspaceKey => Boolean(v));
+  const effectiveWorkspaceAccess: WorkspaceKey[] = workspace_access.length > 0 ? workspace_access : ['os'];
 
   const workspace_roles: Record<WorkspaceKey, string> = {
     os: mapAccessRoleToWorkspaceRole(access_role),
@@ -180,7 +174,9 @@ export async function POST(request: NextRequest) {
   const html = teamInviteEmail({
     recipientName:  full_name,
     inviterName:    auth.profile.name,
-    workspaceName:  effectiveWorkspaceAccess.length === 2 ? 'OPENY PLATFORM' : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`,
+    workspaceName:  effectiveWorkspaceAccess.length === 2
+      ? 'OPENY PLATFORM'
+      : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`,
     role:           access_role,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,

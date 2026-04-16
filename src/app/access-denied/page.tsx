@@ -1,13 +1,12 @@
-'use client';
-
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
+import { OWNER_EMAIL } from '@/lib/constants/auth';
 
-export default function AccessDeniedPage() {
-  const searchParams = useSearchParams();
-  const workspace = (searchParams.get('workspace') ?? '').toLowerCase();
+export default async function AccessDeniedPage({ searchParams }: { searchParams: Promise<{ workspace?: string }> }) {
+  const params = await searchParams;
+  const workspace = (params.workspace ?? '').toLowerCase();
   const workspaceLabel = workspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS';
+  const requestAccessHref = `mailto:${OWNER_EMAIL}?subject=OPENY%20Workspace%20Access%20Request`;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5" style={{ background: 'var(--bg)' }}>
@@ -31,7 +30,7 @@ export default function AccessDeniedPage() {
             Back to workspaces
           </Link>
           <a
-            href="mailto:thetaiseer@gmail.com?subject=OPENY%20Workspace%20Access%20Request"
+            href={requestAccessHref}
             className="h-10 px-4 rounded-xl inline-flex items-center text-sm font-semibold"
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
@@ -42,4 +41,3 @@ export default function AccessDeniedPage() {
     </div>
   );
 }
-

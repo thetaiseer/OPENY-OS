@@ -37,6 +37,12 @@ export function mapWorkspaceRoleToUserRole(role: WorkspaceRole | null): 'owner' 
   return 'team_member';
 }
 
+export function mapAccessRoleToWorkspaceRole(value: string): 'admin' | 'member' | 'viewer' {
+  if (value === 'admin' || value === 'manager') return 'admin';
+  if (value === 'viewer') return 'viewer';
+  return 'member';
+}
+
 export async function getWorkspaceMembership(
   supabase: SupabaseClient,
   userId: string,
@@ -53,4 +59,3 @@ export async function getWorkspaceMembership(
   if (!data) return null;
   return data as { role: WorkspaceRole; is_active: boolean };
 }
-

@@ -12,26 +12,45 @@ export async function GET(request: NextRequest) {
   const db = getServiceClient();
   const { data: members } = await db
     .from('team_members')
-    .select('email')
+    .select('email, profile_id')
     .not('email', 'is', null);
 
-  const users = await db.auth.admin.listUsers();
-  const idByEmail = new Map(
-    (users.data.users ?? [])
-      .filter(u => !!u.email)
-      .map(u => [u.email!.toLowerCase(), u.id]),
-  );
+  const idByEmail = new Map<string, string>();
+  const userIds = new Set<string>();
 
-  const userIds = (members ?? [])
+  for (const member of members ?? []) {
+    const email = (member.email ?? '').toLowerCase();
+    const profileId = (member as { profile_id?: string | null }).profile_id ?? null;
+    if (profileId) {
+      userIds.add(profileId);
+      if (email) idByEmail.set(email, profileId);
+    }
+  }
+  const emailByUserId = new Map<string, string>();
+  for (const [email, userId] of idByEmail.entries()) {
+    emailByUserId.set(userId, email);
+  }
+
+  const unresolvedEmails = (members ?? [])
     .map(member => (member.email ?? '').toLowerCase())
-    .map(email => idByEmail.get(email))
-    .filter((id): id is string => Boolean(id));
+    .filter(email => email && !idByEmail.has(email));
 
-  const { data: memberships } = userIds.length
+  if (unresolvedEmails.length > 0) {
+    const users = await db.auth.admin.listUsers();
+    for (const user of users.data.users ?? []) {
+      const email = (user.email ?? '').toLowerCase();
+      if (!email || !unresolvedEmails.includes(email)) continue;
+      idByEmail.set(email, user.id);
+      userIds.add(user.id);
+    }
+  }
+
+  const userIdList = [...userIds];
+  const { data: memberships } = userIdList.length
     ? await db
         .from('workspace_memberships')
         .select('user_id, workspace_key, role, is_active')
-        .in('user_id', userIds)
+        .in('user_id', userIdList)
     : { data: [] as Array<{ user_id: string; workspace_key: string; role: string; is_active: boolean }> };
 
   const byEmail: Record<string, Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>> = {};
@@ -45,7 +64,7 @@ export async function GET(request: NextRequest) {
     const workspace = normalizeWorkspaceKey(membership.workspace_key);
     if (!workspace) continue;
 
-    const email = [...idByEmail.entries()].find(([, id]) => id === membership.user_id)?.[0];
+    const email = emailByUserId.get(membership.user_id);
     if (!email) continue;
 
     if (!byEmail[email]) byEmail[email] = {};

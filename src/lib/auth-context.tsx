@@ -5,7 +5,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 import { OWNER_EMAIL } from './constants/auth';
-import type { WorkspaceKey, WorkspaceRole } from './workspace-access';
+import { mapWorkspaceRoleToUserRole, type WorkspaceKey, type WorkspaceRole } from './workspace-access';
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 
@@ -14,7 +14,7 @@ export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' 
 // Caches the resolved user profile in sessionStorage so that subsequent page
 // loads within the same browser session skip the team_members DB round-trip and
 // show the app shell immediately.
-const CACHE_KEY = 'openy_user_v2';
+const CACHE_KEY = 'openy_user_v1';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface WorkspaceAccessState {
@@ -172,7 +172,13 @@ async function fetchUserStateFromTables(
     };
   }
 
-  const fallbackRole = workspaceAccess.docs && !workspaceAccess.os ? 'viewer' : 'team_member';
+  const docsOnlyRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.docs ?? 'viewer') as WorkspaceRole);
+  const osFallbackRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.os ?? 'member') as WorkspaceRole);
+  const fallbackRole = workspaceAccess.docs && !workspaceAccess.os
+    ? docsOnlyRole
+    : workspaceAccess.os
+      ? osFallbackRole
+      : 'viewer';
   console.warn('[auth] No team_member row found for email:', email, '— defaulting role to', fallbackRole);
   return {
     user: {

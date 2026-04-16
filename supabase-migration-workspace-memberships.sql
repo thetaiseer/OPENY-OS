@@ -61,21 +61,26 @@ ALTER TABLE public.team_invitations
   ADD COLUMN IF NOT EXISTS workspace_roles jsonb NOT NULL DEFAULT '{"os":"member"}'::jsonb;
 
 -- 4) Promote platform super owner and grant both workspaces.
+-- Uses app.owner_email when configured; falls back to thetaiseer@gmail.com.
+DO $$
+DECLARE
+  v_owner_email text := lower(coalesce(current_setting('app.owner_email', true), 'thetaiseer@gmail.com'));
+BEGIN
 UPDATE public.profiles
 SET role_global = 'global_owner'
-WHERE lower(email) = 'thetaiseer@gmail.com';
+WHERE lower(email) = v_owner_email;
 
 INSERT INTO public.workspace_memberships (user_id, workspace_key, role, is_active)
 SELECT au.id, 'os', 'owner', true
 FROM auth.users au
-WHERE lower(au.email) = 'thetaiseer@gmail.com'
+WHERE lower(au.email) = v_owner_email
 ON CONFLICT (user_id, workspace_key)
 DO UPDATE SET role = EXCLUDED.role, is_active = true, updated_at = now();
 
 INSERT INTO public.workspace_memberships (user_id, workspace_key, role, is_active)
 SELECT au.id, 'docs', 'owner', true
 FROM auth.users au
-WHERE lower(au.email) = 'thetaiseer@gmail.com'
+WHERE lower(au.email) = v_owner_email
 ON CONFLICT (user_id, workspace_key)
 DO UPDATE SET role = EXCLUDED.role, is_active = true, updated_at = now();
-
+END $$;

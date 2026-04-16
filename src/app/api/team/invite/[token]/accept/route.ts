@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
-import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 
 export async function POST(
   request: NextRequest,
@@ -97,8 +97,12 @@ export async function POST(
   const authUserId = authData?.user?.id ?? null;
   let finalUserId = authUserId;
   if (!finalUserId) {
-    const users = await db.auth.admin.listUsers();
-    finalUserId = (users.data.users ?? []).find(u => u.email?.toLowerCase() === invitation.email.toLowerCase())?.id ?? null;
+    const { data: memberProfile } = await db
+      .from('team_members')
+      .select('profile_id')
+      .eq('id', invitation.team_member_id)
+      .maybeSingle();
+    finalUserId = (memberProfile as { profile_id?: string | null } | null)?.profile_id ?? null;
   }
 
   // ── 3. Activate team member ──────────────────────────────────────────────
@@ -134,17 +138,11 @@ export async function POST(
       ? invitation.workspace_roles as Record<string, string>
       : {};
 
-    const mapInviteRole = (value: string): 'admin' | 'member' | 'viewer' => {
-      if (value === 'admin' || value === 'manager') return 'admin';
-      if (value === 'viewer') return 'viewer';
-      return 'member';
-    };
-
     for (const workspace of effectiveWorkspaceAccess) {
       const rawRole = (workspaceRolesRaw[workspace] ?? '').toLowerCase();
       const role = WORKSPACE_ROLES.includes(rawRole as (typeof WORKSPACE_ROLES)[number])
         ? rawRole
-        : mapInviteRole(invitation.role ?? '');
+        : mapAccessRoleToWorkspaceRole(invitation.role ?? '');
 
       await db
         .from('workspace_memberships')

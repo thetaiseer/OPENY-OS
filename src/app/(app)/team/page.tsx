@@ -205,7 +205,7 @@ const blankForm = {
   email: '',
   role: '',
   job_title: '',
-  os_access: true,
+  os_access: false,
   docs_access: false,
   os_role: 'member',
   docs_role: 'member',
@@ -215,7 +215,7 @@ const blankInviteForm = {
   email: '',
   access_role: '',
   job_title: '',
-  os_access: true,
+  os_access: false,
   docs_access: false,
   os_role: 'member',
   docs_role: 'member',
@@ -433,7 +433,7 @@ export default function TeamPage() {
       return;
     }
     if (!inviteForm.os_access && !inviteForm.docs_access) {
-      setActionError('Enable at least one workspace (OPENY OS or OPENY DOCS).');
+      setActionError('At least one workspace must be enabled (OPENY OS or OPENY DOCS).');
       return;
     }
     setSaving(true);
@@ -477,7 +477,7 @@ export default function TeamPage() {
       email: member.email ?? '',
       role: member.role ?? '',
       job_title: member.job_title ?? '',
-      os_access: access.os?.enabled ?? true,
+      os_access: access.os?.enabled ?? false,
       docs_access: access.docs?.enabled ?? false,
       os_role: access.os?.role ?? 'member',
       docs_role: access.docs?.role ?? 'member',
