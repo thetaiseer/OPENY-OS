@@ -13,6 +13,10 @@ ALTER TABLE public.assets
 ALTER TABLE public.assets
   ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 
+UPDATE public.assets
+SET workspace_key = 'os'
+WHERE workspace_key IS NULL;
+
 DO $$
 BEGIN
   IF NOT EXISTS (

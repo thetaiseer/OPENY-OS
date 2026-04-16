@@ -623,7 +623,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     try {
       // ── failed_db retry — storage upload already done, skip to DB save ─────
       if (item.r2Key) {
-        const retryPublicUrl = item.publicUrl || supabase.storage.from('client-assets').getPublicUrl(item.r2Key).data.publicUrl;
+        const retryPublicUrlData = item.publicUrl
+          ? { publicUrl: item.publicUrl }
+          : supabase.storage.from('client-assets').getPublicUrl(item.r2Key).data;
+        const retryPublicUrl = retryPublicUrlData?.publicUrl ?? '';
+        if (!retryPublicUrl) {
+          setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
+            progress: 100,
+            errorDetail: classifyUploadError({
+              step:               'public_url',
+              rawMessage:         'Could not resolve public URL for uploaded file.',
+              fileReachedStorage: true,
+              dbSaved:            false,
+            }),
+          });
+          return;
+        }
         setStage(item.id, 'uploaded', 'Saving to system\u2026', {
           progress:     100,
           uploadedBytes: item.totalBytes,
@@ -685,6 +700,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const rawExt = item.file.name.includes('.') ? (item.file.name.split('.').pop() ?? '') : '';
     const ext = rawExt ? `.${rawExt}` : '';
     const safeOriginalName = item.file.name.replace(/[\\/]/g, '-');
+    if (!item.clientId) {
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step:               'client_id',
+          rawMessage:         'Client ID is required before upload.',
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
+      });
+      return;
+    }
     const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
     const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
 
