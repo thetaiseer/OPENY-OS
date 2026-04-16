@@ -1132,6 +1132,16 @@ export default function TasksPage() {
       setCreateForm({ ...blankForm });
       toast(`Task "${createForm.title}" created successfully.`, 'success');
 
+      if (result.task) {
+        setTasks(prev => [result.task as Task, ...prev.filter(t => t.id !== result.task?.id)]);
+        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; team: TeamMember[] }>(
+          ['tasks-all'],
+          old => old
+            ? { ...old, tasks: [result.task as Task, ...old.tasks.filter(t => t.id !== result.task?.id)] }
+            : old,
+        );
+      }
+
       // Refresh list non-blocking via React Query cache invalidation
       console.log('[task create] triggering list refetch');
       void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });

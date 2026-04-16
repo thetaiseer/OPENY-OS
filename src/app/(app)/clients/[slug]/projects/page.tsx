@@ -89,8 +89,18 @@ export default function ClientProjectsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, client_id: clientId }),
       });
-      const json = await res.json() as { success: boolean; error?: string };
+      const json = await res.json() as { success: boolean; project?: Project; error?: string };
       if (!json.success) throw new Error(json.error ?? 'Save failed');
+      if (json.project) {
+        queryClient.setQueryData<Project[]>(
+          ['projects', clientId],
+          old => {
+            const existing = old ?? [];
+            const withoutCurrent = existing.filter(p => p.id !== json.project?.id);
+            return [json.project as Project, ...withoutCurrent];
+          },
+        );
+      }
       setModalOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['projects', clientId] });
     } catch (err) {
@@ -103,6 +113,10 @@ export default function ClientProjectsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this project? Tasks linked to it will lose their project association.')) return;
     await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    queryClient.setQueryData<Project[]>(
+      ['projects', clientId],
+      old => (old ?? []).filter(project => project.id !== id),
+    );
     void queryClient.invalidateQueries({ queryKey: ['projects', clientId] });
   };
 

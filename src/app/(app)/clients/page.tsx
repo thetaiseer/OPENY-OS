@@ -214,6 +214,18 @@ export default function ClientsPage() {
       // Fire-and-forget activity log — never blocks the UI
       logActivity(`Client "${form.name}" created`, result.client?.id);
 
+      if (result.client?.id) {
+        queryClient.setQueryData<Client[]>(
+          ['clients-list'],
+          old => {
+            const nextClient = result.client as Client;
+            if (!old) return [nextClient];
+            if (old.some(client => client.id === nextClient.id)) return old;
+            return [nextClient, ...old];
+          },
+        );
+      }
+
       // Navigate to the new client's page if slug is available, otherwise show toast
       if (result.client?.slug) {
         router.push(`/clients/${result.client.slug}`);

@@ -268,6 +268,19 @@ export default function ContentPage() {
     !search.trim() || item.title.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const prependContentItemToCache = useCallback((item: ContentItem) => {
+    qc.setQueriesData<{ success: boolean; items: ContentItem[] }>(
+      { queryKey: ['content-items'] },
+      old => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: [item, ...old.items.filter(existing => existing.id !== item.id)],
+        };
+      },
+    );
+  }, [qc]);
+
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {
       const res = await fetch(`/api/content-items/${id}`, {
@@ -290,6 +303,10 @@ export default function ContentPage() {
       const res = await fetch(`/api/content-items/${id}`, { method: 'DELETE' });
       const json = await res.json() as { success: boolean };
       if (!json.success) throw new Error('Delete failed');
+      qc.setQueriesData<{ success: boolean; items: ContentItem[] }>(
+        { queryKey: ['content-items'] },
+        old => old ? { ...old, items: old.items.filter(item => item.id !== id) } : old,
+      );
       void qc.invalidateQueries({ queryKey: ['content-items'] });
       toast('Content item deleted', 'success');
     } catch {
@@ -399,7 +416,10 @@ export default function ContentPage() {
         open={newOpen}
         onClose={() => setNewOpen(false)}
         clients={clients}
-        onCreated={() => void qc.invalidateQueries({ queryKey: ['content-items'] })}
+        onCreated={(item) => {
+          prependContentItemToCache(item);
+          void qc.invalidateQueries({ queryKey: ['content-items'] });
+        }}
       />
     </div>
   );

@@ -96,3 +96,19 @@ button {
     min-height: 2.75rem;
   }
 }
+
+/* Global dropdown readability safeguards (native selects/options). */
+select {
+  max-width: 100%;
+}
+
+@supports (width: fit-content) {
+  select:not(.w-full) {
+    width: fit-content;
+    min-width: 12rem;
+  }
+}
+
+select option {
+  white-space: normal;
+}

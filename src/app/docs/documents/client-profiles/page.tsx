@@ -69,8 +69,33 @@ export default function ClientProfilesPage() {
       setError('Client created but profile could not be initialized.');
       return;
     }
+    setProfiles(prev => [
+      {
+        id: `virtual-${clientId}`,
+        client_id: clientId,
+        client_name: name,
+        client_slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        default_currency: 'SAR',
+        invoice_layout_mode: 'branch_platform',
+        supports_branch_breakdown: true,
+        default_platforms: [],
+        default_branch_names: [],
+        default_fees_logic: {},
+        default_totals_logic: {},
+        invoice_template_config: {},
+        quotation_template_config: {},
+        contract_template_config: {},
+        hr_contract_template_config: {},
+        employees_template_config: {},
+        accounting_template_config: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        isDirty: false,
+      },
+      ...prev.filter(p => p.client_id !== clientId),
+    ]);
     setNewClientName('');
-    await load();
+    void load();
   }
 
   async function saveProfile(profile: EditableProfile) {
@@ -109,7 +134,8 @@ export default function ClientProfilesPage() {
       setError('Unable to save client profile.');
       return;
     }
-    await load();
+    setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, isDirty: false } : p));
+    void load();
   }
 
   async function deleteProfile(profile: EditableProfile) {
@@ -120,7 +146,8 @@ export default function ClientProfilesPage() {
       setError('Unable to delete profile.');
       return;
     }
-    await load();
+    setProfiles(prev => prev.filter(p => p.id !== profile.id));
+    void load();
   }
 
   return (

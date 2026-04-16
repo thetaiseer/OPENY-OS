@@ -1,23 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DocsSidebar from '@/components/layout/DocsSidebar';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { Menu, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
+import { subscribeToTableChanges } from '@/lib/realtime';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
   const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const requestRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => router.refresh(), 120);
+    };
+
+    const unsubscribers = [
+      subscribeToTableChanges({ table: 'clients' }, requestRefresh),
+      subscribeToTableChanges({ table: 'templates' }, requestRefresh),
+      subscribeToTableChanges({ table: 'docs_client_profiles' }, requestRefresh),
+      subscribeToTableChanges({ table: 'invoices' }, requestRefresh),
+      subscribeToTableChanges({ table: 'quotations' }, requestRefresh),
+      subscribeToTableChanges({ table: 'client_contracts' }, requestRefresh),
+      subscribeToTableChanges({ table: 'hr_contracts' }, requestRefresh),
+      subscribeToTableChanges({ table: 'employees' }, requestRefresh),
+      subscribeToTableChanges({ table: 'accounting_entries' }, requestRefresh),
+      subscribeToTableChanges({ table: 'accounting_expenses' }, requestRefresh),
+    ];
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [router]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>

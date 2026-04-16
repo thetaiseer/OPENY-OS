@@ -119,13 +119,27 @@ export default function SelectDropdown({
 
   // Compute portal dropdown position from the trigger's bounding rect
   const portalStyle: React.CSSProperties = rect
-    ? {
+    ? (() => {
+      const estimatedLongestLabelWidth = Math.max(
+        ...options.map(option => option.label.length),
+        placeholder.length,
+      ) * 8.5 + 64;
+      const minWidth = Math.max(rect.width, 180);
+      const viewportMaxWidth = Math.max(220, window.innerWidth - 16);
+      const width = Math.min(Math.max(minWidth, estimatedLongestLabelWidth), viewportMaxWidth);
+      const unclampedLeft = rect.left;
+      const maxLeft = window.innerWidth - width - 8;
+      const left = Math.max(8, Math.min(unclampedLeft, maxLeft));
+      return {
         position: 'fixed',
         top: rect.bottom + 6,
-        left: rect.left,
-        width: rect.width,
+        left,
+        width,
+        minWidth,
+        maxWidth: viewportMaxWidth,
         zIndex: 9999,
-      }
+      };
+    })()
     : { display: 'none' };
 
   const popover = open && mounted && rect
@@ -147,14 +161,14 @@ export default function SelectDropdown({
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3 h-9 text-sm text-left transition-colors hover:bg-[var(--surface-2)]"
+                  className="flex items-center justify-between w-full px-3 py-2 min-h-9 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
                   style={{
                     background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
                     color:      isSelected ? 'var(--accent)' : 'var(--text)',
                     fontWeight: isSelected ? 600 : 400,
                   }}
                 >
-                  <span className="truncate">{option.label}</span>
+                  <span className="whitespace-normal break-words leading-5">{option.label}</span>
                   {isSelected && (
                     <Check size={13} className="shrink-0 ml-2" style={{ color: 'var(--accent)' }} />
                   )}
@@ -182,6 +196,7 @@ export default function SelectDropdown({
           border:      `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
           whiteSpace:  'nowrap',
         }}
+        title={label}
       >
         {icon && (
           <span className="shrink-0" style={{ color: 'var(--text-secondary)' }}>
