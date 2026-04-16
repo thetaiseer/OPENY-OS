@@ -189,6 +189,8 @@ export default function AccountingPage() {
   const [selectedClientId, setSelectedClientId] = useState('');
 
   const mk = monthKey(month);
+  const selectedProfile = profiles.find(p => p.client_id === selectedClientId) ?? null;
+
   const accountingDocumentCode = useMemo(() => {
     if (!selectedProfile) return '';
     const slug = sanitizeDocCode(selectedProfile.client_slug || selectedProfile.client_name || 'accounting', 'accounting');
@@ -210,7 +212,6 @@ export default function AccountingPage() {
 
   useEffect(() => { void loadData(); }, [loadData]);
   useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
-  const selectedProfile = profiles.find(p => p.client_id === selectedClientId) ?? null;
 
   async function deleteEntry(id: string) {
     if (!confirm('Delete this entry?')) return;
