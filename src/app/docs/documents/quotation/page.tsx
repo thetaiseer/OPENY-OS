@@ -68,6 +68,8 @@ function blank(num: string): FormState {
 function QuotationPreview({ form }: { form: FormState }) {
   const delivTotal = form.deliverables.reduce((s, d) => s + d.total, 0);
   const total = form.total_value || delivTotal;
+  const finalBudget = delivTotal > 0 ? delivTotal : total;
+  const ourFees = Math.max(0, total - finalBudget);
 
   return (
     <OpenyDocumentPage id="quotation-preview" fontSize={13}>
@@ -84,9 +86,9 @@ function QuotationPreview({ form }: { form: FormState }) {
       <div>
         <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
           <div style={{ flex: 1 }}>
-            {form.company_brand && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted }}>{form.company_brand}</div>}
+            {form.company_brand && <div style={{ fontSize: 12, color: '#6B7280' }}>{form.company_brand}</div>}
             {form.project_title && <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{form.project_title}</div>}
-            {form.project_description && <div style={{ fontSize: 12, color: OPENY_DOC_STYLE.textMuted, marginTop: 2 }}>{form.project_description}</div>}
+            {form.project_description && <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{form.project_description}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
             <table style={{ fontSize: 12 }}>
@@ -139,19 +141,19 @@ function QuotationPreview({ form }: { form: FormState }) {
               {delivTotal > 0 && form.total_value > 0 && delivTotal !== form.total_value && (
                 <tr>
                   <td style={{ border: '1px solid #111', padding: '8px 10px', color: '#111', fontWeight: 700 }}>Subtotal</td>
-                  <td style={{ border: '1px solid #111', textAlign: 'right', padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(delivTotal, form.currency)}</td>
+                  <td style={{ border: '1px solid #111', textAlign: 'right', padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(finalBudget, form.currency)}</td>
                 </tr>
               )}
               <tr>
                 <td style={{ border: '1px solid #111', padding: '8px 10px', fontWeight: 700 }}>Final Budget</td>
                 <td style={{ border: '1px solid #111', textAlign: 'right', padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {fmt(total, form.currency)}
+                  {fmt(finalBudget, form.currency)}
                 </td>
               </tr>
               <tr>
                 <td style={{ border: '1px solid #111', padding: '8px 10px', fontWeight: 700 }}>Our Fees</td>
                 <td style={{ border: '1px solid #111', textAlign: 'right', padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {fmt(0, form.currency)}
+                  {fmt(ourFees, form.currency)}
                 </td>
               </tr>
               <tr>

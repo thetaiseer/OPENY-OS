@@ -19,11 +19,19 @@ import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
-import { buildInvoiceDocumentModel, INVOICE_EMAIL } from '@/lib/docs-invoice-document-model';
+import { buildInvoiceDocumentModel, INVOICE_ADDRESS, INVOICE_EMAIL, INVOICE_WEBSITE } from '@/lib/docs-invoice-document-model';
 import { writeInvoiceWorksheet } from '@/lib/docs-invoice-excel';
 import { exportPreviewPdf } from '@/lib/docs-print';
+import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
 
-const INVOICE_BLACK = '#111';
+const INVOICE_BLACK = OPENY_DOC_BLACK;
+const PAGE_BREAK_BRANCHES = ['jeddah', 'khobar'];
+
+function shouldBreakBeforeBranch(index: number, branchName: string) {
+  if (index <= 0) return false;
+  const normalized = branchName.trim().toLowerCase();
+  return PAGE_BREAK_BRANCHES.some(branch => normalized.includes(branch));
+}
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -187,7 +195,7 @@ function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocume
         <div>
           <OpenyLogo forceVariant="light" width={146} height={40} />
           <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5, color: '#555' }}>
-            Villa 175, First District, Fifth Settlement | {INVOICE_EMAIL} | openytalk.com
+            {INVOICE_ADDRESS} | {INVOICE_EMAIL} | {INVOICE_WEBSITE}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -214,7 +222,7 @@ function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocume
 
       {model.branchTables.map((branchTable, branchIndex) => (
         <div key={branchTable.id} style={{ marginBottom: 16 }}>
-          {branchIndex > 0 && /jeddah|khobar/i.test(branchTable.branchName) ? <div className="html2pdf__page-break" /> : null}
+          {shouldBreakBeforeBranch(branchIndex, branchTable.branchName) ? <div className="html2pdf__page-break" /> : null}
           <div style={{ background: INVOICE_BLACK, color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 10px' }}>
             {branchTable.branchName || 'Branch'}
           </div>
@@ -241,10 +249,10 @@ function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocume
                 </tr>
               ) : branchTable.rows.map((row, index) => (
                 <tr key={`${branchTable.id}-${index}`}>
-                  <td style={{ ...previewCell, fontWeight: 600, borderTop: row.showBranch ? `1px solid ${INVOICE_BLACK}` : 'none' }}>
+                  <td style={{ ...previewCell, fontWeight: 600, borderTopColor: row.showBranch ? INVOICE_BLACK : 'transparent' }}>
                     {row.showBranch ? row.branch || '—' : ''}
                   </td>
-                  <td style={{ ...previewCell, borderTop: row.showPlatform ? `1px solid ${INVOICE_BLACK}` : 'none' }}>
+                  <td style={{ ...previewCell, borderTopColor: row.showPlatform ? INVOICE_BLACK : 'transparent' }}>
                     {row.showPlatform ? row.platform || '—' : ''}
                   </td>
                   <td style={previewCell}>{row.ad_name || '—'}</td>

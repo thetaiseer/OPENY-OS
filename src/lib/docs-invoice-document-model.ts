@@ -1,7 +1,8 @@
 import type { InvoiceBranchGroup } from '@/lib/docs-types';
 
-export const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
+export const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement';
 export const INVOICE_EMAIL = 'info@openytalk.com';
+export const INVOICE_WEBSITE = 'openytalk.com';
 
 function n(v: unknown) {
   const parsed = Number(v);
