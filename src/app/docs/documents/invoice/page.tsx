@@ -16,13 +16,13 @@ import type {
   InvoicePlatformGroup,
 } from '@/lib/docs-types';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
+import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
-import { printPreviewDocument } from '@/lib/docs-print';
+import { buildInvoiceDocumentModel, INVOICE_ADDRESS, INVOICE_EMAIL } from '@/lib/docs-invoice-document-model';
+import { writeInvoiceWorksheet } from '@/lib/docs-invoice-excel';
 
 const INVOICE_BLACK = '#000';
-const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
-const INVOICE_EMAIL = 'info@openytalk.com';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -38,11 +38,6 @@ function round2(v: number) {
 }
 function getInvoiceAmount(inv: Pick<DocsInvoice, 'grand_total' | 'final_budget' | 'total_budget'>) {
   return n(inv.grand_total ?? inv.final_budget ?? inv.total_budget);
-}
-function resolveFinalBudget(inv: DocsInvoice, branchGroups: InvoiceBranchGroup[]) {
-  if (inv.final_budget !== null && inv.final_budget !== undefined) return n(inv.final_budget);
-  if (branchGroups.length > 0) return calcFinalBudget(branchGroups);
-  return n(inv.total_budget);
 }
 function nextInvoiceNum(list: DocsInvoice[]) {
   const nums = list.map(i => parseInt(i.invoice_number.replace(/\D/g, '') || '0')).filter(Boolean);
@@ -71,9 +66,6 @@ function calcBranchSubtotal(branch: InvoiceBranchGroup) {
   return round2(branch.platform_groups.reduce((sum, platform) => (
     sum + platform.campaign_rows.reduce((sub, row) => sub + n(row.cost), 0)
   ), 0));
-}
-function calcFinalBudget(branchGroups: InvoiceBranchGroup[]) {
-  return round2(branchGroups.reduce((sum, branch) => sum + calcBranchSubtotal(branch), 0));
 }
 
 function sanitizeBranchGroups(branchGroups: unknown): InvoiceBranchGroup[] {
@@ -176,43 +168,6 @@ function blankForm(num: string): FormState {
     notes: '',
   };
 }
-function getCsvRows(form: FormState) {
-  const rows: string[][] = [
-    ['Invoice No', 'Client', 'Date', 'Month', 'Currency', 'Final Budget', 'Our Fees', 'Grand Total', 'Status'],
-    [
-      form.invoice_number,
-      form.client_name,
-      form.invoice_date,
-      form.campaign_month,
-      form.currency,
-      String(form.final_budget),
-      String(form.our_fees),
-      String(form.grand_total),
-      form.status,
-    ],
-    [],
-    ['Branch', 'Platform', 'Ad Name', 'Date', 'Results', 'Cost'],
-  ];
-
-  form.branch_groups.forEach((branch) => {
-    branch.platform_groups.forEach((platform) => {
-      platform.campaign_rows.forEach((row) => {
-        rows.push([
-          branch.branch_name,
-          platform.platform_name,
-          row.ad_name,
-          row.date,
-          row.results,
-          String(n(row.cost)),
-        ]);
-      });
-    });
-    rows.push([`${branch.branch_name} Subtotal`, '', '', '', '', String(calcBranchSubtotal(branch))]);
-  });
-
-  if (form.notes.trim()) rows.push([], ['Notes'], [form.notes]);
-  return rows;
-}
 
 async function getResponseErrorMessage(response: Response, fallback: string) {
   try {
@@ -224,30 +179,7 @@ async function getResponseErrorMessage(response: Response, fallback: string) {
   return fallback;
 }
 
-function InvoicePreview({ form }: { form: FormState }) {
-  const tableRows = form.branch_groups.map((branch) => {
-    const branchRows = branch.platform_groups.flatMap((platform) => {
-      const rows = platform.campaign_rows.length ? platform.campaign_rows : [blankCampaignRow()];
-      return rows.map((row, rowIndex) => ({
-        branch: branch.branch_name,
-        platform: platform.platform_name,
-        ad_name: row.ad_name,
-        date: row.date,
-        results: row.results,
-        cost: n(row.cost),
-        showPlatform: rowIndex === 0,
-        platformSpan: rows.length,
-      }));
-    });
-
-    return {
-      branch,
-      subtotal: calcBranchSubtotal(branch),
-      rows: branchRows,
-      span: Math.max(1, branchRows.length),
-    };
-  });
-
+function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocumentModel> }) {
   return (
     <div id="invoice-preview" style={{ background: '#fff', color: INVOICE_BLACK, width: '100%', minHeight: 1123, padding: '44px 48px', fontSize: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
@@ -260,8 +192,8 @@ function InvoicePreview({ form }: { form: FormState }) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 1 }}>INVOICE</div>
-          <div style={{ fontSize: 11, marginTop: 8 }}>REF: <b>{form.invoice_number || '—'}</b></div>
-          <div style={{ fontSize: 11, marginTop: 3 }}>DATE: <b>{form.invoice_date || '—'}</b></div>
+          <div style={{ fontSize: 11, marginTop: 8 }}>REF: <b>{model.invoiceNumber || '—'}</b></div>
+          <div style={{ fontSize: 11, marginTop: 3 }}>DATE: <b>{model.invoiceDate || '—'}</b></div>
         </div>
       </div>
 
@@ -271,14 +203,14 @@ function InvoicePreview({ form }: { form: FormState }) {
         <span style={{ background: INVOICE_BLACK, color: '#fff', padding: '4px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.4 }}>
           BILLED TO
         </span>
-        <div style={{ marginTop: 9, fontSize: 16, fontWeight: 700 }}>{form.client_name || '—'}</div>
-        <div style={{ marginTop: 3, fontSize: 12 }}>Campaign Month: {form.campaign_month || '—'}</div>
+        <div style={{ marginTop: 9, fontSize: 16, fontWeight: 700 }}>{model.clientName || '—'}</div>
+        <div style={{ marginTop: 3, fontSize: 12 }}>Campaign Month: {model.campaignMonth || '—'}</div>
       </div>
 
-      {tableRows.map(({ branch, rows, span, subtotal }) => (
-        <div key={branch.id} style={{ marginBottom: 16 }}>
+      {model.branchTables.map((branchTable) => (
+        <div key={branchTable.id} style={{ marginBottom: 16 }}>
           <div style={{ background: INVOICE_BLACK, color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 10px' }}>
-            {branch.branch_name || 'Branch'}
+            {branchTable.branchName || 'Branch'}
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -288,23 +220,23 @@ function InvoicePreview({ form }: { form: FormState }) {
                 <th style={previewHeaderCell}>AD NAME</th>
                 <th style={previewHeaderCell}>DATE</th>
                 <th style={previewHeaderCell}>RESULTS</th>
-                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST ({form.currency})</th>
+                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST ({model.currency})</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {branchTable.rows.length === 0 ? (
                 <tr>
-                  <td style={previewCell}>{branch.branch_name}</td>
+                  <td style={previewCell}>{branchTable.branchName}</td>
                   <td style={previewCell}>—</td>
                   <td style={previewCell}>—</td>
                   <td style={previewCell}>—</td>
                   <td style={previewCell}>—</td>
-                  <td style={{ ...previewCell, textAlign: 'right' }}>{fmt(0, form.currency)}</td>
+                  <td style={{ ...previewCell, textAlign: 'right' }}>{fmt(0, model.currency)}</td>
                 </tr>
-              ) : rows.map((row, index) => (
-                <tr key={`${branch.id}-${index}`}>
+              ) : branchTable.rows.map((row, index) => (
+                <tr key={`${branchTable.id}-${index}`}>
                   {index === 0 && (
-                    <td rowSpan={span} style={{ ...previewCell, fontWeight: 600 }}>{row.branch || '—'}</td>
+                    <td rowSpan={branchTable.span} style={{ ...previewCell, fontWeight: 600 }}>{row.branch || '—'}</td>
                   )}
                   {row.showPlatform && (
                     <td rowSpan={row.platformSpan} style={previewCell}>{row.platform || '—'}</td>
@@ -312,15 +244,15 @@ function InvoicePreview({ form }: { form: FormState }) {
                   <td style={previewCell}>{row.ad_name || '—'}</td>
                   <td style={previewCell}>{row.date || '—'}</td>
                   <td style={previewCell}>{row.results || '—'}</td>
-                  <td style={{ ...previewCell, textAlign: 'right', fontWeight: 600 }}>{fmt(row.cost, form.currency)}</td>
+                  <td style={{ ...previewCell, textAlign: 'right', fontWeight: 600 }}>{fmt(row.cost, model.currency)}</td>
                 </tr>
               ))}
               <tr>
                 <td colSpan={5} style={{ ...previewCell, background: '#f1f1f1', textAlign: 'right', fontWeight: 700 }}>
-                  Subtotal ({branch.branch_name || 'Branch'})
+                  Subtotal ({branchTable.branchName || 'Branch'})
                 </td>
                 <td style={{ ...previewCell, background: '#f1f1f1', textAlign: 'right', fontWeight: 700 }}>
-                  {fmt(subtotal, form.currency)}
+                  {fmt(branchTable.subtotal, model.currency)}
                 </td>
               </tr>
             </tbody>
@@ -333,24 +265,24 @@ function InvoicePreview({ form }: { form: FormState }) {
           <tbody>
             <tr>
                <td style={totalsLabel}>Final Budget (Ad Spend)</td>
-              <td style={totalsValue}>{fmt(form.final_budget, form.currency)}</td>
+              <td style={totalsValue}>{fmt(model.totals.finalBudget, model.currency)}</td>
             </tr>
             <tr>
               <td style={totalsLabel}>Our Fees</td>
-              <td style={totalsValue}>{fmt(form.our_fees, form.currency)}</td>
+              <td style={totalsValue}>{fmt(model.totals.ourFees, model.currency)}</td>
             </tr>
             <tr>
               <td style={{ ...totalsLabel, fontWeight: 900, background: INVOICE_BLACK, color: '#fff' }}>GRAND TOTAL</td>
-              <td style={{ ...totalsValue, fontWeight: 900, background: INVOICE_BLACK, color: '#fff' }}>{fmt(form.grand_total, form.currency)}</td>
+              <td style={{ ...totalsValue, fontWeight: 900, background: INVOICE_BLACK, color: '#fff' }}>{fmt(model.totals.grandTotal, model.currency)}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      {form.notes.trim() && (
+      {model.notes.trim() && (
         <div style={{ marginTop: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>NOTES</div>
-          <div style={{ fontSize: 11 }}>{form.notes}</div>
+          <div style={{ fontSize: 11 }}>{model.notes}</div>
         </div>
       )}
     </div>
@@ -533,7 +465,7 @@ function HistoryPanel({
                     className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <ExternalLink size={9} /> CSV
+                    <ExternalLink size={9} /> XLSX
                   </a>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -572,8 +504,9 @@ export default function InvoicePage() {
   const [collapsedBranches, setCollapsedBranches] = useState<Set<string>>(new Set());
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
 
-  const computedFinalBudget = useMemo(() => calcFinalBudget(form.branch_groups ?? []), [form.branch_groups]);
-  const computedGrandTotal = useMemo(() => round2(computedFinalBudget + n(form.our_fees)), [computedFinalBudget, form.our_fees]);
+  const documentModel = useMemo(() => buildInvoiceDocumentModel(form), [form]);
+  const computedFinalBudget = documentModel.totals.finalBudget;
+  const computedGrandTotal = documentModel.totals.grandTotal;
   const branchSubtotals = useMemo(
     () => new Map(form.branch_groups.map(branch => [branch.id, calcBranchSubtotal(branch)])),
     [form.branch_groups],
@@ -584,12 +517,15 @@ export default function InvoicePage() {
     try {
       const res = await fetch('/api/docs/invoices');
       if (!res.ok) {
-        setError(await getResponseErrorMessage(res, 'Unable to load invoices right now.'));
+        const message = await getResponseErrorMessage(res, 'Unable to load invoices right now.');
+        console.error('[InvoicePage] Load failed:', message);
+        setError(message);
         return;
       }
       const json = await res.json() as { invoices?: DocsInvoice[] };
       setInvoices(json.invoices ?? []);
-    } catch {
+    } catch (err) {
+      console.error('[InvoicePage] Unexpected load error:', err);
       setError('Unable to load invoices right now. Please try again.');
     } finally {
       setLoading(false);
@@ -738,8 +674,12 @@ export default function InvoicePage() {
 
   function loadInvoiceIntoForm(inv: DocsInvoice) {
     const branchGroups = sanitizeBranchGroups(inv.branch_groups?.length ? inv.branch_groups : legacyToBranchGroups(inv));
-    const finalBudget = resolveFinalBudget(inv, branchGroups);
     const ourFees = n(inv.our_fees);
+    const model = buildInvoiceDocumentModel({
+      ...inv,
+      our_fees: ourFees,
+      branch_groups: branchGroups,
+    });
 
     setEditingId(inv.id);
     setForm({
@@ -751,10 +691,10 @@ export default function InvoicePage() {
       currency: inv.currency,
       status: inv.status,
       branch_groups: branchGroups,
-      final_budget: finalBudget,
-      total_budget: finalBudget,
+      final_budget: model.totals.finalBudget,
+      total_budget: model.totals.finalBudget,
       our_fees: ourFees,
-      grand_total: n(inv.grand_total ?? finalBudget + ourFees),
+      grand_total: model.totals.grandTotal,
       platforms: Array.isArray(inv.platforms) ? inv.platforms : [],
       deliverables: Array.isArray(inv.deliverables) ? inv.deliverables : [],
       custom_client: inv.custom_client ?? '',
@@ -767,8 +707,12 @@ export default function InvoicePage() {
 
   function duplicateInvoice(inv: DocsInvoice) {
     const branchGroups = sanitizeBranchGroups(inv.branch_groups?.length ? inv.branch_groups : legacyToBranchGroups(inv));
-    const finalBudget = resolveFinalBudget(inv, branchGroups);
     const ourFees = n(inv.our_fees);
+    const model = buildInvoiceDocumentModel({
+      ...inv,
+      our_fees: ourFees,
+      branch_groups: branchGroups,
+    });
 
     setEditingId(null);
     setForm({
@@ -780,10 +724,10 @@ export default function InvoicePage() {
       currency: inv.currency,
       status: 'unpaid',
       branch_groups: branchGroups,
-      final_budget: finalBudget,
-      total_budget: finalBudget,
+      final_budget: model.totals.finalBudget,
+      total_budget: model.totals.finalBudget,
       our_fees: ourFees,
-      grand_total: n(inv.grand_total ?? finalBudget + ourFees),
+      grand_total: model.totals.grandTotal,
       platforms: Array.isArray(inv.platforms) ? inv.platforms.map(p => ({ ...p })) : [],
       deliverables: Array.isArray(inv.deliverables) ? inv.deliverables.map(d => ({ ...d, id: uid() })) : [],
       custom_client: inv.custom_client ?? '',
@@ -818,7 +762,9 @@ export default function InvoicePage() {
       });
 
       if (!res.ok) {
-        setError(await getResponseErrorMessage(res, 'Could not save invoice. Please try again.'));
+        const message = await getResponseErrorMessage(res, 'Could not save invoice. Please try again.');
+        console.error('[InvoicePage] Save failed:', { message, payload, editingId });
+        setError(message);
         return;
       }
 
@@ -826,7 +772,8 @@ export default function InvoicePage() {
       setTimeout(() => setSaved(false), 2000);
       await load();
       if (!editingId) resetForm();
-    } catch {
+    } catch (err) {
+      console.error('[InvoicePage] Unexpected save error:', err);
       setError('Could not save invoice. Please try again.');
     } finally {
       setSaving(false);
@@ -843,7 +790,8 @@ export default function InvoicePage() {
       }
       await load();
       if (editingId === id) resetForm();
-    } catch {
+    } catch (err) {
+      console.error('[InvoicePage] Unexpected delete error:', { id, err });
       setError('Could not delete invoice. Please try again.');
     }
   }
@@ -857,7 +805,8 @@ export default function InvoicePage() {
         body: JSON.stringify({ module: 'invoices', data: invoices, label }),
       });
       if (!res.ok) setError(await getResponseErrorMessage(res, 'Could not create backup right now.'));
-    } catch {
+    } catch (err) {
+      console.error('[InvoicePage] Unexpected backup error:', err);
       setError('Could not create backup right now.');
     }
   }
@@ -867,7 +816,8 @@ export default function InvoicePage() {
       await Promise.all(invoices.map(inv => fetch(`/api/docs/invoices/${inv.id}`, { method: 'DELETE' })));
       await load();
       resetForm();
-    } catch {
+    } catch (err) {
+      console.error('[InvoicePage] Unexpected clear-all error:', err);
       setError('Could not clear invoices right now.');
     }
   }
@@ -909,8 +859,51 @@ export default function InvoicePage() {
     setError('');
   }
 
-  function exportPDF() {
-    printPreviewDocument('invoice-preview', form.invoice_number, 'invoice');
+  async function exportPDF() {
+    try {
+      const preview = document.getElementById('invoice-preview');
+      if (!preview) {
+        setError('Preview is not available for PDF export.');
+        return;
+      }
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const canvas = await html2canvas(preview, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        windowWidth: preview.scrollWidth,
+        windowHeight: preview.scrollHeight,
+      });
+
+      const imageData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imageWidth = pageWidth;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+      let remainingHeight = imageHeight;
+      let position = 0;
+      pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
+      remainingHeight -= pageHeight;
+
+      while (remainingHeight > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
+        remainingHeight -= pageHeight;
+      }
+
+      pdf.save(`${sanitizeDocCode(documentModel.invoiceNumber, 'invoice')}.pdf`);
+    } catch (err) {
+      console.error('[InvoicePage] PDF export failed:', err);
+      setError('Could not export PDF. Please try again.');
+    }
   }
 
   function applyClientProfile(clientId: string) {
@@ -963,25 +956,28 @@ export default function InvoicePage() {
     }));
   }
 
-  function exportCSV() {
-    const nextForm = {
-      ...form,
-      final_budget: computedFinalBudget,
-      total_budget: computedFinalBudget,
-      grand_total: computedGrandTotal,
-    };
-
-    const csv = getCsvRows(nextForm)
-      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
-      .join('\r\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${form.invoice_number}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportExcel() {
+    try {
+      const [{ Workbook }] = await Promise.all([
+        import('exceljs'),
+      ]);
+      const workbook = new Workbook();
+      const worksheet = workbook.addWorksheet('Invoice');
+      writeInvoiceWorksheet(worksheet, documentModel);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sanitizeDocCode(documentModel.invoiceNumber, 'invoice')}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[InvoicePage] Excel export failed:', err);
+      setError('Could not export Excel. Please try again.');
+    }
   }
 
   return (
@@ -1206,13 +1202,13 @@ export default function InvoicePage() {
           <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90" style={{ background: INVOICE_BLACK }}>
             <Printer size={15} /> PDF
           </button>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90" style={{ background: '#303030' }}>
-            <Download size={15} /> CSV
+          <button onClick={exportExcel} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90" style={{ background: '#303030' }}>
+            <Download size={15} /> Excel
           </button>
         </div>
 
         <div className="preview-shell bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
-          <InvoicePreview form={{ ...form, final_budget: computedFinalBudget, total_budget: computedFinalBudget, grand_total: computedGrandTotal }} />
+          <InvoicePreview model={documentModel} />
         </div>
       </div>
 

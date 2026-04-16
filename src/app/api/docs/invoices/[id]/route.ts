@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<Param
   const db = getServiceClient();
   const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();
   if (error) {
+    console.error('[docs/invoices/:id][GET] Failed to load invoice:', { id, error });
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to load invoice right now.') },
       { status: 500 },
@@ -26,6 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<Param
     const [invoice] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
     return NextResponse.json({ invoice });
   } catch (nestedError) {
+    console.error('[docs/invoices/:id][GET] Failed to hydrate invoice branch groups:', { id, nestedError });
     return NextResponse.json(
       { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to load invoice details right now.') },
       { status: 500 },
@@ -45,6 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
   const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
   const payload = {
+    id,
     ...body,
     branch_groups: branchGroups,
     ...totals,
@@ -54,12 +57,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
-    .update(payload)
-    .eq('id', id)
+    .upsert(payload, { onConflict: 'id' })
     .select()
     .single();
 
   if (error) {
+    console.error('[docs/invoices/:id][PATCH] Failed to upsert invoice root record:', { id, error, payload });
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to update invoice right now.') },
       { status: 500 },
@@ -70,6 +73,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     const [invoice] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
     return NextResponse.json({ invoice });
   } catch (nestedError) {
+    console.error('[docs/invoices/:id][PATCH] Failed to replace nested invoice rows:', {
+      id,
+      nestedError,
+      branchGroupsCount: branchGroups.length,
+    });
     return NextResponse.json(
       { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Invoice updated, but line items could not be saved.') },
       { status: 500 },
@@ -85,6 +93,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   const db = getServiceClient();
   const { error } = await db.schema('public').from('docs_invoices').delete().eq('id', id);
   if (error) {
+    console.error('[docs/invoices/:id][DELETE] Failed to delete invoice:', { id, error });
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to delete invoice right now.') },
       { status: 500 },

@@ -112,7 +112,7 @@ export function mapInvoiceDbError(
   fallbackMessage: string,
 ) {
   if (isSchemaIssue(error)) {
-    return 'Invoice database is not ready yet. Please run the invoice migration and reload the Supabase schema cache.';
+    return 'Invoice data tables are unavailable. Please verify invoice migrations and Supabase schema cache.';
   }
   return fallbackMessage;
 }
@@ -219,15 +219,63 @@ export async function replaceInvoiceBranchGroups(
   invoiceId: string,
   branchGroups: InvoiceBranchGroup[],
 ) {
-  const { error: deleteError } = await db
+  const { data: existingBranches, error: fetchBranchesError } = await db
+    .schema('public')
+    .from('docs_invoice_branches')
+    .select('id')
+    .eq('invoice_id', invoiceId);
+
+  if (fetchBranchesError) {
+    if (isSchemaIssue(fetchBranchesError)) return;
+    throw fetchBranchesError;
+  }
+
+  const branchIds = (existingBranches ?? []).map(branch => branch.id as string);
+  if (branchIds.length > 0) {
+    const { data: existingPlatforms, error: fetchPlatformsError } = await db
+      .schema('public')
+      .from('docs_invoice_platforms')
+      .select('id')
+      .in('branch_id', branchIds);
+
+    if (fetchPlatformsError) {
+      if (isSchemaIssue(fetchPlatformsError)) return;
+      throw fetchPlatformsError;
+    }
+
+    const platformIds = (existingPlatforms ?? []).map(platform => platform.id as string);
+    if (platformIds.length > 0) {
+      const { error: deleteRowsError } = await db
+        .schema('public')
+        .from('docs_invoice_rows')
+        .delete()
+        .in('platform_id', platformIds);
+      if (deleteRowsError) {
+        if (isSchemaIssue(deleteRowsError)) return;
+        throw deleteRowsError;
+      }
+
+      const { error: deletePlatformsError } = await db
+        .schema('public')
+        .from('docs_invoice_platforms')
+        .delete()
+        .in('id', platformIds);
+      if (deletePlatformsError) {
+        if (isSchemaIssue(deletePlatformsError)) return;
+        throw deletePlatformsError;
+      }
+    }
+  }
+
+  const { error: deleteBranchesError } = await db
     .schema('public')
     .from('docs_invoice_branches')
     .delete()
     .eq('invoice_id', invoiceId);
 
-  if (deleteError) {
-    if (isSchemaIssue(deleteError)) return;
-    throw deleteError;
+  if (deleteBranchesError) {
+    if (isSchemaIssue(deleteBranchesError)) return;
+    throw deleteBranchesError;
   }
 
   const branchPayload = branchGroups.map((branch, branchIndex) => ({
