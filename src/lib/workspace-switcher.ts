@@ -45,7 +45,9 @@ export async function getUserWorkspaceMemberships(
 
   const workspaceNameByKey = new Map<WorkspaceKey, string>();
   for (const row of workspaceRows ?? []) {
-    const key = row.slug === 'docs' ? 'docs' : row.slug === 'os' ? 'os' : null;
+    let key: WorkspaceKey | null = null;
+    if (row.slug === 'docs') key = 'docs';
+    if (row.slug === 'os') key = 'os';
     if (!key) continue;
     workspaceNameByKey.set(key, row.name || (key === 'docs' ? 'OPENY DOCS' : 'OPENY OS'));
   }

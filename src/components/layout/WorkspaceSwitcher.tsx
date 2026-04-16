@@ -48,7 +48,9 @@ export default function WorkspaceSwitcher() {
         setReady(true);
       });
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [supabase, user.id]);
 
   useEffect(() => {
