@@ -33,12 +33,12 @@ export interface TeamMember {
   job_title?: string;
   avatar?: string;
   profile_id?: string | null;
-  status?: 'active' | 'invited' | 'inactive' | 'suspended';
+  status?: 'active' | 'pending' | 'invited' | 'inactive' | 'suspended';
   created_at: string;
   updated_at?: string;
 }
 
-export type InviteStatus = 'invited' | 'accepted' | 'expired' | 'revoked';
+export type InviteStatus = 'pending' | 'invited' | 'accepted' | 'expired' | 'revoked';
 
 export interface TeamInvitation {
   id: string;

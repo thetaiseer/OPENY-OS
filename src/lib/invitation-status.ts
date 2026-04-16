@@ -6,6 +6,7 @@
  */
 
 export const INVITATION_STATUS = {
+  PENDING:  'pending',
   INVITED:  'invited',
   ACCEPTED: 'accepted',
   REVOKED:  'revoked',

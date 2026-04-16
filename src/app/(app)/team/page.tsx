@@ -124,6 +124,19 @@ function getGroupLabel(member: TeamMember): string {
   return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
 }
 
+function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
+  if (!data || typeof data !== 'object') return false;
+  const payload = data as { member?: Partial<TeamMember>; invitation?: Partial<TeamInvitation> };
+  return Boolean(
+    payload.member?.id
+    && payload.member?.full_name
+    && payload.member?.email
+    && payload.invitation?.id
+    && payload.invitation?.team_member_id
+    && payload.invitation?.email,
+  );
+}
+
 /** Group an array of members into ordered sections by role/job title. */
 function groupMembers(members: TeamMember[]): { label: string; members: TeamMember[] }[] {
   const map = new Map<string, TeamMember[]>();
@@ -356,6 +369,7 @@ function InviteForm({
 // ── Invite status badge ───────────────────────────────────────────────────────
 function InviteBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
+    pending:  { label: 'Pending',   color: '#d97706', bg: '#fffbeb' },
     invited:  { label: 'Invited',   color: '#d97706', bg: '#fffbeb' },
     accepted: { label: 'Active',    color: '#16a34a', bg: '#f0fdf4' },
     expired:  { label: 'Expired',   color: '#9ca3af', bg: '#f9fafb' },
@@ -386,7 +400,7 @@ export default function TeamPage() {
     queryFn: async () => {
       const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
         // Select only the columns the UI actually uses to reduce payload size.
-        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
+        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,status,created_at').order('full_name'),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
         fetch('/api/team/workspace-access', { credentials: 'include' }),
       ]);
@@ -457,13 +471,54 @@ export default function TeamPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setActionError(data.error ?? 'Failed to send invitation.'); return; }
+      if (!res.ok) {
+        const exactDbError = process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
+        setActionError(exactDbError || data.error || 'Failed to send invitation.');
+        if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
+        return;
+      }
+      if (!hasInviteInsertResult(data)) {
+        setActionError('Invite request succeeded but no invitation row was returned.');
+        console.error('[team] Missing insert result after invite:', data);
+        return;
+      }
+
+      queryClient.setQueryData(
+        ['team-data'],
+        (
+          prev:
+            | {
+                members: TeamMember[];
+                invitations: TeamInvitation[];
+                workspaceAccess: Record<string, Record<string, { enabled: boolean; role: string }>>;
+              }
+            | undefined,
+        ) => {
+          if (!prev) {
+            return {
+              members: [data.member],
+              invitations: [data.invitation],
+              workspaceAccess: {},
+            };
+          }
+          const nextMembers = [data.member, ...prev.members.filter(m => m.id !== data.member.id)]
+            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+          const nextInvitations = [data.invitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          return {
+            ...prev,
+            members: nextMembers,
+            invitations: nextInvitations,
+          };
+        },
+      );
+
       setInviteOpen(false);
       setInviteForm({ ...blankInviteForm });
       toast(`Invitation sent to ${inviteForm.email}`, 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
-    } catch {
-      setActionError('Network error. Please try again.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Network error. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -597,7 +652,7 @@ export default function TeamPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   const ownerMembers   = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
   const activeMembers  = members.filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'));
-  const invitedMembers = members.filter(m => m.status === 'invited');
+  const invitedMembers = members.filter(m => m.status === 'invited' || m.status === 'pending');
   const groupedActive  = groupMembers(activeMembers);
 
   return (
@@ -895,7 +950,7 @@ function MemberCard({
   onRevoke: (m: TeamMember) => void;
   onCopyLink: (m: TeamMember) => void;
 }) {
-  const isInvited = member.status === 'invited';
+  const isInvited = member.status === 'invited' || member.status === 'pending';
 
   return (
     <div
@@ -916,7 +971,7 @@ function MemberCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
-            {isInvited && <InviteBadge status="invited" />}
+            {isInvited && <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />}
           </div>
           {resolveDisplayJobTitle(member) && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>

@@ -17,6 +17,127 @@ import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 
 const INVITE_EXPIRY_DAYS = 7;
+const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
+
+type InsertResult = {
+  invitation: Record<string, unknown> | null;
+  errorMessage: string | null;
+  attemptedErrors: string[];
+};
+
+async function insertInvitationWithFallback(
+  db: ReturnType<typeof getServiceClient>,
+  payload: {
+    team_member_id: string;
+    email: string;
+    role: string;
+    token: string;
+    invited_by: string;
+    expires_at: string;
+    full_name: string;
+    workspace_access: WorkspaceKey[];
+    workspace_roles: Record<WorkspaceKey, string>;
+  },
+): Promise<InsertResult> {
+  const nowIso = new Date().toISOString();
+  const commonPayload = {
+    team_member_id: payload.team_member_id,
+    email: payload.email,
+    token: payload.token,
+    invited_by: payload.invited_by,
+    expires_at: payload.expires_at,
+    created_at: nowIso,
+  };
+
+  // Schema-compatibility fallbacks:
+  // - Some DBs still use `name`, others `full_name`, and some have neither on invitations.
+  // - Some DBs support `workspace_access`/`workspace_roles`, older ones do not.
+  // - Some DBs use `pending`, older constraints still allow only `invited`.
+  // - A few legacy deployments used `access_role` instead of `role`.
+  const variants: Array<Record<string, unknown>> = [
+    {
+      ...commonPayload,
+      full_name: payload.full_name,
+      role: payload.role,
+      status: INVITATION_STATUS.PENDING,
+      workspace_access: payload.workspace_access,
+      workspace_roles: payload.workspace_roles,
+    },
+    {
+      ...commonPayload,
+      name: payload.full_name,
+      role: payload.role,
+      status: INVITATION_STATUS.PENDING,
+      workspace_access: payload.workspace_access,
+      workspace_roles: payload.workspace_roles,
+    },
+    {
+      ...commonPayload,
+      role: payload.role,
+      status: INVITATION_STATUS.PENDING,
+      workspace_access: payload.workspace_access,
+      workspace_roles: payload.workspace_roles,
+    },
+    {
+      ...commonPayload,
+      role: payload.role,
+      status: INVITATION_STATUS.PENDING,
+    },
+    {
+      ...commonPayload,
+      role: payload.role,
+      status: INVITATION_STATUS.INVITED,
+      workspace_access: payload.workspace_access,
+      workspace_roles: payload.workspace_roles,
+    },
+    {
+      ...commonPayload,
+      role: payload.role,
+      status: INVITATION_STATUS.INVITED,
+    },
+    {
+      ...commonPayload,
+      access_role: payload.role,
+      status: INVITATION_STATUS.PENDING,
+      workspace_access: payload.workspace_access,
+      workspace_roles: payload.workspace_roles,
+    },
+    {
+      ...commonPayload,
+      access_role: payload.role,
+      status: INVITATION_STATUS.INVITED,
+    },
+  ];
+
+  const errors: string[] = [];
+  for (const candidate of variants) {
+    const { data: invitation, error } = await db
+      .from('team_invitations')
+      .insert(candidate)
+      .select()
+      .single();
+
+    if (!error && invitation?.id) {
+      return { invitation: invitation as Record<string, unknown>, errorMessage: null, attemptedErrors: [] };
+    }
+
+    const message = error?.message ?? (!invitation ? 'Insert succeeded but no row was returned.' : 'Unknown invitation insert error.');
+    errors.push(message);
+    console.error('[team/invite] team_invitations insert attempt failed:', {
+      message,
+      code: error?.code ?? null,
+      details: error?.details ?? null,
+      hint: error?.hint ?? null,
+      columns: Object.keys(candidate),
+    });
+  }
+
+  return {
+    invitation: null,
+    errorMessage: errors[errors.length - 1] ?? 'Failed to create invitation',
+    attemptedErrors: errors,
+  };
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request, ['owner', 'admin', 'manager']);
@@ -91,7 +212,7 @@ export async function POST(request: NextRequest) {
     .from('team_invitations')
     .select('id, status, expires_at')
     .eq('email', email)
-    .in('status', [INVITATION_STATUS.INVITED])   // only 'invited' is a valid active status
+    .in('status', [...ACTIVE_INVITATION_STATUSES])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -138,33 +259,37 @@ export async function POST(request: NextRequest) {
 
   console.log('[team/invite] Generated token (prefix):', token.slice(0, 8) + '...', '— expires', expiresAt);
 
-  const { data: invitation, error: inviteError } = await db
-    .from('team_invitations')
-    .insert({
-      team_member_id: member.id,
-      email,
-      role:       access_role,
-      token,
-      status:     INVITATION_STATUS.INVITED,
-      invited_by: auth.profile.id,
-      expires_at: expiresAt,
-      workspace_access: effectiveWorkspaceAccess,
-      workspace_roles,
-    })
-    .select()
-    .single();
+  const { invitation, errorMessage: inviteInsertError, attemptedErrors } = await insertInvitationWithFallback(db, {
+    team_member_id: member.id,
+    email,
+    role: access_role,
+    token,
+    invited_by: auth.profile.id,
+    expires_at: expiresAt,
+    full_name,
+    workspace_access: effectiveWorkspaceAccess,
+    workspace_roles,
+  });
 
-  if (inviteError || !invitation) {
-    console.error('[team/invite] Failed to insert team_invitations row:', inviteError?.message);
+  if (!invitation) {
+    console.error('[team/invite] Failed to insert team_invitations row:', inviteInsertError);
     // Roll back the team member if we can't create the invitation
     await db.from('team_members').delete().eq('id', member.id);
     return NextResponse.json(
-      { error: inviteError?.message ?? 'Failed to create invitation' },
+      {
+        error: inviteInsertError ?? 'Failed to create invitation',
+        dbError: inviteInsertError ?? null,
+        attemptedErrors,
+      },
       { status: 500 },
     );
   }
 
-  console.log('[team/invite] Created team_invitations row:', { id: invitation.id, email, status: 'invited' });
+  console.log('[team/invite] Created team_invitations row:', {
+    id: invitation.id,
+    email,
+    status: invitation.status,
+  });
 
   // ── 5. Send invite email ──────────────────────────────────────────────────
   const inviteUrl = `${INVITE_DOMAIN}/invite?token=${token}`;
@@ -195,7 +320,7 @@ export async function POST(request: NextRequest) {
       subject:    "You're invited to join OPENY OS",
       eventType:  'team_invite',
       entityType: 'team_invitation',
-      entityId:   invitation.id,
+      entityId:   String(invitation.id),
       status:     'sent',
     });
   } catch (emailErr) {
@@ -206,12 +331,12 @@ export async function POST(request: NextRequest) {
       subject:    "You're invited to join OPENY OS",
       eventType:  'team_invite',
       entityType: 'team_invitation',
-      entityId:   invitation.id,
+      entityId:   String(invitation.id),
       status:     'failed',
       error:      errMsg,
     });
     // Roll back both records so there's no broken state
-    await db.from('team_invitations').delete().eq('id', invitation.id);
+    await db.from('team_invitations').delete().eq('id', String(invitation.id));
     await db.from('team_members').delete().eq('id', member.id);
     return NextResponse.json(
       { error: `Invitation created but email failed to send: ${errMsg}` },
