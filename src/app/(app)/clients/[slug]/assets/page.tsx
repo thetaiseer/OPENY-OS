@@ -118,6 +118,7 @@ export default function ClientAssetsPage() {
       subCategory:  uploadSubCategory,
       monthKey:     uploadMonthKey,
       uploadedBy:   user?.name ?? user?.email ?? null,
+      uploadedByEmail: user?.email ?? null,
     });
     setPendingItems([]);
     addToast(`${initialItems.length} file${initialItems.length !== 1 ? 's' : ''} queued for upload`, 'success');

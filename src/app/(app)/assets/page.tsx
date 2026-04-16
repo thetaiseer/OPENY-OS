@@ -699,6 +699,7 @@ export default function AssetsPage() {
     setPendingItems([]);
     if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
+    const uploadedByEmail = user?.email || null;
     startBatch(items.map(i => ({
       id:              i.id,
       file:            i.file,
@@ -715,6 +716,7 @@ export default function AssetsPage() {
       subCategory:  uploadSubCategory,
       monthKey:     uploadMonth,
       uploadedBy,
+      uploadedByEmail,
     });
     addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };

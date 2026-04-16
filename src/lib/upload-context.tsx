@@ -39,6 +39,7 @@ import React, {
   useRef,
 } from 'react';
 import type { Asset } from './types';
+import supabase from './supabase';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ export interface UploadItem {
   subCategory:  string;
   monthKey:     string;
   uploadedBy:   string | null;
+  uploadedByEmail: string | null;
   // ── R2 references (set after successful upload) ──────────────
   /** R2 storage key — set after presign (single) or multipart-init. */
   r2Key:      string | null;
@@ -182,6 +184,7 @@ export interface BatchMeta {
   subCategory:  string;
   monthKey:     string;
   uploadedBy:   string | null;
+  uploadedByEmail: string | null;
 }
 
 /** Item shape passed when opening a batch (before upload starts). */
@@ -618,18 +621,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const fileMimeType = (item.fileMimeType ?? item.file.type) || 'application/octet-stream';
 
     try {
-      // ── multipart resume — uploadId still active, resume from last completed part ──
-      if (item.uploadId && item.r2Key && item.isMultipart) {
-        console.log('[upload] resuming multipart:', {
-          key:           item.r2Key,
-          uploadId:      item.uploadId,
-          resumeFromPart: item.completedParts.length + 1,
-        });
-        await doMultipartUpload(item, fileMimeType, ctrl);
-        return;
-      }
-
-      // ── failed_db retry — R2 upload already done, skip to phase 3 ──────────
+      // ── failed_db retry — storage upload already done, skip to DB save ─────
       if (item.r2Key) {
         setStage(item.id, 'uploaded', 'Saving to system\u2026', {
           progress:     100,
@@ -639,21 +631,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const useMultipart = item.file.size > MULTIPART_THRESHOLD;
-
       console.log('[upload] start:', {
-        name:         item.file.name,
-        size:         item.file.size,
-        multipart:    useMultipart,
-        chunkSize:    useMultipart ? CHUNK_SIZE : 'n/a',
-        totalChunks:  useMultipart ? Math.ceil(item.file.size / CHUNK_SIZE) : 1,
+        name: item.file.name,
+        size: item.file.size,
+        multipart: false,
       });
-
-      if (useMultipart) {
-        await doMultipartUpload(item, fileMimeType, ctrl);
-      } else {
-        await doSingleUpload(item, fileMimeType, ctrl);
-      }
+      await doSingleUpload(item, fileMimeType, ctrl);
 
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return;
@@ -685,145 +668,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       uploadedBytes: 0,
     });
 
-    // Helper: fetch a fresh presigned PUT URL from the server.
-    async function fetchPresignedUrl(): Promise<{ uploadUrl: string; storageKey: string; publicUrl: string; displayName: string } | null> {
-      let presignRes: Response;
-      try {
-        presignRes = await fetch('/api/upload/presign', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName:       item.file.name,
-            fileType:       mimeType,
-            fileSize:       item.file.size,
-            clientName:     item.clientName,
-            clientId:       item.clientId   || undefined,
-            mainCategory:   item.mainCategory,
-            subCategory:    item.subCategory || undefined,
-            monthKey:       item.monthKey,
-            uploadedBy:     item.uploadedBy  || undefined,
-            customFileName: item.uploadName.trim() || undefined,
-          }),
-          signal: ctrl.signal,
-        });
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') throw err;
-        throw new Error('Network error while requesting upload URL');
-      }
-
-      if (!presignRes.ok) {
-        let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
-        let providerBody: string | null = null;
-        try {
-          providerBody = await presignRes.text();
-          const j = JSON.parse(providerBody) as { error?: string };
-          if (j.error) errMsg = j.error;
-        } catch { /* ignore */ }
-        setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: classifyUploadError({
-            step:               'presign',
-            rawMessage:         errMsg,
-            httpStatus:         presignRes.status,
-            providerBody,
-            fileReachedStorage: false,
-            dbSaved:            false,
-          }),
-        });
-        return null;
-      }
-
-      try {
-        return await presignRes.json() as { uploadUrl: string; storageKey: string; publicUrl: string; displayName: string };
-      } catch {
-        setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: classifyUploadError({
-            step:               'presign_parse',
-            rawMessage:         'Invalid response from upload presign endpoint',
-            fileReachedStorage: false,
-            dbSaved:            false,
-          }),
-        });
-        return null;
-      }
-    }
-
-    // Phase 1: get presigned PUT URL.
-    const presignData = await fetchPresignedUrl();
-    if (!presignData) return;
-
-    const { storageKey, displayName, publicUrl } = presignData;
-    let   { uploadUrl } = presignData;
-
-    // Persist key info immediately in case tab reloads during upload.
-    update(item.id, { r2Key: storageKey, r2FileName: displayName, publicUrl, fileMimeType: mimeType });
-
-    // Phase 2: direct PUT to R2.
-    // On 401/403 (expired presign URL), automatically regenerate and retry once.
-    setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
-
-    let putResult: XhrResult;
-    try {
-      putResult = await putBlobViaXHR(
-        uploadUrl,
-        item.file,
-        mimeType,
-        (loaded) => {
-          const pct = Math.round((loaded / item.file.size) * 95);
-          update(item.id, {
-            progress:     pct,
-            uploadedBytes: loaded,
-            statusText:   `Uploading ${pct}%`,
-            statusLabel:  'Uploading',
-          });
-        },
-        ctrl.signal,
-      );
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') throw err;
-      throw new Error(err instanceof Error ? err.message : 'Network error during file upload');
-    }
-
-    // Auto-refresh expired/unauthorised presign URL and retry once.
-    if (putResult.status === 401 || putResult.status === 403) {
-      console.warn('[upload] presign URL rejected (HTTP', putResult.status, ') — refreshing URL and retrying');
-      update(item.id, { statusText: 'Refreshing upload URL\u2026', statusLabel: 'Preparing' });
-
-      const refreshed = await fetchPresignedUrl();
-      if (!refreshed) return; // fetchPresignedUrl already set the failed stage
-
-      uploadUrl = refreshed.uploadUrl;
-
-      setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
-
-      try {
-        putResult = await putBlobViaXHR(
-          uploadUrl,
-          item.file,
-          mimeType,
-          (loaded) => {
-            const pct = Math.round((loaded / item.file.size) * 95);
-            update(item.id, {
-              progress:     pct,
-              uploadedBytes: loaded,
-              statusText:   `Uploading ${pct}%`,
-              statusLabel:  'Uploading',
-            });
-          },
-          ctrl.signal,
-        );
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') throw err;
-        throw new Error(err instanceof Error ? err.message : 'Network error during file upload');
-      }
-    }
-
-    if (putResult.status < 200 || putResult.status >= 300) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
-          step:               'r2_put',
-          rawMessage:         `File upload to storage failed (HTTP ${putResult.status})`,
-          httpStatus:         putResult.status,
-          providerBody:       putResult.body.slice(0, 400) || null,
+          step:               'auth',
+          rawMessage:         authError?.message ?? 'You must be logged in to upload files.',
           fileReachedStorage: false,
           dbSaved:            false,
         }),
@@ -831,13 +681,47 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const ext = item.file.name.includes('.') ? `.${item.file.name.split('.').pop()}` : '';
+    const safeOriginalName = item.file.name.replace(/[\\/]/g, '-');
+    const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
+    const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
+
+    setStage(item.id, 'uploading', 'Uploading', { progress: 30 });
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('client-assets')
+      .upload(storagePath, item.file, {
+        contentType: mimeType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('upload error', uploadError);
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step:               'supabase_storage_upload',
+          rawMessage:         uploadError.message,
+          providerBody:       uploadError.name ?? null,
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
+      });
+      return;
+    }
+    if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+    console.log('upload success', uploadData);
+    const { data: publicData } = supabase.storage.from('client-assets').getPublicUrl(storagePath);
+    const publicUrl = publicData.publicUrl;
+
+    update(item.id, { r2Key: storagePath, r2FileName: displayName, publicUrl, fileMimeType: mimeType });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
       progress:      100,
       uploadedBytes: item.file.size,
     });
 
     // Phase 3: save metadata.
-    await doSaveMetadata(item, storageKey, displayName, publicUrl, mimeType, ctrl.signal);
+    await doSaveMetadata(item, storagePath, displayName, publicUrl, mimeType, ctrl.signal);
   }
 
   // ── Multipart upload (> MULTIPART_THRESHOLD) ──────────────────────────────
@@ -1181,177 +1065,55 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     mimeType:    string,
     signal:      AbortSignal,
   ) {
-    // ── Optional: upload video thumbnail to R2 ─────────────────────────────
-    let thumbnailStorageKey: string | undefined;
+    if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    if (item.thumbnailBlob) {
-      try {
-        // Get a presigned URL for the thumbnail.
-        const presignRes = await fetch('/api/upload/thumbnail-presign', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ videoStorageKey: storageKey }),
-          signal,
-        });
+    const resolvedPublicUrl = publicUrl || supabase.storage.from('client-assets').getPublicUrl(storageKey).data.publicUrl;
+    const category = item.subCategory || item.mainCategory || 'general';
 
-        if (presignRes.ok) {
-          const presignData = await presignRes.json() as {
-            uploadUrl:           string;
-            thumbnailStorageKey: string;
-          };
-
-          // PUT thumbnail blob directly to R2.
-          const putRes = await fetch(presignData.uploadUrl, {
-            method:  'PUT',
-            headers: { 'Content-Type': 'image/jpeg' },
-            body:    item.thumbnailBlob,
-            signal,
-          });
-
-          if (putRes.ok) {
-            thumbnailStorageKey = presignData.thumbnailStorageKey;
-            console.log('[upload] thumbnail uploaded:', thumbnailStorageKey);
-          } else {
-            console.warn('[upload] thumbnail PUT failed:', putRes.status);
-          }
-        } else {
-          console.warn('[upload] thumbnail presign failed:', presignRes.status);
-        }
-      } catch (err: unknown) {
-        // Thumbnail upload failure is non-fatal — continue without it.
-        if ((err as Error)?.name === 'AbortError') throw err;
-        console.warn('[upload] thumbnail upload error (non-fatal):', err instanceof Error ? err.message : err);
-      }
-    }
-
-    // ── Optional: upload document preview (e.g. PDF first page) to R2 ──────
-    let previewStorageKey: string | undefined;
-
-    if (item.previewBlob) {
-      try {
-        const presignRes = await fetch('/api/upload/preview-presign', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ fileStorageKey: storageKey }),
-          signal,
-        });
-
-        if (presignRes.ok) {
-          const presignData = await presignRes.json() as {
-            uploadUrl:         string;
-            previewStorageKey: string;
-          };
-
-          const putRes = await fetch(presignData.uploadUrl, {
-            method:  'PUT',
-            headers: { 'Content-Type': 'image/jpeg' },
-            body:    item.previewBlob,
-            signal,
-          });
-
-          if (putRes.ok) {
-            previewStorageKey = presignData.previewStorageKey;
-            console.log('[upload] preview uploaded:', previewStorageKey);
-          } else {
-            console.warn('[upload] preview PUT failed:', putRes.status);
-          }
-        } else {
-          console.warn('[upload] preview presign failed:', presignRes.status);
-        }
-      } catch (err: unknown) {
-        // Preview upload failure is non-fatal — continue without it.
-        if ((err as Error)?.name === 'AbortError') throw err;
-        console.warn('[upload] preview upload error (non-fatal):', err instanceof Error ? err.message : err);
-      }
-    }
-
-    let completeRes: Response;
-    try {
-      completeRes = await fetch('/api/upload/complete', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storageKey,
-          displayName,
-          clientName:          item.clientName,
-          clientId:            item.clientId   || undefined,
-          fileType:            mimeType,
-          fileSize:            item.file.size,
-          mainCategory:        item.mainCategory || undefined,
-          subCategory:         item.subCategory  || undefined,
-          monthKey:            item.monthKey,
-          uploadedBy:          item.uploadedBy   || undefined,
-          ...(thumbnailStorageKey           ? { thumbnailStorageKey }                              : {}),
-          ...(previewStorageKey             ? { previewStorageKey }                                : {}),
-          ...(item.durationSeconds != null  ? { durationSeconds: item.durationSeconds }           : {}),
-        }),
-        signal,
-      });
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') throw err;
-      setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
-        progress: 100,
-        errorDetail: classifyUploadError({
-          step:               'complete_network',
-          rawMessage:         err instanceof Error ? err.message : String(err),
-          fileReachedStorage: true,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
-
-    let json: {
-      success:      boolean;
-      stage?:       string;
-      asset?:       Asset;
-      r2_key?:      string;
-      r2_bucket?:   string;
-      r2_filename?: string;
-      error?:       unknown;
+    const payload = {
+      name: displayName,
+      file_name: displayName,
+      original_name: item.file.name,
+      original_filename: item.file.name,
+      file_url: resolvedPublicUrl,
+      storage_path: storageKey,
+      file_path: storageKey,
+      storage_key: storageKey,
+      file_size: item.file.size,
+      file_type: mimeType,
+      mime_type: mimeType,
+      client_id: item.clientId,
+      client_name: item.clientName,
+      category,
+      main_category: item.mainCategory || null,
+      sub_category: item.subCategory || null,
+      uploaded_by: item.uploadedBy,
+      uploaded_by_email: item.uploadedByEmail,
+      workspace_key: 'os',
+      status: 'active',
+      bucket_name: 'client-assets',
+      storage_provider: 'supabase',
+      view_url: resolvedPublicUrl,
+      download_url: resolvedPublicUrl,
+      web_view_link: resolvedPublicUrl,
+      month_key: item.monthKey,
+      client_folder_name: item.clientName,
     };
 
-    try {
-      json = await completeRes.json() as typeof json;
-    } catch {
-      if (completeRes.ok) {
-        setStage(item.id, 'completed', 'Completed', { progress: 100 });
-      } else {
-        setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
-          progress: 100,
-          errorDetail: classifyUploadError({
-            step:               'complete_parse',
-            rawMessage:         `Invalid response from complete endpoint (HTTP ${completeRes.status})`,
-            httpStatus:         completeRes.status,
-            fileReachedStorage: true,
-            dbSaved:            false,
-          }),
-        });
-      }
-      return;
-    }
+    const { data: insertedAsset, error: dbError } = await supabase
+      .from('assets')
+      .insert(payload)
+      .select()
+      .single();
 
-    if (json.stage === 'completed') {
-      if (json.asset) dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: json.asset });
-      setStage(item.id, 'completed', 'Completed', { progress: 100 });
-      return;
-    }
-
-    if (json.stage === 'failed_db') {
-      update(item.id, {
-        r2Key:      json.r2_key      ?? storageKey,
-        r2Bucket:   json.r2_bucket   ?? null,
-        r2FileName: json.r2_filename ?? displayName,
-        publicUrl,
-        fileMimeType: mimeType,
-      });
-      const dbErr = json.error as { message?: string; code?: string } | null | undefined;
+    if (dbError) {
+      console.error('db error', dbError);
       setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
         progress: 100,
         errorDetail: classifyUploadError({
           step:               'database_insert',
-          rawMessage:         dbErr?.message ?? 'Database insert failed',
-          providerBody:       dbErr?.code    ?? null,
+          rawMessage:         dbError.message,
+          providerBody:       dbError.code ?? null,
           fileReachedStorage: true,
           dbSaved:            false,
         }),
@@ -1359,17 +1121,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Unexpected response — treat as failed_db.
-    setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
-      progress: 100,
-      errorDetail: classifyUploadError({
-        step:               'complete_unknown',
-        rawMessage:         `Unexpected response from complete endpoint (HTTP ${completeRes.status})`,
-        httpStatus:         completeRes.status,
-        fileReachedStorage: true,
-        dbSaved:            false,
-      }),
-    });
+    console.log('db insert success', insertedAsset);
+    dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: insertedAsset as Asset });
+    setStage(item.id, 'completed', 'Completed', { progress: 100 });
   }
 
   // ── Abort multipart session (fire-and-forget) ─────────────────────────────
@@ -1424,6 +1178,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       subCategory:   meta.subCategory,
       monthKey:      meta.monthKey,
       uploadedBy:    meta.uploadedBy,
+      uploadedByEmail: meta.uploadedByEmail,
       r2Key:        null,
       r2Bucket:     null,
       r2FileName:   null,
