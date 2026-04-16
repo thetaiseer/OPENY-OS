@@ -42,8 +42,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
 
   const db = getServiceClient();
+  const { data: existingProfile, error: existingProfileError } = await db
+    .from('client_document_profiles')
+    .select('client_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (existingProfileError) return NextResponse.json({ error: existingProfileError.message }, { status: 500 });
+
+  if (typeof updates.default_currency === 'string' && updates.default_currency.trim() && existingProfile?.client_id) {
+    const { error: clientUpdateError } = await db
+      .from('clients')
+      .update({ default_currency: updates.default_currency })
+      .eq('id', existingProfile.client_id);
+    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
+  }
+
   const { data, error } = await db
-    .from('docs_client_document_profiles')
+    .from('client_document_profiles')
     .update({
       ...updates,
       updated_at: new Date().toISOString(),
@@ -52,6 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .select('*')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
   return NextResponse.json({ profile: data });
 }
 
@@ -60,7 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('docs_client_document_profiles').delete().eq('id', id);
+  const { error } = await db.from('client_document_profiles').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

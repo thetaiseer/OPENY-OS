@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import type { Client, TeamMember, TaskCategory, Task } from '@/lib/types';
+import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -121,6 +121,7 @@ export default function NewTaskModal({
   const [description, setDesc]    = useState('');
   const [clientId, setClientId]   = useState(initialClientId);
   const [assignedTo, setAssigned] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [priority, setPriority]   = useState('medium');
   const [status, setStatus]       = useState('todo');
   const [dueDate, setDueDate]     = useState(todayStr());
@@ -147,12 +148,13 @@ export default function NewTaskModal({
   // ── Submission ────────────────────────────────────────────────────────────
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [projects, setProjects] = useState<Pick<Project, 'id' | 'name' | 'client_id'>[]>([]);
 
   // Reset when modal opens
   useEffect(() => {
     if (open) {
       setTitle(''); setDesc(''); setClientId(initialClientId);
-      setAssigned(''); setPriority('medium'); setStatus('todo');
+      setAssigned(''); setProjectId(''); setPriority('medium'); setStatus('todo');
       setDueDate(todayStr()); setDueTime(''); setTimezone('UTC');
       setCategory(''); setTags('');
       setPostContentType(''); setContentPurpose('');
@@ -168,6 +170,32 @@ export default function NewTaskModal({
       setShowUpload(true);
     }
   }, [taskCategory]);
+
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/projects');
+        const json = await res.json() as { projects?: Pick<Project, 'id' | 'name' | 'client_id'>[] };
+        setProjects(Array.isArray(json.projects) ? json.projects : []);
+      } catch {
+        setProjects([]);
+      }
+    })();
+  }, [open]);
+
+  useEffect(() => {
+    if (!clientId) {
+      if (projectId) setProjectId('');
+      return;
+    }
+    if (!projectId) return;
+    // Keep project/client consistency: when user changes client, clear project if it belongs to another client.
+    const selected = projects.find(p => p.id === projectId);
+    if (selected && selected.client_id !== clientId) {
+      setProjectId('');
+    }
+  }, [clientId, projectId, projects]);
 
   if (!open) return null;
 
@@ -314,6 +342,7 @@ export default function NewTaskModal({
     if (dueTime)             body.due_time    = dueTime;
     if (timezone)            body.timezone    = timezone;
     if (taskCategory)        body.task_category = taskCategory;
+    if (projectId)           body.project_id = projectId;
     if (contentPurpose)      body.content_purpose = contentPurpose;
     if (caption.trim())      body.caption = caption.trim();
     if (assetIdToLink)       body.asset_id = assetIdToLink;
@@ -589,7 +618,7 @@ export default function NewTaskModal({
 
             {/* ── Client + Assignee ── */}
             {!isInternal && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
                     <User size={12} /> Client {isInternal ? '' : '*'}
@@ -602,6 +631,21 @@ export default function NewTaskModal({
                     options={[
                       { value: '', label: '— Select client —' },
                       ...clients.map(c => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Project</label>
+                  <SelectDropdown
+                    fullWidth
+                    value={projectId}
+                    onChange={setProjectId}
+                    placeholder="— None —"
+                    options={[
+                      { value: '', label: '— None —' },
+                      ...projects
+                        .filter(project => Boolean(clientId) && project.client_id === clientId)
+                        .map(project => ({ value: project.id, label: project.name })),
                     ]}
                   />
                 </div>

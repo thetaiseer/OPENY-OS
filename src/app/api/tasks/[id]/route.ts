@@ -172,6 +172,9 @@ export async function PATCH(
   if (typeof body.content_item_id === 'string') {
     updatePayload.content_item_id = body.content_item_id.trim() || null;
   }
+  if (typeof body.project_id === 'string') {
+    updatePayload.project_id = body.project_id.trim() || null;
+  }
   if (typeof body.position === 'number' && Number.isFinite(body.position)) {
     updatePayload.position = Math.max(0, Math.trunc(body.position));
   }
