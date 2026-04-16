@@ -4,13 +4,16 @@
  * R2 is S3-compatible; we use the AWS SDK v3 S3 client pointed at the R2 endpoint.
  * Never import this file from client components.
  *
+ * All file access uses the public CDN URL (R2_PUBLIC_URL).  No presigned or
+ * signed URLs are generated.  Uploads go server-side through Next.js API routes.
+ *
  * Required environment variables:
  *   R2_ACCOUNT_ID        – Cloudflare account ID
  *   R2_ACCESS_KEY_ID     – R2 API token (Access Key ID)
  *   R2_SECRET_ACCESS_KEY – R2 API token (Secret Access Key)
  *   R2_BUCKET_NAME       – bucket name (default: client-assets)
  *   R2_PUBLIC_URL        – public base URL for the bucket (no trailing slash)
- *                          e.g. https://assets.example.com  or  https://pub-xxx.r2.dev
+ *                          e.g. https://files.openy-os.com
  */
 
 import {
@@ -23,7 +26,6 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // ── Error classes ─────────────────────────────────────────────────────────────
 
@@ -181,46 +183,6 @@ export async function deleteFromR2(key: string): Promise<void> {
   }
 }
 
-// ── Presigned URLs ────────────────────────────────────────────────────────────
-
-export interface PresignedPutResult {
-  uploadUrl:  string;
-  publicUrl:  string;
-  storageKey: string;
-  bucket:     string;
-}
-
-/**
- * Generate a presigned PUT URL that lets the browser upload a file directly
- * to R2 without routing the bytes through the Next.js server.
- *
- * @param key         – storage key (path within bucket)
- * @param contentType – MIME type of the file being uploaded
- * @param expiresIn   – seconds until the presigned URL expires (default 3600 = 1 h)
- */
-export async function generatePresignedPutUrl(
-  key:         string,
-  contentType: string,
-  expiresIn    = 3600,
-): Promise<PresignedPutResult> {
-  const config = getR2Config();
-  const client = buildS3Client(config);
-
-  const command = new PutObjectCommand({
-    Bucket:      config.bucketName,
-    Key:         key,
-    ContentType: contentType,
-  });
-
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
-
-  return {
-    uploadUrl,
-    publicUrl:  buildR2Url(key, config.publicUrl),
-    storageKey: key,
-    bucket:     config.bucketName,
-  };
-}
 
 // ── Multipart upload ──────────────────────────────────────────────────────────
 
@@ -262,43 +224,38 @@ export async function createMultipartUpload(
   };
 }
 
-export interface PresignedPartResult {
-  uploadUrl:  string;
-  partNumber: number;
-}
-
 /**
- * Generate a presigned PUT URL for a single multipart part.
- * The browser uses this URL to upload the part chunk directly to R2.
- *
- * Important: To read the ETag from the browser after a CORS PUT, the R2 bucket
- * CORS policy must include `expose-headers: etag`.  Without this the ETag header
- * is not accessible from JavaScript and multipart completion will fail.
+ * Upload a single multipart part to R2 server-side.
  *
  * @param key        – object key
  * @param uploadId   – multipart upload ID from createMultipartUpload
  * @param partNumber – 1-based part index
- * @param expiresIn  – seconds until URL expires (default 1 hour)
+ * @param body       – raw part bytes
  */
-export async function generatePresignedPartUrl(
+export async function uploadPartToR2(
   key:        string,
   uploadId:   string,
   partNumber: number,
-  expiresIn = 3600,
-): Promise<PresignedPartResult> {
+  body:       Buffer,
+): Promise<{ etag: string; partNumber: number }> {
   const config = getR2Config();
   const client = buildS3Client(config);
 
-  const command = new UploadPartCommand({
-    Bucket:     config.bucketName,
-    Key:        key,
-    UploadId:   uploadId,
-    PartNumber: partNumber,
-  });
+  const result = await client.send(
+    new UploadPartCommand({
+      Bucket:     config.bucketName,
+      Key:        key,
+      UploadId:   uploadId,
+      PartNumber: partNumber,
+      Body:       body,
+    }),
+  );
 
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  if (!result.ETag) {
+    throw new Error(`R2 did not return an ETag for part ${partNumber}`);
+  }
 
-  return { uploadUrl, partNumber };
+  return { etag: result.ETag, partNumber };
 }
 
 export interface CompletedPart {

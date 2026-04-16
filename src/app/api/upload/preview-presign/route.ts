@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { generatePresignedPutUrl, R2ConfigError } from '@/lib/r2';
+import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/upload/preview-presign
  *
- * Returns a short-lived presigned PUT URL so the browser can upload a file
- * preview image (JPEG) directly to Cloudflare R2 without routing bytes through
- * the Next.js / Vercel server.
+ * Accepts a JPEG preview image as multipart/form-data and uploads it
+ * server-side directly to Cloudflare R2 — no presigned or signed URLs are used.
  *
  * Used for PDF first-page previews and other document cover images.
  *
@@ -18,27 +17,31 @@ export const dynamic = 'force-dynamic';
  *   Original: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-file.pdf
  *   Preview:  clients/{slug}/{mainCat}/{year}/{month}/{subCat}/previews/{ts}-file.jpg
  *
- * Request body (JSON):
+ * Form fields:
+ *   file           – the JPEG preview image blob (required)
  *   fileStorageKey – R2 key of the parent file (required)
  *
  * Response:
- *   uploadUrl          – presigned PUT URL (valid for 1 hour)
- *   previewStorageKey  – R2 key where the preview will be stored
- *   previewUrl         – final public URL of the preview
+ *   previewStorageKey  – R2 key where the preview was stored (clean, no signatures)
+ *   previewUrl         – public CDN URL of the preview
  */
 export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
-  let body: Record<string, unknown>;
+  let formData: FormData;
   try {
-    body = await req.json();
+    formData = await req.formData();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: 'Expected multipart/form-data body' }, { status: 400 });
   }
 
-  const fileStorageKey = (body.fileStorageKey as string | undefined)?.trim() ?? '';
+  const fileField      = formData.get('file');
+  const fileStorageKey = ((formData.get('fileStorageKey') as string | null) ?? '').trim();
 
+  if (!fileField || !(fileField instanceof Blob)) {
+    return NextResponse.json({ error: 'file is required' }, { status: 400 });
+  }
   if (!fileStorageKey) {
     return NextResponse.json({ error: 'fileStorageKey is required' }, { status: 400 });
   }
@@ -57,13 +60,12 @@ export async function POST(req: NextRequest) {
     : `previews/${baseName}.jpg`;
 
   try {
-    const result = await generatePresignedPutUrl(previewStorageKey, 'image/jpeg');
+    const buffer = Buffer.from(await fileField.arrayBuffer());
+    await uploadToR2(previewStorageKey, buffer, 'image/jpeg');
 
-    return NextResponse.json({
-      uploadUrl:         result.uploadUrl,
-      previewStorageKey: result.storageKey,
-      previewUrl:        result.publicUrl,
-    });
+    const previewUrl = buildR2Url(previewStorageKey);
+
+    return NextResponse.json({ previewStorageKey, previewUrl });
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;

@@ -6,28 +6,26 @@
  * Upload status machine:
  *   queued → uploading → uploaded → completed
  *                                 ↘ failed_db     (R2 OK, DB save failed)
- *   queued → uploading → failed_upload (presign / R2 PUT / multipart failed)
+ *   queued → uploading → failed_upload (upload / multipart failed)
  *
- * Small files (≤ MULTIPART_THRESHOLD) — three-phase direct upload:
- *   1. POST /api/upload/presign        → presigned PUT URL + storageKey + publicUrl
- *   2. PUT directly to R2              → browser → R2 (XHR progress events)
- *   3. POST /api/upload/complete       → save metadata to DB
+ * Small files (≤ MULTIPART_THRESHOLD) — Supabase Storage upload:
+ *   1. supabase.storage.upload()   → file goes to Supabase (with progress)
+ *   2. POST /api/upload/complete   → save metadata to DB (optional, or direct DB insert)
  *
- * Large files (> MULTIPART_THRESHOLD) — multipart upload:
+ * Large files (> MULTIPART_THRESHOLD) — R2 multipart upload (server-side):
  *   1. POST /api/upload/multipart-init  → uploadId + storageKey + publicUrl
  *   2. For each chunk:
- *        POST /api/upload/multipart-part → presigned part URL
- *        PUT chunk directly to R2        → browser → R2 (XHR progress)
+ *        POST /api/upload/multipart-part?storageKey=...&uploadId=...&partNumber=N
+ *          (raw binary body) → server uploads part to R2, returns { partNumber, etag }
  *   3. POST /api/upload/multipart-complete → assemble parts in R2
  *   4. POST /api/upload/complete           → save metadata to DB
  *
  * Rules:
- *  1. File bytes NEVER pass through the Next.js / Vercel server.
- *  2. DB metadata is saved only after the full upload is assembled.
- *  3. Failed chunks are retried up to MAX_CHUNK_RETRIES times.
- *  4. User can cancel at any time; pending multipart sessions are aborted.
- *  5. failed_upload → retry full upload.
- *  6. failed_db     → retry DB save only (R2 object already exists).
+ *  1. DB metadata is saved only after the full upload is assembled.
+ *  2. Failed chunks are retried up to MAX_CHUNK_RETRIES times.
+ *  3. User can cancel at any time; pending multipart sessions are aborted.
+ *  4. failed_upload → retry full upload.
+ *  5. failed_db     → retry DB save only (R2 object already exists).
  */
 
 import React, {
@@ -327,14 +325,13 @@ function classifyUploadError(opts: {
 
   const raw = rawMessage.toLowerCase();
 
-  // "Device is offline" — thrown by putBlobViaXHR when navigator.onLine is false.
+  // "Device is offline" — thrown by sendBlobViaXHR when navigator.onLine is false.
   const isOffline =
     raw.includes('device is offline') ||
     raw.includes('internet connection lost');
 
-  // "Upload blocked" — thrown by putBlobViaXHR when navigator.onLine is true
-  // but XHR fires onerror, which most commonly means the R2 bucket's CORS policy
-  // is blocking the browser's PUT request.
+  // "Upload blocked" — thrown by sendBlobViaXHR when navigator.onLine is true
+  // but XHR fires onerror (network-level failure).
   const isCorsBlocked =
     raw.includes('upload blocked') ||
     raw.includes('cors misconfiguration') ||
@@ -427,8 +424,8 @@ function classifyUploadError(opts: {
     code = 'HTTP_415';
 
   } else if (httpStatus === 500) {
-    if (step === 'presign' || step === 'presign_parse' || step === 'multipart_init' || step === 'multipart_init_parse') {
-      arabicMessage = 'فشل الرفع: تعذر إنشاء رابط الرفع من السيرفر (خطأ داخلي)';
+    if (step === 'multipart_init' || step === 'multipart_init_parse') {
+      arabicMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر (خطأ داخلي)';
     } else {
       arabicMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
     }
@@ -439,9 +436,9 @@ function classifyUploadError(opts: {
     code = `HTTP_${httpStatus}`;
 
   // ── Step-based fallbacks ──────────────────────────────────────────────────
-  } else if (step === 'presign' || step === 'presign_parse' || step === 'multipart_init' || step === 'multipart_init_parse') {
-    arabicMessage = 'فشل الرفع: تعذر إنشاء رابط الرفع من السيرفر';
-    code = 'PRESIGN_FAILED';
+  } else if (step === 'multipart_init' || step === 'multipart_init_parse') {
+    arabicMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر';
+    code = 'MULTIPART_INIT_FAILED';
 
   } else if (step === 'r2_put') {
     arabicMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
@@ -487,17 +484,15 @@ interface XhrResult {
 }
 
 /**
- * PUT a Blob directly to a presigned R2 URL via XHR.
+ * Send a Blob to a URL via XHR (supports both PUT and POST).
  * Reports progress via `onProgress(loadedBytes)`.
  *
  * XHR `onerror` fires for two distinct situations:
  *   1. The device has no internet connection (navigator.onLine === false).
- *   2. The browser blocked the request due to CORS misconfiguration.
- *      In this case the browser never gets an HTTP status — the request is
- *      rejected before it reaches R2, making it appear identical to a network
- *      failure.  We distinguish these by checking navigator.onLine.
+ *   2. A network-level error blocked the request.
  */
-function putBlobViaXHR(
+function sendBlobViaXHR(
+  method:      string,
   url:         string,
   blob:        Blob,
   contentType: string,
@@ -524,23 +519,17 @@ function putBlobViaXHR(
     });
 
     xhr.addEventListener('error', () => {
-      // Check navigator.onLine to distinguish device offline from CORS blocking.
-      // When CORS blocks the request the browser fires onerror with no status —
-      // the same as a genuine network failure, but navigator.onLine stays true.
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         reject(new Error('Device is offline — internet connection lost during upload'));
       } else {
-        // The upload URL itself succeeded the network path but the request was
-        // blocked.  Most common cause is missing / misconfigured CORS on the R2
-        // bucket (AllowedHeaders, ExposeHeaders, AllowedOrigins).
-        reject(new Error('Upload blocked — possible CORS misconfiguration on storage bucket'));
+        reject(new Error('Upload blocked — possible network or server error'));
       }
     });
     xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled', 'AbortError')));
 
     signal.addEventListener('abort', () => xhr.abort(), { once: true });
 
-    xhr.open('PUT', url);
+    xhr.open(method, url);
     xhr.setRequestHeader('Content-Type', contentType);
     xhr.send(blob);
   });
@@ -915,35 +904,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       try {
         chunkResult = await withRetry(
           async () => {
-            // Get a fresh presigned URL for this part.
-            let partRes: Response;
-            try {
-              partRes = await fetch('/api/upload/multipart-part', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ storageKey, uploadId, partNumber }),
-                signal: ctrl.signal,
-              });
-            } catch (err: unknown) {
-              if ((err as Error)?.name === 'AbortError') throw err;
-              throw new Error(`Network error while obtaining presigned URL for part ${partNumber}`);
-            }
+            // POST chunk bytes directly to the server.
+            // The server uploads the part to R2 and returns { partNumber, etag }.
+            const partUrl = new URL('/api/upload/multipart-part', window.location.origin);
+            partUrl.searchParams.set('storageKey', storageKey);
+            partUrl.searchParams.set('uploadId',   uploadId);
+            partUrl.searchParams.set('partNumber', String(partNumber));
 
-            if (!partRes.ok) {
-              let em = `Failed to get part URL (HTTP ${partRes.status})`;
-              try { const j = await partRes.json() as { error?: string }; if (j.error) em = j.error; } catch { /* ignore */ }
-              throw new Error(em);
-            }
-
-            const partData = await partRes.json() as { uploadUrl: string };
             const chunkBytesStart = uploadedBytes;
             // Capture upload start time snapshot for speed calculation.
             const speedBaseMs    = item.uploadStartMs ?? Date.now();
 
-            const result = await putBlobViaXHR(
-              partData.uploadUrl,
+            const result = await sendBlobViaXHR(
+              'POST',
+              partUrl.toString(),
               chunk,
-              mimeType,
+              'application/octet-stream',
               (loaded) => {
                 const totalLoaded = chunkBytesStart + loaded;
                 const elapsed     = Date.now() - speedBaseMs;
@@ -1001,17 +977,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       uploadedBytes += chunk.size;
-      const etag = chunkResult.headers['etag'] ?? '';
+      // The server returns { partNumber, etag } in the JSON response body.
+      let etag = '';
+      try {
+        const partResp = JSON.parse(chunkResult.body) as { etag?: string };
+        etag = partResp.etag ?? '';
+      } catch { /* empty */ }
       if (!etag) {
-        // ETag is required to complete the multipart upload.
-        // This likely means R2's CORS config does not expose the ETag header.
-        // Add `expose-headers: etag` to your R2 bucket's CORS settings.
         void abortMultipartSession(storageKey, uploadId);
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step:               `chunk_${partNumber}_etag`,
-            rawMessage:         `Part ${partNumber} response did not include an ETag header. Ensure R2 CORS exposes the ETag header (expose-headers: etag).`,
-            providerBody:       'Missing ETag header in PUT response',
+            rawMessage:         `Part ${partNumber} server response did not include an ETag.`,
+            providerBody:       'Missing ETag in server response',
             fileReachedStorage: false,
             dbSaved:            false,
           }),

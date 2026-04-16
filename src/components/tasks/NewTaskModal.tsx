@@ -216,12 +216,11 @@ export default function NewTaskModal({
 
   // ── File upload handler ───────────────────────────────────────────────────
   //
-  // Uses the same presigned-URL architecture as the main upload queue:
-  //   1. POST /api/upload/presign  → presigned PUT URL + storageKey + displayName
-  //   2. PUT file directly to R2   → no bytes through the Next.js server
-  //   3. POST /api/upload/complete → save metadata to DB → return asset id
+  // Uploads the file server-side in one step:
+  //   1. POST /api/upload/presign  (multipart/form-data) → storageKey + publicUrl
+  //   2. POST /api/upload/complete → save metadata to DB → return asset id
 
-  interface PresignResponse  { uploadUrl: string; storageKey: string; publicUrl: string; displayName: string }
+  interface PresignResponse  { storageKey: string; publicUrl: string; displayName: string }
   interface CompleteResponse { success: boolean; stage?: string; asset?: { id?: string }; error?: string }
 
   async function handleFileUpload(): Promise<string | null> {
@@ -237,23 +236,24 @@ export default function NewTaskModal({
     const monthKey  = nowMonthKey();
 
     try {
-      // Phase 1 — obtain a presigned PUT URL from the server.
+      // Phase 1 — upload file bytes to server (server uploads to R2).
+      const formData = new FormData();
+      formData.append('file',         file, file.name);
+      formData.append('fileName',     file.name);
+      formData.append('fileType',     file.type || 'application/octet-stream');
+      formData.append('fileSize',     String(file.size));
+      formData.append('clientName',   selectedClient.name);
+      formData.append('mainCategory', uploadState.mainCategory);
+      formData.append('monthKey',     monthKey);
+      if (clientId) formData.append('clientId', clientId);
+
       const presignRes = await fetch('/api/upload/presign', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          fileName:     file.name,
-          fileType:     file.type || 'application/octet-stream',
-          fileSize:     file.size,
-          clientName:   selectedClient.name,
-          clientId,
-          mainCategory: uploadState.mainCategory,
-          monthKey,
-        }),
+        method: 'POST',
+        body:   formData,
       });
 
       if (!presignRes.ok) {
-        let errMsg = `Failed to obtain upload URL (HTTP ${presignRes.status})`;
+        let errMsg = `Failed to upload file (HTTP ${presignRes.status})`;
         try { const j = await presignRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
         setUpload(u => ({ ...u, uploading: false, error: errMsg }));
         return null;
@@ -261,19 +261,7 @@ export default function NewTaskModal({
 
       const presign = await presignRes.json() as PresignResponse;
 
-      // Phase 2 — upload file bytes directly to R2 (no server proxy).
-      const putRes = await fetch(presign.uploadUrl, {
-        method:  'PUT',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body:    file,
-      });
-
-      if (!putRes.ok) {
-        setUpload(u => ({ ...u, uploading: false, error: `Upload to storage failed (HTTP ${putRes.status})` }));
-        return null;
-      }
-
-      // Phase 3 — save asset metadata to the database.
+      // Phase 2 — save asset metadata to the database.
       const completeRes = await fetch('/api/upload/complete', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
