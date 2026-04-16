@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { generatePresignedPutUrl, R2ConfigError } from '@/lib/r2';
+import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
 import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
@@ -24,11 +24,12 @@ function sanitizeFileName(name: string): string {
 /**
  * POST /api/upload/presign
  *
- * Validates upload parameters and returns a short-lived presigned PUT URL so
- * the browser can upload the file directly to Cloudflare R2 without routing
- * the file bytes through the Next.js / Vercel server.
+ * Accepts a multipart/form-data request containing the file to upload and
+ * associated metadata.  Uploads the file server-side directly to Cloudflare
+ * R2 and returns the clean public URL — no presigned or signed URLs are used.
  *
- * Request body (JSON):
+ * Form fields:
+ *   file          – the binary file (required)
  *   fileName      – original file name (required)
  *   fileType      – MIME type of the file (required)
  *   fileSize      – file size in bytes (required)
@@ -40,16 +41,15 @@ function sanitizeFileName(name: string): string {
  *   customFileName– custom base name without extension (optional)
  *
  * Response:
- *   uploadUrl   – presigned PUT URL (valid for 1 hour)
- *   storageKey  – R2 object key
- *   publicUrl   – final public URL of the file
+ *   storageKey  – R2 object key (clean, no signatures)
+ *   publicUrl   – public CDN URL of the file (${R2_PUBLIC_URL}/{storageKey})
  *   displayName – the sanitized display name used as the file name
  */
 export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
-  // Rate limit: same budget as /api/upload (60 per hour per user)
+  // Rate limit: 60 uploads per hour per user
   const { checkRateLimit } = await import('@/lib/rate-limit');
   const rl = checkRateLimit(`upload:user:${auth.profile.id}`, { limit: 60, windowMs: 60 * 60_000 });
   if (!rl.allowed) {
@@ -59,27 +59,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: Record<string, unknown>;
+  let formData: FormData;
   try {
-    body = await req.json();
+    formData = await req.formData();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: 'Expected multipart/form-data body' }, { status: 400 });
   }
 
-  const fileName     = (body.fileName     as string | undefined)?.trim() ?? '';
-  const fileType     = (body.fileType     as string | undefined)?.trim() ?? 'application/octet-stream';
-  const fileSize     = Number(body.fileSize ?? 0);
-  const clientName   = (body.clientName   as string | undefined)?.trim() ?? '';
-  const clientId     = (body.clientId     as string | undefined)?.trim() || null;
-  const mainCategory = (body.mainCategory as string | undefined)?.trim() ?? '';
-  const subCategory  = (body.subCategory  as string | undefined)?.trim() ?? '';
-  const monthKey     = (body.monthKey     as string | undefined)?.trim() ?? '';
-  const customName   = (body.customFileName as string | undefined)?.trim() || null;
+  const fileField    = formData.get('file');
+  const fileName     = ((formData.get('fileName')     as string | null) ?? '').trim();
+  const fileType     = ((formData.get('fileType')     as string | null) ?? 'application/octet-stream').trim();
+  const fileSize     = Number(formData.get('fileSize') ?? 0);
+  const clientName   = ((formData.get('clientName')   as string | null) ?? '').trim();
+  const clientId     = ((formData.get('clientId')     as string | null) ?? '').trim() || null;
+  const mainCategory = ((formData.get('mainCategory') as string | null) ?? '').trim();
+  const subCategory  = ((formData.get('subCategory')  as string | null) ?? '').trim();
+  const monthKey     = ((formData.get('monthKey')     as string | null) ?? '').trim();
+  const customName   = ((formData.get('customFileName') as string | null) ?? '').trim() || null;
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const fail = (message: string, status = 400) =>
     NextResponse.json({ error: message }, { status });
 
+  if (!fileField || !(fileField instanceof Blob)) return fail('file is required');
   if (!fileName)    return fail('fileName is required');
   if (!clientName)  return fail('clientName is required');
   if (!mainCategory) return fail('mainCategory is required');
@@ -116,40 +118,39 @@ export async function POST(req: NextRequest) {
     timestamp,
   });
 
-  // Determine display name (custom name takes precedence).
   let displayName: string;
   if (customName) {
-    const base        = sanitizeFileName(customName);
-    const dotExt      = ext ? `.${ext}` : '';
-    const baseLower   = base.toLowerCase();
-    const extLower    = dotExt.toLowerCase();
+    const base      = sanitizeFileName(customName);
+    const dotExt    = ext ? `.${ext}` : '';
+    const baseLower = base.toLowerCase();
+    const extLower  = dotExt.toLowerCase();
     displayName = (dotExt && baseLower.endsWith(extLower)) ? base : `${base}${dotExt}`;
   } else {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
 
-  // ── Generate presigned URL ─────────────────────────────────────────────────
+  // ── Upload to R2 server-side ───────────────────────────────────────────────
   try {
-    const result = await generatePresignedPutUrl(storageKey, fileType);
+    const buffer      = Buffer.from(await fileField.arrayBuffer());
+    const contentType = fileType || (fileField as File).type || 'application/octet-stream';
 
-    console.log('[upload/presign] presigned URL generated:', {
+    await uploadToR2(storageKey, buffer, contentType);
+
+    const publicUrl = buildR2Url(storageKey);
+
+    console.log('[upload/presign] uploaded to R2:', {
       userId: auth.profile.id,
       clientId,
       storageKey,
-      fileType,
-      fileSize,
+      contentType,
+      fileSize: buffer.byteLength,
     });
 
-    return NextResponse.json({
-      uploadUrl:   result.uploadUrl,
-      storageKey:  result.storageKey,
-      publicUrl:   result.publicUrl,
-      displayName,
-    });
+    return NextResponse.json({ storageKey, publicUrl, displayName });
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
-    console.error('[upload/presign] failed to generate presigned URL:', msg);
+    console.error('[upload/presign] failed to upload to R2:', msg);
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });
   }
 }

@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/upload/complete
  *
- * Called by the frontend after a successful direct PUT to R2 via a presigned
- * URL.  This endpoint only saves asset metadata to the database — no file
+ * Called by the frontend after a successful server-side upload to R2.
+ * This endpoint only saves asset metadata to the database — no file
  * bytes are accepted or processed here.
  *
  * Request body (JSON):

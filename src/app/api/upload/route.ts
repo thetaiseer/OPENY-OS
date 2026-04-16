@@ -1,29 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// ── Runtime config ────────────────────────────────────────────────────────────
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/upload  — DEPRECATED (returns HTTP 410 Gone)
  *
- * This route previously accepted full file bodies and uploaded them server-side
- * to Cloudflare R2.  Sending file bytes through the Next.js / Vercel server
- * causes:
- *   - Hard 60-second timeouts on Vercel Hobby/Free plans
- *   - Unnecessary bandwidth consumption through the function
- *   - Unreliable large-file handling (>50 MB files hang or fail)
+ * The current upload flow uses a different set of endpoints.
  *
- * The correct upload flow is:
- *   1. POST /api/upload/presign   → get a short-lived presigned PUT URL
- *   2. PUT  <presigned URL>       → browser → R2 directly (no server proxy)
- *   3. POST /api/upload/complete  → save asset metadata to the database
+ * Standard upload flow:
+ *   1. POST /api/upload/presign   (multipart/form-data with file bytes)
+ *                                 → server uploads to R2, returns storageKey + publicUrl
+ *   2. POST /api/upload/complete  → save asset metadata to the database
  *
- * For large files (> 50 MB) the multipart path is used automatically:
+ * For large files (> 50 MB) the multipart path is used:
  *   1. POST /api/upload/multipart-init
- *   2. POST /api/upload/multipart-part  (per chunk, returns presigned URL)
- *   3. PUT  <part URL>                   (browser → R2, per chunk)
- *   4. POST /api/upload/multipart-complete
- *   5. POST /api/upload/complete
+ *   2. POST /api/upload/multipart-part (binary body per chunk, server uploads to R2)
+ *   3. POST /api/upload/multipart-complete
+ *   4. POST /api/upload/complete
  *
  * See src/lib/upload-context.tsx for the full client-side implementation.
  */
@@ -33,13 +26,12 @@ export async function POST(_req: NextRequest) {
       success: false,
       error:
         'This endpoint no longer accepts file uploads. ' +
-        'Use POST /api/upload/presign to obtain a presigned URL, ' +
-        'then PUT the file directly to R2, ' +
+        'POST multipart/form-data to /api/upload/presign to upload the file, ' +
         'then POST /api/upload/complete to save metadata.',
-      presignEndpoint:   '/api/upload/presign',
-      completeEndpoint:  '/api/upload/complete',
+      presignEndpoint:  '/api/upload/presign',
+      completeEndpoint: '/api/upload/complete',
       docs: 'See src/lib/upload-context.tsx for the reference implementation.',
     },
-    { status: 410 }, // 410 Gone
+    { status: 410 },
   );
 }
