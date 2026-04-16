@@ -68,7 +68,7 @@ export async function POST(
       .from('team_invitations')
       .update({ status: INVITATION_STATUS.EXPIRED, updated_at: new Date().toISOString() })
       .eq('id', invitation.id)
-      .eq('status', INVITATION_STATUS.INVITED); // only update if still active
+      .in('status', [INVITATION_STATUS.INVITED, INVITATION_STATUS.PENDING]); // only update if still active
     return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
   }
 
