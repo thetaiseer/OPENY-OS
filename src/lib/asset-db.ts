@@ -31,8 +31,19 @@ export function extractMissingColumn(
   const text = `${err.message ?? ''} ${err.details ?? ''}`;
   // Postgres uses double-quotes: column "xyz" of relation ...
   // PostgREST / Supabase client may reformat to single-quotes: column 'xyz'
-  const m = text.match(/column ["']([^"']+)["']/);
-  return m?.[1] ?? null;
+  const byColumnKeyword = text.match(/column ["']([^"']+)["']/i);
+  if (byColumnKeyword?.[1]) return byColumnKeyword[1];
+  // PostgREST schema-cache error (PGRST204), where quoted name appears before
+  // the word "column": "Could not find the 'xyz' column of 'assets' ..."
+  const byQuotedNameBeforeColumn = text.match(/["']([^"']+)["']\s+column/i);
+  if (byQuotedNameBeforeColumn?.[1]) return byQuotedNameBeforeColumn[1];
+  return null;
+}
+
+/** Whether the error indicates an unknown/missing column in the insert payload. */
+function isMissingColumnError(err: { code?: string } | null | undefined): boolean {
+  const code = err?.code ?? '';
+  return code === '42703' || code === 'PGRST204';
 }
 
 /**
@@ -67,7 +78,7 @@ export async function insertWithColumnFallback(
   let result = await attemptInsert(currentRow);
   let attempts = 0;
 
-  while (result.error?.code === '42703' && attempts < MAX_COLUMN_RETRIES) {
+  while (isMissingColumnError(result.error) && attempts < MAX_COLUMN_RETRIES) {
     const col = extractMissingColumn(result.error as { message?: string; details?: string });
     if (!col || !(col in currentRow)) break; // unrecognisable error — stop retrying
     console.warn(

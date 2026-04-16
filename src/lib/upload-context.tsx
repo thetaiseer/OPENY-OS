@@ -1095,53 +1095,37 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    const resolvedPublicUrl = publicUrl;
-    const category = item.subCategory || item.mainCategory || 'general';
-
-    const payload = {
-      name: displayName,
-      file_name: displayName,
-      original_name: item.file.name,
-      original_filename: item.file.name,
-      file_url: resolvedPublicUrl,
-      storage_path: storageKey,
-      file_path: storageKey,
-      storage_key: storageKey,
-      file_size: item.file.size,
-      file_type: mimeType,
-      mime_type: mimeType,
-      client_id: item.clientId,
-      client_name: item.clientName,
-      category,
-      main_category: item.mainCategory || null,
-      sub_category: item.subCategory || null,
-      uploaded_by: item.uploadedBy,
-      uploaded_by_email: item.uploadedByEmail,
-      workspace_key: 'os',
-      status: 'active',
-      bucket_name: 'client-assets',
-      storage_provider: 'supabase',
-      view_url: resolvedPublicUrl,
-      download_url: resolvedPublicUrl,
-      web_view_link: resolvedPublicUrl,
-      month_key: item.monthKey,
-      client_folder_name: item.clientName,
+    const completePayload = {
+      storageKey,
+      displayName,
+      publicUrl,
+      clientName: item.clientName,
+      clientId: item.clientId,
+      fileType: mimeType,
+      fileSize: item.file.size,
+      mainCategory: item.mainCategory || null,
+      subCategory: item.subCategory || null,
+      monthKey: item.monthKey,
+      uploadedBy: item.uploadedBy || item.uploadedByEmail || null,
+      durationSeconds: item.durationSeconds,
     };
 
-    const { data: insertedAsset, error: dbError } = await supabase
-      .from('assets')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('db error', dbError);
+    let completeRes: Response;
+    try {
+      completeRes = await fetch('/api/upload/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completePayload),
+        signal,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
         progress: 100,
         errorDetail: classifyUploadError({
           step:               'database_insert',
-          rawMessage:         dbError.message,
-          providerBody:       dbError.code ?? null,
+          rawMessage:         `Request to /api/upload/complete failed: ${errMsg}`,
+          providerBody:       errMsg,
           fileReachedStorage: true,
           dbSaved:            false,
         }),
@@ -1149,8 +1133,43 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    console.log('db insert success', insertedAsset);
-    dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: insertedAsset as Asset });
+    const responseText = await completeRes.text();
+    type UploadCompleteResponse = {
+      success?: boolean;
+      asset?: Asset;
+      error?: unknown;
+      stage?: string;
+    };
+    let completeJson: UploadCompleteResponse | null = null;
+    try {
+      completeJson = responseText ? JSON.parse(responseText) as UploadCompleteResponse : null;
+    } catch {
+      completeJson = null;
+    }
+
+    if (!completeRes.ok || !completeJson?.success || !completeJson.asset) {
+      const errorMessage =
+        (typeof completeJson?.error === 'string' && completeJson.error) ||
+        (typeof completeJson?.error === 'object' && completeJson?.error && 'message' in completeJson.error
+          ? String((completeJson.error as { message?: unknown }).message ?? '')
+          : '') ||
+        `Upload complete failed (HTTP ${completeRes.status})`;
+      console.error('[upload] /api/upload/complete failed:', responseText || '(empty)');
+      setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
+        progress: 100,
+        errorDetail: classifyUploadError({
+          step:               'database_insert',
+          rawMessage:         errorMessage,
+          providerBody:       responseText || null,
+          fileReachedStorage: true,
+          dbSaved:            false,
+        }),
+      });
+      return;
+    }
+
+    console.log('db insert success', completeJson.asset);
+    dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
     setStage(item.id, 'completed', 'Completed', { progress: 100 });
   }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { insertWithColumnFallback } from '@/lib/asset-db';
+import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
 import { buildR2Url, R2ConfigError } from '@/lib/r2';
 
@@ -133,47 +133,64 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────
+  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
   const insertRow: Record<string, unknown> = {
     name:             displayName,
+    file_name:        displayName,
     file_path:        storageKey,
+    storage_path:     storageKey,
+    storage_key:      storageKey,
+    file_key:         storageKey,
     file_url:         publicUrl,
+    public_url:       publicUrl,
     view_url:         publicUrl,
     download_url:     publicUrl,
     file_type:        fileType,
     mime_type:        fileType,
     file_size:        fileSize,
-    bucket_name:      process.env.R2_BUCKET_NAME ?? 'client-assets',
+    bucket_name:      bucketName,
+    storage_bucket:   bucketName,
     storage_provider: 'r2',
     client_name:        clientName,
     client_folder_name: clientName,
     month_key:        monthKey,
     main_category:    mainCategory,
     sub_category:     subCategory,
-    storage_key:      storageKey,
     preview_url:      resolvedPreviewUrl,
     thumbnail_url:    thumbnailUrl,
     web_view_link:    publicUrl,
     ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
     ...(clientId   ? { client_id:   clientId   } : {}),
-    ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
+    // Canonical uploader identity for DB relations/auditing (UUID from auth profile).
+    ...(auth.profile.id ? { uploaded_by: auth.profile.id } : {}),
+    // Optional display label from client UI; kept separate from the canonical UUID above.
+    ...(uploadedBy ? { uploaded_by_name: uploadedBy } : {}),
   };
 
-  const { data: inserted, error: dbError } = await insertWithColumnFallback(
+  const { data: inserted, error: dbError, finalRow } = await insertWithColumnFallback(
     (row) => supabase.from('assets').insert(row).select().single(),
     insertRow,
     '[upload/complete]',
   );
 
   if (dbError) {
-    console.error('[upload/complete] DB insert failed:', JSON.stringify(dbError, null, 2), '| key:', storageKey);
+    console.error(
+      '[upload/complete] DB insert failed:',
+      serializeDbError(dbError),
+      '| key:',
+      storageKey,
+      '| attemptedRow:',
+      JSON.stringify(finalRow, null, 2),
+    );
     return NextResponse.json(
       {
         success:    false,
         stage:      'failed_db',
         r2_key:     storageKey,
-        r2_bucket:  process.env.R2_BUCKET_NAME ?? 'client-assets',
+        r2_bucket:  bucketName,
         r2_filename: displayName,
         error:      dbError,
+        attempted_payload: finalRow,
       },
       { status: 200 },
     );
@@ -209,7 +226,7 @@ export async function POST(req: NextRequest) {
       location: publicUrl,
       asset:    inserted,
       r2_key:   storageKey,
-      r2_bucket: process.env.R2_BUCKET_NAME ?? 'client-assets',
+      r2_bucket: bucketName,
     },
     { status: 201 },
   );
