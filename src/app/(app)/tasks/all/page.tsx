@@ -1110,7 +1110,7 @@ export default function TasksPage() {
 
       const res = await fetchWithTimeout;
       clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
-      let result: { success: boolean; task?: { id?: string; title?: string }; step?: string; error?: string };
+      let result: { success: boolean; task?: Task; step?: string; error?: string };
       try {
         result = await res.json() as typeof result;
       } catch {
@@ -1131,6 +1131,17 @@ export default function TasksPage() {
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
       toast(`Task "${createForm.title}" created successfully.`, 'success');
+
+      if (result.task) {
+        const createdTask = result.task;
+        setTasks(prev => [createdTask, ...prev.filter(t => t.id !== createdTask.id)]);
+        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; team: TeamMember[] }>(
+          ['tasks-all'],
+          old => old
+            ? { ...old, tasks: [createdTask, ...old.tasks.filter(t => t.id !== createdTask.id)] }
+            : old,
+        );
+      }
 
       // Refresh list non-blocking via React Query cache invalidation
       console.log('[task create] triggering list refetch');

@@ -1,23 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DocsSidebar from '@/components/layout/DocsSidebar';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { Menu, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
+import { subscribeToTableChanges } from '@/lib/realtime';
+
+const DOCS_REALTIME_REFRESH_DEBOUNCE_MS = 120;
+
+function getRealtimeTablesForPath(path: string): string[] {
+  if (path.includes('/docs/documents/client-profiles')) return ['clients', 'templates', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/invoice')) return ['invoices', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/quotation')) return ['quotations', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/client-contract')) return ['client_contracts', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/hr-contract')) return ['hr_contracts', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/employees')) return ['employees', 'docs_client_profiles'];
+  if (path.includes('/docs/documents/accounting')) return ['accounting_entries', 'accounting_expenses', 'docs_client_profiles'];
+  return ['docs_client_profiles'];
+}
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
   const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!pathname.startsWith('/docs/documents')) return;
+
+    const requestRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => router.refresh(), DOCS_REALTIME_REFRESH_DEBOUNCE_MS);
+    };
+
+    const tables = getRealtimeTablesForPath(pathname);
+
+    const unsubscribers = [
+      ...tables.map(table => subscribeToTableChanges({ table }, requestRefresh)),
+    ];
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [pathname, router]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>

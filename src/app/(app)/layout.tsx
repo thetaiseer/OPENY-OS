@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import { createClient } from '@/lib/supabase/client';
-import { subscribeToTasks } from '@/lib/realtime';
+import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
 import { AiProvider, useAi } from '@/lib/ai-context';
 import { queryClient } from '@/app/providers';
@@ -89,10 +89,39 @@ function AppShell({ children }: { children: React.ReactNode }) {
     // ── 3. Realtime subscriptions — invalidate React Query caches on change ──
     const unsubTasks = subscribeToTasks(() => {
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks-my'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks-select'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       void queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['activities'] });
+      void queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports-overview'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] });
     });
+
+    const unsubscribeTableListeners = [
+      subscribeToTableChanges({ table: 'clients' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
+        void queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
+        void queryClient.invalidateQueries({ queryKey: ['clients'] });
+        void queryClient.invalidateQueries({ queryKey: ['dashboard-active-clients'] });
+      }),
+      subscribeToTableChanges({ table: 'projects' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }),
+      subscribeToTableChanges({ table: 'content_items' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['content-items'] });
+      }),
+      subscribeToTableChanges({ table: 'assets' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['dashboard-recent-assets'] });
+        void queryClient.invalidateQueries({ queryKey: ['asset-content-types'] });
+      }),
+      subscribeToTableChanges({ table: 'publishing_schedules' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['scheduled-posts'] });
+      }),
+    ];
 
     // ── 4. Cmd/Ctrl+J opens the AI Command Center ────────────────────────────
     function handleAiShortcut(e: KeyboardEvent) {
@@ -107,6 +136,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       if (checkTimer.current)    clearInterval(checkTimer.current);
       if (activityTimer.current) clearInterval(activityTimer.current);
       unsubTasks();
+      unsubscribeTableListeners.forEach(unsub => unsub());
       window.removeEventListener('keydown', handleAiShortcut);
     };
   }, [openAi]);

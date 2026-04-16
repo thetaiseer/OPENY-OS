@@ -233,7 +233,7 @@ export default function ContentPage() {
   const { role } = useAuth();
   const canDeleteContent = role === 'admin' || role === 'owner';
   const { toast } = useToast();
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const [newOpen,   setNewOpen]   = useState(false);
   const [search,    setSearch]    = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -268,6 +268,25 @@ export default function ContentPage() {
     !search.trim() || item.title.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const prependContentItemToCache = useCallback((item: ContentItem) => {
+    queryClient.setQueryData<{ success: boolean; items: ContentItem[] }>(
+      ['content-items', clientFilter, statusFilter],
+      old => {
+        if (!old) return old;
+        const existingIndex = old.items.findIndex(existing => existing.id === item.id);
+        if (existingIndex === -1) {
+          return { ...old, items: [item, ...old.items] };
+        }
+        const nextItems = [...old.items];
+        nextItems.splice(existingIndex, 1);
+        return {
+          ...old,
+          items: [item, ...nextItems],
+        };
+      },
+    );
+  }, [clientFilter, queryClient, statusFilter]);
+
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {
       const res = await fetch(`/api/content-items/${id}`, {
@@ -277,7 +296,7 @@ export default function ContentPage() {
       });
       const json = await res.json() as { success: boolean };
       if (!json.success) throw new Error('Update failed');
-      void qc.invalidateQueries({ queryKey: ['content-items'] });
+      void queryClient.invalidateQueries({ queryKey: ['content-items', clientFilter, statusFilter] });
       toast(`Status updated to ${status}`, 'success');
     } catch {
       toast('Failed to update status', 'error');
@@ -290,7 +309,11 @@ export default function ContentPage() {
       const res = await fetch(`/api/content-items/${id}`, { method: 'DELETE' });
       const json = await res.json() as { success: boolean };
       if (!json.success) throw new Error('Delete failed');
-      void qc.invalidateQueries({ queryKey: ['content-items'] });
+      queryClient.setQueryData<{ success: boolean; items: ContentItem[] }>(
+        ['content-items', clientFilter, statusFilter],
+        old => old ? { ...old, items: old.items.filter(item => item.id !== id) } : old,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['content-items', clientFilter, statusFilter] });
       toast('Content item deleted', 'success');
     } catch {
       toast('Failed to delete', 'error');
@@ -399,7 +422,10 @@ export default function ContentPage() {
         open={newOpen}
         onClose={() => setNewOpen(false)}
         clients={clients}
-        onCreated={() => void qc.invalidateQueries({ queryKey: ['content-items'] })}
+        onCreated={(item) => {
+          prependContentItemToCache(item);
+          void queryClient.invalidateQueries({ queryKey: ['content-items', clientFilter, statusFilter] });
+        }}
       />
     </div>
   );

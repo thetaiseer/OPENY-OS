@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { buildClientSlug, fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 
 type EditableProfile = DocsClientProfile & {
@@ -69,8 +69,37 @@ export default function ClientProfilesPage() {
       setError('Client created but profile could not be initialized.');
       return;
     }
+    const profileJson = await createProfile.json() as { profile?: Partial<DocsClientProfile> };
+    const createdProfileId = typeof profileJson.profile?.id === 'string'
+      ? profileJson.profile.id
+      : `virtual-${clientId}`;
+    setProfiles(prev => [
+      {
+        id: createdProfileId,
+        client_id: clientId,
+        client_name: name,
+        client_slug: buildClientSlug(name),
+        default_currency: (profileJson.profile?.default_currency as string) ?? 'SAR',
+        invoice_layout_mode: (profileJson.profile?.invoice_layout_mode as string) ?? 'branch_platform',
+        supports_branch_breakdown: Boolean(profileJson.profile?.supports_branch_breakdown ?? true),
+        default_platforms: Array.isArray(profileJson.profile?.default_platforms) ? profileJson.profile.default_platforms : [],
+        default_branch_names: Array.isArray(profileJson.profile?.default_branch_names) ? profileJson.profile.default_branch_names : [],
+        default_fees_logic: (profileJson.profile?.default_fees_logic as Record<string, unknown>) ?? {},
+        default_totals_logic: (profileJson.profile?.default_totals_logic as Record<string, unknown>) ?? {},
+        invoice_template_config: (profileJson.profile?.invoice_template_config as Record<string, unknown>) ?? {},
+        quotation_template_config: (profileJson.profile?.quotation_template_config as Record<string, unknown>) ?? {},
+        contract_template_config: (profileJson.profile?.contract_template_config as Record<string, unknown>) ?? {},
+        hr_contract_template_config: (profileJson.profile?.hr_contract_template_config as Record<string, unknown>) ?? {},
+        employees_template_config: (profileJson.profile?.employees_template_config as Record<string, unknown>) ?? {},
+        accounting_template_config: (profileJson.profile?.accounting_template_config as Record<string, unknown>) ?? {},
+        created_at: (profileJson.profile?.created_at as string) ?? new Date().toISOString(),
+        updated_at: (profileJson.profile?.updated_at as string) ?? new Date().toISOString(),
+        isDirty: false,
+      },
+      ...prev.filter(p => p.client_id !== clientId),
+    ]);
     setNewClientName('');
-    await load();
+    void load();
   }
 
   async function saveProfile(profile: EditableProfile) {
@@ -109,7 +138,8 @@ export default function ClientProfilesPage() {
       setError('Unable to save client profile.');
       return;
     }
-    await load();
+    setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, isDirty: false } : p));
+    void load();
   }
 
   async function deleteProfile(profile: EditableProfile) {
@@ -120,7 +150,8 @@ export default function ClientProfilesPage() {
       setError('Unable to delete profile.');
       return;
     }
-    await load();
+    setProfiles(prev => prev.filter(p => p.id !== profile.id));
+    void load();
   }
 
   return (
