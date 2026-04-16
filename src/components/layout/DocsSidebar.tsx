@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
-import { BookOpenText, FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2, X } from 'lucide-react';
+import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2, X } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
@@ -87,17 +87,6 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
             );
           })}
         </nav>
-        <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          <Link
-            href="/?switch=1"
-            onClick={onClose}
-            aria-label="Switch workspace"
-            className="text-xs inline-flex items-center gap-1 lg:justify-center xl:justify-start w-full"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <BookOpenText size={13} /> <span className="lg:hidden xl:inline">Switch workspace</span>
-          </Link>
-        </div>
       </aside>
     </>
   );

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
 import { subscribeToTableChanges } from '@/lib/realtime';
+import WorkspaceSwitcher from '@/components/layout/WorkspaceSwitcher';
 
 const DOCS_REALTIME_REFRESH_DEBOUNCE_MS = 120;
 
@@ -82,6 +83,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             <span className="text-[10px] sm:text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
           </div>
           <div className="flex-1" />
+          <WorkspaceSwitcher />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
@@ -90,9 +92,6 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <Link href="/?switch=1" className="text-xs sm:text-sm font-medium px-3 py-2 rounded-lg border hover:bg-[var(--surface-2)] transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            Switch workspace
-          </Link>
         </header>
         <div className="flex-1 overflow-y-auto">
           {children}
