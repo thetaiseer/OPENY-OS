@@ -29,11 +29,12 @@ export async function checkWorkspaceAccess(
 ): Promise<boolean> {
   if (isGlobalOwnerEmail(userEmail)) return true;
 
-  await supabase
+  const { data: workspaceRows, error: workspaceError } = await supabase
     .from('workspaces')
     .select('id')
     .or(`slug.eq.${workspaceKey},name.ilike.OPENY ${workspaceKey.toUpperCase()}`)
     .limit(1);
+  if (!workspaceError && (workspaceRows ?? []).length === 0) return false;
 
   const { data: membership } = await supabase
     .from('workspace_memberships')
