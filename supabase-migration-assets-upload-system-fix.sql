@@ -146,6 +146,7 @@ DO $$
 DECLARE
   has_storage_key BOOLEAN;
   has_file_path   BOOLEAN;
+  has_mismatch    BOOLEAN := FALSE;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -272,13 +273,39 @@ BEGIN
     WHERE conname = 'assets_storage_path_matches_upload_path_chk'
       AND conrelid = 'public.assets'::regclass
       AND NOT convalidated
-  ) AND NOT EXISTS (
-    SELECT 1
-    FROM public.assets
-    WHERE (has_file_path AND file_path IS NOT NULL AND storage_path <> file_path)
-       OR (has_storage_key AND storage_key IS NOT NULL AND storage_path <> storage_key)
   ) THEN
-    ALTER TABLE public.assets VALIDATE CONSTRAINT assets_storage_path_matches_upload_path_chk;
+    IF has_file_path AND has_storage_key THEN
+      EXECUTE '
+        SELECT EXISTS (
+          SELECT 1
+          FROM public.assets
+          WHERE (file_path IS NOT NULL AND storage_path <> file_path)
+             OR (storage_key IS NOT NULL AND storage_path <> storage_key)
+        )
+      ' INTO has_mismatch;
+    ELSIF has_file_path THEN
+      EXECUTE '
+        SELECT EXISTS (
+          SELECT 1
+          FROM public.assets
+          WHERE file_path IS NOT NULL AND storage_path <> file_path
+        )
+      ' INTO has_mismatch;
+    ELSIF has_storage_key THEN
+      EXECUTE '
+        SELECT EXISTS (
+          SELECT 1
+          FROM public.assets
+          WHERE storage_key IS NOT NULL AND storage_path <> storage_key
+        )
+      ' INTO has_mismatch;
+    ELSE
+      has_mismatch := FALSE;
+    END IF;
+
+    IF NOT has_mismatch THEN
+      ALTER TABLE public.assets VALIDATE CONSTRAINT assets_storage_path_matches_upload_path_chk;
+    END IF;
   END IF;
 END $$;
 
