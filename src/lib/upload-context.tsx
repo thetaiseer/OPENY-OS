@@ -623,11 +623,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     try {
       // ── failed_db retry — storage upload already done, skip to DB save ─────
       if (item.r2Key) {
+        const retryPublicUrl = item.publicUrl || supabase.storage.from('client-assets').getPublicUrl(item.r2Key).data.publicUrl;
         setStage(item.id, 'uploaded', 'Saving to system\u2026', {
           progress:     100,
           uploadedBytes: item.totalBytes,
         });
-        await doSaveMetadata(item, item.r2Key, item.r2FileName ?? item.file.name, item.publicUrl ?? '', fileMimeType, ctrl.signal);
+        await doSaveMetadata(item, item.r2Key, item.r2FileName ?? item.file.name, retryPublicUrl, fileMimeType, ctrl.signal);
         return;
       }
 
@@ -681,12 +682,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const ext = item.file.name.includes('.') ? `.${item.file.name.split('.').pop()}` : '';
+    const rawExt = item.file.name.includes('.') ? (item.file.name.split('.').pop() ?? '') : '';
+    const ext = rawExt ? `.${rawExt}` : '';
     const safeOriginalName = item.file.name.replace(/[\\/]/g, '-');
     const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
     const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
 
-    setStage(item.id, 'uploading', 'Uploading', { progress: 30 });
+    setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('client-assets')
@@ -1067,7 +1069,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    const resolvedPublicUrl = publicUrl || supabase.storage.from('client-assets').getPublicUrl(storageKey).data.publicUrl;
+    const resolvedPublicUrl = publicUrl;
     const category = item.subCategory || item.mainCategory || 'general';
 
     const payload = {
