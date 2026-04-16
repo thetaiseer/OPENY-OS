@@ -14,6 +14,7 @@ import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
+import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -33,6 +34,12 @@ export async function POST(request: NextRequest) {
   const access_role = (body.access_role ?? body.role ?? '').trim().toLowerCase();
   // job_title: the human-readable job description (Graphic Designer, etc.)
   const job_title   = (body.job_title ?? '').trim();
+  const requestedWorkspaceAccess = Array.isArray(body.workspace_access)
+    ? body.workspace_access
+    : ['os'];
+  const requestedWorkspaceRoles = (body.workspace_roles && typeof body.workspace_roles === 'object')
+    ? body.workspace_roles as Record<string, string>
+    : {};
 
   if (!full_name || !email || !access_role) {
     return NextResponse.json({ error: 'full_name, email, and access_role are required' }, { status: 400 });
@@ -46,6 +53,28 @@ export async function POST(request: NextRequest) {
       { error: `Invalid access role "${access_role}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}` },
       { status: 400 },
     );
+  }
+
+  const workspace_access: WorkspaceKey[] = requestedWorkspaceAccess
+    .map(v => normalizeWorkspaceKey(v))
+    .filter((v): v is WorkspaceKey => Boolean(v));
+  const effectiveWorkspaceAccess = workspace_access.length > 0 ? workspace_access : ['os'];
+
+  const mapAccessRoleToWorkspaceRole = (value: string): 'admin' | 'member' | 'viewer' => {
+    if (value === 'admin' || value === 'manager') return 'admin';
+    if (value === 'viewer') return 'viewer';
+    return 'member';
+  };
+
+  const workspace_roles: Record<WorkspaceKey, string> = {
+    os: mapAccessRoleToWorkspaceRole(access_role),
+    docs: mapAccessRoleToWorkspaceRole(access_role),
+  };
+  for (const key of effectiveWorkspaceAccess) {
+    const requestedRole = (requestedWorkspaceRoles[key] ?? '').toLowerCase();
+    if (requestedRole && WORKSPACE_ROLES.includes(requestedRole as (typeof WORKSPACE_ROLES)[number])) {
+      workspace_roles[key] = requestedRole;
+    }
   }
 
   // Domain used for invite links — prefer NEXT_PUBLIC_APP_URL so the link
@@ -125,6 +154,8 @@ export async function POST(request: NextRequest) {
       status:     INVITATION_STATUS.INVITED,
       invited_by: auth.profile.id,
       expires_at: expiresAt,
+      workspace_access: effectiveWorkspaceAccess,
+      workspace_roles,
     })
     .select()
     .single();
@@ -149,7 +180,7 @@ export async function POST(request: NextRequest) {
   const html = teamInviteEmail({
     recipientName:  full_name,
     inviterName:    auth.profile.name,
-    workspaceName:  'OPENY OS',
+    workspaceName:  effectiveWorkspaceAccess.length === 2 ? 'OPENY PLATFORM' : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`,
     role:           access_role,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,

@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
+import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 
 export async function POST(
   request: NextRequest,
@@ -42,7 +43,7 @@ export async function POST(
   // ── 1. Validate token ────────────────────────────────────────────────────
   const { data: invitation, error: invErr } = await db
     .from('team_invitations')
-    .select('id, email, role, status, expires_at, team_member_id, team_member:team_members(full_name, role)')
+    .select('id, email, role, status, expires_at, team_member_id, workspace_access, workspace_roles, team_member:team_members(full_name, role)')
     .eq('token', token)
     .maybeSingle();
 
@@ -94,6 +95,11 @@ export async function POST(
   }
 
   const authUserId = authData?.user?.id ?? null;
+  let finalUserId = authUserId;
+  if (!finalUserId) {
+    const users = await db.auth.admin.listUsers();
+    finalUserId = (users.data.users ?? []).find(u => u.email?.toLowerCase() === invitation.email.toLowerCase())?.id ?? null;
+  }
 
   // ── 3. Activate team member ──────────────────────────────────────────────
   const updatePayload: Record<string, unknown> = {
@@ -116,6 +122,40 @@ export async function POST(
       updated_at:  new Date().toISOString(),
     })
     .eq('id', invitation.id);
+
+  // ── 5. Apply workspace memberships from invitation metadata ───────────────
+  if (finalUserId) {
+    const rawWorkspaceAccess = Array.isArray(invitation.workspace_access) ? invitation.workspace_access : ['os'];
+    const workspaceAccess = rawWorkspaceAccess
+      .map(v => normalizeWorkspaceKey(v))
+      .filter((v): v is WorkspaceKey => Boolean(v));
+    const effectiveWorkspaceAccess = workspaceAccess.length > 0 ? workspaceAccess : ['os'];
+    const workspaceRolesRaw = invitation.workspace_roles && typeof invitation.workspace_roles === 'object'
+      ? invitation.workspace_roles as Record<string, string>
+      : {};
+
+    const mapInviteRole = (value: string): 'admin' | 'member' | 'viewer' => {
+      if (value === 'admin' || value === 'manager') return 'admin';
+      if (value === 'viewer') return 'viewer';
+      return 'member';
+    };
+
+    for (const workspace of effectiveWorkspaceAccess) {
+      const rawRole = (workspaceRolesRaw[workspace] ?? '').toLowerCase();
+      const role = WORKSPACE_ROLES.includes(rawRole as (typeof WORKSPACE_ROLES)[number])
+        ? rawRole
+        : mapInviteRole(invitation.role ?? '');
+
+      await db
+        .from('workspace_memberships')
+        .upsert({
+          user_id: finalUserId,
+          workspace_key: workspace,
+          role,
+          is_active: true,
+        }, { onConflict: 'user_id,workspace_key' });
+    }
+  }
 
   return NextResponse.json({ success: true, email: invitation.email });
 }

@@ -30,6 +30,12 @@ const ACCESS_ROLE_OPTIONS = [
   { value: 'viewer',      label: 'Viewer — read-only access' },
 ];
 
+const WORKSPACE_ROLE_OPTIONS = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'member', label: 'Member' },
+  { value: 'viewer', label: 'Viewer' },
+];
+
 // ── Marketing roles list (job titles) ────────────────────────────────────────
 // Stored in team_members.job_title — separate from the access role.
 const JOB_TITLE_OPTIONS = [
@@ -194,8 +200,26 @@ function RoleField({
   );
 }
 
-const blankForm       = { full_name: '', email: '', role: '', job_title: '' };
-const blankInviteForm = { full_name: '', email: '', access_role: '', job_title: '' };
+const blankForm = {
+  full_name: '',
+  email: '',
+  role: '',
+  job_title: '',
+  os_access: true,
+  docs_access: false,
+  os_role: 'member',
+  docs_role: 'member',
+};
+const blankInviteForm = {
+  full_name: '',
+  email: '',
+  access_role: '',
+  job_title: '',
+  os_access: true,
+  docs_access: false,
+  os_role: 'member',
+  docs_role: 'member',
+};
 
 // ── MemberForm is defined at module scope so React never remounts it ─────────
 function MemberForm({
@@ -283,6 +307,38 @@ function InviteForm({
           Controls what this person can see and do in OPENY OS.
         </p>
       </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace Access *</p>
+        <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY OS</span>
+          <input type="checkbox" checked={f.os_access} onChange={e => setF(x => ({ ...x, os_access: e.target.checked }))} />
+        </label>
+        {f.os_access && (
+          <SelectDropdown
+            value={f.os_role}
+            onChange={v => setF(x => ({ ...x, os_role: v }))}
+            options={WORKSPACE_ROLE_OPTIONS}
+            placeholder="OS role"
+            fullWidth
+          />
+        )}
+        <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY DOCS</span>
+          <input type="checkbox" checked={f.docs_access} onChange={e => setF(x => ({ ...x, docs_access: e.target.checked }))} />
+        </label>
+        {f.docs_access && (
+          <SelectDropdown
+            value={f.docs_role}
+            onChange={v => setF(x => ({ ...x, docs_role: v }))}
+            options={WORKSPACE_ROLE_OPTIONS}
+            placeholder="DOCS role"
+            fullWidth
+          />
+        )}
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Access to each workspace is managed independently.
+        </p>
+      </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
         <RoleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
@@ -328,22 +384,28 @@ export default function TeamPage() {
   const { data: teamData, isLoading: loading } = useQuery({
     queryKey: ['team-data'],
     queryFn: async () => {
-      const [membersRes, invitesRes] = await Promise.all([
+      const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
         // Select only the columns the UI actually uses to reduce payload size.
         supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
+        fetch('/api/team/workspace-access', { credentials: 'include' }),
       ]);
       if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
       if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
+      const workspaceAccessJson = workspaceAccessRes.ok
+        ? await workspaceAccessRes.json()
+        : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
       return {
         members:     (!membersRes.error  ? (membersRes.data  ?? []) : []) as TeamMember[],
         invitations: (!invitesRes.error  ? (invitesRes.data  ?? []) : []) as TeamInvitation[],
+        workspaceAccess: workspaceAccessJson.access as Record<string, Record<string, { enabled: boolean; role: string }>>,
       };
     },
   });
 
   const members     = teamData?.members     ?? [];
   const invitations = teamData?.invitations ?? [];
+  const workspaceAccessByEmail = teamData?.workspaceAccess ?? {};
 
   const [saving, setSaving]             = useState(false);
   const [actionError, setActionError]   = useState('');
@@ -370,6 +432,10 @@ export default function TeamPage() {
       setActionError('Full name, email, and access role are required.');
       return;
     }
+    if (!inviteForm.os_access && !inviteForm.docs_access) {
+      setActionError('Enable at least one workspace (OPENY OS or OPENY DOCS).');
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/team/invite', {
@@ -380,6 +446,14 @@ export default function TeamPage() {
           email:       inviteForm.email,
           access_role: inviteForm.access_role,
           job_title:   inviteForm.job_title,
+          workspace_access: [
+            ...(inviteForm.os_access ? ['os'] : []),
+            ...(inviteForm.docs_access ? ['docs'] : []),
+          ],
+          workspace_roles: {
+            os: inviteForm.os_role,
+            docs: inviteForm.docs_role,
+          },
         }),
       });
       const data = await res.json();
@@ -397,7 +471,17 @@ export default function TeamPage() {
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (member: TeamMember) => {
-    setEditForm({ full_name: member.full_name, email: member.email ?? '', role: member.role ?? '', job_title: member.job_title ?? '' });
+    const access = workspaceAccessByEmail[(member.email ?? '').toLowerCase()] ?? {};
+    setEditForm({
+      full_name: member.full_name,
+      email: member.email ?? '',
+      role: member.role ?? '',
+      job_title: member.job_title ?? '',
+      os_access: access.os?.enabled ?? true,
+      docs_access: access.docs?.enabled ?? false,
+      os_role: access.os?.role ?? 'member',
+      docs_role: access.docs?.role ?? 'member',
+    });
     setEditMember(member);
   };
 
@@ -413,6 +497,23 @@ export default function TeamPage() {
         job_title: editForm.job_title || null,
       }).eq('id', editMember.id);
       if (error) throw error;
+      if (editForm.email) {
+        const accessRes = await fetch('/api/team/workspace-access', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: editForm.email.trim().toLowerCase(),
+            access: {
+              os: { enabled: editForm.os_access, role: editForm.os_role },
+              docs: { enabled: editForm.docs_access, role: editForm.docs_role },
+            },
+          }),
+        });
+        if (!accessRes.ok) {
+          const payload = await accessRes.json().catch(() => ({}));
+          throw new Error(payload.error ?? 'Failed to update workspace permissions');
+        }
+      }
       setEditMember(null);
       toast('Member updated successfully', 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
@@ -571,6 +672,7 @@ export default function TeamPage() {
                   <MemberCard
                     key={m.id}
                     member={m}
+                    workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
                     onEdit={openEdit}
@@ -591,6 +693,7 @@ export default function TeamPage() {
                   <MemberCard
                     key={m.id}
                     member={m}
+                    workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
                     onEdit={openEdit}
@@ -626,6 +729,35 @@ export default function TeamPage() {
       <Modal open={!!editMember} onClose={() => setEditMember(null)} title="Edit Member" size="sm">
         <form onSubmit={handleEdit} className="space-y-4">
           <MemberForm f={editForm} setF={setEditForm} />
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace Access</p>
+            <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY OS</span>
+              <input type="checkbox" checked={editForm.os_access} onChange={e => setEditForm(x => ({ ...x, os_access: e.target.checked }))} />
+            </label>
+            {editForm.os_access && (
+              <SelectDropdown
+                value={editForm.os_role}
+                onChange={v => setEditForm(x => ({ ...x, os_role: v }))}
+                options={WORKSPACE_ROLE_OPTIONS}
+                placeholder="OS role"
+                fullWidth
+              />
+            )}
+            <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY DOCS</span>
+              <input type="checkbox" checked={editForm.docs_access} onChange={e => setEditForm(x => ({ ...x, docs_access: e.target.checked }))} />
+            </label>
+            {editForm.docs_access && (
+              <SelectDropdown
+                value={editForm.docs_role}
+                onChange={v => setEditForm(x => ({ ...x, docs_role: v }))}
+                options={WORKSPACE_ROLE_OPTIONS}
+                placeholder="DOCS role"
+                fullWidth
+              />
+            )}
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setEditMember(null)} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
             <button type="submit" disabled={saving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>{saving ? t('loading') : t('save')}</button>
@@ -744,6 +876,7 @@ function OwnerCard({
 // ── Member card component (at module scope) ───────────────────────────────────
 function MemberCard({
   member,
+  workspaceAccess,
   invitation,
   canManage,
   onEdit,
@@ -753,6 +886,7 @@ function MemberCard({
   onCopyLink,
 }: {
   member: TeamMember;
+  workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
   invitation?: TeamInvitation;
   canManage: boolean;
   onEdit: (m: TeamMember) => void;
@@ -802,6 +936,18 @@ function MemberCard({
               <Mail size={11} />{member.email}
             </p>
           )}
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {workspaceAccess?.os?.enabled && (
+              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                OS · {workspaceAccess.os.role}
+              </span>
+            )}
+            {workspaceAccess?.docs?.enabled && (
+              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                DOCS · {workspaceAccess.docs.role}
+              </span>
+            )}
+          </div>
           {invitation && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
               Invited {new Date(invitation.created_at).toLocaleDateString()}

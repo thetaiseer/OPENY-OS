@@ -1,16 +1,57 @@
 'use client';
 
-import Link from 'next/link';
-import { useMemo } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
-import { ArrowRight, Lock, Layers3, FolderKanban, Moon, Sun } from 'lucide-react';
+import { ArrowRight, FolderKanban, Layers3, Lock, Moon, Sun } from 'lucide-react';
+
+type WorkspaceCard = {
+  key: 'os' | 'docs';
+  title: string;
+  subtitle: string;
+  route: string;
+  icon: ReactNode;
+};
 
 export default function SelectWorkspacePage() {
-  const { role, loading } = useAuth();
+  const router = useRouter();
+  const { user, loading, workspaceAccess, hasWorkspaceAccess } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const isOwner = useMemo(() => role === 'owner', [role]);
+  const [entering, setEntering] = useState<'os' | 'docs' | null>(null);
+
+  const cards = useMemo<WorkspaceCard[]>(() => ([
+    {
+      key: 'os',
+      title: 'OPENY OS',
+      subtitle: 'Operations workspace for execution, delivery, and team workflows.',
+      route: '/os/dashboard',
+      icon: <Layers3 size={22} />,
+    },
+    {
+      key: 'docs',
+      title: 'OPENY DOCS',
+      subtitle: 'Documentation workspace for contracts, records, and internal docs.',
+      route: '/docs/dashboard',
+      icon: <FolderKanban size={22} />,
+    },
+  ]), []);
+
+  const handleEnter = (key: 'os' | 'docs', route: string) => {
+    if (!user.id) {
+      router.push(`/${key}/login?next=${encodeURIComponent(route)}`);
+      return;
+    }
+    if (!hasWorkspaceAccess(key)) {
+      router.push(`/access-denied?workspace=${key}`);
+      return;
+    }
+    setEntering(key);
+    setTimeout(() => {
+      router.push(route);
+    }, 180);
+  };
 
   if (loading) {
     return (
@@ -22,89 +63,75 @@ export default function SelectWorkspacePage() {
 
   return (
     <div
-      className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:py-14"
-      style={{
-        background: 'radial-gradient(1000px 420px at 50% -20%, rgba(37,99,235,0.14), transparent 65%), var(--bg)',
-      }}
+      className={`min-h-screen px-4 py-6 sm:px-6 sm:py-10 transition-opacity duration-200 ${entering ? 'opacity-90' : 'opacity-100'}`}
+      style={{ background: 'radial-gradient(860px 380px at 50% -10%, rgba(59,130,246,0.16), transparent 70%), var(--bg)' }}
     >
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8 sm:mb-10 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <OpenyLogo width={122} height={34} />
-            <span className="text-[10px] sm:text-xs uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface)' }}>
-              Platform
-            </span>
+      <div className="max-w-5xl mx-auto min-h-[88vh] flex items-center justify-center">
+        <div className="w-full rounded-[2rem] border px-5 py-6 sm:px-8 sm:py-9 lg:px-10 lg:py-10 shadow-[0_28px_70px_-44px_rgba(15,23,42,0.45)]" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-7 sm:mb-9">
+            <div className="inline-flex items-center gap-3">
+              <OpenyLogo width={118} height={34} />
+              <span className="text-[10px] sm:text-xs uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                Platform
+              </span>
+            </div>
+            <button
+              onClick={toggleTheme}
+              className="h-10 w-10 sm:w-auto sm:px-3 rounded-xl border inline-flex items-center justify-center sm:gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            </button>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="h-10 px-3 rounded-xl border inline-flex items-center gap-2 text-sm font-medium transition-colors hover:bg-[var(--surface-2)]"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' }}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
-          </button>
-        </div>
 
-        <div className="rounded-3xl border p-5 sm:p-8 lg:p-10 shadow-[0_16px_44px_-24px_rgba(15,23,42,0.35)]" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="max-w-3xl mb-7 sm:mb-9">
-            <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>OPENY PLATFORM</p>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mt-2 leading-tight" style={{ color: 'var(--text)' }}>Choose your workspace</h1>
+          <div className="text-center max-w-2xl mx-auto">
+            <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>OPENY WORKSPACES</p>
+            <h1 className="text-3xl sm:text-4xl font-semibold mt-3 tracking-tight" style={{ color: 'var(--text)' }}>Choose your workspace</h1>
             <p className="text-sm sm:text-base mt-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Access OPENY OS for operations and execution, or OPENY DOCS for private documentation workflows.
+              Your account can access OPENY OS, OPENY DOCS, or both, based on explicit workspace permissions.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-            <Link
-              href="/os/dashboard"
-              className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(37,99,235,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-300"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-4 sm:mb-5" style={{ background: 'var(--accent-soft)' }}>
-                <Layers3 size={22} style={{ color: 'var(--accent)' }} />
-              </div>
-              <h2 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text)' }}>OPENY OS</h2>
-              <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Team operations workspace for clients, tasks, content, calendar, assets, and reporting.
-              </p>
-              <div className="mt-5 sm:mt-6 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                Enter OPENY OS <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-              </div>
-            </Link>
-
-            {isOwner ? (
-              <Link
-                href="/docs/dashboard"
-                className="group rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(15,23,42,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-300"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              >
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-4 sm:mb-5" style={{ background: 'var(--surface-2)' }}>
-                  <FolderKanban size={22} style={{ color: 'var(--accent)' }} />
-                </div>
-                <h2 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text)' }}>OPENY DOCS</h2>
-                <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Owner-only documentation space for contracts, invoices, private notes, folders, and archive.
-                </p>
-                <div className="mt-5 sm:mt-6 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                  Enter OPENY DOCS <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </Link>
-            ) : (
-              <div className="rounded-2xl border p-5 sm:p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-4 sm:mb-5" style={{ background: 'var(--surface-2)' }}>
-                  <Lock size={22} style={{ color: 'var(--text-secondary)' }} />
-                </div>
-                <h2 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text)' }}>OPENY DOCS</h2>
-                <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  This workspace is available to owner role only. You currently have OPENY OS access.
-                </p>
-              </div>
-            )}
+          <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+            {cards.map(card => {
+              const allowed = hasWorkspaceAccess(card.key);
+              const isEntering = entering === card.key;
+              return (
+                <button
+                  key={card.key}
+                  onClick={() => handleEnter(card.key, card.route)}
+                  className={`group text-left rounded-2xl border p-5 sm:p-6 transition-all duration-200 ease-out ${
+                    isEntering ? 'scale-[0.99] translate-y-0' : 'hover:-translate-y-0.5 hover:scale-[1.01]'
+                  }`}
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: allowed ? 'var(--border)' : 'rgba(148,163,184,0.45)',
+                    boxShadow: allowed ? '0 20px 42px -36px rgba(37,99,235,0.8)' : 'none',
+                    opacity: allowed ? 1 : 0.88,
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: allowed ? 'var(--accent-soft)' : 'var(--surface-2)', color: allowed ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                    {allowed ? card.icon : <Lock size={20} />}
+                  </div>
+                  <h2 className="text-xl font-semibold" style={{ color: 'var(--text)' }}>{card.title}</h2>
+                  <p className="text-sm mt-2 leading-relaxed min-h-[40px]" style={{ color: 'var(--text-secondary)' }}>
+                    {card.subtitle}
+                  </p>
+                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: allowed ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                    {allowed ? `Enter ${card.title}` : 'No access yet'}
+                    <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          <p className="text-xs sm:text-sm mt-7 text-center sm:text-left" style={{ color: 'var(--text-secondary)' }}>
-            Need help choosing? OPENY OS is for operations. OPENY DOCS is for private business documentation.
+          <p className="text-xs sm:text-sm mt-7 text-center" style={{ color: 'var(--text-secondary)' }}>
+            {workspaceAccess.isGlobalOwner
+              ? 'Global owner access enabled for both workspaces.'
+              : 'Workspace access is permission-based and can be granted independently for OPENY OS and OPENY DOCS.'}
           </p>
         </div>
       </div>
