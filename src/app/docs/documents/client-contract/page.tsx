@@ -10,11 +10,16 @@ import type { DocsClientContract, ContractClause } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
 import { OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { printPreviewDocument } from '@/lib/docs-print';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
 
 interface FormState {
+  client_profile_id: string | null;
   contract_number: string; contract_date: string; duration_months: number;
   status: string; currency: string; language: 'ar' | 'en';
   party1_company_name: string; party1_representative: string; party1_address: string;
@@ -28,6 +33,7 @@ interface FormState {
 
 function blank(num: string): FormState {
   return {
+    client_profile_id: null,
     contract_number: num, contract_date: today(), duration_months: 12,
     status: 'draft', currency: 'SAR', language: 'en',
     party1_company_name: '', party1_representative: '', party1_address: '',
@@ -267,6 +273,7 @@ export default function ClientContractPage() {
   const [error, setError]         = useState('');
   const [saved, setSaved]         = useState(false);
   const [form, setForm]           = useState<FormState>(() => blank('CC-0001'));
+  const [profiles, setProfiles]   = useState<DocsClientProfile[]>([]);
   const [newService, setNewService] = useState('');
 
   const load = useCallback(async () => {
@@ -276,6 +283,7 @@ export default function ClientContractPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
 
   function setField<K extends keyof FormState>(k: K, v: FormState[K]) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -288,6 +296,7 @@ export default function ClientContractPage() {
   function loadIntoForm(c: DocsClientContract) {
     setEditingId(c.id);
     setForm({
+      client_profile_id: c.client_profile_id ?? null,
       contract_number: c.contract_number, contract_date: c.contract_date ?? today(), duration_months: c.duration_months,
       status: c.status, currency: c.currency, language: c.language,
       party1_company_name: c.party1_company_name ?? '', party1_representative: c.party1_representative ?? '',
@@ -308,6 +317,29 @@ export default function ClientContractPage() {
     setEditingId(null);
     setField('contract_number', nextCNum(contracts));
     setField('status', 'draft');
+  }
+
+  function applyClientProfile(clientId: string) {
+    if (!clientId) {
+      setField('client_profile_id', null);
+      return;
+    }
+    const profile = profiles.find(p => p.client_id === clientId);
+    if (!profile) return;
+    const hasManualEdits = !!(form.party2_client_name.trim() || form.services.length > 0 || form.notes.trim());
+    if (hasManualEdits && !confirm('Replace current contract defaults with selected client template?')) return;
+    const cfg = profile.contract_template_config ?? {};
+    setForm(prev => ({
+      ...prev,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
+      party2_client_name: profile.client_name,
+      currency: profile.default_currency,
+      payment_method: (cfg.payment_method as string | undefined) ?? prev.payment_method,
+      payment_terms: (cfg.payment_terms as string | undefined) ?? prev.payment_terms,
+      notes: prev.notes || profile.notes || '',
+      party2_address: prev.party2_address || profile.billing_address || '',
+      party2_tax_reg: prev.party2_tax_reg || profile.tax_info || '',
+    }));
   }
 
   async function save() {
@@ -400,6 +432,12 @@ export default function ClientContractPage() {
             </Section>
 
             <Section title="Party 2 — Client">
+              <ClientProfileSelector
+                profiles={profiles}
+                selectedClientId={profiles.find(p => p.id === form.client_profile_id)?.client_id ?? ''}
+                onSelectClientId={applyClientProfile}
+                label="Client"
+              />
               {[['Client / Company Name','party2_client_name'],['Contact Person','party2_contact_person'],['Address','party2_address'],['Email','party2_email'],['Phone','party2_phone'],['Website','party2_website'],['Tax Registration','party2_tax_reg']].map(([label, field]) => (
                 <div key={field}>{lbl(label)}<input className={inputCls} value={(form as unknown as Record<string,string>)[field]} onChange={e => setField(field as keyof FormState, e.target.value as never)} /></div>
               ))}
@@ -468,7 +506,7 @@ export default function ClientContractPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={() => printPreviewDocument('client-contract-preview', form.contract_number, 'client-contract')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => { const html = document.getElementById('client-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
@@ -476,7 +514,6 @@ export default function ClientContractPage() {
         </div>
       </div>
 
-      <style>{`@media print { body > * { display: none !important; } #client-contract-preview { display: block !important; } }`}</style>
     </div>
   );
 }

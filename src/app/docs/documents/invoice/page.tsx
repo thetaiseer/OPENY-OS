@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type {
   DocsInvoice,
   InvoiceBranchGroup,
@@ -15,6 +16,9 @@ import type {
   InvoicePlatformGroup,
 } from '@/lib/docs-types';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { printPreviewDocument } from '@/lib/docs-print';
 
 const INVOICE_BLACK = '#000';
 const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
@@ -132,6 +136,7 @@ function legacyToBranchGroups(inv: DocsInvoice): InvoiceBranchGroup[] {
 }
 
 interface FormState {
+  client_profile_id: string | null;
   invoice_number: string;
   client_name: string;
   campaign_month: string;
@@ -152,6 +157,7 @@ interface FormState {
 
 function blankForm(num: string): FormState {
   return {
+    client_profile_id: null,
     invoice_number: num,
     client_name: '',
     campaign_month: '',
@@ -564,6 +570,7 @@ export default function InvoicePage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FormState>(() => blankForm('INV-0001'));
   const [collapsedBranches, setCollapsedBranches] = useState<Set<string>>(new Set());
+  const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
 
   const computedFinalBudget = useMemo(() => calcFinalBudget(form.branch_groups ?? []), [form.branch_groups]);
   const computedGrandTotal = useMemo(() => round2(computedFinalBudget + n(form.our_fees)), [computedFinalBudget, form.our_fees]);
@@ -590,6 +597,9 @@ export default function InvoicePage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    fetchDocsClientProfiles().then(setProfiles).catch(() => null);
+  }, []);
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -733,6 +743,7 @@ export default function InvoicePage() {
 
     setEditingId(inv.id);
     setForm({
+      client_profile_id: inv.client_profile_id ?? null,
       invoice_number: inv.invoice_number,
       client_name: inv.client_name,
       campaign_month: inv.campaign_month ?? '',
@@ -761,6 +772,7 @@ export default function InvoicePage() {
 
     setEditingId(null);
     setForm({
+      client_profile_id: inv.client_profile_id ?? null,
       invoice_number: nextInvoiceNum(invoices),
       client_name: inv.client_name,
       campaign_month: inv.campaign_month ?? '',
@@ -898,7 +910,57 @@ export default function InvoicePage() {
   }
 
   function exportPDF() {
-    window.print();
+    printPreviewDocument('invoice-preview', form.invoice_number, 'invoice');
+  }
+
+  function applyClientProfile(clientId: string) {
+    if (!clientId) {
+      setField('client_profile_id', null);
+      return;
+    }
+    const profile = profiles.find(p => p.client_id === clientId);
+    if (!profile) return;
+    const hasManualEdits = !!(
+      form.client_name.trim()
+      || form.notes.trim()
+      || form.branch_groups.some((branch) => (
+        branch.platform_groups.some((platform) => (
+          platform.campaign_rows.some((row) => n(row.cost) > 0 || row.ad_name.trim() || row.results.trim())
+        ))
+      ))
+    );
+    if (hasManualEdits && !confirm('Replace current invoice defaults with the selected client template?')) return;
+
+    const branchNames = profile.default_branch_names.length
+      ? profile.default_branch_names
+      : ['Main Branch'];
+    const platformNames = profile.default_platforms.length
+      ? profile.default_platforms
+      : ['Meta'];
+    const nextBranchGroups = branchNames.map((branchName) => ({
+      id: uid(),
+      branch_name: branchName,
+      platform_groups: platformNames.map((platformName) => ({
+        id: uid(),
+        platform_name: platformName,
+        campaign_rows: [{
+          id: uid(),
+          ad_name: profile.service_description_default || `${platformName} Campaign`,
+          date: form.invoice_date || today(),
+          results: '',
+          cost: 0,
+        }],
+      })),
+    }));
+
+    setForm(prev => ({
+      ...prev,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
+      client_name: profile.client_name,
+      currency: profile.default_currency,
+      branch_groups: nextBranchGroups,
+      notes: prev.notes || profile.notes || '',
+    }));
   }
 
   function exportCSV() {
@@ -987,6 +1049,12 @@ export default function InvoicePage() {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Client Information</h3>
               <div className="space-y-3">
+                <ClientProfileSelector
+                  profiles={profiles}
+                  selectedClientId={profiles.find(p => p.id === form.client_profile_id)?.client_id ?? ''}
+                  onSelectClientId={applyClientProfile}
+                  label="Client"
+                />
                 <Field label="Client Name *">
                   <input className={inputCls} value={form.client_name} onChange={e => setField('client_name', e.target.value)} placeholder="e.g. Acme Corp" />
                 </Field>
@@ -1148,14 +1216,6 @@ export default function InvoicePage() {
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          .editor-panel, .no-print, .history-panel { display: none !important; }
-          .preview-panel { display: block !important; width: 100% !important; max-width: 100% !important; overflow: visible !important; padding: 0 !important; background: #fff !important; }
-          .preview-shell { width: 100% !important; min-height: auto !important; box-shadow: none !important; border-radius: 0 !important; }
-          #invoice-preview { width: 100% !important; min-height: auto !important; padding: 24px 28px !important; }
-        }
-      `}</style>
     </div>
   );
 }

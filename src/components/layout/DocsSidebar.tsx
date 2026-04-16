@@ -3,18 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
-import { BookOpenText, NotepadText, FileText, FolderTree, Shield, Archive, Settings, Grid2X2, X } from 'lucide-react';
+import { BookOpenText, FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2, X } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 const docsNav = [
-  { href: '/docs/dashboard', label: 'Dashboard', icon: Grid2X2 },
-  { href: '/docs/notes', label: 'Notes', icon: NotepadText },
-  { href: '/docs/documents', label: 'Documents', icon: FileText },
-  { href: '/docs/folders', label: 'Folders', icon: FolderTree },
-  { href: '/docs/private-assets', label: 'Private Assets', icon: Shield },
-  { href: '/docs/archive', label: 'Archive', icon: Archive },
-  { href: '/docs/settings', label: 'Settings', icon: Settings },
+  { href: '/docs/documents/invoice', label: 'Invoice', icon: FileText },
+  { href: '/docs/documents/quotation', label: 'Quotation', icon: ClipboardList },
+  { href: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature },
+  { href: '/docs/documents/hr-contract', label: 'HR Contract', icon: BookOpen },
+  { href: '/docs/documents/employees', label: 'Employees', icon: Users },
+  { href: '/docs/documents/accounting', label: 'Accounting', icon: BarChart2 },
 ];
 
 interface DocsSidebarProps {

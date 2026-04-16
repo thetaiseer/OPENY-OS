@@ -10,6 +10,10 @@ import type { DocsHrContract, ContractClause } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS, DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
 import { OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { printPreviewDocument } from '@/lib/docs-print';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -22,6 +26,7 @@ function nextNum(list: DocsHrContract[]) {
 }
 
 type SF = {
+  client_profile_id: string | null;
   contract_number: string; contract_date: string; duration: string;
   status: string; currency: string; language: 'ar' | 'en';
   company_name: string; company_representative: string; company_address: string;
@@ -40,6 +45,7 @@ type SF = {
 
 function blank(num: string): SF {
   return {
+    client_profile_id: null,
     contract_number: num, contract_date: today(), duration: '1 year',
     status: 'draft', currency: 'SAR', language: 'en',
     company_name: '', company_representative: '', company_address: '', company_email: '', company_phone: '',
@@ -274,6 +280,7 @@ export default function HrContractPage() {
   const [error, setError]         = useState('');
   const [saved, setSaved]         = useState(false);
   const [form, setForm]           = useState<SF>(() => blank('HR-0001'));
+  const [profiles, setProfiles]   = useState<DocsClientProfile[]>([]);
   const [newBenefit, setNewBenefit] = useState('');
 
   const load = useCallback(async () => {
@@ -283,6 +290,7 @@ export default function HrContractPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
 
   function setField<K extends keyof SF>(k: K, v: SF[K]) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -291,6 +299,7 @@ export default function HrContractPage() {
   function loadIntoForm(c: DocsHrContract) {
     setEditingId(c.id);
     setForm({
+      client_profile_id: c.client_profile_id ?? null,
       contract_number: c.contract_number, contract_date: c.contract_date ?? today(), duration: c.duration ?? '1 year',
       status: c.status, currency: c.currency, language: c.language,
       company_name: c.company_name ?? '', company_representative: c.company_representative ?? '',
@@ -324,6 +333,26 @@ export default function HrContractPage() {
       await load();
       if (!editingId) resetForm();
     } finally { setSaving(false); }
+  }
+
+  function applyClientProfile(clientId: string) {
+    if (!clientId) {
+      setField('client_profile_id', null);
+      return;
+    }
+    const profile = profiles.find(p => p.client_id === clientId);
+    if (!profile) return;
+    const hasManualEdits = !!(form.company_name.trim() || form.employee_full_name.trim() || form.legal_clauses.length > 0);
+    if (hasManualEdits && !confirm('Replace current HR contract defaults with selected client template?')) return;
+    const cfg = profile.hr_contract_template_config ?? {};
+    setForm(prev => ({
+      ...prev,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
+      company_name: profile.client_name,
+      currency: profile.default_currency,
+      company_address: prev.company_address || profile.billing_address || '',
+      payment_method: (cfg.payment_method as string | undefined) ?? prev.payment_method,
+    }));
   }
 
   async function deleteC(id: string) {
@@ -391,6 +420,12 @@ export default function HrContractPage() {
             </Sec>
 
             <Sec title="Company Info">
+              <ClientProfileSelector
+                profiles={profiles}
+                selectedClientId={profiles.find(p => p.id === form.client_profile_id)?.client_id ?? ''}
+                onSelectClientId={applyClientProfile}
+                label="Client"
+              />
               {[['Company Name','company_name'],['Representative','company_representative'],['Address','company_address'],['Email','company_email'],['Phone','company_phone']].map(([l,f2]) => (
                 <div key={f2}>{lbl(l)}<input className={inp} value={(form as unknown as Record<string,string>)[f2]} onChange={e => setField(f2 as keyof SF, e.target.value as never)} /></div>
               ))}
@@ -494,7 +529,7 @@ export default function HrContractPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={() => printPreviewDocument('hr-contract-preview', form.contract_number, 'hr-contract')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => { const html = document.getElementById('hr-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
@@ -502,7 +537,6 @@ export default function HrContractPage() {
         </div>
       </div>
 
-      <style>{`@media print { body > * { display: none !important; } #hr-contract-preview { display: block !important; } }`}</style>
     </div>
   );
 }

@@ -55,6 +55,7 @@ export interface InvoiceBranchGroup {
 
 export interface DocsInvoice {
   id:               string;
+  client_profile_id?: string | null;
   invoice_number:   string;
   client_name:      string;
   campaign_month:   string | null;
@@ -92,6 +93,7 @@ export interface QuotationDeliverable {
 
 export interface DocsQuotation {
   id:                    string;
+  client_profile_id?: string | null;
   quote_number:          string;
   quote_date:            string | null;
   currency:              DocsCurrency;
@@ -125,6 +127,7 @@ export interface ContractClause {
 
 export interface DocsClientContract {
   id:                    string;
+  client_profile_id?: string | null;
   contract_number:       string;
   contract_date:         string | null;
   duration_months:       number;
@@ -168,6 +171,7 @@ export interface DocsClientContract {
 
 export interface DocsHrContract {
   id:                      string;
+  client_profile_id?: string | null;
   contract_number:         string;
   contract_date:           string | null;
   duration:                string | null;
@@ -219,6 +223,7 @@ export interface DocsHrContract {
 
 export interface DocsEmployee {
   id:                string;
+  client_profile_id?: string | null;
   employee_id:       string;
   full_name:         string;
   date_of_birth:     string | null;
@@ -253,6 +258,7 @@ export interface DocsSalaryAdjustment {
 
 export interface DocsAccountingEntry {
   id:              string;
+  client_profile_id?: string | null;
   client_name:     string;
   service:         string | null;
   amount:          number;

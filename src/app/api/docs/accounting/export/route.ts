@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -8,6 +9,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const month_key = searchParams.get('month_key') ?? new Date().toISOString().slice(0, 7).replace('-', '');
+  const documentCode = (searchParams.get('document_code') ?? '').trim();
 
   const db = getServiceClient();
   const [{ data: entriesData }, { data: expensesData }] = await Promise.all([
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="accounting-${month_key}.csv"`,
+      'Content-Disposition': `attachment; filename="${sanitizeDocCode(documentCode, `accounting-${month_key}`)}.csv"`,
     },
   });
 }

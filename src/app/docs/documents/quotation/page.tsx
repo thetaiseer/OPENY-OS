@@ -8,6 +8,10 @@ import {
 import clsx from 'clsx';
 import type { DocsQuotation, QuotationDeliverable } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
+import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { printPreviewDocument } from '@/lib/docs-print';
 import {
   OpenyDocumentHeader,
   OpenyDocumentPage,
@@ -32,6 +36,7 @@ function nextQNum(list: DocsQuotation[]) {
 }
 
 interface FormState {
+  client_profile_id:      string | null;
   quote_number:          string;
   quote_date:            string;
   currency:              string;
@@ -50,6 +55,7 @@ interface FormState {
 
 function blank(num: string): FormState {
   return {
+    client_profile_id: null,
     quote_number: num, quote_date: today(), currency: 'SAR',
     client_name: '', company_brand: '', project_title: '', project_description: '',
     deliverables: [], total_value: 0, payment_due_days: 30,
@@ -301,6 +307,7 @@ export default function QuotationPage() {
   const [error, setError]           = useState('');
   const [saved, setSaved]           = useState(false);
   const [form, setForm]             = useState<FormState>(() => blank('QUO-0001'));
+  const [profiles, setProfiles]     = useState<DocsClientProfile[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -312,6 +319,7 @@ export default function QuotationPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetchDocsClientProfiles().then(setProfiles).catch(() => null); }, []);
 
   function setField<K extends keyof FormState>(k: K, v: FormState[K]) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -329,6 +337,7 @@ export default function QuotationPage() {
   function loadIntoForm(q: DocsQuotation) {
     setEditingId(q.id);
     setForm({
+      client_profile_id: q.client_profile_id ?? null,
       quote_number: q.quote_number, quote_date: q.quote_date ?? today(), currency: q.currency,
       client_name: q.client_name, company_brand: q.company_brand ?? '', project_title: q.project_title ?? '',
       project_description: q.project_description ?? '', deliverables: q.deliverables,
@@ -341,8 +350,37 @@ export default function QuotationPage() {
 
   function duplicateQuotation(q: DocsQuotation) {
     setEditingId(null);
-    setForm({ ...q, quote_number: nextQNum(quotations), quote_date: today(), status: 'unpaid', deliverables: q.deliverables.map(d => ({ ...d, id: uid() })), company_brand: q.company_brand ?? '', project_title: q.project_title ?? '', project_description: q.project_description ?? '', payment_method: q.payment_method ?? 'Bank Transfer', custom_payment_method: q.custom_payment_method ?? '', additional_notes: q.additional_notes ?? '' });
+    setForm({ ...q, client_profile_id: q.client_profile_id ?? null, quote_number: nextQNum(quotations), quote_date: today(), status: 'unpaid', deliverables: q.deliverables.map(d => ({ ...d, id: uid() })), company_brand: q.company_brand ?? '', project_title: q.project_title ?? '', project_description: q.project_description ?? '', payment_method: q.payment_method ?? 'Bank Transfer', custom_payment_method: q.custom_payment_method ?? '', additional_notes: q.additional_notes ?? '' });
     setActiveTab('editor');
+  }
+
+  function applyClientProfile(clientId: string) {
+    if (!clientId) {
+      setField('client_profile_id', null);
+      return;
+    }
+    const profile = profiles.find(p => p.client_id === clientId);
+    if (!profile) return;
+    const hasManualEdits = !!(
+      form.client_name.trim()
+      || form.company_brand.trim()
+      || form.project_title.trim()
+      || form.project_description.trim()
+      || form.deliverables.length > 0
+      || form.additional_notes.trim()
+    );
+    if (hasManualEdits && !confirm('Replace current quotation defaults with selected client template?')) return;
+    const quotationConfig = profile.quotation_template_config ?? {};
+    setForm(prev => ({
+      ...prev,
+      client_profile_id: isVirtualDocsProfileId(profile.id) ? null : profile.id,
+      client_name: profile.client_name,
+      currency: profile.default_currency,
+      company_brand: (quotationConfig.company_brand as string | undefined) ?? prev.company_brand,
+      payment_due_days: Number(quotationConfig.payment_due_days ?? prev.payment_due_days),
+      payment_method: (quotationConfig.payment_method as string | undefined) ?? prev.payment_method,
+      additional_notes: prev.additional_notes || profile.notes || '',
+    }));
   }
 
   async function save() {
@@ -430,6 +468,12 @@ export default function QuotationPage() {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Client Identity</h3>
               <div className="space-y-3">
+                <ClientProfileSelector
+                  profiles={profiles}
+                  selectedClientId={profiles.find(p => p.id === form.client_profile_id)?.client_id ?? ''}
+                  onSelectClientId={applyClientProfile}
+                  label="Client"
+                />
                 <div><label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Client Name *</label><input className={inputCls} value={form.client_name} onChange={e => setField('client_name', e.target.value)} /></div>
                 <div><label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Company / Brand</label><input className={inputCls} value={form.company_brand} onChange={e => setField('company_brand', e.target.value)} /></div>
                 <div><label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Project Title</label><input className={inputCls} value={form.project_title} onChange={e => setField('project_title', e.target.value)} /></div>
@@ -481,7 +525,7 @@ export default function QuotationPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={() => printPreviewDocument('quotation-preview', form.quote_number, 'quotation')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => { const rows = [['Quote No','Client','Date','Currency','Value','Status'],[form.quote_number,form.client_name,form.quote_date,form.currency,String(form.total_value),form.status]]; const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`${form.quote_number}.csv`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Excel / CSV</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
@@ -489,7 +533,6 @@ export default function QuotationPage() {
         </div>
       </div>
 
-      <style>{`@media print { body > * { display: none !important; } #quotation-preview { display: block !important; } }`}</style>
     </div>
   );
 }
