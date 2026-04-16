@@ -104,7 +104,7 @@ BEGIN
     UPDATE public.assets
     SET uploaded_by = NULLIF(uploaded_by_legacy_text, '')::UUID
     WHERE uploaded_by IS NULL
-      AND uploaded_by_legacy_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+      AND uploaded_by_legacy_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
   END IF;
 END $$;
 
@@ -174,6 +174,39 @@ BEGIN
         AND (storage_key IS NULL OR storage_path = storage_key)
       )
       NOT VALID;
+  END IF;
+END $$;
+
+-- Validate storage_path constraints only when existing rows already satisfy them.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'assets_storage_path_required_chk'
+      AND conrelid = 'public.assets'::regclass
+      AND NOT convalidated
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM public.assets
+    WHERE storage_path IS NULL OR btrim(storage_path) = ''
+  ) THEN
+    ALTER TABLE public.assets VALIDATE CONSTRAINT assets_storage_path_required_chk;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'assets_storage_path_matches_upload_path_chk'
+      AND conrelid = 'public.assets'::regclass
+      AND NOT convalidated
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM public.assets
+    WHERE (file_path IS NOT NULL AND storage_path <> file_path)
+       OR (storage_key IS NOT NULL AND storage_path <> storage_key)
+  ) THEN
+    ALTER TABLE public.assets VALIDATE CONSTRAINT assets_storage_path_matches_upload_path_chk;
   END IF;
 END $$;
 
