@@ -142,13 +142,58 @@ ALTER TABLE public.assets
   ALTER COLUMN uploaded_by DROP NOT NULL;
 
 -- Backfill storage_path from existing path columns when possible.
-UPDATE public.assets
-SET storage_path = COALESCE(storage_path, storage_key, file_path)
-WHERE storage_path IS NULL;
+DO $$
+DECLARE
+  has_storage_key BOOLEAN;
+  has_file_path   BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'storage_key'
+  ) INTO has_storage_key;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'file_path'
+  ) INTO has_file_path;
+
+  IF has_storage_key AND has_file_path THEN
+    EXECUTE '
+      UPDATE public.assets
+      SET storage_path = COALESCE(storage_path, storage_key, file_path)
+      WHERE storage_path IS NULL
+    ';
+  ELSIF has_storage_key THEN
+    EXECUTE '
+      UPDATE public.assets
+      SET storage_path = COALESCE(storage_path, storage_key)
+      WHERE storage_path IS NULL
+    ';
+  ELSIF has_file_path THEN
+    EXECUTE '
+      UPDATE public.assets
+      SET storage_path = COALESCE(storage_path, file_path)
+      WHERE storage_path IS NULL
+    ';
+  END IF;
+END $$;
 
 -- storage_path is required for new inserts and must match canonical upload path.
 DO $$
+DECLARE
+  has_storage_key BOOLEAN;
+  has_file_path   BOOLEAN;
 BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'storage_key'
+  ) INTO has_storage_key;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'file_path'
+  ) INTO has_file_path;
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
@@ -161,25 +206,52 @@ BEGIN
       NOT VALID;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'assets_storage_path_matches_upload_path_chk'
-      AND conrelid = 'public.assets'::regclass
-  ) THEN
-    ALTER TABLE public.assets
-      ADD CONSTRAINT assets_storage_path_matches_upload_path_chk
-      CHECK (
-        (file_path IS NULL OR storage_path = file_path)
-        AND (storage_key IS NULL OR storage_path = storage_key)
-      )
-      NOT VALID;
+  IF has_storage_key OR has_file_path THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'assets_storage_path_matches_upload_path_chk'
+        AND conrelid = 'public.assets'::regclass
+    ) THEN
+      IF has_storage_key AND has_file_path THEN
+        ALTER TABLE public.assets
+          ADD CONSTRAINT assets_storage_path_matches_upload_path_chk
+          CHECK (
+            (file_path IS NULL OR storage_path = file_path)
+            AND (storage_key IS NULL OR storage_path = storage_key)
+          )
+          NOT VALID;
+      ELSIF has_file_path THEN
+        ALTER TABLE public.assets
+          ADD CONSTRAINT assets_storage_path_matches_upload_path_chk
+          CHECK (file_path IS NULL OR storage_path = file_path)
+          NOT VALID;
+      ELSE
+        ALTER TABLE public.assets
+          ADD CONSTRAINT assets_storage_path_matches_upload_path_chk
+          CHECK (storage_key IS NULL OR storage_path = storage_key)
+          NOT VALID;
+      END IF;
+    END IF;
   END IF;
 END $$;
 
 -- Validate storage_path constraints only when existing rows already satisfy them.
 DO $$
+DECLARE
+  has_storage_key BOOLEAN;
+  has_file_path   BOOLEAN;
 BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'storage_key'
+  ) INTO has_storage_key;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'assets' AND column_name = 'file_path'
+  ) INTO has_file_path;
+
   IF EXISTS (
     SELECT 1
     FROM pg_constraint
@@ -203,17 +275,28 @@ BEGIN
   ) AND NOT EXISTS (
     SELECT 1
     FROM public.assets
-    WHERE (file_path IS NOT NULL AND storage_path <> file_path)
-       OR (storage_key IS NOT NULL AND storage_path <> storage_key)
+    WHERE (has_file_path AND file_path IS NOT NULL AND storage_path <> file_path)
+       OR (has_storage_key AND storage_key IS NOT NULL AND storage_path <> storage_key)
   ) THEN
     ALTER TABLE public.assets VALIDATE CONSTRAINT assets_storage_path_matches_upload_path_chk;
   END IF;
 END $$;
 
 -- Keep commonly-used aliases in sync for new writes.
-UPDATE public.assets
-SET storage_bucket = COALESCE(storage_bucket, bucket_name)
-WHERE storage_bucket IS NULL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'assets'
+      AND column_name = 'bucket_name'
+  ) THEN
+    UPDATE public.assets
+    SET storage_bucket = COALESCE(storage_bucket, bucket_name)
+    WHERE storage_bucket IS NULL;
+  END IF;
+END $$;
 
 -- ============================================================
 -- 3) RLS FIX (AUTHENTICATED INSERT + SELECT)
