@@ -44,6 +44,7 @@ export default function WorkspaceSwitcher() {
       })
       .catch(() => {
         if (!mounted) return;
+        console.warn('[workspace-switcher] Failed to load workspace memberships');
         setMemberships([]);
         setReady(true);
       });

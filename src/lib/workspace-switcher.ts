@@ -1,7 +1,7 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getWorkspaceFromPathname } from '@/lib/workspace-navigation';
-import { isGlobalOwnerEmail, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
+import { isGlobalOwnerEmail, normalizeWorkspaceKey, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
 import { getWorkspaceHomeHref } from '@/lib/auth-workspace';
 
 export interface WorkspaceMembershipInfo {
@@ -38,16 +38,26 @@ export async function getUserWorkspaceMemberships(
       .in('slug', WORKSPACE_DEFS.map(workspace => workspace.key)),
   ]);
 
+  const roleRank: Record<WorkspaceRole, number> = {
+    owner: 4,
+    admin: 3,
+    member: 2,
+    viewer: 1,
+  };
   const membershipByKey = new Map<string, { role: WorkspaceRole | null }>();
   for (const row of membershipRows ?? []) {
-    membershipByKey.set(row.workspace_key, { role: (row.role as WorkspaceRole) ?? null });
+    const nextRole = (row.role as WorkspaceRole) ?? null;
+    const existing = membershipByKey.get(row.workspace_key);
+    const existingRank = existing?.role ? roleRank[existing.role] : 0;
+    const nextRank = nextRole ? roleRank[nextRole] : 0;
+    if (!existing || nextRank >= existingRank) {
+      membershipByKey.set(row.workspace_key, { role: nextRole });
+    }
   }
 
   const workspaceNameByKey = new Map<WorkspaceKey, string>();
   for (const row of workspaceRows ?? []) {
-    let key: WorkspaceKey | null = null;
-    if (row.slug === 'docs') key = 'docs';
-    else if (row.slug === 'os') key = 'os';
+    const key = normalizeWorkspaceKey(row.slug);
     if (!key) continue;
     workspaceNameByKey.set(key, row.name || (key === 'docs' ? 'OPENY DOCS' : 'OPENY OS'));
   }
