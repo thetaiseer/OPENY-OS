@@ -1113,7 +1113,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     let completeRes: Response;
     try {
       completeRes = await fetch('/api/upload/complete', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(completePayload),
         signal,
@@ -1134,14 +1134,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
 
     const responseText = await completeRes.text();
-    let completeJson: {
+    type UploadCompleteResponse = {
       success?: boolean;
       asset?: Asset;
       error?: unknown;
       stage?: string;
-    } | null = null;
+    };
+    let completeJson: UploadCompleteResponse | null = null;
     try {
-      completeJson = responseText ? JSON.parse(responseText) as typeof completeJson : null;
+      completeJson = responseText ? JSON.parse(responseText) as UploadCompleteResponse : null;
     } catch {
       completeJson = null;
     }

@@ -48,8 +48,7 @@ SET
   public_url     = COALESCE(public_url, file_url),
   file_url       = COALESCE(file_url, public_url),
   storage_bucket = COALESCE(storage_bucket, bucket_name),
-  bucket_name    = COALESCE(bucket_name, storage_bucket)
-WHERE TRUE;
+  bucket_name    = COALESCE(bucket_name, storage_bucket);
 
 -- 3) RLS: allow authenticated users to insert rows
 ALTER TABLE public.assets ENABLE ROW LEVEL SECURITY;

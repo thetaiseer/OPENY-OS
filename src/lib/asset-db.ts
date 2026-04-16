@@ -33,7 +33,8 @@ export function extractMissingColumn(
   // PostgREST / Supabase client may reformat to single-quotes: column 'xyz'
   const byColumnKeyword = text.match(/column ["']([^"']+)["']/i);
   if (byColumnKeyword?.[1]) return byColumnKeyword[1];
-  // PostgREST schema-cache error (PGRST204): "Could not find the 'xyz' column ..."
+  // PostgREST schema-cache error (PGRST204), where quoted name appears before
+  // the word "column": "Could not find the 'xyz' column of 'assets' ..."
   const byQuotedNameBeforeColumn = text.match(/["']([^"']+)["']\s+column/i);
   if (byQuotedNameBeforeColumn?.[1]) return byQuotedNameBeforeColumn[1];
   return null;

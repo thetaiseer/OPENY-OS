@@ -161,7 +161,9 @@ export async function POST(req: NextRequest) {
     web_view_link:    publicUrl,
     ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
     ...(clientId   ? { client_id:   clientId   } : {}),
+    // Canonical uploader identity for DB relations/auditing (UUID from auth profile).
     ...(auth.profile.id ? { uploaded_by: auth.profile.id } : {}),
+    // Optional display label from client UI; kept separate from the canonical UUID above.
     ...(uploadedBy ? { uploaded_by_name: uploadedBy } : {}),
   };
 
