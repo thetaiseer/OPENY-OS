@@ -105,20 +105,20 @@ export async function POST(req: NextRequest) {
   };
 
   const db = getServiceClient();
+  if (typeof payload.default_currency === 'string' && payload.default_currency.trim()) {
+    const { error: clientUpdateError } = await db
+      .from('clients')
+      .update({ default_currency: payload.default_currency })
+      .eq('id', payload.client_id);
+    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
+  }
+
   const { data, error } = await db
     .from('client_document_profiles')
     .upsert(payload, { onConflict: 'client_id' })
     .select('*')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  if (typeof payload.default_currency === 'string' && payload.default_currency.trim()) {
-    const { error: clientUpdateError } = await db
-      .from('clients')
-      .update({ default_currency: payload.default_currency })
-      .eq('id', client_id);
-    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
-  }
 
   return NextResponse.json({ profile: data }, { status: 201 });
 }

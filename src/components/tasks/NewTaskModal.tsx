@@ -185,9 +185,14 @@ export default function NewTaskModal({
   }, [open]);
 
   useEffect(() => {
+    if (!clientId) {
+      if (projectId) setProjectId('');
+      return;
+    }
     if (!projectId) return;
+    // Keep project/client consistency: when user changes client, clear project if it belongs to another client.
     const selected = projects.find(p => p.id === projectId);
-    if (selected && clientId && selected.client_id && selected.client_id !== clientId) {
+    if (selected && selected.client_id !== clientId) {
       setProjectId('');
     }
   }, [clientId, projectId, projects]);
@@ -639,7 +644,7 @@ export default function NewTaskModal({
                     options={[
                       { value: '', label: '— None —' },
                       ...projects
-                        .filter(project => !clientId || !project.client_id || project.client_id === clientId)
+                        .filter(project => Boolean(clientId) && project.client_id === clientId)
                         .map(project => ({ value: project.id, label: project.name })),
                     ]}
                   />

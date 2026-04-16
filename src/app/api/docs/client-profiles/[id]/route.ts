@@ -49,6 +49,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .maybeSingle();
   if (existingProfileError) return NextResponse.json({ error: existingProfileError.message }, { status: 500 });
 
+  if (typeof updates.default_currency === 'string' && updates.default_currency.trim() && existingProfile?.client_id) {
+    const { error: clientUpdateError } = await db
+      .from('clients')
+      .update({ default_currency: updates.default_currency })
+      .eq('id', existingProfile.client_id);
+    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
+  }
+
   const { data, error } = await db
     .from('client_document_profiles')
     .update({
@@ -59,14 +67,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .select('*')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  if (typeof updates.default_currency === 'string' && updates.default_currency.trim() && existingProfile?.client_id) {
-    const { error: clientUpdateError } = await db
-      .from('clients')
-      .update({ default_currency: updates.default_currency })
-      .eq('id', existingProfile.client_id);
-    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
-  }
 
   return NextResponse.json({ profile: data });
 }

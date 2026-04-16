@@ -113,7 +113,10 @@ interface TaskFormProps {
 }
 
 function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t }: TaskFormProps) {
-  const projectOptions = projects.filter(p => !form.client_id || p.client_id === form.client_id);
+  const projectOptions = useMemo(
+    () => projects.filter(p => Boolean(form.client_id) && p.client_id === form.client_id),
+    [projects, form.client_id],
+  );
 
   const toggleMention = (id: string) => {
     setForm(f => ({
@@ -1035,7 +1038,7 @@ export default function TasksPage() {
     if (queryData) {
       setTasks(queryData.tasks);
       setClients(queryData.clients);
-      setProjects(queryData.projects ?? []);
+      setProjects(queryData.projects);
       setTeam(queryData.team);
     }
   }, [queryData]);
