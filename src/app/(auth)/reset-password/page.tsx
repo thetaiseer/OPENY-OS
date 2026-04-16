@@ -67,7 +67,7 @@ function ResetPasswordForm() {
 
     setSuccess(true);
     // Give the user a moment to read the success message, then redirect.
-    setTimeout(() => router.replace('/login'), REDIRECT_DELAY_MS);
+    setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
   };
 
   // ── Loading state (exchanging code) ────────────────────────────────────────

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -187,8 +188,8 @@ export default function InviteAcceptPage() {
         return;
       }
 
-      // Redirect to workspace selector
-      router.replace('/select-workspace');
+      // Redirect to official auth landing
+      router.replace('/');
     } catch {
       setFormError('Network error. Please try again.');
     } finally {
@@ -361,13 +362,13 @@ export default function InviteAcceptPage() {
               <p className="text-sm mb-6" style={{ color: '#6b7280' }}>
                 Your account is ready. You can now log in to OPENY OS.
               </p>
-              <a
-                href="/login"
+              <Link
+                href="/"
                 className="inline-block h-10 px-6 rounded-lg text-sm font-semibold text-white leading-10"
                 style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
                 Go to Login →
-              </a>
+              </Link>
             </div>
           )}
 
@@ -395,7 +396,7 @@ export default function InviteAcceptPage() {
               icon={<CheckCircle size={48} style={{ color: '#16a34a' }} />}
               title="Already Accepted"
               message="This invitation has already been used. Please log in."
-              action={<a href="/login" className="text-sm font-medium" style={{ color: '#6366f1' }}>Go to Login →</a>}
+              action={<Link href="/" className="text-sm font-medium" style={{ color: '#6366f1' }}>Go to Login →</Link>}
             />
           )}
 

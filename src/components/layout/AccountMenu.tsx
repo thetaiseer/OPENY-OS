@@ -48,7 +48,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
     setSigningOut(true);
     try {
       await signOut();
-      // signOut in auth-context redirects to /login on success
+      // signOut in auth-context redirects to / on success
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Sign out failed';
       setSignOutError(message);

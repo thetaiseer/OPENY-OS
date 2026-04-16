@@ -30,7 +30,7 @@ export { queryClient };
  *   - ToastProvider        (in-app toasts)
  *   - ToastContainer       (renders toast DOM nodes)
  *
- * Placed in the root layout so that /os, /docs, and /select-workspace
+ * Placed in the root layout so that /, /os, and /docs
  * all receive the same QueryClient instance.
  */
 export default function Providers({ children }: { children: React.ReactNode }) {

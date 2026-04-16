@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent, Suspense } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
 
@@ -46,14 +47,14 @@ function ForgotPasswordForm() {
             If an account with <strong>{email}</strong> exists, we sent a password reset link.
           </p>
         </div>
-        <a
-          href="/login"
+        <Link
+          href="/"
           className="inline-flex items-center gap-1 text-sm hover:underline"
           style={{ color: 'var(--accent)' }}
         >
           <ArrowLeft size={14} />
           Back to login
-        </a>
+        </Link>
       </div>
     );
   }
@@ -105,14 +106,14 @@ function ForgotPasswordForm() {
       </button>
 
       <div className="text-center">
-        <a
-          href="/login"
+        <Link
+          href="/"
           className="inline-flex items-center gap-1 text-sm hover:underline"
           style={{ color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={13} />
           Back to login
-        </a>
+        </Link>
       </div>
     </form>
   );

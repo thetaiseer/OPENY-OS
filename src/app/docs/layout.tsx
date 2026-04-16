@@ -90,7 +90,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <Link href="/select-workspace" className="text-xs sm:text-sm font-medium px-3 py-2 rounded-lg border hover:bg-[var(--surface-2)] transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <Link href="/?switch=1" className="text-xs sm:text-sm font-medium px-3 py-2 rounded-lg border hover:bg-[var(--surface-2)] transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
             Switch workspace
           </Link>
         </header>

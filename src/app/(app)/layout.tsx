@@ -57,7 +57,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         if (res.status === 401) {
           // Session revoked — sign out and redirect
           await supabaseClient.auth.signOut();
-          window.location.replace('/login');
+          window.location.replace('/');
         }
       } catch { /* ignore network errors / abort */ } finally {
         clearTimeout(tid);
