@@ -1,7 +1,8 @@
 import type { InvoiceBranchGroup } from '@/lib/docs-types';
 
-export const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement, Cairo';
+export const INVOICE_ADDRESS = 'Villa 175, First District, Fifth Settlement';
 export const INVOICE_EMAIL = 'info@openytalk.com';
+export const INVOICE_WEBSITE = 'openytalk.com';
 
 function n(v: unknown) {
   const parsed = Number(v);
@@ -31,6 +32,7 @@ export interface InvoiceDocumentRow {
   results: string;
   cost: number;
   showPlatform: boolean;
+  showBranch: boolean;
   platformSpan: number;
 }
 
@@ -38,7 +40,6 @@ export interface InvoiceDocumentBranchTable {
   id: string;
   branchName: string;
   rows: InvoiceDocumentRow[];
-  span: number;
   subtotal: number;
 }
 
@@ -75,16 +76,18 @@ export function buildInvoiceDocumentModel(formState: InvoiceDocumentModelInput):
         results: row.results || '',
         cost: round2(n(row.cost)),
         showPlatform: rowIndex === 0,
+        showBranch: false,
         platformSpan: rows.length,
       }));
     });
+
+    if (branchRows[0]) branchRows[0].showBranch = true;
 
     const subtotal = round2(branchRows.reduce((sum, row) => sum + n(row.cost), 0));
     return {
       id: branch.id,
       branchName: branch.branch_name || 'Branch',
       rows: branchRows,
-      span: Math.max(1, branchRows.length),
       subtotal,
     };
   });
