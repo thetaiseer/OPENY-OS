@@ -23,7 +23,7 @@ export default async function AccessDeniedPage({ searchParams }: { searchParams:
         </p>
         <div className="flex items-center justify-center gap-3 pt-2">
           <Link
-            href="/select-workspace"
+            href="/?switch=1"
             className="h-10 px-4 rounded-xl border inline-flex items-center text-sm font-medium"
             style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
           >

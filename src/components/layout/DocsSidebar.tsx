@@ -89,7 +89,7 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
         </nav>
         <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <Link
-            href="/select-workspace"
+            href="/?switch=1"
             onClick={onClose}
             aria-label="Switch workspace"
             className="text-xs inline-flex items-center gap-1 lg:justify-center xl:justify-start w-full"

@@ -56,6 +56,7 @@ export async function middleware(request: NextRequest) {
   // enforces its own authentication via getApiUser() / requireRole() helpers.
   // This avoids middleware interfering with cookie parsing in Route Handlers.
   const isPublicRoute =
+    pathname === '/' ||
     pathname === '/choose-workspace' ||
     pathname === '/select-workspace' ||
     pathname === '/access-denied' ||
@@ -70,7 +71,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/favicon');
 
   if (pathname === '/choose-workspace') {
-    return NextResponse.redirect(new URL('/select-workspace', request.url));
+    return NextResponse.redirect(new URL('/?switch=1', request.url));
+  }
+
+  if (pathname === '/select-workspace') {
+    return NextResponse.redirect(new URL('/?switch=1', request.url));
   }
 
   if (isPublicRoute) {
@@ -78,9 +83,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const loginRouteForWorkspace = (workspace: WorkspaceKey | null) => {
-    if (workspace === 'docs') return '/docs/login';
-    if (workspace === 'os') return '/os/login';
-    return '/login';
+    if (workspace === 'docs') return '/?workspace=docs';
+    if (workspace === 'os') return '/?workspace=os';
+    return '/';
   };
 
   // If there is no authenticated user, redirect to the workspace login page.

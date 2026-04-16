@@ -312,8 +312,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .filter(k => k.startsWith('sb-'))
           .forEach(k => localStorage.removeItem(k));
       } catch { /* ignore — storage may be unavailable */ }
-      console.log('[auth] Redirecting to /login');
-      window.location.replace('/login');
+      console.log('[auth] Redirecting to /');
+      window.location.replace('/');
     }
   };
 
