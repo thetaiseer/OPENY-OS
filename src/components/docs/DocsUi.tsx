@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import SelectDropdown, { type SelectOption } from '@/components/ui/SelectDropdown';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 
-export function AppPageHeader({
+export function DocsPageHeader({
   title,
   subtitle,
   actions,
@@ -25,7 +25,7 @@ export function AppPageHeader({
   );
 }
 
-export function AppSectionCard({
+export function DocsSectionCard({
   title,
   subtitle,
   children,
@@ -54,15 +54,15 @@ export function AppSectionCard({
   );
 }
 
-export function AppInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export function DocsInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={clsx('docs-input', props.className)} />;
 }
 
-export function AppTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function DocsTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={clsx('docs-textarea', props.className)} />;
 }
 
-export function AppSelect({
+export function DocsSelect({
   value,
   onChange,
   options,
@@ -84,7 +84,7 @@ export function AppSelect({
   );
 }
 
-export function AppDateField({
+export function DocsDateField({
   value,
   onChange,
   mode = 'date',
@@ -114,7 +114,7 @@ export function AppDateField({
   );
 }
 
-export function AppTabs<T extends string>({
+export function DocsTabs<T extends string>({
   value,
   onChange,
   items,
@@ -139,7 +139,7 @@ export function AppTabs<T extends string>({
   );
 }
 
-export function AppEmptyState({
+export function DocsEmptyState({
   title,
   description,
   action,
@@ -157,10 +157,10 @@ export function AppEmptyState({
   );
 }
 
-export function AppLoadingState({ label = 'Loading…' }: { label?: string }) {
+export function DocsLoadingState({ label = 'Loading...' }: { label?: string }) {
   return <div className="docs-state docs-loading-state">{label}</div>;
 }
 
-export function AppErrorState({ message }: { message: string }) {
+export function DocsErrorState({ message }: { message: string }) {
   return <div className="docs-state docs-error-state">{message}</div>;
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { AppSelect } from '@/components/docs/DocsUi';
+import { DocsSelect } from '@/components/docs/DocsUi';
 
 export default function ClientProfileSelector({
   profiles,
@@ -31,7 +31,7 @@ export default function ClientProfileSelector({
           Manage clients & templates
         </Link>
       </div>
-      <AppSelect value={selectedClientId} onChange={onSelectClientId} options={options} />
+      <DocsSelect value={selectedClientId} onChange={onSelectClientId} options={options} />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
-import { AppDateField } from '@/components/docs/DocsUi';
+import { DocsDateField } from '@/components/docs/DocsUi';
 
 type Tab = 'ledger' | 'summary';
 
@@ -269,7 +269,7 @@ export default function AccountingPage() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <AppDateField value={month} onChange={setMonth} mode="month" placeholder="Accounting month" />
+          <DocsDateField value={month} onChange={setMonth} mode="month" placeholder="Accounting month" />
           <a
             href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
             download

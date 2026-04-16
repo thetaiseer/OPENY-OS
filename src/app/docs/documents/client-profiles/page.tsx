@@ -7,14 +7,14 @@ import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { buildClientSlug, fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import {
-  AppEmptyState,
-  AppErrorState,
-  AppInput,
-  AppLoadingState,
-  AppPageHeader,
-  AppSectionCard,
-  AppSelect,
-  AppTextarea,
+  DocsEmptyState,
+  DocsErrorState,
+  DocsInput,
+  DocsLoadingState,
+  DocsPageHeader,
+  DocsSectionCard,
+  DocsSelect,
+  DocsTextarea,
 } from '@/components/docs/DocsUi';
 
 type EditableProfile = DocsClientProfile & {
@@ -30,8 +30,8 @@ const LAYOUT_MODE_OPTIONS = [
 ];
 
 const BOOL_OPTIONS = [
-  { value: 'true', label: 'Enabled' },
-  { value: 'false', label: 'Disabled' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
 ];
 
 export default function ClientProfilesPage() {
@@ -166,7 +166,7 @@ export default function ClientProfilesPage() {
 
   return (
     <div className="docs-app p-6 sm:p-8 space-y-5">
-      <AppPageHeader
+      <DocsPageHeader
         title="Clients & Templates"
         subtitle="Manage client-specific document defaults, template behavior, and supported DOCS workflows."
         actions={(
@@ -180,12 +180,12 @@ export default function ClientProfilesPage() {
         )}
       />
 
-      <AppSectionCard
+      <DocsSectionCard
         title="Create Client Profile"
         subtitle="Add a client, then configure invoice, quotation, contract, HR, employees, and accounting defaults."
       >
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
-          <AppInput
+          <DocsInput
             value={newClientName}
             onChange={(e) => setNewClientName(e.target.value)}
             placeholder="Client name"
@@ -198,13 +198,13 @@ export default function ClientProfilesPage() {
             <Plus size={14} /> Add Client
           </button>
         </div>
-      </AppSectionCard>
+      </DocsSectionCard>
 
-      <AppSectionCard>
+      <DocsSectionCard>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:items-center">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-            <AppInput
+            <DocsInput
               className="pl-9"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -215,7 +215,7 @@ export default function ClientProfilesPage() {
             {filteredProfiles.length} profile{filteredProfiles.length === 1 ? '' : 's'} found
           </div>
         </div>
-      </AppSectionCard>
+      </DocsSectionCard>
 
       {success ? (
         <div className="docs-state" style={{ borderColor: 'rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.08)', color: '#047857' }}>
@@ -223,11 +223,11 @@ export default function ClientProfilesPage() {
         </div>
       ) : null}
 
-      {error ? <AppErrorState message={error} /> : null}
-      {loading ? <AppLoadingState label="Loading client document profiles…" /> : null}
+      {error ? <DocsErrorState message={error} /> : null}
+      {loading ? <DocsLoadingState label="Loading client document profiles..." /> : null}
 
       {!loading && filteredProfiles.length === 0 ? (
-        <AppEmptyState
+        <DocsEmptyState
           title="No client profiles found"
           description={query ? 'Try a different search term or clear filters.' : 'Create your first client profile to start using templates.'}
         />
@@ -238,7 +238,7 @@ export default function ClientProfilesPage() {
           {filteredProfiles.map((profile) => {
             const templateStatus = profile.isDirty ? 'Unsaved changes' : 'Synced';
             return (
-              <AppSectionCard
+              <DocsSectionCard
                 key={profile.id}
                 title={profile.client_name}
                 subtitle={`Slug: ${profile.client_slug} · Template status: ${templateStatus}`}
@@ -263,54 +263,54 @@ export default function ClientProfilesPage() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   <Field label="Default Currency">
-                    <AppSelect
+                    <DocsSelect
                       value={String(profile.default_currency ?? 'SAR')}
                       onChange={(value) => patchProfile(profile.id, { default_currency: value })}
                       options={DOCS_CURRENCIES.map((currency) => ({ value: currency, label: currency }))}
                     />
                   </Field>
                   <Field label="Invoice Layout Mode">
-                    <AppSelect
+                    <DocsSelect
                       value={profile.invoice_layout_mode || 'branch_platform'}
                       onChange={(value) => patchProfile(profile.id, { invoice_layout_mode: value })}
                       options={LAYOUT_MODE_OPTIONS}
                     />
                   </Field>
                   <Field label="Supports Branch Breakdown">
-                    <AppSelect
+                    <DocsSelect
                       value={profile.supports_branch_breakdown ? 'true' : 'false'}
                       onChange={(value) => patchProfile(profile.id, { supports_branch_breakdown: value === 'true' })}
                       options={BOOL_OPTIONS}
                     />
                   </Field>
                   <Field label="Invoice Type">
-                    <AppInput value={profile.invoice_type ?? ''} onChange={(e) => patchProfile(profile.id, { invoice_type: e.target.value })} />
+                    <DocsInput value={profile.invoice_type ?? ''} onChange={(e) => patchProfile(profile.id, { invoice_type: e.target.value })} />
                   </Field>
                   <Field label="Quotation Type">
-                    <AppInput value={profile.quotation_type ?? ''} onChange={(e) => patchProfile(profile.id, { quotation_type: e.target.value })} />
+                    <DocsInput value={profile.quotation_type ?? ''} onChange={(e) => patchProfile(profile.id, { quotation_type: e.target.value })} />
                   </Field>
                   <Field label="Contract Type">
-                    <AppInput value={profile.contract_type ?? ''} onChange={(e) => patchProfile(profile.id, { contract_type: e.target.value })} />
+                    <DocsInput value={profile.contract_type ?? ''} onChange={(e) => patchProfile(profile.id, { contract_type: e.target.value })} />
                   </Field>
                   <Field label="Default Branch Names (comma-separated)">
-                    <AppInput
+                    <DocsInput
                       value={profile.default_branch_names.join(', ')}
                       onChange={(e) => patchProfile(profile.id, { default_branch_names: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) })}
                     />
                   </Field>
                   <Field label="Default Platforms (comma-separated)">
-                    <AppInput
+                    <DocsInput
                       value={profile.default_platforms.join(', ')}
                       onChange={(e) => patchProfile(profile.id, { default_platforms: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) })}
                     />
                   </Field>
                   <Field label="Updated At">
-                    <AppInput value={(profile.updated_at ?? '').slice(0, 10)} readOnly />
+                    <DocsInput value={(profile.updated_at ?? '').slice(0, 10)} readOnly />
                   </Field>
                 </div>
                 <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
                   <Field label="Service Description Default">
-                    <AppInput
+                    <DocsInput
                       value={profile.service_description_default ?? ''}
                       onChange={(e) => patchProfile(profile.id, { service_description_default: e.target.value })}
                     />
@@ -331,10 +331,10 @@ export default function ClientProfilesPage() {
                 </div>
                 <div className="mt-3">
                   <Field label="Notes">
-                    <AppTextarea rows={3} value={profile.notes ?? ''} onChange={(e) => patchProfile(profile.id, { notes: e.target.value })} />
+                    <DocsTextarea rows={3} value={profile.notes ?? ''} onChange={(e) => patchProfile(profile.id, { notes: e.target.value })} />
                   </Field>
                 </div>
-              </AppSectionCard>
+              </DocsSectionCard>
             );
           })}
         </div>
