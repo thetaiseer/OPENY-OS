@@ -14,6 +14,7 @@ import { useCommandPalette } from '@/lib/command-palette-context';
 import { useAi } from '@/lib/ai-context';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface HeaderProps { onMenuClick?: () => void; }
 
@@ -70,6 +71,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+        <WorkspaceSwitcher />
+
         <button
           onClick={toggleLang}
           className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
