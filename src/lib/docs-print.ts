@@ -50,3 +50,24 @@ export function printPreviewDocument(previewId: string, documentCode: string, fa
   win.document.close();
   return true;
 }
+
+export async function exportPreviewPdf(previewId: string, documentCode: string, fallbackCode = 'document') {
+  const preview = document.getElementById(previewId);
+  if (!preview) return false;
+
+  const safeCode = sanitizeDocCode(documentCode, fallbackCode);
+  const html2pdfModule = await import('html2pdf.js');
+  const html2pdf = (html2pdfModule.default ?? html2pdfModule) as any;
+
+  const opt = {
+    margin: 12,
+    filename: `${safeCode}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
+  };
+
+  await html2pdf().set(opt).from(preview).save();
+  return true;
+}

@@ -8,12 +8,12 @@ import {
 import clsx from 'clsx';
 import type { DocsHrContract, ContractClause } from '@/lib/docs-types';
 import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS, DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
-import { OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
+import { OpenyClientBlock, OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
-import { printPreviewDocument } from '@/lib/docs-print';
+import { exportPreviewPdf } from '@/lib/docs-print';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -68,15 +68,21 @@ function HrContractPreview({ form }: { form: SF }) {
     <OpenyDocumentPage
       id="hr-contract-preview"
       dir={isAr ? 'rtl' : 'ltr'}
-      fontFamily={isAr ? "'Cairo',Arial,sans-serif" : 'Arial,sans-serif'}
+      fontFamily={isAr ? "'Tajawal', sans-serif" : "'Inter', sans-serif"}
       fontSize={12}
     >
       <OpenyDocumentHeader
         title={isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}
         number={form.contract_number}
+        date={form.contract_date}
         centerTitle
       />
-      <div style={{ padding: '24px 36px' }}>
+      <OpenyClientBlock
+        label={isAr ? 'مُعَد لـ' : 'PREPARED FOR'}
+        name={form.employee_full_name || '—'}
+        subtext={form.job_title || form.department || undefined}
+      />
+      <div>
         <table style={{ width: '100%', marginBottom: 20, fontSize: 12 }}>
           <tbody>
             <tr><td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Date:</td><td style={{ fontWeight: 600 }}>{form.contract_date}</td><td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Duration:</td><td style={{ fontWeight: 600 }}>{form.duration}</td></tr>
@@ -388,6 +394,15 @@ export default function HrContractPage() {
     alert(`Restored ${count} of ${data.length} HR contract(s).`);
   }
 
+  async function exportPdf() {
+    try {
+      await exportPreviewPdf('hr-contract-preview', form.contract_number, 'hr-contract');
+    } catch (err) {
+      console.error('[HrContractPage] PDF export failed:', err);
+      setError('Could not export PDF. Please try again.');
+    }
+  }
+
   const inp = 'w-full px-3 py-1.5 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
   const lbl = (l: string) => <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{l}</label>;
   const Sec = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -529,7 +544,7 @@ export default function HrContractPage() {
 
       <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={() => printPreviewDocument('hr-contract-preview', form.contract_number, 'hr-contract')} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
+          <button onClick={exportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => { const html = document.getElementById('hr-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
