@@ -24,7 +24,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import type { UserRole } from './auth-context';
-import { OWNER_EMAIL } from './constants/auth';
+import {
+  getWorkspaceFromApiPath,
+  isGlobalOwnerEmail,
+  mapWorkspaceRoleToUserRole,
+  type WorkspaceRole,
+} from './workspace-access';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -73,9 +78,7 @@ export interface UserProfile {
 export async function getApiUser(
   request: NextRequest,
 ): Promise<{ profile: UserProfile } | null> {
-  const isDocsApiPath =
-    request.nextUrl.pathname === '/api/docs' ||
-    request.nextUrl.pathname.startsWith('/api/docs/');
+  const requiredWorkspace = getWorkspaceFromApiPath(request.nextUrl.pathname);
 
   // 1. Build a server-side Supabase client that reads session cookies from the request.
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -105,14 +108,8 @@ export async function getApiUser(
 
   const email = user.email ?? '';
 
-  // ── Cached result ─────────────────────────────────────────────────────────
-  const cached = profileCache.get(user.id);
-  if (cached && Date.now() < cached.expiresAt) {
-    return { profile: cached.profile };
-  }
-
   // ── Owner shortcut ────────────────────────────────────────────────────────
-  if (email.toLowerCase() === OWNER_EMAIL) {
+  if (isGlobalOwnerEmail(email)) {
     const ownerProfile: UserProfile = {
       id:    user.id,
       name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
@@ -123,16 +120,28 @@ export async function getApiUser(
     return { profile: ownerProfile };
   }
 
-  // OPENY DOCS API is strictly owner-only.
-  if (isDocsApiPath) {
-    console.warn('[api-auth] docs api access denied for non-owner email:', email);
-    return null;
+  const admin = getServiceClient();
+
+  // Enforce workspace membership authorization for API routes.
+  let membershipRole: WorkspaceRole | null = null;
+  if (requiredWorkspace) {
+    const { data: membership } = await admin
+      .from('workspace_memberships')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('workspace_key', requiredWorkspace)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    membershipRole = (membership?.role as WorkspaceRole | undefined) ?? null;
+    if (!membershipRole) {
+      console.warn('[api-auth] workspace membership denied — email:', email, '| workspace:', requiredWorkspace);
+      return null;
+    }
   }
 
   // 3. Fetch role from public.team_members using the service-role key so that
   //    Row Level Security does not block the read.
-  const admin = getServiceClient();
-
   const { data: member, error: memberError } = await admin
     .from('team_members')
     .select('id, full_name, email, role')
@@ -141,15 +150,19 @@ export async function getApiUser(
 
   console.log('[api-auth] team_members fetch — row:', member ? `email=${member.email} role=${member.role}` : 'null', '| error:', memberError ? `${memberError.code}: ${memberError.message}` : 'none');
 
+  const fallbackWorkspaceRole = mapWorkspaceRoleToUserRole(membershipRole);
+  const teamRole = member ? ((member.role as UserRole) || 'team_member') : fallbackWorkspaceRole;
+  const resolvedRole = requiredWorkspace === 'docs' ? fallbackWorkspaceRole : teamRole;
+
   const resolved: UserProfile = {
     id:    user.id,
     name:  member?.full_name ?? user.user_metadata?.name ?? email.split('@')[0] ?? '',
     email,
-    role:  member ? (member.role as UserRole) || 'team_member' : 'team_member',
+    role:  resolvedRole,
   };
 
   if (!member) {
-    console.warn('[api-auth] No team_member row found for email:', email, '— defaulting to team_member role');
+    console.warn('[api-auth] No team_member row found for email:', email, '— using workspace role fallback:', fallbackWorkspaceRole);
   }
 
   console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);

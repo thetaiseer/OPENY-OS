@@ -5,6 +5,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 import { OWNER_EMAIL } from './constants/auth';
+import { mapWorkspaceRoleToUserRole, type WorkspaceKey, type WorkspaceRole } from './workspace-access';
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 
@@ -16,23 +17,30 @@ export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' 
 const CACHE_KEY = 'openy_user_v1';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-interface CachedUserEntry { user: User; ts: number }
+export interface WorkspaceAccessState {
+  os: boolean;
+  docs: boolean;
+  roles: Partial<Record<WorkspaceKey, WorkspaceRole>>;
+  isGlobalOwner: boolean;
+}
 
-function readUserCache(): User | null {
+interface CachedUserEntry { user: User; workspaceAccess: WorkspaceAccessState; ts: number }
+
+function readUserCache(): { user: User; workspaceAccess: WorkspaceAccessState } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const entry = JSON.parse(raw) as CachedUserEntry;
     if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
-    return entry.user;
+    return { user: entry.user, workspaceAccess: entry.workspaceAccess };
   } catch { return null; }
 }
 
-function writeUserCache(user: User): void {
+function writeUserCache(user: User, workspaceAccess: WorkspaceAccessState): void {
   if (typeof window === 'undefined') return;
   try {
-    const entry: CachedUserEntry = { user, ts: Date.now() };
+    const entry: CachedUserEntry = { user, workspaceAccess, ts: Date.now() };
     sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
   } catch { /* ignore — storage quota or private-mode */ }
 }
@@ -52,26 +60,37 @@ const LOADING_USER: User = {
 interface AuthContextType {
   user: User;
   role: UserRole;
+  workspaceAccess: WorkspaceAccessState;
   clientId: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  hasWorkspaceAccess: (workspace: WorkspaceKey) => boolean;
   /** @deprecated No-op. Role is determined by the team_members table. */
   setRole: (role: UserRole, clientId?: string) => void;
 }
 
+const DEFAULT_WORKSPACE_ACCESS: WorkspaceAccessState = {
+  os: false,
+  docs: false,
+  roles: {},
+  isGlobalOwner: false,
+};
+
 const AuthContext = createContext<AuthContextType>({
   user: LOADING_USER,
   role: 'team_member',
+  workspaceAccess: DEFAULT_WORKSPACE_ACCESS,
   clientId: null,
   loading: true,
   signOut: async () => {},
+  hasWorkspaceAccess: () => false,
   setRole: () => {},
 });
 
-async function fetchUserFromTeamMembers(
+async function fetchUserStateFromTables(
   supabase: ReturnType<typeof createClient>,
   supabaseUser: SupabaseUser,
-): Promise<User> {
+): Promise<{ user: User; workspaceAccess: WorkspaceAccessState }> {
   const email = supabaseUser.email ?? '';
   console.log('[auth] Fetching team_member for email:', email);
 
@@ -79,10 +98,18 @@ async function fetchUserFromTeamMembers(
   if (email.toLowerCase() === OWNER_EMAIL) {
     console.log('[auth] Owner email detected — role forced to owner');
     return {
-      id:    supabaseUser.id,
-      name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
-      email,
-      role:  'owner',
+      user: {
+        id:    supabaseUser.id,
+        name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+        email,
+        role:  'owner',
+      },
+      workspaceAccess: {
+        os: true,
+        docs: true,
+        roles: { os: 'owner', docs: 'owner' },
+        isGlobalOwner: true,
+      },
     };
   }
 
@@ -111,24 +138,56 @@ async function fetchUserFromTeamMembers(
     console.warn('[auth] team_members fetch', isTimeout ? 'timed out' : 'threw:', err);
   }
 
+  const { data: memberships } = await supabase
+    .from('workspace_memberships')
+    .select('workspace_key, role, is_active')
+    .eq('user_id', supabaseUser.id)
+    .eq('is_active', true);
+
+  const workspaceAccess: WorkspaceAccessState = {
+    os: false,
+    docs: false,
+    roles: {},
+    isGlobalOwner: false,
+  };
+  for (const membership of memberships ?? []) {
+    const key = membership.workspace_key as WorkspaceKey;
+    if (key === 'os' || key === 'docs') {
+      workspaceAccess[key] = true;
+      workspaceAccess.roles[key] = membership.role as WorkspaceRole;
+    }
+  }
+
   if (data) {
     const resolvedRole = (data.role as UserRole) || 'team_member';
     console.log('[auth] Resolved role from team_members:', resolvedRole);
     return {
-      id:    supabaseUser.id,
-      name:  data.full_name || email.split('@')[0] || '',
-      email: data.email || email,
-      role:  resolvedRole,
+      user: {
+        id:    supabaseUser.id,
+        name:  data.full_name || email.split('@')[0] || '',
+        email: data.email || email,
+        role:  resolvedRole,
+      },
+      workspaceAccess,
     };
   }
 
-  // No team_member row found — return a safe fallback.
-  console.warn('[auth] No team_member row found for email:', email, '— defaulting to team_member role');
+  const docsOnlyRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.docs ?? 'viewer') as WorkspaceRole);
+  const osFallbackRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.os ?? 'member') as WorkspaceRole);
+  const fallbackRole = workspaceAccess.docs && !workspaceAccess.os
+    ? docsOnlyRole
+    : workspaceAccess.os
+      ? osFallbackRole
+      : 'viewer';
+  console.warn('[auth] No team_member row found for email:', email, '— defaulting role to', fallbackRole);
   return {
-    id:    supabaseUser.id,
-    name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
-    email,
-    role:  'team_member',
+    user: {
+      id:    supabaseUser.id,
+      name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+      email,
+      role:  fallbackRole,
+    },
+    workspaceAccess,
   };
 }
 
@@ -147,8 +206,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // repeat page loads without waiting for the DB round-trip.
   // A single useState lazy initializer reads the cache once; subsequent
   // state calls reuse the already-computed value.
-  const [initCache] = useState<User | null>(readUserCache);
-  const [user, setUser]       = useState<User>(initCache ?? LOADING_USER);
+  const [initCache] = useState<{ user: User; workspaceAccess: WorkspaceAccessState } | null>(readUserCache);
+  const [user, setUser]       = useState<User>(initCache?.user ?? LOADING_USER);
+  const [workspaceAccess, setWorkspaceAccess] = useState<WorkspaceAccessState>(initCache?.workspaceAccess ?? DEFAULT_WORKSPACE_ACCESS);
   const [loading, setLoading] = useState<boolean>(initCache === null);
   // Keep a stable ref so the effect below can read the initial cache status
   // without closing over stale state.
@@ -156,10 +216,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUser = React.useCallback(
     async (sbUser: SupabaseUser) => {
-      const resolved = await fetchUserFromTeamMembers(supabase, sbUser);
-      setUser(resolved);
-      writeUserCache(resolved);
-      return resolved;
+      const resolved = await fetchUserStateFromTables(supabase, sbUser);
+      setUser(resolved.user);
+      setWorkspaceAccess(resolved.workspaceAccess);
+      writeUserCache(resolved.user, resolved.workspaceAccess);
+      return resolved.user;
     },
     [supabase],
   );
@@ -197,6 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           if (mounted) {
             setUser(LOADING_USER);
+            setWorkspaceAccess(DEFAULT_WORKSPACE_ACCESS);
             clearUserCache();
             setLoading(false);
           }
@@ -257,9 +319,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const role     = (user.role as UserRole) || 'team_member';
   const clientId = null;
+  const hasWorkspaceAccess = (workspace: WorkspaceKey) => workspaceAccess[workspace];
 
   return (
-    <AuthContext.Provider value={{ user, role, clientId, loading, signOut, setRole: () => {} }}>
+    <AuthContext.Provider value={{ user, role, workspaceAccess, clientId, loading, signOut, hasWorkspaceAccess, setRole: () => {} }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { OWNER_EMAIL } from '@/lib/constants/auth';
+import { getWorkspaceFromAppPath, isGlobalOwnerEmail, type WorkspaceKey } from '@/lib/workspace-access';
 
 const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -48,11 +48,19 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
+  const requiredWorkspaceFromPath = getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);
+
   // Routes that are always public — no auth required.
   // Note: /api/ routes are excluded from middleware because each API route
   // enforces its own authentication via getApiUser() / requireRole() helpers.
   // This avoids middleware interfering with cookie parsing in Route Handlers.
   const isPublicRoute =
+    pathname === '/choose-workspace' ||
+    pathname === '/select-workspace' ||
+    pathname === '/access-denied' ||
+    pathname === '/os/login' ||
+    pathname === '/docs/login' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
@@ -61,28 +69,47 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon');
 
+  if (pathname === '/choose-workspace') {
+    return NextResponse.redirect(new URL('/select-workspace', request.url));
+  }
+
   if (isPublicRoute) {
     return supabaseResponse;
   }
 
-  // If there is no authenticated user, redirect to the login page.
+  const loginRouteForWorkspace = (workspace: WorkspaceKey | null) => {
+    if (workspace === 'docs') return '/docs/login';
+    if (workspace === 'os') return '/os/login';
+    return '/login';
+  };
+
+  // If there is no authenticated user, redirect to the workspace login page.
   if (!user) {
-    const loginUrl = new URL('/login', request.url);
+    const loginUrl = new URL(loginRouteForWorkspace(requiredWorkspaceFromPath), request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // OPENY DOCS is owner-only at route level.
-  if (pathname === '/docs' || pathname.startsWith('/docs/')) {
-    if ((user.email ?? '').toLowerCase() !== OWNER_EMAIL) {
-      return NextResponse.redirect(new URL('/select-workspace', request.url));
+  // Enforce workspace-level authorization for protected app routes.
+  if (requiredWorkspaceFromPath && !isGlobalOwnerEmail(user.email)) {
+    const { data: membership } = await supabase
+      .from('workspace_memberships')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('workspace_key', requiredWorkspaceFromPath)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!membership) {
+      const deniedUrl = new URL('/access-denied', request.url);
+      deniedUrl.searchParams.set('workspace', requiredWorkspaceFromPath);
+      return NextResponse.redirect(deniedUrl);
     }
   }
 
   // Normalize legacy OPENY OS paths into the /os namespace.
-  const normalized = LEGACY_OS_REDIRECTS[pathname];
-  if (normalized) {
-    return NextResponse.redirect(new URL(normalized, request.url));
+  if (normalizedLegacyPath) {
+    return NextResponse.redirect(new URL(normalizedLegacyPath, request.url));
   }
 
   return supabaseResponse;
