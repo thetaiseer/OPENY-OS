@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await q;
   if (error) {
+    console.error('[docs/invoices][GET] Failed to load invoices:', error);
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to load invoices right now.') },
       { status: 500 },
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
     const invoices = await hydrateInvoiceBranchGroups(db, (data ?? []) as Array<{ id: string; branch_groups?: unknown }>);
     return NextResponse.json({ invoices });
   } catch (nestedError) {
+    console.error('[docs/invoices][GET] Failed to hydrate invoice branch groups:', nestedError);
     return NextResponse.json(
       { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to load invoice details right now.') },
       { status: 500 },
@@ -75,11 +77,12 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
-    .insert({ ...payload, created_by: auth.profile.id })
+    .upsert({ ...payload, created_by: auth.profile.id }, { onConflict: 'id' })
     .select()
     .single();
 
   if (error) {
+    console.error('[docs/invoices][POST] Failed to upsert invoice root record:', error, payload);
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to save invoice right now.') },
       { status: 500 },
@@ -97,6 +100,10 @@ export async function POST(req: NextRequest) {
     if (rollbackError) {
       console.error('[docs/invoices] Failed to rollback invoice after nested save error:', rollbackError);
     }
+    console.error('[docs/invoices][POST] Failed to save invoice branch/platform/rows:', nestedError, {
+      invoiceId: data.id,
+      branchGroupsCount: branchGroups.length,
+    });
     return NextResponse.json(
       { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to save invoice line items right now.') },
       { status: 500 },
