@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
+import { DocsSelect } from '@/components/docs/DocsUi';
 
 export default function ClientProfileSelector({
   profiles,
@@ -14,6 +15,14 @@ export default function ClientProfileSelector({
   onSelectClientId: (value: string) => void;
   label?: string;
 }) {
+  const options = [
+    { value: '', label: 'Other / New Client (Manual)' },
+    ...profiles.map((profile) => ({
+      value: profile.client_id,
+      label: profile.client_name,
+    })),
+  ];
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
@@ -22,18 +31,7 @@ export default function ClientProfileSelector({
           Manage clients & templates
         </Link>
       </div>
-      <select
-        className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]"
-        value={selectedClientId}
-        onChange={(e) => onSelectClientId(e.target.value)}
-      >
-        <option value="">Other / New Client (Manual)</option>
-        {profiles.map((profile) => (
-          <option key={profile.client_id} value={profile.client_id}>
-            {profile.client_name}
-          </option>
-        ))}
-      </select>
+      <DocsSelect value={selectedClientId} onChange={onSelectClientId} options={options} />
     </div>
   );
 }

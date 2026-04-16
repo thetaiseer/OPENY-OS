@@ -11,6 +11,15 @@ function emptyArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function mapDbError(error: { message: string } | null, fallback: string) {
+  if (!error?.message) return fallback;
+  if (error.message.includes('docs_client_document_profiles')) return error.message;
+  if (error.message.includes('relation') && error.message.includes('does not exist')) {
+    return 'Missing table: docs_client_document_profiles. Run supabase-migration-docs-client-profiles.sql.';
+  }
+  return error.message;
+}
+
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
   const auth = await getApiUser(req);
@@ -19,11 +28,11 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   const [{ data: clients, error: clientsError }, { data: profiles, error: profilesError }] = await Promise.all([
     db.from('clients').select('id,name,slug,status,default_currency').order('name', { ascending: true }),
-    db.from('client_document_profiles').select('*').order('created_at', { ascending: false }),
+    db.from('docs_client_document_profiles').select('*').order('created_at', { ascending: false }),
   ]);
 
-  if (clientsError) return NextResponse.json({ error: clientsError.message }, { status: 500 });
-  if (profilesError) return NextResponse.json({ error: profilesError.message }, { status: 500 });
+  if (clientsError) return NextResponse.json({ error: mapDbError(clientsError, 'Unable to load clients.') }, { status: 500 });
+  if (profilesError) return NextResponse.json({ error: mapDbError(profilesError, 'Unable to load client document profiles.') }, { status: 500 });
 
   const profileMap = new Map((profiles ?? []).map(p => [p.client_id as string, p as Record<string, unknown>]));
   const virtualTimestamp = new Date().toISOString();
@@ -110,15 +119,15 @@ export async function POST(req: NextRequest) {
       .from('clients')
       .update({ default_currency: payload.default_currency })
       .eq('id', payload.client_id);
-    if (clientUpdateError) return NextResponse.json({ error: clientUpdateError.message }, { status: 500 });
+    if (clientUpdateError) return NextResponse.json({ error: mapDbError(clientUpdateError, 'Unable to update client currency.') }, { status: 500 });
   }
 
   const { data, error } = await db
-    .from('client_document_profiles')
+    .from('docs_client_document_profiles')
     .upsert(payload, { onConflict: 'client_id' })
     .select('*')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: mapDbError(error, 'Unable to save client profile.') }, { status: 500 });
 
   return NextResponse.json({ profile: data }, { status: 201 });
 }

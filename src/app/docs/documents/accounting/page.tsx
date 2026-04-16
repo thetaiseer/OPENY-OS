@@ -8,6 +8,7 @@ import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { DocsDateField } from '@/components/docs/DocsUi';
 
 type Tab = 'ledger' | 'summary';
 
@@ -259,7 +260,7 @@ export default function AccountingPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="docs-app flex flex-col h-full overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-3">
@@ -268,7 +269,7 @@ export default function AccountingPage() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <input type="month" className="px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={month} onChange={e => setMonth(e.target.value)} />
+          <DocsDateField value={month} onChange={setMonth} mode="month" placeholder="Accounting month" />
           <a
             href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
             download
