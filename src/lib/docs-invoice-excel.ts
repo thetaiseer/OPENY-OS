@@ -124,7 +124,7 @@ export function writeInvoiceWorksheet(
         bottom: { style: 'thin' },
         right: { style: 'thin' },
       };
-      cell.alignment = { horizontal: cellNo === 6 ? 'right' : 'right' };
+      cell.alignment = { horizontal: cellNo === 6 ? 'right' : 'left' };
     });
     rowCursor += 2;
   });
