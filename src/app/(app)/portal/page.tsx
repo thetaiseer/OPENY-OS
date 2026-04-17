@@ -6,8 +6,9 @@ import { FolderOpen, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
-import FilePreviewModal from '@/components/ui/FilePreviewModal';
+import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
 import type { Asset } from '@/lib/types';
+import { toPreviewInput } from '@/lib/asset-preview';
 
 /**
  * Client read-only portal — shows their own assets.
@@ -125,20 +126,7 @@ export default function PortalPage() {
       </div>
 
       {previewAsset && (
-        <FilePreviewModal
-          file={{
-            name: previewAsset.name,
-            url: previewAsset.file_url,
-            storagePath: previewAsset.storage_path ?? null,
-            filePath: previewAsset.storage_key ?? previewAsset.file_path ?? null,
-            clientId: previewAsset.client_id ?? null,
-            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
-            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
-            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
-            size: previewAsset.file_size ?? null,
-          }}
-          onClose={() => setPreviewAsset(null)}
-        />
+        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
       )}
     </>
   );

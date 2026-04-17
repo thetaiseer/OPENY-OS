@@ -8,12 +8,13 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
-import FilePreviewModal from '@/components/ui/FilePreviewModal';
+import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
+import { toPreviewInput } from '@/lib/asset-preview';
 
 export default function ClientAssetsPage() {
   const { client, clientId } = useClientWorkspace();
@@ -246,20 +247,7 @@ export default function ClientAssetsPage() {
 
       {/* Asset preview modal */}
       {previewAsset && (
-        <FilePreviewModal
-          file={{
-            name:        previewAsset.name,
-            url:         previewAsset.file_url,
-            storagePath: previewAsset.storage_path ?? null,
-            filePath:    previewAsset.storage_key ?? previewAsset.file_path ?? null,
-            clientId:    previewAsset.client_id ?? null,
-            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
-            openUrl:     previewAsset.web_view_link || previewAsset.view_url || null,
-            mimeType:    previewAsset.file_type ?? previewAsset.mime_type ?? null,
-            size:        previewAsset.file_size ?? null,
-          }}
-          onClose={() => setPreviewAsset(null)}
-        />
+        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
       )}
 
       {/* Upload modal */}

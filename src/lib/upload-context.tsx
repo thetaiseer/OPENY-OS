@@ -732,7 +732,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const { data: publicData } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
     const publicUrl = publicData.publicUrl;
 
-    update(item.id, { r2Key: storagePath, r2FileName: displayName, publicUrl, fileMimeType: mimeType });
+    update(item.id, {
+      r2Key: storagePath,
+      r2Bucket: SUPABASE_ASSETS_BUCKET,
+      r2FileName: displayName,
+      publicUrl,
+      fileMimeType: mimeType,
+    });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
       progress:      100,
       uploadedBytes: item.file.size,
@@ -869,6 +875,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       update(item.id, {
         uploadId,
         r2Key:         storageKey,
+        r2Bucket:      null,
         r2FileName:    displayName,
         publicUrl,
         fileMimeType:  mimeType,
@@ -1073,11 +1080,18 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     signal:      AbortSignal,
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+    const resolveStorageProvider = (bucket: string | null, key: string): 'supabase_storage' | 'r2' => {
+      if (bucket === SUPABASE_ASSETS_BUCKET) return 'supabase_storage';
+      if (bucket) return 'r2';
+      return key.startsWith('clients/') ? 'r2' : 'supabase_storage';
+    };
 
     const completePayload = {
+      storageProvider: resolveStorageProvider(item.r2Bucket, storageKey),
       storageKey,
       displayName,
       publicUrl,
+      originalName: item.file.name,
       clientName: item.clientName,
       clientId: item.clientId,
       fileType: mimeType,
@@ -1087,6 +1101,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       monthKey: item.monthKey,
       uploadedBy: item.uploadedBy || item.uploadedByEmail || null,
       durationSeconds: item.durationSeconds,
+      storageBucket: item.r2Bucket ?? undefined,
     };
 
     let completeRes: Response;
