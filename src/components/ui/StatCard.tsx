@@ -22,21 +22,25 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const up = trend ? trend.value >= 0 : null;
   return (
     <div
-      className="rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-0.5"
+      className="group relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 hover:-translate-y-1"
       style={{
-        background: 'var(--surface)',
+        background: 'linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 90%, transparent))',
         borderColor: 'var(--border)',
         boxShadow: 'var(--shadow-sm)',
         backdropFilter: 'blur(var(--blur-md))',
       }}
     >
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-16 h-24 blur-3xl opacity-65 transition-opacity duration-300 group-hover:opacity-90"
+        style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 72%)` }}
+      />
       <div className="flex items-start justify-between mb-4">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          className="relative z-[1] w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
           style={{
-            background: c.bg,
+            background: `linear-gradient(165deg, ${c.bg}, color-mix(in srgb, ${c.bg} 70%, transparent))`,
             color: c.text,
-            boxShadow: `0 0 0 1px ${c.glow}`,
+            boxShadow: `0 0 0 1px ${c.glow}, 0 8px 20px color-mix(in srgb, ${c.glow} 58%, transparent)`,
           }}
         >
           {icon}
@@ -54,12 +58,12 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
         )}
       </div>
       <div
-        className="text-3xl font-extrabold mb-0.5 tracking-tight"
+        className="relative z-[1] text-3xl font-extrabold mb-0.5 tracking-tight tabular-nums"
         style={{ color: 'var(--text)' }}
       >
         {value}
       </div>
-      <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+      <div className="relative z-[1] text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>{label}</div>
     </div>
   );
 }
