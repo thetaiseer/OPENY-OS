@@ -88,6 +88,13 @@ function daysSince(iso?: string | null) {
   return (Date.now() - new Date(iso).getTime()) / 86400000;
 }
 
+function formatActivityDescription(description: string, timestamp: string) {
+  const short = description.length > MAX_ACTIVITY_DESC_LENGTH
+    ? `${description.slice(0, MAX_ACTIVITY_DESC_LENGTH)}…`
+    : description;
+  return `${short} · ${formatRelative(timestamp)}`;
+}
+
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
@@ -508,7 +515,7 @@ export default function ClientsPage() {
                   {stats.lastActivity ? (
                     <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                       {stats.lastDesc
-                        ? `${stats.lastDesc.length > MAX_ACTIVITY_DESC_LENGTH ? `${stats.lastDesc.slice(0, MAX_ACTIVITY_DESC_LENGTH)}…` : stats.lastDesc} · ${formatRelative(stats.lastActivity)}`
+                        ? formatActivityDescription(stats.lastDesc, stats.lastActivity)
                         : `Updated ${formatRelative(stats.lastActivity)}`}
                     </p>
                   ) : (

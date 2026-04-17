@@ -64,7 +64,7 @@ export default function ClientTasksPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Task['status']>('all');
-  const statusOptions: Array<'todo' | 'in_progress' | 'in_review' | 'waiting_client' | 'overdue' | 'done' | 'completed' | 'delivered' | 'cancelled'> = [
+  const statusOptions: Task['status'][] = [
     'todo',
     'in_progress',
     'in_review',

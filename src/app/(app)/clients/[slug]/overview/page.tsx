@@ -32,6 +32,10 @@ function taskStatusColor(status: string) {
   return 'var(--text-secondary)';
 }
 
+function isTaskOverdue(task: Task) {
+  return Boolean(task.due_date && new Date(task.due_date) < new Date() && !COMPLETED_TASK_STATUSES.has(task.status ?? ''));
+}
+
 export default function ClientOverviewPage() {
   const { client, clientId } = useClientWorkspace();
   const { slug } = useParams<{ slug: string }>();
@@ -103,7 +107,7 @@ export default function ClientOverviewPage() {
   }, [clientId]);
 
   const insights = useMemo(() => {
-    const overdue = recentTasks.filter(task => task.due_date && new Date(task.due_date) < new Date() && !COMPLETED_TASK_STATUSES.has(task.status ?? '')).length;
+    const overdue = recentTasks.filter(isTaskOverdue).length;
     const published = recentContent.filter(item => item.status === 'published').length;
 
     return [
