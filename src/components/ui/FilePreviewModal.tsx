@@ -88,7 +88,7 @@ function normalizeStoragePath(value: string | null | undefined): string | null {
 function fileNameFromPath(value: string | null): string | null {
   if (!value) return null;
   const name = value.split('/').filter(Boolean).pop()?.trim();
-  return name || null;
+  return name && name.length > 0 ? name : null;
 }
 
 function toCanonicalStoragePath(file: PreviewFile): string | null {
@@ -103,7 +103,7 @@ function toCanonicalStoragePath(file: PreviewFile): string | null {
 
   const pathSegments = explicitPath?.split('/').filter(Boolean) ?? [];
   const hasClientsPrefix = pathSegments[0] === CLIENTS_PREFIX;
-  const clientFromPath = hasClientsPrefix && pathSegments.length > CLIENT_ID_SEGMENT_INDEX
+  const clientFromPath = hasClientsPrefix && pathSegments.length >= CLIENT_ID_SEGMENT_INDEX + 1
     ? (pathSegments[CLIENT_ID_SEGMENT_INDEX] ?? null)
     : null;
   const clientId = file.clientId?.trim() || clientFromPath;
@@ -318,7 +318,7 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
   useEffect(() => {
     if (!file) return;
     let active = true;
-    const resolveUrl = async () => {
+    const resolvePreviewUrl = async () => {
       setPreviewFailed(false);
       setResolveError(null);
       const fallbackUrl = file.url?.trim() || null;
@@ -348,7 +348,7 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
         if (active) setResolvingUrl(false);
       }
     };
-    void resolveUrl();
+    void resolvePreviewUrl();
     return () => {
       active = false;
     };
