@@ -45,8 +45,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="h-16 px-3 sm:px-4 lg:px-6 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20"
-      style={{ background: 'var(--header-bg)', borderColor: 'var(--border)' }}
+      className="h-16 px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20 header-glass"
     >
       <button
         onClick={onMenuClick}
@@ -110,9 +109,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         <AccountMenu placement="header">
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer hover:opacity-80 transition-opacity"
-            style={{ background: 'var(--accent)' }}
-          >
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ml-1 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+        style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
+      >
             {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
           </div>
         </AccountMenu>

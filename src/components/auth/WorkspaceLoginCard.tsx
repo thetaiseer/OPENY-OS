@@ -88,7 +88,7 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
 
   if (checking) {
     return (
-      <div className="w-full max-w-sm rounded-3xl border p-7 sm:p-8 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="surface-card w-full max-w-sm p-7 sm:p-8">
         <div className="h-24 flex items-center justify-center">
           <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
         </div>
@@ -97,39 +97,53 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-3xl border p-7 sm:p-8 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <div
+      className="w-full max-w-sm rounded-2xl border p-7 sm:p-8"
+      style={{
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: 'var(--glass-shadow-lg)',
+        backdropFilter: 'blur(var(--blur-md))',
+      }}
+    >
       <div className="text-center mb-6">
-        <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</p>
-        <h1 className="text-2xl font-semibold mt-2" style={{ color: 'var(--text)' }}>Sign in</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Access is granted per workspace membership.</p>
+        <span
+          className="inline-block text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-md mb-3"
+          style={{
+            color: workspace === 'docs' ? '#0891b2' : 'var(--accent)',
+            background: workspace === 'docs' ? 'rgba(8,145,178,0.10)' : 'var(--accent-soft)',
+          }}
+        >
+          {workspaceLabel}
+        </span>
+        <h1 className="text-xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>Sign in</h1>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Access is granted per workspace membership.</p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl text-sm"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            className="input-glass w-full h-10 px-3 text-sm"
           />
         </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Password</label>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'}
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full h-10 px-3 pr-10 rounded-xl text-sm"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              className="input-glass w-full h-10 px-3 pr-10 text-sm"
             />
             <button
               type="button"
               onClick={() => setShowPw(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
+              className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-100 opacity-60"
               style={{ color: 'var(--text-secondary)' }}
               aria-label={showPw ? 'Hide password' : 'Show password'}
             >
@@ -138,15 +152,14 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
           </div>
         </div>
         {error && (
-          <p className="text-sm rounded-xl px-3 py-2 text-red-500" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <p className="text-sm rounded-xl px-3 py-2" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}>
             {error}
           </p>
         )}
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-10 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 text-white disabled:opacity-70"
-          style={{ background: 'var(--accent)' }}
+          className="btn-primary w-full h-10 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-70"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
           {loading ? 'Signing in…' : `Enter ${workspaceLabel}`}

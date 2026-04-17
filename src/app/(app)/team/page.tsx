@@ -15,8 +15,8 @@ import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
 
-const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
+const inputCls = 'input-glass w-full h-9 px-3 text-sm';
+const inputStyle: React.CSSProperties = {};
 
 // ── System access roles ───────────────────────────────────────────────────────
 // These are the valid values for team_members.role (access control).

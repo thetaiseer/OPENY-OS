@@ -251,39 +251,37 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-5 animate-openy-fade-in">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('clients')}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>{t('clients')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Manage all your clients</p>
         </div>
         {canManageClients && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-            style={{ background: 'var(--accent)' }}
+            className="btn-primary flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold"
           >
-            <Plus size={16} />{t('newClient')}
+            <Plus size={15} />{t('newClient')}
           </button>
         )}
       </div>
 
       <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={t('search')}
-          className="w-full h-9 pl-9 pr-4 rounded-lg text-sm outline-none"
-          style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          className="input-glass w-full h-9 pl-9 pr-4 text-sm"
         />
       </div>
 
       {fetchError && (
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm border"
+          style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
@@ -293,27 +291,26 @@ export default function ClientsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl animate-pulse" style={{ background: 'var(--surface)', height: 220 }} />
+            <div key={i} className="rounded-2xl skeleton-shimmer" style={{ height: 220 }} />
           ))}
         </div>
       ) : filteredClients.length === 0 ? (
         <div
           className="flex flex-col items-center justify-center py-24 text-center rounded-2xl border"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5"
-            style={{ background: 'var(--surface-2)' }}
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5 border"
+            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
           >
-            <Users2 size={36} style={{ color: 'var(--text-secondary)' }} />
+            <Users2 size={34} style={{ color: 'var(--text-tertiary)' }} />
           </div>
-          <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text)' }}>{t('noClientsYet')}</h3>
+          <h3 className="text-xl font-bold mb-2 tracking-tight" style={{ color: 'var(--text)' }}>{t('noClientsYet')}</h3>
           <p className="text-sm max-w-xs mb-6" style={{ color: 'var(--text-secondary)' }}>{t('noClientsDesc')}</p>
           {canManageClients && (
             <button
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 h-10 px-5 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold"
             >
               <Plus size={16} />{t('newClient')}
             </button>
@@ -333,22 +330,22 @@ export default function ClientsPage() {
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.slug}`); } }}
                 className="group flex flex-col p-5 rounded-2xl border cursor-pointer select-none
                   transition-all duration-200 ease-out
-                  hover:-translate-y-0.5 hover:shadow-lg hover:border-[var(--accent)]
-                  active:translate-y-0 active:scale-[0.99] active:shadow-sm
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', gap: 0 }}
+                  hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--border-strong)]
+                  active:translate-y-0 active:scale-[0.99]
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)', gap: 0 }}
               >
                 {/* ── Header ──────────────────────────────────────────────── */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0 shadow-sm"
-                      style={{ background: 'var(--accent)' }}
+                      className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0"
+                      style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
                     >
                       {client.name?.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-base font-semibold leading-snug truncate" style={{ color: 'var(--text)' }}>
+                      <p className="text-sm font-bold leading-snug truncate" style={{ color: 'var(--text)' }}>
                         {client.name}
                       </p>
                       {(client.industry || client.website) && (
@@ -366,8 +363,8 @@ export default function ClientsPage() {
 
                 {/* ── Quick stats ──────────────────────────────────────────── */}
                 <div
-                  className="grid grid-cols-3 gap-2 rounded-xl px-3 py-2.5 mb-4"
-                  style={{ background: 'var(--surface-2)' }}
+                  className="grid grid-cols-3 gap-2 rounded-xl px-3 py-2.5 mb-4 border"
+                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}
                 >
                   {[
                     { icon: <ImageIcon size={13} />,       label: 'Assets',  value: stats.assets  },
@@ -378,7 +375,7 @@ export default function ClientsPage() {
                       <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                         {icon}
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{value}</span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>{value}</span>
                       <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{label}</span>
                     </div>
                   ))}
@@ -386,7 +383,7 @@ export default function ClientsPage() {
 
                 {/* ── Activity hint ────────────────────────────────────────── */}
                 <div className="flex items-center gap-1.5 mb-4 min-h-[18px]">
-                  <Activity size={11} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
+                  <Activity size={11} className="shrink-0" style={{ color: 'var(--text-tertiary)' }} />
                   {stats.lastActivity ? (
                     <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                       {stats.lastDesc
@@ -395,7 +392,7 @@ export default function ClientsPage() {
                       }
                     </p>
                   ) : (
-                    <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
+                    <p className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>No recent activity</p>
                   )}
                 </div>
 
@@ -403,21 +400,21 @@ export default function ClientsPage() {
                 <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
                   <a
                     href={`/clients/${client.slug}/overview`}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                    style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', textDecoration: 'none' }}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)', textDecoration: 'none' }}
                   >
                     <FolderOpen size={12} /> Open
                   </a>
                   <a
                     href={`/clients/${client.slug}/assets`}
-                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-all hover:bg-[var(--surface-3)]"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
                   >
                     <ImageIcon size={11} /> Assets
                   </a>
                   <a
                     href={`/clients/${client.slug}/tasks`}
-                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-all hover:bg-[var(--surface-3)]"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
                   >
                     <CheckSquare size={11} /> Tasks
@@ -430,21 +427,21 @@ export default function ClientsPage() {
       )}
 
       {warnMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: WARN_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(245,158,11,0.35)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)' }}>
+          <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-warning)' }} />
           <span className="flex-1">{warnMsg}</span>
-          <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
+          <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
+            <X size={13} />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: SUCCESS_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(16,185,129,0.35)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)' }}>
+          <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-success)' }} />
           <span className="flex-1">{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
+          <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
+            <X size={13} />
           </button>
         </div>
       )}
@@ -465,20 +462,19 @@ export default function ClientsPage() {
               { label: t('website'), key: 'website', type: 'text', required: false },
               { label: t('industry'), key: 'industry', type: 'text', required: false },
             ].map(({ label, key, type, required }) => (
-              <div key={key} className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{label}</label>
+              <div key={key} className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{label}</label>
                 <input
                   type={type}
                   required={required}
                   value={form[key as keyof typeof form]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                  className="input-glass w-full h-9 px-3 text-sm"
                 />
               </div>
             ))}
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{t('status')}</label>
               <SelectDropdown
                 fullWidth
                 value={form.status}
@@ -491,30 +487,27 @@ export default function ClientsPage() {
               />
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('notes')}</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{t('notes')}</label>
             <textarea
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               rows={3}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              className="input-glass w-full px-3 py-2 text-sm resize-none"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              className="btn-ghost h-9 px-4 rounded-xl text-sm font-semibold"
             >
               {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-9 px-5 rounded-xl text-sm font-semibold disabled:opacity-60"
             >
               {saving ? t('loading') : t('save')}
             </button>

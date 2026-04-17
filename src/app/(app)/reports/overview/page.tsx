@@ -53,14 +53,16 @@ function downloadCSV(csv: string, filename: string): void {
 
 function SummaryCard({ label, value, icon, color, sub }: { label: string; value: string | number; icon: React.ReactNode; color: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border p-5 flex items-start gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${color}18`, color }}>
+    <div
+      className="surface-card p-5 flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5"
+    >
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border" style={{ background: `${color}14`, color, borderColor: `${color}22` }}>
         {icon}
       </div>
       <div>
-        <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{value}</p>
+        <p className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>{value}</p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-        {sub && <p className="text-xs mt-1 font-medium" style={{ color }}>{sub}</p>}
+        {sub && <p className="text-xs mt-1 font-semibold" style={{ color }}>{sub}</p>}
       </div>
     </div>
   );
@@ -70,9 +72,9 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
       style={active
-        ? { background: 'var(--accent)', color: '#fff' }
+        ? { background: 'var(--accent-soft)', color: 'var(--accent)', boxShadow: 'inset 0 0 0 1px var(--accent-glow)' }
         : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
     >
       {children}

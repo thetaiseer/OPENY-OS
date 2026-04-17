@@ -85,23 +85,37 @@ export default function WorkspaceSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
-        className="h-9 max-w-[126px] sm:max-w-none px-2.5 sm:px-3 rounded-lg border text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 sm:gap-2 transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+        className="h-9 max-w-[132px] sm:max-w-none px-3 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-all hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]"
+        style={{
+          borderColor: 'var(--border)',
+          color: 'var(--text)',
+          background: 'var(--surface-2)',
+          backdropFilter: 'blur(8px)',
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         title={currentLabel}
       >
         <span className="truncate">{currentLabel}</span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--text-secondary)' }} />
+        <ChevronDown
+          size={13}
+          className={`shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          style={{ color: 'var(--text-secondary)' }}
+        />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 z-50 min-w-[180px] rounded-xl border shadow-lg overflow-hidden"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-2xl border overflow-hidden animate-openy-slide-down"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--glass-shadow-lg)',
+            backdropFilter: 'blur(20px)',
+          }}
         >
-          <div className="py-1">
+          <div className="py-1.5">
             {memberships.map(workspace => {
               const isCurrent = workspace.key === currentWorkspace;
               const canAccess = isGlobalOwner || workspace.hasMembership;
@@ -116,11 +130,11 @@ export default function WorkspaceSwitcher() {
                     setOpen(false);
                     switchWorkspace(router, workspace.key);
                   }}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45"
                   style={{
                     color: isCurrent ? 'var(--accent)' : 'var(--text)',
                     background: isCurrent ? 'var(--accent-soft)' : 'transparent',
-                    fontWeight: isCurrent ? 600 : 500,
+                    fontWeight: isCurrent ? 700 : 500,
                   }}
                 >
                   <span className="truncate">{workspace.label}</span>

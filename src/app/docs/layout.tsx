@@ -57,12 +57,11 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   }, [pathname, router]);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-screen overflow-hidden docs-workspace">
       <DocsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
         <header
-          className="h-16 px-4 sm:px-5 lg:px-6 border-b sticky top-0 z-20 flex items-center gap-3"
-          style={{ background: 'var(--header-bg)', borderColor: 'var(--border)' }}
+          className="h-16 px-4 sm:px-5 lg:px-6 border-b sticky top-0 z-20 flex items-center gap-3 header-glass"
         >
           <button
             onClick={() => setSidebarOpen(true)}

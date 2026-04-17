@@ -207,47 +207,48 @@ export default function OfficialAuthLanding() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}>
+      <div className="min-h-screen flex items-center justify-center px-4 os-workspace">
         <Loader2 size={26} className="animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8"
-      style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}
-    >
+    <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8 os-workspace">
       <div className="mx-auto w-full max-w-6xl min-h-[88vh] flex items-center">
         <section
-          className="w-full overflow-hidden rounded-[2rem] border shadow-[0_45px_90px_-52px_rgba(30,64,175,0.5)]"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="w-full overflow-hidden rounded-[2rem] border"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--glass-shadow-xl, 0 24px 80px rgba(79,70,229,0.20))',
+          }}
         >
           <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-[10px] uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
                 Official Authentication
               </span>
             </div>
             <button
               onClick={toggleTheme}
-              className="h-10 px-3 rounded-xl border inline-flex items-center justify-center gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className="h-9 px-3 rounded-xl border inline-flex items-center justify-center gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+              <span className="hidden sm:inline text-xs font-medium">{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2">
             <div className={`relative p-5 sm:p-7 lg:p-9 transition-all duration-500 ${mode === 'signup' ? 'lg:order-2' : ''}`}>
               <div className="max-w-md mx-auto w-full">
-                <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>
                   {mode === 'signin' ? 'Sign In' : 'Sign Up'}
                 </p>
-                <h1 className="text-3xl font-semibold mt-2 tracking-tight" style={{ color: 'var(--text)' }}>
+                <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
                   {mode === 'signin' ? 'Access your workspace' : 'Start with OPENY'}
                 </h1>
                 <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -259,35 +260,33 @@ export default function OfficialAuthLanding() {
                 <form onSubmit={submit} className="mt-6 space-y-4">
                   {mode === 'signup' && (
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full name</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Full name</label>
                       <input
                         type="text"
                         value={fullName}
                         onChange={e => setFullName(e.target.value)}
                         required={mode === 'signup'}
-                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        className="input-glass w-full h-11 px-3 text-sm"
                       />
                     </div>
                   )}
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Email</label>
                     <input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       required
-                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      className="input-glass w-full h-11 px-3 text-sm"
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Password</label>
                       {mode === 'signin' && (
-                        <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                        <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
                           Forgot password?
                         </Link>
                       )}
@@ -297,27 +296,26 @@ export default function OfficialAuthLanding() {
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
-                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      className="input-glass w-full h-11 px-3 text-sm"
                     />
                   </div>
 
                   {mode === 'signup' && (
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Confirm password</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Confirm password</label>
                       <input
                         type="password"
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         required={mode === 'signup'}
-                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{ background: 'var(--surface-2)', border: `1px solid ${confirmPassword && confirmPassword !== password ? '#fca5a5' : 'var(--border)'}`, color: 'var(--text)' }}
+                        className="input-glass w-full h-11 px-3 text-sm"
+                        style={confirmPassword && confirmPassword !== password ? { borderColor: 'var(--color-danger)' } : {}}
                       />
                     </div>
                   )}
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Workspace</label>
                     <SelectDropdown
                       value={workspace}
                       onChange={setWorkspace}
@@ -330,11 +328,11 @@ export default function OfficialAuthLanding() {
 
                   {(formError || accessMessage) && (
                     <div
-                      className="rounded-xl px-3 py-2 text-sm whitespace-pre-line"
+                      className="rounded-xl px-3 py-2 text-sm whitespace-pre-line border"
                       style={{
-                        background: 'rgba(239,68,68,0.08)',
-                        border: '1px solid rgba(239,68,68,0.28)',
-                        color: '#ef4444',
+                        background: 'var(--color-danger-bg)',
+                        border: '1px solid var(--color-danger-border)',
+                        color: 'var(--color-danger)',
                       }}
                     >
                       {formError ?? accessMessage}
@@ -344,8 +342,7 @@ export default function OfficialAuthLanding() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-11 rounded-xl font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all disabled:opacity-70 hover:translate-y-[-1px]"
-                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)' }}
+                    className="btn-primary w-full h-11 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                     {loading ? 'Please wait…' : submitLabel}
