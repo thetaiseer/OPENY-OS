@@ -419,11 +419,8 @@ export default function GlobalUploadQueue() {
 
   return (
     <div
-      className="fixed bottom-[80px] right-5 z-[51] rounded-2xl border overflow-hidden"
+      className="openy-menu-panel fixed bottom-[80px] right-5 z-[51] rounded-2xl overflow-hidden"
       style={{
-        background:  'var(--surface)',
-        borderColor: 'var(--border)',
-        boxShadow:   '0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10)',
         width:       'min(320px, calc(100vw - 24px))',
         maxHeight:   minimised ? 'auto' : 480,
       }}

@@ -76,8 +76,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
       {open && (
         <div
           role="menu"
-          className={`absolute ${dropdownPositionClass} z-50 min-w-[230px] rounded-xl border shadow-lg overflow-hidden`}
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className={`openy-menu-panel absolute ${dropdownPositionClass} z-50 min-w-[230px] rounded-2xl overflow-hidden animate-openy-slide-down`}
         >
           {/* User info header */}
           <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -121,7 +120,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
               href="/account"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className="openy-menu-item flex items-center gap-3 px-4 py-2.5 text-sm"
               style={{ color: 'var(--text)' }}
             >
               <UserIcon size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
@@ -131,7 +130,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
               href="/change-password"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className="openy-menu-item flex items-center gap-3 px-4 py-2.5 text-sm"
               style={{ color: 'var(--text)' }}
             >
               <KeyRound size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
@@ -154,7 +153,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
               role="menuitem"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[rgba(239,68,68,0.08)] disabled:opacity-50"
+              className="openy-menu-item flex w-full items-center gap-3 px-4 py-2.5 text-sm disabled:opacity-50"
               style={{ color: '#ef4444' }}
             >
               <LogOut size={15} className="shrink-0" />

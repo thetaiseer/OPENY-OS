@@ -159,11 +159,9 @@ export default function NotificationDropdown() {
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 rounded-2xl shadow-xl border overflow-hidden z-[200]"
+          className="openy-menu-panel absolute right-0 top-full mt-2 rounded-2xl overflow-hidden z-[200] animate-openy-slide-down"
           style={{
             width: 360,
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
           }}
         >
           {/* Header */}
@@ -182,11 +180,11 @@ export default function NotificationDropdown() {
               )}
             </span>
             {unread > 0 && (
-              <button
-                onClick={markAllRead}
-                className="flex items-center gap-1 text-xs hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--accent)' }}
-              >
+                <button
+                  onClick={markAllRead}
+                  className="btn-ghost flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
+                  style={{ color: 'var(--accent)' }}
+                >
                 <CheckCheck size={12} /> Mark all read
               </button>
             )}
@@ -213,7 +211,7 @@ export default function NotificationDropdown() {
                   return (
                     <div
                       key={n.id}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-2)] transition-colors group"
+                      className="openy-menu-item flex items-start gap-3 px-4 py-3 group"
                       style={{
                         borderLeft: n.read ? 'none' : '3px solid ' + color,
                         // Compensate left-padding so content stays aligned when the 3px indicator border is shown
@@ -294,7 +292,7 @@ export default function NotificationDropdown() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="block text-center text-xs font-medium hover:opacity-70 transition-opacity"
+              className="btn-ghost block text-center text-xs font-medium rounded-lg py-1.5"
               style={{ color: 'var(--accent)' }}
             >
               View all notifications →

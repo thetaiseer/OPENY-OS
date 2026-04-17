@@ -108,12 +108,8 @@ export default function WorkspaceSwitcher() {
       {open && (
         <div
           role="menu"
-          className="workspace-switcher-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-2xl border overflow-hidden animate-openy-slide-down"
+          className="workspace-switcher-menu openy-menu-panel absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-2xl overflow-hidden animate-openy-slide-down"
           style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            boxShadow: 'var(--glass-shadow-lg)',
-            backdropFilter: 'blur(22px)',
           }}
         >
           <div className="py-1.5">
@@ -131,10 +127,10 @@ export default function WorkspaceSwitcher() {
                     setOpen(false);
                     switchWorkspace(router, workspace.key);
                   }}
-                  className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45"
+                  className={`openy-menu-item w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-45 ${isCurrent ? 'openy-menu-item-active' : ''}`}
                   style={{
                     color: isCurrent ? 'var(--accent)' : 'var(--text)',
-                    background: isCurrent ? 'var(--accent-soft)' : 'transparent',
+                    background: isCurrent ? 'var(--menu-item-active)' : 'transparent',
                     fontWeight: isCurrent ? 700 : 500,
                     boxShadow: isCurrent ? 'inset 0 0 0 1px var(--accent-glow)' : 'none',
                   }}
