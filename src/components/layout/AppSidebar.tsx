@@ -46,7 +46,7 @@ export default function AppSidebar({
       )}
       <aside
         className={clsx(
-          'fixed top-0 left-0 h-full w-[280px] xl:w-[280px] lg:w-[94px] z-40 flex flex-col relative sidebar-glass app-sidebar-panel',
+          'fixed top-0 left-0 h-full w-[280px] lg:w-[94px] z-40 flex flex-col relative sidebar-glass app-sidebar-panel',
           'lg:translate-x-0 lg:static lg:z-auto',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
