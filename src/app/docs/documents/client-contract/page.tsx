@@ -251,7 +251,7 @@ function HistoryPanel({ contracts, loading, onEdit, onDuplicate, onDelete, onRel
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5"><span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{c.contract_number}</span><span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[var(--surface-2)]" style={{ color: 'var(--text-secondary)' }}>{c.status}</span></div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{c.party2_client_name ?? '—'} · {c.contract_date ?? '—'}</div>
-                <div className="text-xs font-semibold mt-0.5" style={{ color: '#0891b2' }}>{fmt(c.total_value, c.currency)}</div>
+                <div className="text-xs font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>{fmt(c.total_value, c.currency)}</div>
                 <a href={`/api/docs/client-contracts/${c.id}/export`} download onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline" style={{ color: 'var(--text-secondary)' }}>
                   <ExternalLink size={9} /> HTML Doc
                 </a>

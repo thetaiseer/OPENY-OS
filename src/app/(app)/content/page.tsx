@@ -18,7 +18,7 @@ const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string
   { status: 'pending_review', label: 'In Review',      color: '#d97706', bg: 'rgba(217,119,6,0.1)'   },
   { status: 'approved',       label: 'Approved',       color: '#16a34a', bg: 'rgba(22,163,74,0.1)'   },
   { status: 'scheduled',      label: 'Scheduled',      color: '#7c3aed', bg: 'rgba(124,58,237,0.1)'  },
-  { status: 'published',      label: 'Published',      color: '#0891b2', bg: 'rgba(8,145,178,0.1)'   },
+  { status: 'published',      label: 'Published',      color: 'var(--accent)', bg: 'var(--accent-soft)'   },
   { status: 'rejected',       label: 'Rejected',       color: '#ef4444', bg: 'rgba(239,68,68,0.1)'   },
 ];
 

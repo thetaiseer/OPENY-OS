@@ -192,8 +192,8 @@ export default function ClientOverviewPage() {
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{item.title}</p>
                 <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
                   style={{
-                    background: item.status === 'published' ? 'rgba(8,145,178,0.12)' : item.status === 'scheduled' ? 'rgba(124,58,237,0.12)' : 'rgba(156,163,175,0.12)',
-                    color:      item.status === 'published' ? '#0891b2'              : item.status === 'scheduled' ? '#7c3aed'               : '#9ca3af',
+                    background: item.status === 'published' ? 'var(--accent-soft)' : item.status === 'scheduled' ? 'rgba(124,58,237,0.12)' : 'rgba(156,163,175,0.12)',
+                    color:      item.status === 'published' ? 'var(--accent)'       : item.status === 'scheduled' ? '#7c3aed'               : '#9ca3af',
                   }}>
                   {item.status}
                 </span>

@@ -89,8 +89,9 @@ export default function WorkspaceSwitcher() {
         style={{
           borderColor: 'var(--border)',
           color: 'var(--text)',
-          background: 'var(--surface-2)',
-          backdropFilter: 'blur(8px)',
+          background: 'linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: 'var(--glass-shadow-sm)',
         }}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -112,7 +113,7 @@ export default function WorkspaceSwitcher() {
             background: 'var(--surface)',
             borderColor: 'var(--border)',
             boxShadow: 'var(--glass-shadow-lg)',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(22px)',
           }}
         >
           <div className="py-1.5">
@@ -135,6 +136,7 @@ export default function WorkspaceSwitcher() {
                     color: isCurrent ? 'var(--accent)' : 'var(--text)',
                     background: isCurrent ? 'var(--accent-soft)' : 'transparent',
                     fontWeight: isCurrent ? 700 : 500,
+                    boxShadow: isCurrent ? 'inset 0 0 0 1px var(--accent-glow)' : 'none',
                   }}
                 >
                   <span className="truncate">{workspace.label}</span>

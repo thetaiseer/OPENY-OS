@@ -44,7 +44,6 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
           'lg:translate-x-0 lg:static lg:z-auto',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
-        style={{ '--docs-sidebar-accent': '#0891b2' } as React.CSSProperties}
       >
         <div
           className="h-16 px-5 border-b flex items-center justify-between"
@@ -61,13 +60,13 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
             </Link>
             <span
               className="text-sm font-bold tracking-widest hidden lg:inline xl:hidden"
-              style={{ color: '#0891b2' }}
+              style={{ color: 'var(--accent)' }}
             >
               OY
             </span>
             <span
               className="text-[10px] font-bold tracking-widest hidden xl:inline px-1.5 py-0.5 rounded-md"
-              style={{ color: '#0891b2', background: 'rgba(8,145,178,0.10)' }}
+              style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}
             >
               DOCS
             </span>
@@ -99,12 +98,19 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
                 style={active ? {
-                  background: 'rgba(8,145,178,0.10)',
-                  color: '#0891b2',
-                  boxShadow: 'inset 0 0 0 1px rgba(8,145,178,0.18)',
+                  background: 'var(--accent-soft)',
+                  color: 'var(--accent)',
+                  boxShadow: 'inset 0 0 0 1px var(--accent-glow), 0 8px 24px rgba(7, 37, 89, 0.18)',
                 } : {}}
               >
-                <Icon size={17} strokeWidth={active ? 2 : 1.7} style={{ flexShrink: 0 }} />
+                <Icon
+                  size={17}
+                  strokeWidth={active ? 2 : 1.7}
+                  style={{
+                    flexShrink: 0,
+                    filter: active ? 'drop-shadow(0 0 9px var(--accent-glow))' : 'none',
+                  }}
+                />
                 <span className="lg:hidden xl:inline leading-none">{label}</span>
               </Link>
             );
