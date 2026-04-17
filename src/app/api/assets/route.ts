@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { getApiUser } from '@/lib/api-auth';
+import { getApiUser, requireRole } from '@/lib/api-auth';
 
 
 const PAGE_SIZE = 100;
@@ -118,5 +118,79 @@ export async function GET(req: NextRequest) {
       { success: false, error: `Unexpected server error: ${msg}` },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * POST /api/assets
+ *
+ * Creates a lightweight asset row (URL-based quick add).
+ * If `file_path` is omitted, it falls back to `file_url`.
+ * Auth: admin | manager | team_member
+ */
+export async function POST(req: NextRequest) {
+  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
+  if (auth instanceof NextResponse) return auth;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const fileUrl = typeof body.file_url === 'string' ? body.file_url.trim() : '';
+  if (!name) {
+    return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
+  }
+  if (!fileUrl) {
+    return NextResponse.json({ success: false, error: 'file_url is required' }, { status: 400 });
+  }
+
+  const payload: Record<string, unknown> = {
+    name,
+    file_url: fileUrl,
+    file_path: typeof body.file_path === 'string' ? body.file_path.trim() : fileUrl,
+    file_type: typeof body.file_type === 'string' ? body.file_type.trim() : null,
+    content_type: typeof body.content_type === 'string' ? body.content_type.trim() : null,
+    client_id: typeof body.client_id === 'string' && body.client_id.trim() ? body.client_id.trim() : null,
+    client_name: typeof body.client_name === 'string' && body.client_name.trim() ? body.client_name.trim() : null,
+    storage_provider: typeof body.storage_provider === 'string' && body.storage_provider.trim()
+      ? body.storage_provider.trim()
+      : 'external',
+    uploaded_by: auth.profile.email ?? null,
+  };
+
+  try {
+    const db = getServiceClient();
+    const { data, error } = await db
+      .from('assets')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    void db.from('activities').insert({
+      type: 'asset',
+      description: `Asset \"${name}\" created`,
+      user_id: auth.profile.id,
+      user_uuid: auth.profile.id,
+      client_id: payload.client_id as string | null,
+      entity_type: 'asset',
+      entity_id: data?.id ?? null,
+    }).then(({ error: activityError }) => {
+      if (activityError) {
+        console.warn('[POST /api/assets] activity log failed:', activityError.message);
+      }
+    });
+
+    return NextResponse.json({ success: true, asset: data }, { status: 201 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
