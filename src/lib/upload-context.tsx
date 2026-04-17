@@ -1080,8 +1080,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     signal:      AbortSignal,
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+    const resolveStorageProvider = (bucket: string | null, key: string): 'supabase_storage' | 'r2' => {
+      if (bucket === SUPABASE_ASSETS_BUCKET) return 'supabase_storage';
+      if (bucket) return 'r2';
+      return key.startsWith('clients/') ? 'r2' : 'supabase_storage';
+    };
 
     const completePayload = {
+      storageProvider: resolveStorageProvider(item.r2Bucket, storageKey),
       storageKey,
       displayName,
       publicUrl,
@@ -1095,7 +1101,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       monthKey: item.monthKey,
       uploadedBy: item.uploadedBy || item.uploadedByEmail || null,
       durationSeconds: item.durationSeconds,
-      storageProvider: item.r2Bucket === SUPABASE_ASSETS_BUCKET ? 'supabase_storage' : 'r2',
       storageBucket: item.r2Bucket ?? undefined,
     };
 

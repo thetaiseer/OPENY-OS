@@ -3,6 +3,10 @@
 import { useRef, useState } from 'react';
 import { Loader2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 
+const ZOOM_STEP = 0.25;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 5;
+
 export function AssetImageViewer({ url, alt, onError }: { url: string; alt: string; onError: () => void }) {
   const [loading, setLoading] = useState(true);
   const [scale, setScale] = useState(1);
@@ -10,8 +14,8 @@ export function AssetImageViewer({ url, alt, onError }: { url: string; alt: stri
   const containerRef = useRef<HTMLDivElement | null>(null);
   const startPosRef = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
 
-  const zoomIn = () => setScale((s) => Math.min(s + 0.2, 5));
-  const zoomOut = () => setScale((s) => Math.max(s - 0.2, 0.4));
+  const zoomIn = () => setScale((s) => Math.min(s + ZOOM_STEP, MAX_ZOOM));
+  const zoomOut = () => setScale((s) => Math.max(s - ZOOM_STEP, MIN_ZOOM));
   const resetZoom = () => setScale(1);
 
   return (

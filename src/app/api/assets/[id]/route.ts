@@ -5,6 +5,7 @@ import { deleteFromR2, R2NotFoundError, R2ConfigError } from '@/lib/r2';
 
 const SUPABASE_ASSETS_BUCKET = 'openy-assets';
 const SIGNED_URL_TTL_ONE_HOUR_SECONDS = 60 * 60;
+const PUBLIC_URL_PROBE_TIMEOUT_MS = 2500;
 const MONTH_KEY_PATTERN = /^\d{4}-\d{2}$/;
 
 type AssetForPreview = {
@@ -131,14 +132,19 @@ async function resolveStorageUrl(
       const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
       const publicUrl = publicData?.publicUrl?.trim();
       if (publicUrl) {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), PUBLIC_URL_PROBE_TIMEOUT_MS);
         try {
-          const probe = await fetch(publicUrl, { method: 'HEAD', cache: 'no-store' });
+          const probe = await fetch(publicUrl, { method: 'HEAD', cache: 'no-store', signal: ctrl.signal });
           if (probe.ok) {
+            clearTimeout(timeout);
             return { path, url: publicUrl, source: 'public' as const };
           }
           console.warn('[assets/:id] public URL probe failed', { path, status: probe.status });
         } catch (err) {
           console.warn('[assets/:id] public URL probe threw', { path, error: err instanceof Error ? err.message : String(err) });
+        } finally {
+          clearTimeout(timeout);
         }
       }
     }

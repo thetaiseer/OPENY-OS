@@ -14,6 +14,7 @@ const MIME_MAP: Array<{ prefix: string; type: AssetPreviewType }> = [
   { prefix: 'audio/', type: 'audio' },
   { prefix: 'text/',  type: 'text' },
 ];
+const TEXT_MIME_HINTS = ['json', 'javascript', 'typescript', 'html', 'css', 'csv', 'markdown'];
 
 export interface AssetPreviewInput {
   id?: string | null;
@@ -78,7 +79,7 @@ function uniqueUrls(urls: Array<string | null | undefined>): string[] {
   return out;
 }
 
-function getFileExt(name?: string | null, fileExt?: string | null): string {
+export function getFileExtensionFromName(name?: string | null, fileExt?: string | null): string {
   const byField = (fileExt ?? '').replace(/^\./, '').trim().toLowerCase();
   if (byField) return byField;
   const source = (name ?? '').trim();
@@ -91,7 +92,7 @@ function inferFromMime(mime?: string | null): AssetPreviewType | null {
   if (!mime) return null;
   const lowered = mime.toLowerCase();
   if (lowered === 'application/pdf') return 'pdf';
-  if (lowered.includes('json') || lowered.includes('javascript') || lowered.includes('typescript') || lowered.includes('html') || lowered.includes('css') || lowered.includes('csv') || lowered.includes('markdown')) {
+  if (TEXT_MIME_HINTS.some((hint) => lowered.includes(hint))) {
     return 'text';
   }
   const direct = MIME_MAP.find((item) => lowered.startsWith(item.prefix));
@@ -121,7 +122,7 @@ export function getAssetPreviewInfo(asset: AssetPreviewInput): AssetPreviewInfo 
     'Untitled file';
 
   const mime = (asset.mime_type ?? asset.file_type ?? '').trim().toLowerCase() || null;
-  const ext = getFileExt(displayTitle, asset.file_ext ?? null);
+  const ext = getFileExtensionFromName(displayTitle, asset.file_ext ?? null);
   const type = detectPreviewType(ext, mime);
 
   const previewUrl = normalizeUrl(asset.preview_url ?? asset.web_view_link ?? asset.view_url ?? asset.file_url ?? null);
@@ -143,7 +144,7 @@ export function getAssetPreviewInfo(asset: AssetPreviewInput): AssetPreviewInfo 
     (asset.file_path ?? '').trim() ||
     null;
 
-  const storageBucket = (asset.storage_bucket ?? asset.bucket_name ?? 'openy-assets')?.trim() || 'openy-assets';
+  const storageBucket = (asset.storage_bucket ?? asset.bucket_name ?? '').trim() || 'openy-assets';
   const isPreviewable = typeof asset.is_previewable === 'boolean'
     ? asset.is_previewable
     : type !== 'unsupported';
