@@ -324,7 +324,7 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
     const fallbackUrl = file.url?.trim() || null;
     const storagePath = toCanonicalStoragePath(file);
     if (!storagePath) {
-      if (!active) return () => { active = false; };
+      if (!active) return;
       setResolvedUrl(fallbackUrl);
       setResolvingUrl(false);
       return () => {
@@ -334,7 +334,7 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
     if (active) setResolvingUrl(true);
     const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
     const publicUrl = data?.publicUrl?.trim() || null;
-    if (!active) return () => { active = false; };
+    if (!active) return;
     if (!publicUrl) {
       console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
       setResolveError('Failed to generate preview URL from storage path.');
