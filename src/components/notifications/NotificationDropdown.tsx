@@ -141,7 +141,7 @@ export default function NotificationDropdown() {
       {/* Bell button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="relative p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+        className="relative topbar-icon-btn"
         style={{ color: 'var(--text-secondary)' }}
         aria-label="Notifications"
       >
