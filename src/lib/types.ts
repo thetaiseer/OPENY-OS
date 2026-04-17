@@ -215,6 +215,8 @@ export interface Asset {
   sub_category?: string | null;
   /** Canonical storage key: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-{file} */
   storage_key?: string | null;
+  /** Canonical storage path for preview resolution. */
+  storage_path?: string | null;
   created_at: string;
 }
 

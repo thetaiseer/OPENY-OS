@@ -1174,7 +1174,9 @@ export default function AssetsPage() {
           file={{
             name: previewAsset.name,
             url: previewAsset.file_url,
+            storagePath: previewAsset.storage_path ?? null,
             filePath: previewAsset.storage_key ?? previewAsset.file_path ?? null,
+            clientId: previewAsset.client_id ?? null,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,

@@ -6,6 +6,9 @@ import supabase from '@/lib/supabase';
 
 const PDF_LOAD_TIMEOUT_MS = 10_000;
 const SUPABASE_ASSETS_BUCKET = 'openy-assets';
+const CLIENTS_PREFIX = 'clients';
+const CLIENT_ID_SEGMENT_INDEX = 1;
+const MIN_CLIENT_PATH_SEGMENTS = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -15,8 +18,12 @@ export interface PreviewFile {
   name: string;
   /** URL used for the preview content */
   url: string;
+  /** Canonical storage path from DB */
+  storagePath?: string | null;
   /** Canonical storage path including full folder structure */
   filePath?: string | null;
+  /** Client UUID used to normalize path as clients/{clientId}/{fileName} */
+  clientId?: string | null;
   /** URL used for download (falls back to url) */
   downloadUrl?: string | null;
   /** URL to open in a new tab (Google Drive web view etc.) */
@@ -77,6 +84,33 @@ function normalizeStoragePath(value: string | null | undefined): string | null {
   const queryIndex = trimmed.indexOf('?');
   const clean = (queryIndex >= 0 ? trimmed.slice(0, queryIndex) : trimmed).trim();
   return clean || null;
+}
+
+function fileNameFromPath(value: string | null): string | null {
+  if (!value) return null;
+  const name = value.split('/').filter(Boolean).pop()?.trim();
+  return name || null;
+}
+
+function toCanonicalStoragePath(file: PreviewFile): string | null {
+  const explicitPath = normalizeStoragePath(file.storagePath)
+    ?? normalizeStoragePath(file.filePath)
+    ?? normalizeStoragePath(file.url)
+    ?? normalizeStoragePath(file.downloadUrl ?? null);
+
+  const nameCandidate = file.name.trim();
+  const fileName = fileNameFromPath(explicitPath) ?? (nameCandidate || null);
+  if (!fileName) return explicitPath;
+
+  const pathSegments = explicitPath?.split('/').filter(Boolean) ?? [];
+  const hasClientsPrefix = pathSegments[0] === CLIENTS_PREFIX;
+  const clientFromPath = hasClientsPrefix && pathSegments.length >= MIN_CLIENT_PATH_SEGMENTS
+    ? (pathSegments[CLIENT_ID_SEGMENT_INDEX] ?? null)
+    : null;
+  const clientId = file.clientId?.trim() || clientFromPath;
+  if (!clientId) return explicitPath;
+
+  return `${CLIENTS_PREFIX}/${clientId}/${fileName}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -279,21 +313,37 @@ interface FilePreviewModalProps {
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [resolvingUrl, setResolvingUrl] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) return;
+    let active = true;
     setPreviewFailed(false);
+    setResolveError(null);
     const fallbackUrl = file.url?.trim() || null;
-    const normalizedPath = normalizeStoragePath(file.filePath);
-    if (!normalizedPath) {
+    const storagePath = toCanonicalStoragePath(file);
+    if (!storagePath) {
+      if (!active) return;
       setResolvedUrl(fallbackUrl);
-      return;
+      setResolvingUrl(false);
+      return () => {
+        active = false;
+      };
     }
-    const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(normalizedPath);
-    if (!data?.publicUrl && normalizedPath) {
-      console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', normalizedPath);
+    if (active) setResolvingUrl(true);
+    const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
+    const publicUrl = data?.publicUrl?.trim() || null;
+    if (!active) return;
+    if (!publicUrl) {
+      console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
+      setResolveError('Failed to generate preview URL from storage path.');
     }
-    setResolvedUrl(data?.publicUrl?.trim() || fallbackUrl);
+    setResolvedUrl(publicUrl || fallbackUrl);
+    setResolvingUrl(false);
+    return () => {
+      active = false;
+    };
   }, [file]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -394,7 +444,18 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
         {/* ── Preview body ── */}
         <div className="flex-1 overflow-auto p-5 flex flex-col items-center justify-center min-h-0">
-          {previewFailed
+          {resolveError && (
+            <div className="w-full mb-4 px-3 py-2 rounded-lg text-xs text-amber-200 border border-amber-300/30 bg-amber-600/20">
+              {resolveError}
+            </div>
+          )}
+          {resolvingUrl && (
+            <div className="flex flex-col items-center gap-3 py-10">
+              <Loader2 size={28} className="animate-spin text-white/60" />
+              <p className="text-sm text-white/60">Preparing preview…</p>
+            </div>
+          )}
+          {!resolvingUrl && (previewFailed
             ? <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />
             : (
               <>
@@ -405,7 +466,7 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
                 {/* Intentionally fallback for non-image/video/pdf files per universal preview requirements. */}
                 {!img && !vid && !pdf && hasPreviewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
               </>
-            )}
+            ))}
         </div>
       </div>
     </div>

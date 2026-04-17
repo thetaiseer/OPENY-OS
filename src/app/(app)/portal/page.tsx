@@ -38,7 +38,7 @@ export default function PortalPage() {
       const supabase = createClient();
       let q = supabase
         .from('assets')
-        .select('id, name, content_type, file_url, file_path, storage_key, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
+        .select('id, name, content_type, file_url, file_path, storage_path, storage_key, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (clientId) q = q.eq('client_id', clientId);
@@ -129,7 +129,9 @@ export default function PortalPage() {
           file={{
             name: previewAsset.name,
             url: previewAsset.file_url,
+            storagePath: previewAsset.storage_path ?? null,
             filePath: previewAsset.storage_key ?? previewAsset.file_path ?? null,
+            clientId: previewAsset.client_id ?? null,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
