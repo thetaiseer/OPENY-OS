@@ -10,7 +10,9 @@ const MONTH_KEY_PATTERN = /^\d{4}-\d{2}$/;
 type AssetForPreview = {
   id: string;
   name: string;
+  client_id?: string | null;
   file_path?: string | null;
+  storage_path?: string | null;
   storage_key?: string | null;
   bucket_name?: string | null;
   storage_provider?: string | null;
@@ -72,6 +74,7 @@ function uniquePush(list: string[], value: string | null) {
 function buildPathCandidates(asset: AssetForPreview, bucket: string, preferred?: Array<string | null | undefined>) {
   const candidates: string[] = [];
   const seedValues = preferred ?? [
+    asset.storage_path,
     asset.storage_key,
     asset.file_path,
     asset.file_url,
@@ -82,8 +85,12 @@ function buildPathCandidates(asset: AssetForPreview, bucket: string, preferred?:
   ];
   seedValues.forEach((value) => uniquePush(candidates, normalizePath(value ?? null, bucket)));
 
-  const primaryPathSeed = normalizePath(asset.storage_key ?? asset.file_path ?? asset.file_url ?? null, bucket) ?? '';
+  const primaryPathSeed = normalizePath(asset.storage_path ?? asset.storage_key ?? asset.file_path ?? asset.file_url ?? null, bucket) ?? '';
   const baseName = primaryPathSeed.split('/').pop();
+  const directClientId = asset.client_id?.trim() || null;
+  if (baseName && directClientId) {
+    uniquePush(candidates, `clients/${directClientId}/${baseName}`);
+  }
   const slug = clientSlug(asset.client_name);
   const month = monthSegment(asset.month_key);
   const main = asset.main_category?.trim() || 'other';
@@ -136,7 +143,7 @@ export async function GET(
   const supabase = getServiceClient();
   const { data: asset, error } = await supabase
     .from('assets')
-    .select('id,name,file_path,storage_key,bucket_name,storage_provider,file_url,download_url,view_url,web_view_link,preview_url,file_type,mime_type,main_category,sub_category,month_key,client_name,file_size')
+    .select('id,name,client_id,file_path,storage_path,storage_key,bucket_name,storage_provider,file_url,download_url,view_url,web_view_link,preview_url,file_type,mime_type,main_category,sub_category,month_key,client_name,file_size')
     .eq('id', id)
     .maybeSingle();
 
@@ -178,6 +185,7 @@ export async function GET(
             view_url: fileResolved.url,
             web_view_link: fileResolved.url,
             file_path: fileResolved.path,
+            storage_path: fileResolved.path,
             storage_key: fileResolved.path,
           }
         : null),
