@@ -36,7 +36,7 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
   { key: 'asset', label: 'Add Asset', icon: ImagePlus },
 ];
 
-const baseInputCls = 'w-full h-10 px-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const baseInputCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const baseInputStyle = {
   background: 'var(--surface-2)',
   borderColor: 'var(--border)',
@@ -325,10 +325,8 @@ export default function GlobalQuickAdd() {
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="group flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm shadow-lg transition-all duration-300"
+                className="btn-secondary group flex items-center gap-2 rounded-2xl px-3 py-2 text-sm shadow-lg transition-all duration-300"
                 style={{
-                  background: 'var(--surface)',
-                  borderColor: 'var(--border)',
                   color: 'var(--text)',
                   transform: visible
                     ? 'translateY(0) scale(1)'
@@ -354,11 +352,9 @@ export default function GlobalQuickAdd() {
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? 'Close global quick add' : 'Open global quick add'}
-          className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-300"
+          className="btn-fab flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-300"
           style={{
-            background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)',
             transform: menuOpen ? 'rotate(45deg) scale(1.04)' : 'rotate(0deg) scale(1)',
-            boxShadow: '0 16px 34px rgba(99,102,241,0.35)',
           }}
         >
           {menuOpen ? <X size={24} /> : <Plus size={24} />}

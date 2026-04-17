@@ -157,13 +157,9 @@ export default function SelectDropdown({
     ? createPortal(
         <div
           ref={dropdownRef}
-          className="rounded-2xl border overflow-hidden animate-openy-slide-down"
+          className="openy-menu-panel rounded-2xl overflow-hidden animate-openy-slide-down"
           style={{
             ...portalStyle,
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            boxShadow: 'var(--glass-shadow-lg)',
-            backdropFilter: 'blur(24px)',
           }}
         >
           <div className="py-1.5 max-h-60 overflow-y-auto">
@@ -174,9 +170,9 @@ export default function SelectDropdown({
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3.5 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
+                  className={`openy-menu-item flex items-center justify-between w-full px-3.5 py-2.5 text-sm text-left gap-2 ${isSelected ? 'openy-menu-item-active' : ''}`}
                     style={{
-                      background: isSelected ? 'var(--accent-soft)' : 'transparent',
+                      background: isSelected ? 'var(--menu-item-active)' : 'transparent',
                       color:      isSelected ? 'var(--accent)' : 'var(--text)',
                       fontWeight: isSelected ? 600 : 400,
                       boxShadow: isSelected ? 'inset 0 0 0 1px var(--accent-glow)' : 'none',
@@ -203,12 +199,11 @@ export default function SelectDropdown({
         type="button"
         disabled={disabled}
         onClick={e => { e.stopPropagation(); if (!disabled) setOpen(o => !o); }}
-        className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
+        data-open={open}
+        className={`openy-select-trigger flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
         style={{
-          background:  open ? 'var(--surface)' : 'var(--surface-2)',
           color:       hasValue ? 'var(--text)' : 'var(--text-secondary)',
-          border:      `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
-          boxShadow:   open ? '0 0 0 3px var(--accent-soft), 0 0 20px rgba(47, 139, 255, 0.22)' : 'none',
+          boxShadow:   open ? 'var(--glow-focus)' : 'inset 0 1px 0 rgba(255,255,255,0.12)',
           whiteSpace:  'nowrap',
         }}
         title={label}

@@ -102,11 +102,11 @@ export default function MonthYearPicker({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
-        className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        data-open={open}
+        className={`openy-select-trigger flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
         style={{
-          background:   'var(--surface-2)',
           color:        value ? 'var(--text)' : 'var(--text-secondary)',
-          border:       `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
+          boxShadow:    open ? 'var(--glow-focus)' : 'inset 0 1px 0 rgba(255,255,255,0.12)',
           whiteSpace:   'nowrap',
         }}
       >
@@ -130,10 +130,8 @@ export default function MonthYearPicker({
       {open && (
         <div
           ref={popoverRef}
-          className="absolute top-full left-0 mt-2 z-50 rounded-2xl border shadow-2xl overflow-hidden"
+          className="openy-menu-panel absolute top-full left-0 mt-2 z-50 rounded-2xl overflow-hidden animate-openy-slide-down"
           style={{
-            background:   'var(--surface)',
-            borderColor:  'var(--border)',
             minWidth:     260,
           }}
         >
@@ -145,8 +143,8 @@ export default function MonthYearPicker({
             <button
               type="button"
               onClick={() => setViewYear(y => y - 1)}
-              className="flex items-center justify-center w-7 h-7 rounded-lg transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              className="btn-icon flex items-center justify-center w-7 h-7 rounded-lg"
+              style={{ color: 'var(--text)' }}
               aria-label="Previous year"
             >
               <ChevronLeft size={14} />
@@ -157,8 +155,8 @@ export default function MonthYearPicker({
             <button
               type="button"
               onClick={() => setViewYear(y => y + 1)}
-              className="flex items-center justify-center w-7 h-7 rounded-lg transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              className="btn-icon flex items-center justify-center w-7 h-7 rounded-lg"
+              style={{ color: 'var(--text)' }}
               aria-label="Next year"
             >
               <ChevronRight size={14} />
@@ -179,7 +177,7 @@ export default function MonthYearPicker({
                   key={abbr}
                   type="button"
                   onClick={() => handleSelect(i)}
-                  className="relative h-9 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+                  className="relative h-9 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03]"
                   style={{
                     background: isSelected
                       ? 'var(--accent)'
@@ -213,8 +211,8 @@ export default function MonthYearPicker({
               <button
                 type="button"
                 onClick={() => { onChange(''); setOpen(false); }}
-                className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
-                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                className="btn-danger text-xs px-3 py-1.5 rounded-lg"
+                style={{ color: '#fff', background: 'linear-gradient(140deg, #e84e67 0%, #d93050 100%)' }}
               >
                 Clear
               </button>
@@ -222,8 +220,8 @@ export default function MonthYearPicker({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
-                style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
+                className="btn-secondary text-xs px-3 py-1.5 rounded-lg"
+                style={{ color: 'var(--text-secondary)' }}
               >
                 Close
               </button>

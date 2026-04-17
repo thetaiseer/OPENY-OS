@@ -30,17 +30,13 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(3,8,19,0.62)', backdropFilter: 'blur(8px)', animation: 'openy-overlay-in 220ms ease both' }}
+      className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ animation: 'openy-overlay-in 220ms ease both' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`w-full ${widthMap[size]} rounded-t-2xl sm:rounded-2xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
+        className={`openy-modal-panel w-full ${widthMap[size]} rounded-t-2xl sm:rounded-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
           style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            boxShadow: 'var(--glass-shadow-lg)',
-            backdropFilter: 'blur(var(--blur-lg))',
             animation: 'openy-modal-in 320ms var(--ease-spring) both',
           }}
       >
@@ -56,7 +52,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+            className="btn-icon"
             style={{ color: 'var(--text-secondary)' }}
             aria-label="Close"
           >
