@@ -8,57 +8,65 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─────────────────────────────────────── */
-  --bg: #f6f9ff;
-  --bg-2: #edf3ff;
-  --bg-3: #e5ecfb;
+  /* ── OPENY Brand Tokens: Light Mode ──────────────────── */
+  --bg-base: #f5f7fc;
+  --bg-secondary: #ebf0f8;
+  --bg-tertiary: #e2e8f2;
 
-  /* ── Surfaces (Glass) ────────────────────────────────── */
-  --surface: rgba(255, 255, 255, 0.84);
-  --surface-2: rgba(245, 250, 255, 0.72);
-  --surface-3: rgba(227, 236, 250, 0.56);
-  --surface-solid: #fcfdff;
+  --surface-glass: rgba(255, 255, 255, 0.84);
+  --surface-elevated: rgba(248, 251, 255, 0.78);
+  --surface-muted: rgba(236, 242, 251, 0.64);
+  --surface-solid-base: #ffffff;
 
-  /* ── Text ────────────────────────────────────────────── */
-  --text: #0f1c36;
-  --text-secondary: #4a5f85;
-  --text-tertiary: #7389af;
+  --primary: #2f6bff;
+  --primary-hover: #1f5cf0;
+  --primary-soft: rgba(47, 107, 255, 0.14);
+  --primary-glow: rgba(47, 107, 255, 0.26);
+  --primary-glow-strong: rgba(47, 107, 255, 0.38);
 
-  /* ── Borders ─────────────────────────────────────────── */
-  --border: rgba(46, 119, 255, 0.18);
-  --border-2: rgba(46, 119, 255, 0.10);
-  --border-strong: rgba(46, 119, 255, 0.34);
+  --text-primary: #0f1c36;
+  --text-secondary-base: #596784;
+  --text-tertiary-base: #7a87a3;
 
-  /* ── Brand / Accent ──────────────────────────────────── */
-  --accent: #1d78ff;
-  --accent-2: #43a1ff;
-  --accent-soft: rgba(29, 120, 255, 0.14);
-  --accent-glow: rgba(29, 120, 255, 0.34);
-  --accent-glow-strong: rgba(67, 161, 255, 0.48);
+  --border-subtle: rgba(86, 116, 167, 0.20);
+  --border-soft: rgba(86, 116, 167, 0.12);
+  --border-stronger: rgba(47, 107, 255, 0.28);
+
+  --shadow-tint: rgba(35, 53, 92, 0.18);
+  --shadow-blue-hint: rgba(47, 107, 255, 0.16);
+  --shadow-xs-brand: 0 1px 2px rgba(15, 28, 54, 0.06);
+  --shadow-sm-brand: 0 6px 16px rgba(15, 28, 54, 0.08), 0 2px 6px var(--shadow-blue-hint);
+  --shadow-md-brand: 0 12px 28px rgba(15, 28, 54, 0.12), 0 3px 10px var(--shadow-blue-hint);
+  --shadow-lg-brand: 0 20px 44px rgba(15, 28, 54, 0.16), 0 8px 20px var(--shadow-blue-hint);
+
+  --glow-button: 0 12px 28px var(--primary-glow);
+  --glow-focus: 0 0 0 3px var(--primary-soft), 0 0 20px rgba(47, 107, 255, 0.18);
+  --glow-hover: 0 10px 24px rgba(47, 107, 255, 0.22);
+  --glow-active: 0 4px 16px rgba(47, 107, 255, 0.16);
 
   /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar-bg: rgba(250, 253, 255, 0.76);
-  --sidebar-border: rgba(46, 119, 255, 0.18);
+  --sidebar-bg: rgba(252, 254, 255, 0.72);
+  --sidebar-border: rgba(47, 107, 255, 0.20);
 
   /* ── Header ──────────────────────────────────────────── */
-  --header-bg: rgba(250, 253, 255, 0.82);
-  --header-border: rgba(46, 119, 255, 0.16);
+  --header-bg: rgba(253, 254, 255, 0.78);
+  --header-border: rgba(47, 107, 255, 0.16);
 
   /* ── Glassmorphism utilities ─────────────────────────── */
-  --glass-bg: rgba(249, 252, 255, 0.64);
-  --glass-bg-hover: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-bg: var(--surface-glass);
+  --glass-bg-hover: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(255, 255, 255, 0.78);
   --glass-blur: 22px;
-  --glass-shadow: 0 6px 24px rgba(34, 73, 140, 0.11), 0 1px 4px rgba(46, 119, 255, 0.12);
-  --glass-shadow-lg: 0 14px 46px rgba(24, 52, 102, 0.18), 0 4px 16px rgba(46, 119, 255, 0.16);
-  --glass-shadow-sm: 0 3px 12px rgba(35, 72, 138, 0.09), 0 1px 2px rgba(46, 119, 255, 0.08);
+  --glass-shadow: var(--shadow-sm-brand);
+  --glass-shadow-lg: var(--shadow-lg-brand);
+  --glass-shadow-sm: var(--shadow-xs-brand);
 
   /* ── General Shadows ─────────────────────────────────── */
-  --shadow-xs: 0 1px 2px rgba(20, 36, 70, 0.06);
-  --shadow-sm: 0 3px 10px rgba(19, 40, 78, 0.10), 0 1px 2px rgba(19, 40, 78, 0.06);
-  --shadow-md: 0 8px 24px rgba(18, 38, 74, 0.14), 0 2px 6px rgba(18, 38, 74, 0.08);
-  --shadow-lg: 0 14px 36px rgba(15, 32, 64, 0.18), 0 4px 12px rgba(15, 32, 64, 0.12);
-  --shadow-xl: 0 24px 52px rgba(13, 28, 57, 0.24), 0 8px 20px rgba(13, 28, 57, 0.16);
+  --shadow-xs: var(--shadow-xs-brand);
+  --shadow-sm: var(--shadow-sm-brand);
+  --shadow-md: var(--shadow-md-brand);
+  --shadow-lg: var(--shadow-lg-brand);
+  --shadow-xl: 0 28px 56px rgba(15, 28, 54, 0.20), 0 12px 26px rgba(47, 107, 255, 0.14);
 
   /* ── Blur Scale ──────────────────────────────────────── */
   --blur-sm: 8px;
@@ -75,6 +83,15 @@
   --radius-2xl: 28px;
   --radius-full: 9999px;
 
+  /* ── Spacing Scale ───────────────────────────────────── */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.25rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+
   /* ── Motion ──────────────────────────────────────────── */
   --duration-fast: 120ms;
   --duration-normal: 220ms;
@@ -82,6 +99,14 @@
   --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* ── Typography Tokens ───────────────────────────────── */
+  --font-heading-weight: 700;
+  --font-heading-spacing: -0.02em;
+  --font-size-display: clamp(2rem, 5vw, 3rem);
+  --font-size-h1: clamp(1.5rem, 2.8vw, 2.25rem);
+  --font-size-h2: clamp(1.25rem, 2.2vw, 1.75rem);
+  --font-size-metric: clamp(1.75rem, 3.2vw, 2.5rem);
 
   /* ── State Colors ────────────────────────────────────── */
   --color-success: #10b981;
@@ -97,6 +122,30 @@
   --color-info-bg: rgba(59, 130, 246, 0.10);
   --color-info-border: rgba(59, 130, 246, 0.22);
 
+  /* ── Backward Compatible Alias Tokens ────────────────── */
+  --bg: var(--bg-base);
+  --bg-2: var(--bg-secondary);
+  --bg-3: var(--bg-tertiary);
+
+  --surface: var(--surface-glass);
+  --surface-2: var(--surface-elevated);
+  --surface-3: var(--surface-muted);
+  --surface-solid: var(--surface-solid-base);
+
+  --text: var(--text-primary);
+  --text-secondary: var(--text-secondary-base);
+  --text-tertiary: var(--text-tertiary-base);
+
+  --border: var(--border-subtle);
+  --border-2: var(--border-soft);
+  --border-strong: var(--border-stronger);
+
+  --accent: var(--primary);
+  --accent-2: var(--primary-hover);
+  --accent-soft: var(--primary-soft);
+  --accent-glow: var(--primary-glow);
+  --accent-glow-strong: var(--primary-glow-strong);
+
   /* ── App Shell Layout ────────────────────────────────── */
   --shell-gap: 1rem;
   --shell-pad-x: 0.875rem;
@@ -105,47 +154,72 @@
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
 .dark {
-  --bg: #04060d;
-  --bg-2: #080d1b;
-  --bg-3: #0c1428;
+  --bg-base: #05070a;
+  --bg-secondary: #0a0f1c;
+  --bg-tertiary: #111a2f;
 
-  --surface: rgba(12, 20, 39, 0.88);
-  --surface-2: rgba(15, 25, 48, 0.72);
-  --surface-3: rgba(12, 20, 38, 0.54);
-  --surface-solid: #0d1730;
+  --surface-glass: rgba(13, 19, 34, 0.78);
+  --surface-elevated: rgba(16, 24, 43, 0.70);
+  --surface-muted: rgba(13, 20, 37, 0.56);
+  --surface-solid-base: #0c1527;
 
-  --text: #f7fbff;
-  --text-secondary: #9fb2d7;
-  --text-tertiary: #6f86b1;
+  --primary: #2f6bff;
+  --primary-hover: #4c83ff;
+  --primary-soft: rgba(47, 107, 255, 0.24);
+  --primary-glow: rgba(47, 107, 255, 0.38);
+  --primary-glow-strong: rgba(76, 131, 255, 0.50);
 
-  --border: rgba(56, 130, 255, 0.26);
-  --border-2: rgba(56, 130, 255, 0.14);
-  --border-strong: rgba(76, 149, 255, 0.44);
+  --text-primary: #f5f8ff;
+  --text-secondary-base: #9caed1;
+  --text-tertiary-base: #7287ad;
 
-  --accent: #2f8bff;
-  --accent-2: #59abff;
-  --accent-soft: rgba(47, 139, 255, 0.20);
-  --accent-glow: rgba(47, 139, 255, 0.46);
-  --accent-glow-strong: rgba(89, 171, 255, 0.62);
+  --border-subtle: rgba(165, 188, 255, 0.20);
+  --border-soft: rgba(165, 188, 255, 0.12);
+  --border-stronger: rgba(67, 118, 255, 0.42);
 
-  --sidebar-bg: rgba(6, 10, 21, 0.84);
-  --sidebar-border: rgba(56, 130, 255, 0.28);
+  --shadow-tint: rgba(0, 0, 0, 0.66);
+  --shadow-blue-hint: rgba(47, 107, 255, 0.24);
+  --shadow-xs-brand: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --shadow-sm-brand: 0 8px 20px rgba(0, 0, 0, 0.44), 0 2px 8px var(--shadow-blue-hint);
+  --shadow-md-brand: 0 16px 34px rgba(0, 0, 0, 0.54), 0 6px 16px var(--shadow-blue-hint);
+  --shadow-lg-brand: 0 24px 52px rgba(0, 0, 0, 0.64), 0 10px 26px var(--shadow-blue-hint);
 
-  --header-bg: rgba(7, 13, 27, 0.82);
-  --header-border: rgba(56, 130, 255, 0.24);
+  --glow-button: 0 12px 30px var(--primary-glow);
+  --glow-focus: 0 0 0 3px var(--primary-soft), 0 0 24px rgba(47, 107, 255, 0.36);
+  --glow-hover: 0 10px 24px rgba(47, 107, 255, 0.34);
+  --glow-active: 0 4px 18px rgba(47, 107, 255, 0.28);
 
-  --glass-bg: rgba(9, 16, 32, 0.72);
-  --glass-bg-hover: rgba(12, 22, 43, 0.86);
-  --glass-border: rgba(56, 130, 255, 0.26);
-  --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.48), 0 1px 4px rgba(47, 139, 255, 0.22);
-  --glass-shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.58), 0 6px 20px rgba(47, 139, 255, 0.28);
-  --glass-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(47, 139, 255, 0.16);
+  --sidebar-bg: rgba(7, 11, 20, 0.78);
+  --sidebar-border: rgba(140, 174, 255, 0.24);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
-  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.44), 0 3px 8px rgba(0, 0, 0, 0.24);
-  --shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.52), 0 6px 14px rgba(0, 0, 0, 0.28);
-  --shadow-xl: 0 28px 60px rgba(0, 0, 0, 0.62), 0 10px 22px rgba(0, 0, 0, 0.34);
+  --header-bg: rgba(7, 12, 22, 0.72);
+  --header-border: rgba(140, 174, 255, 0.18);
+
+  --glass-bg: var(--surface-glass);
+  --glass-bg-hover: rgba(13, 22, 40, 0.84);
+  --glass-border: rgba(148, 182, 255, 0.20);
+  --glass-shadow: var(--shadow-sm-brand);
+  --glass-shadow-lg: var(--shadow-lg-brand);
+  --glass-shadow-sm: var(--shadow-xs-brand);
+
+  --shadow-xs: var(--shadow-xs-brand);
+  --shadow-sm: var(--shadow-sm-brand);
+  --shadow-md: var(--shadow-md-brand);
+  --shadow-lg: var(--shadow-lg-brand);
+  --shadow-xl: 0 30px 60px rgba(0, 0, 0, 0.72), 0 12px 28px rgba(47, 107, 255, 0.20);
+
+  --color-success: #20d39b;
+  --color-success-bg: rgba(32, 211, 155, 0.14);
+  --color-success-border: rgba(32, 211, 155, 0.30);
+  --color-warning: #f6b73c;
+  --color-warning-bg: rgba(246, 183, 60, 0.14);
+  --color-warning-border: rgba(246, 183, 60, 0.30);
+  --color-danger: #ff6a7f;
+  --color-danger-bg: rgba(255, 106, 127, 0.14);
+  --color-danger-border: rgba(255, 106, 127, 0.30);
+  --color-info: #5f9bff;
+  --color-info-bg: rgba(95, 155, 255, 0.14);
+  --color-info-border: rgba(95, 155, 255, 0.30);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -153,20 +227,18 @@
    ═══════════════════════════════════════════════════════════ */
 .os-workspace {
   background:
-    radial-gradient(65% 55% at 18% -8%, rgba(58, 143, 255, 0.22) 0%, transparent 64%),
-    radial-gradient(54% 48% at 96% 14%, rgba(108, 170, 255, 0.18) 0%, transparent 62%),
-    radial-gradient(75% 58% at 90% 104%, rgba(43, 118, 252, 0.16) 0%, transparent 66%),
-    linear-gradient(165deg, rgba(232, 241, 255, 0.7) 0%, transparent 52%),
-    var(--bg);
+    radial-gradient(64% 56% at 8% -10%, rgba(93, 150, 255, 0.16) 0%, transparent 62%),
+    radial-gradient(52% 44% at 95% 18%, rgba(119, 170, 255, 0.14) 0%, transparent 62%),
+    radial-gradient(88% 76% at 55% 114%, rgba(117, 163, 255, 0.08) 0%, transparent 64%),
+    linear-gradient(152deg, var(--bg-base) 0%, var(--bg-secondary) 100%);
 }
 
 .dark .os-workspace {
   background:
-    radial-gradient(62% 52% at 20% -6%, rgba(47, 139, 255, 0.38) 0%, transparent 66%),
-    radial-gradient(50% 44% at 102% 20%, rgba(18, 97, 228, 0.30) 0%, transparent 62%),
-    radial-gradient(72% 56% at 88% 106%, rgba(30, 104, 255, 0.24) 0%, transparent 67%),
-    radial-gradient(120% 120% at 50% 115%, rgba(0, 0, 0, 0.50) 0%, transparent 58%),
-    var(--bg);
+    radial-gradient(58% 50% at 14% -8%, rgba(47, 107, 255, 0.34) 0%, transparent 66%),
+    radial-gradient(48% 40% at 98% 8%, rgba(63, 122, 255, 0.24) 0%, transparent 64%),
+    radial-gradient(72% 58% at 88% 108%, rgba(34, 87, 230, 0.22) 0%, transparent 68%),
+    linear-gradient(156deg, var(--bg-base) 0%, var(--bg-secondary) 56%, #060b14 100%);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -174,18 +246,16 @@
    ═══════════════════════════════════════════════════════════ */
 .docs-workspace {
   background:
-    radial-gradient(58% 50% at 16% -6%, rgba(70, 155, 255, 0.16) 0%, transparent 62%),
-    radial-gradient(52% 44% at 88% 96%, rgba(91, 169, 255, 0.14) 0%, transparent 58%),
-    linear-gradient(175deg, rgba(234, 243, 255, 0.62) 0%, transparent 58%),
-    var(--bg);
+    radial-gradient(58% 50% at 16% -6%, rgba(86, 145, 255, 0.14) 0%, transparent 62%),
+    radial-gradient(52% 44% at 88% 96%, rgba(109, 167, 255, 0.12) 0%, transparent 58%),
+    linear-gradient(172deg, var(--bg-base) 0%, var(--bg-secondary) 100%);
 }
 
 .dark .docs-workspace {
   background:
-    radial-gradient(58% 50% at 16% -6%, rgba(47, 139, 255, 0.30) 0%, transparent 62%),
-    radial-gradient(52% 44% at 88% 96%, rgba(30, 104, 255, 0.24) 0%, transparent 58%),
-    radial-gradient(110% 120% at 50% 120%, rgba(0, 0, 0, 0.44) 0%, transparent 60%),
-    var(--bg);
+    radial-gradient(58% 50% at 16% -6%, rgba(47, 107, 255, 0.30) 0%, transparent 62%),
+    radial-gradient(52% 44% at 88% 96%, rgba(41, 94, 241, 0.24) 0%, transparent 58%),
+    linear-gradient(170deg, var(--bg-base) 0%, var(--bg-secondary) 100%);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -216,13 +286,25 @@ input, select, textarea, button { font: inherit; }
 
 /* ── Focus Ring ──────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
+  box-shadow: var(--glow-focus);
 }
 
 /* ── App Shell ───────────────────────────────────────────── */
 .app-shell-main {
   padding: var(--shell-pad-y) var(--shell-pad-x);
+}
+
+.app-shell-container {
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-sm);
+  min-height: calc(100vh - 8.5rem);
+  padding: var(--space-lg);
 }
 
 @media (min-width: 640px) {
@@ -343,7 +425,7 @@ select option { white-space: normal; }
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   transition: box-shadow var(--duration-normal) var(--ease-smooth),
               background var(--duration-normal) var(--ease-smooth),
               transform var(--duration-fast) var(--ease-smooth);
@@ -362,7 +444,7 @@ select option { white-space: normal; }
   -webkit-backdrop-filter: blur(var(--blur-md));
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   transition: box-shadow var(--duration-normal) var(--ease-smooth),
               transform var(--duration-fast) var(--ease-smooth);
 }
@@ -378,6 +460,7 @@ select option { white-space: normal; }
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-color: var(--sidebar-border);
+  box-shadow: inset -1px 0 0 var(--sidebar-border), var(--shadow-sm);
 }
 
 /* ── Header Glass ────────────────────────────────────────── */
@@ -386,7 +469,7 @@ select option { white-space: normal; }
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-color: var(--header-border);
-  box-shadow: 0 1px 0 var(--border);
+  box-shadow: 0 1px 0 var(--border), 0 10px 20px rgba(8, 15, 30, 0.06);
 }
 
 /* ── Smooth Nav Item ─────────────────────────────────────── */
@@ -403,7 +486,7 @@ select option { white-space: normal; }
   box-shadow:
     inset 0 0 0 1px var(--accent-glow),
     0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 8px 24px rgba(5, 45, 110, 0.18);
+    var(--glow-hover);
 }
 
 /* ── Premium Button ──────────────────────────────────────── */
@@ -411,7 +494,7 @@ select option { white-space: normal; }
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.26);
-  box-shadow: 0 8px 24px var(--accent-glow), 0 2px 6px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35);
+  box-shadow: var(--glow-button), 0 2px 6px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35);
   transition:
     box-shadow var(--duration-fast) var(--ease-smooth),
     transform var(--duration-fast) var(--ease-smooth),
@@ -419,11 +502,14 @@ select option { white-space: normal; }
 }
 
 .btn-primary:hover {
-  box-shadow: 0 12px 30px var(--accent-glow-strong), 0 5px 12px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.45);
+  box-shadow: 0 12px 30px var(--accent-glow-strong), var(--glow-hover), inset 0 1px 0 rgba(255,255,255,0.45);
   transform: translateY(-2px);
 }
 
-.btn-primary:active { transform: translateY(0); }
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--glow-active);
+}
 
 .btn-ghost {
   background: var(--surface-2);
@@ -456,9 +542,44 @@ select option { white-space: normal; }
 
 .input-glass:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 22px rgba(47, 139, 255, 0.22);
+  box-shadow: var(--glow-focus);
   background: var(--surface);
   outline: none;
+}
+
+/* ── Reusable Glow Utilities ────────────────────────────── */
+.theme-glow-button { box-shadow: var(--glow-button); }
+.theme-glow-hover:hover { box-shadow: var(--glow-hover); }
+.theme-glow-focus:focus-visible { box-shadow: var(--glow-focus); }
+.theme-glow-active:active { box-shadow: var(--glow-active); }
+
+/* ── Typography Utilities ───────────────────────────────── */
+.type-heading {
+  font-weight: var(--font-heading-weight);
+  letter-spacing: var(--font-heading-spacing);
+  color: var(--text);
+}
+
+.type-display {
+  font-size: var(--font-size-display);
+  line-height: 1.05;
+}
+
+.type-h1 {
+  font-size: var(--font-size-h1);
+  line-height: 1.15;
+}
+
+.type-h2 {
+  font-size: var(--font-size-h2);
+  line-height: 1.22;
+}
+
+.type-metric {
+  font-size: var(--font-size-metric);
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 /* ═══════════════════════════════════════════════════════════

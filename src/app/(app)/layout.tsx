@@ -147,7 +147,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto app-shell-main">{children}</main>
+        <main className="flex-1 overflow-y-auto app-shell-main">
+          <div className="app-shell-container">{children}</div>
+        </main>
       </div>
 
       {/* Global upload queue panel — visible across all routes */}
