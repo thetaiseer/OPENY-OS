@@ -1,14 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import DocsSidebar from '@/components/layout/DocsSidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import { subscribeToTableChanges } from '@/lib/realtime';
 import AppTopbar from '@/components/layout/AppTopbar';
 import AppShell from '@/components/layout/AppShell';
 import { AppPage } from '@/components/layout/AppPage';
+import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
+import { AiProvider } from '@/lib/ai-context';
 
 const DOCS_REALTIME_REFRESH_DEBOUNCE_MS = 120;
+const AiCommandCenter = dynamic(() => import('@/components/ai/AiCommandCenter'), { ssr: false });
+const CommandPalette = dynamic(() => import('@/components/search/CommandPalette'), { ssr: false });
 
 function getRealtimeTablesForPath(path: string): string[] {
   if (path.includes('/docs/documents/client-profiles')) return ['clients', 'templates', 'docs_client_document_profiles'];
@@ -22,10 +27,21 @@ function getRealtimeTablesForPath(path: string): string[] {
 }
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <CommandPaletteProvider>
+      <AiProvider>
+        <DocsLayoutInner>{children}</DocsLayoutInner>
+      </AiProvider>
+    </CommandPaletteProvider>
+  );
+}
+
+function DocsLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isOpen: paletteOpen, close: closePalette } = useCommandPalette();
 
   useEffect(() => {
     if (!pathname.startsWith('/docs/documents')) return;
@@ -48,13 +64,17 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   }, [pathname, router]);
 
   return (
-    <AppShell
-      workspaceClassName="docs-workspace"
-      sidebar={<DocsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
-      topbar={<AppTopbar onMenuClick={() => setSidebarOpen(true)} />}
-      containerClassName="docs-shell-container"
-    >
-      <AppPage fill>{children}</AppPage>
-    </AppShell>
+    <>
+      <AppShell
+        workspaceClassName="docs-workspace"
+        sidebar={<DocsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+        topbar={<AppTopbar onMenuClick={() => setSidebarOpen(true)} />}
+        containerClassName="docs-shell-container"
+      >
+        <AppPage fill>{children}</AppPage>
+      </AppShell>
+      <AiCommandCenter />
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
+    </>
   );
 }
