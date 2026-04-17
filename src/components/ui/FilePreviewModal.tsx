@@ -85,7 +85,6 @@ function FileIcon({ name, mime, size = 40 }: { name: string; mime?: string | nul
   if (isImage(name, mime)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
   if (isPdf(name, mime))   return <FileText  size={size} style={{ color: '#ef4444' }} />;
   if (isVideo(name, mime)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (isText(name, mime))  return <FileText  size={size} style={{ color: '#10b981' }} />;
   return <File size={size} style={{ color: '#94a3b8' }} />;
 }
 
