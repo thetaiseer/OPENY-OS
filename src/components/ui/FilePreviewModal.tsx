@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, ExternalLink, FileText, FileImage, FileVideo, File, Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,12 +168,18 @@ function VideoPreview({ src, name, onError }: { src: string; name: string; onErr
 
 function PdfPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
   const [loaded, setLoaded] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
+    timeoutRef.current = window.setTimeout(() => {
       if (!loaded) onError();
     }, 10000);
-    return () => window.clearTimeout(timeout);
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
   }, [loaded, onError]);
 
   return (
@@ -187,7 +193,13 @@ function PdfPreview({ src, name, onError }: { src: string; name: string; onError
       <iframe
         src={src}
         title={name}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => {
+          if (timeoutRef.current !== null) {
+            window.clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+          setLoaded(true);
+        }}
         onError={onError}
         style={{ width: '100%', height: '100%', border: 0, opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }}
       />

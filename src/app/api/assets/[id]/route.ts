@@ -32,7 +32,7 @@ function monthSegment(monthKey?: string | null) {
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(mm, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
     .toLowerCase();
-  return `${mm}-${monthName}`;
+  return { year, segment: `${mm}-${monthName}` };
 }
 
 function normalizePath(value: string | null | undefined, bucket: string) {
@@ -85,7 +85,7 @@ function buildPathCandidates(asset: AssetForPreview, bucket: string, preferred?:
   const main = asset.main_category?.trim() || 'other';
   const sub = asset.sub_category?.trim() || 'general';
   if (baseName && slug && month) {
-    uniquePush(candidates, `clients/${slug}/${main}/${asset.month_key?.slice(0, 4)}/${month}/${sub}/${baseName}`);
+    uniquePush(candidates, `clients/${slug}/${main}/${month.year}/${month.segment}/${sub}/${baseName}`);
   }
 
   return candidates;
