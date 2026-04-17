@@ -828,8 +828,18 @@ export default function AssetsPage() {
     addToast('Asset renamed successfully.', 'success');
   };
 
-  const handleView = (asset: Asset) => {
-    setPreviewAsset(asset);
+  const handleView = async (asset: Asset) => {
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`);
+      if (!res.ok) {
+        setPreviewAsset(asset);
+        return;
+      }
+      const json = await res.json() as { asset?: Asset };
+      setPreviewAsset(json.asset ?? asset);
+    } catch {
+      setPreviewAsset(asset);
+    }
   };
 
   const handleCopyLink = async (asset: Asset) => {
@@ -1104,7 +1114,7 @@ export default function AssetsPage() {
               selectable={selectionMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
-              onView={handleView}
+              onView={asset => { void handleView(asset); }}
               onDelete={asset => void handleDelete(asset)}
               onCopyLink={asset => void handleCopyLink(asset)}
               onComments={asset => setCommentsAsset(asset)}
@@ -1163,7 +1173,7 @@ export default function AssetsPage() {
         <FilePreviewModal
           file={{
             name: previewAsset.name,
-            url: previewAsset.preview_url || previewAsset.file_url,
+            url: previewAsset.file_url,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
