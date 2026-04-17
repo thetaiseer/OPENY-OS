@@ -250,6 +250,7 @@ export default function ClientAssetsPage() {
           file={{
             name:        previewAsset.name,
             url:         previewAsset.file_url,
+            filePath:    previewAsset.storage_key ?? previewAsset.file_path ?? null,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl:     previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType:    previewAsset.file_type ?? previewAsset.mime_type ?? null,
