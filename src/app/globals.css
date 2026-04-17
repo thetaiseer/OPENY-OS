@@ -150,6 +150,7 @@
   --shell-gap: 1rem;
   --shell-pad-x: 0.875rem;
   --shell-pad-y: 0.875rem;
+  --app-shell-chrome-offset: 8.5rem;
 }
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
@@ -303,7 +304,7 @@ input, select, textarea, button { font: inherit; }
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--shadow-sm);
-  min-height: calc(100vh - 8.5rem);
+  min-height: calc(100vh - var(--app-shell-chrome-offset));
   padding: var(--space-lg);
 }
 
