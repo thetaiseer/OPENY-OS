@@ -211,11 +211,9 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           onFocus={() => setFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search… (⌘K)"
-          className="w-full h-9 pl-9 pr-8 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
+          className="topbar-search-input w-full h-9 pl-9 pr-8 rounded-xl text-sm outline-none"
           style={{
-            background: 'var(--surface-2)',
             color: 'var(--text)',
-            border: '1px solid var(--border)',
           }}
           autoComplete="off"
           spellCheck={false}
@@ -235,7 +233,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       {isOpen && (
         <div
           ref={dropRef}
-          className="absolute top-full mt-2 left-0 right-0 rounded-2xl shadow-2xl border overflow-hidden z-[300]"
+          className="absolute top-full mt-2 left-0 right-0 rounded-2xl shadow-2xl border overflow-hidden z-[300] animate-openy-slide-down"
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',

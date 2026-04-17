@@ -85,7 +85,7 @@ export default function WorkspaceSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
-        className="h-9 max-w-[132px] sm:max-w-none px-3 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-all hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]"
+        className="workspace-switcher-trigger h-9 max-w-[132px] sm:max-w-none px-3 rounded-full border text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-all"
         style={{
           borderColor: 'var(--border)',
           color: 'var(--text)',
@@ -108,7 +108,7 @@ export default function WorkspaceSwitcher() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-2xl border overflow-hidden animate-openy-slide-down"
+          className="workspace-switcher-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-2xl border overflow-hidden animate-openy-slide-down"
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',

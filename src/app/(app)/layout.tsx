@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import AppTopbar from '@/components/layout/AppTopbar';
+import AppShellLayout from '@/components/layout/AppShell';
+import { AppPage } from '@/components/layout/AppPage';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import GlobalQuickAdd from '@/components/layout/GlobalQuickAdd';
@@ -36,7 +38,7 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // ── Inner layout — needs access to CommandPaletteContext ──────────────────────
 
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -143,14 +145,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
   }, [openAi]);
 
   return (
-    <div className="flex h-screen overflow-hidden os-workspace">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto app-shell-main">
-          <div className="app-shell-container">{children}</div>
-        </main>
-      </div>
+    <>
+      <AppShellLayout
+        workspaceClassName="os-workspace"
+        sidebar={<Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+        topbar={<AppTopbar onMenuClick={() => setSidebarOpen(true)} />}
+      >
+        <AppPage>{children}</AppPage>
+      </AppShellLayout>
 
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
@@ -161,7 +163,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       {/* Global quick add FAB */}
       <GlobalQuickAdd />
-    </div>
+    </>
   );
 }
 
@@ -172,7 +174,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <UploadProvider>
       <CommandPaletteProvider>
         <AiProvider>
-          <AppShell>{children}</AppShell>
+          <AppLayoutInner>{children}</AppLayoutInner>
         </AiProvider>
       </CommandPaletteProvider>
     </UploadProvider>
