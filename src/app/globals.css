@@ -150,7 +150,9 @@
   --shell-gap: 1rem;
   --shell-pad-x: 0.875rem;
   --shell-pad-y: 0.875rem;
-  --app-shell-chrome-offset: 8.5rem;
+  --header-height: 4rem;
+  --app-shell-min-gutter: 2.75rem;
+  --app-shell-chrome-offset: calc(var(--header-height) + (var(--shell-pad-y) * 2) + var(--app-shell-min-gutter));
 }
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
@@ -289,7 +291,6 @@ input, select, textarea, button { font: inherit; }
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
-  box-shadow: var(--glow-focus);
 }
 
 /* ── App Shell ───────────────────────────────────────────── */
@@ -300,7 +301,7 @@ input, select, textarea, button { font: inherit; }
 .app-shell-container {
   border: 1px solid var(--border-2);
   border-radius: var(--radius-2xl);
-  background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+  background: linear-gradient(160deg, var(--surface) 0%, var(--surface-elevated) 100%);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--shadow-sm);
