@@ -4,7 +4,8 @@ import { getApiUser, requireRole } from '@/lib/api-auth';
 import { deleteFromR2, R2NotFoundError, R2ConfigError } from '@/lib/r2';
 
 const SUPABASE_ASSETS_BUCKET = 'openy-assets';
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+const SIGNED_URL_TTL_ONE_HOUR_SECONDS = 60 * 60;
+const MONTH_KEY_PATTERN = /^\d{4}-\d{2}$/;
 
 type AssetForPreview = {
   id: string;
@@ -27,7 +28,7 @@ type AssetForPreview = {
 };
 
 function monthSegment(monthKey?: string | null) {
-  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return null;
+  if (!monthKey || !MONTH_KEY_PATTERN.test(monthKey)) return null;
   const [year, mm] = monthKey.split('-');
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(mm, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
@@ -110,7 +111,7 @@ async function resolveStorageUrl(
   for (const path of candidates) {
     const { data: signedData, error: signedErr } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+      .createSignedUrl(path, SIGNED_URL_TTL_ONE_HOUR_SECONDS);
     if (signedErr || !signedData?.signedUrl) continue;
     if (bucketPublic) {
       const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);

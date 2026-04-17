@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, ExternalLink, FileText, FileImage, FileVideo, File, Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
+const PDF_LOAD_TIMEOUT_MS = 10_000;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +175,7 @@ function PdfPreview({ src, name, onError }: { src: string; name: string; onError
   useEffect(() => {
     timeoutRef.current = window.setTimeout(() => {
       if (!loaded) onError();
-    }, 10000);
+    }, PDF_LOAD_TIMEOUT_MS);
     return () => {
       if (timeoutRef.current !== null) {
         window.clearTimeout(timeoutRef.current);
