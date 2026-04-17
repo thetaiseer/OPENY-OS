@@ -695,6 +695,11 @@ select option { white-space: normal; }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {

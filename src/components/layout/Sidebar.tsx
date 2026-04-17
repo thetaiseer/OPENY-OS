@@ -72,7 +72,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               className="text-sm font-bold tracking-widest hidden lg:inline xl:hidden"
               style={{ color: 'var(--accent)' }}
             >
-              OY
+              OS
             </span>
             <span
               className="text-[10px] font-bold tracking-widest hidden xl:inline px-1.5 py-0.5 rounded-md"
