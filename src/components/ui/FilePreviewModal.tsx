@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, Download, ExternalLink, FileText, FileImage, FileVideo, File, Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import supabase from '@/lib/supabase';
 
 const PDF_LOAD_TIMEOUT_MS = 10_000;
+const SUPABASE_ASSETS_BUCKET = 'openy-assets';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -13,6 +15,8 @@ export interface PreviewFile {
   name: string;
   /** URL used for the preview content */
   url: string;
+  /** Canonical storage path including full folder structure */
+  filePath?: string | null;
   /** URL used for download (falls back to url) */
   downloadUrl?: string | null;
   /** URL to open in a new tab (Google Drive web view etc.) */
@@ -39,19 +43,6 @@ function isPdf(name: string, mime?: string | null): boolean {
   return /\.pdf$/i.test(name) || mime === 'application/pdf';
 }
 
-function isText(name: string, mime?: string | null): boolean {
-  return /\.(txt|md|log|ini|yaml|yml|toml|xml|html|htm|css|js|ts|sh|py|rb|java|go|rs|c|cpp|h|php)$/i.test(name) ||
-    (!!mime && (mime.startsWith('text/') || mime === 'application/json' || mime === 'text/csv'));
-}
-
-function isJson(name: string): boolean {
-  return /\.json$/i.test(name);
-}
-
-function isCsv(name: string): boolean {
-  return /\.csv$/i.test(name);
-}
-
 function formatSize(bytes?: number | null): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -68,6 +59,26 @@ function fileTypeLabel(name: string, mime?: string | null): string {
   return name.split('.').pop()?.toUpperCase() ?? 'FILE';
 }
 
+function normalizeStoragePath(value: string | null | undefined): string | null {
+  if (!value) return null;
+  let trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    trimmed = decodeURIComponent(parsed.pathname);
+  } catch {
+    // Best-effort parsing: raw storage paths are valid even when value is not a full URL.
+  }
+  if (trimmed.startsWith('/')) trimmed = trimmed.slice(1);
+  if (trimmed.startsWith(`${SUPABASE_ASSETS_BUCKET}/`)) trimmed = trimmed.slice(SUPABASE_ASSETS_BUCKET.length + 1);
+  const publicPrefix = `/storage/v1/object/public/${SUPABASE_ASSETS_BUCKET}/`;
+  const publicPrefixIndex = trimmed.indexOf(publicPrefix);
+  if (publicPrefixIndex >= 0) trimmed = trimmed.slice(publicPrefixIndex + publicPrefix.length);
+  const queryIndex = trimmed.indexOf('?');
+  const clean = (queryIndex >= 0 ? trimmed.slice(0, queryIndex) : trimmed).trim();
+  return clean || null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Icon
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +87,6 @@ function FileIcon({ name, mime, size = 40 }: { name: string; mime?: string | nul
   if (isImage(name, mime)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
   if (isPdf(name, mime))   return <FileText  size={size} style={{ color: '#ef4444' }} />;
   if (isVideo(name, mime)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (isText(name, mime))  return <FileText  size={size} style={{ color: '#10b981' }} />;
   return <File size={size} style={{ color: '#94a3b8' }} />;
 }
 
@@ -86,6 +96,7 @@ function FileIcon({ name, mime, size = 40 }: { name: string; mime?: string | nul
 
 function ImagePreview({ src, alt, onError }: { src: string; alt: string; onError: () => void }) {
   const [scale, setScale] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   const zoomIn  = () => setScale(s => Math.min(s + 0.25, 4));
   const zoomOut = () => setScale(s => Math.max(s - 0.25, 0.25));
@@ -94,10 +105,17 @@ function ImagePreview({ src, alt, onError }: { src: string; alt: string; onError
   return (
     <div className="flex flex-col items-center gap-3 w-full">
       <div className="relative overflow-auto max-h-[80vh] w-full flex items-center justify-center rounded-xl" style={{ background: 'rgba(0,0,0,0.4)' }}>
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10" style={{ background: 'rgba(15,15,25,0.7)' }}>
+            <Loader2 size={32} className="animate-spin" style={{ color: 'rgba(255,255,255,0.5)' }} />
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Loading image…</p>
+          </div>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={alt}
+          onLoad={() => setLoading(false)}
           onError={onError}
           style={{
             transform: `scale(${scale})`,
@@ -152,11 +170,19 @@ const VIDEO_TYPE_MAP: Record<string, string> = {
 function VideoPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   const mimeType = VIDEO_TYPE_MAP[ext] ?? 'video/mp4';
+  const [loading, setLoading] = useState(true);
 
   return (
-    <div className="w-full flex items-center justify-center">
+    <div className="w-full flex items-center justify-center relative">
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 rounded-xl" style={{ background: 'rgba(15,15,25,0.7)' }}>
+          <Loader2 size={32} className="animate-spin" style={{ color: 'rgba(255,255,255,0.5)' }} />
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Loading video…</p>
+        </div>
+      )}
       <video
         controls
+        onLoadedData={() => setLoading(false)}
         onError={onError}
         className="rounded-xl shadow-2xl"
         style={{ maxHeight: '80vh', maxWidth: '100%', width: '100%', objectFit: 'contain', background: '#000' }}
@@ -222,99 +248,12 @@ function PdfPreview({ src, name, onError }: { src: string; name: string; onError
   );
 }
 
-function TextPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
-  const [content, setContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(false);
-
-  const json = isJson(name);
-  const csv  = isCsv(name);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(false);
-    fetch(src)
-      .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.text(); })
-      .then(text => {
-        if (json) {
-          try { setContent(JSON.stringify(JSON.parse(text), null, 2)); }
-          catch { setContent(text); }
-        } else {
-          setContent(text);
-        }
-        setLoading(false);
-      })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [src, json]);
-
-  useEffect(() => {
-    if (error) onError();
-  }, [error, onError]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-12">
-        <Loader2 size={32} className="animate-spin" style={{ color: 'rgba(255,255,255,0.5)' }} />
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Loading file…</p>
-      </div>
-    );
-  }
-
-  if (error || content === null) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-12">
-        <FileText size={64} style={{ color: '#10b981', opacity: 0.5 }} />
-        <p className="text-white/60 text-sm">Could not load file content</p>
-      </div>
-    );
-  }
-
-  if (csv) {
-    const rows = content.split('\n').filter(r => r.trim()).map(r => r.split(','));
-    return (
-      <div className="w-full overflow-auto rounded-xl max-h-[80vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
-        <table className="w-full text-xs text-left border-collapse" style={{ color: 'rgba(255,255,255,0.85)' }}>
-          <thead>
-            {rows[0] && (
-              <tr style={{ background: 'rgba(99,102,241,0.2)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {rows[0].map((cell, i) => (
-                  <th key={`h-${i}`} className="px-3 py-2 font-semibold whitespace-nowrap">{cell.replace(/^"|"$/g, '')}</th>
-                ))}
-              </tr>
-            )}
-          </thead>
-          <tbody>
-            {rows.slice(1).map((row, ri) => (
-              <tr key={`r-${ri}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                {row.map((cell, ci) => (
-                  <td key={`r-${ri}-c-${ci}`} className="px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate">{cell.replace(/^"|"$/g, '')}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full overflow-auto rounded-xl max-h-[80vh] shadow-2xl" style={{ background: 'rgba(0,0,0,0.5)' }}>
-      <pre
-        className="text-xs p-4 whitespace-pre-wrap break-words leading-relaxed"
-        style={{ color: 'rgba(255,255,255,0.82)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-      >
-        {content}
-      </pre>
-    </div>
-  );
-}
-
 function FallbackPreview({ name, mime, downloadUrl }: { name: string; mime?: string | null; downloadUrl: string }) {
   return (
     <div className="flex flex-col items-center gap-4 py-12">
       <FileIcon name={name} mime={mime} size={64} />
       <p className="text-white/70 text-sm text-center max-w-xs">
-        This file type cannot be previewed. Download it to open locally.
+        Preview not available. Download to open the file.
       </p>
       <a
         href={downloadUrl}
@@ -339,10 +278,22 @@ interface FilePreviewModalProps {
 
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) return;
     setPreviewFailed(false);
+    const fallbackUrl = file.url?.trim() || null;
+    const normalizedPath = normalizeStoragePath(file.filePath);
+    if (!normalizedPath) {
+      setResolvedUrl(fallbackUrl);
+      return;
+    }
+    const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(normalizedPath);
+    if (!data?.publicUrl && normalizedPath) {
+      console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', normalizedPath);
+    }
+    setResolvedUrl(data?.publicUrl?.trim() || fallbackUrl);
   }, [file]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -363,11 +314,12 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
   const { name, url, downloadUrl, openUrl, mimeType, size } = file;
   const dl = downloadUrl ?? url;
+  const previewUrl = (resolvedUrl ?? file.url ?? '').trim();
+  const hasPreviewUrl = previewUrl.length > 0;
 
   const img  = isImage(name, mimeType);
   const vid  = isVideo(name, mimeType);
   const pdf  = isPdf(name, mimeType);
-  const text = isText(name, mimeType);
 
   return (
     <div
@@ -446,11 +398,12 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
             ? <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />
             : (
               <>
-                {img  && <ImagePreview src={url} alt={name} onError={() => setPreviewFailed(true)} />}
-                {vid  && <VideoPreview src={url} name={name} onError={() => setPreviewFailed(true)} />}
-                {pdf  && <PdfPreview   src={url} name={name} onError={() => setPreviewFailed(true)} />}
-                {text && !img && !vid && !pdf && <TextPreview src={url} name={name} onError={() => setPreviewFailed(true)} />}
-                {!img && !vid && !pdf && !text && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
+                {!hasPreviewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
+                {img && hasPreviewUrl && <ImagePreview src={previewUrl} alt={name} onError={() => setPreviewFailed(true)} />}
+                {vid && hasPreviewUrl && <VideoPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
+                {pdf && hasPreviewUrl && <PdfPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
+                {/* Intentionally fallback for non-image/video/pdf files per universal preview requirements. */}
+                {!img && !vid && !pdf && hasPreviewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
               </>
             )}
         </div>
