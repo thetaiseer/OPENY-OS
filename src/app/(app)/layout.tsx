@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
+import GlobalQuickAdd from '@/components/layout/GlobalQuickAdd';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
@@ -156,6 +157,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <NotificationRealtimeSync />
       {/* Universal command palette — CMD+K */}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
+      {/* Global quick add FAB */}
+      <GlobalQuickAdd />
     </div>
   );
 }
