@@ -67,13 +67,15 @@ function normalizeStoragePath(value: string | null | undefined): string | null {
     const parsed = new URL(trimmed);
     trimmed = decodeURIComponent(parsed.pathname);
   } catch {
-    // keep as-is
+    // Best-effort parsing: raw storage paths are valid even when value is not a full URL.
   }
-  const publicPrefix = `/storage/v1/object/public/${SUPABASE_ASSETS_BUCKET}/`;
-  if (trimmed.includes(publicPrefix)) trimmed = trimmed.split(publicPrefix)[1] ?? trimmed;
   if (trimmed.startsWith('/')) trimmed = trimmed.slice(1);
   if (trimmed.startsWith(`${SUPABASE_ASSETS_BUCKET}/`)) trimmed = trimmed.slice(SUPABASE_ASSETS_BUCKET.length + 1);
-  const clean = (trimmed.split('?')[0] ?? '').trim();
+  const publicPrefix = `/storage/v1/object/public/${SUPABASE_ASSETS_BUCKET}/`;
+  const publicPrefixIndex = trimmed.indexOf(publicPrefix);
+  if (publicPrefixIndex >= 0) trimmed = trimmed.slice(publicPrefixIndex + publicPrefix.length);
+  const queryIndex = trimmed.indexOf('?');
+  const clean = (queryIndex >= 0 ? trimmed.slice(0, queryIndex) : trimmed).trim();
   return clean || null;
 }
 
@@ -251,7 +253,7 @@ function FallbackPreview({ name, mime, downloadUrl }: { name: string; mime?: str
     <div className="flex flex-col items-center gap-4 py-12">
       <FileIcon name={name} mime={mime} size={64} />
       <p className="text-white/70 text-sm text-center max-w-xs">
-        Preview not available.
+        Preview not available. Download to open the file.
       </p>
       <a
         href={downloadUrl}
@@ -276,23 +278,22 @@ interface FilePreviewModalProps {
 
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
   const [previewFailed, setPreviewFailed] = useState(false);
-  const [resolvedUrl, setResolvedUrl] = useState<string>('');
-  const [resolvingUrl, setResolvingUrl] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) return;
     setPreviewFailed(false);
-    const fallbackUrl = file.url?.trim() ?? '';
+    const fallbackUrl = file.url?.trim() || null;
     const normalizedPath = normalizeStoragePath(file.filePath);
-    if (!normalizedPath || !normalizedPath.includes('/')) {
+    if (!normalizedPath) {
       setResolvedUrl(fallbackUrl);
-      setResolvingUrl(false);
       return;
     }
-    setResolvingUrl(true);
     const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(normalizedPath);
-    setResolvedUrl(data?.publicUrl || fallbackUrl);
-    setResolvingUrl(false);
+    if (!data?.publicUrl && normalizedPath) {
+      console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', normalizedPath);
+    }
+    setResolvedUrl(data?.publicUrl?.trim() || fallbackUrl);
   }, [file]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -313,7 +314,8 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
   const { name, url, downloadUrl, openUrl, mimeType, size } = file;
   const dl = downloadUrl ?? url;
-  const previewUrl = resolvedUrl || file.url;
+  const previewUrl = (resolvedUrl ?? file.url ?? '').trim();
+  const hasPreviewUrl = previewUrl.length > 0;
 
   const img  = isImage(name, mimeType);
   const vid  = isVideo(name, mimeType);
@@ -392,25 +394,18 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
         {/* ── Preview body ── */}
         <div className="flex-1 overflow-auto p-5 flex flex-col items-center justify-center min-h-0">
-          {resolvingUrl && (
-            <div className="flex flex-col items-center gap-3 py-12">
-              <Loader2 size={32} className="animate-spin" style={{ color: 'rgba(255,255,255,0.5)' }} />
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Loading preview…</p>
-            </div>
-          )}
-          {!resolvingUrl && (
-            previewFailed
-              ? <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />
-              : (
-                <>
-                  {!previewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
-                  {img && previewUrl && <ImagePreview src={previewUrl} alt={name} onError={() => setPreviewFailed(true)} />}
-                  {vid && previewUrl && <VideoPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
-                  {pdf && previewUrl && <PdfPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
-                  {!img && !vid && !pdf && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
-                </>
-              )
-          )}
+          {previewFailed
+            ? <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />
+            : (
+              <>
+                {!hasPreviewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
+                {img && hasPreviewUrl && <ImagePreview src={previewUrl} alt={name} onError={() => setPreviewFailed(true)} />}
+                {vid && hasPreviewUrl && <VideoPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
+                {pdf && hasPreviewUrl && <PdfPreview src={previewUrl} name={name} onError={() => setPreviewFailed(true)} />}
+                {/* Intentionally fallback for non-image/video/pdf files per universal preview requirements. */}
+                {!img && !vid && !pdf && hasPreviewUrl && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
+              </>
+            )}
         </div>
       </div>
     </div>
