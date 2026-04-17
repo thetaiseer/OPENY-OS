@@ -212,7 +212,6 @@ export default function MonthYearPicker({
                 type="button"
                 onClick={() => { onChange(''); setOpen(false); }}
                 className="btn-danger text-xs px-3 py-1.5 rounded-lg"
-                style={{ color: '#fff', background: 'linear-gradient(140deg, #e84e67 0%, #d93050 100%)' }}
               >
                 Clear
               </button>
@@ -221,7 +220,6 @@ export default function MonthYearPicker({
                 type="button"
                 onClick={() => setOpen(false)}
                 className="btn-secondary text-xs px-3 py-1.5 rounded-lg"
-                style={{ color: 'var(--text-secondary)' }}
               >
                 Close
               </button>

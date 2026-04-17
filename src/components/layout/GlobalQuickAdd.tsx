@@ -36,12 +36,7 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
   { key: 'asset', label: 'Add Asset', icon: ImagePlus },
 ];
 
-const baseInputCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const baseInputStyle = {
-  background: 'var(--surface-2)',
-  borderColor: 'var(--border)',
-  color: 'var(--text)',
-};
+const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -374,8 +369,7 @@ export default function GlobalQuickAdd() {
               required
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="Enter task title"
             />
           </div>
@@ -385,8 +379,7 @@ export default function GlobalQuickAdd() {
             <textarea
               value={taskDescription}
               onChange={(e) => setTaskDescription(e.target.value)}
-              className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={baseInputStyle}
+              className="openy-field w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
               rows={3}
               placeholder="Add context for the task"
             />
@@ -399,8 +392,7 @@ export default function GlobalQuickAdd() {
                 required
                 value={taskClientId}
                 onChange={(e) => setTaskClientId(e.target.value)}
-                className={baseInputCls}
-                style={baseInputStyle}
+                className={baseFieldCls}
               >
                 <option value="">Select client</option>
                 {clientOptions.map((client) => (
@@ -415,8 +407,7 @@ export default function GlobalQuickAdd() {
                 required
                 value={taskAssignee}
                 onChange={(e) => setTaskAssignee(e.target.value)}
-                className={baseInputCls}
-                style={baseInputStyle}
+                className={baseFieldCls}
               >
                 <option value="">Select assignee</option>
                 {team.map((member) => (
@@ -430,8 +421,7 @@ export default function GlobalQuickAdd() {
               <select
                 value={taskPriority}
                 onChange={(e) => setTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                className={baseInputCls}
-                style={baseInputStyle}
+                className={baseFieldCls}
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -446,8 +436,7 @@ export default function GlobalQuickAdd() {
                 required
                 value={taskDueDate}
                 onChange={(e) => setTaskDueDate(e.target.value)}
-                className={baseInputCls}
-                style={baseInputStyle}
+                className={baseFieldCls}
               />
             </div>
           </div>
@@ -486,8 +475,7 @@ export default function GlobalQuickAdd() {
               required
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="Client or company name"
             />
           </div>
@@ -497,8 +485,7 @@ export default function GlobalQuickAdd() {
               type="email"
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="contact@company.com"
             />
           </div>
@@ -537,8 +524,7 @@ export default function GlobalQuickAdd() {
               required
               value={contentTitle}
               onChange={(e) => setContentTitle(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="Content title"
             />
           </div>
@@ -548,8 +534,7 @@ export default function GlobalQuickAdd() {
             <select
               value={contentClientId}
               onChange={(e) => setContentClientId(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
             >
               <option value="">No client</option>
               {clientOptions.map((client) => (
@@ -563,8 +548,7 @@ export default function GlobalQuickAdd() {
             <textarea
               value={contentCaption}
               onChange={(e) => setContentCaption(e.target.value)}
-              className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={baseInputStyle}
+              className="openy-field w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
               rows={3}
               placeholder="Optional caption"
             />
@@ -604,8 +588,7 @@ export default function GlobalQuickAdd() {
               required
               value={assetName}
               onChange={(e) => setAssetName(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="Asset name"
             />
           </div>
@@ -617,8 +600,7 @@ export default function GlobalQuickAdd() {
               type="url"
               value={assetUrl}
               onChange={(e) => setAssetUrl(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
               placeholder="https://..."
             />
           </div>
@@ -628,8 +610,7 @@ export default function GlobalQuickAdd() {
             <select
               value={assetClientId}
               onChange={(e) => setAssetClientId(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
             >
               <option value="">No client</option>
               {clientOptions.map((client) => (
@@ -643,8 +624,7 @@ export default function GlobalQuickAdd() {
             <select
               value={assetType}
               onChange={(e) => setAssetType(e.target.value)}
-              className={baseInputCls}
-              style={baseInputStyle}
+              className={baseFieldCls}
             >
               <option value="document">Document</option>
               <option value="image">Image</option>

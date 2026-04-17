@@ -172,7 +172,6 @@ export default function SelectDropdown({
                   onClick={() => handleSelect(option.value)}
                   className={`openy-menu-item flex items-center justify-between w-full px-3.5 py-2.5 text-sm text-left gap-2 ${isSelected ? 'openy-menu-item-active' : ''}`}
                     style={{
-                      background: isSelected ? 'var(--menu-item-active)' : 'transparent',
                       color:      isSelected ? 'var(--accent)' : 'var(--text)',
                       fontWeight: isSelected ? 600 : 400,
                       boxShadow: isSelected ? 'inset 0 0 0 1px var(--accent-glow)' : 'none',
