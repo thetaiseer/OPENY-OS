@@ -8,6 +8,7 @@ const PDF_LOAD_TIMEOUT_MS = 10_000;
 const SUPABASE_ASSETS_BUCKET = 'openy-assets';
 const CLIENTS_PREFIX = 'clients';
 const CLIENT_ID_SEGMENT_INDEX = 1;
+const MIN_CLIENT_PATH_SEGMENTS = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -88,7 +89,7 @@ function normalizeStoragePath(value: string | null | undefined): string | null {
 function fileNameFromPath(value: string | null): string | null {
   if (!value) return null;
   const name = value.split('/').filter(Boolean).pop()?.trim();
-  return name && name.length > 0 ? name : null;
+  return name || null;
 }
 
 function toCanonicalStoragePath(file: PreviewFile): string | null {
@@ -103,7 +104,7 @@ function toCanonicalStoragePath(file: PreviewFile): string | null {
 
   const pathSegments = explicitPath?.split('/').filter(Boolean) ?? [];
   const hasClientsPrefix = pathSegments[0] === CLIENTS_PREFIX;
-  const clientFromPath = hasClientsPrefix && pathSegments.length >= CLIENT_ID_SEGMENT_INDEX + 1
+  const clientFromPath = hasClientsPrefix && pathSegments.length >= MIN_CLIENT_PATH_SEGMENTS
     ? (pathSegments[CLIENT_ID_SEGMENT_INDEX] ?? null)
     : null;
   const clientId = file.clientId?.trim() || clientFromPath;
@@ -318,37 +319,28 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
   useEffect(() => {
     if (!file) return;
     let active = true;
-    const resolvePreviewUrl = async () => {
-      setPreviewFailed(false);
-      setResolveError(null);
-      const fallbackUrl = file.url?.trim() || null;
-      const storagePath = toCanonicalStoragePath(file);
-      if (!storagePath) {
-        if (!active) return;
-        setResolvedUrl(fallbackUrl);
-        setResolvingUrl(false);
-        return;
-      }
-      if (active) setResolvingUrl(true);
-      try {
-        const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
-        const publicUrl = data?.publicUrl?.trim() || null;
-        if (!active) return;
-        if (!publicUrl) {
-          console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
-          setResolveError('Failed to generate preview URL from storage path.');
-        }
-        setResolvedUrl(publicUrl || fallbackUrl);
-      } catch (err: unknown) {
-        if (!active) return;
-        console.error('[FilePreviewModal] Error resolving preview URL:', err);
-        setResolveError('Could not prepare file preview.');
-        setResolvedUrl(fallbackUrl);
-      } finally {
-        if (active) setResolvingUrl(false);
-      }
-    };
-    void resolvePreviewUrl();
+    setPreviewFailed(false);
+    setResolveError(null);
+    const fallbackUrl = file.url?.trim() || null;
+    const storagePath = toCanonicalStoragePath(file);
+    if (!storagePath) {
+      if (!active) return () => { active = false; };
+      setResolvedUrl(fallbackUrl);
+      setResolvingUrl(false);
+      return () => {
+        active = false;
+      };
+    }
+    if (active) setResolvingUrl(true);
+    const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
+    const publicUrl = data?.publicUrl?.trim() || null;
+    if (!active) return () => { active = false; };
+    if (!publicUrl) {
+      console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
+      setResolveError('Failed to generate preview URL from storage path.');
+    }
+    setResolvedUrl(publicUrl || fallbackUrl);
+    setResolvingUrl(false);
     return () => {
       active = false;
     };
