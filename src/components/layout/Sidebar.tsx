@@ -114,7 +114,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 <Icon
                   size={18}
                   strokeWidth={active ? 2 : 1.7}
-                  style={{ color: active ? 'var(--accent)' : 'currentColor', flexShrink: 0 }}
+                  style={{
+                    color: active ? 'var(--accent)' : 'currentColor',
+                    flexShrink: 0,
+                    filter: active ? 'drop-shadow(0 0 9px var(--accent-glow))' : 'none',
+                  }}
                 />
                 <span className="lg:hidden xl:inline leading-none">{displayLabel}</span>
               </Link>

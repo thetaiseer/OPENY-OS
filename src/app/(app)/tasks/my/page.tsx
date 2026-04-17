@@ -92,7 +92,7 @@ function categoryColor(cat?: string | null): string {
   const colors: Record<string, string> = {
     internal_task: '#6b7280', content_creation: '#2563eb',
     design_task: '#d946ef',
-    publishing_task: '#7c3aed', asset_upload_task: '#0891b2',
+    publishing_task: '#7c3aed', asset_upload_task: 'var(--accent)',
     follow_up_task: '#16a34a',
   };
   return cat ? (colors[cat] ?? 'var(--accent)') : 'var(--accent)';

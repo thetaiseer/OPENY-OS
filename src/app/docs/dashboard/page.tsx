@@ -12,54 +12,54 @@ const MODULES = [
     icon:        FileText,
     label:       'Invoice',
     description: 'Generate, manage and export client invoices with platform budget allocation.',
-    color:       '#3b82f6',
-    bg:          'rgba(59,130,246,0.10)',
-    border:      'rgba(59,130,246,0.20)',
+    color:       '#3d9dff',
+    bg:          'rgba(61,157,255,0.14)',
+    border:      'rgba(61,157,255,0.28)',
   },
   {
     href:        '/docs/documents/quotation',
     icon:        ClipboardList,
     label:       'Quotation',
     description: 'Create professional quotations with deliverables, pricing and payment terms.',
-    color:       '#8b5cf6',
-    bg:          'rgba(139,92,246,0.10)',
-    border:      'rgba(139,92,246,0.20)',
+    color:       '#56a8ff',
+    bg:          'rgba(86,168,255,0.14)',
+    border:      'rgba(86,168,255,0.28)',
   },
   {
     href:        '/docs/documents/client-contract',
     icon:        FileSignature,
     label:       'Client Contract',
     description: 'Bilingual client agreements with legal clauses, services and signatures.',
-    color:       '#0891b2',
-    bg:          'rgba(8,145,178,0.10)',
-    border:      'rgba(8,145,178,0.20)',
+    color:       '#2f8bff',
+    bg:          'rgba(47,139,255,0.14)',
+    border:      'rgba(47,139,255,0.28)',
   },
   {
     href:        '/docs/documents/hr-contract',
     icon:        BookOpen,
     label:       'HR Contract',
     description: 'Employee contracts with job details, salary, benefits and legal clauses.',
-    color:       '#10b981',
-    bg:          'rgba(16,185,129,0.10)',
-    border:      'rgba(16,185,129,0.20)',
+    color:       '#4cb4ff',
+    bg:          'rgba(76,180,255,0.14)',
+    border:      'rgba(76,180,255,0.28)',
   },
   {
     href:        '/docs/documents/employees',
     icon:        Users,
     label:       'Employees',
     description: 'Full employee management — profiles, payroll history and salary adjustments.',
-    color:       '#f59e0b',
-    bg:          'rgba(245,158,11,0.10)',
-    border:      'rgba(245,158,11,0.20)',
+    color:       '#3792ff',
+    bg:          'rgba(55,146,255,0.14)',
+    border:      'rgba(55,146,255,0.28)',
   },
   {
     href:        '/docs/documents/accounting',
     icon:        BarChart2,
     label:       'Accounting',
     description: 'Client ledger, expenses and partner-based settlement summaries.',
-    color:       '#ef4444',
-    bg:          'rgba(239,68,68,0.10)',
-    border:      'rgba(239,68,68,0.20)',
+    color:       '#7cc4ff',
+    bg:          'rgba(124,196,255,0.14)',
+    border:      'rgba(124,196,255,0.28)',
   },
 ];
 
@@ -70,12 +70,12 @@ export default function DocsLandingPage() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
           <OpenyLogo width={110} height={32} />
-          <span
-            className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-md"
-            style={{ color: '#0891b2', background: 'rgba(8,145,178,0.10)', border: '1px solid rgba(8,145,178,0.20)' }}
-          >
-            DOCS
-          </span>
+            <span
+              className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-md"
+              style={{ color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--accent-glow)' }}
+            >
+              DOCS
+            </span>
         </div>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Internal business document platform — invoices, contracts, employees &amp; accounting.

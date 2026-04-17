@@ -110,8 +110,8 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
         <span
           className="inline-block text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-md mb-3"
           style={{
-            color: workspace === 'docs' ? '#0891b2' : 'var(--accent)',
-            background: workspace === 'docs' ? 'rgba(8,145,178,0.10)' : 'var(--accent-soft)',
+            color: 'var(--accent)',
+            background: 'var(--accent-soft)',
           }}
         >
           {workspaceLabel}

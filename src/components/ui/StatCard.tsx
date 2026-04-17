@@ -7,14 +7,14 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  blue:   { bg: 'rgba(59,130,246,0.12)',  text: '#3b82f6',  glow: 'rgba(59,130,246,0.25)'  },
-  green:  { bg: 'rgba(16,185,129,0.12)',  text: '#10b981',  glow: 'rgba(16,185,129,0.25)'  },
-  amber:  { bg: 'rgba(245,158,11,0.12)',  text: '#f59e0b',  glow: 'rgba(245,158,11,0.25)'  },
-  red:    { bg: 'rgba(239,68,68,0.12)',   text: '#ef4444',  glow: 'rgba(239,68,68,0.25)'   },
-  violet: { bg: 'rgba(139,92,246,0.12)',  text: '#8b5cf6',  glow: 'rgba(139,92,246,0.25)'  },
-  mint:   { bg: 'rgba(5,150,105,0.12)',   text: '#059669',  glow: 'rgba(5,150,105,0.25)'   },
-  rose:   { bg: 'rgba(244,63,94,0.12)',   text: '#f43f5e',  glow: 'rgba(244,63,94,0.25)'   },
-  cyan:   { bg: 'rgba(6,182,212,0.12)',   text: '#06b6d4',  glow: 'rgba(6,182,212,0.25)'   },
+  blue:   { bg: 'rgba(47,139,255,0.16)', text: '#2f8bff', glow: 'rgba(47,139,255,0.36)' },
+  green:  { bg: 'rgba(77,176,255,0.16)', text: '#4db0ff', glow: 'rgba(77,176,255,0.34)' },
+  amber:  { bg: 'rgba(245,158,11,0.14)', text: '#f59e0b', glow: 'rgba(245,158,11,0.26)' },
+  red:    { bg: 'rgba(239,68,68,0.14)',  text: '#ef4444', glow: 'rgba(239,68,68,0.26)' },
+  violet: { bg: 'rgba(88,154,255,0.16)', text: '#589aff', glow: 'rgba(88,154,255,0.34)' },
+  mint:   { bg: 'rgba(57,146,255,0.16)', text: '#3992ff', glow: 'rgba(57,146,255,0.34)' },
+  rose:   { bg: 'rgba(255,95,125,0.14)', text: '#ff5f7d', glow: 'rgba(255,95,125,0.24)' },
+  cyan:   { bg: 'rgba(124,196,255,0.16)', text: '#7cc4ff', glow: 'rgba(124,196,255,0.34)' },
 };
 
 export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {

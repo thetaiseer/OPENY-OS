@@ -163,7 +163,7 @@ export default function SelectDropdown({
             background: 'var(--surface)',
             borderColor: 'var(--border)',
             boxShadow: 'var(--glass-shadow-lg)',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(24px)',
           }}
         >
           <div className="py-1.5 max-h-60 overflow-y-auto">
@@ -175,12 +175,13 @@ export default function SelectDropdown({
                   type="button"
                   onClick={() => handleSelect(option.value)}
                   className="flex items-center justify-between w-full px-3.5 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
-                  style={{
-                    background: isSelected ? 'var(--accent-soft)' : 'transparent',
-                    color:      isSelected ? 'var(--accent)' : 'var(--text)',
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
-                >
+                    style={{
+                      background: isSelected ? 'var(--accent-soft)' : 'transparent',
+                      color:      isSelected ? 'var(--accent)' : 'var(--text)',
+                      fontWeight: isSelected ? 600 : 400,
+                      boxShadow: isSelected ? 'inset 0 0 0 1px var(--accent-glow)' : 'none',
+                    }}
+                  >
                   <span className="whitespace-normal break-words leading-5" title={option.label}>{option.label}</span>
                   {isSelected && (
                     <Check size={13} className="shrink-0 ml-2" style={{ color: 'var(--accent)' }} />
@@ -204,9 +205,10 @@ export default function SelectDropdown({
         onClick={e => { e.stopPropagation(); if (!disabled) setOpen(o => !o); }}
         className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
         style={{
-          background:  'var(--surface-2)',
+          background:  open ? 'var(--surface)' : 'var(--surface-2)',
           color:       hasValue ? 'var(--text)' : 'var(--text-secondary)',
           border:      `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
+          boxShadow:   open ? '0 0 0 3px var(--accent-soft), 0 0 20px rgba(47, 139, 255, 0.22)' : 'none',
           whiteSpace:  'nowrap',
         }}
         title={label}

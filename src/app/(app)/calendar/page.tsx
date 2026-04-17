@@ -32,7 +32,7 @@ function priorityColor(p: string): string {
 }
 
 function scheduleStatusColor(s?: string): string {
-  if (s === 'published')      return '#0891b2';
+  if (s === 'published')      return 'var(--accent)';
   if (s === 'approved')       return '#16a34a';
   if (s === 'pending_review') return '#d97706';
   if (s === 'missed')         return '#dc2626';
@@ -245,7 +245,7 @@ export default function CalendarPage() {
       <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#2563eb' }} />Tasks</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#7c3aed' }} />Publishing schedules</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#0891b2' }} />Content</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: 'var(--accent)' }} />Content</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#6b7280' }} />Assets</span>
       </div>
 
@@ -353,7 +353,7 @@ export default function CalendarPage() {
                           <div
                             key={c.id}
                             className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
-                            style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                           >
                             <FileText size={8} className="shrink-0" />
                             <span className="truncate">{c.title}</span>
@@ -549,7 +549,7 @@ export default function CalendarPage() {
                     {selectedContent.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <FileText size={14} style={{ color: '#0891b2' }} />
+                          <FileText size={14} style={{ color: 'var(--accent)' }} />
                           <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                             CONTENT ({selectedContent.length})
                           </span>
@@ -578,7 +578,7 @@ export default function CalendarPage() {
                                 )}
                                 <span
                                   className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                  style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                                 >
                                   {c.status.replace(/_/g, ' ')}
                                 </span>
@@ -706,7 +706,7 @@ export default function CalendarPage() {
                   onClick={() => void handleMarkPublished(selectedSchedule)}
                   disabled={markingPublished}
                   className="w-full h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                  style={{ background: '#0891b2' }}
+                  style={{ background: 'var(--accent)' }}
                 >
                   {markingPublished ? 'Marking…' : '✓ Mark as Published'}
                 </button>

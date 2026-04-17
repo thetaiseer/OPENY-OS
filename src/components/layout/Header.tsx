@@ -74,7 +74,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         <button
           onClick={toggleLang}
-          className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
+          className="p-2 rounded-xl hover:bg-[var(--surface)] transition-all hidden sm:flex border border-transparent hover:border-[var(--border)]"
           style={{ color: 'var(--text-secondary)' }}
           title="Toggle language"
         >
@@ -83,7 +83,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+          className="p-2 rounded-xl hover:bg-[var(--surface)] transition-all border border-transparent hover:border-[var(--border)]"
           style={{ color: 'var(--text-secondary)' }}
           title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
@@ -95,11 +95,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {/* AI Command Center button */}
         <button
           onClick={() => openAi()}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-0.5"
           style={{
-            background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
+            background: aiOpen
+              ? 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)'
+              : 'linear-gradient(135deg, var(--accent-soft) 0%, transparent 100%)',
             color: aiOpen ? '#fff' : 'var(--accent)',
-            border: `1px solid ${aiOpen ? 'var(--accent)' : 'transparent'}`,
+            border: `1px solid ${aiOpen ? 'rgba(255,255,255,0.35)' : 'var(--accent-glow)'}`,
+            boxShadow: aiOpen ? '0 10px 22px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
           }}
           title="AI Command Center (⌘J)"
         >

@@ -31,18 +31,18 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(10,12,25,0.55)', backdropFilter: 'blur(6px)', animation: 'openy-overlay-in 180ms ease both' }}
+      style={{ background: 'rgba(3,8,19,0.62)', backdropFilter: 'blur(8px)', animation: 'openy-overlay-in 220ms ease both' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className={`w-full ${widthMap[size]} rounded-t-2xl sm:rounded-2xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
-        style={{
-          background: 'var(--surface)',
-          borderColor: 'var(--border)',
-          boxShadow: 'var(--glass-shadow-lg)',
-          backdropFilter: 'blur(var(--blur-md))',
-          animation: 'openy-modal-in 320ms var(--ease-spring) both',
-        }}
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--glass-shadow-lg)',
+            backdropFilter: 'blur(var(--blur-lg))',
+            animation: 'openy-modal-in 320ms var(--ease-spring) both',
+          }}
       >
         <div
           className="flex items-center justify-between px-5 sm:px-6 py-4 border-b shrink-0"
