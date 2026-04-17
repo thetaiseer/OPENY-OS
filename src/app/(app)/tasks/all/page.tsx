@@ -1414,12 +1414,12 @@ export default function TasksPage() {
   const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-5 animate-openy-fade-in">
       {/* Fetch error banner */}
       {fetchError && (
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm border"
+          style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
@@ -1428,14 +1428,14 @@ export default function TasksPage() {
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('tasks')}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>{t('tasks')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {filtered.length} task{filtered.length !== 1 ? 's' : ''} across all clients
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* View switcher */}
-          <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
             <button
               onClick={() => setView('list')}
               className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium transition-colors"

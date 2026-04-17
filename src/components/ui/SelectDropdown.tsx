@@ -157,11 +157,13 @@ export default function SelectDropdown({
     ? createPortal(
         <div
           ref={dropdownRef}
-          className="rounded-2xl border shadow-2xl overflow-hidden"
+          className="rounded-2xl border overflow-hidden animate-openy-slide-down"
           style={{
             ...portalStyle,
             background: 'var(--surface)',
             borderColor: 'var(--border)',
+            boxShadow: 'var(--glass-shadow-lg)',
+            backdropFilter: 'blur(20px)',
           }}
         >
           <div className="py-1.5 max-h-60 overflow-y-auto">
@@ -172,9 +174,9 @@ export default function SelectDropdown({
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
+                  className="flex items-center justify-between w-full px-3.5 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
                   style={{
-                    background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
+                    background: isSelected ? 'var(--accent-soft)' : 'transparent',
                     color:      isSelected ? 'var(--accent)' : 'var(--text)',
                     fontWeight: isSelected ? 600 : 400,
                   }}

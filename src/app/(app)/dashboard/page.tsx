@@ -292,9 +292,9 @@ export default function DashboardPage() {
   }, [assetRows]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6 animate-openy-fade-in">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+        <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
           {t('welcomeBack')}, {firstName} 👋
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -314,41 +314,41 @@ export default function DashboardPage() {
       )}
 
       {/* ── Trend + Team performance ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
+            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
           </div>
-          {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />}
+          {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
         </div>
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
-          {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />}
+        <div className="surface-card p-5">
+          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
+          {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
         </div>
       </div>
 
       {/* ── At-risk + Predictions ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle size={16} style={{ color: '#d97706' }} />
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
+            <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
+            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
           </div>
           <OverdueRisk tasks={atRiskTasks ?? []} />
         </div>
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
+        <div className="surface-card p-5">
+          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
           <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
         </div>
       </div>
 
       {/* ── Activity + Content distribution ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="surface-card p-5">
+          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
           {!activitiesData ? (
-            <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+            <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
           ) : activitiesData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <Activity size={28} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
@@ -368,28 +368,28 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
+        <div className="surface-card p-5">
+          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
           <ContentDistribution items={contentDistItems} />
         </div>
       </div>
 
       {/* ── Upcoming scheduled posts ── */}
-      <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-2 mb-5">
-          <CalendarDays size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
+      <div className="surface-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
+          <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
         </div>
         {!scheduled ? (
-          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
         ) : scheduled.length === 0 ? (
           <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
         ) : (
           <div className="space-y-3">
             {scheduled.map(s => (
-              <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
+              <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <Send size={16} style={{ color: 'var(--accent)' }} />
+                  <Send size={15} style={{ color: 'var(--accent)' }} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                       {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
@@ -402,7 +402,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                 </div>
-                <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
                   {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
                 </div>
@@ -413,21 +413,21 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Recent Assets + Active Clients ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recent Assets */}
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between mb-5">
+        <div className="surface-card p-5">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ImageIcon size={16} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Recent Assets</h2>
+              <ImageIcon size={15} style={{ color: 'var(--accent)' }} />
+              <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Recent Assets</h2>
             </div>
-            <Link href="/assets" className="text-xs hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
+            <Link href="/assets" className="text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
               View all
             </Link>
           </div>
           {!recentAssets ? (
             <div className="grid grid-cols-3 gap-2">
-              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}
+              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
             </div>
           ) : recentAssets.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
@@ -461,18 +461,18 @@ export default function DashboardPage() {
         </div>
 
         {/* Active Clients */}
-        <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between mb-5">
+        <div className="surface-card p-5">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Users2 size={16} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Active Clients</h2>
+              <Users2 size={15} style={{ color: 'var(--accent)' }} />
+              <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Active Clients</h2>
             </div>
-            <Link href="/clients" className="text-xs hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
+            <Link href="/clients" className="text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
               View all
             </Link>
           </div>
           {!activeClients ? (
-            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />)}</div>
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
           ) : activeClients.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No active clients</p>
           ) : (
@@ -486,7 +486,7 @@ export default function DashboardPage() {
                 >
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'var(--accent)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
                   >
                     {client.name.charAt(0).toUpperCase()}
                   </div>

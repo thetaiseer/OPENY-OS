@@ -3,30 +3,27 @@
 export function SkeletonCard({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`rounded-2xl animate-pulse ${className}`}
-      style={{ background: 'var(--surface)', height: 120 }}
+      className={`rounded-2xl border skeleton-shimmer ${className}`}
+      style={{ borderColor: 'var(--border)', minHeight: 120 }}
     />
   );
 }
 
 export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) {
   return (
-    <div
-      className={`rounded animate-pulse ${width} ${height}`}
-      style={{ background: 'var(--surface-2)' }}
-    />
+    <div className={`rounded-lg skeleton-shimmer ${width} ${height}`} />
   );
 }
 
 export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
   return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="w-9 h-9 rounded-xl animate-pulse shrink-0" style={{ background: 'var(--surface-2)' }} />
+    <div className="flex items-center gap-4 px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="w-9 h-9 rounded-xl skeleton-shimmer shrink-0" />
       {Array.from({ length: cols - 1 }).map((_, i) => (
         <div
           key={i}
-          className="flex-1 h-4 rounded animate-pulse"
-          style={{ background: 'var(--surface-2)', maxWidth: i === 0 ? 200 : 120 }}
+          className="h-4 rounded-lg skeleton-shimmer flex-1"
+          style={{ maxWidth: i === 0 ? 200 : 120 }}
         />
       ))}
     </div>
@@ -35,7 +32,10 @@ export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
 
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+    >
       {Array.from({ length: rows }).map((_, i) => (
         <SkeletonTableRow key={i} cols={cols} />
       ))}

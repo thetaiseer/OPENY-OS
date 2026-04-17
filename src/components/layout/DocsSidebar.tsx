@@ -32,39 +32,57 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          className="fixed inset-0 z-30 lg:hidden"
+          style={{ background: 'rgba(10,12,25,0.45)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
         />
       )}
       <aside
         className={clsx(
           'fixed top-0 left-0 h-full w-64 xl:w-64 lg:w-[88px] z-40 flex flex-col',
-          'border-r transition-transform duration-200',
+          'border-r transition-transform duration-200 sidebar-glass',
           'lg:translate-x-0 lg:static lg:z-auto',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+        style={{ '--docs-sidebar-accent': '#0891b2' } as React.CSSProperties}
       >
-        <div className="h-16 px-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="h-16 px-5 border-b flex items-center justify-between"
+          style={{ borderColor: 'var(--sidebar-border)' }}
+        >
           <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
             <Link
               href={dashboardHref}
               onClick={onClose}
               aria-label={dashboardAriaLabel}
-              className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-85"
+              className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-80"
             >
               <OpenyLogo width={96} height={28} />
             </Link>
-            <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
-            <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+            <span
+              className="text-sm font-bold tracking-widest hidden lg:inline xl:hidden"
+              style={{ color: '#0891b2' }}
+            >
+              OY
+            </span>
+            <span
+              className="text-[10px] font-bold tracking-widest hidden xl:inline px-1.5 py-0.5 rounded-md"
+              style={{ color: '#0891b2', background: 'rgba(8,145,178,0.10)' }}
+            >
+              DOCS
+            </span>
           </div>
           {onClose && (
-            <button onClick={onClose} className="lg:hidden p-1 rounded hover:opacity-70">
-              <X size={18} />
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <X size={17} />
             </button>
           )}
         </div>
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-3 px-2.5 space-y-0.5 overflow-y-auto">
           {docsNav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             return (
@@ -74,15 +92,20 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
                 onClick={onClose}
                 aria-label={label}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
                   'lg:justify-center xl:justify-start',
                   active
-                    ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
+                    ? ''
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
+                style={active ? {
+                  background: 'rgba(8,145,178,0.10)',
+                  color: '#0891b2',
+                  boxShadow: 'inset 0 0 0 1px rgba(8,145,178,0.18)',
+                } : {}}
               >
-                <Icon size={17} />
-                <span className="lg:hidden xl:inline">{label}</span>
+                <Icon size={17} strokeWidth={active ? 2 : 1.7} style={{ flexShrink: 0 }} />
+                <span className="lg:hidden xl:inline leading-none">{label}</span>
               </Link>
             );
           })}
