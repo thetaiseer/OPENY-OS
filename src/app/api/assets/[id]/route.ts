@@ -29,7 +29,9 @@ type AssetForPreview = {
 
 function monthSegment(monthKey?: string | null) {
   if (!monthKey || !MONTH_KEY_PATTERN.test(monthKey)) return null;
-  const [year, mm] = monthKey.split('-');
+  const parts = monthKey.split('-');
+  if (parts.length !== 2) return null;
+  const [year, mm] = parts;
   const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(mm, 10) - 1, 1))
     .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
     .toLowerCase();
@@ -80,7 +82,8 @@ function buildPathCandidates(asset: AssetForPreview, bucket: string, preferred?:
   ];
   seedValues.forEach((value) => uniquePush(candidates, normalizePath(value ?? null, bucket)));
 
-  const baseName = (normalizePath(asset.storage_key ?? asset.file_path ?? asset.file_url ?? null, bucket) ?? '').split('/').pop();
+  const primaryPathSeed = normalizePath(asset.storage_key ?? asset.file_path ?? asset.file_url ?? null, bucket) ?? '';
+  const baseName = primaryPathSeed.split('/').pop();
   const slug = clientSlug(asset.client_name);
   const month = monthSegment(asset.month_key);
   const main = asset.main_category?.trim() || 'other';

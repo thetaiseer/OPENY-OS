@@ -173,9 +173,22 @@ function PdfPreview({ src, name, onError }: { src: string; name: string; onError
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (loaded) {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
     timeoutRef.current = window.setTimeout(() => {
-      if (!loaded) onError();
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      onError();
     }, PDF_LOAD_TIMEOUT_MS);
+
     return () => {
       if (timeoutRef.current !== null) {
         window.clearTimeout(timeoutRef.current);
@@ -306,8 +319,7 @@ function FallbackPreview({ name, mime, downloadUrl }: { name: string; mime?: str
       <a
         href={downloadUrl}
         download={name}
-        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white"
-        style={{ background: 'rgba(99,102,241,0.85)' }}
+        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 transition-colors"
       >
         <Download size={14} />
         Download file
