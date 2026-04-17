@@ -6,6 +6,8 @@ import supabase from '@/lib/supabase';
 
 const PDF_LOAD_TIMEOUT_MS = 10_000;
 const SUPABASE_ASSETS_BUCKET = 'openy-assets';
+const CLIENTS_PREFIX = 'clients';
+const CLIENT_ID_SEGMENT_INDEX = 1;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -99,13 +101,15 @@ function toCanonicalStoragePath(file: PreviewFile): string | null {
   const fileName = fileNameFromPath(explicitPath) ?? (nameCandidate || null);
   if (!fileName) return explicitPath;
 
-  const clientFromPath = explicitPath?.startsWith('clients/')
-    ? (explicitPath.split('/').filter(Boolean)[1] ?? null)
+  const pathSegments = explicitPath?.split('/').filter(Boolean) ?? [];
+  const hasClientsPrefix = pathSegments[0] === CLIENTS_PREFIX;
+  const clientFromPath = hasClientsPrefix && pathSegments.length > CLIENT_ID_SEGMENT_INDEX
+    ? (pathSegments[CLIENT_ID_SEGMENT_INDEX] ?? null)
     : null;
   const clientId = file.clientId?.trim() || clientFromPath;
   if (!clientId) return explicitPath;
 
-  return `clients/${clientId}/${fileName}`;
+  return `${CLIENTS_PREFIX}/${clientId}/${fileName}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -313,30 +317,41 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
   useEffect(() => {
     if (!file) return;
-    setPreviewFailed(false);
-    setResolveError(null);
-    const fallbackUrl = file.url?.trim() || null;
-    const storagePath = toCanonicalStoragePath(file);
-    if (!storagePath) {
-      setResolvedUrl(fallbackUrl);
-      return;
-    }
-    setResolvingUrl(true);
-    try {
-      const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
-      const publicUrl = data?.publicUrl?.trim() || null;
-      if (!publicUrl) {
-        console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
-        setResolveError('Failed to generate preview URL from storage path.');
+    let active = true;
+    const resolveUrl = async () => {
+      setPreviewFailed(false);
+      setResolveError(null);
+      const fallbackUrl = file.url?.trim() || null;
+      const storagePath = toCanonicalStoragePath(file);
+      if (!storagePath) {
+        if (!active) return;
+        setResolvedUrl(fallbackUrl);
+        setResolvingUrl(false);
+        return;
       }
-      setResolvedUrl(publicUrl || fallbackUrl);
-    } catch (err: unknown) {
-      console.error('[FilePreviewModal] Error resolving preview URL:', err);
-      setResolveError('Could not prepare file preview.');
-      setResolvedUrl(fallbackUrl);
-    } finally {
-      setResolvingUrl(false);
-    }
+      if (active) setResolvingUrl(true);
+      try {
+        const { data } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
+        const publicUrl = data?.publicUrl?.trim() || null;
+        if (!active) return;
+        if (!publicUrl) {
+          console.warn('[FilePreviewModal] Failed to resolve public URL from storage path:', storagePath);
+          setResolveError('Failed to generate preview URL from storage path.');
+        }
+        setResolvedUrl(publicUrl || fallbackUrl);
+      } catch (err: unknown) {
+        if (!active) return;
+        console.error('[FilePreviewModal] Error resolving preview URL:', err);
+        setResolveError('Could not prepare file preview.');
+        setResolvedUrl(fallbackUrl);
+      } finally {
+        if (active) setResolvingUrl(false);
+      }
+    };
+    void resolveUrl();
+    return () => {
+      active = false;
+    };
   }, [file]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
