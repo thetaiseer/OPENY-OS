@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import {
   CheckSquare,
@@ -17,6 +18,7 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useClientWorkspace } from '../client-context';
 import type { Task, Asset, ContentItem, Activity as ActivityItem } from '@/lib/types';
+const COMPLETED_TASK_STATUSES = new Set(['done', 'completed', 'delivered', 'cancelled']);
 
 function fmtDate(d?: string) {
   if (!d) return '';
@@ -82,7 +84,7 @@ export default function ClientOverviewPage() {
         ? (allTasks.value.data ?? []) as { status: string }[]
         : [];
 
-      const activeTasks = allTasksRows.filter(task => !['done', 'completed', 'delivered', 'cancelled'].includes(task.status ?? '')).length;
+      const activeTasks = allTasksRows.filter(task => !COMPLETED_TASK_STATUSES.has(task.status ?? '')).length;
 
       setCounts({
         tasks: tk.status === 'fulfilled' ? (tk.value.count ?? 0) : 0,
@@ -101,7 +103,7 @@ export default function ClientOverviewPage() {
   }, [clientId]);
 
   const insights = useMemo(() => {
-    const overdue = recentTasks.filter(task => task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done').length;
+    const overdue = recentTasks.filter(task => task.due_date && new Date(task.due_date) < new Date() && !COMPLETED_TASK_STATUSES.has(task.status ?? '')).length;
     const published = recentContent.filter(item => item.status === 'published').length;
 
     return [
@@ -250,8 +252,13 @@ export default function ClientOverviewPage() {
               {recentAssets.map(asset => (
                 <div key={asset.id} className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url} alt={asset.name} className="w-full aspect-square object-cover" />
+                    <Image
+                      src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
+                      alt={asset.name}
+                      width={320}
+                      height={320}
+                      className="w-full aspect-square object-cover"
+                    />
                   ) : (
                     <div className="w-full aspect-square flex items-center justify-center" style={{ background: 'var(--surface)' }}>
                       <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />

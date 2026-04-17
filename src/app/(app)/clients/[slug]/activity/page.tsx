@@ -7,21 +7,29 @@ import EmptyState from '@/components/ui/EmptyState';
 import { useClientWorkspace } from '../client-context';
 import type { Activity as ActivityItem } from '@/lib/types';
 
+const ACTIVITY_VISUALS: Record<string, { icon: JSX.Element; color: string }> = {
+  upload: { icon: <Upload size={14} />, color: '#3b82f6' },
+  task_created: { icon: <CheckSquare size={14} />, color: '#10b981' },
+  task_updated: { icon: <CheckSquare size={14} />, color: '#10b981' },
+  task_deleted: { icon: <Trash2 size={14} />, color: '#ef4444' },
+  delete: { icon: <Trash2 size={14} />, color: '#ef4444' },
+  content_created: { icon: <FileText size={14} />, color: '#8b5cf6' },
+  content_updated: { icon: <FileText size={14} />, color: '#8b5cf6' },
+  update: { icon: <Pencil size={14} />, color: '#f59e0b' },
+  edit: { icon: <Pencil size={14} />, color: '#f59e0b' },
+};
+
 function iconFor(type: string) {
-  if (type.includes('upload')) return <Upload size={14} />;
-  if (type.includes('task')) return <CheckSquare size={14} />;
-  if (type.includes('delete')) return <Trash2 size={14} />;
-  if (type.includes('content')) return <FileText size={14} />;
-  if (type.includes('update') || type.includes('edit')) return <Pencil size={14} />;
+  if (ACTIVITY_VISUALS[type]) return ACTIVITY_VISUALS[type].icon;
+  if (type.startsWith('task_')) return <CheckSquare size={14} />;
+  if (type.startsWith('content_')) return <FileText size={14} />;
   return <Activity size={14} />;
 }
 
 function colorFor(type: string) {
-  if (type.includes('upload')) return '#3b82f6';
-  if (type.includes('task')) return '#10b981';
-  if (type.includes('delete')) return '#ef4444';
-  if (type.includes('content')) return '#8b5cf6';
-  if (type.includes('update') || type.includes('edit')) return '#f59e0b';
+  if (ACTIVITY_VISUALS[type]) return ACTIVITY_VISUALS[type].color;
+  if (type.startsWith('task_')) return '#10b981';
+  if (type.startsWith('content_')) return '#8b5cf6';
   return 'var(--accent)';
 }
 

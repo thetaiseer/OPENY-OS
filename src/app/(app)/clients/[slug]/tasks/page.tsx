@@ -64,6 +64,17 @@ export default function ClientTasksPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Task['status']>('all');
+  const statusOptions: Array<'todo' | 'in_progress' | 'in_review' | 'waiting_client' | 'overdue' | 'done' | 'completed' | 'delivered' | 'cancelled'> = [
+    'todo',
+    'in_progress',
+    'in_review',
+    'waiting_client',
+    'overdue',
+    'done',
+    'completed',
+    'delivered',
+    'cancelled',
+  ];
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -156,7 +167,7 @@ export default function ClientTasksPage() {
               className="input-glass h-9 pl-8 pr-7 text-xs font-semibold min-w-[145px]"
             >
               <option value="all">All statuses</option>
-              {[...new Set(tasks.map(task => task.status))].map(status => (
+              {statusOptions.map(status => (
                 <option key={status} value={status}>{humanStatus(status)}</option>
               ))}
             </select>

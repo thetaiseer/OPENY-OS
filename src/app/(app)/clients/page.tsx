@@ -40,9 +40,10 @@ interface ClientStats {
 
 type ViewMode = 'grid' | 'list';
 type StatusFilter = 'all' | 'active' | 'paused' | 'archived';
-type ActivityFilter = 'all' | 'active7' | 'active30' | 'inactive30';
+type ActivityFilter = 'all' | 'activeWithin7Days' | 'activeWithin30Days' | 'inactiveOver30Days';
 type DateFilter = 'all' | '7' | '30' | '90';
 type SortBy = 'recent' | 'name' | 'tasks' | 'assets' | 'activity';
+const MAX_ACTIVITY_DESC_LENGTH = 56;
 
 function statusGroup(status?: string): Exclude<StatusFilter, 'all'> {
   if (status === 'active') return 'active';
@@ -183,9 +184,9 @@ export default function ClientsPage() {
         return false;
       }
 
-      if (activityFilter === 'active7' && daysSince(stats.lastActivity) > 7) return false;
-      if (activityFilter === 'active30' && daysSince(stats.lastActivity) > 30) return false;
-      if (activityFilter === 'inactive30' && daysSince(stats.lastActivity) <= 30) return false;
+      if (activityFilter === 'activeWithin7Days' && daysSince(stats.lastActivity) > 7) return false;
+      if (activityFilter === 'activeWithin30Days' && daysSince(stats.lastActivity) > 30) return false;
+      if (activityFilter === 'inactiveOver30Days' && daysSince(stats.lastActivity) <= 30) return false;
 
       if (dateFilter !== 'all') {
         const created = daysSince(client.created_at);
@@ -374,9 +375,9 @@ export default function ClientsPage() {
               className="input-glass h-9 pl-8 pr-7 text-xs font-semibold min-w-[125px]"
             >
               <option value="all">Any Activity</option>
-              <option value="active7">Active 7d</option>
-              <option value="active30">Active 30d</option>
-              <option value="inactive30">Inactive 30d+</option>
+              <option value="activeWithin7Days">Active 7d</option>
+              <option value="activeWithin30Days">Active 30d</option>
+              <option value="inactiveOver30Days">Inactive 30d+</option>
             </select>
           </label>
 
@@ -507,7 +508,7 @@ export default function ClientsPage() {
                   {stats.lastActivity ? (
                     <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                       {stats.lastDesc
-                        ? `${stats.lastDesc.length > 56 ? `${stats.lastDesc.slice(0, 56)}…` : stats.lastDesc} · ${formatRelative(stats.lastActivity)}`
+                        ? `${stats.lastDesc.length > MAX_ACTIVITY_DESC_LENGTH ? `${stats.lastDesc.slice(0, MAX_ACTIVITY_DESC_LENGTH)}…` : stats.lastDesc} · ${formatRelative(stats.lastActivity)}`
                         : `Updated ${formatRelative(stats.lastActivity)}`}
                     </p>
                   ) : (

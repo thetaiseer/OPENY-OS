@@ -38,6 +38,7 @@ interface ClientWorkspaceStats {
   assets: number;
   content: number;
 }
+const COMPLETED_TASK_STATUSES = new Set(['done', 'completed', 'delivered', 'cancelled']);
 
 function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
@@ -122,7 +123,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       ? (tasksRes.value.data ?? []) as { id: string; status: string }[]
       : [];
 
-    const activeTasks = allTaskRows.filter(task => !['done', 'completed', 'delivered', 'cancelled'].includes(task.status ?? '')).length;
+    const activeTasks = allTaskRows.filter(task => !COMPLETED_TASK_STATUSES.has(task.status ?? '')).length;
 
     setStats({
       tasks: tasksRes.status === 'fulfilled' ? (tasksRes.value.count ?? allTaskRows.length) : 0,
