@@ -253,11 +253,13 @@ export default function ClientOverviewPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {recentAssets.map(asset => (
+              {recentAssets.map(asset => {
+                const previewSrc = asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null);
+                return (
                 <div key={asset.id} className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
+                  {previewSrc ? (
                     <Image
-                      src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
+                      src={previewSrc}
                       alt={asset.name}
                       width={320}
                       height={320}
@@ -273,7 +275,7 @@ export default function ClientOverviewPage() {
                     <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{fmtDate(asset.created_at)}</p>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>

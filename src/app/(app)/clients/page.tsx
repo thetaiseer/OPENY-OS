@@ -513,7 +513,7 @@ export default function ClientsPage() {
                 <div className="flex items-center gap-1.5 min-h-[18px] mb-4">
                   <Activity size={11} className="shrink-0" style={{ color: 'var(--text-tertiary)' }} />
                   {stats.lastActivity ? (
-                    <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }} title={stats.lastDesc ?? undefined}>
                       {stats.lastDesc
                         ? formatActivityDescription(stats.lastDesc, stats.lastActivity)
                         : `Updated ${formatRelative(stats.lastActivity)}`}

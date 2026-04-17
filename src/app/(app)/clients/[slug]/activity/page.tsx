@@ -48,7 +48,7 @@ export default function ClientActivityPage() {
       .select('*')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
-      .limit(80);
+      .limit(50);
 
     setItems((data ?? []) as ActivityItem[]);
     setLoading(false);
