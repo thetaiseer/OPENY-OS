@@ -82,22 +82,12 @@ function FileIcon({ name, mime, size = 40 }: { name: string; mime?: string | nul
 // Preview regions
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ImagePreview({ src, alt }: { src: string; alt: string }) {
+function ImagePreview({ src, alt, onError }: { src: string; alt: string; onError: () => void }) {
   const [scale, setScale] = useState(1);
-  const [failed, setFailed] = useState(false);
 
   const zoomIn  = () => setScale(s => Math.min(s + 0.25, 4));
   const zoomOut = () => setScale(s => Math.max(s - 0.25, 0.25));
   const reset   = () => setScale(1);
-
-  if (failed) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-12">
-        <FileImage size={64} style={{ color: '#3b82f6', opacity: 0.5 }} />
-        <p className="text-white/60 text-sm">Image could not be loaded</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
@@ -106,7 +96,7 @@ function ImagePreview({ src, alt }: { src: string; alt: string }) {
         <img
           src={src}
           alt={alt}
-          onError={() => setFailed(true)}
+          onError={onError}
           style={{
             transform: `scale(${scale})`,
             transformOrigin: 'center',
@@ -157,7 +147,7 @@ const VIDEO_TYPE_MAP: Record<string, string> = {
   ogg: 'video/ogg',
 };
 
-function VideoPreview({ src, name }: { src: string; name: string }) {
+function VideoPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   const mimeType = VIDEO_TYPE_MAP[ext] ?? 'video/mp4';
 
@@ -165,6 +155,7 @@ function VideoPreview({ src, name }: { src: string; name: string }) {
     <div className="w-full flex items-center justify-center">
       <video
         controls
+        onError={onError}
         className="rounded-xl shadow-2xl"
         style={{ maxHeight: '80vh', maxWidth: '100%', width: '100%', objectFit: 'contain', background: '#000' }}
       >
@@ -175,8 +166,15 @@ function VideoPreview({ src, name }: { src: string; name: string }) {
   );
 }
 
-function PdfPreview({ src, name }: { src: string; name: string }) {
+function PdfPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (!loaded) onError();
+    }, 10000);
+    return () => window.clearTimeout(timeout);
+  }, [loaded, onError]);
 
   return (
     <div className="relative w-full rounded-xl overflow-hidden shadow-2xl" style={{ height: '80vh', background: '#fff' }}>
@@ -190,13 +188,14 @@ function PdfPreview({ src, name }: { src: string; name: string }) {
         src={src}
         title={name}
         onLoad={() => setLoaded(true)}
+        onError={onError}
         style={{ width: '100%', height: '100%', border: 0, opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }}
       />
     </div>
   );
 }
 
-function TextPreview({ src, name }: { src: string; name: string }) {
+function TextPreview({ src, name, onError }: { src: string; name: string; onError: () => void }) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
@@ -220,6 +219,10 @@ function TextPreview({ src, name }: { src: string; name: string }) {
       })
       .catch(() => { setError(true); setLoading(false); });
   }, [src, json]);
+
+  useEffect(() => {
+    if (error) onError();
+  }, [error, onError]);
 
   if (loading) {
     return (
@@ -279,13 +282,22 @@ function TextPreview({ src, name }: { src: string; name: string }) {
   );
 }
 
-function FallbackPreview({ name, mime }: { name: string; mime?: string | null }) {
+function FallbackPreview({ name, mime, downloadUrl }: { name: string; mime?: string | null; downloadUrl: string }) {
   return (
     <div className="flex flex-col items-center gap-4 py-12">
       <FileIcon name={name} mime={mime} size={64} />
       <p className="text-white/70 text-sm text-center max-w-xs">
         This file type cannot be previewed. Download it to open locally.
       </p>
+      <a
+        href={downloadUrl}
+        download={name}
+        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium text-white"
+        style={{ background: 'rgba(99,102,241,0.85)' }}
+      >
+        <Download size={14} />
+        Download file
+      </a>
     </div>
   );
 }
@@ -300,6 +312,13 @@ interface FilePreviewModalProps {
 }
 
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  useEffect(() => {
+    if (!file) return;
+    setPreviewFailed(false);
+  }, [file]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
   }, [onClose]);
@@ -397,11 +416,17 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
 
         {/* ── Preview body ── */}
         <div className="flex-1 overflow-auto p-5 flex flex-col items-center justify-center min-h-0">
-          {img  && <ImagePreview src={url} alt={name} />}
-          {vid  && <VideoPreview src={url} name={name} />}
-          {pdf  && <PdfPreview   src={url} name={name} />}
-          {text && !img && !vid && !pdf && <TextPreview src={url} name={name} />}
-          {!img && !vid && !pdf && !text && <FallbackPreview name={name} mime={mimeType} />}
+          {previewFailed
+            ? <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />
+            : (
+              <>
+                {img  && <ImagePreview src={url} alt={name} onError={() => setPreviewFailed(true)} />}
+                {vid  && <VideoPreview src={url} name={name} onError={() => setPreviewFailed(true)} />}
+                {pdf  && <PdfPreview   src={url} name={name} onError={() => setPreviewFailed(true)} />}
+                {text && !img && !vid && !pdf && <TextPreview src={url} name={name} onError={() => setPreviewFailed(true)} />}
+                {!img && !vid && !pdf && !text && <FallbackPreview name={name} mime={mimeType} downloadUrl={dl} />}
+              </>
+            )}
         </div>
       </div>
     </div>

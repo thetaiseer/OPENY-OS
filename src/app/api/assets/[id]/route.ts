@@ -3,6 +3,185 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser, requireRole } from '@/lib/api-auth';
 import { deleteFromR2, R2NotFoundError, R2ConfigError } from '@/lib/r2';
 
+const SUPABASE_ASSETS_BUCKET = 'openy-assets';
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+type AssetForPreview = {
+  id: string;
+  name: string;
+  file_path?: string | null;
+  storage_key?: string | null;
+  bucket_name?: string | null;
+  storage_provider?: string | null;
+  file_url?: string | null;
+  download_url?: string | null;
+  view_url?: string | null;
+  web_view_link?: string | null;
+  preview_url?: string | null;
+  file_type?: string | null;
+  mime_type?: string | null;
+  main_category?: string | null;
+  sub_category?: string | null;
+  month_key?: string | null;
+  client_name?: string | null;
+};
+
+function monthSegment(monthKey?: string | null) {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return null;
+  const [year, mm] = monthKey.split('-');
+  const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(mm, 10) - 1, 1))
+    .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
+    .toLowerCase();
+  return `${mm}-${monthName}`;
+}
+
+function normalizePath(value: string | null | undefined, bucket: string) {
+  if (!value) return null;
+  let trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    trimmed = decodeURIComponent(parsed.pathname);
+  } catch {
+    // keep as-is when not a URL
+  }
+
+  const publicPrefix = `/storage/v1/object/public/${bucket}/`;
+  const signPrefix = `/storage/v1/object/sign/${bucket}/`;
+  if (trimmed.includes(publicPrefix)) trimmed = trimmed.split(publicPrefix)[1] ?? trimmed;
+  if (trimmed.includes(signPrefix)) trimmed = trimmed.split(signPrefix)[1] ?? trimmed;
+  if (trimmed.startsWith('/')) trimmed = trimmed.slice(1);
+  if (trimmed.startsWith(`${bucket}/`)) trimmed = trimmed.slice(bucket.length + 1);
+  if (!trimmed || trimmed === bucket) return null;
+  return trimmed.split('?')[0] ?? null;
+}
+
+function clientSlug(name?: string | null) {
+  if (!name) return null;
+  return name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+function uniquePush(list: string[], value: string | null) {
+  if (!value) return;
+  if (!list.includes(value)) list.push(value);
+}
+
+function buildPathCandidates(asset: AssetForPreview, bucket: string, preferred?: Array<string | null | undefined>) {
+  const candidates: string[] = [];
+  const seedValues = preferred ?? [
+    asset.storage_key,
+    asset.file_path,
+    asset.file_url,
+    asset.download_url,
+    asset.view_url,
+    asset.web_view_link,
+    asset.preview_url,
+  ];
+  seedValues.forEach((value) => uniquePush(candidates, normalizePath(value ?? null, bucket)));
+
+  const baseName = (normalizePath(asset.storage_key ?? asset.file_path ?? asset.file_url ?? null, bucket) ?? '').split('/').pop();
+  const slug = clientSlug(asset.client_name);
+  const month = monthSegment(asset.month_key);
+  const main = asset.main_category?.trim() || 'other';
+  const sub = asset.sub_category?.trim() || 'general';
+  if (baseName && slug && month) {
+    uniquePush(candidates, `clients/${slug}/${main}/${asset.month_key?.slice(0, 4)}/${month}/${sub}/${baseName}`);
+  }
+
+  return candidates;
+}
+
+async function isBucketPublic(supabase: ReturnType<typeof getServiceClient>, bucket: string) {
+  const { data } = await supabase
+    .schema('storage')
+    .from('buckets')
+    .select('public')
+    .eq('id', bucket)
+    .maybeSingle();
+  return Boolean(data?.public);
+}
+
+async function resolveStorageUrl(
+  supabase: ReturnType<typeof getServiceClient>,
+  bucket: string,
+  bucketPublic: boolean,
+  candidates: string[],
+) {
+  for (const path of candidates) {
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    if (signedErr || !signedData?.signedUrl) continue;
+    if (bucketPublic) {
+      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+      if (publicData?.publicUrl) return { path, url: publicData.publicUrl };
+    }
+    return { path, url: signedData.signedUrl };
+  }
+  return null;
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await getApiUser(req);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = getServiceClient();
+  const { data: asset, error } = await supabase
+    .from('assets')
+    .select('id,name,file_path,storage_key,bucket_name,storage_provider,file_url,download_url,view_url,web_view_link,preview_url,file_type,mime_type,main_category,sub_category,month_key,client_name,file_size')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!asset) {
+    return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+  }
+
+  const provider = (asset.storage_provider ?? '').toLowerCase();
+  if (provider !== 'supabase_storage' && provider !== 'supabase') {
+    return NextResponse.json({ asset });
+  }
+
+  const bucket = SUPABASE_ASSETS_BUCKET;
+  const bucketPublic = await isBucketPublic(supabase, bucket);
+  const fileResolved = await resolveStorageUrl(
+    supabase,
+    bucket,
+    bucketPublic,
+    buildPathCandidates(asset as AssetForPreview, bucket),
+  );
+  const previewResolved = await resolveStorageUrl(
+    supabase,
+    bucket,
+    bucketPublic,
+    buildPathCandidates(asset as AssetForPreview, bucket, [asset.preview_url]),
+  );
+
+  return NextResponse.json({
+    asset: {
+      ...asset,
+      bucket_name: bucket,
+      ...(fileResolved
+        ? {
+            file_url: fileResolved.url,
+            download_url: fileResolved.url,
+            view_url: fileResolved.url,
+            web_view_link: fileResolved.url,
+            file_path: fileResolved.path,
+            storage_key: fileResolved.path,
+          }
+        : null),
+      ...(previewResolved ? { preview_url: previewResolved.url } : null),
+    },
+  });
+}
+
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(
   req: NextRequest,
@@ -134,7 +313,7 @@ export async function DELETE(
         assetId: asset.id,
       });
     } else {
-      const bucketName = (asset.bucket_name as string | null) ?? 'client-assets';
+      const bucketName = (asset.bucket_name as string | null) ?? SUPABASE_ASSETS_BUCKET;
       const { error: storageError } = await supabase.storage
         .from(bucketName)
         .remove([filePath]);

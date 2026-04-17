@@ -173,6 +173,20 @@ export default function ClientAssetsPage() {
     }
   };
 
+  const handleViewAsset = async (asset: Asset) => {
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`);
+      if (!res.ok) {
+        setPreviewAsset(asset);
+        return;
+      }
+      const json = await res.json() as { asset?: Asset };
+      setPreviewAsset(json.asset ?? asset);
+    } catch {
+      setPreviewAsset(asset);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -224,7 +238,7 @@ export default function ClientAssetsPage() {
         <AssetsGrid
           assets={assets}
           canDelete={user?.role === 'admin' || user?.role === 'owner'}
-          onView={asset => setPreviewAsset(asset)}
+          onView={asset => { void handleViewAsset(asset); }}
           onDelete={asset => void handleDeleteAsset(asset)}
           onCopyLink={asset => void handleCopyAssetLink(asset)}
         />
@@ -235,7 +249,7 @@ export default function ClientAssetsPage() {
         <FilePreviewModal
           file={{
             name:        previewAsset.name,
-            url:         previewAsset.preview_url || previewAsset.file_url,
+            url:         previewAsset.file_url,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl:     previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType:    previewAsset.file_type ?? previewAsset.mime_type ?? null,

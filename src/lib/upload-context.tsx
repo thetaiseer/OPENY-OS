@@ -61,6 +61,7 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
+const SUPABASE_ASSETS_BUCKET = 'openy-assets';
 
 const DB_FAIL_ARABIC =
   'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
@@ -614,7 +615,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       if (item.r2Key) {
         const retryPublicUrlData = item.publicUrl
           ? { publicUrl: item.publicUrl }
-          : supabase.storage.from('client-assets').getPublicUrl(item.r2Key).data;
+          : supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(item.r2Key).data;
         const retryPublicUrl = retryPublicUrlData?.publicUrl ?? '';
         if (!retryPublicUrl) {
           setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
@@ -706,7 +707,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('client-assets')
+      .from(SUPABASE_ASSETS_BUCKET)
       .upload(storagePath, item.file, {
         contentType: mimeType,
         upsert: false,
@@ -728,7 +729,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
     console.log('upload success', uploadData);
-    const { data: publicData } = supabase.storage.from('client-assets').getPublicUrl(storagePath);
+    const { data: publicData } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
     const publicUrl = publicData.publicUrl;
 
     update(item.id, { r2Key: storagePath, r2FileName: displayName, publicUrl, fileMimeType: mimeType });

@@ -17,6 +17,20 @@ export default function PortalPage() {
   const { user, clientId } = useAuth();
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
+  const handleViewAsset = async (asset: Asset) => {
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`);
+      if (!res.ok) {
+        setPreviewAsset(asset);
+        return;
+      }
+      const json = await res.json() as { asset?: Asset };
+      setPreviewAsset(json.asset ?? asset);
+    } catch {
+      setPreviewAsset(asset);
+    }
+  };
+
   const { data: assets, isLoading } = useQuery<Asset[]>({
     queryKey: ['portal-assets', user.id, clientId],
     enabled: !!user.id,
@@ -89,7 +103,7 @@ export default function PortalPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   {(a.web_view_link ?? a.view_url ?? a.file_url) && (
                     <button
-                      onClick={() => setPreviewAsset(a)}
+                      onClick={() => { void handleViewAsset(a); }}
                       className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
                       style={{ background: 'var(--surface-2)' }}
                       title="View"
@@ -114,7 +128,7 @@ export default function PortalPage() {
         <FilePreviewModal
           file={{
             name: previewAsset.name,
-            url: previewAsset.preview_url || previewAsset.file_url,
+            url: previewAsset.file_url,
             downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
             openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
