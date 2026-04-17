@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
  * POST /api/assets
  *
  * Creates a lightweight asset row (URL-based quick add).
+ * If `file_path` is omitted, it falls back to `file_url`.
  * Auth: admin | manager | team_member
  */
 export async function POST(req: NextRequest) {
@@ -181,6 +182,10 @@ export async function POST(req: NextRequest) {
       client_id: payload.client_id as string | null,
       entity_type: 'asset',
       entity_id: data?.id ?? null,
+    }).then(({ error: activityError }) => {
+      if (activityError) {
+        console.warn('[POST /api/assets] activity log failed:', activityError.message);
+      }
     });
 
     return NextResponse.json({ success: true, asset: data }, { status: 201 });

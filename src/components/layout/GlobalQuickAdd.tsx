@@ -7,6 +7,7 @@ import {
   CheckSquare,
   FileText,
   ImagePlus,
+  type LucideIcon,
   Plus,
   X,
 } from 'lucide-react';
@@ -28,7 +29,7 @@ interface QuickTeamMember {
   email: string | null;
 }
 
-const MENU_ITEMS: { key: QuickAddKind; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
   { key: 'task', label: 'Add Task', icon: CheckSquare },
   { key: 'client', label: 'Add Client', icon: Building2 },
   { key: 'content', label: 'Add Content', icon: FileText },
@@ -114,7 +115,7 @@ export default function GlobalQuickAdd() {
   }, [activeModal]);
 
   useEffect(() => {
-    if (!taskAssignee && user.id) {
+    if (taskAssignee === '' && user.id) {
       setTaskAssignee(user.id);
     }
   }, [taskAssignee, user.id]);
@@ -352,7 +353,7 @@ export default function GlobalQuickAdd() {
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Open global quick add"
+          aria-label={menuOpen ? 'Close global quick add' : 'Open global quick add'}
           className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-300"
           style={{
             background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)',
