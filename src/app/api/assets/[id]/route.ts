@@ -10,11 +10,14 @@ const MONTH_KEY_PATTERN = /^\d{4}-\d{2}$/;
 type AssetForPreview = {
   id: string;
   name: string;
+  original_filename?: string | null;
+  file_name?: string | null;
   client_id?: string | null;
   file_path?: string | null;
   storage_path?: string | null;
   storage_key?: string | null;
   bucket_name?: string | null;
+  storage_bucket?: string | null;
   storage_provider?: string | null;
   file_url?: string | null;
   download_url?: string | null;
@@ -23,10 +26,15 @@ type AssetForPreview = {
   preview_url?: string | null;
   file_type?: string | null;
   mime_type?: string | null;
+  file_ext?: string | null;
+  is_previewable?: boolean | null;
+  uploaded_by?: string | null;
+  created_at?: string | null;
   main_category?: string | null;
   sub_category?: string | null;
   month_key?: string | null;
   client_name?: string | null;
+  file_size?: number | null;
 };
 
 function monthSegment(monthKey?: string | null) {
@@ -119,15 +127,29 @@ async function resolveStorageUrl(
   candidates: string[],
 ) {
   for (const path of candidates) {
+    if (bucketPublic) {
+      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+      const publicUrl = publicData?.publicUrl?.trim();
+      if (publicUrl) {
+        try {
+          const probe = await fetch(publicUrl, { method: 'HEAD', cache: 'no-store' });
+          if (probe.ok) {
+            return { path, url: publicUrl, source: 'public' as const };
+          }
+          console.warn('[assets/:id] public URL probe failed', { path, status: probe.status });
+        } catch (err) {
+          console.warn('[assets/:id] public URL probe threw', { path, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+    }
     const { data: signedData, error: signedErr } = await supabase.storage
       .from(bucket)
       .createSignedUrl(path, SIGNED_URL_TTL_ONE_HOUR_SECONDS);
-    if (signedErr || !signedData?.signedUrl) continue;
-    if (bucketPublic) {
-      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
-      if (publicData?.publicUrl) return { path, url: publicData.publicUrl };
+    if (signedErr || !signedData?.signedUrl) {
+      console.warn('[assets/:id] signed URL failed', { path, error: signedErr?.message ?? 'missing signed URL' });
+      continue;
     }
-    return { path, url: signedData.signedUrl };
+    return { path, url: signedData.signedUrl, source: 'signed' as const };
   }
   return null;
 }
@@ -143,7 +165,7 @@ export async function GET(
   const supabase = getServiceClient();
   const { data: asset, error } = await supabase
     .from('assets')
-    .select('id,name,client_id,file_path,storage_path,storage_key,bucket_name,storage_provider,file_url,download_url,view_url,web_view_link,preview_url,file_type,mime_type,main_category,sub_category,month_key,client_name,file_size')
+    .select('id,name,original_filename,file_name,client_id,file_path,storage_path,storage_key,bucket_name,storage_bucket,storage_provider,file_url,download_url,view_url,web_view_link,preview_url,file_type,mime_type,file_ext,main_category,sub_category,month_key,client_name,file_size,is_previewable,uploaded_by,created_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -178,6 +200,7 @@ export async function GET(
     asset: {
       ...asset,
       bucket_name: bucket,
+      storage_bucket: bucket,
       ...(fileResolved
         ? {
             file_url: fileResolved.url,
@@ -187,9 +210,15 @@ export async function GET(
             file_path: fileResolved.path,
             storage_path: fileResolved.path,
             storage_key: fileResolved.path,
+            file_url_source: fileResolved.source,
           }
         : null),
-      ...(previewResolved ? { preview_url: previewResolved.url } : null),
+      ...(previewResolved
+        ? {
+            preview_url: previewResolved.url,
+            preview_url_source: previewResolved.source,
+          }
+        : null),
     },
   });
 }

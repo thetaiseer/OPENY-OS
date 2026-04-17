@@ -6,6 +6,7 @@ import { notifyAssetUploaded } from '@/lib/notification-service';
 import { buildR2Url, R2ConfigError } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
+const SUPABASE_ASSETS_BUCKET = 'openy-assets';
 
 /**
  * POST /api/upload/complete
@@ -60,6 +61,11 @@ export async function POST(req: NextRequest) {
   const durationSeconds     = typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
     ? (body.durationSeconds as number)
     : null;
+  const originalName        = (body.originalName as string | undefined)?.trim() || displayName;
+  const storageProviderReq  = ((body.storageProvider as string | undefined)?.trim() || '').toLowerCase();
+  const storageBucketReq    = (body.storageBucket as string | undefined)?.trim() || null;
+  const inferredProvider    = storageProviderReq || (storageKey.startsWith('clients/') ? 'r2' : 'supabase_storage');
+  const storageProvider     = inferredProvider === 'supabase' ? 'supabase_storage' : inferredProvider;
 
   if (!storageKey)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'storageKey is required' }, { status: 400 });
   if (!displayName) return NextResponse.json({ success: false, stage: 'failed_db', error: 'displayName is required' }, { status: 400 });
@@ -68,24 +74,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' }, { status: 400 });
   }
 
-  let publicUrl: string;
-  try {
-    publicUrl = buildR2Url(storageKey);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const isConfigErr = err instanceof R2ConfigError;
-    return NextResponse.json(
-      { success: false, stage: 'failed_db', error: msg },
-      { status: isConfigErr ? 500 : 502 },
-    );
-  }
-
   let supabase: ReturnType<typeof getServiceClient>;
   try {
     supabase = getServiceClient();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Supabase configuration error';
     return NextResponse.json({ success: false, stage: 'failed_db', error: msg }, { status: 500 });
+  }
+
+  const bucketName = storageProvider === 'supabase_storage'
+    ? (storageBucketReq ?? SUPABASE_ASSETS_BUCKET)
+    : (storageBucketReq ?? process.env.R2_BUCKET_NAME ?? 'client-assets');
+
+  let publicUrl = (body.publicUrl as string | undefined)?.trim() ?? '';
+  if (!publicUrl) {
+    if (storageProvider === 'supabase_storage') {
+      const { data } = supabase.storage.from(bucketName).getPublicUrl(storageKey);
+      publicUrl = data?.publicUrl ?? '';
+    } else {
+      try {
+        publicUrl = buildR2Url(storageKey);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isConfigErr = err instanceof R2ConfigError;
+        return NextResponse.json(
+          { success: false, stage: 'failed_db', error: msg },
+          { status: isConfigErr ? 500 : 502 },
+        );
+      }
+    }
+  }
+
+  if (!publicUrl) {
+    return NextResponse.json(
+      { success: false, stage: 'failed_db', error: 'Could not resolve public URL for uploaded file' },
+      { status: 502 },
+    );
   }
 
   // ── Deduplication check ────────────────────────────────────────────────────
@@ -133,10 +157,23 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────
-  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  const fileExt = (() => {
+    const idx = originalName.lastIndexOf('.');
+    return idx >= 0 ? originalName.slice(idx + 1).toLowerCase() : '';
+  })();
+  const isPreviewable = (
+    fileType.startsWith('image/')
+    || fileType.startsWith('video/')
+    || fileType.startsWith('audio/')
+    || fileType.startsWith('text/')
+    || fileType === 'application/pdf'
+    || ['txt', 'json', 'md', 'csv', 'js', 'ts', 'html', 'css'].includes(fileExt)
+  );
   const insertRow: Record<string, unknown> = {
     name:             displayName,
+    original_name:    originalName,
     file_name:        displayName,
+    file_ext:         fileExt || null,
     file_path:        storageKey,
     storage_path:     storageKey,
     storage_key:      storageKey,
@@ -150,7 +187,8 @@ export async function POST(req: NextRequest) {
     file_size:        fileSize,
     bucket_name:      bucketName,
     storage_bucket:   bucketName,
-    storage_provider: 'r2',
+    storage_provider: storageProvider,
+    is_previewable:   isPreviewable,
     client_name:        clientName,
     client_folder_name: clientName,
     month_key:        monthKey,

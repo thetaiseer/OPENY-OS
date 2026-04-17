@@ -21,10 +21,11 @@ import {
 } from '@/lib/asset-utils';
 import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
-import FilePreviewModal from '@/components/ui/FilePreviewModal';
+import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
 import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
+import { toPreviewInput } from '@/lib/asset-preview';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1170,20 +1171,7 @@ export default function AssetsPage() {
 
       {/* ── Preview modal ─────────────────────────────────────────────────── */}
       {previewAsset && (
-        <FilePreviewModal
-          file={{
-            name: previewAsset.name,
-            url: previewAsset.file_url,
-            storagePath: previewAsset.storage_path ?? null,
-            filePath: previewAsset.storage_key ?? previewAsset.file_path ?? null,
-            clientId: previewAsset.client_id ?? null,
-            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
-            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
-            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
-            size: previewAsset.file_size ?? null,
-          }}
-          onClose={() => setPreviewAsset(null)}
-        />
+        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
       )}
 
       {/* ── Comments modal ────────────────────────────────────────────────── */}
