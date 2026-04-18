@@ -22,6 +22,8 @@ import type { WorkspaceKey } from '@/lib/workspace-access';
 const ACCESS_DENIED_AR = 'ليس لديك صلاحية للدخول إلى هذا القسم';
 const ACCESS_DENIED_EN = 'You do not have access to this workspace';
 const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصول على الصلاحية المناسبة';
+const SHELL_GLOW = 'radial-gradient(980px 460px at 5% 0%, rgba(99,102,241,0.18), transparent 62%), radial-gradient(680px 360px at 95% 100%, rgba(236,72,153,0.14), transparent 68%)';
+const FEATURE_GRADIENT = 'linear-gradient(145deg, rgba(79,70,229,0.95) 0%, rgba(147,51,234,0.88) 60%, rgba(236,72,153,0.86) 100%)';
 
 export default function OfficialAuthLanding() {
   const router = useRouter();
@@ -171,14 +173,14 @@ export default function OfficialAuthLanding() {
         >
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(980px 460px at 5% 0%, rgba(99,102,241,0.18), transparent 62%), radial-gradient(680px 360px at 95% 100%, rgba(236,72,153,0.14), transparent 68%)' }}
+            style={{ background: SHELL_GLOW }}
           />
 
           <div className="relative z-10 flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-[0.22em] px-2.5 py-1 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
-                Unified Access
+              <span className="hidden sm:inline-flex text-xs font-bold uppercase tracking-[0.22em] px-2.5 py-1 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
+                Official Authentication
               </span>
             </div>
             <button
@@ -193,7 +195,7 @@ export default function OfficialAuthLanding() {
           </div>
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8">
-            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: 'linear-gradient(145deg, rgba(79,70,229,0.95) 0%, rgba(147,51,234,0.88) 60%, rgba(236,72,153,0.86) 100%)' }}>
+            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_GRADIENT }}>
               <div>
                 <p className="text-xs uppercase tracking-[0.26em] text-white/80">OPENY Platform</p>
                 <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 text-white leading-[1.15]">{panelHeading}</h2>
@@ -220,7 +222,7 @@ export default function OfficialAuthLanding() {
 
             <div className="lg:col-span-5">
               <div className="h-full rounded-3xl border p-5 sm:p-6 lg:p-7" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] mb-2" style={{ color: 'var(--text-tertiary)' }}>
                   Sign In
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>

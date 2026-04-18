@@ -72,21 +72,6 @@
   --overlay-action-danger-bg: #fef2f2;
 }
 
-:root[data-theme='light'],
-:root[data-theme='dark'] {
-  --bg-app: #f3f4f6;
-  --bg-shell: #ffffff;
-  --bg-surface: #ffffff;
-  --bg-surface-2: #f9fafb;
-  --surface: var(--bg-surface);
-  --surface-2: var(--bg-surface-2);
-  --surface-3: #f3f4f6;
-  --surface-solid: #ffffff;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-}
-
 :root[data-theme='light'] {
   --bg-app: #eef2ff;
   --bg-shell: #ffffff;
