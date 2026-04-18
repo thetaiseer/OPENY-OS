@@ -310,7 +310,7 @@ export default function GlobalQuickAdd() {
   return (
     <>
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
-        <div className="relative flex flex-col items-end gap-2">
+        <div className="quick-add-dock relative flex flex-col items-end gap-2.5">
           {MENU_ITEMS.map((item, index) => {
             const Icon = item.icon;
             const visible = menuOpen;
@@ -320,7 +320,7 @@ export default function GlobalQuickAdd() {
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="btn-secondary group flex items-center gap-2 rounded-2xl px-3 py-2 text-sm shadow-lg transition-all duration-300"
+                className="quick-add-dock-item btn-secondary group flex h-11 w-48 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
                 style={{
                   color: 'var(--text)',
                   transform: visible
@@ -332,12 +332,14 @@ export default function GlobalQuickAdd() {
                 }}
               >
                 <span
-                  className="flex h-7 w-7 items-center justify-center rounded-full"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
-                  <Icon size={14} />
+                  <Icon size={16} />
                 </span>
-                <span className="whitespace-nowrap text-xs font-semibold">{item.label}</span>
+                <span className="flex h-full min-w-0 flex-1 items-center justify-center">
+                  <span className="truncate text-xs font-semibold leading-none">{item.label}</span>
+                </span>
               </button>
             );
           })}

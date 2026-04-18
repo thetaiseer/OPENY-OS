@@ -46,27 +46,24 @@ export default function AppSidebar({
       )}
         <aside
           className={clsx(
-            'fixed top-0 left-0 h-full w-[88vw] max-w-[280px] lg:w-[94px] z-40 flex flex-col sidebar-glass app-sidebar-panel',
-            'lg:translate-x-0 lg:static lg:z-auto',
+            'fixed top-0 left-0 h-full w-[88vw] max-w-[280px] lg:w-[248px] xl:w-[264px] z-40 flex flex-col sidebar-glass app-sidebar-panel',
+            'lg:translate-x-0 lg:static lg:z-auto lg:shrink-0',
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           )}
         >
         <div className="app-sidebar-header">
-          <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
+          <div className="flex items-center gap-2.5 min-w-0 justify-start w-full">
             <Link
               href={dashboardHref}
               onClick={onClose}
               aria-label={dashboardAriaLabel}
-              className="hidden xl:block cursor-pointer transition-opacity duration-150 hover:opacity-80"
+              className="hidden lg:block cursor-pointer transition-opacity duration-150 hover:opacity-80"
             >
               <OpenyLogo width={100} height={30} />
             </Link>
-            <span className="text-sm font-bold tracking-[0.2em] hidden lg:inline xl:hidden app-sidebar-tag-compact">
-              {workspaceTag}
-            </span>
             <span
               className={clsx(
-                'text-[10px] font-bold tracking-[0.2em] hidden xl:inline px-2 py-1 rounded-full app-sidebar-tag',
+                'text-[10px] font-bold tracking-[0.2em] hidden lg:inline px-2 py-1 rounded-full app-sidebar-tag',
                 variant === 'docs' && 'app-sidebar-tag-docs',
               )}
             >
@@ -95,7 +92,7 @@ export default function AppSidebar({
                 aria-label={label}
                 className={clsx(
                   'app-sidebar-item nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
-                  'lg:justify-center xl:justify-start',
+                  'lg:justify-start',
                   active ? 'nav-item-active' : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
               >
@@ -108,7 +105,7 @@ export default function AppSidebar({
                     filter: active ? 'drop-shadow(0 0 10px var(--accent-glow-strong))' : 'none',
                   }}
                 />
-                <span className="lg:hidden xl:inline leading-none truncate">{label}</span>
+                <span className="leading-none truncate">{label}</span>
               </Link>
             );
           })}
@@ -117,14 +114,14 @@ export default function AppSidebar({
         {profile && user && (
           <div className="app-sidebar-user">
             <AccountMenu placement="sidebar">
-              <div className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
+              <div className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-start">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm"
                   style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0 lg:hidden xl:block">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
                     {user.name}
                   </p>
