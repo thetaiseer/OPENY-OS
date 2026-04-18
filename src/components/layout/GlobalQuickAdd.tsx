@@ -320,7 +320,7 @@ export default function GlobalQuickAdd() {
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="quick-add-dock-item btn-secondary group flex h-11 w-[11.75rem] sm:h-12 sm:w-[12.75rem] items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
+                className="quick-add-dock-item btn-secondary group flex h-11 w-48 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
                 style={{
                   color: 'var(--text)',
                   transform: visible
@@ -337,7 +337,7 @@ export default function GlobalQuickAdd() {
                 >
                   <Icon size={14} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-center text-[0.78rem] font-semibold leading-none sm:text-xs">{item.label}</span>
+                <span className="min-w-0 flex-1 truncate text-center text-xs font-semibold leading-none">{item.label}</span>
               </button>
             );
           })}
