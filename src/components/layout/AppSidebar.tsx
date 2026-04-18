@@ -76,9 +76,9 @@ export default function AppSidebar({
                   'app-sidebar-item flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all',
                   active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
                 )}
-              >
+                >
                 <span className={clsx('app-sidebar-icon-wrap inline-flex h-8 w-8 items-center justify-center rounded-lg', active && 'app-sidebar-icon-wrap-active')}>
-                  <Icon size={16} className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
+                  <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
                 </span>
                 <span className="truncate">{label}</span>
               </Link>

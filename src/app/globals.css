@@ -3,8 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --bg-app: #07111f;
-  --bg-shell: #0b1728;
+  --color-navy-950: #07111f;
+  --color-navy-900: #0b1728;
+  --color-navy-870: #0a1426;
+  --color-navy-840: #0d1b30;
+  --color-electric-blue: #2f6bff;
+  --color-icy-blue: #4fb7ff;
+  --bg-app: var(--color-navy-950);
+  --bg-shell: var(--color-navy-900);
   --bg-surface: rgba(10, 20, 38, 0.72);
   --bg-surface-2: rgba(13, 27, 48, 0.88);
   --border-soft: rgba(130, 180, 255, 0.14);
@@ -12,8 +18,8 @@
   --text-primary: #f5f9ff;
   --text-secondary: rgba(230, 240, 255, 0.72);
   --text-muted: rgba(200, 215, 235, 0.46);
-  --accent-primary: #2f6bff;
-  --accent-secondary: #4fb7ff;
+  --accent-primary: var(--color-electric-blue);
+  --accent-secondary: var(--color-icy-blue);
   --accent-glow: rgba(47, 107, 255, 0.35);
   --success: #3ddc97;
   --warning: #ffb547;
@@ -53,6 +59,7 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-2xl: 40px;
+  --container-max-width: 1720px;
   --shadow-sm: var(--shadow-soft);
   --shadow-md: 0 18px 48px rgba(0, 8, 24, 0.34);
   --shadow-lg: var(--shadow-deep);
@@ -159,7 +166,7 @@ a {
 }
 
 .app-shell-container {
-  width: min(100%, 1720px);
+  width: min(100%, var(--container-max-width));
   margin: 0 auto;
   padding: 18px 22px 28px;
 }

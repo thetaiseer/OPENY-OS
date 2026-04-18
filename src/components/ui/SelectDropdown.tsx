@@ -39,9 +39,16 @@ export default function SelectDropdown({
   const selectedOption = useMemo(() => options.find((option) => option.value === value) ?? null, [options, value]);
   const selectedIndex = useMemo(() => options.findIndex((option) => option.value === value), [options, value]);
 
+  const getNextIndex = (direction: 'down' | 'up') => {
+    const current = selectedIndex >= 0 ? selectedIndex : direction === 'down' ? -1 : 0;
+    return direction === 'down'
+      ? Math.min(options.length - 1, current + 1)
+      : Math.max(0, current - 1);
+  };
+
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
+    const onMouseDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
     };
     const onEscape = (event: KeyboardEvent) => {
@@ -50,10 +57,10 @@ export default function SelectDropdown({
         buttonRef.current?.focus();
       }
     };
-    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('keydown', onEscape);
     };
   }, [open]);
@@ -73,9 +80,7 @@ export default function SelectDropdown({
         setOpen(true);
         return;
       }
-      const next = event.key === 'ArrowDown'
-        ? Math.min(options.length - 1, (selectedIndex >= 0 ? selectedIndex : -1) + 1)
-        : Math.max(0, (selectedIndex >= 0 ? selectedIndex : 0) - 1);
+      const next = getNextIndex(event.key === 'ArrowDown' ? 'down' : 'up');
       const opt = options[next];
       if (opt) onChange(opt.value);
       return;
@@ -124,7 +129,7 @@ export default function SelectDropdown({
             <X size={12} />
           </button>
         ) : (
-          <ChevronDown size={14} className={`absolute right-3 shrink-0 text-[var(--text-secondary)] transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown size={14} aria-hidden="true" className={`absolute right-2.5 shrink-0 text-[var(--text-secondary)] transition-transform ${open ? 'rotate-180' : ''}`} />
         )}
       </div>
 
