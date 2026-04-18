@@ -413,7 +413,9 @@ export default function DashboardPage() {
 
     return [
       `You completed ${completedThisWeek} ${pluralize(completedThisWeek, 'task', 'tasks')} this week`,
-      overdue > 0 ? `${overdue} ${pluralize(overdue, 'task is', 'tasks are')} overdue` : 'No overdue tasks right now',
+      overdue > 0
+        ? `${overdue} ${pluralize(overdue, 'task', 'tasks')} ${overdue === 1 ? 'is' : 'are'} overdue`
+        : 'No overdue tasks right now',
       assetsThisWeek > 0
         ? `${assetsThisWeek} ${pluralize(assetsThisWeek, 'asset', 'assets')} added this week`
         : 'No activity in assets this week',

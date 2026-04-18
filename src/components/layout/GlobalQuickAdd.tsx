@@ -39,7 +39,7 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
 const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const QUICK_ADD_USAGE_KEY = 'openy_quick_add_usage_v1';
 const QUICK_ADD_LAST_ACTION_KEY = 'openy_quick_add_last_action_v1';
-const DEFAULT_CLIENT_INITIALS = 'CL';
+const FALLBACK_CLIENT_INITIALS = 'CL';
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -47,8 +47,12 @@ function todayIsoDate() {
 
 function generateInitialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (!parts.length) return DEFAULT_CLIENT_INITIALS;
-  return parts.map(p => p[0].toUpperCase()).join('');
+  if (!parts.length) return FALLBACK_CLIENT_INITIALS;
+  const initials = parts
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .filter(Boolean)
+    .join('');
+  return initials || FALLBACK_CLIENT_INITIALS;
 }
 
 function generateClientNameSuggestion(base: string) {

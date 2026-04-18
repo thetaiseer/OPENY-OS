@@ -148,9 +148,11 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     setClient(data as Client);
     setClientId(data.id);
     try {
-      window.localStorage.setItem('openy_last_client_id', data.id);
-      window.localStorage.setItem('openy_last_client_slug', data.slug ?? '');
-      window.localStorage.setItem('openy_last_client_name', data.name ?? '');
+      window.localStorage.setItem('openy_last_client', JSON.stringify({
+        id: data.id,
+        slug: data.slug ?? '',
+        name: data.name ?? '',
+      }));
     } catch {
       // ignore storage errors
     }
