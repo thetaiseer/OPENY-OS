@@ -55,6 +55,9 @@ const statusVariant = (s: string) => {
   return 'default' as const;
 };
 
+const COMPLETED_STATUSES = new Set<Task['status']>(['done', 'completed', 'delivered', 'published', 'cancelled']);
+const IN_PROGRESS_STATUSES = new Set<Task['status']>(['in_progress', 'in_review', 'review', 'waiting_client']);
+
 function todayMidnight() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -62,12 +65,12 @@ function todayMidnight() {
 }
 
 function isOverdue(due_date?: string, status?: string) {
-  if (!due_date || ['done', 'completed', 'delivered', 'published', 'cancelled'].includes(status ?? '')) return false;
+  if (!due_date || COMPLETED_STATUSES.has((status ?? 'todo') as Task['status'])) return false;
   return new Date(due_date) < todayMidnight();
 }
 
 function isDueSoon(due_date?: string, status?: string) {
-  if (!due_date || ['done', 'completed', 'delivered', 'published', 'cancelled'].includes(status ?? '')) return false;
+  if (!due_date || COMPLETED_STATUSES.has((status ?? 'todo') as Task['status'])) return false;
   const diff = (new Date(due_date).getTime() - todayMidnight().getTime()) / 86400000;
   return diff >= 0 && diff <= 3;
 }
@@ -82,7 +85,6 @@ function fmtDate(d?: string) {
 }
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 const frostedPanelStyle = {
   background: 'color-mix(in srgb, var(--surface) 90%, transparent)',
   border: '1px solid var(--border)',
@@ -169,7 +171,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
         <textarea
           value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-          rows={4}
+          rows={3}
           className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
           style={glassInputStyle}
           placeholder="Detailed description..."
@@ -238,7 +240,6 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
                 { value: 'in_review', label: t('review') },
                 { value: 'done', label: t('done') },
                 { value: 'delivered', label: t('delivered') },
-                { value: 'overdue', label: t('overdue') },
               ]}
             />
           </div>
@@ -449,17 +450,22 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             onClick={() => setStatusOpen(o => !o)}
             className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-semibold"
             style={{ background: tone.bg, color: tone.text, border: `1px solid ${tone.border}` }}
+            aria-label={`Status: ${statusLabel(overdue ? 'overdue' : task.status, t)}. Click to change status`}
+            aria-haspopup="menu"
+            aria-expanded={statusOpen}
           >
             {statusLabel(task.status, t)}
             <ChevronDown size={10} />
           </button>
           {statusOpen && (
             <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
+              role="menu"
               style={{ background: 'var(--menu-bg)', borderColor: 'var(--menu-border)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
-              {['todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'].map(s => (
+              {['todo', 'in_progress', 'in_review', 'done', 'delivered'].map(s => (
                 <button
                   key={s}
                   onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
+                  role="menuitem"
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--surface-2)] transition-colors"
                   style={{ color: 'var(--text)' }}
                 >
@@ -556,7 +562,7 @@ const KANBAN_STATUS_MAP: Record<KanbanColumnId, Task['status'][]> = {
   in_review: ['in_review', 'review', 'waiting_client', 'approved', 'scheduled'],
   done: ['done', 'completed', 'published', 'cancelled'],
   delivered: ['delivered'],
-  overdue: ['overdue'],
+  overdue: [],
 };
 
 function getKanbanColumn(task: Task): KanbanColumnId | null {
@@ -573,7 +579,6 @@ function getPersistedStatus(col: KanbanColumnId): Task['status'] {
   if (col === 'in_review') return 'in_review';
   if (col === 'done') return 'done';
   if (col === 'delivered') return 'delivered';
-  if (col === 'overdue') return 'overdue';
   return col;
 }
 
@@ -762,6 +767,11 @@ function KanbanColumn({
           {colTasks.length}
         </span>
       </div>
+      {isOver && (
+        <span className="sr-only" role="status" aria-live="polite">
+          {`Drop in ${t(col.label)} column`}
+        </span>
+      )}
       <SortableContext items={colTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
         <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[calc(100vh-310px)]">
           {colTasks.length === 0 ? (
@@ -800,7 +810,7 @@ interface KanbanBoardProps {
 }
 
 function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: KanbanBoardProps) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [overColumnId, setOverColumnId] = useState<KanbanColumnId | null>(null);
   const [overTaskId, setOverTaskId] = useState<string | null>(null);
@@ -880,6 +890,8 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       ? (overId.replace('column-', '') as KanbanColumnId)
       : getColumnByTaskId(overId);
     if (!destinationColumn) return;
+    // Prevent dropping into overdue because it is a computed read-only lane.
+    if (destinationColumn === 'overdue') return;
 
     const sourceTasks = [...columns[sourceColumn]];
     const destinationTasks = sourceColumn === destinationColumn
@@ -1440,9 +1452,9 @@ export default function TasksPage() {
   }, [invalidateTaskRelatedQueries, setTasks, toast]);
 
   const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
-  const totalOverdue = useMemo(() => tasks.filter(task => isOverdue(task.due_date, task.status) || task.status === 'overdue').length, [tasks]);
-  const doneCount = useMemo(() => tasks.filter(task => ['done', 'completed', 'delivered', 'published'].includes(task.status)).length, [tasks]);
-  const inProgressCount = useMemo(() => tasks.filter(task => ['in_progress', 'in_review', 'review', 'waiting_client'].includes(task.status)).length, [tasks]);
+  const totalOverdue = useMemo(() => tasks.filter(task => isOverdue(task.due_date, task.status)).length, [tasks]);
+  const doneCount = useMemo(() => tasks.filter(task => COMPLETED_STATUSES.has(task.status)).length, [tasks]);
+  const inProgressCount = useMemo(() => tasks.filter(task => IN_PROGRESS_STATUSES.has(task.status)).length, [tasks]);
   const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]
     .filter(Boolean).length;
 
@@ -1467,11 +1479,25 @@ export default function TasksPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:justify-end">
-            <div className="openy-tabs">
-              <button onClick={() => setView('list')} className={`openy-tab ${view === 'list' ? 'openy-tab-active' : ''}`}>
+            <div className="openy-tabs" role="tablist" aria-label="Task views">
+              <button
+                onClick={() => setView('list')}
+                className={`openy-tab ${view === 'list' ? 'openy-tab-active' : ''}`}
+                role="tab"
+                aria-selected={view === 'list'}
+                aria-controls="tasks-list-panel"
+                id="tasks-list-tab"
+              >
                 <List size={14} className="inline mr-1" />{t('list')}
               </button>
-              <button onClick={() => setView('kanban')} className={`openy-tab ${view === 'kanban' ? 'openy-tab-active' : ''}`}>
+              <button
+                onClick={() => setView('kanban')}
+                className={`openy-tab ${view === 'kanban' ? 'openy-tab-active' : ''}`}
+                role="tab"
+                aria-selected={view === 'kanban'}
+                aria-controls="tasks-kanban-panel"
+                id="tasks-kanban-tab"
+              >
                 <LayoutGrid size={14} className="inline mr-1" />{t('kanban')}
               </button>
             </div>
@@ -1567,7 +1593,7 @@ export default function TasksPage() {
           const count = s === 'all'
             ? tasks.length
             : (s === 'overdue'
-              ? tasks.filter(tk => isOverdue(tk.due_date, tk.status) || tk.status === 'overdue').length
+              ? tasks.filter(tk => isOverdue(tk.due_date, tk.status)).length
               : tasks.filter(tk => tk.status === s).length);
           const tone = getStatusTone(s);
           return (
@@ -1620,7 +1646,7 @@ export default function TasksPage() {
           }
         />
       ) : view === 'kanban' ? (
-        <div className="rounded-2xl border p-2 sm:p-3 overflow-hidden" style={frostedPanelStyle}>
+        <div className="rounded-2xl border p-2 sm:p-3 overflow-hidden" style={frostedPanelStyle} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
           <KanbanBoard
             tasks={filtered}
             team={team}
@@ -1632,23 +1658,25 @@ export default function TasksPage() {
           />
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 px-4 py-2 rounded-xl border text-[11px] uppercase tracking-wide font-semibold" style={{ ...glassInputStyle, color: 'var(--text-tertiary)' }}>
-            <span>Task</span>
-            <span>Client / Project</span>
-            <span>{t('status')}</span>
-            <span>{t('priority')}</span>
-            <span>{t('deadline')}</span>
-            <span><ArrowUpDown size={12} /></span>
+        <div className="space-y-3" role="table" aria-label="Tasks list" aria-rowcount={filtered.length} aria-colcount={6} id="tasks-list-panel" aria-labelledby="tasks-list-tab">
+          <div role="rowgroup" className="hidden md:block">
+            <div role="row" className="grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 px-4 py-2 rounded-xl border text-[11px] uppercase tracking-wide font-semibold" style={{ ...glassInputStyle, color: 'var(--text-tertiary)' }}>
+              <span role="columnheader">Task</span>
+              <span role="columnheader">Client / Project</span>
+              <span role="columnheader">{t('status')}</span>
+              <span role="columnheader">{t('priority')}</span>
+              <span role="columnheader">{t('deadline')}</span>
+              <span role="columnheader"><ArrowUpDown size={12} /></span>
+            </div>
           </div>
-          <div className="space-y-2">
+          <div role="rowgroup" className="space-y-2">
             {filtered.map(task => {
               const overdue = isOverdue(task.due_date, task.status);
               const assignee = team.find(m => m.id === task.assigned_to);
               const tone = getStatusTone(overdue ? 'overdue' : task.status);
               return (
                 <div key={task.id}>
-                  <div className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-4 py-3 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-lg" style={{ ...frostedPanelStyle, borderColor: tone.border }}>
+                  <div role="row" className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-4 py-3 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-lg" style={{ ...frostedPanelStyle, borderColor: tone.border }}>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
                       {task.description && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
@@ -1661,9 +1689,9 @@ export default function TasksPage() {
                     <Badge variant={priorityVariant(task.priority)}>{task.priority === 'high' ? `${t('high')} ↑` : t(task.priority)}</Badge>
                     <p className={`text-sm ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>{task.due_date ? fmtDate(task.due_date) : '-'}</p>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setViewTask(task)} className="btn-ghost p-1.5"><Eye size={14} /></button>
-                      <button onClick={() => openEdit(task)} className="btn-ghost p-1.5"><Pencil size={14} /></button>
-                      <button onClick={() => setDeleteTask(task)} className="btn-ghost p-1.5 text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => setViewTask(task)} className="btn-ghost p-1.5" aria-label={`View ${task.title}`}><Eye size={14} /></button>
+                      <button onClick={() => openEdit(task)} className="btn-ghost p-1.5" aria-label={`Edit ${task.title}`}><Pencil size={14} /></button>
+                      <button onClick={() => setDeleteTask(task)} className="btn-ghost p-1.5 text-red-500" aria-label={`Delete ${task.title}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="md:hidden">
