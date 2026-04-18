@@ -73,6 +73,7 @@ function QueueRow({ item }: { item: UploadItem }) {
   const isFailedDb  = item.status === 'failed_db';
   const isFailed    = item.status === 'failed_upload';
   const canPause    = isActive && item.isMultipart;
+  const showByteProgress = item.totalBytes > 0 && (isActive || isPaused || isComplete);
 
   const statusColor = STATUS_COLOR[item.status];
 
@@ -113,9 +114,11 @@ function QueueRow({ item }: { item: UploadItem }) {
             <span className="truncate" style={{ color: statusColor, fontWeight: 600 }}>
               {item.statusLabel ?? item.statusText}
             </span>
-            <span className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-              {formatSize(item.uploadedBytes)} / {formatSize(item.totalBytes)}
-            </span>
+            {showByteProgress && (
+              <span className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                {formatSize(item.uploadedBytes)} / {formatSize(item.totalBytes)}
+              </span>
+            )}
           </div>
 
           <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: 'var(--border)' }}>
