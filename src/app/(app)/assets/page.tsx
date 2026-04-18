@@ -869,11 +869,8 @@ export default function AssetsPage() {
         return;
       }
       setClients(prev => prev.filter(client => client.id !== clientDeleteTarget.id));
-      setAssets(prev => prev.filter(asset => {
-        const matchesId = asset.client_id === clientDeleteTarget.id;
-        const matchesName = (asset.client_name ?? '') === clientDeleteTarget.name;
-        return !(matchesId || matchesName);
-      }));
+      setPage(0);
+      void fetchAssets(0);
       setFolderPath(prev => (prev.client === clientDeleteTarget.name ? {} : prev));
       addToast(`Client "${clientDeleteTarget.name}" deleted.`, 'success');
       setClientDeleteTarget(null);
@@ -882,7 +879,7 @@ export default function AssetsPage() {
     } finally {
       setDeletingClient(false);
     }
-  }, [isOwner, clientDeleteTarget, addToast]);
+  }, [isOwner, clientDeleteTarget, addToast, fetchAssets]);
 
 
 
@@ -1265,7 +1262,7 @@ export default function AssetsPage() {
                 Delete “{clientDeleteTarget?.name}”?
               </p>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                This action is permanent. Client-related files and folders may also be removed.
+                This action is permanent. Client-related files and folders may be removed according to workspace deletion rules.
               </p>
             </div>
           </div>
