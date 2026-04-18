@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import '../styles/external/liquid-glass.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
 import { AuthProvider } from '@/lib/auth-context';
