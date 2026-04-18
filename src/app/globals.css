@@ -161,7 +161,12 @@
   --header-height: 4rem;
   --app-shell-min-gutter: 2.75rem;
   --app-shell-chrome-offset: calc(var(--header-height) + (var(--shell-pad-y) * 2) + var(--app-shell-min-gutter));
+  --app-shell-max-width: 1920px;
   --nav-item-active-offset: 1px;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
@@ -282,9 +287,14 @@
    ═══════════════════════════════════════════════════════════ */
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  overflow-x: hidden;
+}
 
 body {
+  margin: 0;
   background-color: var(--bg);
   color: var(--text);
   font-family: 'Inter', 'Cairo', sans-serif;
@@ -292,6 +302,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
   text-rendering: optimizeLegibility;
 }
 
@@ -311,10 +323,21 @@ input, select, textarea, button { font: inherit; }
 
 /* ── App Shell ───────────────────────────────────────────── */
 .app-shell-main {
-  padding: var(--shell-pad-y) var(--shell-pad-x);
+  padding-top: var(--shell-pad-y);
+  padding-right: calc(var(--shell-pad-x) + var(--safe-area-inset-right));
+  padding-bottom: calc(var(--shell-pad-y) + var(--safe-area-inset-bottom));
+  padding-left: calc(var(--shell-pad-x) + var(--safe-area-inset-left));
+  overflow-x: clip;
+}
+
+.app-shell-root {
+  width: 100%;
+  max-width: var(--app-shell-max-width);
+  margin-inline: auto;
 }
 
 .app-shell-container {
+  width: 100%;
   border: 1px solid var(--border-2);
   border-radius: var(--radius-2xl);
   background: linear-gradient(160deg, var(--surface) 0%, var(--surface-elevated) 100%);
@@ -399,7 +422,10 @@ input, select, textarea, button { font: inherit; }
 
 @media (max-width: 639px) {
   .app-shell-main {
-    padding: 0.65rem;
+    padding-top: 0.65rem;
+    padding-right: calc(0.65rem + var(--safe-area-inset-right));
+    padding-bottom: calc(0.65rem + var(--safe-area-inset-bottom));
+    padding-left: calc(0.65rem + var(--safe-area-inset-left));
   }
 
   .app-shell-container {
@@ -633,6 +659,8 @@ select option { white-space: normal; }
 
 .app-topbar {
   position: sticky;
+  padding-left: calc(0.75rem + var(--safe-area-inset-left));
+  padding-right: calc(0.75rem + var(--safe-area-inset-right));
 }
 
 .topbar-icon-btn {
@@ -724,6 +752,27 @@ select option { white-space: normal; }
 @media (max-width: 639px) {
   .topbar-ai-btn {
     padding-inline: 0.55rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .app-topbar {
+    padding-left: calc(1rem + var(--safe-area-inset-left));
+    padding-right: calc(1rem + var(--safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-topbar {
+    padding-left: calc(1.25rem + var(--safe-area-inset-left));
+    padding-right: calc(1.25rem + var(--safe-area-inset-right));
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-sidebar-panel {
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
   }
 }
 
@@ -1232,6 +1281,10 @@ textarea:focus {
   padding: 1.375rem 1.375rem 0;
 }
 
+.docs-app .docs-page-header.docs-page-header-compact {
+  padding: 0;
+}
+
 .docs-app .docs-page-title {
   font-size: 1.5rem;
   font-weight: 800;
@@ -1356,6 +1409,13 @@ textarea:focus {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+}
+
+@media (max-width: 639px) {
+  .docs-app .grid.grid-cols-2,
+  .docs-app .grid.grid-cols-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
