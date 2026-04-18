@@ -21,16 +21,13 @@ export default function AppShell({
   containerClassName,
 }: AppShellProps) {
   return (
-    <div className={clsx('app-shell-root app-shell-workspace min-h-dvh', workspaceClassName)}>
-      <div className="app-shell-aurora" aria-hidden="true" />
-      <div className="app-shell-grid">
-        {sidebar}
-        <div className="app-shell-stage">
-          {topbar}
-          <main className={clsx('app-shell-main app-shell-main-frame app-shell-scroll pb-24 lg:pb-0', mainClassName)}>
-            <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
-          </main>
-        </div>
+    <div className={clsx('workspace-shell', workspaceClassName)}>
+      {sidebar}
+      <div className="workspace-stage">
+        {topbar}
+        <main className={clsx('workspace-main', mainClassName)}>
+          <div className={clsx('workspace-container', containerClassName)}>{children}</div>
+        </main>
       </div>
     </div>
   );

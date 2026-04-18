@@ -1,31 +1,25 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
+  BarChart3,
+  CalendarDays,
+  CheckSquare,
+  FileText,
+  FolderOpen,
   LayoutDashboard,
   Users2,
-  CheckSquare,
-  FolderOpen,
-  BarChart2,
-  Users,
-  Settings,
-  CalendarDays,
-  Shield,
-  FileText,
 } from 'lucide-react';
-import { useLang } from '@/lib/lang-context';
-import AppSidebar from './AppSidebar';
 
 const navItems = [
-  { href: '/os/dashboard', base: '/os/dashboard', icon: LayoutDashboard, key: 'dashboard' },
-  { href: '/os/clients', base: '/os/clients', icon: Users2, key: 'clients' },
-  { href: '/os/tasks', base: '/os/tasks', icon: CheckSquare, key: 'tasks' },
-  { href: '/os/content', base: '/os/content', icon: FileText, key: 'content' },
-  { href: '/os/calendar', base: '/os/calendar', icon: CalendarDays, key: 'calendar' },
-  { href: '/os/assets', base: '/os/assets', icon: FolderOpen, key: 'assets' },
-  { href: '/os/reports', base: '/os/reports', icon: BarChart2, key: 'reports' },
-  { href: '/os/team', base: '/os/team', icon: Users, key: 'team' },
-  { href: '/os/security', base: '/os/security', icon: Shield, key: 'security' },
-  { href: '/os/settings', base: '/os/settings', icon: Settings, key: 'settings' },
+  { href: '/os/dashboard', label: 'Workspace', icon: LayoutDashboard },
+  { href: '/os/tasks', label: 'Tasks', icon: CheckSquare },
+  { href: '/os/clients', label: 'Clients', icon: Users2 },
+  { href: '/os/assets', label: 'Assets', icon: FolderOpen },
+  { href: '/os/content', label: 'Content', icon: FileText },
+  { href: '/os/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/os/reports', label: 'Stats', icon: BarChart3 },
 ];
 
 interface SidebarProps {
@@ -33,9 +27,34 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export default function Sidebar({ open, onClose }: SidebarProps) {
-  const { t } = useLang();
-  const items = navItems.map(({ href, base, icon, key }) => ({ href, base, icon, label: t(key) }));
+export default function Sidebar({ open = false, onClose }: SidebarProps) {
+  const pathname = usePathname();
 
-  return <AppSidebar items={items} open={open} onClose={onClose} workspaceTag="OS" variant="os" profile />;
+  return (
+    <>
+      <button
+        type="button"
+        className={`workspace-backdrop ${open ? 'is-open' : ''}`}
+        aria-label="Close navigation"
+        onClick={onClose}
+      />
+      <aside className={`workspace-sidebar ${open ? 'is-open' : ''}`}>
+        <div className="workspace-sidebar-head">
+          <p>OPENY OS</p>
+          <small>Modular workspace</small>
+        </div>
+        <nav className="workspace-nav">
+          {navItems.map(item => {
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link key={item.href} href={item.href} className={`workspace-nav-item ${active ? 'is-active' : ''}`} onClick={onClose}>
+                <item.icon size={16} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
+  );
 }
