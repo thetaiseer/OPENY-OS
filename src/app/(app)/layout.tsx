@@ -10,7 +10,6 @@ import { AppPage } from '@/components/layout/AppPage';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import GlobalQuickAdd from '@/components/layout/GlobalQuickAdd';
-import ThemeSwitcher from '@/components/layout/ThemeSwitcher';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
@@ -187,8 +186,6 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       {/* Global quick add FAB */}
       <GlobalQuickAdd />
-      {/* Theme switcher — glass pill, fixed at top center */}
-      <ThemeSwitcher />
     </>
   );
 }

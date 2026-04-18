@@ -22,7 +22,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const up = trend ? trend.value >= 0 : null;
 
   return (
-    <article className="glass glass-card relative overflow-hidden rounded-2xl border p-5" style={{ borderColor: 'var(--border)' }}>
+    <article className="openy-card card relative overflow-hidden rounded-2xl border p-5">
       <div className="pointer-events-none absolute -top-16 left-0 right-0 h-24 blur-3xl" style={{ background: `radial-gradient(circle, ${tone.glow} 0%, transparent 70%)` }} />
 
       <div className="relative z-10 mb-4 flex items-start justify-between gap-3">

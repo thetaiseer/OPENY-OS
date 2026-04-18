@@ -14,6 +14,7 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import AccountMenu from './AccountMenu';
+import ThemeSwitcher from './ThemeSwitcher';
 
 interface AppTopbarProps {
   onMenuClick?: () => void;
@@ -52,7 +53,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }, [openPalette]);
 
   return (
-    <header className="app-topbar header-glass sticky top-0 z-20 flex items-center gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+    <header className="app-topbar header-glass sticky top-0 z-20 flex items-center gap-2 border-b" style={{ borderColor: 'var(--border-soft)' }}>
       <button type="button" onClick={onMenuClick} className="topbar-icon-btn lg:hidden" aria-label="Open menu">
         <Menu size={18} />
       </button>
@@ -62,7 +63,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         <span className="text-[10px] font-semibold tracking-wide text-[var(--text-secondary)]">{workspaceLabel}</span>
       </Link>
 
-      <div className="topbar-breadcrumb hidden min-w-0 flex-1 md:flex">
+      <div className="topbar-breadcrumb hidden min-w-0 flex-1 lg:flex">
         <span>{workspaceLabel}</span>
         {breadcrumbs.map((crumb, index) => (
           <span key={`${crumb}-${index}`} className="inline-flex min-w-0 items-center gap-1">
@@ -72,13 +73,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         ))}
       </div>
 
-      <div className="min-w-0 max-w-[52vw] flex-1 sm:max-w-md">
+      <div className="min-w-0 max-w-[58vw] flex-1 sm:max-w-xl">
         <GlobalSearch />
       </div>
 
-      <div className="flex flex-1 justify-end" />
-
       <div className="flex shrink-0 items-center gap-1">
+        <ThemeSwitcher />
         <WorkspaceSwitcher />
 
         <button type="button" onClick={toggleLang} className="topbar-icon-btn hidden sm:inline-flex" title="Toggle language">

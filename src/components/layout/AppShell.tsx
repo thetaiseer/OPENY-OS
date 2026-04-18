@@ -21,11 +21,11 @@ export default function AppShell({
   containerClassName,
 }: AppShellProps) {
   return (
-    <div className={clsx('app-shell-root flex min-h-dvh overflow-hidden', workspaceClassName)}>
+    <div className={clsx('app-shell-root app-shell-workspace flex min-h-dvh overflow-hidden', workspaceClassName)}>
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {topbar}
-        <main className={clsx('app-shell-main flex-1 overflow-y-auto', mainClassName)}>
+        <main className={clsx('app-shell-main app-shell-scroll flex-1 overflow-y-auto', mainClassName)}>
           <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
         </main>
       </div>

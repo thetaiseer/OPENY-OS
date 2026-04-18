@@ -44,7 +44,7 @@ export default function AppSidebar({
 
       <aside
         className={clsx(
-          'app-sidebar-panel sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[288px] flex-col transition-transform duration-200 lg:static lg:z-auto lg:w-[256px] lg:translate-x-0',
+          'app-sidebar-panel sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[304px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:w-[284px] lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
@@ -64,7 +64,7 @@ export default function AppSidebar({
           ) : null}
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-2.5">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
           {items.map(({ href, base, icon: Icon, label }) => {
             const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
             return (
@@ -73,11 +73,13 @@ export default function AppSidebar({
                 href={href}
                 onClick={onClose}
                 className={clsx(
-                  'app-sidebar-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  'app-sidebar-item flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all',
                   active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
                 )}
-              >
-                <Icon size={17} className="shrink-0" style={{ color: active ? 'var(--accent)' : 'currentColor' }} />
+                >
+                <span className={clsx('app-sidebar-icon-wrap inline-flex h-8 w-8 items-center justify-center rounded-lg', active && 'app-sidebar-icon-wrap-active')}>
+                  <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
+                </span>
                 <span className="truncate">{label}</span>
               </Link>
             );

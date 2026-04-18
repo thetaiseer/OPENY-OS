@@ -11,7 +11,7 @@ interface AppPageProps {
 }
 
 export function AppPage({ children, className, fullWidth = false, fill = false }: AppPageProps) {
-  return <section className={clsx('app-page', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}>{children}</section>;
+  return <section className={clsx('app-page page-enter', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}>{children}</section>;
 }
 
 interface AppPageHeaderProps {
