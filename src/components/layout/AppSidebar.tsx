@@ -11,6 +11,8 @@ import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
 
+const MAX_DOCK_ITEMS_PER_ROW = 5;
+
 export interface AppSidebarItem {
   href: string;
   base: string;
@@ -41,7 +43,7 @@ export default function AppSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const isSlim = collapsed && !open;
   const itemCount = items.length;
-  const dockRows = Math.ceil(itemCount / 5);
+  const dockRows = Math.ceil(itemCount / MAX_DOCK_ITEMS_PER_ROW);
 
   return (
     <>
@@ -132,7 +134,7 @@ export default function AppSidebar({
 
       <nav
         className="app-bottom-dock fixed bottom-3 left-1/2 z-30 grid w-[min(96vw,560px)] -translate-x-1/2 gap-1.5 rounded-2xl border px-2 py-2 lg:hidden"
-        style={{ gridTemplateColumns: `repeat(${Math.min(5, itemCount)}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${dockRows}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${Math.min(MAX_DOCK_ITEMS_PER_ROW, itemCount)}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${dockRows}, minmax(0, 1fr))` }}
       >
         {items.map(({ href, base, icon: Icon, label }) => {
           const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
