@@ -256,13 +256,14 @@ export async function POST(req: NextRequest) {
 
   // ── Notify (fire-and-forget) ───────────────────────────────────────────────
   if (inserted) {
+    const insertedAssetId = String(inserted.id ?? 'unknown-asset-id');
     if (taskId) {
       void supabase.from('task_asset_links').upsert({
         task_id: taskId,
         asset_id: inserted.id as string,
         linked_by: auth.profile.id,
       }, { onConflict: 'task_id,asset_id' }).then(({ error }) => {
-        if (error) console.warn('[upload/complete] task_asset_links upsert failed for task:', taskId, 'asset:', inserted.id, 'error:', error.message);
+        if (error) console.warn('[upload/complete] task_asset_links upsert failed for task:', taskId, 'asset:', insertedAssetId, 'error:', error.message);
       });
     }
     if (contentItemId) {
@@ -274,7 +275,7 @@ export async function POST(req: NextRequest) {
         link_type: 'related',
         created_by: auth.profile.id,
       }, { onConflict: 'source_type,source_id,target_type,target_id' }).then(({ error }) => {
-        if (error) console.warn('[upload/complete] content->asset link failed for content:', contentItemId, 'asset:', inserted.id, 'error:', error.message);
+        if (error) console.warn('[upload/complete] content->asset link failed for content:', contentItemId, 'asset:', insertedAssetId, 'error:', error.message);
       });
     }
     void notifyAssetUploaded({

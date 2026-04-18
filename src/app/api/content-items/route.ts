@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       } else if (createdTask?.id) {
         const linkedTaskId = createdTask.id as string;
         void db.from('content_items').update({ task_id: linkedTaskId }).eq('id', data.id).then(({ error: backlinkErr }) => {
-          if (backlinkErr) console.warn('[POST /api/content-items] task_id backlink update failed:', backlinkErr.message);
+          if (backlinkErr) console.warn('[POST /api/content-items] task_id backlink update failed for content:', data.id, 'task:', linkedTaskId, 'error:', backlinkErr.message);
         });
         void db.from('entity_links').upsert({
           source_type: 'content',
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
           link_type: 'related',
           created_by: auth.profile.id,
         }, { onConflict: 'source_type,source_id,target_type,target_id' }).then(({ error: linkErr }) => {
-          if (linkErr) console.warn('[POST /api/content-items] entity_links upsert failed:', linkErr.message);
+          if (linkErr) console.warn('[POST /api/content-items] entity_links upsert failed for content:', data.id, 'task:', linkedTaskId, 'error:', linkErr.message);
         });
       }
     }

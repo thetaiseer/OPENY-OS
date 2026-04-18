@@ -468,7 +468,7 @@ export default function CalendarPage() {
                           {DAY_NAMES[day.dayOfWeek]} {day.day}
                         </p>
                         {[
-                          ...listSchedules.slice(0, 2).map(s => ({ id: s.id, title: s.asset?.name ?? 'Schedule', type: 'schedule' as const, color: '#7c3aed' })),
+                          ...listSchedules.slice(0, 2).map(s => ({ id: s.id, title: getScheduleDisplayName(s), type: 'schedule' as const, color: '#7c3aed' })),
                           ...listContent.slice(0, 2).map(c => ({ id: c.id, title: c.title, type: 'content' as const, color: 'var(--accent)' })),
                           ...listTasks.slice(0, 2).map(t => ({ id: t.id, title: t.title, type: 'task' as const, color: '#2563eb' })),
                         ].slice(0, 3).map(item => (
