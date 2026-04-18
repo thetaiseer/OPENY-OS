@@ -43,7 +43,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }, [openPalette]);
 
   return (
-    <header className="app-topbar h-16 px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20 header-glass">
+    <header className="app-topbar h-16 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20 header-glass">
       <button onClick={onMenuClick} className="lg:hidden topbar-icon-btn shrink-0" aria-label="Open menu">
         <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
       </button>

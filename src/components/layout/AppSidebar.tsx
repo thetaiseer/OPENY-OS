@@ -44,13 +44,13 @@ export default function AppSidebar({
       {open && (
         <div className="fixed inset-0 z-30 lg:hidden app-sidebar-backdrop" onClick={onClose} />
       )}
-      <aside
-        className={clsx(
-          'fixed top-0 left-0 h-full w-[280px] lg:w-[94px] z-40 flex flex-col relative sidebar-glass app-sidebar-panel',
-          'lg:translate-x-0 lg:static lg:z-auto',
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-      >
+        <aside
+          className={clsx(
+            'fixed top-0 left-0 h-full w-[88vw] max-w-[280px] lg:w-[94px] z-40 flex flex-col sidebar-glass app-sidebar-panel',
+            'lg:translate-x-0 lg:static lg:z-auto',
+            open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          )}
+        >
         <div className="app-sidebar-header">
           <div className="flex items-center gap-2.5 min-w-0 lg:justify-center xl:justify-start w-full">
             <Link
