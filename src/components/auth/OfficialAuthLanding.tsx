@@ -160,20 +160,25 @@ export default function OfficialAuthLanding() {
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8 os-workspace">
-      <div className="mx-auto w-full max-w-6xl min-h-[88vh] flex items-center">
+      <div className="mx-auto w-full max-w-7xl min-h-[88vh] flex items-center">
         <section
-          className="w-full overflow-hidden rounded-[2rem] border"
+          className="w-full overflow-hidden rounded-[2rem] border relative"
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',
-            boxShadow: 'var(--glass-shadow-xl, 0 24px 80px rgba(79,70,229,0.20))',
+            boxShadow: 'var(--glass-shadow-xl, 0 28px 80px rgba(41, 51, 102, 0.24))',
           }}
         >
-          <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(980px 460px at 5% 0%, rgba(99,102,241,0.18), transparent 62%), radial-gradient(680px 360px at 95% 100%, rgba(236,72,153,0.14), transparent 68%)' }}
+          />
+
+          <div className="relative z-10 flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
-                Official Authentication
+              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-[0.22em] px-2.5 py-1 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
+                Unified Access
               </span>
             </div>
             <button
@@ -183,14 +188,39 @@ export default function OfficialAuthLanding() {
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-              <span className="hidden sm:inline text-xs font-medium">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              <span className="hidden sm:inline text-xs font-medium">{theme === 'dark' ? 'Day' : 'Night'}</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2">
-            <div className="relative p-5 sm:p-7 lg:p-9 transition-all duration-500">
-              <div className="max-w-md mx-auto w-full">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8">
+            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: 'linear-gradient(145deg, rgba(79,70,229,0.95) 0%, rgba(147,51,234,0.88) 60%, rgba(236,72,153,0.86) 100%)' }}>
+              <div>
+                <p className="text-xs uppercase tracking-[0.26em] text-white/80">OPENY Platform</p>
+                <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 text-white leading-[1.15]">{panelHeading}</h2>
+                <p className="text-sm sm:text-base mt-4 text-white/90 max-w-xl">{panelText}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-widest text-white/70">Theme</p>
+                  <p className="text-white text-sm mt-1">Day / Night experience with one switch</p>
+                </div>
+                <div className="rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-widest text-white/70">Access</p>
+                  <p className="text-white text-sm mt-1">Workspace rules are validated on sign in</p>
+                </div>
+                <div className="sm:col-span-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
+                  <p className="text-xs text-white/90 flex items-center gap-2">
+                    <Lock size={12} />
+                    Invite-only access: ask the workspace owner to invite your email address before signing in.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="h-full rounded-3xl border p-5 sm:p-6 lg:p-7" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] mb-2" style={{ color: 'var(--text-tertiary)' }}>
                   Sign In
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
@@ -264,31 +294,12 @@ export default function OfficialAuthLanding() {
                 </form>
               </div>
             </div>
+          </div>
 
-            <div
-              className="relative p-6 sm:p-8 lg:p-10 transition-all duration-500"
-              style={{
-                background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
-              }}
-            >
-              <div className="relative z-10 h-full flex flex-col justify-between gap-6">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
-                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">{panelHeading}</h2>
-                  <p className="text-sm sm:text-base mt-3 text-white/90 max-w-md">{panelText}</p>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs text-white/90">
-                    Invite-only access: ask the workspace owner to invite your email address before signing in.
-                  </p>
-                  <p className="text-xs text-white/80 flex items-center gap-2">
-                    <Lock size={12} />
-                    One secure session. Workspace access is validated per membership.
-                  </p>
-                </div>
-              </div>
-              <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)' }} />
+          <div className="relative z-10 px-6 pb-6 sm:px-7 sm:pb-7 lg:px-8 lg:pb-8">
+            <div className="rounded-2xl border px-4 py-3 text-xs flex flex-wrap items-center justify-between gap-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+              <span>Authentication layer redesigned for clear day/night visual identity.</span>
+              <span style={{ color: 'var(--accent)' }}>Secure • Minimal • Invite Controlled</span>
             </div>
           </div>
         </section>
