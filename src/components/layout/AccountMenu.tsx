@@ -10,9 +10,10 @@ interface AccountMenuProps {
   children: React.ReactNode;
   panelClassName?: string;
   menuContent?: (helpers: { closeMenu: () => void }) => React.ReactNode;
+  triggerAriaLabel?: string;
 }
 
-export default function AccountMenu({ placement, children, panelClassName, menuContent }: AccountMenuProps) {
+export default function AccountMenu({ placement, children, panelClassName, menuContent, triggerAriaLabel }: AccountMenuProps) {
   const { user, role, loading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -56,6 +57,7 @@ export default function AccountMenu({ placement, children, panelClassName, menuC
         className="w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={triggerAriaLabel}
       >
         {children}
       </button>

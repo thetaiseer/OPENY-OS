@@ -80,25 +80,28 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }
 
   return (
-    <header className="app-topbar header-glass sticky top-0 z-20 flex items-center gap-2 border-b" style={{ borderColor: 'var(--border-soft)' }}>
-      <AccountMenu
-        placement="header"
-        panelClassName="sm:hidden right-auto left-0"
-        menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, true)}
-      >
-        <div className="topbar-icon-btn sm:hidden" aria-label="Open mobile menu">
+    <header className="app-topbar header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b sm:flex" style={{ borderColor: 'var(--border-soft)' }}>
+      <div className="flex min-w-0 items-center gap-2">
+        <AccountMenu
+          placement="header"
+          panelClassName="sm:hidden right-auto left-0"
+          menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, true)}
+          triggerAriaLabel="Open mobile quick menu"
+        >
+          <div className="topbar-icon-btn sm:hidden">
+            <Menu size={18} />
+          </div>
+        </AccountMenu>
+
+        <button type="button" onClick={onMenuClick} className="topbar-icon-btn hidden sm:inline-flex lg:hidden" aria-label="Open menu">
           <Menu size={18} />
-        </div>
-      </AccountMenu>
+        </button>
 
-      <button type="button" onClick={onMenuClick} className="topbar-icon-btn hidden sm:inline-flex lg:hidden" aria-label="Open menu">
-        <Menu size={18} />
-      </button>
-
-      <Link href={dashboardHref} className="inline-flex items-center gap-1.5">
-        <OpenyLogo width={82} height={24} />
-        <span className="text-[10px] font-semibold tracking-wide text-[var(--text-secondary)]">{workspaceLabel}</span>
-      </Link>
+        <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
+          <OpenyLogo width={82} height={24} />
+          <span className="text-[10px] font-semibold tracking-wide text-[var(--text-secondary)]">{workspaceLabel}</span>
+        </Link>
+      </div>
 
       <div className="topbar-breadcrumb hidden min-w-0 flex-1 lg:flex">
         <span>{workspaceLabel}</span>
@@ -110,7 +113,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         ))}
       </div>
 
-      <button type="button" onClick={openPalette} className="topbar-icon-btn absolute left-1/2 -translate-x-1/2 sm:hidden" aria-label="Open search">
+      <button type="button" onClick={openPalette} className="topbar-icon-btn justify-self-center sm:hidden" aria-label="Open search">
         <Search size={16} />
       </button>
 
@@ -149,6 +152,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           placement="header"
           panelClassName="lg:hidden"
           menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, false)}
+          triggerAriaLabel="Open account menu"
         >
           <div className="topbar-avatar" style={{ background: 'linear-gradient(130deg,var(--accent),var(--accent-2))' }}>
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
