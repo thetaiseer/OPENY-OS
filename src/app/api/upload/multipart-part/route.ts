@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
   const uploadId   = (body.uploadId as string | undefined)?.trim() ?? '';
   const partNumber = Number(body.partNumber ?? 0);
 
-  if (!storageKey) return NextResponse.json({ error: 'storageKey query param is required' }, { status: 400 });
-  if (!uploadId)   return NextResponse.json({ error: 'uploadId query param is required' }, { status: 400 });
+  if (!storageKey) return NextResponse.json({ error: 'storageKey is required' }, { status: 400 });
+  if (!uploadId)   return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
   if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
     return NextResponse.json({ error: 'partNumber must be an integer between 1 and 10000' }, { status: 400 });
   }
