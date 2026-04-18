@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -30,6 +30,7 @@ import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Client } from '@/lib/types';
+import { normalizeClientRouteId } from '@/lib/client-routing';
 
 interface ClientStats {
   assets: number;
@@ -116,24 +117,22 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [warnMsg, setWarnMsg] = useState<string | null>(null);
+  const warnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
 
-  const normalizeClientId = (id?: string | null) => {
-    const normalized = (id ?? '').trim();
-    if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
-    return normalized;
-  };
-
   const notifyMissingClientId = (clientName?: string) => {
+    if (warnTimeoutRef.current) {
+      clearTimeout(warnTimeoutRef.current);
+    }
     setWarnMsg(`Cannot open "${clientName || 'client'}" because it is missing a valid ID.`);
-    setTimeout(() => setWarnMsg(null), TOAST_DISPLAY_DURATION_MS);
+    warnTimeoutRef.current = setTimeout(() => setWarnMsg(null), TOAST_DISPLAY_DURATION_MS);
   };
 
   const getClientRoute = (client: Client, tab: 'overview' | 'tasks' | 'assets' = 'overview') => {
-    const clientId = normalizeClientId(client.id);
+    const clientId = normalizeClientRouteId(client.id);
     return clientId ? `/clients/${clientId}/${tab}` : null;
   };
 
@@ -173,6 +172,12 @@ export default function ClientsPage() {
       JSON.stringify({ search, viewMode, statusFilter, activityFilter, dateFilter, sortBy }),
     );
   }, [search, viewMode, statusFilter, activityFilter, dateFilter, sortBy]);
+
+  useEffect(() => () => {
+    if (warnTimeoutRef.current) {
+      clearTimeout(warnTimeoutRef.current);
+    }
+  }, []);
 
   const { data: clients = [], isLoading: loading, error: fetchErrorObj } = useQuery<Client[]>({
     queryKey: ['clients-list'],

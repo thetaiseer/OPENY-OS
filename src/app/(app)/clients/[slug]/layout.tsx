@@ -28,6 +28,7 @@ import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
+import { normalizeClientRouteId } from '@/lib/client-routing';
 import { ClientWorkspaceContext } from './client-context';
 
 interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
@@ -137,8 +138,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   }, []);
 
   const loadClient = useCallback(async () => {
-    const clientRouteId = (routeParam ?? '').trim();
-    if (!clientRouteId || clientRouteId === 'null' || clientRouteId === 'undefined') {
+    const clientRouteId = normalizeClientRouteId(routeParam);
+    if (!clientRouteId) {
       setClient(null);
       setClientId('');
       setInvalidRouteParam(true);
@@ -150,12 +151,12 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     setLoading(true);
     setInvalidRouteParam(false);
 
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .or(`id.eq.${clientRouteId},slug.eq.${clientRouteId}`)
-      .limit(1)
-      .maybeSingle();
+    const [byId, bySlug] = await Promise.all([
+      supabase.from('clients').select('*').eq('id', clientRouteId).maybeSingle(),
+      supabase.from('clients').select('*').eq('slug', clientRouteId).maybeSingle(),
+    ]);
+    const data = byId.data ?? bySlug.data;
+    const error = byId.error ?? bySlug.error;
 
     if (error || !data) {
       setLoading(false);
