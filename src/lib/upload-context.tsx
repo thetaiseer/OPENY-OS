@@ -704,7 +704,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       console.log('[upload] multipart resumed:', {
         key:       storageKey,
         uploadId,
-        startFrom: startFromPart,
+        startFrom: completedParts.length + 1,
         totalChunks,
       });
     } else {
@@ -923,7 +923,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
       if (fatalError) {
         inFlightLoadedByPart.clear();
-        if (fatalError.name === 'AbortError') {
+        const fatal = fatalError as Error;
+        if (fatal.name === 'AbortError') {
           if (pauseIntentRef.current.has(item.id)) {
             pauseIntentRef.current.delete(item.id);
             setStage(item.id, 'paused', 'Paused', { uploadedBytes: committedUploadedBytes });
@@ -931,10 +932,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           void abortMultipartSession(storageKey, uploadId);
-          throw fatalError;
+          throw fatal;
         }
         void abortMultipartSession(storageKey, uploadId);
-        const msg = fatalError.message;
+        const msg = fatal.message;
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step:               failedPartNumber ? `chunk_${failedPartNumber}` : 'chunk_upload',
