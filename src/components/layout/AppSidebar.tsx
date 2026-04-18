@@ -17,6 +17,15 @@ export interface AppSidebarItem {
   icon: LucideIcon;
 }
 
+interface AppSidebarProps {
+  items: AppSidebarItem[];
+  open?: boolean;
+  onClose?: () => void;
+  workspaceTag: string;
+  variant?: 'os' | 'docs';
+  profile?: boolean;
+}
+
 export default function AppSidebar({
   items,
   open,
@@ -24,64 +33,38 @@ export default function AppSidebar({
   workspaceTag,
   variant = 'os',
   profile = false,
-}: {
-  items: AppSidebarItem[];
-  open?: boolean;
-  onClose?: () => void;
-  workspaceTag: string;
-  variant?: 'os' | 'docs';
-  profile?: boolean;
-}) {
+}: AppSidebarProps) {
   const pathname = usePathname();
-  const dashboardHref = getWorkspaceDashboardHref(pathname);
-  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
-    ? 'Go to OPENY DOCS dashboard'
-    : 'Go to OPENY OS dashboard';
   const { user } = useAuth();
+  const dashboardHref = getWorkspaceDashboardHref(pathname);
 
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-30 lg:hidden app-sidebar-backdrop" onClick={onClose} />
-      )}
-        <aside
-          className={clsx(
-            'fixed top-0 left-0 h-full w-[88vw] max-w-[280px] lg:w-[248px] xl:w-[264px] z-40 flex flex-col sidebar-glass app-sidebar-panel',
-            'lg:translate-x-0 lg:static lg:z-auto lg:shrink-0',
-            open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-          )}
-        >
+      {open ? <div className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden" onClick={onClose} /> : null}
+
+      <aside
+        className={clsx(
+          'app-sidebar-panel sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[288px] flex-col transition-transform duration-200 lg:static lg:z-auto lg:w-[256px] lg:translate-x-0',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
         <div className="app-sidebar-header">
-          <div className="flex items-center gap-2.5 min-w-0 justify-start w-full">
-            <Link
-              href={dashboardHref}
-              onClick={onClose}
-              aria-label={dashboardAriaLabel}
-              className="hidden lg:block cursor-pointer transition-opacity duration-150 hover:opacity-80"
-            >
-              <OpenyLogo width={100} height={30} />
+          <div className="min-w-0">
+            <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
+              <OpenyLogo width={98} height={28} />
             </Link>
-            <span
-              className={clsx(
-                'text-[10px] font-bold tracking-[0.2em] hidden lg:inline px-2 py-1 rounded-full app-sidebar-tag',
-                variant === 'docs' && 'app-sidebar-tag-docs',
-              )}
-            >
+            <div className={clsx('app-sidebar-tag mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold tracking-[0.16em]', variant === 'docs' && 'app-sidebar-tag-docs')}>
               {workspaceTag}
-            </span>
+            </div>
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="lg:hidden p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <X size={17} />
+          {onClose ? (
+            <button type="button" onClick={onClose} className="btn-icon lg:hidden" aria-label="Close sidebar">
+              <X size={16} />
             </button>
-          )}
+          ) : null}
         </div>
 
-        <nav className="flex-1 py-3.5 px-2.5 space-y-1 overflow-y-auto">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-2.5">
           {items.map(({ href, base, icon: Icon, label }) => {
             const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
             return (
@@ -89,50 +72,33 @@ export default function AppSidebar({
                 key={href}
                 href={href}
                 onClick={onClose}
-                aria-label={label}
                 className={clsx(
-                  'app-sidebar-item nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
-                  'lg:justify-start',
-                  active ? 'nav-item-active' : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
+                  'app-sidebar-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
                 )}
               >
-                <Icon
-                  size={18}
-                  strokeWidth={active ? 2 : 1.75}
-                  style={{
-                    color: active ? 'var(--accent)' : 'currentColor',
-                    flexShrink: 0,
-                    filter: active ? 'drop-shadow(0 0 10px var(--accent-glow-strong))' : 'none',
-                  }}
-                />
-                <span className="leading-none truncate">{label}</span>
+                <Icon size={17} className="shrink-0" style={{ color: active ? 'var(--accent)' : 'currentColor' }} />
+                <span className="truncate">{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        {profile && user && (
+        {profile && user ? (
           <div className="app-sidebar-user">
             <AccountMenu placement="sidebar">
-              <div className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-start">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm"
-                  style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
-                >
-                  {user.name.charAt(0).toUpperCase()}
+              <div className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-[var(--surface-2)]">
+                <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-2))] text-xs font-bold text-white inline-flex items-center justify-center">
+                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
-                    {user.name}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                    {user.role}
-                  </p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{user.name || user.email}</p>
+                  <p className="truncate text-xs text-[var(--text-secondary)]">{user.role}</p>
                 </div>
               </div>
             </AccountMenu>
           </div>
-        )}
+        ) : null}
       </aside>
     </>
   );

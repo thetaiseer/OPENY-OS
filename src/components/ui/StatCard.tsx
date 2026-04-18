@@ -6,58 +6,39 @@ interface StatCardProps {
   trend?: { value: number; label?: string };
 }
 
-const colorMap = {
-  blue:   { bg: 'rgba(47,139,255,0.16)', text: '#2f8bff', glow: 'rgba(47,139,255,0.36)' },
-  green:  { bg: 'rgba(77,176,255,0.16)', text: '#4db0ff', glow: 'rgba(77,176,255,0.34)' },
-  amber:  { bg: 'rgba(245,158,11,0.14)', text: '#f59e0b', glow: 'rgba(245,158,11,0.26)' },
-  red:    { bg: 'rgba(239,68,68,0.14)',  text: '#ef4444', glow: 'rgba(239,68,68,0.26)' },
-  violet: { bg: 'rgba(88,154,255,0.16)', text: '#589aff', glow: 'rgba(88,154,255,0.34)' },
-  mint:   { bg: 'rgba(57,146,255,0.16)', text: '#3992ff', glow: 'rgba(57,146,255,0.34)' },
-  rose:   { bg: 'rgba(255,95,125,0.14)', text: '#ff5f7d', glow: 'rgba(255,95,125,0.24)' },
-  cyan:   { bg: 'rgba(124,196,255,0.16)', text: '#7cc4ff', glow: 'rgba(124,196,255,0.34)' },
+const toneMap = {
+  blue: { bg: 'rgba(47,139,255,0.14)', glow: 'rgba(47,139,255,0.45)' },
+  green: { bg: 'rgba(18,191,118,0.14)', glow: 'rgba(18,191,118,0.45)' },
+  amber: { bg: 'rgba(255,176,32,0.14)', glow: 'rgba(255,176,32,0.45)' },
+  red: { bg: 'rgba(255,91,114,0.14)', glow: 'rgba(255,91,114,0.45)' },
+  violet: { bg: 'rgba(106,115,255,0.14)', glow: 'rgba(106,115,255,0.45)' },
+  mint: { bg: 'rgba(57,226,199,0.14)', glow: 'rgba(57,226,199,0.45)' },
+  rose: { bg: 'rgba(255,120,179,0.14)', glow: 'rgba(255,120,179,0.45)' },
+  cyan: { bg: 'rgba(65,179,255,0.14)', glow: 'rgba(65,179,255,0.45)' },
 };
 
 export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
-  const c = colorMap[color];
+  const tone = toneMap[color];
   const up = trend ? trend.value >= 0 : null;
+
   return (
-    <div
-      className="glass glass-card group relative overflow-hidden rounded-2xl p-5"
-    >
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-16 h-24 blur-3xl opacity-65 transition-opacity duration-300 group-hover:opacity-90"
-        style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 72%)` }}
-      />
-      <div className="flex items-start justify-between mb-4">
-        <div
-          className="relative z-[1] w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-          style={{
-            background: `linear-gradient(165deg, ${c.bg}, color-mix(in srgb, ${c.bg} 70%, transparent))`,
-            color: c.text,
-            boxShadow: `0 0 0 1px ${c.glow}, 0 8px 20px color-mix(in srgb, ${c.glow} 58%, transparent)`,
-          }}
-        >
+    <article className="glass glass-card relative overflow-hidden rounded-2xl border p-5" style={{ borderColor: 'var(--border)' }}>
+      <div className="pointer-events-none absolute -top-16 left-0 right-0 h-24 blur-3xl" style={{ background: `radial-gradient(circle, ${tone.glow} 0%, transparent 70%)` }} />
+
+      <div className="relative z-10 mb-4 flex items-start justify-between gap-3">
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: tone.bg, color: 'var(--accent)' }}>
           {icon}
         </div>
-        {trend && (
-          <span
-            className="text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: up ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
-              color: up ? '#10b981' : '#ef4444',
-            }}
-          >
+
+        {trend ? (
+          <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: up ? 'var(--color-success-bg)' : 'var(--color-danger-bg)', color: up ? 'var(--color-success)' : 'var(--color-danger)' }}>
             {up ? '▲' : '▼'} {Math.abs(trend.value)}%{trend.label ? ` ${trend.label}` : ''}
           </span>
-        )}
+        ) : null}
       </div>
-      <div
-        className="relative z-[1] text-3xl font-extrabold mb-0.5 tracking-tight tabular-nums"
-        style={{ color: 'var(--text)' }}
-      >
-        {value}
-      </div>
-      <div className="glass-card__label relative z-[1]" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-    </div>
+
+      <p className="relative z-10 text-3xl font-extrabold tracking-tight">{value}</p>
+      <p className="relative z-10 mt-1 text-sm text-[var(--text-secondary)]">{label}</p>
+    </article>
   );
 }

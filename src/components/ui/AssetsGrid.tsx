@@ -1,26 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import {
-  Eye, Download, Link, Trash2,
-  File, FileText, FileImage, FileVideo, FileAudio,
-  MessageSquare, Send, Calendar,
-  Pencil, Check, X, Play,
-} from 'lucide-react';
+import { File, FileAudio, FileImage, FileText, FileVideo, Eye, Link as LinkIcon, MessageSquare, Pencil, Send, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
 import type { Asset } from '@/lib/types';
-
-// ── File-type helpers ─────────────────────────────────────────────────────────
 
 export function isImage(name: string, type?: string | null): boolean {
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false);
 }
+
 export function isPdf(name: string, type?: string | null): boolean {
   return /\.pdf$/i.test(name) || type === 'application/pdf';
 }
+
 export function isVideo(name: string, type?: string | null): boolean {
   return /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || (type?.startsWith('video/') ?? false);
 }
+
 export function isAudio(name: string, type?: string | null): boolean {
   return /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(name) || (type?.startsWith('audio/') ?? false);
 }
@@ -48,55 +44,36 @@ export function getFileTypeLabel(name: string, type?: string | null): string {
   return 'File';
 }
 
-/** Format a duration in seconds as MM:SS (or H:MM:SS for ≥ 1 hour). */
 export function formatDuration(seconds: number | null | undefined): string | null {
   if (seconds == null || !isFinite(seconds) || seconds < 0) return null;
   const total = Math.round(seconds);
-  const h     = Math.floor(total / 3600);
-  const m     = Math.floor((total % 3600) / 60);
-  const s     = total % 60;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
 export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string | null; size?: number }) {
-  if (isImage(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
-  if (isPdf(name, type))   return <FileText  size={size} style={{ color: '#ef4444' }} />;
-  if (isVideo(name, type)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (isAudio(name, type)) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
+  if (isImage(name, type)) return <FileImage size={size} style={{ color: 'var(--accent)' }} />;
+  if (isPdf(name, type)) return <FileText size={size} style={{ color: 'var(--color-danger)' }} />;
+  if (isVideo(name, type)) return <FileVideo size={size} style={{ color: 'var(--accent-2)' }} />;
+  if (isAudio(name, type)) return <FileAudio size={size} style={{ color: 'var(--color-info)' }} />;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
-/** Hidden fallback shown when a preview image fails to load. */
-function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
-  return (
-    <div className="flex hidden w-full h-full items-center justify-center">
-      <FileTypeIcon name={name} type={type} size={36} />
-    </div>
-  );
-}
-
-// ── AssetCard ─────────────────────────────────────────────────────────────────
-
 export interface AssetCardProps {
   asset: Asset;
-  /** Permission flags */
   canDelete?: boolean;
   canRename?: boolean;
-  /** Optional schedule summary */
   scheduleCount?: number;
   nextScheduleDate?: string | null;
-  /** Selection mode */
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
-  /** Required action callbacks */
   onView: () => void;
   onDelete: () => void;
   onCopyLink: () => void;
-  /** Optional action callbacks — button only shown when callback is provided */
   onComments?: () => void;
   onRename?: (name: string) => Promise<void>;
   onSchedule?: () => void;
@@ -118,335 +95,166 @@ export function AssetCard({
   onRename,
   onSchedule,
 }: AssetCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName]   = useState(asset.name);
-  const [renaming, setRenaming]   = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(asset.name);
+  const [savingName, setSavingName] = useState(false);
 
-  useEffect(() => { setEditName(asset.name); }, [asset.name]);
+  useEffect(() => {
+    setNameDraft(asset.name);
+  }, [asset.name]);
 
-  const startEdit  = () => { setEditName(asset.name); setIsEditing(true); setTimeout(() => inputRef.current?.select(), 0); };
-  const cancelEdit = () => { setIsEditing(false); setEditName(asset.name); };
-  const commitEdit = async () => {
-    const trimmed = editName.trim();
-    if (!trimmed || trimmed === asset.name || !onRename) { cancelEdit(); return; }
-    setRenaming(true);
-    try { await onRename(trimmed); setIsEditing(false); } finally { setRenaming(false); }
-  };
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); void commitEdit(); }
-    if (e.key === 'Escape') cancelEdit();
-  };
+  async function commitRename() {
+    const next = nameDraft.trim();
+    if (!onRename || !next || next === asset.name) {
+      setEditing(false);
+      setNameDraft(asset.name);
+      return;
+    }
 
-  const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
-  const img     = isImage(asset.name, effectiveMime);
-  const vid     = isVideo(asset.name, effectiveMime);
-  const pdf     = isPdf(asset.name, effectiveMime);
-  const downloadUrl = asset.download_url ?? asset.file_url;
-  // For images: use thumbnail_url → preview_url → file_url.
-  // For videos: use thumbnail_url only (a proper image thumbnail uploaded separately).
-  // For PDFs: use preview_url (first-page render) if available.
-  const imgThumbSrc = img ? (asset.thumbnail_url || asset.preview_url || asset.file_url || '') : '';
-  const vidThumbSrc = vid ? (asset.thumbnail_url || '') : '';
-  const pdfThumbSrc = pdf ? (asset.preview_url || asset.thumbnail_url || '') : '';
-  const showImageThumb = img && !!imgThumbSrc;
-  const showVideoThumb = vid && !!vidThumbSrc;
-  const showPdfThumb   = pdf && !!pdfThumbSrc;
+    setSavingName(true);
+    try {
+      await onRename(next);
+      setEditing(false);
+    } finally {
+      setSavingName(false);
+    }
+  }
 
-  const durationLabel = vid ? formatDuration(asset.duration_seconds) : null;
+  const effectiveType = asset.file_type ?? asset.mime_type ?? undefined;
 
   return (
-    <div
-      className="openy-card group overflow-hidden flex flex-col"
-      role={selectable ? 'button' : undefined}
-      tabIndex={selectable ? 0 : undefined}
-      onKeyDown={selectable ? (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onToggleSelect?.();
-        }
-      } : undefined}
-      style={{
-        borderColor:  selected ? 'var(--accent)' : 'var(--border)',
-        boxShadow:    selected ? '0 0 0 2px var(--accent)' : undefined,
-        cursor:       selectable ? 'pointer' : undefined,
-      }}
+    <article
+      className="openy-card group overflow-hidden rounded-2xl border"
+      style={{ borderColor: selected ? 'var(--accent)' : 'var(--border)', boxShadow: selected ? 'var(--glow-button)' : undefined }}
       onClick={selectable ? onToggleSelect : undefined}
     >
-      {/* Thumbnail */}
-      <div
-        className="relative overflow-hidden"
-        style={{ aspectRatio: '1/1', background: 'var(--surface-2)' }}
-        onClick={selectable ? undefined : onView}
-      >
-        {/* Selection checkbox overlay */}
-        {selectable && (
-          <div
-            role="checkbox"
-            aria-checked={selected}
-            tabIndex={0}
-            className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors"
-            style={{
-              background:  selected ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
-              borderColor: selected ? 'var(--accent)' : 'rgba(0,0,0,0.2)',
-            }}
-            onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}
-            onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggleSelect?.(); } }}
-          >
-            {selected && <Check size={11} className="text-white" />}
-          </div>
-        )}
-        {showImageThumb ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imgThumbSrc}
-              alt={asset.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={e => {
-                e.currentTarget.classList.add('hidden');
-                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                fb?.classList.remove('hidden');
-              }}
-            />
-            <ThumbFallback name={asset.name} type={effectiveMime} />
-          </>
-        ) : showVideoThumb ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={vidThumbSrc}
-              alt={asset.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={e => {
-                e.currentTarget.classList.add('hidden');
-                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                fb?.classList.remove('hidden');
-              }}
-            />
-            {/* Play icon overlay */}
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              aria-hidden="true"
-            >
-              <div
-                className="flex items-center justify-center w-10 h-10 rounded-full"
-                style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-              >
-                <Play size={18} className="text-white ml-0.5" />
-              </div>
-            </div>
-            {/* Duration badge */}
-            {durationLabel && (
-              <div
-                className="absolute bottom-1.5 right-1.5 pointer-events-none"
-                aria-label={`Duration: ${durationLabel}`}
-              >
-                <span
-                  className="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded"
-                  style={{ background: 'rgba(0,0,0,0.65)', color: '#fff', backdropFilter: 'blur(2px)' }}
-                >
-                  {durationLabel}
-                </span>
-              </div>
-            )}
-            <ThumbFallback name={asset.name} type={effectiveMime} />
-          </>
-        ) : showPdfThumb ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={pdfThumbSrc}
-              alt={asset.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={e => {
-                e.currentTarget.classList.add('hidden');
-                const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
-                fb?.classList.remove('hidden');
-              }}
-            />
-            <ThumbFallback name={asset.name} type={effectiveMime} />
-          </>
+      <div className="relative flex aspect-square items-center justify-center border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+        {isImage(asset.name, effectiveType) && asset.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={asset.thumbnail_url} alt={asset.name} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
-          </div>
-        )}
-        {!selectable && (
-          <div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.22), transparent)', pointerEvents: 'none' }}
-          />
+          <FileTypeIcon name={asset.name} type={effectiveType} size={34} />
         )}
 
-        {!selectable && (
-          <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5 opacity-0 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100">
-            <button
-              onClick={e => { e.stopPropagation(); onView(); }}
-              title="View"
-              className="flex items-center justify-center h-8 w-8 rounded-lg border"
-              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
-            >
-              <Eye size={14} />
+        {selectable ? (
+          <button
+            type="button"
+            className="absolute left-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded border text-xs font-bold"
+            style={{ borderColor: selected ? 'var(--accent)' : 'var(--border)', background: selected ? 'var(--accent)' : 'var(--surface)' }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelect?.();
+            }}
+            aria-label="Toggle selection"
+          >
+            {selected ? '✓' : ''}
+          </button>
+        ) : (
+          <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-lg border" style={{ borderColor: 'var(--overlay-action-border)', background: 'var(--overlay-action-bg)', color: '#fff' }} onClick={(event) => { event.stopPropagation(); onView(); }} title="View">
+              <Eye size={13} />
             </button>
-            {onSchedule && (
-              <button
-                onClick={e => { e.stopPropagation(); onSchedule(); }}
-                title="Schedule"
-                className="flex items-center justify-center h-8 w-8 rounded-lg border"
-                style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
-              >
-                <Calendar size={14} />
+            {canDelete ? (
+              <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-lg border" style={{ borderColor: 'var(--overlay-action-border)', background: 'var(--overlay-action-danger-bg)', color: '#fff' }} onClick={(event) => { event.stopPropagation(); onDelete(); }} title="Delete">
+                <Trash2 size={13} />
               </button>
-            )}
-            <a
-              href={downloadUrl}
-              download={asset.name}
-              onClick={e => { e.stopPropagation(); }}
-              title="Download"
-              className="flex items-center justify-center h-8 w-8 rounded-lg border"
-              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
-            >
-              <Download size={14} />
-            </a>
-            {canDelete && (
-              <button
-                onClick={e => { e.stopPropagation(); onDelete(); }}
-                title="Delete"
-                className="flex items-center justify-center h-8 w-8 rounded-lg border"
-                style={{ background: 'var(--overlay-action-danger-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="p-3 flex-1 flex flex-col gap-2 min-w-0">
-        {isEditing ? (
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+      <div className="space-y-2.5 p-3">
+        {editing ? (
+          <div className="flex items-center gap-1">
             <input
-              ref={inputRef}
-              value={editName}
-              onChange={e => setEditName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={renaming}
-              className="flex-1 text-sm font-medium rounded px-1 py-0.5 min-w-0 outline-none border"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', borderColor: 'var(--accent)' }}
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void commitRename();
+                if (event.key === 'Escape') {
+                  setEditing(false);
+                  setNameDraft(asset.name);
+                }
+              }}
+              disabled={savingName}
+              className="openy-field h-8 min-w-0 flex-1 rounded-lg px-2 text-sm"
             />
-            <button onClick={() => void commitEdit()} disabled={renaming} title="Save" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: '#16a34a' }}>
-              <Check size={13} />
-            </button>
-            <button onClick={cancelEdit} disabled={renaming} title="Cancel" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
-              <X size={13} />
+            <button type="button" onClick={() => void commitRename()} className="btn-icon h-8 w-8" disabled={savingName} aria-label="Save name">
+              ✓
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1 group/name min-w-0">
-            <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
-            {canRename && onRename && (
-              <button
-                onClick={e => { e.stopPropagation(); startEdit(); }}
-                title="Rename"
-                className="opacity-0 group-hover/name:opacity-100 flex items-center justify-center h-5 w-5 rounded hover:opacity-70 shrink-0"
-                style={{ color: 'var(--text-secondary)' }}
-              >
+          <div className="flex items-start gap-1">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium" title={asset.name}>{asset.name}</p>
+            {canRename && onRename ? (
+              <button type="button" onClick={() => setEditing(true)} className="btn-icon h-6 w-6" aria-label="Rename asset">
                 <Pencil size={11} />
               </button>
-            )}
+            ) : null}
           </div>
         )}
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-            {getFileTypeLabel(asset.name, effectiveMime)}
+          <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            {getFileTypeLabel(asset.name, effectiveType)}
           </span>
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatFileSize(asset.file_size)}</span>
+          <span className="text-xs text-[var(--text-secondary)]">{formatFileSize(asset.file_size)}</span>
         </div>
 
-        {(asset.client_name || asset.main_category) && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {asset.client_name && (
-              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                {asset.client_name}
-              </span>
-            )}
-            {asset.main_category && (
-              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                {mainCategoryLabel(asset.main_category)}
-              </span>
-            )}
+        {asset.client_name || asset.main_category ? (
+          <div className="flex flex-wrap gap-1">
+            {asset.client_name ? (
+              <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">{asset.client_name}</span>
+            ) : null}
+            {asset.main_category ? (
+              <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">{mainCategoryLabel(asset.main_category)}</span>
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {asset.sub_category && (
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {subCategoryLabel(asset.main_category ?? '', asset.sub_category)}
-          </span>
-        )}
+        {asset.sub_category ? <p className="text-xs text-[var(--text-secondary)]">{subCategoryLabel(asset.main_category ?? '', asset.sub_category)}</p> : null}
 
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatFileDate(asset.created_at)}</span>
-          {scheduleCount != null && scheduleCount > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
-              <Send size={10} />{scheduleCount} scheduled
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
+          <span>{formatFileDate(asset.created_at)}</span>
+          {scheduleCount && scheduleCount > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <Send size={10} /> {scheduleCount}
             </span>
-          )}
-          {nextScheduleDate && (
-            <span className="text-xs flex items-center gap-0.5" style={{ color: '#7c3aed' }}>
-              <Calendar size={10} />{new Date(nextScheduleDate).toLocaleDateString()}
-            </span>
-          )}
+          ) : null}
+          {nextScheduleDate ? <span>{new Date(nextScheduleDate).toLocaleDateString()}</span> : null}
         </div>
 
         <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={e => { e.stopPropagation(); onCopyLink(); }}
-            title="Copy link"
-            className="flex items-center justify-center h-7 w-7 rounded-lg"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-          >
-            <Link size={12} />
+          <button type="button" onClick={(event) => { event.stopPropagation(); onCopyLink(); }} className="btn-icon h-7 w-7" aria-label="Copy link">
+            <LinkIcon size={12} />
           </button>
-          {onComments && (
-            <button
-              onClick={e => { e.stopPropagation(); onComments(); }}
-              title="Comments"
-              className="flex items-center justify-center h-7 w-7 rounded-lg"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-            >
+          {onComments ? (
+            <button type="button" onClick={(event) => { event.stopPropagation(); onComments(); }} className="btn-icon h-7 w-7" aria-label="Open comments">
               <MessageSquare size={12} />
             </button>
-          )}
+          ) : null}
+          {onSchedule ? (
+            <button type="button" onClick={(event) => { event.stopPropagation(); onSchedule(); }} className="btn-icon h-7 w-7" aria-label="Schedule asset">
+              <Send size={12} />
+            </button>
+          ) : null}
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
-// ── AssetsGrid ────────────────────────────────────────────────────────────────
-
 export interface AssetsGridProps {
   assets: Asset[];
-  /** Permission flags */
   canDelete?: boolean;
   canRename?: boolean;
-  /** Per-asset schedule summary — key is asset.id */
   scheduleCounts?: Record<string, { count: number; nextDate: string | null }>;
-  /** Selection mode */
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
-  /** Required action callbacks */
   onView: (asset: Asset) => void;
   onDelete: (asset: Asset) => void;
   onCopyLink: (asset: Asset) => void;
-  /** Optional callbacks — buttons only rendered when provided */
   onComments?: (asset: Asset) => void;
   onRename?: (asset: Asset, name: string) => Promise<void>;
   onSchedule?: (asset: Asset) => void;
@@ -468,8 +276,8 @@ export function AssetsGrid({
   onSchedule,
 }: AssetsGridProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-      {assets.map(asset => (
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+      {assets.map((asset) => (
         <AssetCard
           key={asset.id}
           asset={asset}
@@ -488,6 +296,6 @@ export function AssetsGrid({
           onSchedule={onSchedule ? () => onSchedule(asset) : undefined}
         />
       ))}
-    </div>
+    </section>
   );
 }

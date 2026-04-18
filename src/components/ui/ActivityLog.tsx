@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Activity as ActivityType } from '@/lib/types';
@@ -10,18 +10,14 @@ interface ActivityLogProps {
   limit?: number;
 }
 
-const TYPE_COLOR: Record<string, string> = {
-  upload:   '#3b82f6',
-  delete:   '#ef4444',
-  approve:  '#16a34a',
-  reject:   '#dc2626',
-  comment:  '#8b5cf6',
-  update:   '#d97706',
+const typeColor: Record<string, string> = {
+  upload: '#44a3ff',
+  delete: '#ff5b72',
+  approve: '#12bf76',
+  reject: '#ff5b72',
+  comment: '#7f88ff',
+  update: '#ffb020',
 };
-
-function dotColor(type: string): string {
-  return TYPE_COLOR[type] ?? 'var(--accent)';
-}
 
 export default function ActivityLog({ clientId, limit = 20 }: ActivityLogProps) {
   const [items, setItems] = useState<ActivityType[]>([]);
@@ -29,11 +25,7 @@ export default function ActivityLog({ clientId, limit = 20 }: ActivityLogProps) 
 
   const fetchActivities = useCallback(async () => {
     try {
-      let query = supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      let query = supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(limit);
       if (clientId) query = query.eq('client_id', clientId);
       const { data, error } = await query;
       if (!error) setItems((data ?? []) as ActivityType[]);
@@ -42,42 +34,39 @@ export default function ActivityLog({ clientId, limit = 20 }: ActivityLogProps) 
     }
   }, [clientId, limit]);
 
-  useEffect(() => { fetchActivities(); }, [fetchActivities]);
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-12 rounded-lg animate-pulse" style={{ background: 'var(--surface-2)' }} />
+      <div className="space-y-2.5">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="skeleton-shimmer h-12 rounded-lg" />
         ))}
       </div>
     );
   }
 
-  if (items.length === 0) {
+  if (!items.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-center">
-        <Activity size={28} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No activity recorded yet</p>
+      <div className="rounded-xl border py-9 text-center" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+        <Activity size={26} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
+        <p className="text-sm text-[var(--text-secondary)]">No activity recorded yet</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {items.map(a => (
-        <div key={a.id} className="flex gap-3 items-start">
-          <div
-            className="w-2 h-2 rounded-full mt-2 shrink-0"
-            style={{ background: dotColor(a.type) }}
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm" style={{ color: 'var(--text)' }}>{a.description}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              {new Date(a.created_at).toLocaleString()}
-            </p>
+    <div className="space-y-2.5">
+      {items.map((item) => (
+        <article key={item.id} className="flex gap-3 rounded-xl border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+          <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: typeColor[item.type] ?? 'var(--accent)' }} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm">{item.description}</p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">{new Date(item.created_at).toLocaleString()}</p>
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );

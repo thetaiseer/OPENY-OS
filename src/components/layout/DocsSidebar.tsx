@@ -18,20 +18,6 @@ interface DocsSidebarProps {
 }
 
 export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
-  const items = docsNav.map(({ href, label, icon }) => ({
-    href,
-    base: href,
-    label,
-    icon,
-  }));
-
-  return (
-    <AppSidebar
-      items={items}
-      open={open}
-      onClose={onClose}
-      workspaceTag="DOCS"
-      variant="docs"
-    />
-  );
+  const items = docsNav.map(({ href, label, icon }) => ({ href, base: href, label, icon }));
+  return <AppSidebar items={items} open={open} onClose={onClose} workspaceTag="DOCS" variant="docs" />;
 }

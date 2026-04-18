@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import '../styles/external/liquid-glass.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
 import { AuthProvider } from '@/lib/auth-context';
@@ -21,7 +20,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#6366f1',
+  themeColor: '#0b1228',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,9 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
-              <Providers>
-                {children}
-              </Providers>
+              <Providers>{children}</Providers>
             </AuthProvider>
           </LangProvider>
         </ThemeProvider>
