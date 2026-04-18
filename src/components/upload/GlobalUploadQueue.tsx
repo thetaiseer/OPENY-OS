@@ -251,9 +251,10 @@ export default function GlobalUploadQueue() {
   }, [queue, removeItem]);
 
   useEffect(() => {
+    const timers = completedTimers.current;
     return () => {
-      for (const timer of completedTimers.current.values()) clearTimeout(timer);
-      completedTimers.current.clear();
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
     };
   }, []);
 
