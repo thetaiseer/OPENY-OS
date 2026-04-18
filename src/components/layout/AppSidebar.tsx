@@ -7,6 +7,7 @@ import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import { getWorkspaceDashboardHrefByWorkspace } from '@/lib/workspace-navigation';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
 
@@ -38,7 +39,7 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const dashboardHref = variant === 'docs' ? '/docs/dashboard' : '/os/dashboard';
+  const dashboardHref = getWorkspaceDashboardHrefByWorkspace(variant);
   const [collapsed, setCollapsed] = useState(false);
   const isSlim = collapsed && !open;
   const itemCount = items.length;
