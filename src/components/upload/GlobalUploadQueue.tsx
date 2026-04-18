@@ -1,36 +1,15 @@
 'use client';
 
-/**
- * GlobalUploadQueue — Fixed-position upload progress panel.
- *
- * Each upload item card shows:
- *   - file name + icon
- *   - status label (Queued / Preparing / Uploading / Retrying / Completing /
- *     Saving to system / Completed / Failed)
- *   - uploaded bytes / total bytes (during upload)
- *   - ETA (during upload)
- *   - progress bar
- *   - cancel button (while actively uploading)
- *   - retry / reconcile buttons on failure
- *   - expandable technical error detail
- */
+/** GlobalUploadQueue — upload progress panel attached to the global FAB area. */
 
 import { useEffect, useRef, useState } from 'react';
 import {
   Upload, ChevronDown, ChevronUp, CheckCircle, AlertCircle, AlertTriangle,
   Loader2, RotateCcw, RefreshCw, Trash2, X, File, FileImage,
-  FileText, FileVideo, FileAudio, ChevronRight, Pause, Play,
+  FileText, FileVideo, FileAudio, Pause, Play,
 } from 'lucide-react';
 import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
 import { useToast } from '@/lib/toast-context';
-
-// ── Speed formatter ──────────────────────────────────────────────────────────
-
-function formatSpeed(bps: number | null): string | null {
-  if (!bps || bps <= 0) return null;
-  if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
-  return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -39,19 +18,6 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-function formatEta(uploadedBytes: number, totalBytes: number, startMs: number | null): string | null {
-  if (!startMs || uploadedBytes <= 0 || totalBytes <= 0 || uploadedBytes >= totalBytes) return null;
-  const elapsed = Date.now() - startMs;
-  if (elapsed < 2000) return null; // wait 2 s before showing ETA
-  const rate = uploadedBytes / elapsed; // bytes/ms
-  const remaining = (totalBytes - uploadedBytes) / rate; // ms
-  const secs = Math.round(remaining / 1000);
-  if (secs < 5)   return 'Almost done';
-  if (secs < 60)  return `~${secs}s left`;
-  const mins = Math.ceil(secs / 60);
-  return `~${mins}m left`;
 }
 
 function isImageFile(name: string, type: string): boolean {
@@ -98,7 +64,6 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
 
 function QueueRow({ item }: { item: UploadItem }) {
   const { retryItem, reconcileItem, pauseItem, resumeItem, removeItem } = useUpload();
-  const [expanded, setExpanded] = useState(false);
 
   const isActive    = item.status === 'uploading' || item.status === 'uploaded' || item.status === 'saved';
   const isPaused    = item.status === 'paused';
@@ -106,32 +71,24 @@ function QueueRow({ item }: { item: UploadItem }) {
   const isFailedDb  = item.status === 'failed_db';
   const isFailed    = item.status === 'failed_upload';
   const canPause    = isActive && item.isMultipart;
-  const hasDetail   = !!item.errorDetail;
 
   const statusColor = STATUS_COLOR[item.status];
 
-  // Byte progress (shown while uploading or paused mid-upload).
-  const showByteProgress =
-    (isActive || isPaused) &&
-    item.totalBytes > 0 &&
-    item.uploadedBytes >= 0;
-
-  const eta = isActive
-    ? formatEta(item.uploadedBytes, item.totalBytes, item.uploadStartMs ?? null)
-    : null;
-  const speed = isActive ? formatSpeed(item.uploadSpeedBps ?? null) : null;
-
   return (
     <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+      className="rounded-2xl overflow-hidden px-3 py-2.5 space-y-2"
+      style={{
+        background: 'color-mix(in srgb, var(--surface-2) 88%, white 12%)',
+        border: '1px solid color-mix(in srgb, var(--border) 85%, transparent)',
+        transition: 'opacity 220ms var(--ease-smooth), transform 220ms var(--ease-smooth)',
+        opacity: isComplete ? 0.55 : 1,
+        transform: isComplete ? 'translateY(-4px)' : 'translateY(0)',
+      }}
     >
-      {/* ── Main row ── */}
-      <div className="flex items-start gap-2.5 p-3">
-        {/* Thumbnail / icon */}
+      <div className="flex items-start gap-2.5">
         <div
-          className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden mt-0.5"
-          style={{ background: 'var(--surface)' }}
+          className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full overflow-hidden"
+          style={{ background: 'color-mix(in srgb, var(--surface) 85%, transparent)' }}
         >
           {item.previewUrl && isImageFile(item.file.name, item.file.type)
             // eslint-disable-next-line @next/next/no-img-element
@@ -140,224 +97,117 @@ function QueueRow({ item }: { item: UploadItem }) {
           }
         </div>
 
-        {/* Main content */}
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Name + status icon */}
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs font-semibold truncate flex-1" style={{ color: 'var(--text)' }}>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold truncate flex-1 pr-1" style={{ color: 'var(--text)' }}>
               {getDisplayName(item)}
             </p>
-            {isComplete  && <CheckCircle   size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
-            {isFailedDb  && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
-            {isFailed    && <AlertCircle   size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
-            {isPaused    && <Pause         size={13} style={{ color: '#6366f1', flexShrink: 0 }} />}
-            {isActive    && <Loader2 size={13} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />}
+            <span className="text-xs font-semibold tabular-nums shrink-0" style={{ color: statusColor }}>
+              {item.progress}%
+            </span>
           </div>
 
-          {/* Status line */}
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            {/* File size (total) */}
-            {item.file.size > 0 && (
-              <span style={{ color: 'var(--text-secondary)' }}>{formatSize(item.file.size)}</span>
-            )}
-            {item.file.size > 0 && <span style={{ color: 'var(--border)' }}>·</span>}
-
-            {/* Stage label */}
-            <span style={{ color: statusColor, fontWeight: 600 }}>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="truncate" style={{ color: statusColor, fontWeight: 600 }}>
               {item.statusLabel ?? item.statusText}
             </span>
-
-            {/* Percentage badge */}
-            {(isActive && item.status === 'uploading') && (
-              <span className="tabular-nums font-bold ml-auto" style={{ color: 'var(--accent)' }}>
-                {item.progress}%
-              </span>
-            )}
-            {isPaused && (
-              <span className="tabular-nums font-bold ml-auto" style={{ color: '#6366f1' }}>
-                {item.progress}%
-              </span>
-            )}
+            <span className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+              {formatSize(item.uploadedBytes)} / {formatSize(item.totalBytes)}
+            </span>
           </div>
 
-          {/* Byte progress + ETA + speed row (large files) */}
-          {showByteProgress && item.totalBytes > 0 && (
-            <div className="flex items-center gap-1.5 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-              <span>{formatSize(item.uploadedBytes)}</span>
-              <span style={{ opacity: 0.5 }}>/</span>
-              <span>{formatSize(item.totalBytes)}</span>
-              {speed && (
-                <>
-                  <span style={{ color: 'var(--border)' }}>·</span>
-                  <span>{speed}</span>
-                </>
-              )}
-              {eta && (
-                <>
-                  <span style={{ color: 'var(--border)' }}>·</span>
-                  <span>{eta}</span>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Progress bar */}
-          {(isActive || isPaused) && (
-            <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'var(--border)' }}>
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width:      `${item.progress}%`,
-                  background: isPaused ? '#6366f1' : 'var(--accent)',
-                }}
-              />
-            </div>
-          )}
-
-      {/* Brief error summary (failed / failed_db) */}
-          {(isFailed || isFailedDb) && item.errorDetail && (
-            <div className="space-y-1">
-              <p className="text-xs leading-snug" style={{ color: statusColor, opacity: 0.95 }}>
-                {item.errorDetail.message}
-              </p>
-              {isFailed && (
-                <p className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.75 }}>
-                  يمكنك المحاولة مرة أخرى →
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex flex-col gap-1 shrink-0 mt-0.5">
-          {/* Pause — only while actively uploading a multipart file */}
-          {canPause && (
-            <button
-              onClick={() => pauseItem(item.id)}
-              title="Pause upload"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: '#6366f1' }}
-            >
-              <Pause size={10} />
-            </button>
-          )}
-          {/* Resume — only when paused */}
-          {isPaused && (
-            <button
-              onClick={() => resumeItem(item.id)}
-              title="Resume upload"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: '#6366f1' }}
-            >
-              <Play size={10} />
-            </button>
-          )}
-          {/* Cancel — only while actively uploading */}
-          {(isActive || isPaused) && (
-            <button
-              onClick={() => removeItem(item.id)}
-              title="Cancel upload"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-            >
-              <X size={10} />
-            </button>
-          )}
-          {/* Retry — only on true upload failures */}
-          {isFailed && (
-            <button
-              onClick={() => retryItem(item.id)}
-              title="Retry upload"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: '#f59e0b' }}
-            >
-              <RotateCcw size={10} />
-            </button>
-          )}
-          {/* Reconcile — only when R2 upload succeeded but DB save failed */}
-          {isFailedDb && (
-            <button
-              onClick={() => reconcileItem(item.id)}
-              title="Retry saving to system"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: '#d97706' }}
-            >
-              <RefreshCw size={10} />
-            </button>
-          )}
-          {/* Expand details — when there's technical error info */}
-          {hasDetail && (
-            <button
-              onClick={() => setExpanded(e => !e)}
-              title={expanded ? 'Hide details' : 'Show details'}
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-            >
-              <ChevronRight
-                size={10}
-                style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
-              />
-            </button>
-          )}
-          {/* Remove — only when not actively uploading and not paused (paused has cancel) */}
-          {!isActive && !isPaused && (
-            <button
-              onClick={() => removeItem(item.id)}
-              title="Remove"
-              className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-            >
-              <Trash2 size={10} />
-            </button>
-          )}
+          <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: 'var(--border)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${item.progress}%`,
+                background: isComplete
+                  ? '#16a34a'
+                  : isPaused
+                  ? '#6366f1'
+                  : isFailed
+                  ? '#ef4444'
+                  : isFailedDb
+                  ? '#d97706'
+                  : 'var(--accent)',
+              }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* ── Expandable details section ── */}
-      {expanded && item.errorDetail && (
-        <div
-          className="px-3 pb-3 pt-0 space-y-1"
-          style={{ borderTop: '1px solid var(--border)' }}
-        >
-          <p className="text-xs font-semibold pt-2" style={{ color: 'var(--text-secondary)' }}>
-            التفاصيل التقنية
-          </p>
-          {item.errorDetail.step && (
-            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-              <span style={{ opacity: 0.6 }}>step: </span>{item.errorDetail.step}
-            </p>
-          )}
-          {item.errorDetail.code && (
-            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-              <span style={{ opacity: 0.6 }}>code: </span>{item.errorDetail.code}
-            </p>
-          )}
-          {item.errorDetail.status != null && (
-            <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-              <span style={{ opacity: 0.6 }}>http status: </span>{item.errorDetail.status}
-            </p>
-          )}
-          <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-            <span style={{ opacity: 0.6 }}>reached storage: </span>
-            <span style={{ color: item.errorDetail.fileReachedStorage ? '#16a34a' : '#ef4444' }}>
-              {item.errorDetail.fileReachedStorage ? 'yes' : 'no'}
-            </span>
-          </p>
-          <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
-            <span style={{ opacity: 0.6 }}>db saved: </span>
-            <span style={{ color: item.errorDetail.dbSaved ? '#16a34a' : '#ef4444' }}>
-              {item.errorDetail.dbSaved ? 'yes' : 'no'}
-            </span>
-          </p>
-          {item.errorDetail.providerMessage && (
-            <p
-              className="text-xs font-mono break-all leading-relaxed"
-              style={{ color: 'var(--text-secondary)', opacity: 0.85 }}
-            >
-              <span style={{ opacity: 0.6 }}>provider: </span>{item.errorDetail.providerMessage}
-            </p>
-          )}
+      <div className="flex items-center gap-1.5 justify-end">
+        {isComplete  && <CheckCircle size={12} style={{ color: '#16a34a' }} />}
+        {isFailedDb  && <AlertTriangle size={12} style={{ color: '#d97706' }} />}
+        {isFailed    && <AlertCircle size={12} style={{ color: '#ef4444' }} />}
+        {isPaused    && <Pause size={12} style={{ color: '#6366f1' }} />}
+        {isActive    && <Loader2 size={12} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+
+        {canPause && (
+          <button
+            onClick={() => pauseItem(item.id)}
+            title="Pause upload"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: '#6366f1' }}
+          >
+            <Pause size={10} />
+          </button>
+        )}
+        {isPaused && (
+          <button
+            onClick={() => resumeItem(item.id)}
+            title="Resume upload"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: '#6366f1' }}
+          >
+            <Play size={10} />
+          </button>
+        )}
+        {(isActive || isPaused) && (
+          <button
+            onClick={() => removeItem(item.id)}
+            title="Cancel upload"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+          >
+            <X size={10} />
+          </button>
+        )}
+        {isFailed && (
+          <button
+            onClick={() => retryItem(item.id)}
+            title="Retry upload"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: '#f59e0b' }}
+          >
+            <RotateCcw size={10} />
+          </button>
+        )}
+        {isFailedDb && (
+          <button
+            onClick={() => reconcileItem(item.id)}
+            title="Retry saving to system"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: '#d97706' }}
+          >
+            <RefreshCw size={10} />
+          </button>
+        )}
+        {!isActive && !isPaused && (
+          <button
+            onClick={() => removeItem(item.id)}
+            title="Remove"
+            className="flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+          >
+            <Trash2 size={10} />
+          </button>
+        )}
+      </div>
+
+      {(isFailed || isFailedDb) && item.errorDetail && (
+        <div className="text-xs leading-snug" style={{ color: statusColor, opacity: 0.95 }}>
+          {item.errorDetail.message}
         </div>
       )}
     </div>
@@ -367,12 +217,46 @@ function QueueRow({ item }: { item: UploadItem }) {
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export default function GlobalUploadQueue() {
-  const { queue, clearCompleted } = useUpload();
+  const { queue, clearCompleted, removeItem } = useUpload();
   const { toast } = useToast();
   const [minimised, setMinimised] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const toastedIds = useRef<Set<string>>(new Set());
+  const completedTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Show a success toast the first time each item reaches 'completed'.
+  useEffect(() => {
+    setMounted(false);
+    const raf = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, [queue.length]);
+
+  useEffect(() => {
+    for (const item of queue) {
+      if (item.status !== 'completed') continue;
+      if (completedTimers.current.has(item.id)) continue;
+      const timer = setTimeout(() => {
+        removeItem(item.id);
+        completedTimers.current.delete(item.id);
+      }, 1200);
+      completedTimers.current.set(item.id, timer);
+    }
+    for (const [id, timer] of completedTimers.current.entries()) {
+      const stillCompleted = queue.some(item => item.id === id && item.status === 'completed');
+      if (!stillCompleted) {
+        clearTimeout(timer);
+        completedTimers.current.delete(id);
+      }
+    }
+  }, [queue, removeItem]);
+
+  useEffect(() => {
+    return () => {
+      for (const timer of completedTimers.current.values()) clearTimeout(timer);
+      completedTimers.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     for (const item of queue) {
       if (item.status === 'completed' && !toastedIds.current.has(item.id)) {
@@ -419,11 +303,17 @@ export default function GlobalUploadQueue() {
 
   return (
     <div
-      className="openy-menu-panel fixed left-1/2 top-[calc(var(--header-height)+0.9rem)] -translate-x-1/2 z-[51] rounded-2xl overflow-hidden"
+      className="fixed right-7 z-[41] rounded-3xl overflow-hidden"
       style={{
-        width:       'min(420px, calc(100vw - 24px))',
+        bottom:      'calc(1.75rem + 3.5rem + 0.75rem)',
+        width:       'min(360px, calc(100vw - 24px))',
         maxHeight:   minimised ? 'auto' : 480,
-        transition:  'opacity 180ms var(--ease-smooth), transform 180ms var(--ease-smooth)',
+        transition:  'opacity 220ms var(--ease-smooth), transform 220ms var(--ease-smooth)',
+        background:  'color-mix(in srgb, var(--surface-2) 90%, white 10%)',
+        border:      '1px solid color-mix(in srgb, var(--border) 86%, transparent)',
+        boxShadow:   '0 6px 16px rgba(15, 23, 42, 0.08)',
+        transform:   mounted ? 'translateY(0)' : 'translateY(14px)',
+        opacity:     mounted ? 1 : 0,
       }}
     >
       {/* ── Header ── */}
@@ -436,7 +326,7 @@ export default function GlobalUploadQueue() {
         onClick={() => setMinimised(m => !m)}
       >
         <div
-          className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+          className="flex items-center justify-center w-7 h-7 rounded-full shrink-0"
           style={{
             background: active > 0
               ? 'var(--accent-soft)'
@@ -444,9 +334,9 @@ export default function GlobalUploadQueue() {
               ? 'rgba(22,163,74,0.10)'
               : allDone && failedDb > 0 && failed === 0
               ? 'rgba(217,119,6,0.10)'
-              : 'var(--surface)',
-          }}
-        >
+              : 'color-mix(in srgb, var(--surface) 85%, transparent)',
+            }}
+          >
           {active > 0
             ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
             : allDone && failed === 0 && failedDb === 0
@@ -492,7 +382,7 @@ export default function GlobalUploadQueue() {
 
       {/* ── Queue list ── */}
       {!minimised && (
-        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 360 }}>
+        <div className="p-2.5 space-y-2 overflow-y-auto" style={{ maxHeight: 340 }}>
           {queue.map(item => <QueueRow key={item.id} item={item} />)}
           {clearableCount > 0 && (
             <button
