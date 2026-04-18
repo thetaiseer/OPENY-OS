@@ -17,6 +17,7 @@ import {
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useClientWorkspace } from '../client-context';
+import SmartSuggestionCards from '@/components/ui/SmartSuggestionCards';
 import type { Task, Asset, ContentItem, Activity as ActivityItem } from '@/lib/types';
 const COMPLETED_TASK_STATUSES = new Set(['done', 'completed', 'delivered', 'cancelled']);
 
@@ -139,6 +140,41 @@ export default function ClientOverviewPage() {
 
   return (
     <div className="space-y-5">
+      <SmartSuggestionCards
+        storageKey={`openy_suggestions_client_${clientId}`}
+        items={[
+          {
+            id: 'content-plan',
+            title: 'Add content plan?',
+            description: 'Create this client’s first content pipeline with statuses and ownership.',
+            action: (
+              <Link
+                href={`/clients/${slug}/content`}
+                aria-label={`Open content for ${client.name}`}
+                className="text-xs font-semibold hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
+                Open content
+              </Link>
+            ),
+          },
+          {
+            id: 'upload-brand-assets',
+            title: 'Upload brand assets?',
+            description: 'Start with logos, reference files, and current campaign media.',
+            action: (
+              <Link
+                href={`/clients/${slug}/assets?quickAction=upload`}
+                aria-label={`Open uploads for ${client.name}`}
+                className="text-xs font-semibold hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
+                Open uploads
+              </Link>
+            ),
+          },
+        ]}
+      />
       {client.notes && (
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>{t('notes')}</h3>

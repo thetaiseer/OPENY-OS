@@ -411,6 +411,28 @@ export default function AssetsPage() {
 
   const [sortBy, setSortBy]               = useState<'newest' | 'oldest' | 'largest'>('newest');
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('assets-page-filters') ?? '{}') as {
+        searchQuery?: string;
+        filterFileType?: string;
+        sortBy?: 'newest' | 'oldest' | 'largest';
+      };
+      if (saved.searchQuery) setSearchQuery(saved.searchQuery);
+      if (saved.filterFileType) setFilterFileType(saved.filterFileType);
+      if (saved.sortBy) setSortBy(saved.sortBy);
+    } catch {
+      // ignore invalid saved filters
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'assets-page-filters',
+      JSON.stringify({ searchQuery, filterFileType, sortBy }),
+    );
+  }, [searchQuery, filterFileType, sortBy]);
+
   // ── Upload modal state ────────────────────────────────────────────────────
   const [pendingItems, setPendingItems]             = useState<FileUploadItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState<string>(MAIN_CATEGORIES[0].slug);
@@ -943,6 +965,18 @@ export default function AssetsPage() {
     return Array.from(types).sort();
   }, [assets]);
 
+  const assetGroupSummary = useMemo(() => {
+    const byType = filteredAssets.reduce<Record<string, number>>((acc, asset) => {
+      const raw = asset.file_type ?? asset.mime_type ?? 'other';
+      const key = raw.includes('/') ? raw.split('/')[0] : raw;
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(byType)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4);
+  }, [filteredAssets]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -1082,6 +1116,19 @@ export default function AssetsPage() {
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
             </div>
           )}
+          {assetGroupSummary.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {assetGroupSummary.map(([type, count]) => (
+                <span
+                  key={type}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}: {count}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Drag-over overlay ────────────────────────────────────────────── */}
@@ -1135,6 +1182,20 @@ export default function AssetsPage() {
                 </button>
               ) : undefined
             }
+            suggestions={!hasActiveFilters ? [
+              {
+                title: 'Drag and drop files here',
+                description: 'Drop images, videos, PDFs, or docs directly into the workspace.',
+              },
+              {
+                title: 'Upload your first asset',
+                description: 'Use Upload to add campaign files and references.',
+              },
+              {
+                title: 'Suggested file types',
+                description: 'Images • Videos • PDFs • Docs',
+              },
+            ] : undefined}
           />
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */

@@ -37,9 +37,37 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
 ];
 
 const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const QUICK_ADD_USAGE_KEY = 'openy_quick_add_usage_v1';
+const QUICK_ADD_LAST_ACTION_KEY = 'openy_quick_add_last_action_v1';
+const FALLBACK_CLIENT_INITIALS = 'CL';
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function generateInitialsFromName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  if (!parts.length) return FALLBACK_CLIENT_INITIALS;
+  const initials = parts
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .filter(Boolean)
+    .join('');
+  return initials || FALLBACK_CLIENT_INITIALS;
+}
+
+function generateClientNameSuggestion(base: string) {
+  const clean = base.trim();
+  if (!clean) return 'Acme Studio';
+  return clean.toLowerCase().includes('client') ? clean : `${clean} Client`;
+}
+
+function detectAssetTypeFromUrl(url: string): string | null {
+  const lower = url.toLowerCase();
+  if (/\.(png|jpg|jpeg|webp|gif|svg)(\?|#|$)/.test(lower)) return 'image';
+  if (/\.(mp4|mov|avi|mkv|webm)(\?|#|$)/.test(lower)) return 'video';
+  if (/\.(mp3|wav|aac|ogg)(\?|#|$)/.test(lower)) return 'audio';
+  if (/\.(pdf|doc|docx|ppt|pptx|xls|xlsx|txt)(\?|#|$)/.test(lower)) return 'document';
+  return null;
 }
 
 export default function GlobalQuickAdd() {
@@ -50,6 +78,13 @@ export default function GlobalQuickAdd() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<QuickAddKind | null>(null);
+  const [actionUsage, setActionUsage] = useState<Record<QuickAddKind, number>>({
+    task: 0,
+    client: 0,
+    content: 0,
+    asset: 0,
+  });
+  const [lastAction, setLastAction] = useState<QuickAddKind | null>(null);
 
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -71,6 +106,44 @@ export default function GlobalQuickAdd() {
   const [assetType, setAssetType] = useState('document');
 
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    try {
+      const usageRaw = window.localStorage.getItem(QUICK_ADD_USAGE_KEY);
+      if (usageRaw) {
+        const parsed = JSON.parse(usageRaw) as Partial<Record<QuickAddKind, number>>;
+        setActionUsage({
+          task: parsed.task ?? 0,
+          client: parsed.client ?? 0,
+          content: parsed.content ?? 0,
+          asset: parsed.asset ?? 0,
+        });
+      }
+      const last = window.localStorage.getItem(QUICK_ADD_LAST_ACTION_KEY);
+      if (last === 'task' || last === 'client' || last === 'content' || last === 'asset') {
+        setLastAction(last);
+      }
+    } catch {
+      // ignore localStorage parse errors
+    }
+  }, []);
+
+  const orderedMenuItems = useMemo(
+    () => [...MENU_ITEMS].sort((a, b) => (actionUsage[b.key] ?? 0) - (actionUsage[a.key] ?? 0)),
+    [actionUsage],
+  );
+
+  const topAction = orderedMenuItems[0]?.key ?? null;
+
+  function registerAction(kind: QuickAddKind) {
+    setActionUsage(prev => {
+      const next = { ...prev, [kind]: (prev[kind] ?? 0) + 1 };
+      window.localStorage.setItem(QUICK_ADD_USAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    setLastAction(kind);
+    window.localStorage.setItem(QUICK_ADD_LAST_ACTION_KEY, kind);
+  }
 
   const { data: clients = [] } = useQuery<QuickClient[]>({
     queryKey: ['quick-add-clients'],
@@ -94,6 +167,22 @@ export default function GlobalQuickAdd() {
     },
     staleTime: 60_000,
   });
+  const clientsById = useMemo(() => new Map(clients.map(client => [client.id, client] as const)), [clients]);
+
+  const suggestedTaskTitle = useMemo(() => {
+    const selectedClient = clientsById.get(taskClientId);
+    if (!selectedClient) return 'Finalize weekly deliverables';
+    return `${selectedClient.name} - ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} follow-up`;
+  }, [clientsById, taskClientId]);
+
+  const suggestedClientName = useMemo(() => generateClientNameSuggestion(clientName), [clientName]);
+  const clientInitials = useMemo(() => generateInitialsFromName(clientName || suggestedClientName), [clientName, suggestedClientName]);
+  const detectedAssetType = useMemo(() => detectAssetTypeFromUrl(assetUrl), [assetUrl]);
+  const suggestedAssetFolder = useMemo(() => {
+    const selectedClient = clientsById.get(assetClientId);
+    const type = detectedAssetType ?? assetType;
+    return `${selectedClient?.name ?? 'General'}/${type}`;
+  }, [clientsById, assetClientId, detectedAssetType, assetType]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -190,7 +279,7 @@ export default function GlobalQuickAdd() {
 
     setSubmitting(true);
     try {
-      const selectedClient = clients.find((client) => client.id === taskClientId);
+      const selectedClient = clientsById.get(taskClientId);
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,6 +299,7 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create task');
 
       await invalidateFor('task');
+      registerAction('task');
       toast('Task created successfully', 'success');
       resetForm('task');
       setActiveModal(null);
@@ -234,6 +324,7 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create client');
 
       await invalidateFor('client');
+      registerAction('client');
       void queryClient.invalidateQueries({ queryKey: ['quick-add-clients'] });
       toast('Client created successfully', 'success');
       resetForm('client');
@@ -264,6 +355,7 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create content item');
 
       await invalidateFor('content');
+      registerAction('content');
       toast('Content item created successfully', 'success');
       resetForm('content');
       setActiveModal(null);
@@ -278,7 +370,7 @@ export default function GlobalQuickAdd() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const selectedClient = clients.find((client) => client.id === assetClientId);
+      const selectedClient = clientsById.get(assetClientId);
       const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,6 +389,7 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create asset');
 
       await invalidateFor('asset');
+      registerAction('asset');
       toast('Asset created successfully', 'success');
       resetForm('asset');
       setActiveModal(null);
@@ -311,9 +404,12 @@ export default function GlobalQuickAdd() {
     <>
       <div className="fixed bottom-7 right-7 z-40 flex flex-col items-end gap-3">
         <div className="quick-add-dock relative flex flex-col items-end gap-2.5">
-          {MENU_ITEMS.map((item, index) => {
+          {orderedMenuItems.map((item, index) => {
             const Icon = item.icon;
             const visible = menuOpen;
+            const isLast = lastAction === item.key;
+            const isTop = topAction === item.key;
+            const tags = [isTop ? 'Most used' : null, isLast ? 'Last' : null].filter(Boolean).join(' • ');
             return (
               <button
                 key={item.key}
@@ -323,6 +419,8 @@ export default function GlobalQuickAdd() {
                 className="quick-add-dock-item btn-secondary group flex h-11 w-52 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
                 style={{
                   color: 'var(--text)',
+                  border: isLast ? '1px solid var(--accent)' : undefined,
+                  boxShadow: isLast ? '0 8px 20px color-mix(in srgb, var(--accent-glow) 52%, transparent)' : undefined,
                   transform: visible
                     ? 'translateY(0) scale(1)'
                     : 'translateY(12px) scale(0.94)',
@@ -338,7 +436,9 @@ export default function GlobalQuickAdd() {
                   <Icon size={16} />
                 </span>
                 <span className="flex h-full min-w-0 flex-1 items-center justify-center">
-                  <span className="truncate text-xs font-semibold leading-none">{item.label}</span>
+                  <span className="truncate text-xs font-semibold leading-none">
+                    {item.label}{tags ? ` • ${tags}` : ''}
+                  </span>
                 </span>
               </button>
             );
@@ -374,6 +474,16 @@ export default function GlobalQuickAdd() {
               className={baseFieldCls}
               placeholder="Enter task title"
             />
+            {!taskTitle.trim() && (
+              <button
+                type="button"
+                onClick={() => setTaskTitle(suggestedTaskTitle)}
+                className="mt-2 text-xs font-semibold hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
+                Suggest: {suggestedTaskTitle}
+              </button>
+            )}
           </div>
 
           <div>
@@ -480,6 +590,25 @@ export default function GlobalQuickAdd() {
               className={baseFieldCls}
               placeholder="Client or company name"
             />
+            <div className="mt-2 flex items-center justify-between text-xs">
+              {!clientName.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setClientName(suggestedClientName)}
+                  className="font-semibold hover:opacity-80"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Suggest name: {suggestedClientName}
+                </button>
+              )}
+              <span
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-md px-2 font-semibold"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                title="Auto initials/logo fallback"
+              >
+                {clientInitials}
+              </span>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Email</label>
@@ -605,6 +734,19 @@ export default function GlobalQuickAdd() {
               className={baseFieldCls}
               placeholder="https://..."
             />
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              {detectedAssetType && (
+                <button
+                  type="button"
+                  onClick={() => setAssetType(detectedAssetType)}
+                  className="rounded-md px-2 py-1 font-semibold hover:opacity-80"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  Detected type: {detectedAssetType}
+                </button>
+              )}
+              <span style={{ color: 'var(--text-secondary)' }}>Suggested folder: {suggestedAssetFolder}</span>
+            </div>
           </div>
 
           <div>

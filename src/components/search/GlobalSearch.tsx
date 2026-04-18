@@ -35,7 +35,7 @@ const MAX_RECENT = 8;
 const TYPE_META: Record<ResultType, { label: string; icon: LucideIcon }> = {
   client:  { label: 'Client',  icon: Users2 },
   task:    { label: 'Task',    icon: CheckSquare },
-  asset:   { label: 'Asset',   icon: FolderOpen },
+  asset:   { label: 'Files',   icon: FolderOpen },
   content: { label: 'Content', icon: FileText },
   team:    { label: 'Team',    icon: Users },
 };

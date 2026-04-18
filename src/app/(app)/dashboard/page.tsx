@@ -15,6 +15,12 @@ import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
+const WEEK_LENGTH_DAYS = 7;
+const MILLISECONDS_PER_DAY = 86_400_000;
+
+function pluralize(count: number, singular: string, plural: string) {
+  return count === 1 ? singular : plural;
+}
 
 interface Stats {
   totalClients: number;
@@ -393,6 +399,29 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [assetRows]);
 
+  const lightInsights = useMemo(() => {
+    const trendRows = trendsData ?? [];
+    let completedThisWeek = 0;
+    for (let i = Math.max(0, trendRows.length - WEEK_LENGTH_DAYS); i < trendRows.length; i += 1) {
+      completedThisWeek += trendRows[i]?.completed ?? 0;
+    }
+    const overdue = stats?.overdueTasks ?? 0;
+    const assetsThisWeek = (recentAssets ?? []).filter(asset => {
+      if (!asset.created_at) return false;
+      return Date.now() - new Date(asset.created_at).getTime() <= WEEK_LENGTH_DAYS * MILLISECONDS_PER_DAY;
+    }).length;
+
+    return [
+      `You completed ${completedThisWeek} ${pluralize(completedThisWeek, 'task', 'tasks')} this week`,
+      overdue > 0
+        ? `${overdue} ${pluralize(overdue, 'task', 'tasks')} ${overdue === 1 ? 'is' : 'are'} overdue`
+        : 'No overdue tasks right now',
+      assetsThisWeek > 0
+        ? `${assetsThisWeek} ${pluralize(assetsThisWeek, 'asset', 'assets')} added this week`
+        : 'No activity in assets this week',
+    ];
+  }, [trendsData, stats?.overdueTasks, recentAssets]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-openy-fade-in">
       <div>
@@ -414,6 +443,18 @@ export default function DashboardPage() {
           <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
         </div>
       )}
+
+      {/* ── Trend + Team performance ── */}
+      <div className="surface-card p-4">
+        <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          {lightInsights.map((text) => (
+            <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}>
+              {text}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Trend + Team performance ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

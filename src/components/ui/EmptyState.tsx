@@ -5,9 +5,14 @@ interface EmptyStateProps {
   title: string;
   description: string;
   action?: React.ReactNode;
+  suggestions?: Array<{
+    title: string;
+    description?: string;
+    action?: React.ReactNode;
+  }>;
 }
 
-export default function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-openy-fade-in">
       <div
@@ -33,6 +38,23 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
         {description}
       </p>
       {action}
+      {suggestions && suggestions.length > 0 && (
+        <div className="mt-6 grid w-full max-w-xl gap-2.5 text-left">
+          {suggestions.map((suggestion) => (
+            <div
+              key={suggestion.title}
+              className="rounded-xl border px-3.5 py-3"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{suggestion.title}</p>
+              {suggestion.description && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{suggestion.description}</p>
+              )}
+              {suggestion.action && <div className="mt-2">{suggestion.action}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

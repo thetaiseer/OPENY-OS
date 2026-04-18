@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import AppTopbar from '@/components/layout/AppTopbar';
 import AppShellLayout from '@/components/layout/AppShell';
@@ -39,6 +40,7 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // ── Inner layout — needs access to CommandPaletteContext ──────────────────────
 
 function AppLayoutInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -143,6 +145,15 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       window.removeEventListener('keydown', handleAiShortcut);
     };
   }, [openAi]);
+
+  useEffect(() => {
+    if (!pathname) return;
+    try {
+      window.localStorage.setItem('openy_last_opened_page', pathname);
+    } catch {
+      // ignore storage errors
+    }
+  }, [pathname]);
 
   return (
     <>
