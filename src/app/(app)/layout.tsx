@@ -132,7 +132,19 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     function handleAiShortcut(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
         e.preventDefault();
-        openAi();
+        let clientContext: { id?: string; name?: string; slug?: string } | undefined;
+        if (window.location.pathname.includes('/clients/')) {
+          try {
+            const saved = window.localStorage.getItem('openy_last_client');
+            if (saved) {
+              const parsed = JSON.parse(saved) as { id?: string; name?: string; slug?: string };
+              if (parsed?.id) clientContext = parsed;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        openAi({ clientContext });
       }
     }
     window.addEventListener('keydown', handleAiShortcut);

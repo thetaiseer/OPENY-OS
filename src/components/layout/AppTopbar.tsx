@@ -125,7 +125,21 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         <NotificationDropdown />
 
         <button
-          onClick={() => openAi()}
+          onClick={() => {
+            let clientContext: { id?: string; name?: string; slug?: string } | undefined;
+            if (pathname.includes('/clients/')) {
+              try {
+                const saved = window.localStorage.getItem('openy_last_client');
+                if (saved) {
+                  const parsed = JSON.parse(saved) as { id?: string; name?: string; slug?: string };
+                  if (parsed?.id) clientContext = parsed;
+                }
+              } catch {
+                // ignore
+              }
+            }
+            openAi({ clientContext });
+          }}
           className="topbar-ai-btn"
           style={{
             background: aiOpen
