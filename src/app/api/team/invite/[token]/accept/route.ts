@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { notifyTeamJoined } from '@/lib/notification-service';
 
 export async function POST(
   request: NextRequest,
@@ -153,6 +154,14 @@ export async function POST(
           is_active: true,
         }, { onConflict: 'user_id,workspace_key' });
     }
+  }
+
+  if (invitation.team_member_id) {
+    void notifyTeamJoined({
+      userId: String(invitation.team_member_id),
+      memberName: finalName || invitation.email,
+      role: invitation.role ?? 'member',
+    });
   }
 
   return NextResponse.json({ success: true, email: invitation.email });

@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { dispatchNotification, cancelReminderJobs, schedulePublishingReminder } from '@/lib/notification-service';
 
 
 const VALID_PLATFORMS = [
@@ -153,6 +154,69 @@ export async function PATCH(
       });
     }
 
+    const wasRescheduled =
+      (typeof updates.scheduled_date === 'string' && updates.scheduled_date !== existing.scheduled_date)
+      || (typeof updates.scheduled_time === 'string' && updates.scheduled_time !== existing.scheduled_time);
+    if (wasRescheduled) {
+      // Cancel the old pre_publish job and create a new one for the new date.
+      void cancelReminderJobs({ entityType: 'publishing_schedule', entityId: id, jobTypes: ['pre_publish'] });
+      const newDate = (typeof updates.scheduled_date === 'string' ? updates.scheduled_date : null)
+        ?? existing.scheduled_date as string;
+      const newTime = (typeof updates.scheduled_time === 'string' ? updates.scheduled_time : null)
+        ?? existing.scheduled_time as string | null;
+      void schedulePublishingReminder({
+        scheduleId:  id,
+        publishDate: newDate,
+        publishTime: newTime,
+        userId:      updated.assigned_to ?? null,
+        clientId:    existing.client_id ?? null,
+        metadata:    { client_name: existing.client_name ?? null },
+      });
+
+      void dispatchNotification({
+        title: 'Publishing Rescheduled',
+        message: `Publishing schedule moved to ${String(updated.scheduled_date)} ${String(updated.scheduled_time ?? '')}`.trim(),
+        type: 'warning',
+        category: 'content',
+        priority: 'high',
+        event_type: 'publishing_rescheduled',
+        user_id: updated.assigned_to ?? null,
+        client_id: existing.client_id ?? null,
+        task_id: existing.task_id ?? null,
+        entity_type: 'publishing_schedule',
+        entity_id: id,
+        action_url: '/calendar',
+        dedupe_key: `publishing_rescheduled:${id}`,
+        send_email: Boolean(updated.assigned_to),
+        email_subject: 'Publishing Schedule Rescheduled',
+      });
+    }
+
+    if (updates.status === 'published' || updates.status === 'cancelled') {
+      // Job is terminal — cancel any pending reminder jobs.
+      void cancelReminderJobs({ entityType: 'publishing_schedule', entityId: id });
+    }
+
+    if (updates.status === 'published') {
+      void dispatchNotification({
+        title: 'Content Published',
+        message: `Publishing completed for schedule ${id}`,
+        type: 'success',
+        category: 'content',
+        priority: 'high',
+        event_type: 'publishing_published',
+        user_id: updated.assigned_to ?? null,
+        client_id: existing.client_id ?? null,
+        task_id: existing.task_id ?? null,
+        entity_type: 'publishing_schedule',
+        entity_id: id,
+        action_url: '/calendar',
+        dedupe_key: `publishing_published:${id}`,
+        send_email: Boolean(updated.assigned_to),
+        email_subject: 'Content Published',
+      });
+    }
+
     return NextResponse.json({ success: true, schedule: updated });
   } catch (err) {
     console.error('[PATCH /api/publishing-schedules/[id]] unexpected error:', err);
@@ -183,6 +247,9 @@ export async function DELETE(
       console.error('[DELETE /api/publishing-schedules/[id]] error:', error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    // Cancel any pending reminder jobs for the deleted schedule.
+    void cancelReminderJobs({ entityType: 'publishing_schedule', entityId: id });
 
     return NextResponse.json({ success: true });
   } catch (err) {

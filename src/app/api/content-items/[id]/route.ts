@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { dispatchNotification } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
@@ -104,6 +105,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
           if (calErr) console.warn('[PATCH /api/content-items/[id]] calendar event failed:', calErr.message);
         });
       }
+
+      void dispatchNotification({
+        title: newStatus === 'published' ? 'Content Published' : 'Content Updated',
+        message: `Content "${existing.title}" moved to ${newStatus}`,
+        type: newStatus === 'published' ? 'success' : 'info',
+        category: 'content',
+        priority: newStatus === 'published' ? 'high' : 'medium',
+        event_type: newStatus === 'published' ? 'publishing_published' : 'activity',
+        user_id: auth.profile.id,
+        client_id: existing.client_id ?? null,
+        entity_type: 'content_item',
+        entity_id: id,
+        action_url: '/content',
+        dedupe_key: `content_status:${id}:${newStatus}`,
+        send_email: true,
+        email_subject: `Content Status: ${existing.title}`,
+      });
     }
 
     // Keep linked task due_date in sync with scheduled date when available (best-effort)
