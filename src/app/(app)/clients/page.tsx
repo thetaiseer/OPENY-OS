@@ -45,6 +45,7 @@ type ActivityFilter = 'all' | 'activeWithin7Days' | 'activeWithin30Days' | 'inac
 type DateFilter = 'all' | '7' | '30' | '90';
 type SortBy = 'recent' | 'name' | 'tasks' | 'assets' | 'activity';
 const MAX_ACTIVITY_DESC_LENGTH = 56;
+const TOAST_DISPLAY_DURATION_MS = 4000;
 
 function statusGroup(status?: string): Exclude<StatusFilter, 'all'> {
   if (status === 'active') return 'active';
@@ -128,7 +129,7 @@ export default function ClientsPage() {
 
   const notifyMissingClientId = (clientName?: string) => {
     setWarnMsg(`Cannot open "${clientName || 'client'}" because it is missing a valid ID.`);
-    setTimeout(() => setWarnMsg(null), 4000);
+    setTimeout(() => setWarnMsg(null), TOAST_DISPLAY_DURATION_MS);
   };
 
   const getClientRoute = (client: Client, tab: 'overview' | 'tasks' | 'assets' = 'overview') => {
@@ -342,7 +343,7 @@ export default function ClientsPage() {
         router.push(`/clients/${result.client.id}`);
       } else {
         setSuccessMsg(`Client "${form.name}" created successfully.`);
-        setTimeout(() => setSuccessMsg(null), 4000);
+        setTimeout(() => setSuccessMsg(null), TOAST_DISPLAY_DURATION_MS);
         void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       }
     } catch (err: unknown) {

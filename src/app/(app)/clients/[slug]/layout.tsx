@@ -39,6 +39,7 @@ interface ClientWorkspaceStats {
   content: number;
 }
 const COMPLETED_TASK_STATUSES = new Set(['done', 'completed', 'delivered', 'cancelled']);
+const UUID_LIKE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
@@ -150,18 +151,23 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     setLoading(true);
     setInvalidRouteParam(false);
 
-    const byId = await supabase.from('clients').select('*').eq('id', clientRouteId).maybeSingle();
-    let data = byId.data;
-    let error = byId.error;
+    const looksLikeId = UUID_LIKE_PATTERN.test(clientRouteId);
+    const primaryLookup = looksLikeId
+      ? await supabase.from('clients').select('*').eq('id', clientRouteId).maybeSingle()
+      : await supabase.from('clients').select('*').eq('slug', clientRouteId).maybeSingle();
 
-    // Backward compatibility for older slug-based URLs.
+    let data = primaryLookup.data;
+    let error = primaryLookup.error;
+
     if (!data) {
-      const bySlug = await supabase.from('clients').select('*').eq('slug', clientRouteId).maybeSingle();
-      if (bySlug.data) {
-        data = bySlug.data;
+      const fallbackLookup = looksLikeId
+        ? await supabase.from('clients').select('*').eq('slug', clientRouteId).maybeSingle()
+        : await supabase.from('clients').select('*').eq('id', clientRouteId).maybeSingle();
+      if (fallbackLookup.data) {
+        data = fallbackLookup.data;
         error = null;
       } else {
-        error = bySlug.error ?? error;
+        error = fallbackLookup.error ?? error;
       }
     }
 
