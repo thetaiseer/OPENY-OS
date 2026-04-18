@@ -576,7 +576,7 @@ select option { white-space: normal; }
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-color: var(--sidebar-border);
-  box-shadow: inset -1px 0 0 var(--sidebar-border), var(--shadow-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Header Glass ────────────────────────────────────────── */
@@ -774,6 +774,15 @@ select option { white-space: normal; }
     padding-top: var(--safe-area-inset-top);
     padding-bottom: var(--safe-area-inset-bottom);
   }
+}
+
+.quick-add-dock-item {
+  justify-content: flex-start;
+  box-shadow: 0 18px 32px rgba(7, 14, 32, 0.18), 0 8px 20px var(--accent-glow);
+}
+
+.quick-add-dock-item:hover {
+  box-shadow: 0 20px 36px rgba(7, 14, 32, 0.22), 0 10px 24px var(--accent-glow-strong);
 }
 
 /* ── Premium Button ──────────────────────────────────────── */
