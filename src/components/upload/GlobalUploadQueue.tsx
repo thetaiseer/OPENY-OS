@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   Loader2,
   Pause,
+  Play,
+  RotateCcw,
+  RefreshCw,
   X,
 } from 'lucide-react';
 import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
@@ -37,8 +40,13 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
 
 const COMPLETED_UPLOAD_AUTO_DISMISS_DELAY_MS = 1200;
 const FAB_BAR_RIGHT_OFFSET = 'calc(1.75rem + 3.5rem + 0.75rem)';
+const PAUSABLE_STATUSES: UploadStatus[] = ['uploading', 'uploaded', 'saved'];
+const CANCELLABLE_STATUSES: UploadStatus[] = [...PAUSABLE_STATUSES, 'paused'];
+const SINGLE_UPLOAD_WIDTH = 'clamp(12rem, 28vw, 20rem)';
+const MULTI_UPLOAD_WIDTH = 'clamp(14rem, 34vw, 22rem)';
 
-function pickPrimaryItem(queue: UploadItem[]): UploadItem {
+function pickPrimaryItem(queue: UploadItem[]): UploadItem | null {
+  if (queue.length === 0) return null;
   const active = queue.find(i => i.status === 'uploading' || i.status === 'uploaded' || i.status === 'saved');
   if (active) return active;
   const paused = queue.find(i => i.status === 'paused');
@@ -51,7 +59,7 @@ function pickPrimaryItem(queue: UploadItem[]): UploadItem {
 }
 
 export default function GlobalUploadQueue() {
-  const { queue, removeItem, pauseItem } = useUpload();
+  const { queue, removeItem, pauseItem, resumeItem, retryItem, reconcileItem } = useUpload();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const toastedIds = useRef<Set<string>>(new Set());
@@ -104,15 +112,18 @@ export default function GlobalUploadQueue() {
     i.status === 'uploading' || i.status === 'uploaded' || i.status === 'saved',
   ).length;
   const primary = pickPrimaryItem(queue);
+  if (!primary) return null;
   const primaryName = getDisplayName(primary);
   const primaryColor = STATUS_COLOR[primary.status];
-  const canCancel = primary.status === 'uploading' || primary.status === 'uploaded' || primary.status === 'saved' || primary.status === 'paused';
-  const shouldPause = primary.status === 'uploading' || primary.status === 'uploaded' || primary.status === 'saved';
+  const canCancel = CANCELLABLE_STATUSES.includes(primary.status);
+  const shouldPause = PAUSABLE_STATUSES.includes(primary.status);
+  const shouldResume = primary.status === 'paused';
+  const shouldRetryUpload = primary.status === 'failed_upload';
+  const shouldRetryDb = primary.status === 'failed_db';
   const progress = Math.max(0, Math.min(100, primary.progress));
   const extraCount = Math.max(0, queue.length - 1);
-  const width = queue.length > 1
-    ? 'clamp(14rem, 34vw, 22rem)'
-    : 'clamp(12rem, 28vw, 20rem)';
+  const percentLabel = primary.status === 'completed' ? 'Done' : `${progress}%`;
+  const width = queue.length > 1 ? MULTI_UPLOAD_WIDTH : SINGLE_UPLOAD_WIDTH;
 
   return (
     <div
@@ -179,7 +190,7 @@ export default function GlobalUploadQueue() {
                 {primary.statusLabel ?? primary.statusText}
               </p>
               <span className="ml-auto shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: primaryColor }}>
-                {activeCount > 0 ? `${progress}%` : primary.status === 'completed' ? 'Done' : '—'}
+                {percentLabel}
               </span>
             </div>
           </div>
@@ -193,6 +204,42 @@ export default function GlobalUploadQueue() {
               style={{ color: '#6366f1' }}
             >
               <Pause size={12} />
+            </button>
+          )}
+
+          {shouldResume && (
+            <button
+              onClick={() => resumeItem(primary.id)}
+              title="Resume upload"
+              aria-label="Resume upload"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-75"
+              style={{ color: '#6366f1' }}
+            >
+              <Play size={12} />
+            </button>
+          )}
+
+          {shouldRetryUpload && (
+            <button
+              onClick={() => retryItem(primary.id)}
+              title="Retry upload"
+              aria-label="Retry upload"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-75"
+              style={{ color: '#f59e0b' }}
+            >
+              <RotateCcw size={12} />
+            </button>
+          )}
+
+          {shouldRetryDb && (
+            <button
+              onClick={() => reconcileItem(primary.id)}
+              title="Retry saving to system"
+              aria-label="Retry saving to system"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-75"
+              style={{ color: '#d97706' }}
+            >
+              <RefreshCw size={12} />
             </button>
           )}
 
@@ -213,7 +260,7 @@ export default function GlobalUploadQueue() {
           <div
             className="h-full transition-all duration-300"
             style={{
-              width: `${activeCount > 0 ? progress : primary.status === 'completed' ? 100 : progress}%`,
+              width: `${primary.status === 'completed' ? 100 : progress}%`,
               background: primary.status === 'completed'
                 ? '#16a34a'
                 : primary.status === 'paused'
