@@ -49,13 +49,13 @@ export default function AppSidebar({
     <>
       {open ? <div className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden" onClick={onClose} /> : null}
 
-      <aside
-        className={clsx(
-          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-3 top-3 z-40 flex h-[calc(100%-1.5rem)] w-[88vw] max-w-[328px] flex-col transition-[transform,width] duration-300 lg:sticky lg:top-4 lg:left-auto lg:z-20 lg:h-[calc(100dvh-2rem)] lg:max-w-none lg:translate-x-0',
-          isSlim ? 'lg:w-[92px]' : 'lg:w-[264px]',
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-      >
+        <aside
+          className={clsx(
+            'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-3 top-3 z-40 flex h-[calc(100%-1.5rem)] w-[88vw] max-w-[328px] flex-col transition-[transform,width] duration-300 lg:sticky lg:top-4 lg:left-auto lg:z-20 lg:h-[calc(100dvh-2rem)] lg:max-w-none lg:translate-x-0',
+            isSlim ? 'lg:w-[84px]' : 'lg:w-[228px]',
+            open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          )}
+        >
         <div className="app-sidebar-header">
           <div className="min-w-0 flex-1">
             <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
@@ -100,7 +100,7 @@ export default function AppSidebar({
                 href={href}
                 onClick={onClose}
                 className={clsx(
-                  'app-sidebar-item flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold transition-all',
+                  'app-sidebar-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
                   isSlim && 'justify-center px-2',
                   active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
                 )}

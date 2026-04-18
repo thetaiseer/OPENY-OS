@@ -13,6 +13,12 @@ const config: Config = {
         sans: ['Inter', 'Geist', 'Cairo', 'sans-serif'],
       },
       colors: {
+        luxury: {
+          black: '#000000',
+          midnight: '#081126',
+          slate: '#ffffff10',
+          electric: '#2F6BFF',
+        },
         bg: {
           base: 'var(--bg-base)',
           secondary: 'var(--bg-secondary)',
@@ -42,10 +48,17 @@ const config: Config = {
       boxShadow: {
         brand: 'var(--shadow-sm)',
         focus: '0 0 0 2px color-mix(in srgb, var(--accent-primary) 18%, transparent)',
+        glass: '0 20px 56px rgba(0, 0, 0, 0.55)',
       },
       borderRadius: {
+        sm: '8px',
+        md: '10px',
+        lg: '12px',
         xl: 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
+      },
+      backdropBlur: {
+        glass: '20px',
       },
       spacing: {
         '2xs': 'var(--space-2xs)',
@@ -55,6 +68,9 @@ const config: Config = {
         lg: 'var(--space-lg)',
         xl: 'var(--space-xl)',
         '2xl': 'var(--space-2xl)',
+      },
+      transitionTimingFunction: {
+        luxury: 'cubic-bezier(.2, .78, .2, 1)',
       },
     },
   },

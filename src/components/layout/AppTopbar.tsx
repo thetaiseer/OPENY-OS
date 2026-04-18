@@ -135,11 +135,9 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           <button
             type="button"
             onClick={() => openAi()}
-            className="topbar-ai-btn topbar-ai-pill"
+            className={`topbar-ai-btn topbar-ai-pill ${aiOpen ? 'btn-primary' : 'btn-secondary'}`}
             style={{
-              background: aiOpen ? 'var(--accent)' : 'var(--surface-2)',
               color: aiOpen ? '#fff' : 'var(--text-primary)',
-              border: `1px solid ${aiOpen ? 'var(--accent)' : 'var(--border)'}`,
             }}
             title="AI Command Center (⌘J)"
           >

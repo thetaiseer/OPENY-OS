@@ -39,7 +39,7 @@ export default function Modal({ open, onClose, title, subtitle, children, size =
 
   return (
     <div className="openy-modal-overlay fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-2.5 sm:items-center sm:p-6" onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <div className={`openy-modal-shell openy-modal-panel w-full ${sizeClasses[size]} overflow-hidden rounded-2xl`} style={{ animation: 'openy-modal-in 280ms var(--ease-spring) both' }}>
+      <div className={`openy-modal-shell openy-modal-panel w-full ${sizeClasses[size]} overflow-hidden rounded-xl`} style={{ animation: 'openy-modal-in 280ms var(--ease-spring) both' }}>
         <div className="openy-modal-header flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-6 sm:py-5" style={{ borderColor: 'var(--border-soft)' }}>
           <div className="min-w-0">
             <h2 className="text-base font-bold tracking-tight">{title}</h2>
@@ -49,7 +49,7 @@ export default function Modal({ open, onClose, title, subtitle, children, size =
             <X size={16} />
           </button>
         </div>
-        <div className="openy-modal-body max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 sm:p-6">{children}</div>
+        <div className="openy-modal-body max-h-[calc(100dvh-6rem)] overflow-y-auto p-5 sm:p-7">{children}</div>
       </div>
     </div>
   );

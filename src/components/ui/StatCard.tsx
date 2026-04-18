@@ -22,8 +22,8 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const up = trend ? trend.value >= 0 : null;
 
   return (
-    <article className="openy-card card relative overflow-hidden rounded-2xl border p-5">
-      <div className="relative z-10 mb-4 flex items-start justify-between gap-3">
+    <article className="openy-card card relative overflow-hidden rounded-xl border p-6">
+      <div className="relative z-10 mb-5 flex items-start justify-between gap-3">
         <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border" style={{ background: tone.bg, color: tone.icon, borderColor: 'var(--border-soft)' }}>
           {icon}
         </div>
@@ -36,7 +36,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
       </div>
 
       <p className="relative z-10 text-3xl font-extrabold tracking-tight">{value}</p>
-      <p className="relative z-10 mt-1 text-sm text-[var(--text-secondary)]">{label}</p>
+      <p className="relative z-10 mt-2 text-sm text-[var(--text-secondary)]">{label}</p>
     </article>
   );
 }

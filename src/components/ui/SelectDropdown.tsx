@@ -99,7 +99,7 @@ export default function SelectDropdown({
 
   return (
     <div ref={rootRef} className={`relative ${fullWidth ? 'w-full' : 'inline-block'}`}>
-      <div className={`openy-select-trigger openy-filter-control relative flex h-11 items-center gap-2 rounded-xl px-3 ${className}`} style={{ width: fullWidth ? '100%' : undefined }}>
+      <div className={`openy-select-trigger openy-filter-control relative flex h-11 items-center gap-2 rounded-lg px-3 ${className}`} style={{ width: fullWidth ? '100%' : undefined }}>
         {icon ? <span className="shrink-0 text-[var(--text-secondary)]">{icon}</span> : null}
         <button
           ref={buttonRef}
@@ -145,8 +145,8 @@ export default function SelectDropdown({
                 aria-selected={active}
                 data-index={index}
                 onClick={() => selectValue(option.value)}
-                className={`openy-menu-item flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium ${active ? 'openy-menu-item-active' : ''}`}
-              >
+                  className={`openy-menu-item flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium ${active ? 'openy-menu-item-active' : ''}`}
+                >
                 <span className="truncate">{option.label}</span>
                 {active ? <Check size={14} style={{ color: 'var(--accent-primary)' }} /> : null}
               </button>
