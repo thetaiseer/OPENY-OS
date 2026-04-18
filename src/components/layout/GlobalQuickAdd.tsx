@@ -335,9 +335,11 @@ export default function GlobalQuickAdd() {
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
-                  <Icon size={14} />
+                  <Icon size={16} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-center text-xs font-semibold leading-none">{item.label}</span>
+                <span className="flex h-full min-w-0 flex-1 items-center justify-center">
+                  <span className="truncate text-xs font-semibold leading-none">{item.label}</span>
+                </span>
               </button>
             );
           })}
