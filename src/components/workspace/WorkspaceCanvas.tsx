@@ -60,13 +60,13 @@ function useOutsideClick<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T | null>(null);
 
   useEffect(() => {
-    function onPointerDown(event: MouseEvent) {
+    function handleMouseDown(event: MouseEvent) {
       if (!ref.current || ref.current.contains(event.target as Node)) return;
       onClose();
     }
 
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [onClose]);
 
   return ref;
