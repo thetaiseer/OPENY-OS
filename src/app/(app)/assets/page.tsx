@@ -109,7 +109,17 @@ function normalizeClientLogoUrl(logo?: string): string | null {
   const trimmed = logo.trim();
   if (!trimmed) return null;
   if (trimmed.startsWith('/')) return trimmed;
-  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    const allowedHosts = new Set<string>();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl) {
+      try { allowedHosts.add(new URL(supabaseUrl).hostname); } catch {}
+    }
+    if (url.protocol === 'https:' && allowedHosts.has(url.hostname)) return url.toString();
+  } catch {
+    return null;
+  }
   return null;
 }
 
@@ -230,7 +240,7 @@ function ClientFolderCard({
           <div className="shrink-0 w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden" style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.9), rgba(139,92,246,0.9))' }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" />
+              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
             ) : (
               <span className="text-lg font-bold text-white">{initial}</span>
             )}
@@ -859,9 +869,11 @@ export default function AssetsPage() {
         return;
       }
       setClients(prev => prev.filter(client => client.id !== clientDeleteTarget.id));
-      setAssets(prev => prev.filter(asset =>
-        asset.client_id !== clientDeleteTarget.id && (asset.client_name ?? '') !== clientDeleteTarget.name,
-      ));
+      setAssets(prev => prev.filter(asset => {
+        const matchesId = asset.client_id === clientDeleteTarget.id;
+        const matchesName = (asset.client_name ?? '') === clientDeleteTarget.name;
+        return !(matchesId || matchesName);
+      }));
       setFolderPath(prev => (prev.client === clientDeleteTarget.name ? {} : prev));
       addToast(`Client "${clientDeleteTarget.name}" deleted.`, 'success');
       setClientDeleteTarget(null);
@@ -1145,7 +1157,7 @@ export default function AssetsPage() {
                       onDownload={() => void handleDownloadClient(key)}
                       isDownloading={downloadingClient === key}
                       canDelete={isOwner && Boolean(clientMeta?.id)}
-                      onDelete={clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
+                      onDelete={isOwner && clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
                     />
                   );
                 }
