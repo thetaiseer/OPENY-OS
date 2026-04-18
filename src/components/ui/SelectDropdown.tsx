@@ -99,7 +99,7 @@ export default function SelectDropdown({
 
   return (
     <div ref={rootRef} className={`relative ${fullWidth ? 'w-full' : 'inline-block'}`}>
-      <div className={`openy-select-trigger relative flex h-10 items-center gap-2 rounded-xl px-3 ${className}`} style={{ width: fullWidth ? '100%' : undefined }}>
+      <div className={`openy-select-trigger openy-filter-control relative flex h-10 items-center gap-2 rounded-xl px-3 ${className}`} style={{ width: fullWidth ? '100%' : undefined }}>
         {icon ? <span className="shrink-0 text-[var(--text-secondary)]">{icon}</span> : null}
         <button
           ref={buttonRef}
@@ -134,7 +134,7 @@ export default function SelectDropdown({
       </div>
 
       {open ? (
-        <div ref={listRef} role="listbox" className="openy-select-menu openy-menu-panel absolute left-0 right-0 top-full z-40 mt-2 max-h-64 overflow-auto rounded-xl p-1.5 animate-openy-slide-down">
+        <div ref={listRef} role="listbox" className="openy-select-menu openy-menu-panel openy-dropdown-menu absolute left-0 right-0 top-full z-40 mt-2 max-h-64 overflow-auto rounded-xl p-1.5 animate-openy-slide-down">
           {options.map((option, index) => {
             const active = option.value === value;
             return (

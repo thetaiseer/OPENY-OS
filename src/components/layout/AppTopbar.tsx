@@ -80,7 +80,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }
 
   return (
-    <header className="app-topbar header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
+    <header className="app-topbar app-topbar-shell header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
       <div className="flex min-w-0 items-center gap-2">
         <AccountMenu
           placement="header"
@@ -122,7 +122,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="app-topbar-tools hidden items-center gap-1 lg:flex">
           <ThemeSwitcher />
           <WorkspaceSwitcher />
 
@@ -135,7 +135,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           <button
             type="button"
             onClick={() => openAi()}
-            className="topbar-ai-btn"
+            className="topbar-ai-btn topbar-ai-pill"
             style={{
               background: aiOpen ? 'var(--accent)' : 'var(--surface-2)',
               color: aiOpen ? '#fff' : 'var(--text-primary)',
