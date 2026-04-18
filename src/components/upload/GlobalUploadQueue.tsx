@@ -144,7 +144,7 @@ export default function GlobalUploadQueue() {
         style={{
           background: 'color-mix(in srgb, var(--surface-2) 90%, white 10%)',
           border: '1px solid color-mix(in srgb, var(--border) 86%, transparent)',
-          boxShadow: '0 6px 14px rgba(8, 16, 35, 0.12)',
+          boxShadow: 'none',
         }}
       >
         <div className="flex h-full items-center gap-2.5">

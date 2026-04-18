@@ -53,11 +53,11 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
               type="button"
               onClick={() => onPageChange(value)}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold"
-              style={
-                value === page
-                  ? { background: 'linear-gradient(130deg,var(--accent),var(--accent-2))', color: '#fff' }
-                  : { color: 'var(--text-secondary)' }
-              }
+               style={
+                 value === page
+                   ? { background: 'var(--accent)', color: '#fff' }
+                   : { color: 'var(--text-secondary)' }
+               }
             >
               {value}
             </button>

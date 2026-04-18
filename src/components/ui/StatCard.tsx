@@ -7,14 +7,14 @@ interface StatCardProps {
 }
 
 const toneMap = {
-  blue: { bg: 'rgba(47,139,255,0.14)', glow: 'rgba(47,139,255,0.45)' },
-  green: { bg: 'rgba(18,191,118,0.14)', glow: 'rgba(18,191,118,0.45)' },
-  amber: { bg: 'rgba(255,176,32,0.14)', glow: 'rgba(255,176,32,0.45)' },
-  red: { bg: 'rgba(255,91,114,0.14)', glow: 'rgba(255,91,114,0.45)' },
-  violet: { bg: 'rgba(106,115,255,0.14)', glow: 'rgba(106,115,255,0.45)' },
-  mint: { bg: 'rgba(57,226,199,0.14)', glow: 'rgba(57,226,199,0.45)' },
-  rose: { bg: 'rgba(255,120,179,0.14)', glow: 'rgba(255,120,179,0.45)' },
-  cyan: { bg: 'rgba(65,179,255,0.14)', glow: 'rgba(65,179,255,0.45)' },
+  blue: { bg: 'var(--accent-soft)' },
+  green: { bg: 'var(--color-success-bg)' },
+  amber: { bg: 'var(--color-warning-bg)' },
+  red: { bg: 'var(--color-danger-bg)' },
+  violet: { bg: 'var(--accent-soft)' },
+  mint: { bg: 'var(--color-success-bg)' },
+  rose: { bg: 'var(--color-danger-bg)' },
+  cyan: { bg: 'var(--color-info-bg)' },
 };
 
 export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
@@ -23,8 +23,6 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
 
   return (
     <article className="openy-card card relative overflow-hidden rounded-2xl border p-5">
-      <div className="pointer-events-none absolute -top-16 left-0 right-0 h-24 blur-3xl" style={{ background: `radial-gradient(circle, ${tone.glow} 0%, transparent 70%)` }} />
-
       <div className="relative z-10 mb-4 flex items-start justify-between gap-3">
         <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: tone.bg, color: 'var(--accent)' }}>
           {icon}

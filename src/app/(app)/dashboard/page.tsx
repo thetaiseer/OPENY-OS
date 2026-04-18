@@ -35,7 +35,7 @@ function DashboardPanel({ children, className = '' }: { children: React.ReactNod
       <div
         className="pointer-events-none absolute inset-x-0 -top-20 h-24 opacity-75"
         style={{
-          background: 'radial-gradient(60% 80% at 50% 50%, color-mix(in srgb, var(--accent-glow) 74%, transparent), transparent 74%)',
+          background: 'transparent',
         }}
       />
       <div className="relative z-[1]">{children}</div>
@@ -262,8 +262,8 @@ function ContentDistribution({ items }: { items: { label: string; count: number 
               className="h-2.5 rounded-full transition-all duration-500"
               style={{
                 width: `${(item.count / max) * 100}%`,
-                background: 'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent-2) 75%, #9ec0ff))',
-                boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent-glow) 66%, transparent)',
+                background: 'var(--accent)',
+                boxShadow: 'none',
               }}
             />
           </div>
@@ -631,7 +631,7 @@ export default function DashboardPage() {
                 >
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
+                    style={{ background: 'var(--accent)' }}
                   >
                     {client.name.charAt(0).toUpperCase()}
                   </div>

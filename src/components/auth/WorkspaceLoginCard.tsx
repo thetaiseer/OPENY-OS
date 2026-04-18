@@ -102,8 +102,7 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
-        boxShadow: 'var(--glass-shadow-lg)',
-        backdropFilter: 'blur(var(--blur-md))',
+        boxShadow: 'none',
       }}
     >
       <div className="text-center mb-6">

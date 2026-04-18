@@ -100,7 +100,7 @@ export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
           onClick={() => void addComment()}
           disabled={saving || !text.trim()}
           className="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(130deg,var(--accent),var(--accent-2))' }}
+          style={{ background: 'var(--accent)' }}
         >
           <Send size={13} />
         </button>

@@ -286,7 +286,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
         <div className="glass-card p-5 md:p-6">
           <div className="flex flex-col xl:flex-row gap-5 xl:items-start xl:justify-between">
             <div className="flex items-start gap-4 min-w-0">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white shrink-0" style={{ background: 'var(--accent)' }}>
                 {client.name?.charAt(0).toUpperCase()}
               </div>
 
