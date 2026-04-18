@@ -1526,11 +1526,11 @@ export default function TasksPage() {
       (acc, task) => {
         if (!task.due_date || COMPLETED_STATUSES.has(task.status)) return acc;
         if (task.due_date < today) acc.overdue += 1;
-        else if (task.due_date === today) acc.today += 1;
+        else if (task.due_date === today) acc.dueToday += 1;
         else acc.upcoming += 1;
         return acc;
       },
-      { overdue: 0, today: 0, upcoming: 0 },
+      { overdue: 0, dueToday: 0, upcoming: 0 },
     );
   }, [tasks]);
   const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]
@@ -1602,7 +1602,7 @@ export default function TasksPage() {
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
           {[
             { key: 'overdue', label: 'Overdue', value: dueBuckets.overdue, tone: 'var(--color-danger)' },
-            { key: 'today', label: 'Today', value: dueBuckets.today, tone: 'var(--color-warning)' },
+            { key: 'dueToday', label: 'Today', value: dueBuckets.dueToday, tone: 'var(--color-warning)' },
             { key: 'upcoming', label: 'Upcoming', value: dueBuckets.upcoming, tone: 'var(--color-info)' },
           ].map((bucket) => (
             <div key={bucket.key} className="rounded-xl border px-3 py-2.5" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>

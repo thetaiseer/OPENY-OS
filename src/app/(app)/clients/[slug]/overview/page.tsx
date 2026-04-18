@@ -148,7 +148,12 @@ export default function ClientOverviewPage() {
             title: 'Add content plan?',
             description: 'Create this client’s first content pipeline with statuses and ownership.',
             action: (
-              <Link href={`/clients/${slug}/content`} className="text-xs font-semibold hover:opacity-80" style={{ color: 'var(--accent)' }}>
+              <Link
+                href={`/clients/${slug}/content`}
+                aria-label={`Open content for ${client.name}`}
+                className="text-xs font-semibold hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
                 Open content
               </Link>
             ),
@@ -158,7 +163,12 @@ export default function ClientOverviewPage() {
             title: 'Upload brand assets?',
             description: 'Start with logos, reference files, and current campaign media.',
             action: (
-              <Link href={`/clients/${slug}/assets?quickAction=upload`} className="text-xs font-semibold hover:opacity-80" style={{ color: 'var(--accent)' }}>
+              <Link
+                href={`/clients/${slug}/assets?quickAction=upload`}
+                aria-label={`Open uploads for ${client.name}`}
+                className="text-xs font-semibold hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
                 Open uploads
               </Link>
             ),

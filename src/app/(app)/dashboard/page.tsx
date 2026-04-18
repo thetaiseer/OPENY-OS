@@ -15,6 +15,8 @@ import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
+const WEEK_LENGTH_DAYS = 7;
+const MILLISECONDS_PER_DAY = 86_400_000;
 
 interface Stats {
   totalClients: number;
@@ -394,11 +396,15 @@ export default function DashboardPage() {
   }, [assetRows]);
 
   const lightInsights = useMemo(() => {
-    const completedThisWeek = (trendsData ?? []).slice(-7).reduce((sum, day) => sum + day.completed, 0);
+    const trendRows = trendsData ?? [];
+    let completedThisWeek = 0;
+    for (let i = Math.max(0, trendRows.length - WEEK_LENGTH_DAYS); i < trendRows.length; i += 1) {
+      completedThisWeek += trendRows[i]?.completed ?? 0;
+    }
     const overdue = stats?.overdueTasks ?? 0;
     const assetsThisWeek = (recentAssets ?? []).filter(asset => {
       if (!asset.created_at) return false;
-      return Date.now() - new Date(asset.created_at).getTime() <= 7 * 86400000;
+      return Date.now() - new Date(asset.created_at).getTime() <= WEEK_LENGTH_DAYS * MILLISECONDS_PER_DAY;
     }).length;
 
     return [

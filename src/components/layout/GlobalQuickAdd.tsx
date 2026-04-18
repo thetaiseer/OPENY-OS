@@ -39,18 +39,19 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
 const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const QUICK_ADD_USAGE_KEY = 'openy_quick_add_usage_v1';
 const QUICK_ADD_LAST_ACTION_KEY = 'openy_quick_add_last_action_v1';
+const DEFAULT_CLIENT_INITIALS = 'CL';
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function initialsFromName(name: string) {
+function generateInitialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (!parts.length) return 'CL';
+  if (!parts.length) return DEFAULT_CLIENT_INITIALS;
   return parts.map(p => p.charAt(0).toUpperCase()).join('');
 }
 
-function suggestClientName(base: string) {
+function generateClientNameSuggestion(base: string) {
   const clean = base.trim();
   if (!clean) return 'Acme Studio';
   return clean.toLowerCase().includes('client') ? clean : `${clean} Client`;
@@ -130,21 +131,6 @@ export default function GlobalQuickAdd() {
 
   const topAction = orderedMenuItems[0]?.key ?? null;
 
-  const suggestedTaskTitle = useMemo(() => {
-    const selectedClient = clients.find(client => client.id === taskClientId);
-    if (!selectedClient) return 'Finalize weekly deliverables';
-    return `${selectedClient.name} - ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} follow-up`;
-  }, [clients, taskClientId]);
-
-  const suggestedClientName = useMemo(() => suggestClientName(clientName), [clientName]);
-  const clientInitials = useMemo(() => initialsFromName(clientName || suggestedClientName), [clientName, suggestedClientName]);
-  const detectedAssetType = useMemo(() => detectAssetTypeFromUrl(assetUrl), [assetUrl]);
-  const suggestedAssetFolder = useMemo(() => {
-    const selectedClient = clients.find(client => client.id === assetClientId);
-    const type = detectedAssetType ?? assetType;
-    return `${selectedClient?.name ?? 'General'}/${type}`;
-  }, [clients, assetClientId, detectedAssetType, assetType]);
-
   function registerAction(kind: QuickAddKind) {
     setActionUsage(prev => {
       const next = { ...prev, [kind]: (prev[kind] ?? 0) + 1 };
@@ -177,6 +163,21 @@ export default function GlobalQuickAdd() {
     },
     staleTime: 60_000,
   });
+
+  const suggestedTaskTitle = useMemo(() => {
+    const selectedClient = clients.find(client => client.id === taskClientId);
+    if (!selectedClient) return 'Finalize weekly deliverables';
+    return `${selectedClient.name} - ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} follow-up`;
+  }, [clients, taskClientId]);
+
+  const suggestedClientName = useMemo(() => generateClientNameSuggestion(clientName), [clientName]);
+  const clientInitials = useMemo(() => generateInitialsFromName(clientName || suggestedClientName), [clientName, suggestedClientName]);
+  const detectedAssetType = useMemo(() => detectAssetTypeFromUrl(assetUrl), [assetUrl]);
+  const suggestedAssetFolder = useMemo(() => {
+    const selectedClient = clients.find(client => client.id === assetClientId);
+    const type = detectedAssetType ?? assetType;
+    return `${selectedClient?.name ?? 'General'}/${type}`;
+  }, [clients, assetClientId, detectedAssetType, assetType]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -403,6 +404,7 @@ export default function GlobalQuickAdd() {
             const visible = menuOpen;
             const isLast = lastAction === item.key;
             const isTop = topAction === item.key;
+            const tags = [isTop ? 'Most used' : null, isLast ? 'Last' : null].filter(Boolean).join(' • ');
             return (
               <button
                 key={item.key}
@@ -430,7 +432,7 @@ export default function GlobalQuickAdd() {
                 </span>
                 <span className="flex h-full min-w-0 flex-1 items-center justify-center">
                   <span className="truncate text-xs font-semibold leading-none">
-                    {item.label}{isTop ? ' • Most used' : ''}{isLast ? ' • Last' : ''}
+                    {item.label}{tags ? ` • ${tags}` : ''}
                   </span>
                 </span>
               </button>
