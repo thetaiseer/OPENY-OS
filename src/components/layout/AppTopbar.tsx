@@ -97,8 +97,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           <Menu size={18} />
         </button>
 
-        <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
-          <OpenyLogo width={82} height={24} />
+        <Link
+          href={dashboardHref}
+          className="group inline-flex cursor-pointer items-center gap-1.5 rounded-lg transition-opacity duration-150 hover:opacity-90 sm:mr-2"
+          aria-label={`Go to ${workspaceLabel} dashboard`}
+        >
+          <OpenyLogo className="transition-transform duration-150 group-hover:scale-[1.02]" width={82} height={24} />
           <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--text-secondary)]">{workspaceLabel}</span>
         </Link>
       </div>

@@ -7,7 +7,6 @@ import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
-import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
 
@@ -39,7 +38,7 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const dashboardHref = getWorkspaceDashboardHref(pathname);
+  const dashboardHref = variant === 'docs' ? '/docs/dashboard' : '/os/dashboard';
   const [collapsed, setCollapsed] = useState(false);
   const isSlim = collapsed && !open;
   const itemCount = items.length;
@@ -58,11 +57,16 @@ export default function AppSidebar({
       >
         <div className="app-sidebar-header">
           <div className="min-w-0 flex-1">
-            <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
+            <Link
+              href={dashboardHref}
+              onClick={onClose}
+              className="group inline-flex cursor-pointer items-center rounded-lg transition-opacity duration-150 hover:opacity-90"
+              aria-label={`Go to ${variant === 'docs' ? 'DOCS' : 'OS'} dashboard`}
+            >
               {isSlim ? (
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border text-[11px] font-bold tracking-[0.08em]">OY</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border text-[11px] font-bold tracking-[0.08em] transition-transform duration-150 group-hover:scale-[1.02]">OY</span>
               ) : (
-                <OpenyLogo width={104} height={28} />
+                <OpenyLogo className="transition-transform duration-150 group-hover:scale-[1.02]" width={104} height={28} />
               )}
             </Link>
             {!isSlim ? (
