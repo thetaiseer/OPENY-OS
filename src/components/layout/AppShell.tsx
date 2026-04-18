@@ -27,7 +27,7 @@ export default function AppShell({
         {sidebar}
         <div className="app-shell-stage">
           {topbar}
-          <main className={clsx('app-shell-main app-shell-main-frame app-shell-scroll', mainClassName)}>
+          <main className={clsx('app-shell-main app-shell-main-frame app-shell-scroll pb-24 lg:pb-0', mainClassName)}>
             <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
           </main>
         </div>

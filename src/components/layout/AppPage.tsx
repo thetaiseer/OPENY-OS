@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
+import { usePathname } from 'next/navigation';
 
 interface AppPageProps {
   children: ReactNode;
@@ -11,7 +13,18 @@ interface AppPageProps {
 }
 
 export function AppPage({ children, className, fullWidth = false, fill = false }: AppPageProps) {
-  return <section className={clsx('app-page openy-page-shell page-enter', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}>{children}</section>;
+  const pathname = usePathname();
+  return (
+    <motion.section
+      key={pathname}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      className={clsx('app-page openy-page-shell page-enter', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}
+    >
+      {children}
+    </motion.section>
+  );
 }
 
 interface AppPageHeaderProps {
