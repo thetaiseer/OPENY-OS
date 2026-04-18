@@ -46,6 +46,7 @@ const VALID_PLATFORMS = [
 ] as const;
 
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
+const DEFAULT_EVENT_TIME = '09:00:00';
 
 interface Params { id: string }
 
@@ -203,8 +204,9 @@ export async function PATCH(
     const dueTime = typeof updatePayload.due_time === 'string' ? updatePayload.due_time : data.due_time;
     const title = typeof updatePayload.title === 'string' ? updatePayload.title : data.title;
     if (dueDate || title) {
+      const effectiveDueTime = dueTime && dueTime.trim() ? dueTime : DEFAULT_EVENT_TIME;
       const startsAt = dueDate
-        ? `${dueDate}T${(dueTime && dueTime.trim() ? dueTime : '09:00:00')}`
+        ? `${dueDate}T${effectiveDueTime}`
         : null;
       const eventUpdate: Record<string, unknown> = {};
       if (title) eventUpdate.title = title;

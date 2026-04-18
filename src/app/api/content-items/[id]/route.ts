@@ -48,7 +48,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (typeof body.purpose     === 'string') updates.purpose      = body.purpose;
   if (Array.isArray(body.platform_targets)) updates.platform_targets = body.platform_targets;
   if (Array.isArray(body.post_types))        updates.post_types       = body.post_types;
-  if (typeof body.schedule_date === 'string') updates.schedule_date = body.schedule_date.trim() || null;
+  if (typeof body.schedule_date === 'string') {
+    const trimmedScheduleDate = body.schedule_date.trim();
+    updates.schedule_date = trimmedScheduleDate ? trimmedScheduleDate : null;
+  }
   if (typeof body.task_id === 'string') updates.task_id = body.task_id.trim() || null;
 
   let newStatus: string | null = null;

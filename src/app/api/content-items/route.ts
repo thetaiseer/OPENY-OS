@@ -14,6 +14,7 @@ import { requireRole } from '@/lib/api-auth';
 
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
+const CONTENT_TASK_PREFIX = 'Content: ';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -105,11 +106,11 @@ export async function POST(req: NextRequest) {
 
     // Optionally create linked task (best-effort)
     if (data?.id && shouldCreateTask) {
-      const taskTitle = `Content: ${title}`;
+      const linkedTaskTitle = `${CONTENT_TASK_PREFIX}${title}`;
       const { data: createdTask, error: taskError } = await db
         .from('tasks')
         .insert({
-          title: taskTitle,
+          title: linkedTaskTitle,
           description: typeof body.description === 'string' ? body.description.trim() || null : null,
           status: 'todo',
           priority: 'medium',
@@ -129,7 +130,9 @@ export async function POST(req: NextRequest) {
         console.warn('[POST /api/content-items] linked task auto-create failed:', taskError.message);
       } else if (createdTask?.id) {
         const linkedTaskId = createdTask.id as string;
-        void db.from('content_items').update({ task_id: linkedTaskId }).eq('id', data.id);
+        void db.from('content_items').update({ task_id: linkedTaskId }).eq('id', data.id).then(({ error: backlinkErr }) => {
+          if (backlinkErr) console.warn('[POST /api/content-items] task_id backlink update failed:', backlinkErr.message);
+        });
         void db.from('entity_links').upsert({
           source_type: 'content',
           source_id: data.id,
@@ -137,7 +140,9 @@ export async function POST(req: NextRequest) {
           target_id: linkedTaskId,
           link_type: 'related',
           created_by: auth.profile.id,
-        }, { onConflict: 'source_type,source_id,target_type,target_id' });
+        }, { onConflict: 'source_type,source_id,target_type,target_id' }).then(({ error: linkErr }) => {
+          if (linkErr) console.warn('[POST /api/content-items] entity_links upsert failed:', linkErr.message);
+        });
       }
     }
 

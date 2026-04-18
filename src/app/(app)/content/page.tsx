@@ -23,6 +23,7 @@ const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string
 const PLATFORMS = ['instagram', 'facebook', 'tiktok', 'linkedin', 'twitter', 'snapchat', 'youtube_shorts'];
 const POST_TYPES = ['post', 'reel', 'carousel', 'story'];
 const PURPOSES = ['awareness', 'engagement', 'promotion', 'branding', 'lead_generation', 'announcement', 'offer_campaign'];
+const MODAL_BACKDROP = 'rgba(0,0,0,0.58)';
 
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   instagram: <Instagram size={12} />,
@@ -72,7 +73,7 @@ function NewContentModal({ open, onClose, clients, team, onCreated }: NewContent
 
   if (!open) return null;
 
-  function toggle(setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) {
+  function toggleSelection(setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) {
     setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
   }
 
@@ -113,7 +114,7 @@ function NewContentModal({ open, onClose, clients, team, onCreated }: NewContent
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.58)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }}>
       <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>New Content Item</h2>
@@ -162,7 +163,7 @@ function NewContentModal({ open, onClose, clients, team, onCreated }: NewContent
             <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>Target Platforms</label>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map(p => (
-                <button key={p} type="button" onClick={() => toggle(setPlatforms, p)}
+                <button key={p} type="button" onClick={() => toggleSelection(setPlatforms, p)}
                   className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                   style={platforms.includes(p)
                     ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }
@@ -177,7 +178,7 @@ function NewContentModal({ open, onClose, clients, team, onCreated }: NewContent
             <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>Post Type</label>
             <div className="flex flex-wrap gap-2">
               {POST_TYPES.map(type => (
-                <button key={type} type="button" onClick={() => toggle(setPostTypes, type)}
+                <button key={type} type="button" onClick={() => toggleSelection(setPostTypes, type)}
                   className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                   style={postTypes.includes(type)
                     ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }
@@ -248,7 +249,7 @@ function ContentCard({ item, compact, onStatusChange, onDelete, onPreview, onEdi
       <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity right-3 top-3 z-10 flex items-center gap-1">
         <button onClick={() => onPreview(item)} className="p-1.5 rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }} title="Quick preview"><Eye size={13} /></button>
         <button onClick={() => onEdit(item)} className="p-1.5 rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }} title="Edit"><Pencil size={13} /></button>
-        <a href="/content" className="p-1.5 rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }} title="Open"><ExternalLink size={13} /></a>
+        <button onClick={() => onPreview(item)} className="p-1.5 rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }} title="Open"><ExternalLink size={13} /></button>
       </div>
 
       <div className="flex-1 min-w-0">
@@ -310,7 +311,7 @@ function ContentCard({ item, compact, onStatusChange, onDelete, onPreview, onEdi
 function ContentDetailModal({ item, onClose }: { item: ContentItem | null; onClose: () => void }) {
   if (!item) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.58)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }} onClick={onClose}>
       <div className="w-full max-w-xl rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -346,6 +347,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ContentItem | null
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!item) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/content-items/${item.id}`, {
@@ -366,7 +368,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ContentItem | null
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.58)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Edit Content Item</h3>
         <form onSubmit={submit} className="space-y-3">

@@ -52,6 +52,13 @@ function postTypeLabel(value: string): string {
   return pt ? pt.label : value;
 }
 
+function getScheduleDisplayName(schedule: PublishingSchedule): string {
+  return schedule.client_name
+    ?? (schedule as unknown as { content_item?: { title?: string } }).content_item?.title
+    ?? schedule.asset?.name
+    ?? 'Schedule';
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
@@ -198,6 +205,7 @@ export default function CalendarPage() {
       return {
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
         day: d.getDate(),
+        dayOfWeek: d.getDay(),
         month: d.getMonth(),
         year: d.getFullYear(),
       };
@@ -209,7 +217,7 @@ export default function CalendarPage() {
     const items: Array<{ id: string; type: 'task' | 'content' | 'schedule'; title: string; subtitle?: string; color: string }> = [];
     selectedTasks.forEach(task => items.push({ id: task.id, type: 'task', title: task.title, subtitle: task.client?.name, color: '#2563eb' }));
     selectedContent.forEach(contentItem => items.push({ id: contentItem.id, type: 'content', title: contentItem.title, subtitle: contentItem.status, color: 'var(--accent)' }));
-    selectedSchedules.forEach(schedule => items.push({ id: schedule.id, type: 'schedule', title: schedule.asset?.name ?? 'Schedule', subtitle: schedule.client_name ?? undefined, color: '#7c3aed' }));
+    selectedSchedules.forEach(schedule => items.push({ id: schedule.id, type: 'schedule', title: getScheduleDisplayName(schedule), subtitle: schedule.client_name ?? undefined, color: '#7c3aed' }));
     return items;
   }, [selectedDateKey, selectedTasks, selectedContent, selectedSchedules]);
 
@@ -399,7 +407,7 @@ export default function CalendarPage() {
                               style={{ background: `${scheduleStatusColor(s.status)}20`, color: scheduleStatusColor(s.status) }}
                             >
                               <Send size={8} className="shrink-0" />
-                              <span className="truncate">{s.client_name ?? (s as unknown as { content_item?: { title: string } }).content_item?.title ?? s.asset?.name ?? 'Schedule'}</span>
+                              <span className="truncate">{getScheduleDisplayName(s)}</span>
                             </div>
                           ))}
                           {dayContent.slice(0, Math.max(0, 2 - daySchedules.length)).map(c => (
@@ -457,11 +465,13 @@ export default function CalendarPage() {
                         onDrop={e => { e.preventDefault(); void handleReschedule(day.key); }}
                       >
                         <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text)' }}>
-                          {DAY_NAMES[new Date(day.key).getDay()]} {day.day}
+                          {DAY_NAMES[day.dayOfWeek]} {day.day}
                         </p>
-                        {[...listSchedules.slice(0, 2).map(s => ({ id: s.id, title: s.asset?.name ?? 'Schedule', type: 'schedule' as const, color: '#7c3aed' })), ...listContent.slice(0, 2).map(c => ({ id: c.id, title: c.title, type: 'content' as const, color: 'var(--accent)' })), ...listTasks.slice(0, 2).map(t => ({ id: t.id, title: t.title, type: 'task' as const, color: '#2563eb' }))]
-                          .slice(0, 3)
-                          .map(item => (
+                        {[
+                          ...listSchedules.slice(0, 2).map(s => ({ id: s.id, title: s.asset?.name ?? 'Schedule', type: 'schedule' as const, color: '#7c3aed' })),
+                          ...listContent.slice(0, 2).map(c => ({ id: c.id, title: c.title, type: 'content' as const, color: 'var(--accent)' })),
+                          ...listTasks.slice(0, 2).map(t => ({ id: t.id, title: t.title, type: 'task' as const, color: '#2563eb' })),
+                        ].slice(0, 3).map(item => (
                             <div
                               key={`${item.type}-${item.id}`}
                               draggable
