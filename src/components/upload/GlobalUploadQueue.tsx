@@ -419,10 +419,11 @@ export default function GlobalUploadQueue() {
 
   return (
     <div
-      className="openy-menu-panel fixed bottom-[80px] right-5 z-[51] rounded-2xl overflow-hidden"
+      className="openy-menu-panel fixed left-1/2 top-[calc(var(--header-height)+0.9rem)] -translate-x-1/2 z-[51] rounded-2xl overflow-hidden"
       style={{
-        width:       'min(320px, calc(100vw - 24px))',
+        width:       'min(420px, calc(100vw - 24px))',
         maxHeight:   minimised ? 'auto' : 480,
+        transition:  'opacity 180ms var(--ease-smooth), transform 180ms var(--ease-smooth)',
       }}
     >
       {/* ── Header ── */}

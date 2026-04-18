@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Sun, Moon, Menu, Globe, Sparkles } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Sun, Moon, Menu, Globe, Sparkles, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/lib/theme-context';
@@ -17,6 +17,19 @@ import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/works
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface AppTopbarProps { onMenuClick?: () => void; }
+const WORKSPACE_SEGMENTS = new Set(['os', 'docs']);
+const MAX_VISIBLE_BREADCRUMBS = 4;
+const WORKSPACE_DISPLAY_LABEL: Record<string, string> = {
+  DOCS: 'Docs',
+  OS: 'OS',
+};
+
+function formatBreadcrumbLabel(segment: string) {
+  const decoded = decodeURIComponent(segment);
+  return decoded
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
 
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const pathname = usePathname();
@@ -30,6 +43,14 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
   const { open: openAi, isOpen: aiOpen } = useAi();
+  const breadcrumbs = useMemo(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    return segments
+      .filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment)))
+      .map(formatBreadcrumbLabel);
+  }, [pathname]);
+  const visibleBreadcrumbs = breadcrumbs.slice(0, MAX_VISIBLE_BREADCRUMBS);
+  const isBreadcrumbTruncated = breadcrumbs.length > MAX_VISIBLE_BREADCRUMBS;
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -55,6 +76,24 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         <OpenyLogo width={82} height={24} />
         <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
       </Link>
+
+      <div className="topbar-breadcrumb hidden md:flex flex-1 min-w-0 max-w-[46vw]">
+        <span>{WORKSPACE_DISPLAY_LABEL[workspaceLabel] ?? workspaceLabel}</span>
+        {isBreadcrumbTruncated && (
+          <span className="inline-flex items-center gap-1 min-w-0">
+            <ChevronRight size={12} />
+            <span className="truncate">…</span>
+          </span>
+        )}
+        {visibleBreadcrumbs.map((crumb, index) => (
+          <span key={index} className="inline-flex items-center gap-1 min-w-0">
+            <ChevronRight size={12} />
+            <span className={index === visibleBreadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
+              {crumb}
+            </span>
+          </span>
+        ))}
+      </div>
 
       <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-md">
         <GlobalSearch />
@@ -94,7 +133,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               : 'linear-gradient(135deg, var(--accent-soft) 0%, transparent 100%)',
             color: aiOpen ? '#fff' : 'var(--accent)',
             border: `1px solid ${aiOpen ? 'rgba(255,255,255,0.35)' : 'var(--accent-glow)'}`,
-            boxShadow: aiOpen ? '0 10px 22px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
+            boxShadow: aiOpen ? '0 6px 14px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
           }}
           title="AI Command Center (⌘J)"
         >

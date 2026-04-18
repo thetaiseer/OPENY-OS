@@ -26,16 +26,20 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
 
   if (!open) return null;
 
-  const widthMap = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
+  const widthMap = {
+    sm: 'max-w-[min(760px,calc(100vw-1.5rem))]',
+    md: 'max-w-[min(1024px,calc(100vw-1.5rem))]',
+    lg: 'max-w-[min(1280px,calc(100vw-1.5rem))]',
+  };
 
   return (
     <div
-      className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="openy-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ animation: 'openy-overlay-in 220ms ease both' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`openy-modal-panel w-full ${widthMap[size]} rounded-t-2xl sm:rounded-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
+        className={`openy-modal-panel w-full ${widthMap[size]} min-h-[78dvh] max-h-[92dvh] rounded-2xl flex flex-col`}
           style={{
             animation: 'openy-modal-in 320ms var(--ease-spring) both',
           }}
