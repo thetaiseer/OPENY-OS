@@ -1520,19 +1520,19 @@ export default function TasksPage() {
   const totalOverdue = useMemo(() => tasks.filter(task => isOverdue(task.due_date, task.status)).length, [tasks]);
   const doneCount = useMemo(() => tasks.filter(task => COMPLETED_STATUSES.has(task.status)).length, [tasks]);
   const inProgressCount = useMemo(() => tasks.filter(task => IN_PROGRESS_STATUSES.has(task.status)).length, [tasks]);
+  const todayIso = new Date().toISOString().slice(0, 10);
   const dueBuckets = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
     return tasks.reduce(
       (acc, task) => {
         if (!task.due_date || COMPLETED_STATUSES.has(task.status)) return acc;
-        if (task.due_date < today) acc.overdue += 1;
-        else if (task.due_date === today) acc.dueToday += 1;
+        if (task.due_date < todayIso) acc.overdue += 1;
+        else if (task.due_date === todayIso) acc.dueToday += 1;
         else acc.upcoming += 1;
         return acc;
       },
       { overdue: 0, dueToday: 0, upcoming: 0 },
     );
-  }, [tasks]);
+  }, [tasks, todayIso]);
   const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]
     .filter(Boolean).length;
 

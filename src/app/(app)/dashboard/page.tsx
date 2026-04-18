@@ -18,6 +18,10 @@ import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from
 const WEEK_LENGTH_DAYS = 7;
 const MILLISECONDS_PER_DAY = 86_400_000;
 
+function pluralize(count: number, singular: string, plural: string) {
+  return count === 1 ? singular : plural;
+}
+
 interface Stats {
   totalClients: number;
   activeTasks: number;
@@ -408,10 +412,10 @@ export default function DashboardPage() {
     }).length;
 
     return [
-      `You completed ${completedThisWeek} task${completedThisWeek === 1 ? '' : 's'} this week`,
-      overdue > 0 ? `${overdue} task${overdue === 1 ? ' is' : 's are'} overdue` : 'No overdue tasks right now',
+      `You completed ${completedThisWeek} ${pluralize(completedThisWeek, 'task', 'tasks')} this week`,
+      overdue > 0 ? `${overdue} ${pluralize(overdue, 'task is', 'tasks are')} overdue` : 'No overdue tasks right now',
       assetsThisWeek > 0
-        ? `${assetsThisWeek} asset${assetsThisWeek === 1 ? '' : 's'} added this week`
+        ? `${assetsThisWeek} ${pluralize(assetsThisWeek, 'asset', 'assets')} added this week`
         : 'No activity in assets this week',
     ];
   }, [trendsData, stats?.overdueTasks, recentAssets]);

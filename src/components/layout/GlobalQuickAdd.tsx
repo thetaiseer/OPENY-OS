@@ -48,7 +48,7 @@ function todayIsoDate() {
 function generateInitialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (!parts.length) return DEFAULT_CLIENT_INITIALS;
-  return parts.map(p => p.charAt(0).toUpperCase()).join('');
+  return parts.map(p => p[0].toUpperCase()).join('');
 }
 
 function generateClientNameSuggestion(base: string) {
@@ -163,21 +163,22 @@ export default function GlobalQuickAdd() {
     },
     staleTime: 60_000,
   });
+  const clientsById = useMemo(() => new Map(clients.map(client => [client.id, client] as const)), [clients]);
 
   const suggestedTaskTitle = useMemo(() => {
-    const selectedClient = clients.find(client => client.id === taskClientId);
+    const selectedClient = clientsById.get(taskClientId);
     if (!selectedClient) return 'Finalize weekly deliverables';
     return `${selectedClient.name} - ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} follow-up`;
-  }, [clients, taskClientId]);
+  }, [clientsById, taskClientId]);
 
   const suggestedClientName = useMemo(() => generateClientNameSuggestion(clientName), [clientName]);
   const clientInitials = useMemo(() => generateInitialsFromName(clientName || suggestedClientName), [clientName, suggestedClientName]);
   const detectedAssetType = useMemo(() => detectAssetTypeFromUrl(assetUrl), [assetUrl]);
   const suggestedAssetFolder = useMemo(() => {
-    const selectedClient = clients.find(client => client.id === assetClientId);
+    const selectedClient = clientsById.get(assetClientId);
     const type = detectedAssetType ?? assetType;
     return `${selectedClient?.name ?? 'General'}/${type}`;
-  }, [clients, assetClientId, detectedAssetType, assetType]);
+  }, [clientsById, assetClientId, detectedAssetType, assetType]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -274,7 +275,7 @@ export default function GlobalQuickAdd() {
 
     setSubmitting(true);
     try {
-      const selectedClient = clients.find((client) => client.id === taskClientId);
+      const selectedClient = clientsById.get(taskClientId);
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -365,7 +366,7 @@ export default function GlobalQuickAdd() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const selectedClient = clients.find((client) => client.id === assetClientId);
+      const selectedClient = clientsById.get(assetClientId);
       const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
