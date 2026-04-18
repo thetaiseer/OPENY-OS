@@ -8,9 +8,11 @@ import { useAuth } from '@/lib/auth-context';
 interface AccountMenuProps {
   placement: 'header' | 'sidebar';
   children: React.ReactNode;
+  panelClassName?: string;
+  menuContent?: (helpers: { closeMenu: () => void }) => React.ReactNode;
 }
 
-export default function AccountMenu({ placement, children }: AccountMenuProps) {
+export default function AccountMenu({ placement, children, panelClassName, menuContent }: AccountMenuProps) {
   const { user, role, loading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -59,7 +61,12 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
       </button>
 
       {open ? (
-        <div role="menu" className={`openy-menu-panel absolute z-50 min-w-[240px] overflow-hidden rounded-2xl ${placementClass}`}>
+        <div role="menu" className={`openy-menu-panel absolute z-50 min-w-[240px] overflow-visible rounded-2xl ${placementClass} ${panelClassName ?? ''}`}>
+          {menuContent ? (
+            <div className="max-h-[42vh] overflow-y-auto border-b p-2.5" style={{ borderColor: 'var(--border)' }}>
+              {menuContent({ closeMenu: () => setOpen(false) })}
+            </div>
+          ) : null}
           <div className="border-b p-3" style={{ borderColor: 'var(--border)' }}>
             {loading ? (
               <p className="text-xs text-[var(--text-secondary)]">Loading account…</p>
