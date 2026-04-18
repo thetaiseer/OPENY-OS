@@ -309,7 +309,7 @@ export default function GlobalQuickAdd() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+      <div className="fixed bottom-7 right-7 z-40 flex flex-col items-end gap-3">
         <div className="quick-add-dock relative flex flex-col items-end gap-2.5">
           {MENU_ITEMS.map((item, index) => {
             const Icon = item.icon;
@@ -320,7 +320,7 @@ export default function GlobalQuickAdd() {
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="quick-add-dock-item btn-secondary group flex h-11 w-48 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
+                className="quick-add-dock-item btn-secondary group flex h-11 w-52 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
                 style={{
                   color: 'var(--text)',
                   transform: visible
@@ -337,7 +337,7 @@ export default function GlobalQuickAdd() {
                 >
                   <Icon size={16} />
                 </span>
-                <span className="flex h-full min-w-0 flex-1 items-center justify-center">
+                <span className="flex h-full min-w-0 flex-1 items-center justify-center text-center">
                   <span className="truncate text-xs font-semibold leading-none">{item.label}</span>
                 </span>
               </button>
@@ -349,7 +349,7 @@ export default function GlobalQuickAdd() {
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? 'Close global quick add' : 'Open global quick add'}
-          className="btn-fab flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-300"
+          className="btn-fab flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-300 active:scale-95"
           style={{
             transform: menuOpen ? 'rotate(45deg) scale(1.04)' : 'rotate(0deg) scale(1)',
           }}

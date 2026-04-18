@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Sun, Moon, Menu, Globe, Sparkles } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Sun, Moon, Menu, Globe, Sparkles, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/lib/theme-context';
@@ -18,6 +18,13 @@ import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface AppTopbarProps { onMenuClick?: () => void; }
 
+function segmentToLabel(segment: string) {
+  const decoded = decodeURIComponent(segment);
+  return decoded
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
@@ -30,6 +37,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
   const { open: openAi, isOpen: aiOpen } = useAi();
+  const breadcrumbs = useMemo(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    return segments
+      .filter((segment, index) => !(index === 0 && (segment === 'os' || segment === 'docs')))
+      .map(segmentToLabel);
+  }, [pathname]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -55,6 +68,18 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         <OpenyLogo width={82} height={24} />
         <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
       </Link>
+
+      <div className="topbar-breadcrumb hidden md:flex flex-1 min-w-0 max-w-[46vw]">
+        <span>{workspaceLabel === 'DOCS' ? 'Docs' : 'OS'}</span>
+        {breadcrumbs.slice(0, 4).map((crumb, index) => (
+          <span key={`${crumb}-${index}`} className="inline-flex items-center gap-1 min-w-0">
+            <ChevronRight size={12} />
+            <span className={index === breadcrumbs.slice(0, 4).length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
+              {crumb}
+            </span>
+          </span>
+        ))}
+      </div>
 
       <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-md">
         <GlobalSearch />
@@ -94,7 +119,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               : 'linear-gradient(135deg, var(--accent-soft) 0%, transparent 100%)',
             color: aiOpen ? '#fff' : 'var(--accent)',
             border: `1px solid ${aiOpen ? 'rgba(255,255,255,0.35)' : 'var(--accent-glow)'}`,
-            boxShadow: aiOpen ? '0 10px 22px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
+            boxShadow: aiOpen ? '0 6px 14px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
           }}
           title="AI Command Center (⌘J)"
         >
