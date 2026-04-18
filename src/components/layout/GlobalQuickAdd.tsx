@@ -622,14 +622,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-               className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-               className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Client'}
             </button>
@@ -684,14 +684,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-               className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-               className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Content'}
             </button>
@@ -775,14 +775,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-               className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-               className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Asset'}
             </button>
