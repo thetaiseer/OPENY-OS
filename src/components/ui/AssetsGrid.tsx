@@ -39,8 +39,13 @@ export function formatFileDate(iso?: string | null): string {
 }
 
 export function getFileTypeLabel(name: string, type?: string | null): string {
-  if (type) { const sub = type.split('/')[1]?.toUpperCase(); if (sub) return sub; }
-  return name.split('.').pop()?.toUpperCase() ?? 'FILE';
+  if (isImage(name, type)) return 'Image';
+  if (isVideo(name, type)) return 'Video';
+  if (isPdf(name, type)) return 'PDF';
+  if (isAudio(name, type)) return 'Audio';
+  if (type?.startsWith('text/')) return 'Text';
+  if (type?.startsWith('application/')) return 'Document';
+  return 'File';
 }
 
 /** Format a duration in seconds as MM:SS (or H:MM:SS for ≥ 1 hour). */
@@ -71,25 +76,6 @@ function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
       <FileTypeIcon name={name} type={type} size={36} />
     </div>
   );
-}
-
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-function monthLabel(mm: string): string {
-  const idx = parseInt(mm, 10) - 1;
-  if (isNaN(idx) || idx < 0 || idx > 11) return mm;
-  return MONTH_NAMES[idx] ?? mm;
-}
-
-// ── Standalone helpers ────────────────────────────────────────────────────────
-
-/** Trigger a browser download without relying on component state. */
-function triggerDownload(url: string, filename: string): void {
-  const a       = document.createElement('a');
-  a.href        = url;
-  a.download    = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
 }
 
 // ── AssetCard ─────────────────────────────────────────────────────────────────
@@ -171,9 +157,16 @@ export function AssetCard({
 
   return (
     <div
-      className="group rounded-2xl border overflow-hidden flex flex-col"
+      className="openy-card group overflow-hidden flex flex-col"
+      role={selectable ? 'button' : undefined}
+      tabIndex={selectable ? 0 : undefined}
+      onKeyDown={selectable ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggleSelect?.();
+        }
+      } : undefined}
       style={{
-        background:   'var(--surface)',
         borderColor:  selected ? 'var(--accent)' : 'var(--border)',
         boxShadow:    selected ? '0 0 0 2px var(--accent)' : undefined,
         cursor:       selectable ? 'pointer' : undefined,
@@ -183,7 +176,7 @@ export function AssetCard({
       {/* Thumbnail */}
       <div
         className="relative overflow-hidden"
-        style={{ aspectRatio: '16/10', background: 'var(--surface-2)' }}
+        style={{ aspectRatio: '1/1', background: 'var(--surface-2)' }}
         onClick={selectable ? undefined : onView}
       >
         {/* Selection checkbox overlay */}
@@ -282,19 +275,59 @@ export function AssetCard({
             <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
           </div>
         )}
-        <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: 'rgba(0,0,0,0.35)', pointerEvents: selectable ? 'none' : 'auto', cursor: 'pointer' }}
-          onClick={selectable ? undefined : onView}
-        >
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
-            <Eye size={18} className="text-white" />
+        {!selectable && (
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.22), transparent)', pointerEvents: 'none' }}
+          />
+        )}
+
+        {!selectable && (
+          <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5 opacity-0 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100">
+            <button
+              onClick={e => { e.stopPropagation(); onView(); }}
+              title="View"
+              className="flex items-center justify-center h-8 w-8 rounded-lg border"
+              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
+            >
+              <Eye size={14} />
+            </button>
+            {onSchedule && (
+              <button
+                onClick={e => { e.stopPropagation(); onSchedule(); }}
+                title="Schedule"
+                className="flex items-center justify-center h-8 w-8 rounded-lg border"
+                style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
+              >
+                <Calendar size={14} />
+              </button>
+            )}
+            <a
+              href={downloadUrl}
+              download={asset.name}
+              onClick={e => { e.stopPropagation(); }}
+              title="Download"
+              className="flex items-center justify-center h-8 w-8 rounded-lg border"
+              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
+            >
+              <Download size={14} />
+            </a>
+            {canDelete && (
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(); }}
+                title="Delete"
+                className="flex items-center justify-center h-8 w-8 rounded-lg border"
+                style={{ background: 'var(--overlay-action-danger-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Info */}
-      <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
+      <div className="p-3 flex-1 flex flex-col gap-2 min-w-0">
         {isEditing ? (
           <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
             <input
@@ -329,44 +362,36 @@ export function AssetCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             {getFileTypeLabel(asset.name, effectiveMime)}
           </span>
           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatFileSize(asset.file_size)}</span>
         </div>
 
-        {(asset.main_category || asset.sub_category) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
-            {asset.main_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
-                {mainCategoryLabel(asset.main_category)}
-              </span>
-            )}
-            {asset.sub_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                {subCategoryLabel(asset.main_category ?? '', asset.sub_category)}
-              </span>
-            )}
-          </div>
-        )}
-
-        {(asset.client_name || asset.month_key) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+        {(asset.client_name || asset.main_category) && (
+          <div className="flex items-center gap-1.5 flex-wrap">
             {asset.client_name && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
+              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
                 {asset.client_name}
               </span>
             )}
-            {asset.month_key && asset.month_key.length >= 7 && (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {monthLabel(asset.month_key.slice(5, 7))} {asset.month_key.slice(0, 4)}
+            {asset.main_category && (
+              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                {mainCategoryLabel(asset.main_category)}
               </span>
             )}
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+        {asset.sub_category && (
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {subCategoryLabel(asset.main_category ?? '', asset.sub_category)}
+          </span>
+        )}
+
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatFileDate(asset.created_at)}</span>
           {scheduleCount != null && scheduleCount > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
               <Send size={10} />{scheduleCount} scheduled
@@ -378,71 +403,27 @@ export function AssetCard({
             </span>
           )}
         </div>
-        <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatFileDate(asset.created_at)}</span>
-      </div>
 
-      {/* Actions */}
-      <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
-        <button
-          onClick={onView}
-          title="View"
-          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-        >
-          <Eye size={13} /><span>View</span>
-        </button>
-
-        {onSchedule && (
+        <div className="flex items-center justify-end gap-1">
           <button
-            onClick={onSchedule}
-            title="Schedule"
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70"
-            style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+            onClick={e => { e.stopPropagation(); onCopyLink(); }}
+            title="Copy link"
+            className="flex items-center justify-center h-7 w-7 rounded-lg"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
           >
-            <Send size={13} /><span>Schedule</span>
+            <Link size={12} />
           </button>
-        )}
-
-        <a
-          href={downloadUrl}
-          download={asset.name}
-          title="Download"
-          className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-        >
-          <Download size={14} />
-        </a>
-
-        <button
-          onClick={onCopyLink}
-          title="Copy link"
-          className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-        >
-          <Link size={14} />
-        </button>
-
-        {onComments && (
-          <button
-            onClick={onComments}
-            title="Comments"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-          >
-            <MessageSquare size={14} />
-          </button>
-        )}
-
-        {canDelete && (
-          <button
-            onClick={onDelete}
-            title="Delete"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
-            style={{ background: 'var(--surface-2)', color: '#ef4444' }}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+          {onComments && (
+            <button
+              onClick={e => { e.stopPropagation(); onComments(); }}
+              title="Comments"
+              className="flex items-center justify-center h-7 w-7 rounded-lg"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            >
+              <MessageSquare size={12} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -487,7 +468,7 @@ export function AssetsGrid({
   onSchedule,
 }: AssetsGridProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       {assets.map(asset => (
         <AssetCard
           key={asset.id}

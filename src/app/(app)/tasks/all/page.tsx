@@ -1537,7 +1537,7 @@ export default function TasksPage() {
     .filter(Boolean).length;
 
   return (
-    <div className="w-full max-w-[1500px] mx-auto space-y-4 sm:space-y-5 animate-openy-fade-in">
+    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in">
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -1548,15 +1548,15 @@ export default function TasksPage() {
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="glass-card p-4 sm:p-5">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div className="openy-card p-4 sm:p-5">
+        <div className="openy-page-header">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>{t('tasks')}</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="openy-page-header-title">{t('tasks')}</h1>
+            <p className="openy-page-header-description">
               {filtered.length} task{filtered.length !== 1 ? 's' : ''} shown • {tasks.length} total
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+          <div className="openy-page-actions sm:justify-end">
             <div className="openy-tabs" role="tablist" aria-label="Task views">
               <button
                 onClick={() => setView('list')}
@@ -1613,7 +1613,7 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <div className="openy-filter-bar">
+      <div className="openy-page-toolbar">
         <div className="relative min-w-[220px] flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
           <input

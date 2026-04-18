@@ -47,11 +47,11 @@ interface FolderPath {
 function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
-      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium border"
+      style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
     >
       {label}
-      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter">
+      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter" aria-label={`Remove ${label} filter`}>
         <X size={11} />
       </button>
     </span>
@@ -73,12 +73,18 @@ interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
 function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
   return (
-    <div className="fixed bottom-6 right-[340px] z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
-          style={{ background: toast.type === 'success' ? '#16a34a' : '#dc2626', minWidth: 240, animation: 'fadeSlideUp 0.2s ease' }}
+          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium"
+          style={{
+            background: toast.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            borderColor: toast.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)',
+            color: toast.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
+            minWidth: 240,
+            animation: 'fadeSlideUp 0.2s ease',
+          }}
         >
           {toast.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> : <X size={16} className="shrink-0" />}
           <span className="flex-1">{toast.message}</span>
@@ -142,52 +148,37 @@ interface FolderCardProps {
 }
 
 function FolderCard({ label, count, color, onClick, onView, onDownload, isDownloading }: FolderCardProps) {
-  const hasActions = onView || onDownload;
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-      className="flex flex-col gap-2 p-4 rounded-2xl border cursor-pointer select-none
-        transition-all duration-200 ease-out
-        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
-        active:translate-y-0 active:scale-[0.99] active:shadow-sm
+      className="openy-card flex flex-col gap-3 p-4 cursor-pointer select-none
+        transition-all duration-200 ease-out hover:-translate-y-0.5
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
-      <div className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center">
+      <div className="flex items-center gap-3 min-w-0">
         <div
-          className="flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200"
+          className="flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 shrink-0"
           style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
         >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
-        <div className="min-w-0 w-full">
+        <div className="min-w-0">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
         </div>
       </div>
-      {hasActions && (
-        <div className="flex gap-1.5 mt-auto">
+      {(onView || onDownload) && (
+        <div className="flex gap-2 mt-auto">
           {onView && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onView(); }}
-              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            >
+            <button type="button" onClick={e => { e.stopPropagation(); onView(); }} className="btn-secondary h-8 px-3 text-xs">
               <FolderOpen size={11} /> View
             </button>
           )}
           {onDownload && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onDownload(); }}
-              disabled={isDownloading}
-              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', border: '1px solid rgba(99,102,241,0.3)' }}
-            >
+            <button type="button" onClick={e => { e.stopPropagation(); onDownload(); }} disabled={isDownloading} className="btn-secondary h-8 px-3 text-xs disabled:opacity-40">
               <Download size={11} />{isDownloading ? 'Zipping…' : 'Download'}
             </button>
           )}
@@ -228,16 +219,14 @@ function ClientFolderCard({
       tabIndex={0}
       onClick={onView}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(); } }}
-      className="flex flex-col gap-4 p-5 rounded-3xl border cursor-pointer select-none
-        transition-all duration-200 ease-out
-        hover:-translate-y-0.5 hover:shadow-lg hover:border-[var(--accent)]
-        active:translate-y-0 active:scale-[0.99] active:shadow-sm
+      className="openy-card flex flex-col gap-4 p-4 cursor-pointer select-none
+        transition-all duration-200 ease-out hover:-translate-y-0.5
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 172 }}
+      style={{ minHeight: 168 }}
     >
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="min-w-0 flex items-center gap-3">
-          <div className="shrink-0 w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden" style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.9), rgba(139,92,246,0.9))' }}>
+          <div className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center overflow-hidden" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, rgba(99,102,241,0.92), rgba(139,92,246,0.92))' }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
@@ -246,8 +235,14 @@ function ClientFolderCard({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-bold truncate leading-tight" style={{ color: 'var(--text)' }}>{label}</p>
+            <p className="text-base font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{label}</p>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>Client</span>
+              {slug && (
+                <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>Workspace linked</span>
+              )}
+            </div>
           </div>
         </div>
         {canDelete && onDelete && (
@@ -267,16 +262,15 @@ function ClientFolderCard({
         <button
           type="button"
           onClick={onView}
-          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+          className="btn-secondary flex-1 h-9 text-sm"
         >
           <FolderOpen size={14} /> View
         </button>
         {slug ? (
           <a
             href={`/clients/${slug}/assets`}
-            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
+            className="btn-primary flex-1 h-9 text-sm"
+            style={{ textDecoration: 'none' }}
           >
             <Users2 size={14} /> Workspace
           </a>
@@ -285,8 +279,7 @@ function ClientFolderCard({
             type="button"
             onClick={onDownload}
             disabled={isDownloading}
-            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            className="btn-secondary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={14} />{isDownloading ? '…' : 'Download'}
           </button>
@@ -302,25 +295,25 @@ interface BreadcrumbItem { label: string; path: FolderPath; }
 
 function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate: (path: FolderPath) => void }) {
   return (
-    <nav className="flex items-center gap-1 flex-wrap" aria-label="Folder navigation">
+    <nav className="flex items-center gap-1.5 flex-wrap" aria-label="Folder navigation">
       <button
         type="button"
         onClick={() => onNavigate({})}
-        className="flex items-center justify-center h-7 w-7 rounded-lg transition-opacity hover:opacity-70"
-        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
+        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold border transition-opacity hover:opacity-80"
+        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)', borderColor: 'var(--border)' }}
         title="All clients"
       >
-        <Home size={13} />
+        <Home size={13} /> Root
       </button>
       {items.map((item, idx) => (
         <span key={idx} className="flex items-center gap-1">
           <ChevronRight size={13} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
           {idx < items.length - 1 ? (
-            <button type="button" onClick={() => onNavigate(item.path)} className="text-xs font-medium hover:underline px-1" style={{ color: 'var(--accent)' }}>
+            <button type="button" onClick={() => onNavigate(item.path)} className="inline-flex items-center h-8 px-3 rounded-full text-xs font-medium border hover:opacity-80" style={{ color: 'var(--accent)', borderColor: 'var(--accent-glow)', background: 'var(--accent-soft)' }}>
               {item.label}
             </button>
           ) : (
-            <span className="text-xs font-semibold px-1" style={{ color: 'var(--text)' }}>{item.label}</span>
+            <span className="inline-flex items-center h-8 px-3 rounded-full text-xs font-semibold border" style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface)' }}>{item.label}</span>
           )}
         </span>
       ))}
@@ -985,24 +978,23 @@ export default function AssetsPage() {
     <>
       <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <div className="openy-page-shell max-w-[1500px] mx-auto" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="openy-page-header">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="openy-page-header-title">{t('assets')}</h1>
+            <p className="openy-page-header-description">
               Manage uploaded files · Drag &amp; drop or click Upload
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="openy-page-actions">
             {/* Upload File */}
             {canUpload && !selectionMode && (
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
                 disabled={isUploading}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
-                style={{ background: 'var(--accent)' }}
+                className="btn-primary h-9 px-4 text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
               </button>
@@ -1011,8 +1003,7 @@ export default function AssetsPage() {
             {!selectionMode ? (
               <button
                 onClick={enterSelectionMode}
-                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-90"
               >
                 <Square size={14} /> Select
               </button>
@@ -1021,8 +1012,7 @@ export default function AssetsPage() {
                 {/* Select all / deselect all in current view */}
                 <button
                   onClick={handleToggleSelectAll}
-                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                  className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-80"
                 >
                   <CheckSquare size={14} />
                   {filteredAssets.length > 0 && filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
@@ -1031,8 +1021,7 @@ export default function AssetsPage() {
                 <button
                   onClick={() => void handleDownloadSelected()}
                   disabled={selectedIds.size === 0 || downloadingZip}
-                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
+                  className="btn-primary h-9 px-3 text-sm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Download size={14} />
                   {downloadingZip ? 'Preparing…' : selectedIds.size > 0 ? `Download (${selectedIds.size})` : 'Download Selected'}
@@ -1040,8 +1029,7 @@ export default function AssetsPage() {
                 {/* Cancel Selection */}
                 <button
                   onClick={exitSelectionMode}
-                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                  className="btn-danger h-9 px-3 text-sm transition-opacity hover:opacity-80"
                 >
                   <X size={14} /> Cancel
                 </button>
@@ -1053,13 +1041,13 @@ export default function AssetsPage() {
 
         {/* ── Breadcrumb navigation ────────────────────────────────────────── */}
         {breadcrumbItems.length > 0 && (
-          <div className="rounded-xl border px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="openy-card px-4 py-2.5 flex items-center gap-2">
             <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
             <button
               type="button"
               onClick={goUp}
-              className="ml-auto flex items-center gap-1 text-xs font-medium hover:opacity-80 transition-opacity"
-              style={{ color: 'var(--text-secondary)' }}
+              className="ml-auto inline-flex items-center gap-1 h-8 px-3 rounded-full border text-xs font-medium hover:opacity-80 transition-opacity"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
             >
               <ChevronLeft size={12} /> Up
             </button>
@@ -1067,8 +1055,8 @@ export default function AssetsPage() {
         )}
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
-        <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="flex flex-wrap gap-2">
+        <div className="openy-page-toolbar">
+          <div className="flex flex-wrap gap-2 w-full">
             <div className="relative flex-1 min-w-48">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
               <input
@@ -1076,8 +1064,7 @@ export default function AssetsPage() {
                 placeholder="Search files…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                className="input-glass h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
               />
             </div>
             <SelectDropdown
@@ -1105,7 +1092,7 @@ export default function AssetsPage() {
               ]}
             />
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+              <button onClick={clearFilters} className="btn-danger h-9 px-3 text-sm hover:opacity-80">
                 <X size={13} /> Clear
               </button>
             )}
@@ -1117,7 +1104,7 @@ export default function AssetsPage() {
             </div>
           )}
           {assetGroupSummary.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 w-full">
               {assetGroupSummary.map(([type, count]) => (
                 <span
                   key={type}
@@ -1173,11 +1160,11 @@ export default function AssetsPage() {
             }
             action={
               !hasActiveFilters && canUpload ? (
-                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
+                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="btn-primary h-9 px-4 text-sm disabled:opacity-60">
                   <Upload size={16} />{t('uploadFile')}
                 </button>
               ) : (hasActiveFilters || breadcrumbItems.length > 0) ? (
-                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="btn-danger h-9 px-4 text-sm hover:opacity-80">
                   <X size={14} /> Clear all
                 </button>
               ) : undefined
@@ -1200,7 +1187,7 @@ export default function AssetsPage() {
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
-            <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}>
+            <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3'}>
               {folderEntries.map(({ key, count }) => {
                 if (pathDepth === 0) {
                   const clientMeta = clients.find(c => c.name === key);
@@ -1232,7 +1219,7 @@ export default function AssetsPage() {
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
@@ -1264,7 +1251,7 @@ export default function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
