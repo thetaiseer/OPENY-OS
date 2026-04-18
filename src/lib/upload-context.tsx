@@ -8,15 +8,11 @@
  *                                 ↘ failed_db     (R2 OK, DB save failed)
  *   queued → uploading → failed_upload (upload / multipart failed)
  *
- * Small files (≤ MULTIPART_THRESHOLD) — Supabase Storage upload:
- *   1. supabase.storage.upload()   → file goes to Supabase (with progress)
- *   2. POST /api/upload/complete   → save metadata to DB (optional, or direct DB insert)
- *
- * Large files (> MULTIPART_THRESHOLD) — R2 multipart upload (server-side):
+ * All files — direct-to-R2 multipart upload:
  *   1. POST /api/upload/multipart-init  → uploadId + storageKey + publicUrl
  *   2. For each chunk:
- *        POST /api/upload/multipart-part?storageKey=...&uploadId=...&partNumber=N
- *          (raw binary body) → server uploads part to R2, returns { partNumber, etag }
+ *        POST /api/upload/multipart-part → presigned URL for the part
+ *        PUT  chunk bytes directly to the returned R2 URL from the browser
  *   3. POST /api/upload/multipart-complete → assemble parts in R2
  *   4. POST /api/upload/complete           → save metadata to DB
  *
@@ -41,11 +37,11 @@ import supabase from './supabase';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Files larger than this use multipart upload (50 MB). */
-const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
-
-/** Size of each multipart chunk (8 MB — well above the R2 5 MB minimum). */
+/** Size of each multipart chunk (8 MB — above the R2/S3 5 MB minimum). */
 const CHUNK_SIZE = 8 * 1024 * 1024;
+
+/** Maximum number of multipart parts uploaded in parallel per file. */
+const PART_UPLOAD_CONCURRENCY = 4;
 
 /** Maximum number of retry attempts per chunk before giving up. */
 const MAX_CHUNK_RETRIES = 3;
@@ -644,9 +640,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       console.log('[upload] start:', {
         name: item.file.name,
         size: item.file.size,
-        multipart: false,
+        multipart: true,
       });
-      await doSingleUpload(item, fileMimeType, ctrl);
+      await doMultipartUpload(item, fileMimeType, ctrl);
 
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return;
@@ -663,96 +659,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setStage]);
 
-  // ── Single-file upload (≤ MULTIPART_THRESHOLD) ────────────────────────────
-
-  async function doSingleUpload(
-    item:        UploadItem,
-    mimeType:    string,
-    ctrl:        AbortController,
-  ) {
-    setStage(item.id, 'uploading', 'Preparing', {
-      progress:      0,
-      isMultipart:   false,
-      uploadStartMs: Date.now(),
-      totalBytes:    item.file.size,
-      uploadedBytes: 0,
-    });
-
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'auth',
-          rawMessage:         authError?.message ?? 'You must be logged in to upload files.',
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
-
-    const rawExt = item.file.name.includes('.') ? (item.file.name.split('.').pop() ?? '') : '';
-    const ext = rawExt ? `.${rawExt}` : '';
-    const safeOriginalName = item.file.name.replace(/[\\/]/g, '-');
-    if (!item.clientId) {
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'client_id',
-          rawMessage:         'Client ID is required before upload.',
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
-    const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
-    const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
-
-    setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(SUPABASE_ASSETS_BUCKET)
-      .upload(storagePath, item.file, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error('upload error', uploadError);
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'supabase_storage_upload',
-          rawMessage:         uploadError.message,
-          providerBody:       uploadError.name ?? null,
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
-    if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
-
-    console.log('upload success', uploadData);
-    const { data: publicData } = supabase.storage.from(SUPABASE_ASSETS_BUCKET).getPublicUrl(storagePath);
-    const publicUrl = publicData.publicUrl;
-
-    update(item.id, {
-      r2Key: storagePath,
-      r2Bucket: SUPABASE_ASSETS_BUCKET,
-      r2FileName: displayName,
-      publicUrl,
-      fileMimeType: mimeType,
-    });
-    setStage(item.id, 'uploaded', 'Saving to system\u2026', {
-      progress:      100,
-      uploadedBytes: item.file.size,
-    });
-
-    // Phase 3: save metadata.
-    await doSaveMetadata(item, storagePath, displayName, publicUrl, mimeType, ctrl.signal);
-  }
-
-  // ── Multipart upload (> MULTIPART_THRESHOLD) ──────────────────────────────
+  // ── Multipart upload (direct-to-R2 for all file sizes) ─────────────────────
 
   async function doMultipartUpload(
     item:     UploadItem,
@@ -770,7 +677,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     let displayName: string;
     let completedParts: { partNumber: number; etag: string }[];
     let uploadedBytes:  number;
-    let startFromPart:  number;
+    const partSize = (partNumber: number) => {
+      const start = (partNumber - 1) * CHUNK_SIZE;
+      const end   = Math.min(start + CHUNK_SIZE, totalBytes);
+      return Math.max(0, end - start);
+    };
+    const sumCompletedBytes = (parts: { partNumber: number; etag: string }[]) =>
+      parts.reduce((sum, part) => sum + partSize(part.partNumber), 0);
 
     if (isResuming) {
       storageKey    = item.r2Key!;
@@ -778,8 +691,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       publicUrl     = item.publicUrl!;
       displayName   = item.r2FileName ?? item.file.name;
       completedParts = [...item.completedParts];
-      uploadedBytes  = item.uploadedBytes;
-      startFromPart  = item.completedParts.length + 1;
+      uploadedBytes  = sumCompletedBytes(completedParts);
 
       setStage(item.id, 'uploading', 'Uploading', {
         isMultipart:   true,
@@ -792,13 +704,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       console.log('[upload] multipart resumed:', {
         key:       storageKey,
         uploadId,
-        startFrom: startFromPart,
+        startFrom: completedParts.length + 1,
         totalChunks,
       });
     } else {
       completedParts = [];
       uploadedBytes  = 0;
-      startFromPart  = 1;
 
       setStage(item.id, 'uploading', 'Preparing', {
         progress:      0,
@@ -887,99 +798,147 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    // Phase 2: upload parts (from startFromPart).
-    for (let partNumber = startFromPart; partNumber <= totalChunks; partNumber++) {
-      if (ctrl.signal.aborted) {
-        if (pauseIntentRef.current.has(item.id)) {
-          // Intentional pause — preserve the multipart session in R2.
-          pauseIntentRef.current.delete(item.id);
-          setStage(item.id, 'paused', 'Paused', {
-            // completedParts already persisted to state after each chunk
-            uploadedBytes,
-          });
-          console.log('[upload] multipart paused:', { storageKey, uploadId, partsCompleted: completedParts.length });
-          return;
-        }
-        // Real cancel — abort the multipart session server-side.
-        void abortMultipartSession(storageKey, uploadId);
-        throw new DOMException('Upload cancelled', 'AbortError');
-      }
+    // Phase 2: upload parts directly to R2 using presigned URLs.
+    const completedPartMap = new Map<number, { partNumber: number; etag: string }>(
+      completedParts.map((p) => [p.partNumber, p]),
+    );
+    const inFlightLoadedByPart = new Map<number, number>();
+    let committedUploadedBytes = uploadedBytes;
+    const speedBaseMs = Date.now();
 
-      const start = (partNumber - 1) * CHUNK_SIZE;
-      const end   = Math.min(start + CHUNK_SIZE, totalBytes);
-      const chunk = item.file.slice(start, end);
+    const updateAggregateProgress = (activePartNumber?: number) => {
+      const inFlight = [...inFlightLoadedByPart.values()].reduce((sum, loaded) => sum + loaded, 0);
+      const totalLoaded = Math.min(totalBytes, committedUploadedBytes + inFlight);
+      const elapsed = Date.now() - speedBaseMs;
+      const speedBps = elapsed > MIN_ELAPSED_MS_FOR_SPEED ? Math.round((totalLoaded / elapsed) * 1000) : null;
+      const pct = Math.round((totalLoaded / totalBytes) * 95);
+      const completedCount = completedPartMap.size;
+      const partLabel = activePartNumber
+        ? `Uploading part ${activePartNumber}/${totalChunks}`
+        : `Uploading parts (${completedCount}/${totalChunks})`;
 
-      console.log(`[upload] chunk ${partNumber}/${totalChunks}: bytes ${start}–${end} (${chunk.size} bytes)`);
+      update(item.id, {
+        progress:      pct,
+        uploadedBytes: totalLoaded,
+        statusText:    `${partLabel} — ${pct}%`,
+        statusLabel:   'Uploading',
+        uploadSpeedBps: speedBps,
+      });
+    };
 
-      // Per-chunk retry loop.
-      let chunkResult: XhrResult;
-      try {
-        chunkResult = await withRetry(
+    const pendingPartNumbers: number[] = [];
+    for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
+      if (!completedPartMap.has(partNumber)) pendingPartNumbers.push(partNumber);
+    }
+
+    if (pendingPartNumbers.length > 0) {
+      let nextPartIndex = 0;
+      let fatalError: Error | null = null;
+      let failedPartNumber: number | null = null;
+
+      const uploadOnePart = async (partNumber: number) => {
+        const start = (partNumber - 1) * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, totalBytes);
+        const chunk = item.file.slice(start, end);
+
+        const result = await withRetry(
           async () => {
-            // POST chunk bytes directly to the server.
-            // The server uploads the part to R2 and returns { partNumber, etag }.
-            const partUrl = new URL('/api/upload/multipart-part', window.location.origin);
-            partUrl.searchParams.set('storageKey', storageKey);
-            partUrl.searchParams.set('uploadId',   uploadId);
-            partUrl.searchParams.set('partNumber', String(partNumber));
+            if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-            const chunkBytesStart = uploadedBytes;
-            // Capture upload start time snapshot for speed calculation.
-            const speedBaseMs    = item.uploadStartMs ?? Date.now();
+            const presignRes = await fetch('/api/upload/multipart-part', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ storageKey, uploadId, partNumber }),
+              signal: ctrl.signal,
+            });
+            if (!presignRes.ok) {
+              const bodyText = await presignRes.text();
+              throw new Error(`Failed to presign part ${partNumber} (HTTP ${presignRes.status}): ${bodyText.slice(0, 200)}`);
+            }
+            const presignJson = await presignRes.json() as { presignedUrl?: string };
+            const presignedUrl = (presignJson.presignedUrl ?? '').trim();
+            if (!presignedUrl) throw new Error(`Part ${partNumber} presign response missing presignedUrl`);
 
-            const result = await sendBlobViaXHR(
-              'POST',
-              partUrl.toString(),
+            inFlightLoadedByPart.set(partNumber, 0);
+            updateAggregateProgress(partNumber);
+
+            const putResult = await sendBlobViaXHR(
+              'PUT',
+              presignedUrl,
               chunk,
-              'application/octet-stream',
+              mimeType,
               (loaded) => {
-                const totalLoaded = chunkBytesStart + loaded;
-                const elapsed     = Date.now() - speedBaseMs;
-                const speedBps    = elapsed > MIN_ELAPSED_MS_FOR_SPEED ? Math.round((totalLoaded / elapsed) * 1000) : null;
-                const pct = Math.round((totalLoaded / totalBytes) * 95);
-                update(item.id, {
-                  progress:       pct,
-                  uploadedBytes:  totalLoaded,
-                  statusText:     `Uploading part ${partNumber}/${totalChunks} — ${pct}%`,
-                  statusLabel:    'Uploading',
-                  uploadSpeedBps: speedBps,
-                });
+                inFlightLoadedByPart.set(partNumber, loaded);
+                updateAggregateProgress(partNumber);
               },
               ctrl.signal,
             );
 
-            if (result.status < 200 || result.status >= 300) {
-              throw new Error(`Part ${partNumber} upload failed (HTTP ${result.status}): ${result.body.slice(0, 200)}`);
+            if (putResult.status < 200 || putResult.status >= 300) {
+              throw new Error(`Part ${partNumber} upload failed (HTTP ${putResult.status}): ${putResult.body.slice(0, 200)}`);
             }
 
-            return result;
+            const rawEtag = (putResult.headers.etag ?? '').trim();
+            const etag = rawEtag.replace(/^"+|"+$/g, '');
+            if (!etag) throw new Error(`Part ${partNumber} upload succeeded but ETag is missing`);
+
+            return { etag };
           },
           MAX_CHUNK_RETRIES,
           (attempt, err) => {
-            console.warn(`[upload] chunk ${partNumber} retry ${attempt}/${MAX_CHUNK_RETRIES}:`, err.message);
+            console.warn(`[upload] part ${partNumber} retry ${attempt}/${MAX_CHUNK_RETRIES}:`, err.message);
             update(item.id, { statusText: `Retrying part ${partNumber} (attempt ${attempt})…`, statusLabel: 'Retrying' });
           },
         );
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') {
+
+        inFlightLoadedByPart.delete(partNumber);
+        committedUploadedBytes += chunk.size;
+        completedPartMap.set(partNumber, { partNumber, etag: result.etag });
+        completedParts = [...completedPartMap.values()].sort((a, b) => a.partNumber - b.partNumber);
+        uploadedBytes = committedUploadedBytes;
+        update(item.id, { completedParts: [...completedParts], uploadedBytes: committedUploadedBytes });
+        updateAggregateProgress();
+        console.log(`[upload] chunk ${partNumber}/${totalChunks} done. ETag:`, result.etag);
+      };
+
+      const workers = Array.from(
+        { length: Math.min(PART_UPLOAD_CONCURRENCY, pendingPartNumbers.length) },
+        async () => {
+          while (nextPartIndex < pendingPartNumbers.length) {
+            if (fatalError || ctrl.signal.aborted) return;
+            const currentIndex = nextPartIndex++;
+            const partNumber = pendingPartNumbers[currentIndex];
+            try {
+              await uploadOnePart(partNumber);
+            } catch (err: unknown) {
+              fatalError = err instanceof Error ? err : new Error(String(err));
+              failedPartNumber = partNumber;
+              return;
+            }
+          }
+        },
+      );
+
+      await Promise.all(workers);
+
+      if (fatalError) {
+        inFlightLoadedByPart.clear();
+        const fatal = fatalError as Error;
+        if (fatal.name === 'AbortError') {
           if (pauseIntentRef.current.has(item.id)) {
-            // Abort during in-flight XHR due to pause intent.
             pauseIntentRef.current.delete(item.id);
-            // completedParts up to (but not including) current chunk are valid.
-            setStage(item.id, 'paused', 'Paused', { uploadedBytes });
+            setStage(item.id, 'paused', 'Paused', { uploadedBytes: committedUploadedBytes });
             console.log('[upload] multipart paused mid-chunk:', { storageKey, uploadId, partsCompleted: completedParts.length });
             return;
           }
           void abortMultipartSession(storageKey, uploadId);
-          throw err;
+          throw fatal;
         }
-        // All retries exhausted — abort and surface the error.
         void abortMultipartSession(storageKey, uploadId);
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[upload] chunk ${partNumber} permanently failed:`, msg);
+        const msg = fatal.message;
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
-            step:               `chunk_${partNumber}`,
+            step:               failedPartNumber ? `chunk_${failedPartNumber}` : 'chunk_upload',
             rawMessage:         msg,
             fileReachedStorage: false,
             dbSaved:            false,
@@ -987,31 +946,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         });
         return;
       }
+    }
 
-      uploadedBytes += chunk.size;
-      // The server returns { partNumber, etag } in the JSON response body.
-      let etag = '';
-      try {
-        const partResp = JSON.parse(chunkResult.body) as { etag?: string };
-        etag = partResp.etag ?? '';
-      } catch { /* empty */ }
-      if (!etag) {
-        void abortMultipartSession(storageKey, uploadId);
-        setStage(item.id, 'failed_upload', 'Upload failed', {
-          errorDetail: classifyUploadError({
-            step:               `chunk_${partNumber}_etag`,
-            rawMessage:         `Part ${partNumber} server response did not include an ETag.`,
-            providerBody:       'Missing ETag in server response',
-            fileReachedStorage: false,
-            dbSaved:            false,
-          }),
-        });
+    if (ctrl.signal.aborted) {
+      if (pauseIntentRef.current.has(item.id)) {
+        pauseIntentRef.current.delete(item.id);
+        setStage(item.id, 'paused', 'Paused', { uploadedBytes: committedUploadedBytes });
+        console.log('[upload] multipart paused:', { storageKey, uploadId, partsCompleted: completedParts.length });
         return;
       }
-      completedParts.push({ partNumber, etag });
-      // Persist completed parts to state immediately for pause/resume.
-      update(item.id, { completedParts: [...completedParts], uploadedBytes });
-      console.log(`[upload] chunk ${partNumber}/${totalChunks} done. ETag:`, etag || '(none)');
+      void abortMultipartSession(storageKey, uploadId);
+      throw new DOMException('Upload cancelled', 'AbortError');
     }
 
     // Phase 3: complete multipart upload.
