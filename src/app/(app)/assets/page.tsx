@@ -51,7 +51,7 @@ function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void 
       style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
     >
       {label}
-      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter">
+      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter" aria-label={`Remove ${label} filter`}>
         <X size={11} />
       </button>
     </span>

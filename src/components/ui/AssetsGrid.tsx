@@ -78,18 +78,6 @@ function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
   );
 }
 
-// ── Standalone helpers ────────────────────────────────────────────────────────
-
-/** Trigger a browser download without relying on component state. */
-function triggerDownload(url: string, filename: string): void {
-  const a       = document.createElement('a');
-  a.href        = url;
-  a.download    = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 // ── AssetCard ─────────────────────────────────────────────────────────────────
 
 export interface AssetCardProps {
@@ -170,6 +158,14 @@ export function AssetCard({
   return (
     <div
       className="openy-card group overflow-hidden flex flex-col"
+      role={selectable ? 'button' : undefined}
+      tabIndex={selectable ? 0 : undefined}
+      onKeyDown={selectable ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggleSelect?.();
+        }
+      } : undefined}
       style={{
         borderColor:  selected ? 'var(--accent)' : 'var(--border)',
         boxShadow:    selected ? '0 0 0 2px var(--accent)' : undefined,
@@ -180,7 +176,7 @@ export function AssetCard({
       {/* Thumbnail */}
       <div
         className="relative overflow-hidden"
-        style={{ aspectRatio: '1 / 1', background: 'var(--surface-2)' }}
+        style={{ aspectRatio: '1/1', background: 'var(--surface-2)' }}
         onClick={selectable ? undefined : onView}
       >
         {/* Selection checkbox overlay */}
@@ -292,7 +288,7 @@ export function AssetCard({
               onClick={e => { e.stopPropagation(); onView(); }}
               title="View"
               className="flex items-center justify-center h-8 w-8 rounded-lg border"
-              style={{ background: 'rgba(10,14,24,0.74)', borderColor: 'rgba(255,255,255,0.26)', color: '#fff' }}
+              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
             >
               <Eye size={14} />
             </button>
@@ -301,25 +297,27 @@ export function AssetCard({
                 onClick={e => { e.stopPropagation(); onSchedule(); }}
                 title="Schedule"
                 className="flex items-center justify-center h-8 w-8 rounded-lg border"
-                style={{ background: 'rgba(10,14,24,0.74)', borderColor: 'rgba(255,255,255,0.26)', color: '#fff' }}
+                style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
               >
                 <Calendar size={14} />
               </button>
             )}
-            <button
-              onClick={e => { e.stopPropagation(); triggerDownload(downloadUrl, asset.name); }}
+            <a
+              href={downloadUrl}
+              download={asset.name}
+              onClick={e => { e.stopPropagation(); }}
               title="Download"
               className="flex items-center justify-center h-8 w-8 rounded-lg border"
-              style={{ background: 'rgba(10,14,24,0.74)', borderColor: 'rgba(255,255,255,0.26)', color: '#fff' }}
+              style={{ background: 'var(--overlay-action-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
             >
               <Download size={14} />
-            </button>
+            </a>
             {canDelete && (
               <button
                 onClick={e => { e.stopPropagation(); onDelete(); }}
                 title="Delete"
                 className="flex items-center justify-center h-8 w-8 rounded-lg border"
-                style={{ background: 'rgba(190,35,54,0.82)', borderColor: 'rgba(255,255,255,0.22)', color: '#fff' }}
+                style={{ background: 'var(--overlay-action-danger-bg)', borderColor: 'var(--overlay-action-border)', color: '#fff' }}
               >
                 <Trash2 size={14} />
               </button>

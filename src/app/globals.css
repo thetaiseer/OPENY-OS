@@ -74,6 +74,9 @@
   --menu-shadow: 0 12px 28px rgba(13, 29, 65, 0.16);
   --menu-item-hover: rgba(47, 107, 255, 0.11);
   --menu-item-active: rgba(47, 107, 255, 0.18);
+  --overlay-action-bg: rgba(10, 14, 24, 0.74);
+  --overlay-action-border: rgba(255, 255, 255, 0.26);
+  --overlay-action-danger-bg: rgba(190, 35, 54, 0.82);
 
   /* ── Blur Scale ──────────────────────────────────────── */
   --blur-sm: 8px;
@@ -83,11 +86,11 @@
 
   /* ── Radius Scale ────────────────────────────────────── */
   --radius-xs: 8px;
-  --radius-sm: 12px;
+  --radius-sm: 10px;
   --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-lg: 14px;
   --radius-xl: 16px;
-  --radius-2xl: 16px;
+  --radius-2xl: 18px;
   --radius-full: 9999px;
 
   /* ── Spacing Scale ───────────────────────────────────── */
@@ -231,6 +234,9 @@
   --menu-shadow: 0 14px 32px rgba(0, 0, 0, 0.44);
   --menu-item-hover: rgba(77, 129, 255, 0.18);
   --menu-item-active: rgba(77, 129, 255, 0.26);
+  --overlay-action-bg: rgba(7, 11, 20, 0.82);
+  --overlay-action-border: rgba(196, 215, 255, 0.28);
+  --overlay-action-danger-bg: rgba(190, 35, 54, 0.88);
 
   --color-success: #20d39b;
   --color-success-bg: rgba(32, 211, 155, 0.14);
