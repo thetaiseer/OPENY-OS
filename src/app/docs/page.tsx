@@ -1,5 +1,2 @@
-import { redirect } from 'next/navigation';
-
-export default function DocsRootPage() {
-  redirect('/docs/documents/invoice');
-}
+import { StandardPage } from '@/new-ui/page-composition';
+export default function Page() { return <StandardPage title="Docs" subtitle="Document operations hub in the rebuilt interface." tableName="Document Workspace" />; }

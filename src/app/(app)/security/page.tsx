@@ -1,6 +1,2 @@
-// Redirect /security → /security/sessions
 import { redirect } from 'next/navigation';
-
-export default function SecurityPage() {
-  redirect('/security/sessions');
-}
+export default function Page() { redirect('/os/security'); }
