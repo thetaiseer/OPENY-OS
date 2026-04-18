@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, CheckCircle2, XCircle, Clock, ShieldOff, Check, Loader2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check, Loader2, Sparkles } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { createClient } from '@/lib/supabase/client';
 
@@ -239,7 +239,7 @@ export default function InviteAcceptPage() {
                   <div className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}>
-                        {(invite.full_name || invite.email || 'O').charAt(0).toUpperCase()}
+                        {(invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -338,7 +338,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'success' && (
                 <StateScreen
-                  icon={<CheckCircle2 size={44} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={44} style={{ color: 'var(--color-success)' }} />}
                   title="You’re in!"
                   message="Your account has been activated and added to the workspace."
                   tone="success"
@@ -366,7 +366,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'already_accepted' && (
                 <StateScreen
-                  icon={<CheckCircle2 size={44} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={44} style={{ color: 'var(--color-success)' }} />}
                   title="Already accepted"
                   message="This invitation has already been used. Sign in to continue."
                   tone="success"
@@ -392,7 +392,7 @@ export default function InviteAcceptPage() {
             >
               <div className="relative z-10 h-full flex flex-col justify-between gap-6">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY OS</p>
                   <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">
                     Premium invitation experience
                   </h2>
