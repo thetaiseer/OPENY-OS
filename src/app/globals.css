@@ -140,6 +140,7 @@ a {
 .sidebar-glass,
 .header-glass,
 .glass,
+.glass-card,
 .openy-modal-shell,
 .toolbar-shell,
 .page-shell,
@@ -177,6 +178,7 @@ a {
 .sidebar-glass,
 .header-glass,
 .glass,
+.glass-card,
 .openy-modal-shell,
 .toolbar-shell,
 .content-card,
@@ -193,6 +195,19 @@ a {
   border-radius: var(--radius-lg);
 }
 
+.input-glass {
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  border-radius: 12px;
+}
+
+.input-glass:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: var(--glow-focus);
+}
+
 .card:hover,
 .openy-card:hover,
 .glass-card:hover,
@@ -205,6 +220,21 @@ button:hover,
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.openy-page-shell {
+  width: min(100%, 1620px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.openy-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .app-page-fill {
