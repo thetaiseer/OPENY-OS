@@ -59,6 +59,7 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
   failed_db:     '#d97706',
   failed_upload: '#ef4444',
 };
+const COMPLETED_UPLOAD_AUTO_DISMISS_MS = 1200;
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
 
@@ -229,7 +230,7 @@ export default function GlobalUploadQueue() {
     setMounted(false);
     const raf = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(raf);
-  }, [queue.length]);
+  }, []);
 
   useEffect(() => {
     for (const item of queue) {
@@ -238,7 +239,7 @@ export default function GlobalUploadQueue() {
       const timer = setTimeout(() => {
         removeItem(item.id);
         completedTimers.current.delete(item.id);
-      }, 1200);
+      }, COMPLETED_UPLOAD_AUTO_DISMISS_MS);
       completedTimers.current.set(item.id, timer);
     }
     for (const [id, timer] of completedTimers.current.entries()) {
