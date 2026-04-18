@@ -7,7 +7,7 @@ import { useTheme, type Theme } from '@/lib/theme-context';
 const OPTIONS: { value: Theme; label: string; icon: React.ReactNode; slot: '1' | '2' | '3' }[] = [
   { value: 'light', label: 'Light',   icon: <Sun  size={18} strokeWidth={2} />, slot: '1' },
   { value: 'dark',  label: 'Dark',    icon: <Moon size={18} strokeWidth={2} />, slot: '2' },
-  { value: 'dim',   label: 'Dim',     icon: <Monitor size={16} strokeWidth={2} />, slot: '3' },
+  { value: 'dim',   label: 'Dim',     icon: <Monitor size={18} strokeWidth={2} />, slot: '3' },
 ];
 
 const SLOT: Record<Theme, '1' | '2' | '3'> = { light: '1', dark: '2', dim: '3' };
@@ -25,13 +25,17 @@ export default function ThemeSwitcher() {
     setTheme(next);
   }, [setTheme]);
 
-  // Set initial c-previous attribute on mount
+  // Sync the data-switcher-previous attribute whenever the active theme changes
   useEffect(() => {
     const el = fieldsetRef.current;
     if (!el) return;
-    el.setAttribute('data-switcher-previous', SLOT[theme]);
+    // On first run set the initial previous value; on subsequent runs it was
+    // already updated in handleChange before the theme state changed.
+    if (!el.hasAttribute('data-switcher-previous')) {
+      el.setAttribute('data-switcher-previous', SLOT[theme]);
+    }
     prevSlotRef.current = SLOT[theme];
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   return (
     <fieldset className="switcher" ref={fieldsetRef} aria-label="Color scheme">
