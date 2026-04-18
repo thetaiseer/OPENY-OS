@@ -208,9 +208,7 @@ export default function InviteAcceptPage() {
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',
-            boxShadow: 'var(--shadow-xl)',
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
+            boxShadow: 'none',
           }}
         >
           <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -240,7 +238,7 @@ export default function InviteAcceptPage() {
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                   <div className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
                     <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'var(--accent)' }}>
                         {(((invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0)) || 'O').toUpperCase()}
                       </div>
                       <div>
@@ -389,31 +387,31 @@ export default function InviteAcceptPage() {
             <div
               className="relative p-6 sm:p-8 lg:p-10 transition-all duration-500"
               style={{
-                background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
+                background: 'var(--surface)',
+                borderLeft: '1px solid var(--border)',
               }}
             >
               <div className="relative z-10 h-full flex flex-col justify-between gap-6">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY OS</p>
-                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">
+                  <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>OPENY OS</p>
+                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 leading-tight" style={{ color: 'var(--text)' }}>
                     Premium invitation experience
                   </h2>
-                  <p className="text-sm sm:text-base mt-3 text-white/90 max-w-md">
+                  <p className="text-sm sm:text-base mt-3 max-w-md" style={{ color: 'var(--text-secondary)' }}>
                     Join your workspace through a secure, invite-only onboarding flow designed for OPENY OS.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs text-white/90">
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                     Invitation links are secure, time-limited, and tied to your email address.
                   </p>
-                  <p className="text-xs text-white/80 flex items-center gap-2">
+                  <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                     <Check size={12} />
                     Account setup and workspace access are validated in one flow.
                   </p>
                 </div>
               </div>
-              <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)' }} />
             </div>
           </div>
         </section>

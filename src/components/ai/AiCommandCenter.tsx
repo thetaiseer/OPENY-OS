@@ -442,22 +442,21 @@ export default function AiCommandCenter() {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1.5px]" onClick={close} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={close} />
 
       <section
         className="fixed z-50 bottom-5 right-5 rounded-2xl overflow-hidden flex flex-col"
         style={{
           width: popupWidth,
           height: popupHeight,
-          background: 'color-mix(in srgb, var(--surface) 90%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
-          boxShadow: '0 14px 40px rgba(15,23,42,0.22)',
-          backdropFilter: 'blur(10px)',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: 'none',
         }}
       >
         <header
           className="px-4 py-3 border-b flex items-center gap-2"
-          style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 85%, transparent)' }}
+          style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
         >
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
             <Sparkles size={15} style={{ color: 'var(--accent)' }} />

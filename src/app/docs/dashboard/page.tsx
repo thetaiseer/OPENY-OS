@@ -92,8 +92,7 @@ export default function DocsLandingPage() {
             style={{
               background:  'var(--surface)',
               borderColor: 'var(--border)',
-              backdropFilter: 'blur(12px)',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: 'none',
             }}
           >
             <div className="flex items-start justify-between mb-4">

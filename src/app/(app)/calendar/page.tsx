@@ -721,7 +721,7 @@ export default function CalendarPage() {
           onClick={() => setSelectedSchedule(null)}
         >
           <div
-            className="openy-modal-panel w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
+            className="openy-modal-panel w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>

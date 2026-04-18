@@ -86,10 +86,8 @@ function fmtDate(d?: string) {
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const frostedPanelStyle = {
-  background: 'color-mix(in srgb, var(--surface) 90%, transparent)',
+  background: 'var(--surface)',
   border: '1px solid var(--border)',
-  backdropFilter: 'blur(16px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
 };
 const glassInputStyle = { background: 'color-mix(in srgb, var(--surface-2) 92%, transparent)', color: 'var(--text)', border: '1px solid var(--border)' };
 
@@ -373,7 +371,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
       style={{
         ...frostedPanelStyle,
         borderColor: tone.border,
-        boxShadow: `0 8px 22px color-mix(in srgb, ${tone.glow} 35%, transparent)`,
+        boxShadow: 'none',
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -479,7 +477,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           {statusOpen && (
             <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
               role="menu"
-              style={{ background: 'var(--menu-bg)', borderColor: 'var(--menu-border)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               {['todo', 'in_progress', 'in_review', 'done', 'delivered'].map(s => (
                 <button
                   key={s}
@@ -622,12 +620,12 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
   const tone = getStatusTone(overdue ? 'overdue' : task.status);
   return (
     <div
-      className="rounded-2xl border p-3 space-y-2 shadow-2xl opacity-95 scale-[1.02]"
+      className="rounded-2xl border p-3 space-y-2 opacity-95 scale-[1.02]"
       style={{
         width: '18rem',
         ...frostedPanelStyle,
         borderColor: tone.border,
-        boxShadow: `0 20px 40px color-mix(in srgb, ${tone.glow} 55%, transparent)`,
+        boxShadow: 'none',
       }}
     >
       <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
@@ -687,7 +685,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
   return (
     <div className="space-y-2">
       {showDropIndicator && (
-        <div className="h-1.5 rounded-full animate-openy-slide-down" style={{ background: `linear-gradient(90deg, ${tone.bg}, ${tone.text})` }} />
+        <div className="h-1.5 rounded-full animate-openy-slide-down" style={{ background: 'var(--accent)' }} />
       )}
       <div
         ref={setNodeRef}
@@ -700,7 +698,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
           opacity: isDragging ? 0.2 : 1,
           ...frostedPanelStyle,
           borderColor: tone.border,
-          boxShadow: isDragging ? 'none' : `0 10px 22px color-mix(in srgb, ${tone.glow} 38%, transparent)`,
+          boxShadow: 'none',
         }}
       >
         <div className="flex items-start justify-between gap-2">
@@ -774,7 +772,7 @@ function KanbanColumn({
       style={{
         ...frostedPanelStyle,
         borderColor: isOver ? 'var(--accent)' : 'var(--border)',
-        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent), 0 18px 34px rgba(47,107,255,0.18)' : '0 10px 24px rgba(6,23,55,0.1)',
+        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent)' : 'none',
       }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -1695,7 +1693,7 @@ export default function TasksPage() {
                 background: isActive ? tone.bg : 'var(--surface)',
                 color: isActive ? tone.text : 'var(--text-secondary)',
                 border: `1px solid ${isActive ? tone.border : 'var(--border)'}`,
-                boxShadow: isActive ? `0 8px 18px color-mix(in srgb, ${tone.glow} 48%, transparent)` : 'none',
+                boxShadow: 'none',
               }}
             >
               {s === 'all' ? 'All' : statusLabel(s, t)}

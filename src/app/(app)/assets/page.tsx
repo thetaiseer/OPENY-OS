@@ -226,7 +226,7 @@ function ClientFolderCard({
     >
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="min-w-0 flex items-center gap-3">
-          <div className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center overflow-hidden" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, rgba(99,102,241,0.92), rgba(139,92,246,0.92))' }}>
+          <div className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--accent)' }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />

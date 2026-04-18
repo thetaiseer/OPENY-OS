@@ -56,9 +56,10 @@ export function AssetPreviewModal({ asset, onClose }: { asset: AssetPreviewInput
   if (!state) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] p-3 sm:p-5 flex items-center justify-center" style={{ background: 'rgba(6,8,14,0.82)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-[100] p-3 sm:p-5 flex items-center justify-center" style={{ background: 'rgba(6,8,14,0.82)' }} onClick={onClose}>
       <div
-        className="w-full max-w-[1100px] max-h-[95vh] rounded-2xl overflow-hidden border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.55)] bg-[rgba(10,14,23,0.9)] flex flex-col"
+        className="w-full max-w-[1100px] max-h-[95vh] rounded-2xl overflow-hidden border flex flex-col"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface)', boxShadow: 'none' }}
         onClick={(e) => e.stopPropagation()}
       >
         <AssetPreviewHeader info={state.info} onClose={onClose} />

@@ -1183,7 +1183,7 @@ export default function InvoicePage() {
           </button>
         </div>
 
-        <div className="preview-shell bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+        <div className="preview-shell bg-white rounded-sm" style={{ width: 794, minHeight: 1123 }}>
           <InvoicePreview model={documentModel} />
         </div>
       </div>

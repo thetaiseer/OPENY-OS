@@ -547,7 +547,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0"
-                      style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
+                      style={{ background: 'var(--accent)' }}
                     >
                       {client.name?.charAt(0).toUpperCase()}
                     </div>
@@ -662,7 +662,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-3 min-w-0 md:w-[30%]">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                      style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
+                      style={{ background: 'var(--accent)' }}
                     >
                       {client.name?.charAt(0).toUpperCase()}
                     </div>
@@ -737,7 +737,7 @@ export default function ClientsPage() {
       )}
 
       {warnMsg && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(245,158,11,0.35)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)' }}>
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(245,158,11,0.35)', boxShadow: 'none', color: 'var(--text)' }}>
           <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-warning)' }} />
           <span className="flex-1">{warnMsg}</span>
           <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
@@ -747,7 +747,7 @@ export default function ClientsPage() {
       )}
 
       {successMsg && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(16,185,129,0.35)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)' }}>
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(16,185,129,0.35)', boxShadow: 'none', color: 'var(--text)' }}>
           <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-success)' }} />
           <span className="flex-1">{successMsg}</span>
           <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">

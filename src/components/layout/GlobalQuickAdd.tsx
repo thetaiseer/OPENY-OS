@@ -421,7 +421,7 @@ export default function GlobalQuickAdd() {
                 style={{
                   color: 'var(--text)',
                   border: isLast ? '1px solid var(--accent)' : undefined,
-                  boxShadow: isLast ? '0 8px 20px color-mix(in srgb, var(--accent-glow) 52%, transparent)' : undefined,
+                  boxShadow: 'none',
                   transform: visible
                     ? 'translateY(0) scale(1)'
                     : 'translateY(12px) scale(0.94)',

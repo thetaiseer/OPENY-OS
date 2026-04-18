@@ -22,8 +22,8 @@ import type { WorkspaceKey } from '@/lib/workspace-access';
 const ACCESS_DENIED_AR = 'ليس لديك صلاحية للدخول إلى هذا القسم';
 const ACCESS_DENIED_EN = 'You do not have access to this workspace';
 const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصول على الصلاحية المناسبة';
-const SHELL_GLOW = 'radial-gradient(980px 460px at 5% 0%, rgba(99,102,241,0.18), transparent 62%), radial-gradient(680px 360px at 95% 100%, rgba(236,72,153,0.14), transparent 68%)';
-const FEATURE_GRADIENT = 'linear-gradient(145deg, rgba(79,70,229,0.95) 0%, rgba(147,51,234,0.88) 60%, rgba(236,72,153,0.86) 100%)';
+const SHELL_BACKGROUND = 'transparent';
+const FEATURE_BACKGROUND = 'var(--surface)';
 
 export default function OfficialAuthLanding() {
   const router = useRouter();
@@ -168,12 +168,12 @@ export default function OfficialAuthLanding() {
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',
-            boxShadow: 'var(--glass-shadow-xl, 0 28px 80px rgba(41, 51, 102, 0.24))',
+            boxShadow: 'none',
           }}
         >
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ background: SHELL_GLOW }}
+            style={{ background: SHELL_BACKGROUND }}
           />
 
           <div className="relative z-10 flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -195,24 +195,24 @@ export default function OfficialAuthLanding() {
           </div>
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8">
-            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_GRADIENT }}>
+            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_BACKGROUND }}>
               <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-white/80">OPENY Platform</p>
-                <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 text-white leading-[1.15]">{panelHeading}</h2>
-                <p className="text-sm sm:text-base mt-4 text-white/90 max-w-xl">{panelText}</p>
+                <p className="text-xs uppercase tracking-[0.26em]" style={{ color: 'var(--text-secondary)' }}>OPENY Platform</p>
+                <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 leading-[1.15]" style={{ color: 'var(--text)' }}>{panelHeading}</h2>
+                <p className="text-sm sm:text-base mt-4 max-w-xl" style={{ color: 'var(--text-secondary)' }}>{panelText}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">Theme</p>
-                  <p className="text-white text-sm mt-1">Day / Night experience with one switch</p>
+                <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                  <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Theme</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>Day / Night experience with one switch</p>
                 </div>
-                <div className="rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">Access</p>
-                  <p className="text-white text-sm mt-1">Workspace rules are validated on sign in</p>
+                <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                  <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Access</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>Workspace rules are validated on sign in</p>
                 </div>
-                <div className="sm:col-span-2 rounded-2xl border border-white/30 bg-white/10 backdrop-blur px-4 py-3">
-                  <p className="text-xs text-white/90 flex items-center gap-2">
+                <div className="sm:col-span-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                  <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                     <Lock size={12} />
                     Invite-only access: ask the workspace owner to invite your email address before signing in.
                   </p>

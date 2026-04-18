@@ -280,7 +280,7 @@ export default function ClientAssetsPage() {
           <button
             onClick={() => fileRef.current?.click()}
             className={`h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 text-white transition-all ${showUploadHint ? 'animate-openy-scale-in' : ''}`}
-            style={{ background: showUploadHint ? 'linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%)' : 'var(--accent)' }}
+            style={{ background: showUploadHint ? 'var(--color-info)' : 'var(--accent)' }}
           >
             {showUploadHint ? <Sparkles size={14} /> : <Upload size={14} />}
             {showUploadHint ? 'Upload Assets' : t('uploadFile')}

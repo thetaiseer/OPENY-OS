@@ -40,9 +40,8 @@ const config: Config = {
         },
       },
       boxShadow: {
-        brand: 'var(--shadow-md)',
-        glow: 'var(--glow-button)',
-        focus: 'var(--glow-focus)',
+        brand: 'var(--shadow-sm)',
+        focus: '0 0 0 2px color-mix(in srgb, var(--accent-primary) 18%, transparent)',
       },
       borderRadius: {
         xl: 'var(--radius-xl)',
