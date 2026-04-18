@@ -13,7 +13,7 @@ const items = [
 export default function DocsDocumentsPage() {
   return (
     <div className="docs-app w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="docs-page-header !px-0">
+      <div className="docs-page-header docs-page-header-compact">
         <div>
           <h1 className="docs-page-title">Documents</h1>
           <p className="docs-page-subtitle">Owner-only business documentation modules.</p>
