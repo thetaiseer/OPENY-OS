@@ -23,8 +23,6 @@ const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string
 const PLATFORMS = ['instagram', 'facebook', 'tiktok', 'linkedin', 'twitter', 'snapchat', 'youtube_shorts'];
 const POST_TYPES = ['post', 'reel', 'carousel', 'story'];
 const PURPOSES = ['awareness', 'engagement', 'promotion', 'branding', 'lead_generation', 'announcement', 'offer_campaign'];
-const MODAL_BACKDROP = 'rgba(0,0,0,0.58)';
-
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   instagram: <Instagram size={12} />,
   linkedin: <Linkedin size={12} />,
@@ -114,8 +112,8 @@ function NewContentModal({ open, onClose, clients, team, onCreated }: NewContent
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }}>
-      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="openy-modal-panel w-full max-w-2xl rounded-2xl overflow-hidden my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)]">
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>New Content Item</h2>
           <button onClick={onClose} className="p-1 rounded hover:opacity-70"><XCircle size={18} style={{ color: 'var(--text-secondary)' }} /></button>
@@ -311,8 +309,8 @@ function ContentCard({ item, compact, onStatusChange, onDelete, onPreview, onEdi
 function ContentDetailModal({ item, onClose }: { item: ContentItem | null; onClose: () => void }) {
   if (!item) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }} onClick={onClose}>
-      <div className="w-full max-w-xl rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
+      <div className="openy-modal-panel w-full max-w-xl rounded-2xl p-5 my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-lg font-semibold truncate" style={{ color: 'var(--text)' }}>{item.title}</h3>
@@ -368,8 +366,8 @@ function EditContentModal({ item, onClose, onSaved }: { item: ContentItem | null
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: MODAL_BACKDROP }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
+      <div className="openy-modal-panel w-full max-w-lg rounded-2xl p-5 my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Edit Content Item</h3>
         <form onSubmit={submit} className="space-y-3">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="w-full h-9 rounded-lg px-3 text-sm border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} />

@@ -717,13 +717,11 @@ export default function CalendarPage() {
       {/* Schedule detail sheet */}
       {selectedSchedule && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          style={{ background: 'rgba(0,0,0,0.65)' }}
+          className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
           onClick={() => setSelectedSchedule(null)}
         >
           <div
-            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border shadow-2xl"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
+            className="openy-modal-panel w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
