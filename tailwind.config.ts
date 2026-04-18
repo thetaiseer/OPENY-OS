@@ -51,14 +51,14 @@ const config: Config = {
         glass: '0 20px 56px rgba(0, 0, 0, 0.55)',
       },
       borderRadius: {
-        sm: '8px',
-        md: '10px',
-        lg: '12px',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
         xl: 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
       },
       backdropBlur: {
-        glass: '20px',
+        glass: 'var(--blur-md)',
       },
       spacing: {
         '2xs': 'var(--space-2xs)',
