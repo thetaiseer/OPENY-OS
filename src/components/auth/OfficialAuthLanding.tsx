@@ -22,8 +22,8 @@ import type { WorkspaceKey } from '@/lib/workspace-access';
 const ACCESS_DENIED_AR = 'ليس لديك صلاحية للدخول إلى هذا القسم';
 const ACCESS_DENIED_EN = 'You do not have access to this workspace';
 const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصول على الصلاحية المناسبة';
-const SHELL_GLOW = 'transparent';
-const FEATURE_GRADIENT = 'var(--surface)';
+const SHELL_BACKGROUND = 'transparent';
+const FEATURE_BACKGROUND = 'var(--surface)';
 
 export default function OfficialAuthLanding() {
   const router = useRouter();
@@ -173,7 +173,7 @@ export default function OfficialAuthLanding() {
         >
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ background: SHELL_GLOW }}
+            style={{ background: SHELL_BACKGROUND }}
           />
 
           <div className="relative z-10 flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -195,7 +195,7 @@ export default function OfficialAuthLanding() {
           </div>
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8">
-            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_GRADIENT }}>
+            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_BACKGROUND }}>
               <div>
                 <p className="text-xs uppercase tracking-[0.26em]" style={{ color: 'var(--text-secondary)' }}>OPENY Platform</p>
                 <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 leading-[1.15]" style={{ color: 'var(--text)' }}>{panelHeading}</h2>

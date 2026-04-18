@@ -10,7 +10,7 @@
   --bg-surface-2: #ffffff;
   --surface: #ffffff;
   --surface-2: #ffffff;
-  --surface-3: #f7f9fc;
+  --surface-3: #f2f5fa;
   --surface-solid: #ffffff;
 
   --text-primary: #0f172a;
@@ -66,6 +66,8 @@
   --space-xl: 32px;
   --space-2xl: 40px;
   --container-max-width: 1600px;
+  /* Combined topbar + page chrome offset used by fill pages */
+  --shell-offset: 136px;
 
   --menu-item-active: #e9f0ff;
   --overlay-action-bg: #ffffff;
@@ -84,7 +86,7 @@
   --bg-surface-2: #121821;
   --surface: #121821;
   --surface-2: #121821;
-  --surface-3: #0b0f14;
+  --surface-3: #161f2c;
   --surface-solid: #121821;
 
   --text-primary: #e6edf3;
@@ -130,6 +132,7 @@
   --overlay-action-bg: #121821;
   --overlay-action-border: #1e2633;
   --overlay-action-danger-bg: #2b141a;
+  --shell-offset: 136px;
   --accent-glow: #2b4d7a;
   --glow-button: none;
   --glow-focus: none;
@@ -186,8 +189,8 @@ button,
 
 .app-shell-workspace {
   background: var(--bg-app);
-  padding: 0;
-  gap: 0;
+  padding: 8px;
+  gap: 4px;
 }
 
 .app-shell-container {
@@ -279,7 +282,7 @@ textarea::placeholder,
 }
 
 .app-page-fill {
-  min-height: calc(100dvh - 120px);
+  min-height: calc(100dvh - var(--shell-offset));
 }
 
 .app-page-full {
@@ -288,7 +291,7 @@ textarea::placeholder,
 
 .app-page-title {
   margin: 0;
-  font-size: clamp(1.2rem, 1.9vw, 1.85rem);
+  font-size: clamp(1.2rem, 1.9vw, 1.9rem);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -312,7 +315,7 @@ textarea::placeholder,
 
 .app-sidebar-panel {
   border-right: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--surface);
 }
@@ -368,7 +371,7 @@ textarea::placeholder,
   padding: 12px 16px;
   min-height: 64px;
   margin: 0;
-  border-radius: 0;
+  border-radius: 8px;
   background: var(--surface);
 }
 

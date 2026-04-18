@@ -685,7 +685,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
   return (
     <div className="space-y-2">
       {showDropIndicator && (
-        <div className="h-1.5 rounded-full animate-openy-slide-down" style={{ background: tone.text }} />
+        <div className="h-1.5 rounded-full animate-openy-slide-down" style={{ background: 'var(--accent)' }} />
       )}
       <div
         ref={setNodeRef}

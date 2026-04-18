@@ -7,14 +7,14 @@ interface StatCardProps {
 }
 
 const toneMap = {
-  blue: { bg: 'var(--accent-soft)' },
+  blue: { bg: 'color-mix(in srgb, var(--color-info-bg) 82%, var(--surface))' },
   green: { bg: 'var(--color-success-bg)' },
   amber: { bg: 'var(--color-warning-bg)' },
   red: { bg: 'var(--color-danger-bg)' },
-  violet: { bg: 'var(--accent-soft)' },
-  mint: { bg: 'var(--color-success-bg)' },
-  rose: { bg: 'var(--color-danger-bg)' },
-  cyan: { bg: 'var(--color-info-bg)' },
+  violet: { bg: 'color-mix(in srgb, var(--accent-soft) 82%, var(--surface))' },
+  mint: { bg: 'color-mix(in srgb, var(--color-success-bg) 82%, var(--surface))' },
+  rose: { bg: 'color-mix(in srgb, var(--color-danger-bg) 82%, var(--surface))' },
+  cyan: { bg: 'color-mix(in srgb, var(--color-info-bg) 85%, var(--surface))' },
 };
 
 export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
