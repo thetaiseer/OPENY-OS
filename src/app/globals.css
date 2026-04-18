@@ -865,3 +865,131 @@ thead th {
   .docs-page-header { flex-direction: column; align-items: stretch; }
   .app-page-title { font-size: clamp(1.15rem, 5vw, 1.45rem); }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DOCS SPLIT EDITOR (invoice / quotation / contract / etc.)
+   ─────────────────────────────────────────────────────────────────────────── */
+.invoice-workspace {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.preview-panel {
+  flex: 1;
+  background: var(--surface-2);
+  overflow: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FILTER ROW
+   ─────────────────────────────────────────────────────────────────────────── */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+.filter-chip:hover,
+.filter-chip-active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SECTION CARD
+   ─────────────────────────────────────────────────────────────────────────── */
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.section-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.section-card-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin: 0; }
+.section-card-body  { padding: 16px 18px; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TASK CARD (board view)
+   ─────────────────────────────────────────────────────────────────────────── */
+.task-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+.task-card:hover { border-color: var(--border-2); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SELECT DROPDOWN COMPONENT
+   ─────────────────────────────────────────────────────────────────────────── */
+.openy-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.openy-select-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  z-index: 60;
+}
+.openy-select-option { padding: 7px 12px; font-size: 13.5px; color: var(--text-primary); cursor: pointer; transition: background var(--duration-fast) ease; }
+.openy-select-option:hover { background: var(--surface-2); }
+.openy-select-option-selected { background: var(--menu-item-active); color: var(--accent); font-weight: 600; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PRINT
+   ─────────────────────────────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  .app-sidebar-panel,
+  .app-topbar,
+  .app-topbar-shell { display: none !important; }
+  .app-shell-main { overflow: visible !important; }
+  body { background: #fff !important; color: #000 !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DOCS MAIN AREA — ensure split editor fills available height
+   ─────────────────────────────────────────────────────────────────────────── */
+.docs-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.docs-main > .app-shell-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
