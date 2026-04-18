@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/auth-context';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import EmptyState from '@/components/ui/EmptyState';
 import type { Client } from '@/lib/types';
 
 interface ClientStats {
@@ -118,6 +119,34 @@ export default function ClientsPage() {
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('clients-page-filters') ?? '{}') as {
+        search?: string;
+        viewMode?: ViewMode;
+        statusFilter?: StatusFilter;
+        activityFilter?: ActivityFilter;
+        dateFilter?: DateFilter;
+        sortBy?: SortBy;
+      };
+      if (saved.search) setSearch(saved.search);
+      if (saved.viewMode === 'grid' || saved.viewMode === 'list') setViewMode(saved.viewMode);
+      if (saved.statusFilter) setStatusFilter(saved.statusFilter);
+      if (saved.activityFilter) setActivityFilter(saved.activityFilter);
+      if (saved.dateFilter) setDateFilter(saved.dateFilter);
+      if (saved.sortBy) setSortBy(saved.sortBy);
+    } catch {
+      // ignore invalid saved filters
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'clients-page-filters',
+      JSON.stringify({ search, viewMode, statusFilter, activityFilter, dateFilter, sortBy }),
+    );
+  }, [search, viewMode, statusFilter, activityFilter, dateFilter, sortBy]);
 
   const { data: clients = [], isLoading: loading, error: fetchErrorObj } = useQuery<Client[]>({
     queryKey: ['clients-list'],
@@ -436,25 +465,30 @@ export default function ClientsPage() {
           ))}
         </div>
       ) : filteredClients.length === 0 ? (
-        <div className="glass-card flex flex-col items-center justify-center py-24 text-center">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5 border"
-            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-          >
-            <Users2 size={34} style={{ color: 'var(--text-tertiary)' }} />
-          </div>
-          <h3 className="text-xl font-bold mb-2 tracking-tight" style={{ color: 'var(--text)' }}>{t('noClientsYet')}</h3>
-          <p className="text-sm max-w-xs mb-6" style={{ color: 'var(--text-secondary)' }}>
-            Try adjusting filters, or create your first client workspace.
-          </p>
-          {canManageClients && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="btn-primary flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold"
-            >
-              <Plus size={16} />{t('newClient')}
-            </button>
-          )}
+        <div className="glass-card">
+          <EmptyState
+            icon={Users2}
+            title={t('noClientsYet')}
+            description="Add your first client to unlock tasks, assets, and collaboration."
+            action={canManageClients ? (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="btn-primary flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold"
+              >
+                <Plus size={16} />{t('newClient')}
+              </button>
+            ) : undefined}
+            suggestions={[
+              {
+                title: 'Add your first client',
+                description: 'Create a workspace for your next active account.',
+              },
+              {
+                title: 'Use a starter template',
+                description: 'Start from a standard onboarding structure and customize later.',
+              },
+            ]}
+          />
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

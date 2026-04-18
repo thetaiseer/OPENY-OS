@@ -393,6 +393,23 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [assetRows]);
 
+  const lightInsights = useMemo(() => {
+    const completedThisWeek = (trendsData ?? []).slice(-7).reduce((sum, day) => sum + day.completed, 0);
+    const overdue = stats?.overdueTasks ?? 0;
+    const assetsThisWeek = (recentAssets ?? []).filter(asset => {
+      if (!asset.created_at) return false;
+      return Date.now() - new Date(asset.created_at).getTime() <= 7 * 86400000;
+    }).length;
+
+    return [
+      `You completed ${completedThisWeek} task${completedThisWeek === 1 ? '' : 's'} this week`,
+      overdue > 0 ? `${overdue} task${overdue === 1 ? ' is' : 's are'} overdue` : 'No overdue tasks right now',
+      assetsThisWeek > 0
+        ? `${assetsThisWeek} asset${assetsThisWeek === 1 ? '' : 's'} added this week`
+        : 'No activity in assets this week',
+    ];
+  }, [trendsData, stats?.overdueTasks, recentAssets]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-openy-fade-in">
       <div>
@@ -414,6 +431,18 @@ export default function DashboardPage() {
           <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
         </div>
       )}
+
+      {/* ── Trend + Team performance ── */}
+      <div className="surface-card p-4">
+        <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          {lightInsights.map((text) => (
+            <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}>
+              {text}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Trend + Team performance ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

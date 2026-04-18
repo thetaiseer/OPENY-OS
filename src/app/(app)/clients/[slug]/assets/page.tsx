@@ -12,6 +12,7 @@ import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModa
 import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import EmptyState from '@/components/ui/EmptyState';
+import SmartSuggestionCards from '@/components/ui/SmartSuggestionCards';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
@@ -240,6 +241,21 @@ export default function ClientAssetsPage() {
 
   return (
     <div className="space-y-4">
+      <SmartSuggestionCards
+        storageKey={`openy_suggestions_client_assets_${clientId}`}
+        items={[
+          {
+            id: 'organize-folder',
+            title: 'Organize into folders?',
+            description: 'Group assets by campaign type to keep retrieval instant.',
+          },
+          {
+            id: 'upload-brand-files',
+            title: 'Upload brand assets?',
+            description: 'Start with logos, style guides, and reusable templates.',
+          },
+        ]}
+      />
       <div className="glass-card p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-2">
           <div className="relative flex-1">
@@ -292,6 +308,16 @@ export default function ClientAssetsPage() {
                 <Upload size={14} /> Upload asset
               </button>
             )}
+            suggestions={[
+              {
+                title: 'Upload brand assets',
+                description: 'Start with logo files, visuals, and brand references.',
+              },
+              {
+                title: 'Organize into folders',
+                description: 'Group files by type to keep this client workspace tidy.',
+              },
+            ]}
           />
         </div>
       ) : (

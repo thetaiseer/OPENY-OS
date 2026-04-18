@@ -1138,11 +1138,46 @@ export default function TasksPage() {
   useEffect(() => {
     const savedView = window.localStorage.getItem('tasks-all-view');
     if (savedView === 'list' || savedView === 'kanban') setView(savedView);
+    try {
+      const savedFilters = JSON.parse(window.localStorage.getItem('tasks-all-filters') ?? '{}') as {
+        statusFilter?: string;
+        clientFilter?: string;
+        assignedFilter?: string;
+        priorityFilter?: string;
+        platformFilter?: string;
+        postTypeFilter?: string;
+        searchQuery?: string;
+      };
+      if (savedFilters.statusFilter) setStatusFilter(savedFilters.statusFilter);
+      if (savedFilters.clientFilter) setClientFilter(savedFilters.clientFilter);
+      if (savedFilters.assignedFilter) setAssignedFilter(savedFilters.assignedFilter);
+      if (savedFilters.priorityFilter) setPriorityFilter(savedFilters.priorityFilter);
+      if (savedFilters.platformFilter) setPlatformFilter(savedFilters.platformFilter);
+      if (savedFilters.postTypeFilter) setPostTypeFilter(savedFilters.postTypeFilter);
+      if (savedFilters.searchQuery) setSearchQuery(savedFilters.searchQuery);
+    } catch {
+      // ignore invalid saved filters
+    }
   }, []);
 
   useEffect(() => {
     window.localStorage.setItem('tasks-all-view', view);
   }, [view]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'tasks-all-filters',
+      JSON.stringify({
+        statusFilter,
+        clientFilter,
+        assignedFilter,
+        priorityFilter,
+        platformFilter,
+        postTypeFilter,
+        searchQuery,
+      }),
+    );
+  }, [statusFilter, clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
@@ -1485,6 +1520,19 @@ export default function TasksPage() {
   const totalOverdue = useMemo(() => tasks.filter(task => isOverdue(task.due_date, task.status)).length, [tasks]);
   const doneCount = useMemo(() => tasks.filter(task => COMPLETED_STATUSES.has(task.status)).length, [tasks]);
   const inProgressCount = useMemo(() => tasks.filter(task => IN_PROGRESS_STATUSES.has(task.status)).length, [tasks]);
+  const dueBuckets = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return tasks.reduce(
+      (acc, task) => {
+        if (!task.due_date || COMPLETED_STATUSES.has(task.status)) return acc;
+        if (task.due_date < today) acc.overdue += 1;
+        else if (task.due_date === today) acc.today += 1;
+        else acc.upcoming += 1;
+        return acc;
+      },
+      { overdue: 0, today: 0, upcoming: 0 },
+    );
+  }, [tasks]);
   const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]
     .filter(Boolean).length;
 
@@ -1548,6 +1596,18 @@ export default function TasksPage() {
             <div key={item.label} className="rounded-xl px-3 py-2 border" style={{ ...glassInputStyle }}>
               <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-tertiary)' }}>{item.label}</p>
               <p className="text-xl font-bold" style={{ color: item.tone }}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            { key: 'overdue', label: 'Overdue', value: dueBuckets.overdue, tone: 'var(--color-danger)' },
+            { key: 'today', label: 'Today', value: dueBuckets.today, tone: 'var(--color-warning)' },
+            { key: 'upcoming', label: 'Upcoming', value: dueBuckets.upcoming, tone: 'var(--color-info)' },
+          ].map((bucket) => (
+            <div key={bucket.key} className="rounded-xl border px-3 py-2.5" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{bucket.label}</p>
+              <p className="text-lg font-bold" style={{ color: bucket.tone }}>{bucket.value}</p>
             </div>
           ))}
         </div>
@@ -1674,6 +1734,21 @@ export default function TasksPage() {
               </button>
             ) : undefined
           }
+          suggestions={[
+            {
+              title: 'Create your first task',
+              description: 'Start with a high-impact deliverable and assign ownership.',
+              action: canManageTasks ? (
+                <button onClick={() => setCreateOpen(true)} className="text-xs font-semibold hover:opacity-80" style={{ color: 'var(--accent)' }}>
+                  Open task form
+                </button>
+              ) : undefined,
+            },
+            {
+              title: 'Import tasks from a previous client',
+              description: 'Duplicate proven workflows to move faster this week.',
+            },
+          ]}
         />
       ) : view === 'kanban' ? (
         <div className="rounded-2xl border p-2 sm:p-3 overflow-hidden" style={frostedPanelStyle} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">

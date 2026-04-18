@@ -18,6 +18,7 @@ import { useToast } from '@/lib/toast-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import EmptyState from '@/components/ui/EmptyState';
+import SmartSuggestionCards from '@/components/ui/SmartSuggestionCards';
 import { useClientWorkspace } from '../client-context';
 import type { Task, TeamMember, Client } from '@/lib/types';
 
@@ -147,6 +148,21 @@ export default function ClientTasksPage() {
 
   return (
     <div className="space-y-4">
+      <SmartSuggestionCards
+        storageKey={`openy_suggestions_client_tasks_${clientId}`}
+        items={[
+          {
+            id: 'set-due-date',
+            title: 'Set due dates?',
+            description: 'Deadlines improve planning and reduce missed handoffs.',
+          },
+          {
+            id: 'assign-team-member',
+            title: 'Assign to team?',
+            description: 'Give each task a clear owner for faster execution.',
+          },
+        ]}
+      />
       <div className="glass-card p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-2">
           <div className="relative flex-1">
@@ -196,6 +212,16 @@ export default function ClientTasksPage() {
                 <Plus size={14} /> Create task
               </button>
             )}
+            suggestions={[
+              {
+                title: 'Set due dates',
+                description: 'Add deadlines to keep delivery predictable.',
+              },
+              {
+                title: 'Assign to team',
+                description: 'Pick an owner for each task to improve accountability.',
+              },
+            ]}
           />
         </div>
       ) : (
