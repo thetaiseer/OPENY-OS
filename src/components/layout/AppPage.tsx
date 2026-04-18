@@ -17,10 +17,10 @@ export function AppPage({ children, className, fullWidth = false, fill = false }
   return (
     <motion.section
       key={pathname}
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-      className={clsx('app-page openy-page-shell page-enter', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className={clsx('app-page', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}
     >
       {children}
     </motion.section>

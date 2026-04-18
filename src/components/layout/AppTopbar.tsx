@@ -10,9 +10,7 @@ import NotificationDropdown from '@/components/notifications/NotificationDropdow
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
 import { useAi } from '@/lib/ai-context';
-import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
-import WorkspaceSwitcher from './WorkspaceSwitcher';
 import AccountMenu from './AccountMenu';
 import ThemeSwitcher from './ThemeSwitcher';
 
@@ -23,7 +21,7 @@ interface AppTopbarProps {
 const WORKSPACE_SEGMENTS = new Set(['os', 'docs']);
 
 function formatBreadcrumbLabel(segment: string) {
-  return decodeURIComponent(segment).replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  return decodeURIComponent(segment).replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
@@ -38,13 +36,16 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
-    return segments.filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment))).map(formatBreadcrumbLabel).slice(0, 4);
+    return segments
+      .filter((seg, i) => !(i === 0 && WORKSPACE_SEGMENTS.has(seg)))
+      .map(formatBreadcrumbLabel)
+      .slice(0, 4);
   }, [pathname]);
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
         openPalette();
       }
     };
@@ -52,82 +53,66 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
     return () => window.removeEventListener('keydown', handler);
   }, [openPalette]);
 
-  function renderUtilityMenu(closeMenu: () => void, includeNavigation: boolean) {
-    return (
-      <div className="space-y-2">
-        {includeNavigation ? (
-          <button type="button" onClick={() => { closeMenu(); onMenuClick?.(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
-            <Menu size={15} /> Open navigation
-          </button>
-        ) : null}
-        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
-          <WorkspaceSwitcher />
-        </div>
-        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
-          <ThemeSwitcher />
-        </div>
-        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
-          <NotificationDropdown />
-        </div>
-        <button type="button" onClick={() => { toggleLang(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
-          <Globe size={15} /> Language
-        </button>
-        <button type="button" onClick={() => { openAi(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
-          <Sparkles size={15} /> AI Command Center
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <header className="app-topbar app-topbar-shell header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:px-3 sm:py-2.5">
-      <div className="flex min-w-0 items-center gap-2">
-        <AccountMenu
-          placement="header"
-          panelClassName="sm:hidden right-auto left-0"
-          menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, true)}
-          triggerAriaLabel="Open mobile quick menu"
+    <header className="app-topbar app-topbar-shell flex items-center gap-2 px-3">
+      {/* ── Left: mobile menu + workspace label ── */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Mobile: opens sidebar drawer */}
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="topbar-icon-btn lg:hidden"
+          aria-label="Open navigation"
         >
-          <div className="topbar-icon-btn sm:hidden">
-            <Menu size={18} />
-          </div>
-        </AccountMenu>
-
-        <button type="button" onClick={onMenuClick} className="topbar-icon-btn hidden sm:inline-flex lg:hidden" aria-label="Open menu">
-          <Menu size={18} />
+          <Menu size={17} />
         </button>
 
-        <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
-          <OpenyLogo width={82} height={24} />
-          <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--text-secondary)]">{workspaceLabel}</span>
-        </Link>
-      </div>
-
-      <div className="topbar-breadcrumb hidden min-w-0 flex-1 lg:flex">
-        <span className="font-semibold">{workspaceLabel}</span>
-        {breadcrumbs.map((crumb, index) => (
-          <span key={`${crumb}-${index}`} className="inline-flex min-w-0 items-center gap-1">
-            <ChevronRight size={12} />
-            <span className={index === breadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>{crumb}</span>
+        <Link href={dashboardHref} className="hidden sm:inline-flex items-center gap-1.5">
+          <span className="text-[13px] font-bold tracking-[0.12em] text-[var(--text-secondary)]">
+            {workspaceLabel}
           </span>
-        ))}
+        </Link>
+
+        {/* Breadcrumbs (large screens) */}
+        <div className="topbar-breadcrumb hidden lg:flex items-center gap-1">
+          {breadcrumbs.map((crumb, i) => (
+            <span key={`${crumb}-${i}`} className="inline-flex items-center gap-1 min-w-0">
+              <ChevronRight size={11} className="shrink-0 text-[var(--text-tertiary)]" />
+              <span className={i === breadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
+                {crumb}
+              </span>
+            </span>
+          ))}
+        </div>
       </div>
 
-      <button type="button" onClick={openPalette} className="topbar-icon-btn justify-self-center sm:hidden" aria-label="Open search">
-        <Search size={16} />
-      </button>
-
-      <div className="hidden min-w-0 flex-1 sm:block sm:max-w-md lg:max-w-xl">
+      {/* ── Centre: search bar ── */}
+      <div className="hidden flex-1 min-w-0 sm:block sm:max-w-sm lg:max-w-lg">
         <GlobalSearch />
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <div className="app-topbar-tools hidden items-center gap-1 lg:flex">
-          <ThemeSwitcher />
-          <WorkspaceSwitcher />
+      {/* ── Mobile search icon ── */}
+      <button
+        type="button"
+        onClick={openPalette}
+        className="topbar-icon-btn sm:hidden"
+        aria-label="Open search"
+      >
+        <Search size={16} />
+      </button>
 
-          <button type="button" onClick={toggleLang} className="topbar-icon-btn hidden sm:inline-flex" title="Toggle language">
-            <Globe size={16} />
+      {/* ── Right: utility icons ── */}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="hidden items-center gap-1 lg:flex">
+          <ThemeSwitcher />
+
+          <button
+            type="button"
+            onClick={toggleLang}
+            className="topbar-icon-btn"
+            title="Toggle language"
+          >
+            <Globe size={15} />
           </button>
 
           <NotificationDropdown />
@@ -135,7 +120,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           <button
             type="button"
             onClick={() => openAi()}
-            className="topbar-ai-btn topbar-ai-pill"
+            className="topbar-ai-btn"
             style={{
               background: aiOpen ? 'var(--accent)' : 'var(--surface-2)',
               color: aiOpen ? '#fff' : 'var(--text-primary)',
@@ -144,15 +129,27 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
             title="AI Command Center (⌘J)"
           >
             <Sparkles size={13} />
-            <span className="hidden sm:inline">AI</span>
+            <span className="hidden sm:inline text-[13px]">AI</span>
           </button>
         </div>
 
+        {/* Account avatar (all screens) */}
         <AccountMenu
           placement="header"
-          panelClassName="lg:hidden"
-          menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, false)}
           triggerAriaLabel="Open account menu"
+          menuContent={({ closeMenu }) => (
+            <div className="space-y-2">
+              <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
+                <ThemeSwitcher />
+              </div>
+              <button type="button" onClick={() => { toggleLang(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
+                <Globe size={14} /> Language
+              </button>
+              <button type="button" onClick={() => { openAi(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
+                <Sparkles size={14} /> AI Command Center
+              </button>
+            </div>
+          )}
         >
           <div className="topbar-avatar">
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}

@@ -1,15 +1,30 @@
 'use client';
 
 import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
-import AppSidebar from './AppSidebar';
+import AppSidebar, { type AppSidebarGroup } from './AppSidebar';
 
-const docsNav = [
-  { href: '/docs/documents/invoice', label: 'Invoice', icon: FileText },
-  { href: '/docs/documents/quotation', label: 'Quotation', icon: ClipboardList },
-  { href: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature },
-  { href: '/docs/documents/hr-contract', label: 'HR Contract', icon: BookOpen },
-  { href: '/docs/documents/employees', label: 'Employees', icon: Users },
-  { href: '/docs/documents/accounting', label: 'Accounting', icon: BarChart2 },
+const docsGroups: AppSidebarGroup[] = [
+  {
+    label: 'Documents',
+    items: [
+      { href: '/docs/documents/invoice',         base: '/docs/documents/invoice',         label: 'Invoice',         icon: FileText       },
+      { href: '/docs/documents/quotation',       base: '/docs/documents/quotation',       label: 'Quotation',       icon: ClipboardList  },
+      { href: '/docs/documents/client-contract', base: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature  },
+      { href: '/docs/documents/hr-contract',     base: '/docs/documents/hr-contract',     label: 'HR Contract',     icon: BookOpen       },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { href: '/docs/documents/employees', base: '/docs/documents/employees', label: 'Employees', icon: Users },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { href: '/docs/documents/accounting', base: '/docs/documents/accounting', label: 'Accounting', icon: BarChart2 },
+    ],
+  },
 ];
 
 interface DocsSidebarProps {
@@ -18,6 +33,13 @@ interface DocsSidebarProps {
 }
 
 export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
-  const items = docsNav.map(({ href, label, icon }) => ({ href, base: href, label, icon }));
-  return <AppSidebar items={items} open={open} onClose={onClose} workspaceTag="DOCS" variant="docs" />;
+  return (
+    <AppSidebar
+      groups={docsGroups}
+      open={open}
+      onClose={onClose}
+      workspaceTag="DOCS"
+      variant="docs"
+    />
+  );
 }
