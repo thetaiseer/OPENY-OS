@@ -199,10 +199,10 @@ export default function SelectDropdown({
         disabled={disabled}
         onClick={e => { e.stopPropagation(); if (!disabled) setOpen(o => !o); }}
         data-open={open}
-        className={`openy-select-trigger flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
+        className={`openy-select-trigger flex items-center gap-2 px-3 h-10 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
         style={{
           color:       hasValue ? 'var(--text)' : 'var(--text-secondary)',
-          boxShadow:   open ? 'var(--glow-focus)' : 'inset 0 1px 0 rgba(255,255,255,0.12)',
+          boxShadow:   open ? 'var(--glow-focus)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
           whiteSpace:  'nowrap',
         }}
         title={label}

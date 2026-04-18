@@ -130,10 +130,10 @@ function FileRow({
 
   return (
     <div
-      className="rounded-xl border p-3 space-y-2.5 transition-colors"
+      className="rounded-xl p-3 space-y-2.5 transition-colors"
       style={{
-        background:   'var(--surface-2)',
-        borderColor:  error ? 'rgba(239,68,68,0.5)' : 'var(--border)',
+        background:   'color-mix(in srgb, var(--surface-2) 82%, transparent)',
+        border:       `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'color-mix(in srgb, var(--border) 86%, transparent)'}`,
       }}
     >
       {/* Top row: icon + original name + size + remove */}
@@ -163,11 +163,11 @@ function FileRow({
         </div>
         <button
           type="button"
-          onClick={onRemove}
-          className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--text-secondary)' }}
-          title="Remove file"
-        >
+            onClick={onRemove}
+            className="btn-icon shrink-0 flex items-center justify-center rounded-md hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-secondary)', width: '1.6rem', height: '1.6rem' }}
+            title="Remove file"
+          >
           <X size={13} />
         </button>
       </div>
@@ -192,11 +192,10 @@ function FileRow({
           value={item.uploadName}
           onChange={e => onChangeName(e.target.value)}
           placeholder="Enter file name..."
-          className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+          className="openy-field w-full h-10 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
           style={{
-            background:  'var(--surface)',
             color:       'var(--text)',
-            border:      `1.5px solid ${error ? 'rgba(239,68,68,0.6)' : 'var(--border)'}`,
+            border:      `1px solid ${error ? 'rgba(239,68,68,0.6)' : 'var(--border)'}`,
           }}
         />
         {error && (
@@ -259,11 +258,11 @@ export default function UploadModal({
   return (
     <>
       <div
-        className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
+        className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
         onClick={onCancel}
       >
         <div
-          className="openy-modal-panel w-full max-w-lg rounded-2xl flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
+          className="openy-modal-panel openy-modal-shell w-full max-w-xl rounded-2xl flex flex-col max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
           style={{
             animation: 'openy-modal-in 280ms var(--ease-spring) both',
           }}
@@ -271,22 +270,22 @@ export default function UploadModal({
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+            className="openy-modal-header flex items-start justify-between px-5 sm:px-6 py-4 border-b shrink-0"
             style={{ borderColor: 'var(--border)' }}
           >
             <div>
-              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
+              <h2 className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>
                 Upload {files.length === 1 ? 'File' : `${files.length} Files`}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Review details before uploading
+                Add media and metadata before final upload
               </p>
             </div>
             <button
               type="button"
               onClick={onCancel}
-              className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              className="btn-icon openy-modal-close"
+              style={{ color: 'var(--text-secondary)' }}
               title="Cancel"
             >
               <X size={16} />
@@ -294,7 +293,7 @@ export default function UploadModal({
           </div>
 
           {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="openy-modal-body flex-1 overflow-y-auto px-5 sm:px-6 py-4 sm:py-5 space-y-5">
 
             {/* File list */}
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
@@ -308,10 +307,7 @@ export default function UploadModal({
               ))}
             </div>
 
-            <div
-              className="rounded-2xl border p-4 space-y-4"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-            >
+            <div className="space-y-4">
               {/* Client selector */}
               {!lockClient && (
                 <div>
@@ -386,18 +382,14 @@ export default function UploadModal({
 
           {/* Footer */}
           <div
-            className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
+            className="openy-modal-header flex items-center gap-2.5 px-5 sm:px-6 py-3.5 border-t shrink-0"
             style={{ borderColor: 'var(--border)' }}
+            data-modal-footer="true"
           >
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{
-                background: 'var(--surface-2)',
-                color:      'var(--text)',
-                border:     '1px solid var(--border)',
-              }}
+              className="btn-secondary flex-1 h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
             >
               Cancel
             </button>
@@ -406,8 +398,8 @@ export default function UploadModal({
                 type="button"
                 onClick={onConfirmAndSchedule}
                 disabled={!canConfirm}
-                className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
+                className="btn-secondary flex-1 h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
               >
                 Upload &amp; Schedule
               </button>
@@ -416,8 +408,7 @@ export default function UploadModal({
               type="button"
               onClick={onConfirm}
               disabled={!canConfirm}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {files.length === 1
                 ? 'Upload File'
@@ -437,4 +428,3 @@ export default function UploadModal({
     </>
   );
 }
-
