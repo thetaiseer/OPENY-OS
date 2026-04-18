@@ -197,6 +197,33 @@ export async function PATCH(
 
   console.log('[PATCH /api/tasks/[id]] update success — id:', data?.id);
 
+  // Keep linked calendar event synchronized when task date/title changes (best-effort)
+  if (data) {
+    const dueDate = typeof updatePayload.due_date === 'string' ? updatePayload.due_date : data.due_date;
+    const dueTime = typeof updatePayload.due_time === 'string' ? updatePayload.due_time : data.due_time;
+    const title = typeof updatePayload.title === 'string' ? updatePayload.title : data.title;
+    if (dueDate || title) {
+      const startsAt = dueDate
+        ? `${dueDate}T${(dueTime && dueTime.trim() ? dueTime : '09:00:00')}`
+        : null;
+      const eventUpdate: Record<string, unknown> = {};
+      if (title) eventUpdate.title = title;
+      if (startsAt) eventUpdate.starts_at = startsAt;
+      if (Object.keys(eventUpdate).length > 0) {
+        void db
+          .from('calendar_events')
+          .update(eventUpdate)
+          .eq('task_id', id)
+          .eq('event_type', 'task')
+          .then(({ error: calSyncErr }) => {
+            if (calSyncErr) {
+              console.warn('[PATCH /api/tasks/[id]] calendar sync failed:', calSyncErr.message);
+            }
+          });
+      }
+    }
+  }
+
   return NextResponse.json({ success: true, task: data });
 }
 

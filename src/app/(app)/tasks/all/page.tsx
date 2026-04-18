@@ -36,7 +36,7 @@ import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
-import type { Task, Client, TeamMember, Project } from '@/lib/types';
+import type { Task, Client, TeamMember, Project, ContentItem } from '@/lib/types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -120,6 +120,7 @@ function getStatusTone(status: string) {
 const blankForm = {
   title: '', description: '', status: 'todo', priority: 'medium',
   start_date: '', due_date: '', client_id: '', project_id: '', assigned_to: '', created_by: '',
+  content_item_id: '',
   mentions: [] as string[], tags: '',
 };
 
@@ -131,15 +132,20 @@ interface TaskFormProps {
   clients: Client[];
   projects: Project[];
   team: TeamMember[];
+  contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[];
   saving: boolean;
   onCancel: () => void;
   t: (k: string) => string;
 }
 
-function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t }: TaskFormProps) {
+function TaskForm({ form, setForm, clients, projects, team, contentItems, saving, onCancel, t }: TaskFormProps) {
   const projectOptions = useMemo(
     () => projects.filter(p => Boolean(form.client_id) && p.client_id === form.client_id),
     [projects, form.client_id],
+  );
+  const contentOptions = useMemo(
+    () => contentItems.filter(item => !form.client_id || item.client_id === form.client_id),
+    [contentItems, form.client_id],
   );
 
   const toggleMention = (id: string) => {
@@ -240,6 +246,19 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
                 { value: 'in_review', label: t('review') },
                 { value: 'done', label: t('done') },
                 { value: 'delivered', label: t('delivered') },
+              ]}
+              />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Linked Content (optional)</label>
+            <SelectDropdown
+              fullWidth
+              value={form.content_item_id}
+              onChange={v => setForm(f => ({ ...f, content_item_id: v }))}
+              placeholder={t('none')}
+              options={[
+                { value: '', label: t('none') },
+                ...contentOptions.map(c => ({ value: c.id, label: c.title })),
               ]}
             />
           </div>
@@ -1033,12 +1052,13 @@ export default function TasksPage() {
   const { data: queryData, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['tasks-all'],
     queryFn: async () => {
-      const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
+      const [tasksRes, clientsRes, projectsRes, teamRes, contentRes] = await Promise.allSettled([
         supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
         supabase.from('clients').select('id,name').order('name'),
         supabase.from('projects').select('id,name,client_id').order('name'),
         // Select only the columns the UI actually uses to reduce payload size.
         supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
+        supabase.from('content_items').select('id,title,client_id').order('created_at', { ascending: false }).limit(300),
       ]);
 
       if (tasksRes.status === 'rejected') {
@@ -1053,12 +1073,17 @@ export default function TasksPage() {
       else if (projectsRes.value.error) console.error('[tasks] projects fetch error:', projectsRes.value.error);
       if (teamRes.status === 'rejected') console.error('[tasks] team fetch rejected:', teamRes.reason);
       else if (teamRes.value.error) console.error('[tasks] team fetch error:', teamRes.value.error);
+      if (contentRes.status === 'rejected') console.error('[tasks] content fetch rejected:', contentRes.reason);
+      else if (contentRes.value.error) console.error('[tasks] content fetch error:', contentRes.value.error);
 
       return {
         tasks:   (tasksRes.status   === 'fulfilled' && !tasksRes.value.error)   ? (tasksRes.value.data   ?? []) as Task[]       : [],
         clients: (clientsRes.status === 'fulfilled' && !clientsRes.value.error) ? (clientsRes.value.data ?? []) as Client[]     : [],
         projects: (projectsRes.status === 'fulfilled' && !projectsRes.value.error) ? (projectsRes.value.data ?? []) as Project[] : [],
         team:    (teamRes.status    === 'fulfilled' && !teamRes.value.error)    ? (teamRes.value.data    ?? []) as TeamMember[]  : [],
+        contentItems: (contentRes.status === 'fulfilled' && !contentRes.value.error)
+          ? (contentRes.value.data ?? []) as Pick<ContentItem, 'id' | 'title' | 'client_id'>[]
+          : [],
       };
     },
   });
@@ -1067,11 +1092,12 @@ export default function TasksPage() {
 
   // Local state for optimistic updates — seeded from React Query cache on
   // first render and kept in sync when the background fetch completes.
-  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(['tasks-all']);
+  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[]; contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[] }>(['tasks-all']);
   const [tasks,   setTasks]   = useState<Task[]>      (() => cachedOnMount?.tasks   ?? []);
   const [clients, setClients] = useState<Client[]>    (() => cachedOnMount?.clients ?? []);
   const [projects, setProjects] = useState<Project[]>(() => cachedOnMount?.projects ?? []);
   const [team,    setTeam]    = useState<TeamMember[]>(() => cachedOnMount?.team    ?? []);
+  const [contentItems, setContentItems] = useState<Pick<ContentItem, 'id' | 'title' | 'client_id'>[]>(() => cachedOnMount?.contentItems ?? []);
 
   // Keep local state in sync when React Query data arrives / updates.
   useEffect(() => {
@@ -1080,6 +1106,7 @@ export default function TasksPage() {
       setClients(queryData.clients);
       setProjects(queryData.projects);
       setTeam(queryData.team);
+      setContentItems(queryData.contentItems ?? []);
     }
   }, [queryData]);
 
@@ -1155,6 +1182,7 @@ export default function TasksPage() {
         due_date:    createForm.due_date,
         client_id:   createForm.client_id,
         project_id:  createForm.project_id || null,
+        content_item_id: createForm.content_item_id || null,
         assigned_to: createForm.assigned_to,
         created_by:  createForm.created_by || null,
         mentions:    Array.isArray(createForm.mentions) ? createForm.mentions : [],
@@ -1203,7 +1231,7 @@ export default function TasksPage() {
       if (result.task) {
         const createdTask = result.task;
         setTasks(prev => [createdTask, ...prev.filter(t => t.id !== createdTask.id)]);
-        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(
+        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[]; contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[] }>(
           ['tasks-all'],
           old => old
             ? { ...old, tasks: [createdTask, ...old.tasks.filter(t => t.id !== createdTask.id)] }
@@ -1237,6 +1265,7 @@ export default function TasksPage() {
       due_date: task.due_date ?? '',
       client_id: task.client_id ?? '',
       project_id: task.project_id ?? '',
+      content_item_id: task.content_item_id ?? '',
       assigned_to: task.assigned_to ?? '',
       created_by: task.created_by ?? '',
       mentions: task.mentions ?? [],
@@ -1262,6 +1291,7 @@ export default function TasksPage() {
         due_date:    editForm.due_date || null,
         client_id:   editForm.client_id || null,
         project_id:  editForm.project_id || null,
+        content_item_id: editForm.content_item_id || null,
         assigned_to: editForm.assigned_to || null,
         created_by:  editForm.created_by || null,
         mentions:    Array.isArray(editForm.mentions) ? editForm.mentions : [],
@@ -1721,7 +1751,7 @@ export default function TasksPage() {
               <span>{createError}</span>
             </div>
           )}
-          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
+          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} projects={projects} team={team} contentItems={contentItems} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
         </form>
       </Modal>
 
@@ -1734,7 +1764,7 @@ export default function TasksPage() {
               <span>{editError}</span>
             </div>
           )}
-          <TaskForm form={editForm} setForm={setEditForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
+          <TaskForm form={editForm} setForm={setEditForm} clients={clients} projects={projects} team={team} contentItems={contentItems} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
         </form>
       </Modal>
 

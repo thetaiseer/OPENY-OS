@@ -48,6 +48,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (typeof body.purpose     === 'string') updates.purpose      = body.purpose;
   if (Array.isArray(body.platform_targets)) updates.platform_targets = body.platform_targets;
   if (Array.isArray(body.post_types))        updates.post_types       = body.post_types;
+  if (typeof body.schedule_date === 'string') updates.schedule_date = body.schedule_date.trim() || null;
+  if (typeof body.task_id === 'string') updates.task_id = body.task_id.trim() || null;
 
   let newStatus: string | null = null;
   if (typeof body.status === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
@@ -99,6 +101,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
           if (calErr) console.warn('[PATCH /api/content-items/[id]] calendar event failed:', calErr.message);
         });
       }
+    }
+
+    // Keep linked task due_date in sync with scheduled date when available (best-effort)
+    const nextScheduleDate = typeof body.schedule_date === 'string' ? body.schedule_date.trim() : '';
+    if (nextScheduleDate && data?.task_id) {
+      void db
+        .from('tasks')
+        .update({ due_date: nextScheduleDate, updated_at: new Date().toISOString() })
+        .eq('id', data.task_id)
+        .then(({ error: taskSyncErr }) => {
+          if (taskSyncErr) console.warn('[PATCH /api/content-items/[id]] linked task due_date sync failed:', taskSyncErr.message);
+        });
     }
 
     // Log general update activity if non-status fields changed (fire-and-forget)
