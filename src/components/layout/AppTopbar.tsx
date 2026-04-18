@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { Sun, Moon, Menu, Globe, Sparkles, ChevronRight } from 'lucide-react';
+import { Menu, Globe, Sparkles, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTheme } from '@/lib/theme-context';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
@@ -38,7 +37,6 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
-  const { theme, toggleTheme } = useTheme();
   const { toggleLang } = useLang();
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
@@ -111,15 +109,6 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           title="Toggle language"
         >
           <Globe size={18} />
-        </button>
-
-        <button
-          onClick={toggleTheme}
-          className="topbar-icon-btn"
-          style={{ color: 'var(--text-secondary)' }}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         <NotificationDropdown />
