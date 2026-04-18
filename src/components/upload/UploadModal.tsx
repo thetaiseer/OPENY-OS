@@ -164,7 +164,7 @@ function FileRow({
         <button
           type="button"
             onClick={onRemove}
-            className="btn-icon shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+            className="btn-icon shrink-0 flex items-center justify-center rounded-md hover:opacity-70 transition-opacity"
             style={{ color: 'var(--text-secondary)', width: '1.6rem', height: '1.6rem' }}
             title="Remove file"
           >

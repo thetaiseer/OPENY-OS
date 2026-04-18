@@ -507,10 +507,7 @@ export default function GlobalQuickAdd() {
                 value={taskClientId}
                 onChange={setTaskClientId}
                 placeholder="Select client"
-                options={[
-                  { value: '', label: 'Select client' },
-                  ...clientOptions,
-                ]}
+                options={clientOptions}
               />
             </div>
 
@@ -521,13 +518,10 @@ export default function GlobalQuickAdd() {
                 value={taskAssignee}
                 onChange={setTaskAssignee}
                 placeholder="Select assignee"
-                options={[
-                  { value: '', label: 'Select assignee' },
-                  ...team.map((member) => ({
-                    value: member.id,
-                    label: member.full_name ?? member.email ?? member.id,
-                  })),
-                ]}
+                options={team.map((member) => ({
+                  value: member.id,
+                  label: member.full_name ?? member.email ?? member.id,
+                }))}
               />
             </div>
 
