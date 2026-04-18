@@ -26,7 +26,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { notifyTaskCreated } from '@/lib/notification-service';
+import { notifyTaskCreated, scheduleReminderJobs } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = [
@@ -343,6 +343,24 @@ export async function POST(request: NextRequest) {
       createdById:  createdBy || null,
       clientName:   data.client_name || clientName || null,
     });
+
+    // Schedule event-driven reminder jobs (due_soon, overdue_1h, etc.)
+    // These are consumed by the daily cron at 08:00 UTC — no frequent polling needed.
+    if (dueDate) {
+      const dueDateTime = dueTime
+        ? new Date(`${dueDate}T${dueTime}Z`)
+        : new Date(`${dueDate}T09:00:00Z`);
+      if (!Number.isNaN(dueDateTime.getTime())) {
+        void scheduleReminderJobs({
+          entityType: 'task',
+          entityId:   data.id,
+          userId:     assignedTo || null,
+          clientId:   clientId || null,
+          dueAt:      dueDateTime,
+          metadata:   { title, client_name: clientName || null },
+        });
+      }
+    }
   }
 
   return NextResponse.json({ success: true, task: data }, { status: 201 });

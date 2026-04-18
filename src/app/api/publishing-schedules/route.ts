@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { notifyPublishingScheduled } from '@/lib/notification-service';
+import { notifyPublishingScheduled, schedulePublishingReminder } from '@/lib/notification-service';
 
 
 const VALID_PLATFORMS = [
@@ -290,6 +290,20 @@ export async function POST(req: NextRequest) {
       scheduledDate,
       platforms,
       assignedToId:  assignedTo,
+    });
+
+    // Schedule a pre-publish reminder job stored in the DB.
+    // The daily cron at 08:00 UTC picks it up on the morning of the publish date.
+    void schedulePublishingReminder({
+      scheduleId:  schedule.id,
+      publishDate: scheduledDate,
+      publishTime: scheduledTime,
+      userId:      assignedTo,
+      clientId:    resolvedClientId,
+      metadata: {
+        client_name:  resolvedClientName,
+        platforms,
+      },
     });
 
     return NextResponse.json(

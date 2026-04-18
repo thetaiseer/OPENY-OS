@@ -582,3 +582,143 @@ export async function notifyClientUpdated(opts: {
     dedupe_key: `client_updated:${opts.clientId}`,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Event-driven reminder job scheduling
+// Jobs are stored in the reminder_jobs table and processed by the daily cron.
+// This approach removes the need for frequent cron polling and works within
+// Vercel Hobby plan limits (1 daily cron job).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Midnight UTC on the given date string (YYYY-MM-DD). */
+function midnightUtc(dateStr: string): Date {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
+/**
+ * Schedule one-shot reminder jobs for a task.
+ * Idempotent: existing pending jobs for the same entity are cancelled first.
+ */
+export async function scheduleReminderJobs(opts: {
+  entityType: 'task';
+  entityId: string;
+  userId: string | null;
+  clientId: string | null;
+  dueAt: Date;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const db = getServiceClient();
+    const due = opts.dueAt.getTime();
+
+    const jobs = [
+      {
+        job_type:   'due_soon',
+        execute_at: new Date(due - 24 * 3_600_000).toISOString(),
+      },
+      {
+        job_type:   'overdue_1h',
+        execute_at: new Date(due + 1 * 3_600_000).toISOString(),
+      },
+      {
+        job_type:   'overdue_24h',
+        execute_at: new Date(due + 24 * 3_600_000).toISOString(),
+      },
+      {
+        job_type:   'overdue_daily',
+        execute_at: new Date(due + 48 * 3_600_000).toISOString(),
+      },
+    ].map(j => ({
+      entity_type:   opts.entityType,
+      entity_id:     opts.entityId,
+      job_type:      j.job_type,
+      execute_at:    j.execute_at,
+      user_id:       opts.userId ?? null,
+      client_id:     opts.clientId ?? null,
+      status:        'pending',
+      metadata_json: opts.metadata ?? null,
+    }));
+
+    await db.from('reminder_jobs').insert(jobs);
+  } catch (err) {
+    console.warn('[notification-service] scheduleReminderJobs failed:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Cancel pending reminder jobs for an entity (e.g. task completed / deleted).
+ * Pass `jobTypes` to cancel only specific types; omit to cancel all.
+ */
+export async function cancelReminderJobs(opts: {
+  entityType: string;
+  entityId: string;
+  jobTypes?: string[];
+}): Promise<void> {
+  try {
+    const db = getServiceClient();
+    let q = db
+      .from('reminder_jobs')
+      .update({ status: 'cancelled' })
+      .eq('entity_type', opts.entityType)
+      .eq('entity_id', opts.entityId)
+      .eq('status', 'pending');
+    if (opts.jobTypes?.length) {
+      q = q.in('job_type', opts.jobTypes);
+    }
+    await q;
+  } catch (err) {
+    console.warn('[notification-service] cancelReminderJobs failed:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Cancel existing reminder jobs and create fresh ones (e.g. due_date changed).
+ */
+export async function rescheduleReminderJobs(opts: {
+  entityType: 'task';
+  entityId: string;
+  userId: string | null;
+  clientId: string | null;
+  dueAt: Date;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await cancelReminderJobs({ entityType: opts.entityType, entityId: opts.entityId });
+  await scheduleReminderJobs(opts);
+}
+
+/**
+ * Schedule a pre-publish reminder job for a publishing schedule.
+ * The job fires on the morning of the publish date (execute_at = midnight UTC)
+ * so the single daily cron at 08:00 UTC picks it up in time.
+ */
+export async function schedulePublishingReminder(opts: {
+  scheduleId: string;
+  publishDate: string;
+  publishTime?: string | null;
+  userId: string | null;
+  clientId: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const db = getServiceClient();
+    const executeAt = midnightUtc(opts.publishDate);
+
+    await db.from('reminder_jobs').insert({
+      entity_type:   'publishing_schedule',
+      entity_id:     opts.scheduleId,
+      job_type:      'pre_publish',
+      execute_at:    executeAt.toISOString(),
+      user_id:       opts.userId ?? null,
+      client_id:     opts.clientId ?? null,
+      status:        'pending',
+      metadata_json: {
+        publish_date: opts.publishDate,
+        publish_time: opts.publishTime ?? null,
+        ...(opts.metadata ?? {}),
+      },
+    });
+  } catch (err) {
+    console.warn('[notification-service] schedulePublishingReminder failed:', err instanceof Error ? err.message : String(err));
+  }
+}

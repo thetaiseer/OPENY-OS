@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { notifyTaskCompleted, notifyTaskUpdated } from '@/lib/notification-service';
+import { notifyTaskCompleted, notifyTaskUpdated, cancelReminderJobs, rescheduleReminderJobs } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = [
@@ -234,14 +234,19 @@ export async function PATCH(
 
   if (data?.id) {
     const statusChanged = typeof updatePayload.status === 'string' && existingTask?.status !== updatePayload.status;
-    const completedStatuses = new Set(['done', 'completed', 'delivered', 'published']);
+    const completedStatuses = new Set(['done', 'completed', 'delivered', 'published', 'cancelled']);
     if (statusChanged && completedStatuses.has(String(updatePayload.status))) {
-      void notifyTaskCompleted({
-        taskId: data.id as string,
-        taskTitle: (data.title as string) ?? (existingTask?.title as string) ?? 'Task',
-        clientId: (data.client_id as string | null) ?? (existingTask?.client_id as string | null) ?? null,
-        assignedToId: (data.assignee_id as string | null) ?? (existingTask?.assignee_id as string | null) ?? null,
-      });
+      // Cancel all pending reminder jobs — task is resolved.
+      void cancelReminderJobs({ entityType: 'task', entityId: data.id as string });
+
+      if (String(updatePayload.status) !== 'cancelled') {
+        void notifyTaskCompleted({
+          taskId: data.id as string,
+          taskTitle: (data.title as string) ?? (existingTask?.title as string) ?? 'Task',
+          clientId: (data.client_id as string | null) ?? (existingTask?.client_id as string | null) ?? null,
+          assignedToId: (data.assignee_id as string | null) ?? (existingTask?.assignee_id as string | null) ?? null,
+        });
+      }
     } else {
       const changedField = typeof updatePayload.status === 'string'
         ? 'status'
@@ -265,6 +270,32 @@ export async function PATCH(
         clientId: (data.client_id as string | null) ?? (existingTask?.client_id as string | null) ?? null,
         assignedToId: (data.assignee_id as string | null) ?? (existingTask?.assignee_id as string | null) ?? null,
       });
+
+      // Reschedule reminder jobs when due_date changes.
+      if (typeof updatePayload.due_date === 'string' && updatePayload.due_date) {
+        const dueDate = updatePayload.due_date;
+        const dueTime = typeof updatePayload.due_time === 'string'
+          ? updatePayload.due_time
+          : typeof data.due_time === 'string' ? data.due_time : null;
+        const dueDateTime = dueTime
+          ? new Date(`${dueDate}T${dueTime}Z`)
+          : new Date(`${dueDate}T09:00:00Z`);
+        if (!Number.isNaN(dueDateTime.getTime())) {
+          const assigneeId = (data.assignee_id as string | null)
+            ?? (existingTask?.assignee_id as string | null)
+            ?? null;
+          const clientId = (data.client_id as string | null)
+            ?? (existingTask?.client_id as string | null)
+            ?? null;
+          void rescheduleReminderJobs({
+            entityType: 'task',
+            entityId: data.id as string,
+            userId: assigneeId,
+            clientId,
+            dueAt: dueDateTime,
+          });
+        }
+      }
     }
   }
 
@@ -305,6 +336,9 @@ export async function DELETE(
   }
 
   console.log('[DELETE /api/tasks/[id]] delete success — id:', id);
+
+  // Cancel any pending reminder jobs for the deleted task.
+  void cancelReminderJobs({ entityType: 'task', entityId: id });
 
   // Activity log (fire-and-forget)
   void Promise.resolve(db.from('activities').insert({
