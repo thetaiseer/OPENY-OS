@@ -205,9 +205,14 @@ function TableBlock({ activities, recentAssets }: { activities: Activity[]; rece
 }
 
 function ChartBlock({ trends }: { trends: { date: string; completed: number }[] }) {
+  const formatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }),
+    [],
+  );
+
   const chartData = useMemo(
-    () => trends.map((item) => ({ name: new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), completed: item.completed })),
-    [trends],
+    () => trends.map((item) => ({ name: formatter.format(new Date(item.date)), completed: item.completed })),
+    [formatter, trends],
   );
 
   if (!chartData.length) {
@@ -275,6 +280,9 @@ function WorkspaceBlock({
           </button>
           <button type="button" onClick={() => onResize(block.id, { h: 1 })} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} aria-label="Increase height">
             H+
+          </button>
+          <button type="button" onClick={() => onResize(block.id, { h: -1 })} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} aria-label="Decrease height">
+            H-
           </button>
           <button type="button" onClick={() => onRemove(block.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} aria-label={`Remove ${BLOCK_META[block.type].title}`}>
             <Trash2 size={13} />
@@ -354,7 +362,10 @@ export default function ModularWorkspaceCanvas({
   function addBlock(type: BlockType) {
     setBlocks((previous) => {
       const meta = BLOCK_META[type];
-      return [...previous, { id: `${type}-${Date.now()}`, type, w: meta.defaultW, h: meta.defaultH }];
+      const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? `${type}-${crypto.randomUUID()}`
+        : `${type}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+      return [...previous, { id, type, w: meta.defaultW, h: meta.defaultH }];
     });
   }
 

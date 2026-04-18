@@ -70,7 +70,7 @@
   --overlay-action-border: rgba(255, 255, 255, 0.26);
   --overlay-action-danger-bg: rgba(82, 25, 36, 0.84);
   --accent-glow: rgba(47, 107, 255, 0.52);
-  --glow-button: none;
+  --glow-button: 0 0 0 0 transparent;
   --glow-focus: 0 0 0 3px rgba(47, 107, 255, 0.24);
   --blur-md: 20px;
   --shell-offset: 184px;

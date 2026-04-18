@@ -6,6 +6,11 @@ import { useDashboardStats } from '@/lib/queries';
 import ModularWorkspaceCanvas from '@/components/workspace/ModularWorkspaceCanvas';
 import type { Activity, Asset, Client, PublishingSchedule } from '@/lib/types';
 
+const MAX_SCHEDULED_ITEMS = 6;
+const MAX_AT_RISK_TASKS = 8;
+const MAX_RECENT_ASSETS = 12;
+const MAX_ACTIVE_CLIENTS = 8;
+
 export default function DashboardPage() {
   const { data: stats } = useDashboardStats();
 
@@ -29,7 +34,7 @@ export default function DashboardPage() {
         .gte('scheduled_date', todayStr)
         .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true })
-        .limit(6);
+        .limit(MAX_SCHEDULED_ITEMS);
       return (data ?? []) as unknown as PublishingSchedule[];
     },
     staleTime: 60_000,
@@ -56,7 +61,7 @@ export default function DashboardPage() {
         .lte('due_date', soonStr)
         .not('status', 'in', '("done","delivered","completed","published","cancelled")')
         .order('due_date', { ascending: true })
-        .limit(8);
+        .limit(MAX_AT_RISK_TASKS);
       return (data ?? []) as unknown as Array<{ id: string; title: string; due_date?: string; client?: { name: string; slug?: string } | null }>;
     },
     staleTime: 60_000,
@@ -69,7 +74,7 @@ export default function DashboardPage() {
         .from('assets')
         .select('id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id')
         .order('created_at', { ascending: false })
-        .limit(12);
+        .limit(MAX_RECENT_ASSETS);
       return (data ?? []) as Asset[];
     },
     staleTime: 60_000,
@@ -83,7 +88,7 @@ export default function DashboardPage() {
         .select('id, name, slug, status, updated_at')
         .eq('status', 'active')
         .order('updated_at', { ascending: false })
-        .limit(8);
+        .limit(MAX_ACTIVE_CLIENTS);
       return (data ?? []) as Client[];
     },
     staleTime: 60_000,
