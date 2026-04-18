@@ -167,7 +167,7 @@ export default function AiCommandCenter() {
       setClients((json.clients ?? []).map((c: Record<string, unknown>) => ({
         id: String(c.id ?? ''),
         name: String(c.name ?? ''),
-      })).filter(c => c.id && c.name));
+      })).filter((c: ClientOption) => c.id && c.name));
     } catch {
       // ignore
     }
