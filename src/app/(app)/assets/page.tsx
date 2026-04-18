@@ -104,6 +104,15 @@ function monthLabel(mm: string): string {
   return MONTH_NAMES[idx] ?? mm;
 }
 
+function normalizeClientLogoUrl(logo?: string): string | null {
+  if (!logo) return null;
+  const trimmed = logo.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('/')) return trimmed;
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) return trimmed;
+  return null;
+}
+
 function getAssetYear(asset: Asset): string {
   if (asset.month_key && asset.month_key.length >= 4) return asset.month_key.slice(0, 4);
   if (asset.created_at) return new Date(asset.created_at).getFullYear().toString();
@@ -202,6 +211,7 @@ function ClientFolderCard({
   onDelete?: () => void;
 }) {
   const initial = label.trim().charAt(0).toUpperCase() || '?';
+  const logoUrl = normalizeClientLogoUrl(logo);
   return (
     <div
       role="button"
@@ -218,12 +228,9 @@ function ClientFolderCard({
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="min-w-0 flex items-center gap-3">
           <div className="shrink-0 w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden" style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.9), rgba(139,92,246,0.9))' }}>
-            {logo ? (
-              <div
-                className="w-full h-full bg-center bg-cover"
-                style={{ backgroundImage: `url("${logo.replaceAll('"', '\\"')}")` }}
-                aria-label={`${label} logo`}
-              />
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" />
             ) : (
               <span className="text-lg font-bold text-white">{initial}</span>
             )}
@@ -1124,26 +1131,25 @@ export default function AssetsPage() {
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
             <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}>
-              {folderEntries.map(({ key, count }) => (
-                pathDepth === 0 ? (
-                  (() => {
-                    const clientMeta = clients.find(c => c.name === key);
-                    return (
-                  <ClientFolderCard
-                    key={key}
-                    label={key}
-                    count={count}
-                    slug={clientMeta?.slug}
-                    logo={clientMeta?.logo}
-                    onView={() => navigateInto(key)}
-                    onDownload={() => void handleDownloadClient(key)}
-                    isDownloading={downloadingClient === key}
-                    canDelete={isOwner && Boolean(clientMeta?.id)}
-                    onDelete={clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
-                  />
-                    );
-                  })()
-                ) : (
+              {folderEntries.map(({ key, count }) => {
+                if (pathDepth === 0) {
+                  const clientMeta = clients.find(c => c.name === key);
+                  return (
+                    <ClientFolderCard
+                      key={key}
+                      label={key}
+                      count={count}
+                      slug={clientMeta?.slug}
+                      logo={clientMeta?.logo}
+                      onView={() => navigateInto(key)}
+                      onDownload={() => void handleDownloadClient(key)}
+                      isDownloading={downloadingClient === key}
+                      canDelete={isOwner && Boolean(clientMeta?.id)}
+                      onDelete={clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
+                    />
+                  );
+                }
+                return (
                   <FolderCard
                     key={key}
                     label={folderCardLabel(key)}
@@ -1151,8 +1157,8 @@ export default function AssetsPage() {
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
                   />
-                )
-              ))}
+                );
+              })}
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
