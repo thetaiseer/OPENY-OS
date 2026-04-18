@@ -59,7 +59,8 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
   failed_db:     '#d97706',
   failed_upload: '#ef4444',
 };
-const COMPLETED_UPLOAD_AUTO_DISMISS_MS = 1200;
+const COMPLETED_UPLOAD_AUTO_DISMISS_DELAY_MS = 1200;
+const FAB_STACK_BOTTOM_OFFSET = 'calc(1.75rem + 3.5rem + 0.75rem)';
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
 
@@ -227,7 +228,6 @@ export default function GlobalUploadQueue() {
 
   // Show a success toast the first time each item reaches 'completed'.
   useEffect(() => {
-    setMounted(false);
     const raf = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -239,7 +239,7 @@ export default function GlobalUploadQueue() {
       const timer = setTimeout(() => {
         removeItem(item.id);
         completedTimers.current.delete(item.id);
-      }, COMPLETED_UPLOAD_AUTO_DISMISS_MS);
+      }, COMPLETED_UPLOAD_AUTO_DISMISS_DELAY_MS);
       completedTimers.current.set(item.id, timer);
     }
     for (const [id, timer] of completedTimers.current.entries()) {
@@ -307,7 +307,7 @@ export default function GlobalUploadQueue() {
     <div
       className="fixed right-7 z-[41] rounded-3xl overflow-hidden"
       style={{
-        bottom:      'calc(1.75rem + 3.5rem + 0.75rem)',
+        bottom:      FAB_STACK_BOTTOM_OFFSET,
         width:       'min(360px, calc(100vw - 24px))',
         maxHeight:   minimised ? 'auto' : 480,
         transition:  'opacity 220ms var(--ease-smooth), transform 220ms var(--ease-smooth)',
