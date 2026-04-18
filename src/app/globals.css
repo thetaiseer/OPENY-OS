@@ -500,7 +500,7 @@ textarea::placeholder,
 .animate-openy-toast-in,
 .animate-openy-slide-up,
 .animate-openy-scale-in {
-  animation: none !important;
+  animation: none;
 }
 
 table {
