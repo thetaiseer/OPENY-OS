@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Cairo:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=Cairo:wght@300;400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,83 +8,87 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── OPENY Brand Tokens: Light Mode ──────────────────── */
-  --bg-base: #f5f7fc;
-  --bg-secondary: #ebf0f8;
-  --bg-tertiary: #e2e8f2;
+  /* ── Provided Glass Theme: Light Mode ─────────────────── */
+  --c-glass: #bbbbbc;
+  --c-light: #ffffff;
+  --c-dark: #000000;
+  --c-content: #222244;
+  --c-action: #0052f5;
+  --c-bg: #e8e8e9;
+  --glass-reflex-dark: 1;
+  --glass-reflex-light: 1;
+  --saturation: 150%;
 
-  --surface-glass: rgba(255, 255, 255, 0.84);
-  --surface-elevated: rgba(248, 251, 255, 0.78);
-  --surface-muted: rgba(236, 242, 251, 0.64);
-  --surface-solid-base: #ffffff;
+  --bg-base: var(--c-bg);
+  --bg-secondary: color-mix(in srgb, var(--c-bg) 82%, var(--c-light));
+  --bg-tertiary: color-mix(in srgb, var(--c-bg) 68%, var(--c-light));
 
-  --primary: #2f6bff;
-  --primary-hover: #1f5cf0;
-  --primary-soft: rgba(47, 107, 255, 0.14);
-  --primary-glow: rgba(47, 107, 255, 0.26);
-  --primary-glow-strong: rgba(47, 107, 255, 0.38);
+  --surface-glass: color-mix(in srgb, var(--c-glass) 16%, transparent);
+  --surface-elevated: color-mix(in srgb, var(--c-glass) 24%, transparent);
+  --surface-muted: color-mix(in srgb, var(--c-glass) 12%, transparent);
+  --surface-solid-base: color-mix(in srgb, var(--c-light) 92%, var(--c-bg));
 
-  --text-primary: #0f1c36;
-  --text-secondary-base: #596784;
-  --text-tertiary-base: #7a87a3;
+  --primary: var(--c-action);
+  --primary-hover: color-mix(in srgb, var(--c-action), var(--c-content) 24%);
+  --primary-soft: color-mix(in srgb, var(--c-action) 16%, transparent);
+  --primary-glow: color-mix(in srgb, var(--c-action) 28%, transparent);
+  --primary-glow-strong: color-mix(in srgb, var(--c-action) 40%, transparent);
 
-  --border-subtle: rgba(86, 116, 167, 0.20);
-  --border-soft: rgba(86, 116, 167, 0.12);
-  --border-stronger: rgba(47, 107, 255, 0.28);
+  --text-primary: var(--c-content);
+  --text-secondary-base: color-mix(in srgb, var(--c-content) 66%, var(--c-bg));
+  --text-tertiary-base: color-mix(in srgb, var(--c-content) 52%, var(--c-bg));
 
-  --shadow-tint: rgba(35, 53, 92, 0.14);
-  --shadow-blue-hint: rgba(47, 107, 255, 0.08);
-  --shadow-xs-brand: 0 1px 2px rgba(15, 28, 54, 0.04);
-  --shadow-sm-brand: 0 4px 10px rgba(15, 28, 54, 0.06);
-  --shadow-md-brand: 0 8px 16px rgba(15, 28, 54, 0.08);
-  --shadow-lg-brand: 0 12px 22px rgba(15, 28, 54, 0.1);
+  --border-subtle: color-mix(in srgb, color-mix(in srgb, var(--c-light) 57%, var(--c-dark) 43%) 28%, transparent);
+  --border-soft: color-mix(in srgb, color-mix(in srgb, var(--c-light) 56%, var(--c-dark) 44%) 18%, transparent);
+  --border-stronger: color-mix(in srgb, var(--c-action) 40%, var(--c-bg));
 
-  --glow-button: 0 6px 16px rgba(47, 107, 255, 0.18);
+  --shadow-tint: color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent);
+  --shadow-blue-hint: color-mix(in srgb, var(--c-action) 10%, transparent);
+  --shadow-xs-brand: 0 1px 2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
+  --shadow-sm-brand: 0 4px 10px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
+  --shadow-md-brand: 0 8px 16px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 16%), transparent);
+  --shadow-lg-brand: 0 12px 22px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent);
+
+  --glow-button: 0 6px 16px color-mix(in srgb, var(--c-action) 22%, transparent);
   --glow-focus: 0 0 0 3px var(--primary-soft);
-  --glow-hover: 0 6px 14px rgba(47, 107, 255, 0.16);
-  --glow-active: 0 2px 8px rgba(47, 107, 255, 0.14);
+  --glow-hover: 0 6px 14px color-mix(in srgb, var(--c-action) 18%, transparent);
+  --glow-active: 0 2px 8px color-mix(in srgb, var(--c-action) 16%, transparent);
 
-  /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar-bg: rgba(252, 254, 255, 0.72);
-  --sidebar-border: rgba(47, 107, 255, 0.20);
+  --sidebar-bg: color-mix(in srgb, var(--c-glass) 20%, transparent);
+  --sidebar-border: color-mix(in srgb, color-mix(in srgb, var(--c-light) 62%, var(--c-dark) 38%) 32%, transparent);
 
-  /* ── Header ──────────────────────────────────────────── */
-  --header-bg: rgba(253, 254, 255, 0.78);
-  --header-border: rgba(47, 107, 255, 0.16);
+  --header-bg: color-mix(in srgb, var(--c-glass) 18%, transparent);
+  --header-border: color-mix(in srgb, color-mix(in srgb, var(--c-light) 61%, var(--c-dark) 39%) 26%, transparent);
 
-  /* ── Glassmorphism utilities ─────────────────────────── */
   --glass-bg: var(--surface-glass);
-  --glass-bg-hover: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(255, 255, 255, 0.78);
+  --glass-bg-hover: color-mix(in srgb, var(--c-glass) 28%, transparent);
+  --glass-border: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 24%), transparent);
   --glass-blur: 22px;
   --glass-shadow: var(--shadow-sm-brand);
   --glass-shadow-lg: var(--shadow-lg-brand);
   --glass-shadow-sm: var(--shadow-xs-brand);
 
-  /* ── General Shadows ─────────────────────────────────── */
   --shadow-xs: var(--shadow-xs-brand);
   --shadow-sm: var(--shadow-sm-brand);
   --shadow-md: var(--shadow-md-brand);
   --shadow-lg: var(--shadow-lg-brand);
-  --shadow-xl: 0 20px 40px rgba(15, 28, 54, 0.16);
+  --shadow-xl: 0 20px 40px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 28%), transparent);
 
-  --menu-bg: rgba(248, 251, 255, 0.95);
-  --menu-bg-strong: rgba(255, 255, 255, 0.92);
-  --menu-border: rgba(75, 113, 176, 0.24);
-  --menu-shadow: 0 12px 28px rgba(13, 29, 65, 0.16);
-  --menu-item-hover: rgba(47, 107, 255, 0.11);
-  --menu-item-active: rgba(47, 107, 255, 0.18);
-  --overlay-action-bg: rgba(10, 14, 24, 0.74);
-  --overlay-action-border: rgba(255, 255, 255, 0.26);
+  --menu-bg: color-mix(in srgb, var(--c-glass) 24%, transparent);
+  --menu-bg-strong: color-mix(in srgb, var(--c-glass) 32%, transparent);
+  --menu-border: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), var(--c-dark) calc(var(--glass-reflex-dark) * 10%));
+  --menu-shadow: 0 12px 28px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent);
+  --menu-item-hover: color-mix(in srgb, var(--c-action) 14%, transparent);
+  --menu-item-active: color-mix(in srgb, var(--c-action) 22%, transparent);
+  --overlay-action-bg: color-mix(in srgb, var(--c-dark) 72%, var(--c-bg));
+  --overlay-action-border: color-mix(in srgb, var(--c-light) 28%, transparent);
   --overlay-action-danger-bg: rgba(190, 35, 54, 0.82);
 
-  /* ── Blur Scale ──────────────────────────────────────── */
   --blur-sm: 8px;
   --blur-md: 18px;
   --blur-lg: 28px;
   --blur-xl: 44px;
 
-  /* ── Radius Scale ────────────────────────────────────── */
   --radius-xs: 8px;
   --radius-sm: 10px;
   --radius-md: 12px;
@@ -93,7 +97,6 @@
   --radius-2xl: 18px;
   --radius-full: 9999px;
 
-  /* ── Spacing Scale ───────────────────────────────────── */
   --space-2xs: 0.25rem;
   --space-xs: 0.5rem;
   --space-sm: 0.75rem;
@@ -102,7 +105,6 @@
   --space-xl: 2rem;
   --space-2xl: 2rem;
 
-  /* ── Motion ──────────────────────────────────────────── */
   --duration-fast: 120ms;
   --duration-normal: 220ms;
   --duration-slow: 420ms;
@@ -110,7 +112,6 @@
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
 
-  /* ── Typography Tokens ───────────────────────────────── */
   --font-heading-weight: 700;
   --font-heading-spacing: -0.02em;
   --font-size-display: clamp(2rem, 5vw, 3rem);
@@ -118,21 +119,19 @@
   --font-size-h2: clamp(1.25rem, 2.2vw, 1.75rem);
   --font-size-metric: clamp(1.75rem, 3.2vw, 2.5rem);
 
-  /* ── State Colors ────────────────────────────────────── */
   --color-success: #10b981;
-  --color-success-bg: rgba(16, 185, 129, 0.10);
-  --color-success-border: rgba(16, 185, 129, 0.22);
+  --color-success-bg: color-mix(in srgb, #10b981 14%, transparent);
+  --color-success-border: color-mix(in srgb, #10b981 28%, transparent);
   --color-warning: #f59e0b;
-  --color-warning-bg: rgba(245, 158, 11, 0.10);
-  --color-warning-border: rgba(245, 158, 11, 0.22);
+  --color-warning-bg: color-mix(in srgb, #f59e0b 14%, transparent);
+  --color-warning-border: color-mix(in srgb, #f59e0b 28%, transparent);
   --color-danger: #ef4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.10);
-  --color-danger-border: rgba(239, 68, 68, 0.22);
+  --color-danger-bg: color-mix(in srgb, #ef4444 14%, transparent);
+  --color-danger-border: color-mix(in srgb, #ef4444 28%, transparent);
   --color-info: #3b82f6;
-  --color-info-bg: rgba(59, 130, 246, 0.10);
-  --color-info-border: rgba(59, 130, 246, 0.22);
+  --color-info-bg: color-mix(in srgb, #3b82f6 14%, transparent);
+  --color-info-border: color-mix(in srgb, #3b82f6 28%, transparent);
 
-  /* ── Backward Compatible Alias Tokens ────────────────── */
   --bg: var(--bg-base);
   --bg-2: var(--bg-secondary);
   --bg-3: var(--bg-tertiary);
@@ -174,50 +173,60 @@
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
 .dark {
-  --bg-base: #05070a;
-  --bg-secondary: #0a0f1c;
-  --bg-tertiary: #111a2f;
+  --c-glass: #bbbbbc;
+  --c-light: #ffffff;
+  --c-dark: #000000;
+  --c-content: #e1e1e1;
+  --c-action: #03d5ff;
+  --c-bg: #1b1b1d;
+  --glass-reflex-dark: 2;
+  --glass-reflex-light: 0.3;
+  --saturation: 150%;
 
-  --surface-glass: rgba(13, 19, 34, 0.78);
-  --surface-elevated: rgba(16, 24, 43, 0.70);
-  --surface-muted: rgba(13, 20, 37, 0.56);
-  --surface-solid-base: #0c1527;
+  --bg-base: var(--c-bg);
+  --bg-secondary: color-mix(in srgb, var(--c-bg) 88%, var(--c-dark));
+  --bg-tertiary: color-mix(in srgb, var(--c-bg) 72%, var(--c-light));
 
-  --primary: #2f6bff;
-  --primary-hover: #4c83ff;
-  --primary-soft: rgba(47, 107, 255, 0.24);
-  --primary-glow: rgba(47, 107, 255, 0.38);
-  --primary-glow-strong: rgba(76, 131, 255, 0.50);
+  --surface-glass: color-mix(in srgb, var(--c-glass) 12%, transparent);
+  --surface-elevated: color-mix(in srgb, var(--c-glass) 18%, transparent);
+  --surface-muted: color-mix(in srgb, var(--c-glass) 9%, transparent);
+  --surface-solid-base: color-mix(in srgb, var(--c-bg) 90%, var(--c-dark));
 
-  --text-primary: #f5f8ff;
-  --text-secondary-base: #9caed1;
-  --text-tertiary-base: #7287ad;
+  --primary: var(--c-action);
+  --primary-hover: color-mix(in srgb, var(--c-action), var(--c-light) 18%);
+  --primary-soft: color-mix(in srgb, var(--c-action) 24%, transparent);
+  --primary-glow: color-mix(in srgb, var(--c-action) 38%, transparent);
+  --primary-glow-strong: color-mix(in srgb, var(--c-action) 50%, transparent);
 
-  --border-subtle: rgba(165, 188, 255, 0.20);
-  --border-soft: rgba(165, 188, 255, 0.12);
-  --border-stronger: rgba(67, 118, 255, 0.42);
+  --text-primary: var(--c-content);
+  --text-secondary-base: color-mix(in srgb, var(--c-content) 68%, var(--c-bg));
+  --text-tertiary-base: color-mix(in srgb, var(--c-content) 50%, var(--c-bg));
 
-  --shadow-tint: rgba(0, 0, 0, 0.52);
-  --shadow-blue-hint: rgba(47, 107, 255, 0.14);
-  --shadow-xs-brand: 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-sm-brand: 0 5px 12px rgba(0, 0, 0, 0.3);
-  --shadow-md-brand: 0 8px 18px rgba(0, 0, 0, 0.36);
-  --shadow-lg-brand: 0 12px 24px rgba(0, 0, 0, 0.4);
+  --border-subtle: color-mix(in srgb, color-mix(in srgb, var(--c-light) 18%, var(--c-dark) 82%) 34%, transparent);
+  --border-soft: color-mix(in srgb, color-mix(in srgb, var(--c-light) 15%, var(--c-dark) 85%) 22%, transparent);
+  --border-stronger: color-mix(in srgb, var(--c-action) 44%, var(--c-bg));
 
-  --glow-button: 0 6px 18px rgba(47, 107, 255, 0.26);
+  --shadow-tint: color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 26%), transparent);
+  --shadow-blue-hint: color-mix(in srgb, var(--c-action) 14%, transparent);
+  --shadow-xs-brand: 0 1px 2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
+  --shadow-sm-brand: 0 5px 12px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 16%), transparent);
+  --shadow-md-brand: 0 8px 18px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 18%), transparent);
+  --shadow-lg-brand: 0 12px 24px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent);
+
+  --glow-button: 0 6px 18px color-mix(in srgb, var(--c-action) 28%, transparent);
   --glow-focus: 0 0 0 3px var(--primary-soft);
-  --glow-hover: 0 7px 16px rgba(47, 107, 255, 0.22);
-  --glow-active: 0 3px 10px rgba(47, 107, 255, 0.20);
+  --glow-hover: 0 7px 16px color-mix(in srgb, var(--c-action) 24%, transparent);
+  --glow-active: 0 3px 10px color-mix(in srgb, var(--c-action) 20%, transparent);
 
-  --sidebar-bg: rgba(7, 11, 20, 0.78);
-  --sidebar-border: rgba(140, 174, 255, 0.24);
+  --sidebar-bg: color-mix(in srgb, var(--c-glass) 10%, transparent);
+  --sidebar-border: color-mix(in srgb, color-mix(in srgb, var(--c-light) 20%, var(--c-dark) 80%) 30%, transparent);
 
-  --header-bg: rgba(7, 12, 22, 0.72);
-  --header-border: rgba(140, 174, 255, 0.18);
+  --header-bg: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  --header-border: color-mix(in srgb, color-mix(in srgb, var(--c-light) 20%, var(--c-dark) 80%) 28%, transparent);
 
   --glass-bg: var(--surface-glass);
-  --glass-bg-hover: rgba(13, 22, 40, 0.84);
-  --glass-border: rgba(148, 182, 255, 0.20);
+  --glass-bg-hover: color-mix(in srgb, var(--c-glass) 18%, transparent);
+  --glass-border: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
   --glass-shadow: var(--shadow-sm-brand);
   --glass-shadow-lg: var(--shadow-lg-brand);
   --glass-shadow-sm: var(--shadow-xs-brand);
@@ -226,30 +235,42 @@
   --shadow-sm: var(--shadow-sm-brand);
   --shadow-md: var(--shadow-md-brand);
   --shadow-lg: var(--shadow-lg-brand);
-  --shadow-xl: 0 22px 46px rgba(0, 0, 0, 0.56);
+  --shadow-xl: 0 22px 46px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 30%), transparent);
 
-  --menu-bg: rgba(11, 18, 33, 0.94);
-  --menu-bg-strong: rgba(13, 22, 40, 0.92);
-  --menu-border: rgba(128, 164, 255, 0.30);
-  --menu-shadow: 0 14px 32px rgba(0, 0, 0, 0.44);
-  --menu-item-hover: rgba(77, 129, 255, 0.18);
-  --menu-item-active: rgba(77, 129, 255, 0.26);
-  --overlay-action-bg: rgba(7, 11, 20, 0.82);
-  --overlay-action-border: rgba(196, 215, 255, 0.28);
+  --menu-bg: color-mix(in srgb, var(--c-glass) 14%, transparent);
+  --menu-bg-strong: color-mix(in srgb, var(--c-glass) 18%, transparent);
+  --menu-border: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 18%), var(--c-dark) calc(var(--glass-reflex-dark) * 12%));
+  --menu-shadow: 0 14px 32px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 24%), transparent);
+  --menu-item-hover: color-mix(in srgb, var(--c-action) 18%, transparent);
+  --menu-item-active: color-mix(in srgb, var(--c-action) 26%, transparent);
+  --overlay-action-bg: color-mix(in srgb, var(--c-dark) 82%, var(--c-bg));
+  --overlay-action-border: color-mix(in srgb, var(--c-light) 28%, transparent);
   --overlay-action-danger-bg: rgba(190, 35, 54, 0.88);
 
   --color-success: #20d39b;
-  --color-success-bg: rgba(32, 211, 155, 0.14);
-  --color-success-border: rgba(32, 211, 155, 0.30);
+  --color-success-bg: color-mix(in srgb, #20d39b 14%, transparent);
+  --color-success-border: color-mix(in srgb, #20d39b 30%, transparent);
   --color-warning: #f6b73c;
-  --color-warning-bg: rgba(246, 183, 60, 0.14);
-  --color-warning-border: rgba(246, 183, 60, 0.30);
+  --color-warning-bg: color-mix(in srgb, #f6b73c 14%, transparent);
+  --color-warning-border: color-mix(in srgb, #f6b73c 30%, transparent);
   --color-danger: #ff6a7f;
-  --color-danger-bg: rgba(255, 106, 127, 0.14);
-  --color-danger-border: rgba(255, 106, 127, 0.30);
+  --color-danger-bg: color-mix(in srgb, #ff6a7f 14%, transparent);
+  --color-danger-border: color-mix(in srgb, #ff6a7f 30%, transparent);
   --color-info: #5f9bff;
-  --color-info-bg: rgba(95, 155, 255, 0.14);
-  --color-info-border: rgba(95, 155, 255, 0.30);
+  --color-info-bg: color-mix(in srgb, #5f9bff 14%, transparent);
+  --color-info-border: color-mix(in srgb, #5f9bff 30%, transparent);
+}
+
+.dim {
+  --c-light: #99deff;
+  --c-dark: #20001b;
+  --c-glass: hsl(335 100% 74% / 1);
+  --c-content: #d5dbe2;
+  --c-action: #ff48a9;
+  --c-bg: #152433;
+  --glass-reflex-dark: 2;
+  --glass-reflex-light: 0.7;
+  --saturation: 200%;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -303,7 +324,7 @@ body {
   margin: 0;
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', 'Cairo', sans-serif;
+  font-family: 'DM Sans', 'Cairo', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
@@ -311,10 +332,11 @@ body {
   width: 100%;
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
+  transition: background-color 400ms cubic-bezier(1, 0, 0.4, 1), color 400ms cubic-bezier(1, 0, 0.4, 1);
 }
 
 [dir="rtl"] body {
-  font-family: 'Cairo', 'Inter', sans-serif;
+  font-family: 'Cairo', 'DM Sans', sans-serif;
 }
 
 img, svg { max-width: 100%; }
@@ -665,8 +687,8 @@ select option { white-space: normal; }
 /* ── Sidebar Glass ───────────────────────────────────────── */
 .sidebar-glass {
   background: var(--sidebar-bg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--saturation));
   border-color: var(--sidebar-border);
   box-shadow: var(--shadow-xs);
 }
@@ -674,8 +696,8 @@ select option { white-space: normal; }
 /* ── Header Glass ────────────────────────────────────────── */
 .header-glass {
   background: var(--header-bg);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(20px) saturate(var(--saturation));
   border-color: var(--header-border);
   box-shadow: 0 1px 0 var(--border);
 }
