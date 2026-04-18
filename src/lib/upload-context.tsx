@@ -123,6 +123,8 @@ export interface UploadItem {
   // ── metadata ───────────────────────────────────────────────────
   clientName:   string;
   clientId:     string;
+  taskId:       string | null;
+  contentItemId: string | null;
   contentType:  string;
   mainCategory: string;
   subCategory:  string;
@@ -178,6 +180,8 @@ export interface UploadItem {
 export interface BatchMeta {
   clientName:   string;
   clientId:     string;
+  taskId?:      string | null;
+  contentItemId?: string | null;
   contentType:  string;
   mainCategory: string;
   subCategory:  string;
@@ -1094,6 +1098,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       originalName: item.file.name,
       clientName: item.clientName,
       clientId: item.clientId,
+      taskId: item.taskId,
+      contentItemId: item.contentItemId,
       fileType: mimeType,
       fileSize: item.file.size,
       mainCategory: item.mainCategory || null,
@@ -1214,6 +1220,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       uploadName:    i.uploadName,
       clientName:    meta.clientName,
       clientId:      meta.clientId,
+      taskId:        meta.taskId ?? null,
+      contentItemId: meta.contentItemId ?? null,
       contentType:   meta.contentType,
       mainCategory:  meta.mainCategory,
       subCategory:   meta.subCategory,

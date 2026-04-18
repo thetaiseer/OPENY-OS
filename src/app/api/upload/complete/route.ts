@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
   const displayName         = (body.displayName         as string | undefined)?.trim() ?? '';
   const clientName          = (body.clientName          as string | undefined)?.trim() ?? '';
   const clientId            = (body.clientId            as string | undefined)?.trim() || null;
+  const taskId              = (body.taskId              as string | undefined)?.trim() || null;
+  const contentItemId       = (body.contentItemId       as string | undefined)?.trim() || null;
   const fileType            = (body.fileType            as string | undefined)?.trim() ?? 'application/octet-stream';
   const fileSize            = Number(body.fileSize ?? 0) || null;
   const mainCategory        = (body.mainCategory        as string | undefined)?.trim() || null;
@@ -205,6 +207,7 @@ export async function POST(req: NextRequest) {
     web_view_link:    publicUrl,
     ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
     ...(clientId   ? { client_id:   clientId   } : {}),
+    ...(taskId     ? { task_id:     taskId     } : {}),
     // Canonical uploader identity for DB relations/auditing (UUID from auth profile).
     ...(auth.profile.id ? { uploaded_by: auth.profile.id } : {}),
     // Optional display label from client UI; kept separate from the canonical UUID above.
@@ -253,6 +256,28 @@ export async function POST(req: NextRequest) {
 
   // ── Notify (fire-and-forget) ───────────────────────────────────────────────
   if (inserted) {
+    const insertedAssetId = String(inserted.id ?? 'unknown-asset-id');
+    if (taskId) {
+      void supabase.from('task_asset_links').upsert({
+        task_id: taskId,
+        asset_id: inserted.id as string,
+        linked_by: auth.profile.id,
+      }, { onConflict: 'task_id,asset_id' }).then(({ error }) => {
+        if (error) console.warn('[upload/complete] task_asset_links upsert failed for task:', taskId, 'asset:', insertedAssetId, 'error:', error.message);
+      });
+    }
+    if (contentItemId) {
+      void supabase.from('entity_links').upsert({
+        source_type: 'content',
+        source_id: contentItemId,
+        target_type: 'asset',
+        target_id: inserted.id as string,
+        link_type: 'related',
+        created_by: auth.profile.id,
+      }, { onConflict: 'source_type,source_id,target_type,target_id' }).then(({ error }) => {
+        if (error) console.warn('[upload/complete] content->asset link failed for content:', contentItemId, 'asset:', insertedAssetId, 'error:', error.message);
+      });
+    }
     void notifyAssetUploaded({
       assetId:      inserted.id as string,
       assetName:    displayName,

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import { useToast } from '@/lib/toast-context';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -51,13 +52,23 @@ function postTypeLabel(value: string): string {
   return pt ? pt.label : value;
 }
 
+function getScheduleDisplayName(schedule: PublishingSchedule): string {
+  return schedule.client_name
+    ?? (schedule as unknown as { content_item?: { title?: string } }).content_item?.title
+    ?? schedule.asset?.name
+    ?? 'Schedule';
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { toast } = useToast();
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [dragging, setDragging] = useState<{ type: 'task' | 'content' | 'schedule'; id: string } | null>(null);
   // Selected schedule for detail view
   const [selectedSchedule, setSelectedSchedule] = useState<PublishingSchedule | null>(null);
   const [markingPublished, setMarkingPublished] = useState(false);
@@ -181,6 +192,66 @@ export default function CalendarPage() {
   const selectedSchedules = selectedDay ? (schedulesByDay[selectedDay] ?? []) : [];
   const selectedContent   = selectedDay ? (contentByDay[selectedDay]   ?? []) : [];
 
+  const selectedDateKey = selectedDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}` : null;
+
+  const weekDays = useMemo(() => {
+    const day = selectedDay ?? today.getDate();
+    const current = new Date(year, month, day);
+    const start = new Date(current);
+    start.setDate(current.getDate() - current.getDay());
+    return Array.from({ length: 7 }).map((_, idx) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + idx);
+      return {
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        day: d.getDate(),
+        dayOfWeek: d.getDay(),
+        month: d.getMonth(),
+        year: d.getFullYear(),
+      };
+    });
+  }, [month, selectedDay, today, year]);
+
+  const dayItems = useMemo(() => {
+    if (!selectedDateKey) return [];
+    const items: Array<{ id: string; type: 'task' | 'content' | 'schedule'; title: string; subtitle?: string; color: string }> = [];
+    selectedTasks.forEach(task => items.push({ id: task.id, type: 'task', title: task.title, subtitle: task.client?.name, color: '#2563eb' }));
+    selectedContent.forEach(contentItem => items.push({ id: contentItem.id, type: 'content', title: contentItem.title, subtitle: contentItem.status, color: 'var(--accent)' }));
+    selectedSchedules.forEach(schedule => items.push({ id: schedule.id, type: 'schedule', title: getScheduleDisplayName(schedule), subtitle: schedule.client_name ?? undefined, color: '#7c3aed' }));
+    return items;
+  }, [selectedDateKey, selectedTasks, selectedContent, selectedSchedules]);
+
+  const handleReschedule = async (targetDate: string) => {
+    if (!dragging) return;
+    try {
+      if (dragging.type === 'task') {
+        await fetch(`/api/tasks/${dragging.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ due_date: targetDate }),
+        });
+      } else if (dragging.type === 'content') {
+        await fetch(`/api/content-items/${dragging.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schedule_date: targetDate, status: 'scheduled' }),
+        });
+      } else {
+        await fetch(`/api/publishing-schedules/${dragging.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduled_date: targetDate }),
+        });
+      }
+      toast('Rescheduled successfully', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['calendar', year, month] });
+      setDragging(null);
+    } catch {
+      toast('Failed to reschedule', 'error');
+      setDragging(null);
+    }
+  };
+
   // ── Mark as published ───────────────────────────────────────────────────────
   const handleMarkPublished = async (schedule: PublishingSchedule) => {
     setMarkingPublished(true);
@@ -210,14 +281,26 @@ export default function CalendarPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Calendar</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             View tasks, content, assets, and publishing schedules by date
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-lg p-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {(['month', 'week', 'day'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold capitalize"
+                style={{ background: viewMode === mode ? 'var(--accent)' : 'transparent', color: viewMode === mode ? '#fff' : 'var(--text-secondary)' }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
           <button
             onClick={prevMonth}
             className="p-2 rounded-lg transition-opacity hover:opacity-70"
@@ -263,138 +346,166 @@ export default function CalendarPage() {
 
         {/* Calendar grid */}
         <div className="lg:col-span-2">
-          <div
-            className="rounded-2xl border overflow-hidden"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            {/* Day headers */}
-            <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
-              {DAY_NAMES.map(d => (
-                <div
-                  key={d}
-                  className="py-3 text-center text-xs font-semibold"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {d}
+          {viewMode === 'month' ? (
+            <div
+              className="rounded-2xl border overflow-hidden"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
+                {DAY_NAMES.map(d => (
+                  <div key={d} className="py-3 text-center text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-7">
+                  {[...Array(35)].map((_, i) => (
+                    <div key={i} className="h-24 border-r border-b animate-pulse" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }} />
+                  ))}
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="grid grid-cols-7">
+                  {[...Array(firstDay)].map((_, i) => (
+                    <div key={`e-${i}`} className="h-24 border-r border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg)', opacity: 0.4 }} />
+                  ))}
 
-            {loading ? (
-              <div className="grid grid-cols-7">
-                {[...Array(35)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-24 border-r border-b animate-pulse"
-                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-7">
-                {/* Empty cells before month start */}
-                {[...Array(firstDay)].map((_, i) => (
-                  <div
-                    key={`e-${i}`}
-                    className="h-24 border-r border-b"
-                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', opacity: 0.4 }}
-                  />
-                ))}
+                  {[...Array(daysInMonth)].map((_, i) => {
+                    const day = i + 1;
+                    const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
+                    const isSelected = selectedDay === day;
+                    const dayTasks = tasksByDay[day] ?? [];
+                    const dayAssets = assetsByDay[day] ?? [];
+                    const daySchedules = schedulesByDay[day] ?? [];
+                    const dayContent = contentByDay[day] ?? [];
+                    const totalVisible = dayTasks.length + dayAssets.length + daySchedules.length + dayContent.length;
+                    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-                {/* Day cells */}
-                {[...Array(daysInMonth)].map((_, i) => {
-                  const day = i + 1;
-                  const isToday = (
-                    year  === today.getFullYear() &&
-                    month === today.getMonth() &&
-                    day   === today.getDate()
-                  );
-                  const isSelected    = selectedDay === day;
-                  const dayTasks      = tasksByDay[day]      ?? [];
-                  const dayAssets     = assetsByDay[day]     ?? [];
-                  const daySchedules  = schedulesByDay[day]  ?? [];
-                  const dayContent    = contentByDay[day]    ?? [];
-                  const totalVisible  = dayTasks.length + dayAssets.length + daySchedules.length + dayContent.length;
-
-                  return (
-                    <div
-                      key={day}
-                      onClick={() => setSelectedDay(isSelected ? null : day)}
-                      className="h-24 border-r border-b p-1 cursor-pointer overflow-hidden transition-colors"
-                      style={{
-                        borderColor: 'var(--border)',
-                        background:  isSelected ? 'var(--accent-soft)' : 'var(--surface)',
-                      }}
-                    >
+                    return (
                       <div
-                        className="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1"
-                        style={{
-                          background: isToday ? 'var(--accent)' : 'transparent',
-                          color:      isToday ? 'white' : 'var(--text)',
+                        key={day}
+                        onClick={() => setSelectedDay(isSelected ? null : day)}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault();
+                          void handleReschedule(dateKey);
                         }}
+                        className="h-24 border-r border-b p-1 cursor-pointer overflow-hidden transition-colors"
+                        style={{ borderColor: 'var(--border)', background: isSelected ? 'var(--accent-soft)' : 'var(--surface)' }}
                       >
-                        {day}
+                        <div className="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1" style={{ background: isToday ? 'var(--accent)' : 'transparent', color: isToday ? 'white' : 'var(--text)' }}>
+                          {day}
+                        </div>
+                        <div className="space-y-0.5 overflow-hidden">
+                          {daySchedules.slice(0, 2).map(s => (
+                            <div
+                              key={s.id}
+                              draggable
+                              onDragStart={() => setDragging({ type: 'schedule', id: s.id })}
+                              className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
+                              style={{ background: `${scheduleStatusColor(s.status)}20`, color: scheduleStatusColor(s.status) }}
+                            >
+                              <Send size={8} className="shrink-0" />
+                              <span className="truncate">{getScheduleDisplayName(s)}</span>
+                            </div>
+                          ))}
+                          {dayContent.slice(0, Math.max(0, 2 - daySchedules.length)).map(c => (
+                            <div
+                              key={c.id}
+                              draggable
+                              onDragStart={() => setDragging({ type: 'content', id: c.id })}
+                              className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
+                              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                            >
+                              <FileText size={8} className="shrink-0" />
+                              <span className="truncate">{c.title}</span>
+                            </div>
+                          ))}
+                          {dayTasks.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length)).map(t => (
+                            <div
+                              key={t.id}
+                              draggable
+                              onDragStart={() => setDragging({ type: 'task', id: t.id })}
+                              className="text-xs px-1 py-0.5 rounded truncate"
+                              style={{ background: `${priorityColor(t.priority)}20`, color: priorityColor(t.priority) }}
+                            >
+                              {t.title}
+                            </div>
+                          ))}
+                          {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length - dayTasks.length)).map(a => (
+                            <div key={a.id} className="text-xs px-1 py-0.5 rounded truncate" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                              {a.name}
+                            </div>
+                          ))}
+                          {totalVisible > 2 && <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>+{totalVisible - 2} more</div>}
+                        </div>
                       </div>
-                      <div className="space-y-0.5 overflow-hidden">
-                        {daySchedules.slice(0, 2).map(s => (
-                          <div
-                            key={s.id}
-                            className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
-                            style={{
-                              background: `${scheduleStatusColor(s.status)}20`,
-                              color:      scheduleStatusColor(s.status),
-                            }}
-                          >
-                            <Send size={8} className="shrink-0" />
-                            <span className="truncate">{s.client_name ?? (s as unknown as { content_item?: { title: string } }).content_item?.title ?? s.asset?.name ?? 'Schedule'}</span>
-                          </div>
-                        ))}
-                        {dayContent.slice(0, Math.max(0, 2 - daySchedules.length)).map(c => (
-                          <div
-                            key={c.id}
-                            className="text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5"
-                            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                          >
-                            <FileText size={8} className="shrink-0" />
-                            <span className="truncate">{c.title}</span>
-                          </div>
-                        ))}
-                        {dayTasks.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length)).map(t => (
-                          <div
-                            key={t.id}
-                            className="text-xs px-1 py-0.5 rounded truncate"
-                            style={{
-                              background: `${priorityColor(t.priority)}20`,
-                              color:      priorityColor(t.priority),
-                            }}
-                          >
-                            {t.title}
-                          </div>
-                        ))}
-                        {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length - dayTasks.length)).map(a => (
-                          <div
-                            key={a.id}
-                            className="text-xs px-1 py-0.5 rounded truncate"
-                            style={{
-                              background: 'rgba(99,102,241,0.12)',
-                              color:      'var(--accent)',
-                            }}
-                          >
-                            {a.name}
-                          </div>
-                        ))}
-                        {totalVisible > 2 && (
-                          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            +{totalVisible - 2} more
-                          </div>
-                        )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              {viewMode === 'week' ? (
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+                  {weekDays.map(day => {
+                    const inCurrentMonth = day.month === month;
+                    const listTasks = inCurrentMonth ? (tasksByDay[day.day] ?? []) : [];
+                    const listContent = inCurrentMonth ? (contentByDay[day.day] ?? []) : [];
+                    const listSchedules = inCurrentMonth ? (schedulesByDay[day.day] ?? []) : [];
+                    return (
+                      <div
+                        key={day.key}
+                        className="rounded-xl border p-2 min-h-28"
+                        style={{ background: inCurrentMonth ? 'var(--surface-2)' : 'var(--surface)', borderColor: day.day === selectedDay ? 'var(--accent)' : 'var(--border)' }}
+                        onClick={() => setSelectedDay(day.day)}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => { e.preventDefault(); void handleReschedule(day.key); }}
+                      >
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                          {DAY_NAMES[day.dayOfWeek]} {day.day}
+                        </p>
+                        {[
+                          ...listSchedules.slice(0, 2).map(s => ({ id: s.id, title: getScheduleDisplayName(s), type: 'schedule' as const, color: '#7c3aed' })),
+                          ...listContent.slice(0, 2).map(c => ({ id: c.id, title: c.title, type: 'content' as const, color: 'var(--accent)' })),
+                          ...listTasks.slice(0, 2).map(t => ({ id: t.id, title: t.title, type: 'task' as const, color: '#2563eb' })),
+                        ].slice(0, 3).map(item => (
+                            <div
+                              key={`${item.type}-${item.id}`}
+                              draggable
+                              onDragStart={() => setDragging({ type: item.type, id: item.id })}
+                              className="text-xs px-1.5 py-0.5 rounded mb-1 truncate"
+                              style={{ background: `${item.color}20`, color: item.color }}
+                            >
+                              {item.title}
+                            </div>
+                          ))}
                       </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                    {selectedDateKey ?? 'Select a day from month/week view'}
+                  </p>
+                  {dayItems.length === 0 ? (
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No items for selected day.</p>
+                  ) : dayItems.map(item => (
+                    <div key={`${item.type}-${item.id}`} className="rounded-lg p-2.5 flex items-center justify-between" style={{ background: 'var(--surface-2)' }}>
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{item.title}</p>
+                        {item.subtitle && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.subtitle}</p>}
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${item.color}20`, color: item.color }}>{item.type}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Detail panel */}

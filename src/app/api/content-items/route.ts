@@ -14,6 +14,7 @@ import { requireRole } from '@/lib/api-auth';
 
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
+const CONTENT_TASK_PREFIX = 'Content: ';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -69,6 +70,13 @@ export async function POST(req: NextRequest) {
   }
 
   const scheduleDate = typeof body.schedule_date === 'string' ? body.schedule_date.trim() : null;
+  const shouldCreateTask = body.create_task === true;
+  const taskDueDate = typeof body.task_due_date === 'string' && body.task_due_date.trim()
+    ? body.task_due_date.trim()
+    : (scheduleDate || new Date().toISOString().slice(0, 10));
+  const taskAssigneeId = typeof body.task_assignee_id === 'string' && body.task_assignee_id.trim()
+    ? body.task_assignee_id.trim()
+    : null;
 
   const payload: Record<string, unknown> = {
     title,
@@ -94,6 +102,48 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error('[POST /api/content-items] db error:', error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    // Optionally create linked task (best-effort)
+    if (data?.id && shouldCreateTask) {
+      const linkedTaskTitle = `${CONTENT_TASK_PREFIX}${title}`;
+      const { data: createdTask, error: taskError } = await db
+        .from('tasks')
+        .insert({
+          title: linkedTaskTitle,
+          description: typeof body.description === 'string' ? body.description.trim() || null : null,
+          status: 'todo',
+          priority: 'medium',
+          due_date: taskDueDate,
+          client_id: clientId || null,
+          assigned_to: taskAssigneeId,
+          assignee_id: taskAssigneeId,
+          created_by_id: auth.profile.id,
+          task_category: 'content_creation',
+          content_item_id: data.id,
+          caption: typeof body.caption === 'string' ? body.caption.trim() || null : null,
+        })
+        .select('id')
+        .single();
+
+      if (taskError) {
+        console.warn('[POST /api/content-items] linked task auto-create failed:', taskError.message);
+      } else if (createdTask?.id) {
+        const linkedTaskId = createdTask.id as string;
+        void db.from('content_items').update({ task_id: linkedTaskId }).eq('id', data.id).then(({ error: backlinkErr }) => {
+          if (backlinkErr) console.warn('[POST /api/content-items] task_id backlink update failed for content:', data.id, 'task:', linkedTaskId, 'error:', backlinkErr.message);
+        });
+        void db.from('entity_links').upsert({
+          source_type: 'content',
+          source_id: data.id,
+          target_type: 'task',
+          target_id: linkedTaskId,
+          link_type: 'related',
+          created_by: auth.profile.id,
+        }, { onConflict: 'source_type,source_id,target_type,target_id' }).then(({ error: linkErr }) => {
+          if (linkErr) console.warn('[POST /api/content-items] entity_links upsert failed for content:', data.id, 'task:', linkedTaskId, 'error:', linkErr.message);
+        });
+      }
     }
 
     // Activity log (best-effort)
@@ -124,7 +174,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, item: data }, { status: 201 });
+    const { data: refreshedItem } = data?.id
+      ? await db.from('content_items').select('*, client:clients(id, name)').eq('id', data.id).single()
+      : { data: data };
+
+    return NextResponse.json({ success: true, item: refreshedItem ?? data }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
