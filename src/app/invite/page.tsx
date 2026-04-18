@@ -57,7 +57,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
               flex: 1,
               height: 3,
               borderRadius: 2,
-              background: i <= strength && level ? level.color : 'color-mix(in srgb, var(--border) 90%, transparent)',
+              background: i <= strength && level ? level.color : 'var(--border)',
               transition: 'background 0.2s',
             }}
           />
@@ -107,6 +107,7 @@ export default function InviteAcceptPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting]   = useState(false);
   const [formError, setFormError]     = useState('');
+  const headerBadgeStyle = { color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' } as const;
 
   const displayNameRef = useRef<HTMLInputElement>(null);
 
@@ -214,7 +215,7 @@ export default function InviteAcceptPage() {
           <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
+              <span className="inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={headerBadgeStyle}>
                 Team Invitation
               </span>
             </div>
