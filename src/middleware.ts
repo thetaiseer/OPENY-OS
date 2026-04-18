@@ -47,6 +47,22 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const signupModeRequested = request.nextUrl.searchParams.get('mode') === 'signup';
+
+  if (pathname === '/' && signupModeRequested) {
+    const redirectUrl = new URL('/', request.url);
+    request.nextUrl.searchParams.forEach((value, key) => {
+      if (key !== 'mode') redirectUrl.searchParams.set(key, value);
+    });
+    redirectUrl.searchParams.set('invite_only', '1');
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (pathname === '/signup' || pathname.startsWith('/signup/') || pathname === '/register' || pathname.startsWith('/register/')) {
+    const redirectUrl = new URL('/', request.url);
+    redirectUrl.searchParams.set('invite_only', '1');
+    return NextResponse.redirect(redirectUrl);
+  }
 
   const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
   const requiredWorkspaceFromPath = getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);

@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Loader2, Lock, Moon, Sun } from 'lucide-react';
+import { Loader2, Lock, Moon, Sun } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { createClient } from '@/lib/supabase/client';
@@ -19,8 +19,6 @@ import {
 } from '@/lib/auth-workspace';
 import type { WorkspaceKey } from '@/lib/workspace-access';
 
-type Mode = 'signin' | 'signup';
-
 const ACCESS_DENIED_AR = 'ليس لديك صلاحية للدخول إلى هذا القسم';
 const ACCESS_DENIED_EN = 'You do not have access to this workspace';
 const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصول على الصلاحية المناسبة';
@@ -32,11 +30,9 @@ export default function OfficialAuthLanding() {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
 
-  const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'signup' ? 'signup' : 'signin');
+  const signupRequested = searchParams.get('mode') === 'signup' || searchParams.get('invite_only') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [workspace, setWorkspace] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -117,6 +113,13 @@ export default function OfficialAuthLanding() {
     return () => { mounted = false; };
   }, [handleAccessDenied, isSwitchMode, nextPath, requestedWorkspace, router, supabase]);
 
+  useEffect(() => {
+    if (!signupRequested) return;
+    const message = 'Public sign-up is disabled. Ask your workspace owner for an invitation link.';
+    setFormError(message);
+    toast(message, 'error', 6000);
+  }, [signupRequested, toast]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -125,71 +128,15 @@ export default function OfficialAuthLanding() {
     const selectedWorkspace = ensureWorkspace();
     if (!selectedWorkspace) return;
 
-    if (mode === 'signup') {
-      if (!fullName.trim()) {
-        const message = 'Full name is required.';
-        setFormError(message);
-        toast(message, 'error');
-        return;
-      }
-      if (password !== confirmPassword) {
-        const message = 'Password mismatch.';
-        setFormError(message);
-        toast(message, 'error');
-        return;
-      }
-      if (password.length < 8) {
-        const message = 'Password must be at least 8 characters.';
-        setFormError(message);
-        toast(message, 'error');
-        return;
-      }
-    }
-
     setLoading(true);
     try {
-      if (mode === 'signin') {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
-        await finalizeAuth(data.user.id, data.user.email, selectedWorkspace);
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
-        options: {
-          data: { name: fullName.trim(), full_name: fullName.trim() },
-        },
       });
       if (error) throw error;
-
-      const userId = data.user?.id;
-      const userEmail = data.user?.email;
-      const session = data.session;
-
-      if (!userId) {
-        toast('Signup completed. Please verify your email, then sign in.', 'success', 6000);
-        setMode('signin');
-        setPassword('');
-        setConfirmPassword('');
-        return;
-      }
-
-      if (session) {
-        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
-      } else {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
-        }
-      }
-
-      await finalizeAuth(userId, userEmail, selectedWorkspace);
+      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
+      await finalizeAuth(data.user.id, data.user.email, selectedWorkspace);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Network or server error. Please try again.';
       setFormError(message);
@@ -199,11 +146,9 @@ export default function OfficialAuthLanding() {
     }
   };
 
-  const panelHeading = mode === 'signin' ? 'Welcome back to OPENY' : 'Create your OPENY account';
-  const panelText = mode === 'signin'
-    ? 'Sign in and choose your authorized workspace to continue with confidence.'
-    : 'Join the platform and continue to your authorized OPENY workspace instantly.';
-  const submitLabel = mode === 'signin' ? 'Sign In' : 'Sign Up';
+  const panelHeading = 'Welcome back to OPENY';
+  const panelText = 'Sign in and choose your authorized workspace to continue with confidence.';
+  const submitLabel = 'Sign In';
 
   if (checkingSession) {
     return (
@@ -243,34 +188,19 @@ export default function OfficialAuthLanding() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            <div className={`relative p-5 sm:p-7 lg:p-9 transition-all duration-500 ${mode === 'signup' ? 'lg:order-2' : ''}`}>
+            <div className="relative p-5 sm:p-7 lg:p-9 transition-all duration-500">
               <div className="max-w-md mx-auto w-full">
                 <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                  {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                  Sign In
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
-                  {mode === 'signin' ? 'Access your workspace' : 'Start with OPENY'}
+                  Access your workspace
                 </h1>
                 <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  {mode === 'signin'
-                    ? 'Authenticate and enter OPENY OS or OPENY DOCS based on your assigned access.'
-                    : 'Create your account details, select workspace, and continue if your membership is active.'}
+                  Authenticate and enter OPENY OS or OPENY DOCS based on your assigned access.
                 </p>
 
                 <form onSubmit={submit} className="mt-6 space-y-4">
-                  {mode === 'signup' && (
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Full name</label>
-                      <input
-                        type="text"
-                        value={fullName}
-                        onChange={e => setFullName(e.target.value)}
-                        required={mode === 'signup'}
-                        className="input-glass w-full h-11 px-3 text-sm"
-                      />
-                    </div>
-                  )}
-
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Email</label>
                     <input
@@ -285,11 +215,9 @@ export default function OfficialAuthLanding() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Password</label>
-                      {mode === 'signin' && (
-                        <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
-                          Forgot password?
-                        </Link>
-                      )}
+                      <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
+                        Forgot password?
+                      </Link>
                     </div>
                     <input
                       type="password"
@@ -299,20 +227,6 @@ export default function OfficialAuthLanding() {
                       className="input-glass w-full h-11 px-3 text-sm"
                     />
                   </div>
-
-                  {mode === 'signup' && (
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Confirm password</label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        required={mode === 'signup'}
-                        className="input-glass w-full h-11 px-3 text-sm"
-                        style={confirmPassword && confirmPassword !== password ? { borderColor: 'var(--color-danger)' } : {}}
-                      />
-                    </div>
-                  )}
 
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Workspace</label>
@@ -352,7 +266,7 @@ export default function OfficialAuthLanding() {
             </div>
 
             <div
-              className={`relative p-6 sm:p-8 lg:p-10 transition-all duration-500 ${mode === 'signup' ? 'lg:order-1' : ''}`}
+              className="relative p-6 sm:p-8 lg:p-10 transition-all duration-500"
               style={{
                 background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
               }}
@@ -365,18 +279,9 @@ export default function OfficialAuthLanding() {
                 </div>
 
                 <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode(mode === 'signin' ? 'signup' : 'signin');
-                      setFormError(null);
-                      setAccessMessage(null);
-                    }}
-                    className="h-11 px-5 rounded-xl border border-white/35 text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-white/10 transition-colors"
-                  >
-                    {mode === 'signin' ? 'Create account' : 'Back to sign in'}
-                    <ArrowRight size={15} />
-                  </button>
+                  <p className="text-xs text-white/90">
+                    Invite-only access: ask the workspace owner to invite your email address before signing in.
+                  </p>
                   <p className="text-xs text-white/80 flex items-center gap-2">
                     <Lock size={12} />
                     One secure session. Workspace access is validated per membership.

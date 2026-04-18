@@ -20,14 +20,14 @@ const inputStyle: React.CSSProperties = {};
 
 // ── System access roles ───────────────────────────────────────────────────────
 // These are the valid values for team_members.role (access control).
-// 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
+const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'member', 'team_member', 'viewer', 'client'] as const;
 
 const ACCESS_ROLE_OPTIONS = [
-  { value: 'admin',       label: 'Admin — full access' },
-  { value: 'manager',     label: 'Manager — manage tasks & team' },
-  { value: 'team_member', label: 'Team Member — standard access' },
-  { value: 'viewer',      label: 'Viewer — read-only access' },
+  { value: 'owner',   label: 'Owner — full control' },
+  { value: 'admin',   label: 'Admin — manage data, limited user control' },
+  { value: 'manager', label: 'Manager — manage tasks/content' },
+  { value: 'member',  label: 'Member — basic operations' },
+  { value: 'viewer',  label: 'Viewer — read-only access' },
 ];
 
 const WORKSPACE_ROLE_OPTIONS = [
@@ -98,6 +98,7 @@ const JOB_TITLE_TO_GROUP: Record<string, string> = {
 
 const ROLE_TO_GROUP: Record<string, string> = {
   admin:       'Admins',
+  member:      'Members',
   manager:     'Managers',
   team_member: 'Team Members',
   viewer:      'Viewers',
@@ -112,6 +113,7 @@ const SECTION_ORDER = [
   'Video Editors',
   'Content Creators',
   'Developers',
+  'Members',
   'Team Members',
   'Viewers',
   'Clients',
@@ -122,6 +124,12 @@ function getGroupLabel(member: TeamMember): string {
   if (jt && JOB_TITLE_TO_GROUP[jt]) return JOB_TITLE_TO_GROUP[jt];
   if (jt) return jt; // keep non-standard job title as its own section label
   return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
+}
+
+function formatAccessRole(role?: string): string {
+  if (!role) return '';
+  if (role === 'team_member') return 'member';
+  return role;
 }
 
 function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
@@ -393,6 +401,7 @@ export default function TeamPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canManage = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
+  const canInvite = myRole === 'owner';
 
   // ── React Query: fetch and cache team members and invitations ─────────────
   const { data: teamData, isLoading: loading } = useQuery({
@@ -442,6 +451,10 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
+    if (!canInvite) {
+      setActionError('Only the workspace owner can send invitations.');
+      return;
+    }
     if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.access_role.trim()) {
       setActionError('Full name, email, and access role are required.');
       return;
@@ -665,7 +678,7 @@ export default function TeamPage() {
             {activeMembers.length + ownerMembers.length} active · {invitedMembers.length} pending
           </p>
         </div>
-        {canManage && (
+        {canInvite && (
           <button
             onClick={() => { setActionError(''); setInviteOpen(true); }}
             className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
@@ -688,7 +701,7 @@ export default function TeamPage() {
           title={t('noTeamMembers')}
           description={t('noTeamMembersDesc')}
           action={
-            canManage ? (
+            canInvite ? (
               <button
                 onClick={() => setInviteOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
@@ -730,6 +743,7 @@ export default function TeamPage() {
                     workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
+                    canInvite={canInvite}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
                     onResend={handleResend}
@@ -751,6 +765,7 @@ export default function TeamPage() {
                     workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
+                    canInvite={canInvite}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
                     onResend={handleResend}
@@ -934,6 +949,7 @@ function MemberCard({
   workspaceAccess,
   invitation,
   canManage,
+  canInvite,
   onEdit,
   onDelete,
   onResend,
@@ -944,6 +960,7 @@ function MemberCard({
   workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
   invitation?: TeamInvitation;
   canManage: boolean;
+  canInvite: boolean;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
   onResend: (m: TeamMember) => void;
@@ -982,9 +999,9 @@ function MemberCard({
             <span
               className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-            >
-              {member.role}
-            </span>
+              >
+                {formatAccessRole(member.role)}
+              </span>
           )}
           {member.email && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1023,7 +1040,7 @@ function MemberCard({
       </div>
 
       {/* Invite actions row */}
-      {canManage && isInvited && (
+      {canInvite && isInvited && (
         <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={() => onResend(member)}
