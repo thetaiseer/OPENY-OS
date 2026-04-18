@@ -14,7 +14,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
-    <div className="animate-openy-fade-in openy-card rounded-2xl border p-8 text-center">
+    <div className="animate-openy-fade-in openy-card openy-empty-state rounded-2xl border p-8 text-center">
       <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)]">
         <Icon size={26} style={{ color: 'var(--accent-secondary)' }} />
       </div>

@@ -44,7 +44,7 @@ export default function AppSidebar({
 
       <aside
         className={clsx(
-          'app-sidebar-panel sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[328px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:h-auto lg:w-[300px] lg:translate-x-0',
+          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[328px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:h-auto lg:w-[300px] lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
@@ -64,7 +64,7 @@ export default function AppSidebar({
           ) : null}
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto p-3">
+        <nav className="app-sidebar-nav flex-1 space-y-2 overflow-y-auto p-3">
           {items.map(({ href, base, icon: Icon, label }) => {
             const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
             return (
