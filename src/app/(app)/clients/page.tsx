@@ -120,6 +120,31 @@ export default function ClientsPage() {
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
 
+  const normalizeClientId = (id?: string | null) => {
+    const normalized = (id ?? '').trim();
+    if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+    return normalized;
+  };
+
+  const notifyMissingClientId = (clientName?: string) => {
+    setWarnMsg(`Cannot open "${clientName || 'client'}" because it is missing a valid ID.`);
+    setTimeout(() => setWarnMsg(null), 4000);
+  };
+
+  const getClientRoute = (client: Client, tab: 'overview' | 'tasks' | 'assets' = 'overview') => {
+    const clientId = normalizeClientId(client.id);
+    return clientId ? `/clients/${clientId}/${tab}` : null;
+  };
+
+  const openClient = (client: Client, tab: 'overview' | 'tasks' | 'assets' = 'overview') => {
+    const href = getClientRoute(client, tab);
+    if (!href) {
+      notifyMissingClientId(client.name);
+      return;
+    }
+    router.push(href);
+  };
+
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem('clients-page-filters') ?? '{}') as {
@@ -313,8 +338,8 @@ export default function ClientsPage() {
         );
       }
 
-      if (result.client?.slug) {
-        router.push(`/clients/${result.client.slug}`);
+      if (result.client?.id) {
+        router.push(`/clients/${result.client.id}`);
       } else {
         setSuccessMsg(`Client "${form.name}" created successfully.`);
         setTimeout(() => setSuccessMsg(null), 4000);
@@ -494,17 +519,20 @@ export default function ClientsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredClients.map(client => {
             const stats = statsMap[client.id] ?? { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+            const overviewHref = getClientRoute(client, 'overview');
+            const tasksHref = getClientRoute(client, 'tasks');
+            const assetsHref = getClientRoute(client, 'assets');
 
             return (
               <div
                 key={client.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => router.push(`/clients/${client.slug}/overview`)}
+                onClick={() => openClient(client, 'overview')}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    router.push(`/clients/${client.slug}/overview`);
+                    openClient(client, 'overview');
                   }
                 }}
                 className="glass-card group flex flex-col p-5 cursor-pointer select-none transition-all duration-300 hover:-translate-y-1"
@@ -559,21 +587,39 @@ export default function ClientsPage() {
 
                 <div className="mt-auto grid grid-cols-3 gap-2 opacity-90 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <Link
-                    href={`/clients/${client.slug}/overview`}
+                    href={overviewHref ?? '/clients'}
+                    onClick={e => {
+                      if (!overviewHref) {
+                        e.preventDefault();
+                        notifyMissingClientId(client.name);
+                      }
+                    }}
                     className="h-8 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5"
                     style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
                     <FolderOpen size={12} /> Open
                   </Link>
                   <Link
-                    href={`/clients/${client.slug}/tasks`}
+                    href={tasksHref ?? '/clients'}
+                    onClick={e => {
+                      if (!tasksHref) {
+                        e.preventDefault();
+                        notifyMissingClientId(client.name);
+                      }
+                    }}
                     className="h-8 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
                   >
                     <CheckSquare size={11} /> Tasks
                   </Link>
                   <Link
-                    href={`/clients/${client.slug}/assets`}
+                    href={assetsHref ?? '/clients'}
+                    onClick={e => {
+                      if (!assetsHref) {
+                        e.preventDefault();
+                        notifyMissingClientId(client.name);
+                      }
+                    }}
                     className="h-8 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
                   >
@@ -588,17 +634,20 @@ export default function ClientsPage() {
         <div className="space-y-3">
           {filteredClients.map(client => {
             const stats = statsMap[client.id] ?? { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+            const overviewHref = getClientRoute(client, 'overview');
+            const tasksHref = getClientRoute(client, 'tasks');
+            const assetsHref = getClientRoute(client, 'assets');
 
             return (
               <div
                 key={client.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => router.push(`/clients/${client.slug}/overview`)}
+                onClick={() => openClient(client, 'overview')}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    router.push(`/clients/${client.slug}/overview`);
+                    openClient(client, 'overview');
                   }
                 }}
                 className="glass-card group p-4 md:p-5 cursor-pointer"
@@ -637,9 +686,42 @@ export default function ClientsPage() {
                   </div>
 
                   <div className="md:w-auto flex items-center gap-2 md:justify-end" onClick={e => e.stopPropagation()}>
-                    <Link href={`/clients/${client.slug}/overview`} className="btn-secondary h-8 px-3 rounded-lg text-xs font-semibold">Open</Link>
-                    <Link href={`/clients/${client.slug}/tasks`} className="btn-ghost h-8 px-3 rounded-lg text-xs font-semibold">Tasks</Link>
-                    <Link href={`/clients/${client.slug}/assets`} className="btn-ghost h-8 px-3 rounded-lg text-xs font-semibold">Assets</Link>
+                    <Link
+                      href={overviewHref ?? '/clients'}
+                      onClick={e => {
+                        if (!overviewHref) {
+                          e.preventDefault();
+                          notifyMissingClientId(client.name);
+                        }
+                      }}
+                      className="btn-secondary h-8 px-3 rounded-lg text-xs font-semibold"
+                    >
+                      Open
+                    </Link>
+                    <Link
+                      href={tasksHref ?? '/clients'}
+                      onClick={e => {
+                        if (!tasksHref) {
+                          e.preventDefault();
+                          notifyMissingClientId(client.name);
+                        }
+                      }}
+                      className="btn-ghost h-8 px-3 rounded-lg text-xs font-semibold"
+                    >
+                      Tasks
+                    </Link>
+                    <Link
+                      href={assetsHref ?? '/clients'}
+                      onClick={e => {
+                        if (!assetsHref) {
+                          e.preventDefault();
+                          notifyMissingClientId(client.name);
+                        }
+                      }}
+                      className="btn-ghost h-8 px-3 rounded-lg text-xs font-semibold"
+                    >
+                      Assets
+                    </Link>
                   </div>
                 </div>
               </div>

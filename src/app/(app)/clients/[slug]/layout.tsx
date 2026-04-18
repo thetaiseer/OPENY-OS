@@ -79,13 +79,14 @@ function statusLabel(status: string) {
 }
 
 export default function ClientWorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: routeParam } = useParams<{ slug: string }>();
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useLang();
 
   const [client, setClient] = useState<Client | null>(null);
   const [clientId, setClientId] = useState('');
+  const [invalidRouteParam, setInvalidRouteParam] = useState(false);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState<ClientWorkspaceStats>({ tasks: 0, activeTasks: 0, assets: 0, content: 0 });
@@ -136,12 +137,39 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   }, []);
 
   const loadClient = useCallback(async () => {
+    const clientRouteId = (routeParam ?? '').trim();
+    if (!clientRouteId || clientRouteId === 'null' || clientRouteId === 'undefined') {
+      setClient(null);
+      setClientId('');
+      setInvalidRouteParam(true);
+      setLoading(false);
+      setStatsLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase.from('clients').select('*').eq('slug', slug).single();
+    setInvalidRouteParam(false);
+
+    const byId = await supabase.from('clients').select('*').eq('id', clientRouteId).maybeSingle();
+    let data = byId.data;
+    let error = byId.error;
+
+    // Backward compatibility for older slug-based URLs.
+    if (!data) {
+      const bySlug = await supabase.from('clients').select('*').eq('slug', clientRouteId).maybeSingle();
+      if (bySlug.data) {
+        data = bySlug.data;
+        error = null;
+      } else {
+        error = bySlug.error ?? error;
+      }
+    }
 
     if (error || !data) {
       setLoading(false);
       setStatsLoading(false);
+      setClient(null);
+      setClientId('');
       return;
     }
 
@@ -158,7 +186,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     }
     setLoading(false);
     void loadStats(data.id);
-  }, [slug, loadStats]);
+  }, [routeParam, loadStats]);
 
   useEffect(() => { void loadClient(); }, [loadClient]);
 
@@ -232,6 +260,17 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   }
 
   if (!client) {
+    if (invalidRouteParam) {
+      return (
+        <div className="text-center py-20">
+          <p style={{ color: 'var(--text-secondary)' }}>Invalid client link.</p>
+          <button onClick={() => router.push('/clients')} className="mt-4 text-sm" style={{ color: 'var(--accent)' }}>
+            Back to clients
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="text-center py-20">
         <p style={{ color: 'var(--text-secondary)' }}>Client not found</p>
@@ -279,19 +318,19 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
             <div className="flex flex-wrap gap-2 xl:justify-end">
               <button
-                onClick={() => router.push(`/clients/${slug}/tasks?quickAdd=1`)}
+                onClick={() => router.push(`/clients/${client.id}/tasks?quickAdd=1`)}
                 className="btn-primary h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
               >
                 <Plus size={14} /> Add Task
               </button>
               <button
-                onClick={() => router.push(`/clients/${slug}/assets?quickAction=upload`)}
+                onClick={() => router.push(`/clients/${client.id}/assets?quickAction=upload`)}
                 className="btn-secondary h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
               >
                 <Upload size={14} /> Add Asset
               </button>
               <button
-                onClick={() => router.push(`/clients/${slug}/content?quickAdd=1`)}
+                onClick={() => router.push(`/clients/${client.id}/content?quickAdd=1`)}
                 className="btn-secondary h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
               >
                 <FileText size={14} /> Add Content
@@ -307,10 +346,10 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-5">
             {[
-              { icon: <CheckSquare size={14} />, label: 'Tasks', value: stats.tasks, href: `/clients/${slug}/tasks` },
-              { icon: <Activity size={14} />, label: 'Active Tasks', value: stats.activeTasks, href: `/clients/${slug}/tasks` },
-              { icon: <FolderOpen size={14} />, label: 'Assets', value: stats.assets, href: `/clients/${slug}/assets` },
-              { icon: <Layers size={14} />, label: 'Content', value: stats.content, href: `/clients/${slug}/content` },
+              { icon: <CheckSquare size={14} />, label: 'Tasks', value: stats.tasks, href: `/clients/${client.id}/tasks` },
+              { icon: <Activity size={14} />, label: 'Active Tasks', value: stats.activeTasks, href: `/clients/${client.id}/tasks` },
+              { icon: <FolderOpen size={14} />, label: 'Assets', value: stats.assets, href: `/clients/${client.id}/assets` },
+              { icon: <Layers size={14} />, label: 'Content', value: stats.content, href: `/clients/${client.id}/content` },
             ].map(item => (
               <Link
                 key={item.label}
@@ -334,7 +373,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
             {tabs.map(tab => (
               <Link
                 key={tab}
-                href={`/clients/${slug}/${tab}`}
+                href={`/clients/${client.id}/${tab}`}
                 className="px-4 py-2.5 text-sm font-semibold capitalize rounded-xl transition-all whitespace-nowrap"
                 style={{
                   color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
