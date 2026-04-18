@@ -423,14 +423,16 @@ export default function DashboardPage() {
   }, [trendsData, stats?.overdueTasks, recentAssets]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-openy-fade-in">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
+    <div className="openy-page-shell max-w-[1500px] mx-auto animate-openy-fade-in">
+      <div className="openy-page-header">
+        <div>
+          <h1 className="openy-page-header-title">
           {t('welcomeBack')}, {firstName} 👋
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          </h1>
+          <p className="openy-page-header-description">
           Here&apos;s what&apos;s happening today
-        </p>
+          </p>
+        </div>
       </div>
 
       {/* ── Stat cards ── */}

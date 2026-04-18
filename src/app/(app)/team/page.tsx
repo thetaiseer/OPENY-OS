@@ -669,20 +669,19 @@ export default function TeamPage() {
   const groupedActive  = groupMembers(activeMembers);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="openy-page-shell max-w-[1500px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="openy-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('team')}</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="openy-page-header-title">{t('team')}</h1>
+          <p className="openy-page-header-description">
             {activeMembers.length + ownerMembers.length} active · {invitedMembers.length} pending
           </p>
         </div>
         {canInvite && (
           <button
             onClick={() => { setActionError(''); setInviteOpen(true); }}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-            style={{ background: 'var(--accent)' }}
+            className="btn-primary h-9 px-4 text-sm hover:opacity-90 transition-opacity"
           >
             <Send size={15} />Invite Member
           </button>

@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string; bg: string }[] = [
   { status: 'draft', label: 'Draft', color: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
@@ -494,46 +495,34 @@ export default function ContentPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="openy-page-shell max-w-[1500px] mx-auto">
+      <div className="openy-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Content Workspace</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="openy-page-header-title">Content Workspace</h1>
+          <p className="openy-page-header-description">
             Unified social posts, campaigns, ideas, and scheduled content
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setViewMode('grid')} className="h-9 px-3 rounded-lg text-sm inline-flex items-center gap-1" style={{ background: viewMode === 'grid' ? 'var(--accent)' : 'var(--surface-2)', color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)' }}><LayoutGrid size={14} />Grid</button>
-          <button onClick={() => setViewMode('list')} className="h-9 px-3 rounded-lg text-sm inline-flex items-center gap-1" style={{ background: viewMode === 'list' ? 'var(--accent)' : 'var(--surface-2)', color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)' }}><List size={14} />List</button>
+        <div className="openy-page-actions">
+          <button onClick={() => setViewMode('grid')} className={`h-9 px-3 rounded-lg text-sm inline-flex items-center gap-1 ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`}><LayoutGrid size={14} />Grid</button>
+          <button onClick={() => setViewMode('list')} className={`h-9 px-3 rounded-lg text-sm inline-flex items-center gap-1 ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}><List size={14} />List</button>
           {(role === 'admin' || role === 'manager' || role === 'team_member') && (
-            <button onClick={() => setNewOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--accent)' }}>
+            <button onClick={() => setNewOpen(true)} className="btn-primary h-9 px-4 text-sm">
               <Plus size={16} /> New Content
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="openy-page-toolbar">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content…" className="h-9 pl-8 pr-3 rounded-lg border text-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)', minWidth: 220 }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content…" className="input-glass h-9 pl-8 pr-3 rounded-lg text-sm" style={{ minWidth: 220 }} />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 px-3 rounded-lg border text-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          <option value="">All Statuses</option>
-          {STATUS_PIPELINE.map(s => <option key={s.status} value={s.status}>{s.label}</option>)}
-        </select>
-        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)} className="h-9 px-3 rounded-lg border text-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          <option value="">All Clients</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={platformFilter} onChange={e => setPlatformFilter(e.target.value)} className="h-9 px-3 rounded-lg border text-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          <option value="">All Platforms</option>
-          {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={postTypeFilter} onChange={e => setPostTypeFilter(e.target.value)} className="h-9 px-3 rounded-lg border text-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          <option value="">All Post Types</option>
-          {POST_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-        </select>
+        <SelectDropdown value={statusFilter} onChange={setStatusFilter} options={[{ value: '', label: 'All Statuses' }, ...STATUS_PIPELINE.map(s => ({ value: s.status, label: s.label }))]} />
+        <SelectDropdown value={clientFilter} onChange={setClientFilter} options={[{ value: '', label: 'All Clients' }, ...clients.map(c => ({ value: c.id, label: c.name }))]} />
+        <SelectDropdown value={platformFilter} onChange={setPlatformFilter} options={[{ value: '', label: 'All Platforms' }, ...PLATFORMS.map(p => ({ value: p, label: p }))]} />
+        <SelectDropdown value={postTypeFilter} onChange={setPostTypeFilter} options={[{ value: '', label: 'All Post Types' }, ...POST_TYPES.map(type => ({ value: type, label: type }))]} />
       </div>
 
       {isLoading ? (
