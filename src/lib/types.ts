@@ -302,7 +302,10 @@ export interface Notification {
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
+  category?: 'task' | 'content' | 'system' | 'team' | null;
+  priority?: 'low' | 'medium' | 'high' | 'critical' | null;
   read: boolean;
+  read_at?: string | null;
   client_id?: string | null;
   user_id?: string | null;
   task_id?: string | null;
@@ -310,6 +313,9 @@ export interface Notification {
   entity_id?: string | null;
   action_url?: string | null;
   event_type?: string | null;
+  dedupe_key?: string | null;
+  metadata_json?: Record<string, unknown> | null;
+  delivery_channels?: string[] | null;
   created_at: string;
 }
 

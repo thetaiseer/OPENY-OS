@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { dispatchNotification } from '@/lib/notification-service';
 
 
 const VALID_PLATFORMS = [
@@ -150,6 +151,49 @@ export async function PATCH(
         entity_id:   id,
       }).then(({ error: actErr }) => {
         if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
+      });
+    }
+
+    const wasRescheduled =
+      (typeof updates.scheduled_date === 'string' && updates.scheduled_date !== existing.scheduled_date)
+      || (typeof updates.scheduled_time === 'string' && updates.scheduled_time !== existing.scheduled_time);
+    if (wasRescheduled) {
+      void dispatchNotification({
+        title: 'Publishing Rescheduled',
+        message: `Publishing schedule moved to ${String(updated.scheduled_date)} ${String(updated.scheduled_time ?? '')}`.trim(),
+        type: 'warning',
+        category: 'content',
+        priority: 'high',
+        event_type: 'publishing_rescheduled',
+        user_id: updated.assigned_to ?? null,
+        client_id: existing.client_id ?? null,
+        task_id: existing.task_id ?? null,
+        entity_type: 'publishing_schedule',
+        entity_id: id,
+        action_url: '/calendar',
+        dedupe_key: `publishing_rescheduled:${id}`,
+        send_email: Boolean(updated.assigned_to),
+        email_subject: 'Publishing Schedule Rescheduled',
+      });
+    }
+
+    if (updates.status === 'published') {
+      void dispatchNotification({
+        title: 'Content Published',
+        message: `Publishing completed for schedule ${id}`,
+        type: 'success',
+        category: 'content',
+        priority: 'high',
+        event_type: 'publishing_published',
+        user_id: updated.assigned_to ?? null,
+        client_id: existing.client_id ?? null,
+        task_id: existing.task_id ?? null,
+        entity_type: 'publishing_schedule',
+        entity_id: id,
+        action_url: '/calendar',
+        dedupe_key: `publishing_published:${id}`,
+        send_email: Boolean(updated.assigned_to),
+        email_subject: 'Content Published',
       });
     }
 

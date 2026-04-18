@@ -252,3 +252,54 @@ export function deadlineAlertEmail(opts: {
   <a href="${opts.appUrl}/tasks" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">View Task →</a>
 </div>`;
 }
+
+export function genericNotificationEmail(opts: {
+  recipientName: string;
+  title: string;
+  message: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  accent?: string;
+}): string {
+  const accent = opts.accent ?? '#6366f1';
+  return `
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f4f5ff">
+  <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+    <div style="padding:18px 22px;background:${accent};color:#fff">
+      <h2 style="margin:0;font-size:18px;font-weight:700">OPENY OS</h2>
+    </div>
+    <div style="padding:24px 22px">
+      <p style="margin:0 0 10px;color:#111;font-weight:600">Hi ${opts.recipientName},</p>
+      <h3 style="margin:0 0 8px;color:#111">${opts.title}</h3>
+      <p style="margin:0 0 20px;color:#4b5563;line-height:1.6">${opts.message}</p>
+      <a href="${opts.ctaUrl}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">${opts.ctaLabel}</a>
+    </div>
+  </div>
+</div>`;
+}
+
+export function dailyTaskDigestEmail(opts: {
+  recipientName: string;
+  pendingTasks: string[];
+  overdueTasks: string[];
+  appUrl: string;
+}): string {
+  const pendingList = opts.pendingTasks.length
+    ? `<ul style="margin:8px 0 0;padding-left:18px;color:#374151">${opts.pendingTasks.map(t => `<li>${t}</li>`).join('')}</ul>`
+    : '<p style="margin:8px 0 0;color:#6b7280">No pending tasks 🎉</p>';
+  const overdueList = opts.overdueTasks.length
+    ? `<ul style="margin:8px 0 0;padding-left:18px;color:#b91c1c">${opts.overdueTasks.map(t => `<li>${t}</li>`).join('')}</ul>`
+    : '<p style="margin:8px 0 0;color:#6b7280">No overdue tasks ✅</p>';
+  return `
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 10px;color:#111">Daily Task Summary</h2>
+  <p style="margin:0 0 18px;color:#4b5563">Hi ${opts.recipientName}, here is your daily OPENY OS summary.</p>
+  <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <p style="margin:0;font-weight:700;color:#111">Pending Tasks</p>${pendingList}
+  </div>
+  <div style="border:1px solid #fecaca;background:#fff5f5;border-radius:12px;padding:14px 16px">
+    <p style="margin:0;font-weight:700;color:#991b1b">Overdue Tasks</p>${overdueList}
+  </div>
+  <p style="margin:18px 0 0"><a href="${opts.appUrl}/tasks/my" style="color:#6366f1;font-weight:600;text-decoration:none">Open My Tasks →</a></p>
+</div>`;
+}

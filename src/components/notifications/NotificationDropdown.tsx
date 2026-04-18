@@ -10,7 +10,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Bell, Info, CheckCircle, AlertTriangle, XCircle,
-  Check, CheckCheck, ExternalLink, Trash2,
+  Check, CheckCheck, ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -112,13 +112,6 @@ export default function NotificationDropdown() {
         body: JSON.stringify({ read: true }),
       });
     } catch { /* best-effort */ }
-  };
-
-  // ── Delete ───────────────────────────────────────────────────────────────
-  const deleteNotif = async (id: string, wasUnread: boolean) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    if (wasUnread) setUnreadCount(c => Math.max(0, c - 1));
-    try { await fetch(`/api/notifications/${id}`, { method: 'DELETE' }); } catch { /* best-effort */ }
   };
 
   // ── Mark all as read ─────────────────────────────────────────────────────
@@ -268,14 +261,6 @@ export default function NotificationDropdown() {
                             <Check size={12} />
                           </button>
                         )}
-                        <button
-                          onClick={() => deleteNotif(n.id, !n.read)}
-                          className="p-1 rounded-lg hover:bg-[var(--border)] transition-colors"
-                          style={{ color: 'var(--text-secondary)' }}
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
                       </div>
                     </div>
                   );

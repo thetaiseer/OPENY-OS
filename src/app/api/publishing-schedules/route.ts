@@ -289,6 +289,7 @@ export async function POST(req: NextRequest) {
       clientName:    resolvedClientName,
       scheduledDate,
       platforms,
+      assignedToId:  assignedTo,
     });
 
     return NextResponse.json(

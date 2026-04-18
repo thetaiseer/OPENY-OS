@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { notifyTaskCompleted, notifyTaskUpdated } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = [
@@ -181,6 +182,11 @@ export async function PATCH(
   }
 
   const db = getServiceClient();
+  const { data: existingTask } = await db
+    .from('tasks')
+    .select('id,title,status,assignee_id,client_id')
+    .eq('id', id)
+    .maybeSingle();
   const { data, error } = await db
     .from('tasks')
     .update(updatePayload)
@@ -223,6 +229,42 @@ export async function PATCH(
             }
           });
       }
+    }
+  }
+
+  if (data?.id) {
+    const statusChanged = typeof updatePayload.status === 'string' && existingTask?.status !== updatePayload.status;
+    const completedStatuses = new Set(['done', 'completed', 'delivered', 'published']);
+    if (statusChanged && completedStatuses.has(String(updatePayload.status))) {
+      void notifyTaskCompleted({
+        taskId: data.id as string,
+        taskTitle: (data.title as string) ?? (existingTask?.title as string) ?? 'Task',
+        clientId: (data.client_id as string | null) ?? (existingTask?.client_id as string | null) ?? null,
+        assignedToId: (data.assignee_id as string | null) ?? (existingTask?.assignee_id as string | null) ?? null,
+      });
+    } else {
+      const changedField = typeof updatePayload.status === 'string'
+        ? 'status'
+        : typeof updatePayload.priority === 'string'
+          ? 'priority'
+          : typeof updatePayload.due_date === 'string'
+            ? 'due date'
+            : 'details';
+      const changedValue = typeof updatePayload.status === 'string'
+        ? String(updatePayload.status)
+        : typeof updatePayload.priority === 'string'
+          ? String(updatePayload.priority)
+          : typeof updatePayload.due_date === 'string'
+            ? String(updatePayload.due_date)
+            : 'updated';
+      void notifyTaskUpdated({
+        taskId: data.id as string,
+        taskTitle: (data.title as string) ?? (existingTask?.title as string) ?? 'Task',
+        updatedField: changedField,
+        newValue: changedValue,
+        clientId: (data.client_id as string | null) ?? (existingTask?.client_id as string | null) ?? null,
+        assignedToId: (data.assignee_id as string | null) ?? (existingTask?.assignee_id as string | null) ?? null,
+      });
     }
   }
 

@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { dispatchNotification } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
@@ -171,6 +172,23 @@ export async function POST(req: NextRequest) {
         notes:      null,
       }).then(({ error: calErr }) => {
         if (calErr) console.warn('[POST /api/content-items] calendar event auto-create failed:', calErr.message);
+      });
+
+      void dispatchNotification({
+        title: 'Content Scheduled',
+        message: `"${title}" scheduled${scheduleDate ? ` for ${scheduleDate}` : ''}`,
+        type: 'success',
+        category: 'content',
+        priority: 'high',
+        event_type: 'publishing_scheduled',
+        user_id: auth.profile.id,
+        client_id: clientId || null,
+        entity_type: 'content_item',
+        entity_id: data.id,
+        action_url: '/content',
+        dedupe_key: `content_scheduled:${data.id}:${scheduleDate ?? status}`,
+        send_email: true,
+        email_subject: `Content Scheduled: ${title}`,
       });
     }
 

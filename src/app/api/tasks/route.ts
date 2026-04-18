@@ -27,7 +27,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyTaskCreated } from '@/lib/notification-service';
-import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 
 
 const VALID_STATUSES = [
@@ -344,41 +343,6 @@ export async function POST(request: NextRequest) {
       createdById:  createdBy || null,
       clientName:   data.client_name || clientName || null,
     });
-  }
-
-  if (assignedTo && data?.id) {
-    void (async () => {
-      let assigneeEmail = '';
-      try {
-        const { data: member } = await db
-          .from('team_members')
-          .select('email, full_name')
-          .eq('profile_id', assignedTo)
-          .maybeSingle();
-        if (member?.email) {
-          assigneeEmail = member.email;
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-          await sendEmail({
-            to: member.email,
-            subject: `New Task: ${title}`,
-            html: taskAssignedEmail({
-              recipientName: member.full_name ?? member.email,
-              taskTitle:     title,
-              clientName:    data.client_name || clientName || undefined,
-              dueDate:       dueDate || undefined,
-              appUrl,
-            }),
-          });
-          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, eventType: 'task_assigned', entityType: 'task', entityId: data.id });
-        }
-      } catch (emailErr) {
-        console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
-        // Only log failed email if we have a valid email address to log against
-        if (assigneeEmail) {
-          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
-        }
-      }
-    })();
   }
 
   return NextResponse.json({ success: true, task: data }, { status: 201 });

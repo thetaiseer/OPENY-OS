@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest) {
 
   const db = getServiceClient();
 
-  let query = db.from('notifications').update({ read: true }).eq('read', false);
+  let query = db.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('read', false);
   if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
 
   const { error } = await query;
