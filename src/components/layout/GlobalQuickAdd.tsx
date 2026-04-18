@@ -417,7 +417,7 @@ export default function GlobalQuickAdd() {
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="quick-add-dock-item btn-secondary group flex h-11 w-52 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
+                className="quick-add-dock-item glass glass-btn glass-btn--ghost group flex h-11 w-52 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
                 style={{
                   color: 'var(--text)',
                   border: isLast ? '1px solid var(--accent)' : undefined,
@@ -430,13 +430,13 @@ export default function GlobalQuickAdd() {
                   transitionDelay: visible ? `${index * 45}ms` : '0ms',
                 }}
               >
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                >
-                  <Icon size={16} />
-                </span>
-                <span className="flex h-full min-w-0 flex-1 items-center justify-center">
+                  <span
+                    className="relative z-[2] flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  >
+                    <Icon size={16} />
+                  </span>
+                <span className="relative z-[2] flex h-full min-w-0 flex-1 items-center justify-center">
                   <span className="truncate text-xs font-semibold leading-none">
                     {item.label}{tags ? ` • ${tags}` : ''}
                   </span>
@@ -450,7 +450,7 @@ export default function GlobalQuickAdd() {
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? 'Close global quick add' : 'Open global quick add'}
-          className="btn-fab flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-300 active:scale-95"
+          className="btn-fab glass glass-btn glass-btn--accent glass-btn--icon flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-300 active:scale-95"
           style={{
             transform: menuOpen ? 'rotate(45deg) scale(1.04)' : 'rotate(0deg) scale(1)',
           }}
@@ -555,14 +555,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Task'}
             </button>
@@ -622,14 +622,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Client'}
             </button>
@@ -684,14 +684,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Content'}
             </button>
@@ -775,14 +775,14 @@ export default function GlobalQuickAdd() {
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
+              className="glass glass-btn glass-btn--ghost h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              className="glass glass-btn glass-btn--primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Asset'}
             </button>

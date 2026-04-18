@@ -31,7 +31,7 @@ interface Stats {
 
 function DashboardPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`surface-card relative overflow-hidden p-5 md:p-6 ${className}`}>
+    <section className={`glass glass-card relative overflow-hidden p-5 md:p-6 ${className}`}>
       <div
         className="pointer-events-none absolute inset-x-0 -top-20 h-24 opacity-75"
         style={{
@@ -447,7 +447,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Trend + Team performance ── */}
-      <div className="surface-card p-4">
+      <div className="glass glass-card p-4">
         <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           {lightInsights.map((text) => (
@@ -460,14 +460,14 @@ export default function DashboardPage() {
 
       {/* ── Trend + Team performance ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
           </div>
           {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
         </div>
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
           {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
         </div>
@@ -475,14 +475,14 @@ export default function DashboardPage() {
 
       {/* ── At-risk + Predictions ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
           </div>
           <OverdueRisk tasks={atRiskTasks ?? []} />
         </div>
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
           <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
         </div>
@@ -490,7 +490,7 @@ export default function DashboardPage() {
 
       {/* ── Activity + Content distribution ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
           {!activitiesData ? (
             <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
@@ -513,14 +513,14 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
           <ContentDistribution items={contentDistItems} />
         </div>
       </div>
 
       {/* ── Upcoming scheduled posts ── */}
-      <div className="surface-card p-5">
+      <div className="glass glass-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
           <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
@@ -560,7 +560,7 @@ export default function DashboardPage() {
       {/* ── Recent Assets + Active Clients ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recent Assets */}
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <ImageIcon size={15} style={{ color: 'var(--accent)' }} />
@@ -606,7 +606,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Active Clients */}
-        <div className="surface-card p-5">
+        <div className="glass glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users2 size={15} style={{ color: 'var(--accent)' }} />

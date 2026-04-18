@@ -22,13 +22,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const up = trend ? trend.value >= 0 : null;
   return (
     <div
-      className="group relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 hover:-translate-y-1"
-      style={{
-        background: 'linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 90%, transparent))',
-        borderColor: 'var(--border)',
-        boxShadow: 'var(--shadow-sm)',
-        backdropFilter: 'blur(var(--blur-md))',
-      }}
+      className="glass glass-card group relative overflow-hidden rounded-2xl p-5"
     >
       <div
         className="pointer-events-none absolute inset-x-0 -top-16 h-24 blur-3xl opacity-65 transition-opacity duration-300 group-hover:opacity-90"
@@ -63,7 +57,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
       >
         {value}
       </div>
-      <div className="relative z-[1] text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+      <div className="glass-card__label relative z-[1]" style={{ color: 'var(--text-secondary)' }}>{label}</div>
     </div>
   );
 }
