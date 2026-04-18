@@ -148,7 +148,7 @@ function BlockFrame({
           <Minimize2 size={14} />
         </button>
         <button type="button" className="ws-icon-btn" onClick={() => onResize(1)} aria-label="Increase block width">
-          <Plus size={14} />
+          <Maximize2 size={14} />
         </button>
         <button type="button" className="ws-icon-btn" onClick={onExpand} aria-label="Expand block">
           <Maximize2 size={14} />

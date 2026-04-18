@@ -27,7 +27,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export default function Sidebar({ open = false, onClose }: SidebarProps) {
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
