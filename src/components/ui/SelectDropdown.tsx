@@ -44,7 +44,7 @@ export default function SelectDropdown({
         >
           <option value="">{placeholder}</option>
           {options.map((option) => (
-            <option key={`${option.value}-${option.label}`} value={option.value}>
+            <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}

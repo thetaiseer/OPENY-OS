@@ -6,12 +6,15 @@ export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: str
   return <div className={`skeleton-shimmer rounded-lg ${width} ${height}`} />;
 }
 
+const FIRST_COL_MAX_WIDTH = 220;
+const OTHER_COL_MAX_WIDTH = 140;
+
 export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
   return (
     <div className="flex items-center gap-4 border-b px-5 py-4" style={{ borderColor: 'var(--border)' }}>
       <div className="skeleton-shimmer h-9 w-9 shrink-0 rounded-xl" />
       {Array.from({ length: cols - 1 }).map((_, index) => (
-        <div key={index} className="skeleton-shimmer h-4 flex-1 rounded-lg" style={{ maxWidth: index === 0 ? 220 : 140 }} />
+        <div key={index} className="skeleton-shimmer h-4 flex-1 rounded-lg" style={{ maxWidth: index === 0 ? FIRST_COL_MAX_WIDTH : OTHER_COL_MAX_WIDTH }} />
       ))}
     </div>
   );
