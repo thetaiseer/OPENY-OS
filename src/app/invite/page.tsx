@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle2, XCircle, Clock, ShieldOff, Check, Loader2, Sparkles } from 'lucide-react';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 import { createClient } from '@/lib/supabase/client';
 
 interface InviteInfo {
@@ -36,10 +37,10 @@ function getPasswordStrength(pw: string): number {
 
 const STRENGTH_LEVELS: Array<{ label: string; color: string } | null> = [
   null,
-  { label: 'Weak',   color: '#ef4444' },
-  { label: 'Fair',   color: '#f97316' },
-  { label: 'Good',   color: '#eab308' },
-  { label: 'Strong', color: '#22c55e' },
+  { label: 'Weak',   color: 'var(--color-danger)' },
+  { label: 'Fair',   color: 'var(--color-warning)' },
+  { label: 'Good',   color: 'var(--color-info)' },
+  { label: 'Strong', color: 'var(--color-success)' },
 ];
 
 function PasswordStrengthBar({ password }: { password: string }) {
@@ -56,14 +57,14 @@ function PasswordStrengthBar({ password }: { password: string }) {
               flex: 1,
               height: 3,
               borderRadius: 2,
-              background: i <= strength && level ? level.color : '#e5e7eb',
+              background: i <= strength && level ? level.color : 'color-mix(in srgb, var(--border) 90%, transparent)',
               transition: 'background 0.2s',
             }}
           />
         ))}
       </div>
       {level && (
-        <p style={{ margin: 0, fontSize: 11, color: level.color, fontWeight: 500 }}>
+        <p style={{ margin: 0, fontSize: 11, color: level.color, fontWeight: 600 }}>
           {level.label}
         </p>
       )}
@@ -82,7 +83,7 @@ function PasswordRequirements({ password }: { password: string }) {
   return (
     <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
       {reqs.map(r => (
-        <li key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: r.met ? '#16a34a' : '#9ca3af' }}>
+        <li key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: r.met ? 'var(--color-success)' : 'var(--text-tertiary)' }}>
           <Check size={12} style={{ flexShrink: 0, opacity: r.met ? 1 : 0.35 }} />
           {r.label}
         </li>
@@ -198,217 +199,222 @@ export default function InviteAcceptPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'var(--bg, #f9fafb)' }}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl border shadow-xl overflow-hidden"
-        style={{ background: '#ffffff', borderColor: '#e5e7eb' }}
-      >
-        {/* Header */}
-        <div
-          className="px-8 py-7 text-center"
-          style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+    <div className="min-h-screen os-workspace px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-6xl min-h-[88vh] flex items-center">
+        <section
+          className="w-full overflow-hidden rounded-[2rem] border"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--shadow-xl)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+          }}
         >
-          <h1 className="text-2xl font-bold text-white tracking-tight">OPENY OS</h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-            Team Invitation
-          </p>
-        </div>
-
-        <div className="px-8 py-8">
-          {/* Loading */}
-          {pageState === 'loading' && (
-            <div className="text-center py-8">
-              <div
-                className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto"
-                style={{ borderColor: '#6366f1', borderTopColor: 'transparent' }}
-              />
-              <p className="mt-3 text-sm" style={{ color: '#6b7280' }}>Validating your invitation…</p>
+          <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-3">
+              <OpenyLogo width={128} height={36} />
+              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
+                Team Invitation
+              </span>
             </div>
-          )}
+            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
+              Secure onboarding
+            </span>
+          </div>
 
-          {/* Valid — show form */}
-          {pageState === 'valid' && invite && (
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <div className="text-center mb-6">
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white mx-auto mb-3"
-                  style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
-                >
-                  {invite.full_name.charAt(0).toUpperCase()}
-                </div>
-                <p className="text-base font-semibold" style={{ color: '#111827' }}>
-                  Welcome, {invite.full_name}!
-                </p>
-                <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
-                  {"You've been invited as"} <span className="font-medium" style={{ color: '#6366f1' }}>{invite.role}</span>
-                </p>
-                <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{invite.email}</p>
-              </div>
-
-              {/* Display name */}
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#374151' }}>
-                  Your Name
-                </label>
-                <input
-                  ref={displayNameRef}
-                  type="text"
-                  value={displayName}
-                  onChange={e => setDisplayName(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg text-sm outline-none"
-                  style={{
-                    background:  '#f9fafb',
-                    border:      '1px solid #d1d5db',
-                    color:       '#111827',
-                  }}
-                  placeholder="Your display name"
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            <div className="relative p-5 sm:p-7 lg:p-9">
+              {pageState === 'loading' && (
+                <StateScreen
+                  icon={<Loader2 size={44} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                  title="Checking invitation"
+                  message="Validating your invitation link…"
+                  tone="info"
                 />
-              </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#374151' }}>
-                  Create Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPw ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none"
-                    style={{
-                      background: '#f9fafb',
-                      border:     '1px solid #d1d5db',
-                      color:      '#111827',
-                    }}
-                    placeholder="At least 8 characters"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: '#9ca3af' }}
-                    tabIndex={-1}
-                    aria-label={showPw ? 'Hide password' : 'Show password'}
-                  >
-                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <PasswordStrengthBar password={password} />
-                <PasswordRequirements password={password} />
-              </div>
-
-              {/* Confirm password */}
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#374151' }}>
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirm ? 'text' : 'password'}
-                    value={confirmPw}
-                    onChange={e => setConfirmPw(e.target.value)}
-                    className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none"
-                    style={{
-                      background: '#f9fafb',
-                      border:     `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : '#d1d5db'}`,
-                      color:      '#111827',
-                    }}
-                    placeholder="Repeat your password"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: '#9ca3af' }}
-                    tabIndex={-1}
-                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {confirmPw && confirmPw !== password && (
-                  <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>Passwords do not match.</p>
-                )}
-              </div>
-
-              {formError && (
-                <p className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">
-                  {formError}
-                </p>
               )}
 
-              <button
-                type="submit"
-                disabled={submitting || !password || password !== confirmPw || getPasswordStrength(password) < 2}
-                className="w-full h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
-                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
-              >
-                {submitting ? 'Setting up your account…' : 'Accept Invitation & Join'}
-              </button>
-            </form>
-          )}
+              {pageState === 'valid' && invite && (
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                  <div className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}>
+                        {(invite.full_name || invite.email || 'O').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                          Welcome, {invite.full_name}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          You are joining as <span className="font-semibold" style={{ color: 'var(--accent)' }}>{invite.role}</span>
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{invite.email}</p>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* Success (fallback when auto-login fails) */}
-          {pageState === 'success' && (
-            <div className="text-center py-6">
-              <CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a' }} />
-              <h2 className="text-xl font-bold mb-2" style={{ color: '#111827' }}>Account Activated!</h2>
-              <p className="text-sm mb-6" style={{ color: '#6b7280' }}>
-                Your account is ready. You can now log in to OPENY OS.
-              </p>
-              <Link
-                href="/"
-                className="inline-block h-10 px-6 rounded-lg text-sm font-semibold text-white leading-10"
-                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
-              >
-                Go to Login →
-              </Link>
+                  <div className="space-y-1.5">
+                    <label className="openy-label block">Your name</label>
+                    <input
+                      ref={displayNameRef}
+                      type="text"
+                      value={displayName}
+                      onChange={e => setDisplayName(e.target.value)}
+                      className="input-glass w-full h-11 px-3 text-sm"
+                      placeholder="Your display name"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="openy-label block">Create password</label>
+                    <div className="relative">
+                      <input
+                        type={showPw ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className="input-glass w-full h-11 px-3 pr-11 text-sm"
+                        placeholder="At least 8 characters"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                        style={{ color: 'var(--text-tertiary)' }}
+                        tabIndex={-1}
+                        aria-label={showPw ? 'Hide password' : 'Show password'}
+                      >
+                        {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <PasswordStrengthBar password={password} />
+                    <PasswordRequirements password={password} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="openy-label block">Confirm password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirm ? 'text' : 'password'}
+                        value={confirmPw}
+                        onChange={e => setConfirmPw(e.target.value)}
+                        className="input-glass w-full h-11 px-3 pr-11 text-sm"
+                        style={confirmPw && confirmPw !== password ? { borderColor: 'var(--color-danger)' } : undefined}
+                        placeholder="Repeat your password"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                        style={{ color: 'var(--text-tertiary)' }}
+                        tabIndex={-1}
+                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {confirmPw && confirmPw !== password && (
+                      <p className="text-xs" style={{ color: 'var(--color-danger)' }}>Passwords do not match.</p>
+                    )}
+                  </div>
+
+                  {formError && (
+                    <div className="rounded-xl px-3 py-2 text-sm border" style={{ background: 'var(--color-danger-bg)', borderColor: 'var(--color-danger-border)', color: 'var(--color-danger)' }}>
+                      {formError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !password || password !== confirmPw || getPasswordStrength(password) < 2}
+                    className="btn-primary w-full h-11 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70"
+                  >
+                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={15} />}
+                    {submitting ? 'Setting up your account…' : 'Accept Invitation & Join'}
+                  </button>
+                </form>
+              )}
+
+              {pageState === 'success' && (
+                <StateScreen
+                  icon={<CheckCircle2 size={44} style={{ color: 'var(--color-success)' }} />}
+                  title="You’re in!"
+                  message="Your account has been activated and added to the workspace."
+                  tone="success"
+                  action={<Link href="/" className="btn-primary h-11 px-5 text-sm font-semibold rounded-xl">Go to Login</Link>}
+                />
+              )}
+
+              {pageState === 'expired' && (
+                <StateScreen
+                  icon={<Clock size={44} style={{ color: 'var(--color-warning)' }} />}
+                  title="Invitation expired"
+                  message="This invitation link has expired. Ask your admin to send a new one."
+                  tone="warning"
+                />
+              )}
+
+              {pageState === 'revoked' && (
+                <StateScreen
+                  icon={<ShieldOff size={44} style={{ color: 'var(--color-danger)' }} />}
+                  title="Invitation revoked"
+                  message="This invitation was revoked by your workspace admin."
+                  tone="danger"
+                />
+              )}
+
+              {pageState === 'already_accepted' && (
+                <StateScreen
+                  icon={<CheckCircle2 size={44} style={{ color: 'var(--color-success)' }} />}
+                  title="Already accepted"
+                  message="This invitation has already been used. Sign in to continue."
+                  tone="success"
+                  action={<Link href="/" className="btn-secondary h-11 px-5 text-sm font-semibold rounded-xl">Go to Login</Link>}
+                />
+              )}
+
+              {(pageState === 'not_found' || pageState === 'error') && (
+                <StateScreen
+                  icon={<XCircle size={44} style={{ color: 'var(--color-danger)' }} />}
+                  title="Invalid invitation"
+                  message={errorMsg || 'This invitation link is not valid or has been removed.'}
+                  tone="danger"
+                />
+              )}
             </div>
-          )}
 
-          {/* Expired */}
-          {pageState === 'expired' && (
-            <StateScreen
-              icon={<Clock size={48} style={{ color: '#d97706' }} />}
-              title="Invitation Expired"
-              message="This invitation link has expired. Please ask an admin to resend your invitation."
-            />
-          )}
+            <div
+              className="relative p-6 sm:p-8 lg:p-10 transition-all duration-500"
+              style={{
+                background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
+              }}
+            >
+              <div className="relative z-10 h-full flex flex-col justify-between gap-6">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
+                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">
+                    Premium invitation experience
+                  </h2>
+                  <p className="text-sm sm:text-base mt-3 text-white/90 max-w-md">
+                    Join your workspace through a secure, invite-only onboarding flow designed for OPENY OS.
+                  </p>
+                </div>
 
-          {/* Revoked */}
-          {pageState === 'revoked' && (
-            <StateScreen
-              icon={<ShieldOff size={48} style={{ color: '#dc2626' }} />}
-              title="Invitation Revoked"
-              message="This invitation has been revoked. Please contact your workspace admin."
-            />
-          )}
-
-          {/* Already accepted */}
-          {pageState === 'already_accepted' && (
-            <StateScreen
-              icon={<CheckCircle size={48} style={{ color: '#16a34a' }} />}
-              title="Already Accepted"
-              message="This invitation has already been used. Please log in."
-              action={<Link href="/" className="text-sm font-medium" style={{ color: '#6366f1' }}>Go to Login →</Link>}
-            />
-          )}
-
-          {/* Not found / error */}
-          {(pageState === 'not_found' || pageState === 'error') && (
-            <StateScreen
-              icon={<XCircle size={48} style={{ color: '#dc2626' }} />}
-              title="Invalid Invitation"
-              message={errorMsg || 'This invitation link is not valid or has been removed.'}
-            />
-          )}
-        </div>
+                <div className="space-y-3">
+                  <p className="text-xs text-white/90">
+                    Invitation links are secure, time-limited, and tied to your email address.
+                  </p>
+                  <p className="text-xs text-white/80 flex items-center gap-2">
+                    <Check size={12} />
+                    Account setup and workspace access are validated in one flow.
+                  </p>
+                </div>
+              </div>
+              <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)' }} />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -419,18 +425,34 @@ function StateScreen({
   title,
   message,
   action,
+  tone,
 }: {
   icon: React.ReactNode;
   title: string;
   message: string;
   action?: React.ReactNode;
+  tone: 'success' | 'warning' | 'danger' | 'info';
 }) {
+  const toneStyles = {
+    success: { bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', text: 'var(--color-success)' },
+    warning: { bg: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', text: 'var(--color-warning)' },
+    danger: { bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', text: 'var(--color-danger)' },
+    info: { bg: 'var(--color-info-bg)', border: 'var(--color-info-border)', text: 'var(--color-info)' },
+  }[tone];
+
   return (
-    <div className="text-center py-6">
-      <div className="mx-auto mb-4 flex justify-center">{icon}</div>
-      <h2 className="text-xl font-bold mb-2" style={{ color: '#111827' }}>{title}</h2>
-      <p className="text-sm" style={{ color: '#6b7280' }}>{message}</p>
-      {action && <div className="mt-6">{action}</div>}
+    <div className="text-center py-2 sm:py-6">
+      <div className="rounded-2xl border p-5 sm:p-7" style={{ borderColor: toneStyles.border, background: toneStyles.bg }}>
+        <div className="mx-auto mb-4 flex justify-center">{icon}</div>
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text)' }}>{title}</h2>
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{message}</p>
+        {action && <div className="mt-6 flex justify-center">{action}</div>}
+        {!action && (
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider" style={{ color: toneStyles.text }}>
+            Invitation status
+          </p>
+        )}
+      </div>
     </div>
   );
 }
