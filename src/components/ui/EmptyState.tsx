@@ -19,8 +19,8 @@ export default function EmptyState({ icon: Icon, title, description, action, sug
         <Icon size={26} style={{ color: 'var(--accent-secondary)' }} />
       </div>
 
-      <h3 className="text-base font-bold tracking-tight">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-[var(--text-secondary)]">{description}</p>
+      <h3 className="text-base font-extrabold tracking-tight">{title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">{description}</p>
       {action ? <div className="mt-5">{action}</div> : null}
 
       {suggestions && suggestions.length > 0 ? (

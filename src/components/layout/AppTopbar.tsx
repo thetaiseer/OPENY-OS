@@ -80,7 +80,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }
 
   return (
-    <header className="app-topbar app-topbar-shell header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
+    <header className="app-topbar app-topbar-shell header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:px-3 sm:py-2.5">
       <div className="flex min-w-0 items-center gap-2">
         <AccountMenu
           placement="header"
@@ -99,12 +99,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
         <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
           <OpenyLogo width={82} height={24} />
-          <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--text-secondary)]">{workspaceLabel}</span>
+          <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--text-secondary)]">{workspaceLabel}</span>
         </Link>
       </div>
 
       <div className="topbar-breadcrumb hidden min-w-0 flex-1 lg:flex">
-        <span>{workspaceLabel}</span>
+        <span className="font-semibold">{workspaceLabel}</span>
         {breadcrumbs.map((crumb, index) => (
           <span key={`${crumb}-${index}`} className="inline-flex min-w-0 items-center gap-1">
             <ChevronRight size={12} />

@@ -7,14 +7,14 @@ interface StatCardProps {
 }
 
 const toneMap = {
-  blue: { bg: 'color-mix(in srgb, var(--color-info-bg) 82%, var(--surface))' },
-  green: { bg: 'var(--color-success-bg)' },
-  amber: { bg: 'var(--color-warning-bg)' },
-  red: { bg: 'var(--color-danger-bg)' },
-  violet: { bg: 'color-mix(in srgb, var(--accent-soft) 82%, var(--surface))' },
-  mint: { bg: 'color-mix(in srgb, var(--color-success-bg) 82%, var(--surface))' },
-  rose: { bg: 'color-mix(in srgb, var(--color-danger-bg) 82%, var(--surface))' },
-  cyan: { bg: 'color-mix(in srgb, var(--color-info-bg) 85%, var(--surface))' },
+  blue: { bg: 'var(--color-info-bg)', icon: 'var(--color-info)' },
+  green: { bg: 'var(--color-success-bg)', icon: 'var(--color-success)' },
+  amber: { bg: 'var(--color-warning-bg)', icon: 'var(--color-warning)' },
+  red: { bg: 'var(--color-danger-bg)', icon: 'var(--color-danger)' },
+  violet: { bg: 'color-mix(in srgb, var(--accent-soft) 88%, var(--surface))', icon: 'var(--accent)' },
+  mint: { bg: 'color-mix(in srgb, var(--color-success-bg) 82%, var(--surface))', icon: 'var(--color-success)' },
+  rose: { bg: 'color-mix(in srgb, var(--color-danger-bg) 85%, var(--surface))', icon: 'var(--color-danger)' },
+  cyan: { bg: 'color-mix(in srgb, var(--color-info-bg) 85%, var(--surface))', icon: 'var(--color-info)' },
 };
 
 export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
@@ -24,7 +24,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   return (
     <article className="openy-card card relative overflow-hidden rounded-2xl border p-5">
       <div className="relative z-10 mb-4 flex items-start justify-between gap-3">
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: tone.bg, color: 'var(--accent)' }}>
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border" style={{ background: tone.bg, color: tone.icon, borderColor: 'var(--border-soft)' }}>
           {icon}
         </div>
 

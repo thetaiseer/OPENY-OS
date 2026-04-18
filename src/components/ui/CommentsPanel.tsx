@@ -54,7 +54,7 @@ export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
   }
 
   return (
-    <section className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+    <section className="openy-card rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
       <header className="mb-3 flex items-center gap-2">
         <MessageSquare size={16} className="text-[var(--text-secondary)]" />
         <h3 className="text-sm font-semibold">Comments ({comments.length})</h3>
@@ -99,7 +99,7 @@ export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
           type="button"
           onClick={() => void addComment()}
           disabled={saving || !text.trim()}
-          className="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium text-white disabled:opacity-50"
+          className="btn-primary inline-flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium text-white disabled:opacity-50"
           style={{ background: 'var(--accent)' }}
         >
           <Send size={13} />

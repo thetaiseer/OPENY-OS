@@ -44,18 +44,19 @@ export default function AppSidebar({
 
       <aside
         className={clsx(
-          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[328px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:h-auto lg:w-[300px] lg:translate-x-0',
+          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[328px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:h-auto lg:w-[280px] lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <div className="app-sidebar-header">
           <div className="min-w-0">
             <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
-              <OpenyLogo width={98} height={28} />
+              <OpenyLogo width={102} height={28} />
             </Link>
             <div className={clsx('app-sidebar-tag mt-3 inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.16em]', variant === 'docs' && 'app-sidebar-tag-docs')}>
               {workspaceTag}
             </div>
+            <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Workspace navigation</p>
           </div>
           {onClose ? (
             <button type="button" onClick={onClose} className="btn-icon lg:hidden" aria-label="Close sidebar">
@@ -76,7 +77,7 @@ export default function AppSidebar({
                   'app-sidebar-item flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all',
                   active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
                 )}
-                >
+              >
                 <span className={clsx('app-sidebar-icon-wrap inline-flex h-9 w-9 items-center justify-center rounded-xl', active && 'app-sidebar-icon-wrap-active')}>
                   <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
                 </span>

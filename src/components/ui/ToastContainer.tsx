@@ -37,7 +37,7 @@ export default function ToastContainer() {
         return (
           <div
             key={toast.id}
-            className="animate-openy-toast-in pointer-events-auto flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm"
+            className="animate-openy-toast-in pointer-events-auto flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-medium"
             style={{ borderColor: style.border, background: 'var(--surface)', boxShadow: 'var(--shadow-md)' }}
           >
             <span style={{ color: style.color }}>{style.icon}</span>

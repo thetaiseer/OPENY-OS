@@ -40,10 +40,10 @@ export default function Modal({ open, onClose, title, subtitle, children, size =
   return (
     <div className="openy-modal-overlay fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-2.5 sm:items-center sm:p-6" onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div className={`openy-modal-shell openy-modal-panel w-full ${sizeClasses[size]} overflow-hidden rounded-2xl`} style={{ animation: 'openy-modal-in 280ms var(--ease-spring) both' }}>
-        <div className="openy-modal-header flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-6 sm:py-4.5" style={{ borderColor: 'var(--border-soft)' }}>
+        <div className="openy-modal-header flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-6 sm:py-5" style={{ borderColor: 'var(--border-soft)' }}>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-            {subtitle ? <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{subtitle}</p> : null}
+            <h2 className="text-base font-bold tracking-tight">{title}</h2>
+            {subtitle ? <p className="mt-1 text-xs text-[var(--text-secondary)]">{subtitle}</p> : null}
           </div>
           <button type="button" onClick={onClose} className="btn-icon openy-modal-close" aria-label="Close modal">
             <X size={16} />
