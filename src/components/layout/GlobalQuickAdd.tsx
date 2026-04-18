@@ -337,7 +337,7 @@ export default function GlobalQuickAdd() {
                 >
                   <Icon size={16} />
                 </span>
-                <span className="flex h-full min-w-0 flex-1 items-center justify-center text-center">
+                <span className="flex h-full min-w-0 flex-1 items-center justify-center">
                   <span className="truncate text-xs font-semibold leading-none">{item.label}</span>
                 </span>
               </button>

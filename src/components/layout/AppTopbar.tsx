@@ -17,8 +17,14 @@ import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/works
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface AppTopbarProps { onMenuClick?: () => void; }
+const WORKSPACE_SEGMENTS = new Set(['os', 'docs']);
+const MAX_VISIBLE_BREADCRUMBS = 4;
+const WORKSPACE_DISPLAY_LABEL: Record<string, string> = {
+  DOCS: 'Docs',
+  OS: 'OS',
+};
 
-function segmentToLabel(segment: string) {
+function formatBreadcrumbLabel(segment: string) {
   const decoded = decodeURIComponent(segment);
   return decoded
     .replace(/[-_]/g, ' ')
@@ -40,9 +46,11 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
     return segments
-      .filter((segment, index) => !(index === 0 && (segment === 'os' || segment === 'docs')))
-      .map(segmentToLabel);
+      .filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment)))
+      .map(formatBreadcrumbLabel);
   }, [pathname]);
+  const visibleBreadcrumbs = breadcrumbs.slice(0, MAX_VISIBLE_BREADCRUMBS);
+  const isBreadcrumbTruncated = breadcrumbs.length > MAX_VISIBLE_BREADCRUMBS;
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -70,11 +78,17 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
       </Link>
 
       <div className="topbar-breadcrumb hidden md:flex flex-1 min-w-0 max-w-[46vw]">
-        <span>{workspaceLabel === 'DOCS' ? 'Docs' : 'OS'}</span>
-        {breadcrumbs.slice(0, 4).map((crumb, index) => (
-          <span key={`${crumb}-${index}`} className="inline-flex items-center gap-1 min-w-0">
+        <span>{WORKSPACE_DISPLAY_LABEL[workspaceLabel] ?? workspaceLabel}</span>
+        {isBreadcrumbTruncated && (
+          <span className="inline-flex items-center gap-1 min-w-0">
             <ChevronRight size={12} />
-            <span className={index === breadcrumbs.slice(0, 4).length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
+            <span className="truncate">…</span>
+          </span>
+        )}
+        {visibleBreadcrumbs.map((crumb, index) => (
+          <span key={index} className="inline-flex items-center gap-1 min-w-0">
+            <ChevronRight size={12} />
+            <span className={index === visibleBreadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
               {crumb}
             </span>
           </span>
