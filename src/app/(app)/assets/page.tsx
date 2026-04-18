@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
-  Download, Square, CheckSquare, Users2,
+  Download, Square, CheckSquare, Users2, Trash2, AlertTriangle,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -26,6 +26,7 @@ import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as is
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { toPreviewInput } from '@/lib/asset-preview';
+import Modal from '@/components/ui/Modal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -101,6 +102,25 @@ function monthLabel(mm: string): string {
   const idx = parseInt(mm, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx > 11) return mm;
   return MONTH_NAMES[idx] ?? mm;
+}
+
+function normalizeClientLogoUrl(logo?: string): string | null {
+  if (!logo) return null;
+  const trimmed = logo.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('/')) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    const allowedHosts = new Set<string>();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl) {
+      try { allowedHosts.add(new URL(supabaseUrl).hostname); } catch {}
+    }
+    if (url.protocol === 'https:' && allowedHosts.has(url.hostname)) return url.toString();
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function getAssetYear(asset: Asset): string {
@@ -183,65 +203,92 @@ function ClientFolderCard({
   label,
   count,
   slug,
+  logo,
   onView,
   onDownload,
   isDownloading,
+  canDelete,
+  onDelete,
 }: {
   label: string;
   count: number;
   slug?: string;
+  logo?: string;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
+  canDelete?: boolean;
+  onDelete?: () => void;
 }) {
+  const initial = label.trim().charAt(0).toUpperCase() || '?';
+  const logoUrl = normalizeClientLogoUrl(logo);
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onView}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(); } }}
-      className="flex flex-col gap-3 p-4 rounded-2xl border cursor-pointer select-none
+      className="flex flex-col gap-4 p-5 rounded-3xl border cursor-pointer select-none
         transition-all duration-200 ease-out
-        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        hover:-translate-y-0.5 hover:shadow-lg hover:border-[var(--accent)]
         active:translate-y-0 active:scale-[0.99] active:shadow-sm
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 172 }}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-colors duration-200" style={{ background: 'rgba(99,102,241,0.1)' }}>
-          <Folder size={18} style={{ color: 'var(--accent)' }} />
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <div className="min-w-0 flex items-center gap-3">
+          <div className="shrink-0 w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden" style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'linear-gradient(135deg, rgba(99,102,241,0.9), rgba(139,92,246,0.9))' }}>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="text-lg font-bold text-white">{initial}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold truncate leading-tight" style={{ color: 'var(--text)' }}>{label}</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
-        </div>
+        {canDelete && onDelete && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
+            style={{ color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.08)' }}
+            title={`Delete ${label}`}
+            aria-label={`Delete ${label}`}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
       <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onView}
-          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
-          <FolderOpen size={12} /> View
+          <FolderOpen size={14} /> View
         </button>
         {slug ? (
           <a
             href={`/clients/${slug}/assets`}
-            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
             style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
           >
-            <Users2 size={12} /> Workspace
+            <Users2 size={14} /> Workspace
           </a>
         ) : (
           <button
             type="button"
             onClick={onDownload}
             disabled={isDownloading}
-            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
           >
-            <Download size={12} />{isDownloading ? '…' : 'Download'}
+            <Download size={14} />{isDownloading ? '…' : 'Download'}
           </button>
         )}
       </div>
@@ -326,6 +373,7 @@ function triggerDownload(url: string, filename: string): void {
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
+  const isOwner = user?.role === 'owner';
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
@@ -345,6 +393,8 @@ export default function AssetsPage() {
   const [previewAsset, setPreviewAsset]   = useState<Asset | null>(null);
   const [commentsAsset, setCommentsAsset] = useState<Asset | null>(null);
   const [scheduleAsset, setScheduleAsset] = useState<Asset | null>(null);
+  const [clientDeleteTarget, setClientDeleteTarget] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState(false);
   const [scheduleAfterUpload, setScheduleAfterUpload] = useState(false);
   const [toasts, setToasts]   = useState<ToastMsg[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -443,7 +493,7 @@ export default function AssetsPage() {
   }, [latestAsset]);
 
   useEffect(() => {
-    supabase.from('clients').select('id, name, slug').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
+    supabase.from('clients').select('id, name, slug, logo').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
   }, []);
 
   useEffect(() => {
@@ -809,6 +859,28 @@ export default function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
+  const handleDeleteClient = useCallback(async () => {
+    if (!isOwner || !clientDeleteTarget?.id) return;
+    setDeletingClient(true);
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', clientDeleteTarget.id);
+      if (error) {
+        addToast(error.message, 'error');
+        return;
+      }
+      setClients(prev => prev.filter(client => client.id !== clientDeleteTarget.id));
+      setPage(0);
+      void fetchAssets(0);
+      setFolderPath(prev => (prev.client === clientDeleteTarget.name ? {} : prev));
+      addToast(`Client "${clientDeleteTarget.name}" deleted.`, 'success');
+      setClientDeleteTarget(null);
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Failed to delete client', 'error');
+    } finally {
+      setDeletingClient(false);
+    }
+  }, [isOwner, clientDeleteTarget, addToast, fetchAssets]);
+
 
 
 
@@ -1067,19 +1139,26 @@ export default function AssetsPage() {
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {folderEntries.map(({ key, count }) => (
-                pathDepth === 0 ? (
-                  <ClientFolderCard
-                    key={key}
-                    label={key}
-                    count={count}
-                    slug={clients.find(c => c.name === key)?.slug}
-                    onView={() => navigateInto(key)}
-                    onDownload={() => void handleDownloadClient(key)}
-                    isDownloading={downloadingClient === key}
-                  />
-                ) : (
+            <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}>
+              {folderEntries.map(({ key, count }) => {
+                if (pathDepth === 0) {
+                  const clientMeta = clients.find(c => c.name === key);
+                  return (
+                    <ClientFolderCard
+                      key={key}
+                      label={key}
+                      count={count}
+                      slug={clientMeta?.slug}
+                      logo={clientMeta?.logo}
+                      onView={() => navigateInto(key)}
+                      onDownload={() => void handleDownloadClient(key)}
+                      isDownloading={downloadingClient === key}
+                      canDelete={isOwner && Boolean(clientMeta?.id)}
+                      onDelete={isOwner && clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
+                    />
+                  );
+                }
+                return (
                   <FolderCard
                     key={key}
                     label={folderCardLabel(key)}
@@ -1087,8 +1166,8 @@ export default function AssetsPage() {
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
                   />
-                )
-              ))}
+                );
+              })}
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
@@ -1168,6 +1247,47 @@ export default function AssetsPage() {
           onClose={() => setScheduleAsset(null)}
         />
       )}
+
+      <Modal
+        open={Boolean(clientDeleteTarget)}
+        onClose={() => { if (!deletingClient) setClientDeleteTarget(null); }}
+        title="Delete Client"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}>
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                Delete “{clientDeleteTarget?.name}”?
+              </p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                This action is permanent. Client-related files and folders may be removed according to workspace deletion rules.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setClientDeleteTarget(null)}
+              disabled={deletingClient}
+              className="h-9 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleDeleteClient(); }}
+              disabled={deletingClient}
+              className="h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: '#dc2626' }}
+            >
+              {deletingClient ? 'Deleting…' : 'Delete Client'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Preview modal ─────────────────────────────────────────────────── */}
       {previewAsset && (
