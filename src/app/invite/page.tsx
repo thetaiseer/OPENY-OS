@@ -43,6 +43,8 @@ const STRENGTH_LEVELS: Array<{ label: string; color: string } | null> = [
   { label: 'Strong', color: 'var(--color-success)' },
 ];
 
+const HEADER_BADGE_STYLE = { color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' } as const;
+
 function PasswordStrengthBar({ password }: { password: string }) {
   if (!password) return null;
   const strength = getPasswordStrength(password);
@@ -107,7 +109,6 @@ export default function InviteAcceptPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting]   = useState(false);
   const [formError, setFormError]     = useState('');
-  const headerBadgeStyle = { color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' } as const;
 
   const displayNameRef = useRef<HTMLInputElement>(null);
 
@@ -215,7 +216,7 @@ export default function InviteAcceptPage() {
           <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={headerBadgeStyle}>
+              <span className="inline-flex text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border" style={HEADER_BADGE_STYLE}>
                 Team Invitation
               </span>
             </div>
@@ -240,7 +241,7 @@ export default function InviteAcceptPage() {
                   <div className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}>
-                        {(invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0).toUpperCase()}
+                        {(((invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0)) || 'O').toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
