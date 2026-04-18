@@ -258,16 +258,13 @@ export default function SchedulePublishingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
+      className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl border shadow-2xl flex flex-col"
+        className="openy-modal-panel w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
         style={{
-          background:  'var(--surface)',
-          borderColor: 'var(--border)',
-          maxHeight:   '92vh',
+          animation: 'openy-modal-in 280ms var(--ease-spring) both',
         }}
         onClick={e => e.stopPropagation()}
       >

@@ -94,16 +94,13 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
   return (
     /* Backdrop — sits on top of UploadModal (z-50) */
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      className="openy-modal-overlay fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-2xl border shadow-2xl flex flex-col"
+        className="openy-modal-panel w-full max-w-sm rounded-2xl flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
         style={{
-          background:  'var(--surface)',
-          borderColor: 'var(--border)',
-          maxHeight:   '90vh',
+          animation: 'openy-modal-in 280ms var(--ease-spring) both',
         }}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
