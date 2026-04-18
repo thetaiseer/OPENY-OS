@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Cairo', 'sans-serif'],
+        sans: ['Inter', 'Geist', 'Cairo', 'sans-serif'],
       },
       colors: {
         bg: {
