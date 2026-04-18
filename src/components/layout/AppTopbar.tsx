@@ -80,7 +80,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   }
 
   return (
-    <header className="app-topbar header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b sm:flex" style={{ borderColor: 'var(--border-soft)' }}>
+    <header className="app-topbar header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
       <div className="flex min-w-0 items-center gap-2">
         <AccountMenu
           placement="header"
@@ -99,7 +99,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
         <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
           <OpenyLogo width={82} height={24} />
-          <span className="text-[10px] font-semibold tracking-wide text-[var(--text-secondary)]">{workspaceLabel}</span>
+          <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--text-secondary)]">{workspaceLabel}</span>
         </Link>
       </div>
 
@@ -121,7 +121,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         <GlobalSearch />
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <div className="hidden items-center gap-1 lg:flex">
           <ThemeSwitcher />
           <WorkspaceSwitcher />
@@ -137,7 +137,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
             onClick={() => openAi()}
             className="topbar-ai-btn"
             style={{
-              background: aiOpen ? 'var(--accent)' : '#ffffff',
+              background: aiOpen ? 'var(--accent)' : 'var(--surface-2)',
               color: aiOpen ? '#fff' : 'var(--text-primary)',
               border: `1px solid ${aiOpen ? 'var(--accent)' : 'var(--border)'}`,
             }}
