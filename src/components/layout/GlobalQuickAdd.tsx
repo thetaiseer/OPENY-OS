@@ -15,6 +15,7 @@ import { createClient as createSupabase } from '@/lib/supabase/client';
 import { useToast } from '@/lib/toast-context';
 import { useAuth } from '@/lib/auth-context';
 import Modal from '@/components/ui/Modal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 type QuickAddKind = 'task' | 'client' | 'content' | 'asset';
 
@@ -462,6 +463,7 @@ export default function GlobalQuickAdd() {
         open={activeModal === 'task'}
         onClose={() => setActiveModal(null)}
         title="Add Task"
+        subtitle="Create and assign a task with client context."
         size="md"
       >
         <form className="space-y-4" onSubmit={handleTaskSubmit}>
@@ -500,45 +502,47 @@ export default function GlobalQuickAdd() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Client *</label>
-              <select
-                required
+              <SelectDropdown
+                fullWidth
                 value={taskClientId}
-                onChange={(e) => setTaskClientId(e.target.value)}
-                className={baseFieldCls}
-              >
-                <option value="">Select client</option>
-                {clientOptions.map((client) => (
-                  <option key={client.value} value={client.value}>{client.label}</option>
-                ))}
-              </select>
+                onChange={setTaskClientId}
+                placeholder="Select client"
+                options={[
+                  { value: '', label: 'Select client' },
+                  ...clientOptions,
+                ]}
+              />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Assignee *</label>
-              <select
-                required
+              <SelectDropdown
+                fullWidth
                 value={taskAssignee}
-                onChange={(e) => setTaskAssignee(e.target.value)}
-                className={baseFieldCls}
-              >
-                <option value="">Select assignee</option>
-                {team.map((member) => (
-                  <option key={member.id} value={member.id}>{member.full_name ?? member.email ?? member.id}</option>
-                ))}
-              </select>
+                onChange={setTaskAssignee}
+                placeholder="Select assignee"
+                options={[
+                  { value: '', label: 'Select assignee' },
+                  ...team.map((member) => ({
+                    value: member.id,
+                    label: member.full_name ?? member.email ?? member.id,
+                  })),
+                ]}
+              />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Priority</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 value={taskPriority}
-                onChange={(e) => setTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                className={baseFieldCls}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+                onChange={v => setTaskPriority(v as 'low' | 'medium' | 'high')}
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'high', label: 'High' },
+                ]}
+              />
             </div>
 
             <div>
@@ -553,20 +557,18 @@ export default function GlobalQuickAdd() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="openy-modal-actions" data-modal-footer="true">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="h-10 rounded-xl px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="h-10 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Task'}
             </button>
@@ -578,6 +580,7 @@ export default function GlobalQuickAdd() {
         open={activeModal === 'client'}
         onClose={() => setActiveModal(null)}
         title="Add Client"
+        subtitle="Create a client profile for workspace operations."
         size="sm"
       >
         <form className="space-y-4" onSubmit={handleClientSubmit}>
@@ -621,20 +624,18 @@ export default function GlobalQuickAdd() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="openy-modal-actions" data-modal-footer="true">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="h-10 rounded-xl px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="h-10 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Client'}
             </button>
@@ -646,6 +647,7 @@ export default function GlobalQuickAdd() {
         open={activeModal === 'content'}
         onClose={() => setActiveModal(null)}
         title="Add Content"
+        subtitle="Create a new content item with linked client context."
         size="sm"
       >
         <form className="space-y-4" onSubmit={handleContentSubmit}>
@@ -662,16 +664,15 @@ export default function GlobalQuickAdd() {
 
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Client</label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={contentClientId}
-              onChange={(e) => setContentClientId(e.target.value)}
-              className={baseFieldCls}
-            >
-              <option value="">No client</option>
-              {clientOptions.map((client) => (
-                <option key={client.value} value={client.value}>{client.label}</option>
-              ))}
-            </select>
+              onChange={setContentClientId}
+              options={[
+                { value: '', label: 'No client' },
+                ...clientOptions,
+              ]}
+            />
           </div>
 
           <div>
@@ -685,20 +686,18 @@ export default function GlobalQuickAdd() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="openy-modal-actions" data-modal-footer="true">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="h-10 rounded-xl px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="h-10 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Content'}
             </button>
@@ -710,6 +709,7 @@ export default function GlobalQuickAdd() {
         open={activeModal === 'asset'}
         onClose={() => setActiveModal(null)}
         title="Add Asset"
+        subtitle="Register an external file link as a managed asset."
         size="sm"
       >
         <form className="space-y-4" onSubmit={handleAssetSubmit}>
@@ -751,46 +751,44 @@ export default function GlobalQuickAdd() {
 
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Client</label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={assetClientId}
-              onChange={(e) => setAssetClientId(e.target.value)}
-              className={baseFieldCls}
-            >
-              <option value="">No client</option>
-              {clientOptions.map((client) => (
-                <option key={client.value} value={client.value}>{client.label}</option>
-              ))}
-            </select>
+              onChange={setAssetClientId}
+              options={[
+                { value: '', label: 'No client' },
+                ...clientOptions,
+              ]}
+            />
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>File type</label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={assetType}
-              onChange={(e) => setAssetType(e.target.value)}
-              className={baseFieldCls}
-            >
-              <option value="document">Document</option>
-              <option value="image">Image</option>
-              <option value="video">Video</option>
-              <option value="audio">Audio</option>
-            </select>
+              onChange={setAssetType}
+              options={[
+                { value: 'document', label: 'Document' },
+                { value: 'image', label: 'Image' },
+                { value: 'video', label: 'Video' },
+                { value: 'audio', label: 'Audio' },
+              ]}
+            />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="openy-modal-actions" data-modal-footer="true">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="h-10 rounded-xl px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              className="btn-secondary h-10 rounded-xl px-4 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="h-10 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
             >
               {submitting ? 'Creating...' : 'Create Asset'}
             </button>

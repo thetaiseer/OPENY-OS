@@ -243,33 +243,39 @@ export default function ClientContentPage() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New Content Item" size="sm">
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="New Content Item"
+        subtitle="Create a content draft with schedule and status."
+        size="sm"
+      >
         <form onSubmit={e => void handleCreate(e)} className="space-y-4">
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-1">
               <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Title *</label>
               <AiImproveButton value={form.title} onImproved={v => setForm(f => ({ ...f, title: v }))} />
             </div>
-            <input
-              required
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              placeholder="Content title"
-            />
+              <input
+                required
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                className="openy-field w-full h-10 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                placeholder="Content title"
+              />
           </div>
 
           <div className="space-y-1">
             <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={2}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-              placeholder="Optional description"
-            />
+              <textarea
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                rows={2}
+                className="openy-field w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
+                style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                placeholder="Optional description"
+              />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -288,26 +294,24 @@ export default function ClientContentPage() {
                 type="date"
                 value={form.schedule_date}
                 onChange={e => setForm(f => ({ ...f, schedule_date: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                className="openy-field w-full h-10 px-3 rounded-lg text-sm outline-none"
+                style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="openy-modal-actions" data-modal-footer="true">
             <button
               type="button"
               onClick={() => setCreateOpen(false)}
-              className="h-9 px-4 rounded-lg text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              className="btn-secondary h-10 px-4 rounded-lg text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
+              className="btn-primary h-10 px-4 rounded-lg text-sm font-medium disabled:opacity-60"
             >
               {saving ? 'Creating…' : 'Create'}
             </button>
