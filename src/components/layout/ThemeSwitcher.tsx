@@ -1,63 +1,39 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
-import { useTheme, type Theme } from '@/lib/theme-context';
-
-const OPTIONS: { value: Theme; label: string; icon: React.ReactNode; slot: '1' | '2' | '3' }[] = [
-  { value: 'light', label: 'Light',   icon: <Sun  size={18} strokeWidth={2} />, slot: '1' },
-  { value: 'dark',  label: 'Dark',    icon: <Moon size={18} strokeWidth={2} />, slot: '2' },
-  { value: 'dim',   label: 'Dim',     icon: <Monitor size={18} strokeWidth={2} />, slot: '3' },
-];
-
-const SLOT: Record<Theme, '1' | '2' | '3'> = { light: '1', dark: '2', dim: '3' };
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/lib/theme-context';
 
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
-  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
-  const prevSlotRef = useRef<string>(SLOT[theme]);
-
-  // Keep prevSlotRef in sync and update the DOM attribute for CSS animation
-  const handleChange = useCallback((next: Theme) => {
-    const el = fieldsetRef.current;
-    if (el) el.setAttribute('data-switcher-previous', prevSlotRef.current);
-    prevSlotRef.current = SLOT[next];
-    setTheme(next);
-  }, [setTheme]);
-
-  // Sync the data-switcher-previous attribute whenever the active theme changes
-  useEffect(() => {
-    const el = fieldsetRef.current;
-    if (!el) return;
-    // On first run set the initial previous value; on subsequent runs it was
-    // already updated in handleChange before the theme state changed.
-    if (!el.hasAttribute('data-switcher-previous')) {
-      el.setAttribute('data-switcher-previous', SLOT[theme]);
-    }
-    prevSlotRef.current = SLOT[theme];
-  }, [theme]);
+  const active = theme === 'light' ? 'light' : 'dark';
 
   return (
-    <fieldset className="switcher" ref={fieldsetRef} aria-label="Color scheme">
-      <legend className="switcher__legend">Color scheme</legend>
-
-      {OPTIONS.map(({ value, label, icon, slot }) => (
-        <label key={value} className="switcher__option" title={label}>
-          <input
-            className="switcher__input"
-            type="radio"
-            name="openy-color-scheme"
-            value={value}
-            checked={theme === value}
-            onChange={() => handleChange(value)}
-            aria-label={label}
-            {...{ 'data-c-option': slot }}
-          />
-          <span className="switcher__icon" aria-hidden="true">
-            {icon}
-          </span>
-        </label>
-      ))}
+    <fieldset className="switcher" aria-label="Theme mode">
+      <legend className="switcher__legend">Theme mode</legend>
+      <label className="switcher__option" title="Dark mode">
+        <input
+          className="switcher__input"
+          type="radio"
+          name="openy-theme"
+          checked={active === 'dark'}
+          onChange={() => setTheme('dark')}
+        />
+        <span className="switcher__icon" aria-hidden="true">
+          <Moon size={16} />
+        </span>
+      </label>
+      <label className="switcher__option" title="Light mode">
+        <input
+          className="switcher__input"
+          type="radio"
+          name="openy-theme"
+          checked={active === 'light'}
+          onChange={() => setTheme('light')}
+        />
+        <span className="switcher__icon" aria-hidden="true">
+          <Sun size={16} />
+        </span>
+      </label>
     </fieldset>
   );
 }

@@ -1,46 +1,36 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { User as UserIcon, KeyRound, LogOut } from 'lucide-react';
+import { User, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface AccountMenuProps {
-  /**
-   * 'header'  — dropdown opens below and aligns to the right (top-right avatar)
-   * 'sidebar' — dropdown opens above and aligns to the left (bottom-left sidebar area)
-   */
   placement: 'header' | 'sidebar';
   children: React.ReactNode;
 }
 
 export default function AccountMenu({ placement, children }: AccountMenuProps) {
   const { user, role, loading, signOut } = useAuth();
-  const [open, setOpen]           = useState(false);
+  const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [open]);
-
-  // Close on Escape key
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('keydown', handle);
-    return () => document.removeEventListener('keydown', handle);
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
   }, [open]);
 
   async function handleSignOut() {
@@ -48,120 +38,71 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
     setSigningOut(true);
     try {
       await signOut();
-      // signOut in auth-context redirects to / on success
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign out failed';
-      setSignOutError(message);
+    } catch (error: unknown) {
+      setSignOutError(error instanceof Error ? error.message : 'Sign out failed');
       setSigningOut(false);
     }
   }
 
-  const dropdownPositionClass =
-    placement === 'header'
-      ? 'right-0 top-full mt-2'
-      : 'left-0 bottom-full mb-2';
+  const placementClass = placement === 'header' ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2';
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={rootRef} className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-lg"
-        aria-expanded={open}
-        aria-haspopup="menu"
         type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {children}
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className={`openy-menu-panel absolute ${dropdownPositionClass} z-50 min-w-[230px] rounded-2xl overflow-hidden animate-openy-slide-down`}
-        >
-          {/* User info header */}
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+      {open ? (
+        <div role="menu" className={`openy-menu-panel absolute z-50 min-w-[240px] overflow-hidden rounded-2xl ${placementClass}`}>
+          <div className="border-b p-3" style={{ borderColor: 'var(--border)' }}>
             {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full animate-pulse" style={{ background: 'var(--surface-2)' }} />
-                <div className="space-y-1.5 flex-1">
-                  <div className="h-3 rounded animate-pulse w-24" style={{ background: 'var(--surface-2)' }} />
-                  <div className="h-2.5 rounded animate-pulse w-32" style={{ background: 'var(--surface-2)' }} />
-                </div>
-              </div>
+              <p className="text-xs text-[var(--text-secondary)]">Loading account…</p>
             ) : (
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
-                    {user.name || user.email}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                    {user.email}
-                  </p>
-                  <span
-                    className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-xs font-semibold capitalize"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    {role}
-                  </span>
-                </div>
-              </div>
+              <>
+                <p className="truncate text-sm font-semibold">{user.name || user.email}</p>
+                <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
+                <span className="mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  {role}
+                </span>
+              </>
             )}
           </div>
 
-          {/* Menu items */}
-          <div className="py-1">
-            <Link
-              href="/account"
-              onClick={() => setOpen(false)}
-              role="menuitem"
-              className="openy-menu-item flex items-center gap-3 px-4 py-2.5 text-sm"
-              style={{ color: 'var(--text)' }}
-            >
-              <UserIcon size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
-              Account Settings
+          <div className="py-1.5">
+            <Link href="/account" onClick={() => setOpen(false)} className="openy-menu-item flex items-center gap-2 px-3 py-2 text-sm">
+              <User size={14} /> Account Settings
             </Link>
-            <Link
-              href="/change-password"
-              onClick={() => setOpen(false)}
-              role="menuitem"
-              className="openy-menu-item flex items-center gap-3 px-4 py-2.5 text-sm"
-              style={{ color: 'var(--text)' }}
-            >
-              <KeyRound size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
-              Change Password
+            <Link href="/change-password" onClick={() => setOpen(false)} className="openy-menu-item flex items-center gap-2 px-3 py-2 text-sm">
+              <KeyRound size={14} /> Change Password
             </Link>
           </div>
 
-          {/* Sign out error toast */}
-          {signOutError && (
-            <div
-              className="mx-3 mb-2 px-3 py-2 rounded-lg text-xs font-medium"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
-            >
+          {signOutError ? (
+            <div className="mx-3 mb-2 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--color-danger-border)', color: 'var(--color-danger)' }}>
               {signOutError}
             </div>
-          )}
+          ) : null}
 
-          <div className="border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="border-t p-1.5" style={{ borderColor: 'var(--border)' }}>
             <button
+              type="button"
               role="menuitem"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="openy-menu-item flex w-full items-center gap-3 px-4 py-2.5 text-sm disabled:opacity-50"
-              style={{ color: '#ef4444' }}
+              className="openy-menu-item flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
+              style={{ color: 'var(--color-danger)' }}
             >
-              <LogOut size={15} className="shrink-0" />
-              {signingOut ? 'Signing out…' : 'Sign out'}
+              <LogOut size={14} /> {signingOut ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

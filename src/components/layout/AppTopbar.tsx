@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
-import AccountMenu from './AccountMenu';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
@@ -14,129 +13,88 @@ import { useAi } from '@/lib/ai-context';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+import AccountMenu from './AccountMenu';
 
-interface AppTopbarProps { onMenuClick?: () => void; }
+interface AppTopbarProps {
+  onMenuClick?: () => void;
+}
+
 const WORKSPACE_SEGMENTS = new Set(['os', 'docs']);
-const MAX_VISIBLE_BREADCRUMBS = 4;
-const WORKSPACE_DISPLAY_LABEL: Record<string, string> = {
-  DOCS: 'Docs',
-  OS: 'OS',
-};
 
 function formatBreadcrumbLabel(segment: string) {
-  const decoded = decodeURIComponent(segment);
-  return decoded
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, char => char.toUpperCase());
+  return decodeURIComponent(segment).replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
-  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
-    ? 'Go to OPENY DOCS dashboard'
-    : 'Go to OPENY OS dashboard';
+
   const { toggleLang } = useLang();
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
   const { open: openAi, isOpen: aiOpen } = useAi();
+
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
-    return segments
-      .filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment)))
-      .map(formatBreadcrumbLabel);
+    return segments.filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment))).map(formatBreadcrumbLabel).slice(0, 4);
   }, [pathname]);
-  const visibleBreadcrumbs = breadcrumbs.slice(0, MAX_VISIBLE_BREADCRUMBS);
-  const isBreadcrumbTruncated = breadcrumbs.length > MAX_VISIBLE_BREADCRUMBS;
 
   useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
         openPalette();
       }
-    }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [openPalette]);
 
   return (
-    <header className="app-topbar h-16 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20 header-glass">
-      <button onClick={onMenuClick} className="lg:hidden topbar-icon-btn shrink-0" aria-label="Open menu">
-        <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
+    <header className="app-topbar header-glass sticky top-0 z-20 flex items-center gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+      <button type="button" onClick={onMenuClick} className="topbar-icon-btn lg:hidden" aria-label="Open menu">
+        <Menu size={18} />
       </button>
-      <Link
-        href={dashboardHref}
-        aria-label={dashboardAriaLabel}
-        className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
-      >
+
+      <Link href={dashboardHref} className="inline-flex items-center gap-1.5 lg:hidden">
         <OpenyLogo width={82} height={24} />
-        <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
+        <span className="text-[10px] font-semibold tracking-wide text-[var(--text-secondary)]">{workspaceLabel}</span>
       </Link>
 
-      <div className="topbar-breadcrumb hidden md:flex flex-1 min-w-0 max-w-[46vw]">
-        <span>{WORKSPACE_DISPLAY_LABEL[workspaceLabel] ?? workspaceLabel}</span>
-        {isBreadcrumbTruncated && (
-          <span className="inline-flex items-center gap-1 min-w-0">
+      <div className="topbar-breadcrumb hidden min-w-0 flex-1 md:flex">
+        <span>{workspaceLabel}</span>
+        {breadcrumbs.map((crumb, index) => (
+          <span key={`${crumb}-${index}`} className="inline-flex min-w-0 items-center gap-1">
             <ChevronRight size={12} />
-            <span className="truncate">…</span>
-          </span>
-        )}
-        {visibleBreadcrumbs.map((crumb, index) => (
-          <span key={index} className="inline-flex items-center gap-1 min-w-0">
-            <ChevronRight size={12} />
-            <span className={index === visibleBreadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>
-              {crumb}
-            </span>
+            <span className={index === breadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>{crumb}</span>
           </span>
         ))}
       </div>
 
-      <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-md">
+      <div className="min-w-0 max-w-[52vw] flex-1 sm:max-w-md">
         <GlobalSearch />
       </div>
 
-      <div className="flex-1" />
+      <div className="flex flex-1 justify-end" />
 
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-1">
         <WorkspaceSwitcher />
 
-        <button
-          onClick={toggleLang}
-          className="topbar-icon-btn hidden sm:flex"
-          style={{ color: 'var(--text-secondary)' }}
-          title="Toggle language"
-        >
-          <Globe size={18} />
+        <button type="button" onClick={toggleLang} className="topbar-icon-btn hidden sm:inline-flex" title="Toggle language">
+          <Globe size={16} />
         </button>
 
         <NotificationDropdown />
 
         <button
-          onClick={() => {
-            let clientContext: { id?: string; name?: string; slug?: string } | undefined;
-            if (pathname.includes('/clients/')) {
-              try {
-                const saved = window.localStorage.getItem('openy_last_client');
-                if (saved) {
-                  const parsed = JSON.parse(saved) as { id?: string; name?: string; slug?: string };
-                  if (parsed?.id) clientContext = parsed;
-                }
-              } catch {
-                // ignore
-              }
-            }
-            openAi({ clientContext });
-          }}
+          type="button"
+          onClick={() => openAi()}
           className="topbar-ai-btn"
           style={{
-            background: aiOpen
-              ? 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)'
-              : 'linear-gradient(135deg, var(--accent-soft) 0%, transparent 100%)',
+            background: aiOpen ? 'linear-gradient(130deg,var(--accent),var(--accent-2))' : 'var(--surface-2)',
             color: aiOpen ? '#fff' : 'var(--accent)',
-            border: `1px solid ${aiOpen ? 'rgba(255,255,255,0.35)' : 'var(--accent-glow)'}`,
-            boxShadow: aiOpen ? '0 6px 14px var(--accent-glow)' : 'inset 0 0 0 1px var(--accent-soft)',
+            border: `1px solid ${aiOpen ? 'transparent' : 'var(--border)'}`,
           }}
           title="AI Command Center (⌘J)"
         >
@@ -145,11 +103,8 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         </button>
 
         <AccountMenu placement="header">
-          <div
-            className="topbar-avatar"
-            style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)' }}
-          >
-            {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
+          <div className="topbar-avatar" style={{ background: 'linear-gradient(130deg,var(--accent),var(--accent-2))' }}>
+            {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
         </AccountMenu>
       </div>

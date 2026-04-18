@@ -14,47 +14,26 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-openy-fade-in">
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border"
-        style={{
-          background: 'var(--surface-2)',
-          borderColor: 'var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
+    <div className="animate-openy-fade-in rounded-2xl border p-8 text-center" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
         <Icon size={26} style={{ color: 'var(--text-tertiary)' }} />
       </div>
-      <h3
-        className="text-base font-bold mb-2 tracking-tight"
-        style={{ color: 'var(--text)' }}
-      >
-        {title}
-      </h3>
-      <p
-        className="text-sm max-w-xs mb-6 leading-relaxed"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        {description}
-      </p>
-      {action}
-      {suggestions && suggestions.length > 0 && (
-        <div className="mt-6 grid w-full max-w-xl gap-2.5 text-left">
+
+      <h3 className="text-base font-bold tracking-tight">{title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm text-[var(--text-secondary)]">{description}</p>
+      {action ? <div className="mt-5">{action}</div> : null}
+
+      {suggestions && suggestions.length > 0 ? (
+        <div className="mx-auto mt-6 grid max-w-3xl gap-2.5 text-left md:grid-cols-2">
           {suggestions.map((suggestion) => (
-            <div
-              key={suggestion.title}
-              className="rounded-xl border px-3.5 py-3"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{suggestion.title}</p>
-              {suggestion.description && (
-                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{suggestion.description}</p>
-              )}
-              {suggestion.action && <div className="mt-2">{suggestion.action}</div>}
+            <div key={suggestion.title} className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <p className="text-sm font-semibold">{suggestion.title}</p>
+              {suggestion.description ? <p className="mt-1 text-xs text-[var(--text-secondary)]">{suggestion.description}</p> : null}
+              {suggestion.action ? <div className="mt-2">{suggestion.action}</div> : null}
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,30 +1,20 @@
-// Skeleton loader components — prevent layout shift during data fetching.
-
 export function SkeletonCard({ className = '' }: { className?: string }) {
-  return (
-    <div
-      className={`rounded-2xl border skeleton-shimmer ${className}`}
-      style={{ borderColor: 'var(--border)', minHeight: 120 }}
-    />
-  );
+  return <div className={`skeleton-shimmer rounded-2xl border ${className}`} style={{ borderColor: 'var(--border)', minHeight: 120 }} />;
 }
 
 export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) {
-  return (
-    <div className={`rounded-lg skeleton-shimmer ${width} ${height}`} />
-  );
+  return <div className={`skeleton-shimmer rounded-lg ${width} ${height}`} />;
 }
+
+const FIRST_COL_MAX_WIDTH = 220;
+const OTHER_COL_MAX_WIDTH = 140;
 
 export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
   return (
-    <div className="flex items-center gap-4 px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="w-9 h-9 rounded-xl skeleton-shimmer shrink-0" />
-      {Array.from({ length: cols - 1 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-4 rounded-lg skeleton-shimmer flex-1"
-          style={{ maxWidth: i === 0 ? 200 : 120 }}
-        />
+    <div className="flex items-center gap-4 border-b px-5 py-4" style={{ borderColor: 'var(--border)' }}>
+      <div className="skeleton-shimmer h-9 w-9 shrink-0 rounded-xl" />
+      {Array.from({ length: cols - 1 }).map((_, index) => (
+        <div key={index} className="skeleton-shimmer h-4 flex-1 rounded-lg" style={{ maxWidth: index === 0 ? FIRST_COL_MAX_WIDTH : OTHER_COL_MAX_WIDTH }} />
       ))}
     </div>
   );
@@ -32,12 +22,9 @@ export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
 
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div
-      className="rounded-2xl border overflow-hidden"
-      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-    >
-      {Array.from({ length: rows }).map((_, i) => (
-        <SkeletonTableRow key={i} cols={cols} />
+    <div className="overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      {Array.from({ length: rows }).map((_, index) => (
+        <SkeletonTableRow key={index} cols={cols} />
       ))}
     </div>
   );
@@ -45,9 +32,9 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 
 export function SkeletonStatGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <SkeletonCard key={index} />
       ))}
     </div>
   );
