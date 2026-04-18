@@ -137,9 +137,9 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
             onClick={() => openAi()}
             className="topbar-ai-btn"
             style={{
-              background: aiOpen ? 'linear-gradient(130deg,var(--accent),var(--accent-2))' : 'var(--surface-2)',
-              color: aiOpen ? '#fff' : 'var(--accent)',
-              border: `1px solid ${aiOpen ? 'transparent' : 'var(--border)'}`,
+              background: aiOpen ? 'var(--accent)' : '#ffffff',
+              color: aiOpen ? '#fff' : 'var(--text-primary)',
+              border: `1px solid ${aiOpen ? 'var(--accent)' : 'var(--border)'}`,
             }}
             title="AI Command Center (⌘J)"
           >
@@ -154,7 +154,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, false)}
           triggerAriaLabel="Open account menu"
         >
-          <div className="topbar-avatar" style={{ background: 'linear-gradient(130deg,var(--accent),var(--accent-2))' }}>
+          <div className="topbar-avatar">
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
         </AccountMenu>

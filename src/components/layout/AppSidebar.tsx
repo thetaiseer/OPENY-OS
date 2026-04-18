@@ -90,7 +90,7 @@ export default function AppSidebar({
           <div className="app-sidebar-user">
             <AccountMenu placement="sidebar">
               <div className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-[var(--surface-2)]">
-                <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-2))] text-xs font-bold text-white inline-flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-[var(--accent)] text-xs font-bold text-white inline-flex items-center justify-center">
                   {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
