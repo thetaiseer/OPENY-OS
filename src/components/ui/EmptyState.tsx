@@ -14,9 +14,9 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
-    <div className="animate-openy-fade-in rounded-2xl border p-8 text-center" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-      <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-        <Icon size={26} style={{ color: 'var(--text-tertiary)' }} />
+    <div className="animate-openy-fade-in openy-card rounded-2xl border p-8 text-center">
+      <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)]">
+        <Icon size={26} style={{ color: 'var(--accent-secondary)' }} />
       </div>
 
       <h3 className="text-base font-bold tracking-tight">{title}</h3>
@@ -26,7 +26,7 @@ export default function EmptyState({ icon: Icon, title, description, action, sug
       {suggestions && suggestions.length > 0 ? (
         <div className="mx-auto mt-6 grid max-w-3xl gap-2.5 text-left md:grid-cols-2">
           {suggestions.map((suggestion) => (
-            <div key={suggestion.title} className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+            <div key={suggestion.title} className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3">
               <p className="text-sm font-semibold">{suggestion.title}</p>
               {suggestion.description ? <p className="mt-1 text-xs text-[var(--text-secondary)]">{suggestion.description}</p> : null}
               {suggestion.action ? <div className="mt-2">{suggestion.action}</div> : null}
