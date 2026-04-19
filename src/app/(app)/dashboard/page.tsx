@@ -333,7 +333,8 @@ export default function DashboardPage() {
               <div key={item.label} className="ds-progress-row">
                 <span>{item.label}</span>
                 <div>
-                  <motion.i
+                  <motion.div
+                    className="ds-progress-fill"
                     initial={{ width: 0 }}
                     animate={{ width: `${(item.count / maxContentCount) * 100}%` }}
                     transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}

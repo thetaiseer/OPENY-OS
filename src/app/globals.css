@@ -689,7 +689,7 @@ textarea {
   overflow: hidden;
 }
 
-.ds-progress-row i {
+.ds-progress-fill {
   display: block;
   height: 100%;
   border-radius: inherit;

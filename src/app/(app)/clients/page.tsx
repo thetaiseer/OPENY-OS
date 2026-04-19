@@ -591,6 +591,23 @@ export default function ClientsPage() {
                   )}
                 </div>
 
+                <div className="mb-4 flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border-2)', background: 'rgba(255,255,255,0.02)' }}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                    Client Signature
+                  </span>
+                  <div className="flex -space-x-2">
+                    {[0, 1, 2].map(avatarIndex => (
+                      <span
+                        key={avatarIndex}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold"
+                        style={{ borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(0,123,255,0.2)', color: 'var(--text-primary)' }}
+                      >
+                        {`${(client.name ?? 'C').charAt(0).toUpperCase()}${avatarIndex + 1}`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="mt-auto grid grid-cols-3 gap-2 opacity-90 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <Link
                     href={overviewHref ?? '/clients'}
