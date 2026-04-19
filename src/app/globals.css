@@ -1024,6 +1024,7 @@ textarea {
   --text-tertiary: #64748b;
   --accent: #1d4ed8;
   --accent-2: #2563eb;
+  --accent-3: #3b82f6;
   --primary: #0f172a;
   --primary-hover: #111827;
   --accent-soft: #eef2f7;
@@ -1080,6 +1081,7 @@ textarea {
   --text-tertiary: #94a3b8;
   --accent: #3b82f6;
   --accent-2: #2563eb;
+  --accent-3: #3b82f6;
   --primary: #1e293b;
   --primary-hover: #2563eb;
   --accent-soft: rgba(59, 130, 246, 0.16);
@@ -1166,16 +1168,12 @@ textarea {
   backdrop-filter: blur(6px);
 }
 
-.app-card--stat {
-  padding: var(--space-md);
-}
-
 .app-card--action {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
 :root[data-theme='dark'] .app-card--action {
-  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
 }
 
 .icon-box,
@@ -1219,7 +1217,7 @@ textarea {
 }
 
 .card-value {
-  margin: 6px 0 0;
+  margin: var(--space-2xs) 0 0;
   font-size: clamp(1.65rem, 2.2vw, 2rem);
   line-height: 1.1;
   font-weight: 700;
@@ -1228,7 +1226,7 @@ textarea {
 }
 
 .card-body {
-  margin: 8px 0 0;
+  margin: var(--space-xs) 0 0;
   color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.55;
@@ -1244,10 +1242,10 @@ textarea {
 }
 
 .card-meta--muted {
-  margin-top: 8px;
+  margin-top: var(--space-xs);
   text-transform: none;
   letter-spacing: 0;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-tertiary);
 }
@@ -1297,7 +1295,7 @@ textarea {
 .glass-btn--primary,
 .glass-btn--accent,
 .ds-button--primary {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
   color: #ffffff;
   border-color: rgba(15, 23, 42, 0.1);
   box-shadow: var(--shadow-button);
@@ -1308,7 +1306,7 @@ textarea {
 .glass-btn--primary:hover,
 .glass-btn--accent:hover,
 .ds-button--primary:hover {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(180deg, var(--accent-3) 0%, var(--accent-2) 100%);
 }
 
 .btn-secondary,
@@ -1376,7 +1374,7 @@ textarea {
   height: 56px;
   min-height: 56px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
   color: #fff;
   border: 1px solid rgba(15, 23, 42, 0.12);
   box-shadow: 0 16px 28px rgba(15, 23, 42, 0.24);
@@ -1546,8 +1544,6 @@ textarea {
   :is(.action-button, .ds-button, .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .glass-btn) {
     min-height: 44px;
     border-radius: var(--radius-pill);
-    width: 100%;
-    justify-content: center;
   }
 
   .btn-fab {

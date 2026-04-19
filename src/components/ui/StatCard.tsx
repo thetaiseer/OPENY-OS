@@ -4,12 +4,19 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  color?: 'blue' | 'neutral';
+  color?: 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'mint' | 'rose' | 'cyan' | 'neutral';
   trend?: { value: number; label?: string };
 }
 
 const toneMap = {
   blue: { color: 'var(--accent)' },
+  green: { color: 'var(--accent)' },
+  amber: { color: 'var(--accent)' },
+  red: { color: 'var(--text-secondary)' },
+  violet: { color: 'var(--accent)' },
+  mint: { color: 'var(--accent)' },
+  rose: { color: 'var(--text-secondary)' },
+  cyan: { color: 'var(--accent)' },
   neutral: { color: 'var(--text-secondary)' },
 };
 

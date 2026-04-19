@@ -120,11 +120,9 @@ interface StatCardProps {
 export function StatCard({ title, value, meta, icon, action, className }: StatCardProps) {
   return (
     <AppCard as="article" variant="stat" className={clsx('p-5', className)}>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-2">
         {icon && (
-          <div className="icon-box icon-box--accent">
-            {icon}
-          </div>
+          <IconBox tone="accent">{icon}</IconBox>
         )}
         {action}
       </div>
