@@ -237,7 +237,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'valid' && invite && (
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                  <InfoCallout icon={<UserRound size={14} />} title="Invite profile">
+                  <InfoCallout icon={<UserRound size={14} />} heading="Invite profile">
                     <div className="mt-3 flex items-start gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white" style={{ background: 'var(--accent)' }}>
                         {(((invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0)) || 'O').toUpperCase()}
@@ -443,7 +443,7 @@ function StateScreen({
 
   return (
     <div className="text-center py-2 sm:py-6">
-      <InfoCallout icon={icon} title={title}>
+      <InfoCallout icon={icon} heading={title}>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{message}</p>
         {action && <div className="mt-6 flex justify-center">{action}</div>}
         {!action && (

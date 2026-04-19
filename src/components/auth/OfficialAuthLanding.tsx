@@ -206,17 +206,17 @@ export default function OfficialAuthLanding() {
               <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <InfoCallout
                   icon={<Palette size={14} strokeWidth={1.6} />}
-                  title="Theme"
+                  heading="Theme"
                   body="Optimized for dark mode."
                 />
                 <InfoCallout
                   icon={<ShieldCheck size={14} strokeWidth={1.6} />}
-                  title="Access"
+                  heading="Access"
                   body="Validated against workspace policies."
                 />
                 <InfoCallout
                   icon={<Lock size={14} strokeWidth={1.6} />}
-                  title="Invite-only"
+                  heading="Invite-only"
                   body="Managed by workspace owners."
                 />
               </div>

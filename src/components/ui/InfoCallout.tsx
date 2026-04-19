@@ -3,11 +3,11 @@ import clsx from 'clsx';
 
 interface InfoCalloutProps extends HTMLAttributes<HTMLDivElement> {
   icon?: ReactNode;
-  title: ReactNode;
+  heading: ReactNode;
   body?: ReactNode;
 }
 
-export default function InfoCallout({ icon, title, body, className, children, ...props }: InfoCalloutProps) {
+export default function InfoCallout({ icon, heading, body, className, children, ...props }: InfoCalloutProps) {
   return (
     <div
       className={clsx(
@@ -18,7 +18,7 @@ export default function InfoCallout({ icon, title, body, className, children, ..
     >
       <div className="flex items-center gap-2">
         {icon ? <span className="text-slate-500 dark:text-slate-300">{icon}</span> : null}
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{heading}</h3>
       </div>
       {body ? <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">{body}</p> : null}
       {children}
