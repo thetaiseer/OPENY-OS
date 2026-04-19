@@ -38,7 +38,7 @@ export interface VaultAsset {
   mimeType: string;
   sizeBytes: number;
   r2Key: string;
-  uploadState: 'pending' | 'uploading' | 'complete' | 'failed' | 'aborted';
+  uploadStatus: 'pending' | 'uploading' | 'completed' | 'failed' | 'aborted';
   multipartUploadId: string | null;
   createdAt: string;
 }
