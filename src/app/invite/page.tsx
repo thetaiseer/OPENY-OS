@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check, Loader2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, Clock, ShieldOff, Check, Loader2, Sparkles, UserRound } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
+import InfoCallout from '@/components/ui/InfoCallout';
 import { createClient } from '@/lib/supabase/client';
 
 interface InviteInfo {
@@ -227,7 +228,7 @@ export default function InviteAcceptPage() {
             <div className="relative p-5 sm:p-7 lg:p-9">
               {pageState === 'loading' && (
                 <StateScreen
-                  icon={<Loader2 size={44} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                  icon={<Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />}
                   title="Checking invitation"
                   message="Validating your invitation link…"
                   tone="info"
@@ -236,22 +237,22 @@ export default function InviteAcceptPage() {
 
               {pageState === 'valid' && invite && (
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                  <div className="rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--surface-2) 90%, transparent)' }}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0" style={{ background: 'var(--accent)' }}>
+                  <InfoCallout icon={<UserRound size={14} />} title="Invite profile">
+                    <div className="mt-3 flex items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white" style={{ background: 'var(--accent)' }}>
                         {(((invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0)) || 'O').toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                           Welcome, {invite.full_name}
                         </p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                           You are joining as <span className="font-semibold" style={{ color: 'var(--accent)' }}>{invite.role}</span>
                         </p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{invite.email}</p>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>{invite.email}</p>
                       </div>
                     </div>
-                  </div>
+                  </InfoCallout>
 
                   <div className="space-y-1.5">
                     <label className="openy-label block">Your name</label>
@@ -338,7 +339,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'success' && (
                 <StateScreen
-                  icon={<CheckCircle size={44} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={16} style={{ color: 'var(--color-success)' }} />}
                   title="You’re in!"
                   message="Your account has been activated and added to the workspace."
                   tone="success"
@@ -348,7 +349,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'expired' && (
                 <StateScreen
-                  icon={<Clock size={44} style={{ color: 'var(--color-warning)' }} />}
+                  icon={<Clock size={16} style={{ color: 'var(--color-warning)' }} />}
                   title="Invitation expired"
                   message="This invitation link has expired. Ask your admin to send a new one."
                   tone="warning"
@@ -357,7 +358,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'revoked' && (
                 <StateScreen
-                  icon={<ShieldOff size={44} style={{ color: 'var(--color-danger)' }} />}
+                  icon={<ShieldOff size={16} style={{ color: 'var(--color-danger)' }} />}
                   title="Invitation revoked"
                   message="This invitation was revoked by your workspace admin."
                   tone="danger"
@@ -366,7 +367,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'already_accepted' && (
                 <StateScreen
-                  icon={<CheckCircle size={44} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={16} style={{ color: 'var(--color-success)' }} />}
                   title="Already accepted"
                   message="This invitation has already been used. Sign in to continue."
                   tone="success"
@@ -376,7 +377,7 @@ export default function InviteAcceptPage() {
 
               {(pageState === 'not_found' || pageState === 'error') && (
                 <StateScreen
-                  icon={<XCircle size={44} style={{ color: 'var(--color-danger)' }} />}
+                  icon={<XCircle size={16} style={{ color: 'var(--color-danger)' }} />}
                   title="Invalid invitation"
                   message={errorMsg || 'This invitation link is not valid or has been removed.'}
                   tone="danger"
@@ -442,17 +443,15 @@ function StateScreen({
 
   return (
     <div className="text-center py-2 sm:py-6">
-      <div className="rounded-2xl border p-5 sm:p-7" style={{ borderColor: toneStyles.border, background: toneStyles.bg }}>
-        <div className="mx-auto mb-4 flex justify-center">{icon}</div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text)' }}>{title}</h2>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{message}</p>
+      <InfoCallout icon={icon} title={title}>
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{message}</p>
         {action && <div className="mt-6 flex justify-center">{action}</div>}
         {!action && (
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider" style={{ color: toneStyles.text }}>
             Invitation status
           </p>
         )}
-      </div>
+      </InfoCallout>
     </div>
   );
 }
