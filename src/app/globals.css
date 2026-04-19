@@ -508,6 +508,94 @@ button,
 .app-page-actions,
 .docs-page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+/* Dashboard canvas (real rendered dashboard page) */
+.dashboard-screen {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard-head-title {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-head-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.dashboard-canvas {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-block {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, #fff 6%) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  min-width: 0;
+}
+
+.dashboard-block--span-half { grid-column: span 2; }
+.dashboard-block--span-full { grid-column: 1 / -1; }
+
+.dashboard-metric {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+
+.dashboard-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.dashboard-metric-label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-metric-value {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    CARDS
    ─────────────────────────────────────────────────────────────────────────── */
@@ -857,6 +945,8 @@ thead th {
 @media (max-width: 1024px) {
   .app-shell-container { padding: 20px 20px 24px; }
   .app-topbar { height: 52px; }
+  .dashboard-canvas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-block--span-half { grid-column: span 1; }
 }
 
 @media (max-width: 768px) {
@@ -864,6 +954,10 @@ thead th {
   .app-page-header,
   .docs-page-header { flex-direction: column; align-items: stretch; }
   .app-page-title { font-size: clamp(1.15rem, 5vw, 1.45rem); }
+  .dashboard-canvas { grid-template-columns: 1fr; }
+  .dashboard-block,
+  .dashboard-block--span-half,
+  .dashboard-block--span-full { grid-column: 1 / -1; width: 100%; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
