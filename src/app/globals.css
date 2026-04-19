@@ -1393,26 +1393,6 @@ textarea {
   border-color: var(--border-strong);
 }
 
-.btn-fab {
-  width: 56px;
-  min-width: 56px;
-  height: 56px;
-  min-height: 56px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
-  color: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.24);
-}
-
-.btn-fab:hover {
-  transform: translateY(-1px);
-}
-
-.quick-add-dock-item {
-  border-radius: var(--radius-lg);
-}
-
 .action-button__spinner {
   width: 14px;
   height: 14px;
@@ -1569,13 +1549,6 @@ textarea {
   :is(.action-button, .ds-button, .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .glass-btn) {
     min-height: 44px;
     border-radius: var(--radius-pill);
-  }
-
-  .btn-fab {
-    width: 54px;
-    min-width: 54px;
-    height: 54px;
-    min-height: 54px;
   }
 
   .card-header,

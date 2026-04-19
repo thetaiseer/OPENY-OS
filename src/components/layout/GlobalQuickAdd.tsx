@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
@@ -37,9 +37,8 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
   { key: 'asset', label: 'Add Asset', icon: ImagePlus },
 ];
 
+const DESKTOP_MENU_MIN_WIDTH = 248;
 const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const QUICK_ADD_USAGE_KEY = 'openy_quick_add_usage_v1';
-const QUICK_ADD_LAST_ACTION_KEY = 'openy_quick_add_last_action_v1';
 const FALLBACK_CLIENT_INITIALS = 'CL';
 
 function todayIsoDate() {
@@ -76,16 +75,10 @@ export default function GlobalQuickAdd() {
   const { toast } = useToast();
   const { user } = useAuth();
   const supabase = useMemo(() => createSupabase(), []);
+  const quickAddRef = useRef<HTMLDivElement>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<QuickAddKind | null>(null);
-  const [actionUsage, setActionUsage] = useState<Record<QuickAddKind, number>>({
-    task: 0,
-    client: 0,
-    content: 0,
-    asset: 0,
-  });
-  const [lastAction, setLastAction] = useState<QuickAddKind | null>(null);
 
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -107,44 +100,6 @@ export default function GlobalQuickAdd() {
   const [assetType, setAssetType] = useState('document');
 
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    try {
-      const usageRaw = window.localStorage.getItem(QUICK_ADD_USAGE_KEY);
-      if (usageRaw) {
-        const parsed = JSON.parse(usageRaw) as Partial<Record<QuickAddKind, number>>;
-        setActionUsage({
-          task: parsed.task ?? 0,
-          client: parsed.client ?? 0,
-          content: parsed.content ?? 0,
-          asset: parsed.asset ?? 0,
-        });
-      }
-      const last = window.localStorage.getItem(QUICK_ADD_LAST_ACTION_KEY);
-      if (last === 'task' || last === 'client' || last === 'content' || last === 'asset') {
-        setLastAction(last);
-      }
-    } catch {
-      // ignore localStorage parse errors
-    }
-  }, []);
-
-  const orderedMenuItems = useMemo(
-    () => [...MENU_ITEMS].sort((a, b) => (actionUsage[b.key] ?? 0) - (actionUsage[a.key] ?? 0)),
-    [actionUsage],
-  );
-
-  const topAction = orderedMenuItems[0]?.key ?? null;
-
-  function registerAction(kind: QuickAddKind) {
-    setActionUsage(prev => {
-      const next = { ...prev, [kind]: (prev[kind] ?? 0) + 1 };
-      window.localStorage.setItem(QUICK_ADD_USAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-    setLastAction(kind);
-    window.localStorage.setItem(QUICK_ADD_LAST_ACTION_KEY, kind);
-  }
 
   const { data: clients = [] } = useQuery<QuickClient[]>({
     queryKey: ['quick-add-clients'],
@@ -187,11 +142,24 @@ export default function GlobalQuickAdd() {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+    const handleOutsideInteraction = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && quickAddRef.current && !quickAddRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+
+    window.addEventListener('mousedown', handleOutsideInteraction);
+    window.addEventListener('touchstart', handleOutsideInteraction);
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideInteraction);
+      window.removeEventListener('touchstart', handleOutsideInteraction);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [menuOpen]);
 
   useEffect(() => {
@@ -300,7 +268,6 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create task');
 
       await invalidateFor('task');
-      registerAction('task');
       toast('Task created successfully', 'success');
       resetForm('task');
       setActiveModal(null);
@@ -325,7 +292,6 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create client');
 
       await invalidateFor('client');
-      registerAction('client');
       void queryClient.invalidateQueries({ queryKey: ['quick-add-clients'] });
       toast('Client created successfully', 'success');
       resetForm('client');
@@ -356,7 +322,6 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create content item');
 
       await invalidateFor('content');
-      registerAction('content');
       toast('Content item created successfully', 'success');
       resetForm('content');
       setActiveModal(null);
@@ -390,7 +355,6 @@ export default function GlobalQuickAdd() {
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to create asset');
 
       await invalidateFor('asset');
-      registerAction('asset');
       toast('Asset created successfully', 'success');
       resetForm('asset');
       setActiveModal(null);
@@ -403,44 +367,86 @@ export default function GlobalQuickAdd() {
 
   return (
     <>
-      <div className="fixed bottom-7 right-7 z-40 flex flex-col items-end gap-3">
-        <div className="quick-add-dock relative flex flex-col items-end gap-2.5">
-          {orderedMenuItems.map((item, index) => {
+      <div ref={quickAddRef} className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3 sm:bottom-7 sm:right-7">
+        <div
+          className="hidden sm:flex flex-col gap-2 rounded-2xl border p-2 transition-all duration-200"
+          style={{
+            minWidth: DESKTOP_MENU_MIN_WIDTH,
+            background: 'rgba(15, 23, 42, 0.94)',
+            borderColor: 'rgba(148, 163, 184, 0.24)',
+            boxShadow: '0 20px 48px rgba(2, 6, 23, 0.35)',
+            transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.96)',
+            opacity: menuOpen ? 1 : 0,
+            pointerEvents: menuOpen ? 'auto' : 'none',
+            transformOrigin: 'bottom right',
+            backdropFilter: 'blur(16px)',
+          }}
+          role="menu"
+          aria-hidden={!menuOpen}
+        >
+          {MENU_ITEMS.map((item, index) => {
             const Icon = item.icon;
-            const visible = menuOpen;
-            const isLast = lastAction === item.key;
-            const isTop = topAction === item.key;
-            const tags = [isTop ? 'Most used' : null, isLast ? 'Last' : null].filter(Boolean).join(' • ');
             return (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
-                className="quick-add-dock-item glass glass-btn glass-btn--ghost group flex h-11 w-52 sm:h-12 sm:w-52 items-center gap-2.5 rounded-2xl px-3.5 text-sm transition-all duration-300"
+                className="flex h-11 items-center gap-3 rounded-2xl px-3 text-sm font-medium text-white/95 transition-all duration-200 hover:bg-white/12"
                 style={{
-                  color: 'var(--text)',
-                  border: isLast ? '1px solid var(--accent)' : undefined,
-                  boxShadow: 'none',
-                  transform: visible
-                    ? 'translateY(0) scale(1)'
-                    : 'translateY(12px) scale(0.94)',
-                  opacity: visible ? 1 : 0,
-                  pointerEvents: visible ? 'auto' : 'none',
-                  transitionDelay: visible ? `${index * 45}ms` : '0ms',
+                  transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.96)',
+                  opacity: menuOpen ? 1 : 0,
+                  transitionDelay: menuOpen ? `${index * 38}ms` : '0ms',
                 }}
               >
-                  <span
-                    className="relative z-[2] flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Icon size={16} />
-                  </span>
-                <span className="relative z-[2] flex h-full min-w-0 flex-1 items-center justify-center">
-                  <span className="truncate text-xs font-semibold leading-none">
-                    {item.label}{tags ? ` • ${tags}` : ''}
-                  </span>
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(59, 130, 246, 0.26)', color: '#dbeafe' }}
+                >
+                  <Icon size={16} />
                 </span>
+                <span className="truncate text-sm">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div
+          className="fixed bottom-24 left-4 right-4 z-40 flex flex-col gap-2 rounded-3xl border p-3 sm:hidden transition-all duration-200"
+          style={{
+            background: 'rgba(15, 23, 42, 0.95)',
+            borderColor: 'rgba(148, 163, 184, 0.3)',
+            boxShadow: '0 20px 52px rgba(2, 6, 23, 0.42)',
+            backdropFilter: 'blur(16px)',
+            transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.97)',
+            opacity: menuOpen ? 1 : 0,
+            pointerEvents: menuOpen ? 'auto' : 'none',
+          }}
+          role="menu"
+          aria-hidden={!menuOpen}
+        >
+          {MENU_ITEMS.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActiveModal(item.key)}
+                aria-label={item.label}
+                className="flex h-12 items-center gap-3 rounded-2xl px-4 text-sm font-semibold text-white/95 transition-all duration-200 hover:bg-white/10"
+                style={{
+                  transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.96)',
+                  opacity: menuOpen ? 1 : 0,
+                  transitionDelay: menuOpen ? `${index * 40}ms` : '0ms',
+                }}
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(59, 130, 246, 0.3)', color: '#dbeafe' }}
+                >
+                  <Icon size={16} />
+                </span>
+                <span>{item.label}</span>
               </button>
             );
           })}
@@ -450,8 +456,13 @@ export default function GlobalQuickAdd() {
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? 'Close global quick add' : 'Open global quick add'}
-          className="btn-fab glass glass-btn glass-btn--accent glass-btn--icon flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-300 active:scale-95"
+          className="flex h-14 w-14 items-center justify-center rounded-full border text-white transition-all duration-300 active:scale-95"
           style={{
+            background: 'linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 100%)',
+            borderColor: 'rgba(191, 219, 254, 0.35)',
+            boxShadow: menuOpen
+              ? '0 22px 38px rgba(30, 58, 138, 0.42)'
+              : '0 18px 34px rgba(30, 64, 175, 0.36)',
             transform: menuOpen ? 'rotate(45deg) scale(1.04)' : 'rotate(0deg) scale(1)',
           }}
         >
