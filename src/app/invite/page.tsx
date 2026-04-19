@@ -45,7 +45,7 @@ const STRENGTH_LEVELS: Array<{ label: string; color: string } | null> = [
 ];
 
 const HEADER_BADGE_STYLE = { color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' } as const;
-const STATE_ICON_SIZE = 16;
+const COMPACT_ICON_SIZE = 16;
 
 function PasswordStrengthBar({ password }: { password: string }) {
   if (!password) return null;
@@ -229,7 +229,7 @@ export default function InviteAcceptPage() {
             <div className="relative p-5 sm:p-7 lg:p-9">
               {pageState === 'loading' && (
                 <StateScreen
-                  icon={<Loader2 size={STATE_ICON_SIZE} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                  icon={<Loader2 size={COMPACT_ICON_SIZE} className="animate-spin" style={{ color: 'var(--accent)' }} />}
                   title="Checking invitation"
                   message="Validating your invitation link…"
                   tone="info"
@@ -238,7 +238,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'valid' && invite && (
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                  <InfoCallout icon={<UserRound size={STATE_ICON_SIZE} />} heading="Your invitation details">
+                  <InfoCallout icon={<UserRound size={COMPACT_ICON_SIZE} />} heading="Your invitation details">
                     <div className="mt-3 flex items-start gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white" style={{ background: 'var(--accent)' }}>
                         {(((invite.full_name?.trim() || invite.email?.trim() || 'O').charAt(0)) || 'O').toUpperCase()}
@@ -340,7 +340,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'success' && (
                 <StateScreen
-                  icon={<CheckCircle size={STATE_ICON_SIZE} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={COMPACT_ICON_SIZE} style={{ color: 'var(--color-success)' }} />}
                   title="You’re in!"
                   message="Your account has been activated and added to the workspace."
                   tone="success"
@@ -350,7 +350,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'expired' && (
                 <StateScreen
-                  icon={<Clock size={STATE_ICON_SIZE} style={{ color: 'var(--color-warning)' }} />}
+                  icon={<Clock size={COMPACT_ICON_SIZE} style={{ color: 'var(--color-warning)' }} />}
                   title="Invitation expired"
                   message="This invitation link has expired. Ask your admin to send a new one."
                   tone="warning"
@@ -359,7 +359,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'revoked' && (
                 <StateScreen
-                  icon={<ShieldOff size={STATE_ICON_SIZE} style={{ color: 'var(--color-danger)' }} />}
+                  icon={<ShieldOff size={COMPACT_ICON_SIZE} style={{ color: 'var(--color-danger)' }} />}
                   title="Invitation revoked"
                   message="This invitation was revoked by your workspace admin."
                   tone="danger"
@@ -368,7 +368,7 @@ export default function InviteAcceptPage() {
 
               {pageState === 'already_accepted' && (
                 <StateScreen
-                  icon={<CheckCircle size={STATE_ICON_SIZE} style={{ color: 'var(--color-success)' }} />}
+                  icon={<CheckCircle size={COMPACT_ICON_SIZE} style={{ color: 'var(--color-success)' }} />}
                   title="Already accepted"
                   message="This invitation has already been used. Sign in to continue."
                   tone="success"
@@ -378,7 +378,7 @@ export default function InviteAcceptPage() {
 
               {(pageState === 'not_found' || pageState === 'error') && (
                 <StateScreen
-                  icon={<XCircle size={STATE_ICON_SIZE} style={{ color: 'var(--color-danger)' }} />}
+                  icon={<XCircle size={COMPACT_ICON_SIZE} style={{ color: 'var(--color-danger)' }} />}
                   title="Invalid invitation"
                   message={errorMsg || 'This invitation link is not valid or has been removed.'}
                   tone="danger"
