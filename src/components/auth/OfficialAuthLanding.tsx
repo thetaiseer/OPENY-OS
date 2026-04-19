@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
-import { BadgeCheck, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { Loader2, Lock, Palette, ShieldCheck } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import InfoCallout from '@/components/ui/InfoCallout';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/lib/toast-context';
 import { useTheme } from '@/lib/theme-context';
@@ -202,19 +203,22 @@ export default function OfficialAuthLanding() {
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-[2.7rem]">{panelHeading}</h1>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-blue-100/72 sm:text-base">{panelText}</p>
 
-              <div className="mt-7 flex flex-wrap gap-2.5">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-blue-100/85">
-                  <BadgeCheck size={14} strokeWidth={1.5} className="text-blue-300" />
-                  Optimized for dark mode
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-blue-100/85">
-                  <ShieldCheck size={14} strokeWidth={1.5} className="text-blue-300" />
-                  Access validated against workspace policies
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-blue-100/85">
-                  <Lock size={14} strokeWidth={1.5} className="text-blue-300" />
-                  Invite-only access managed by workspace owners
-                </span>
+              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <InfoCallout
+                  icon={<Palette size={14} strokeWidth={1.6} />}
+                  heading="Theme"
+                  body="Optimized for dark mode."
+                />
+                <InfoCallout
+                  icon={<ShieldCheck size={14} strokeWidth={1.6} />}
+                  heading="Access"
+                  body="Validated against workspace policies."
+                />
+                <InfoCallout
+                  icon={<Lock size={14} strokeWidth={1.6} />}
+                  heading="Invite-only"
+                  body="Managed by workspace owners."
+                />
               </div>
             </div>
 

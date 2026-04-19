@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
+import InfoCallout from '@/components/ui/InfoCallout';
 import { OWNER_EMAIL } from '@/lib/constants/auth';
 
 export default async function AccessDeniedPage({ searchParams }: { searchParams: Promise<{ workspace?: string }> }) {
@@ -14,13 +15,12 @@ export default async function AccessDeniedPage({ searchParams }: { searchParams:
         className="w-full max-w-md rounded-3xl border px-6 py-7 text-center space-y-4"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-          <ShieldAlert size={22} style={{ color: 'var(--accent)' }} />
-        </div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text)' }}>Access denied</h1>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          You do not have permission to access {workspaceLabel}. Please contact the workspace owner.
-        </p>
+        <InfoCallout
+          icon={<ShieldAlert size={16} style={{ color: 'var(--accent)' }} />}
+          heading="Access denied"
+          body={`You do not have permission to access ${workspaceLabel}. Please contact the workspace owner.`}
+          className="text-left"
+        />
         <div className="flex items-center justify-center gap-3 pt-2">
           <Link
             href="/?switch=1"
