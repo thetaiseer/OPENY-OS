@@ -269,7 +269,7 @@ function ContentCard({ item, compact, onStatusChange, onDelete, onPreview, onEdi
             </span>
           ))}
           {(item.post_types ?? []).slice(0, 2).map(type => (
-            <span key={type} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+            <span key={type} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               {type}
             </span>
           ))}

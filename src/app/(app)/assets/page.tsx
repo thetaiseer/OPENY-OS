@@ -161,7 +161,7 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
       <div className="flex items-center gap-3 min-w-0">
         <div
           className="flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 shrink-0"
-          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
+          style={{ background: color ? `${color}22` : 'var(--accent-soft)' }}
         >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
@@ -1120,7 +1120,7 @@ export default function AssetsPage() {
 
         {/* ── Drag-over overlay ────────────────────────────────────────────── */}
         {isDragOver && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(99,102,241,0.12)', outline: '3px dashed var(--accent)' }}>
+          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'var(--accent-soft)', outline: '3px dashed var(--accent)' }}>
             <div className="text-center space-y-2">
               <Upload size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
               <p className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>Drop files to upload</p>

@@ -85,7 +85,7 @@ function StatusBadge({ session }: { session: Session }) {
   if (isActiveSession(session.last_seen_at)) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-        style={{ background: 'rgba(59,130,246,0.10)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.25)' }}>
+        style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-glow)' }}>
         <Wifi size={10} /> Active now
       </span>
     );
