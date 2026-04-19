@@ -1,2 +1,6 @@
+// Redirect /reports → /reports/overview
 import { redirect } from 'next/navigation';
-export default function Page() { redirect('/os/reports'); }
+
+export default function ReportsPage() {
+  redirect('/reports/overview');
+}

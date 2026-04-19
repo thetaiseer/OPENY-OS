@@ -1,124 +1,121 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth-context';
+import {
+  canShowWorkspaceSwitcher,
+  getCurrentWorkspace,
+  getUserWorkspaceMemberships,
+  switchWorkspace,
+  type WorkspaceMembershipInfo,
+} from '@/lib/workspace-switcher';
+import { isGlobalOwnerEmail } from '@/lib/workspace-access';
 
-interface Workspace {
-  id: string;
-  name: string;
-  plan?: string;
-}
+export default function WorkspaceSwitcher() {
+  const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [supabase] = useState(() => createClient());
 
-interface WorkspaceSwitcherProps {
-  workspaces?: Workspace[];
-  activeId?: string;
-}
-
-const DEMO_WORKSPACES: Workspace[] = [
-  { id: 'main', name: 'Main Workspace', plan: 'Pro' },
-  { id: 'client-a', name: 'Client A', plan: 'Standard' },
-];
-
-/**
- * WorkspaceSwitcher — dropdown for switching between workspaces.
- * Renders inside the sidebar footer or topbar area.
- */
-export function WorkspaceSwitcher({
-  workspaces = DEMO_WORKSPACES,
-  activeId = 'main',
-}: WorkspaceSwitcherProps) {
   const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(activeId);
+  const [ready, setReady] = useState(false);
+  const [memberships, setMemberships] = useState<WorkspaceMembershipInfo[]>([]);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  const active = workspaces.find(w => w.id === current) ?? workspaces[0];
+  const currentWorkspace = getCurrentWorkspace(pathname);
+
+  useEffect(() => {
+    if (!user.id) {
+      setReady(true);
+      setMemberships([]);
+      return;
+    }
+
+    let mounted = true;
+    setReady(false);
+
+    getUserWorkspaceMemberships(supabase, user.id)
+      .then((data) => {
+        if (!mounted) return;
+        setMemberships(data);
+        setReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setMemberships([]);
+        setReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase, user.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  if (loading || !ready) return null;
+  if (!canShowWorkspaceSwitcher(user.email, memberships)) return null;
+
+  const isGlobalOwner = isGlobalOwnerEmail(user.email);
+  const currentLabel = currentWorkspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS';
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="ui-btn ui-btn-ghost"
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%',
-          justifyContent: 'space-between',
-          fontSize: 13,
-          height: 36,
-        }}
-        aria-haspopup="listbox"
+        className="inline-flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors hover:bg-[var(--surface-2)]"
+        style={{ color: 'var(--text-primary)' }}
+        onClick={() => setOpen(value => !value)}
+        aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--brand-soft)',
-              border: '1px solid var(--border-brand)',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 10,
-              fontWeight: 800,
-              color: 'var(--brand)',
-              flexShrink: 0,
-            }}
-          >
-            {active.name.charAt(0).toUpperCase()}
-          </span>
-          <span style={{ fontWeight: 600 }}>{active.name}</span>
-        </span>
-        <ChevronDown
-          size={13}
-          style={{
-            color: 'var(--text-muted)',
-            transform: open ? 'rotate(180deg)' : undefined,
-            transition: 'transform 150ms',
-          }}
-        />
+        <span className="truncate">{currentLabel}</span>
+        <ChevronDown size={13} className={open ? 'rotate-180 transition-transform shrink-0' : 'transition-transform shrink-0'} style={{ color: 'var(--text-secondary)' }} />
       </button>
 
-      {open && (
-        <div
-          className="ui-card"
-          style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: 0,
-            right: 0,
-            marginBottom: 6,
-            padding: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            zIndex: 50,
-          }}
-          role="listbox"
-        >
-          {workspaces.map(ws => (
-            <button
-              key={ws.id}
-              role="option"
-              aria-selected={ws.id === current}
-              className="ui-nav-item"
-              data-active={ws.id === current}
-              onClick={() => {
-                setCurrent(ws.id);
-                setOpen(false);
-              }}
-              style={{ justifyContent: 'space-between', textAlign: 'left' }}
-            >
-              <span>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{ws.name}</div>
-                {ws.plan && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{ws.plan}</div>
-                )}
-              </span>
-              {ws.id === current && <Check size={13} style={{ color: 'var(--brand)' }} />}
-            </button>
-          ))}
+      {open ? (
+        <div role="menu" className="workspace-switcher-menu openy-menu-panel absolute right-0 top-full z-50 mt-2 rounded-2xl p-1.5">
+          {memberships.map((workspace) => {
+            const isCurrent = workspace.key === currentWorkspace;
+            const canAccess = isGlobalOwner || workspace.hasMembership;
+            return (
+              <button
+                key={workspace.key}
+                type="button"
+                role="menuitem"
+                disabled={!canAccess}
+                onClick={() => {
+                  if (isCurrent) return;
+                  setOpen(false);
+                  switchWorkspace(router, workspace.key);
+                }}
+                className={`openy-menu-item flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm ${isCurrent ? 'openy-menu-item-active' : ''}`}
+                style={{ opacity: canAccess ? 1 : 0.45 }}
+              >
+                <span className="truncate">{workspace.label}</span>
+                {isCurrent ? <Check size={14} style={{ color: 'var(--accent)' }} /> : null}
+              </button>
+            );
+          })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
-
