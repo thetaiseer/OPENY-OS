@@ -24,7 +24,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
-  LayoutGrid, List, Search, Send, Filter, ArrowUpDown, GripVertical,
+  LayoutGrid, List, Search, Send, ArrowUpDown, GripVertical, SlidersHorizontal, MoreHorizontal,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -56,7 +56,6 @@ const statusVariant = (s: string) => {
 };
 
 const COMPLETED_STATUSES = new Set<Task['status']>(['done', 'completed', 'delivered', 'published', 'cancelled']);
-const IN_PROGRESS_STATUSES = new Set<Task['status']>(['in_progress', 'in_review', 'review', 'waiting_client']);
 
 function todayMidnight() {
   const d = new Date();
@@ -84,7 +83,16 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function avatarInitials(name?: string | null) {
+  if (!name) return 'UN';
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  return (parts.map(part => part[0]?.toUpperCase() ?? '').join('') || 'UN');
+}
+
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const NAVY_GRADIENT = 'linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 100%)';
+const SOFT_STAT_CARD_BG = 'color-mix(in srgb, var(--surface) 88%, var(--surface-2))';
+const KANBAN_COLUMN_BG = 'color-mix(in srgb, var(--surface-2) 92%, var(--surface))';
 const frostedPanelStyle = {
   background: 'var(--surface)',
   border: '1px solid var(--border)',
@@ -367,11 +375,11 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
 
   return (
     <div
-      className="rounded-2xl border p-4 md:p-4.5 space-y-3 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl"
+      className="rounded-3xl border p-5 space-y-4 transition-all duration-200 ease-out hover:-translate-y-1"
       style={{
-        ...frostedPanelStyle,
-        borderColor: tone.border,
-        boxShadow: 'none',
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -394,28 +402,27 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-        {projectLabel && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <User size={11} />{projectLabel}
+      <div className="flex items-center justify-between gap-2 rounded-2xl border px-3 py-2" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="h-7 w-7 rounded-full border inline-flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            {avatarInitials(assignee?.full_name)}
           </span>
-        )}
-        {task.due_date && (
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${overdue ? 'text-red-500' : soon ? 'text-amber-500' : ''}`}
-            style={{ background: overdue ? 'var(--color-danger-bg)' : soon ? 'var(--color-warning-bg)' : 'var(--surface-2)', borderColor: overdue ? 'var(--color-danger-border)' : soon ? 'var(--color-warning-border)' : 'var(--border)' }}>
-            {overdue ? <AlertCircle size={11} /> : <Calendar size={11} />}
+          <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{assignee?.full_name ?? 'Unassigned'}</span>
+        </div>
+        {task.due_date ? (
+          <span className={`text-xs inline-flex items-center gap-1 ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? 'var(--color-danger)' : soon ? 'var(--color-warning)' : 'var(--text-secondary)' }}>
+            {overdue ? <AlertCircle size={12} /> : <Calendar size={12} />}
             {fmtDate(task.due_date)}
           </span>
-        )}
-        {assignee && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <User size={11} />{assignee.full_name}
-          </span>
-        )}
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-          <Calendar size={11} />{fmtDate(task.created_at)}
-        </span>
+        ) : null}
+        <Badge variant={priorityVariant(task.priority)}>{task.priority === 'high' ? `${t('high')} ↑` : t(task.priority)}</Badge>
       </div>
+
+      {projectLabel && (
+        <div className="text-xs inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border self-start" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <User size={11} />{projectLabel}
+        </div>
+      )}
 
       {((task.platforms && task.platforms.length > 0) || (task.post_types && task.post_types.length > 0)) && (
         <div className="flex flex-wrap gap-1.5 items-center rounded-xl p-2 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
@@ -492,7 +499,6 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             </div>
           )}
         </div>
-        <Badge variant={priorityVariant(task.priority)}>{task.priority === 'high' ? `${t('high')} ↑` : t(task.priority)}</Badge>
         {overdue && <Badge variant="danger">{t('overdue')}</Badge>}
       </div>
     </div>
@@ -620,39 +626,38 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
   const tone = getStatusTone(overdue ? 'overdue' : task.status);
   return (
     <div
-      className="rounded-2xl border p-3 space-y-2 opacity-95 scale-[1.02]"
+      className="rounded-2xl border p-4 space-y-3 opacity-95 scale-[1.02]"
       style={{
         width: '18rem',
-        ...frostedPanelStyle,
-        borderColor: tone.border,
-        boxShadow: 'none',
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: '0 16px 36px rgba(2, 6, 23, 0.2)',
       }}
     >
-      <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
-      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-        {task.client && (
-          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-            <User size={10} />{task.client.name}
-          </span>
-        )}
-        {assignee && (
-          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-            <User size={10} />{assignee.full_name}
-          </span>
-        )}
-        {task.due_date && (
-          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-            style={{ background: overdue ? 'var(--surface-3)' : 'var(--surface)' }}>
-            <Calendar size={10} />{fmtDate(task.due_date)}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center justify-between">
-        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-        <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold leading-snug flex-1" style={{ color: 'var(--text)' }}>{task.title}</p>
+        <span className="text-[10px] px-2 py-0.5 rounded-full border font-semibold" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
           {statusLabel(overdue ? 'overdue' : task.status, t)}
         </span>
       </div>
+      {task.description && (
+        <p className="text-xs line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+      )}
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="h-7 w-7 rounded-full border inline-flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            {avatarInitials(assignee?.full_name)}
+          </span>
+          <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{assignee?.full_name ?? 'Unassigned'}</span>
+        </div>
+        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+      </div>
+      {task.due_date && (
+        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border self-start" style={{ background: overdue ? 'var(--color-danger-bg)' : 'var(--surface-2)', borderColor: overdue ? 'var(--color-danger-border)' : 'var(--border)', color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>
+          <Calendar size={11} />
+          {fmtDate(task.due_date)}
+        </div>
+      )}
     </div>
   );
 });
@@ -691,43 +696,42 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
         ref={setNodeRef}
         {...attributes}
         {...listeners}
-        className="rounded-2xl border p-3 space-y-2 transition-all duration-200 ease-out cursor-grab active:cursor-grabbing select-none hover:-translate-y-0.5"
+        className="rounded-2xl border p-4 space-y-3 transition-all duration-200 ease-out cursor-grab active:cursor-grabbing select-none hover:-translate-y-1"
         style={{
           transform: CSS.Transform.toString(transform),
           transition,
           opacity: isDragging ? 0.2 : 1,
-          ...frostedPanelStyle,
-          borderColor: tone.border,
-          boxShadow: 'none',
+          background: 'var(--surface)',
+          borderColor: 'var(--border)',
+          boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
         }}
       >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold leading-snug flex-1" style={{ color: 'var(--text)' }}>{task.title}</p>
           <GripVertical size={14} style={{ color: 'var(--text-tertiary)' }} />
         </div>
-        <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {task.client && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-              <User size={10} />{task.client.name}
+        {task.description && (
+          <p className="text-xs line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 text-xs">
+            <span className="h-7 w-7 rounded-full border inline-flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+              {avatarInitials(assignee?.full_name)}
             </span>
-          )}
-          {assignee && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-              <User size={10} />{assignee.full_name}
-            </span>
-          )}
-          {task.due_date && (
-            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-              style={{ background: overdue ? 'var(--surface-3)' : 'var(--surface)' }}>
-              <Calendar size={10} />{fmtDate(task.due_date)}
-            </span>
-          )}
+            <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{assignee?.full_name ?? 'Unassigned'}</span>
+          </div>
+          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-          <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
+          <span className="text-[10px] px-2 py-0.5 rounded-full border font-semibold" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
             {statusLabel(overdue ? 'overdue' : task.status, t)}
           </span>
+          {task.due_date && (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border" style={{ background: overdue ? 'var(--color-danger-bg)' : 'var(--surface-2)', borderColor: overdue ? 'var(--color-danger-border)' : 'var(--border)', color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>
+              <Calendar size={10} />
+              {fmtDate(task.due_date)}
+            </span>
+          )}
           <div className="flex items-center gap-1">
             <button onClick={(e) => { e.stopPropagation(); onView(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Eye size={13} /></button>
             <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Pencil size={13} /></button>
@@ -768,21 +772,26 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className="flex-shrink-0 snap-start w-[18rem] sm:w-[19rem] rounded-2xl border flex flex-col transition-all duration-200"
+      className="flex-shrink-0 snap-start w-[18.25rem] sm:w-[19.5rem] rounded-3xl border flex flex-col transition-all duration-200"
       style={{
-        ...frostedPanelStyle,
+        background: KANBAN_COLUMN_BG,
         borderColor: isOver ? 'var(--accent)' : 'var(--border)',
-        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent)' : 'none',
+        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent), 0 18px 42px rgba(2, 6, 23, 0.18)' : '0 14px 30px rgba(2, 6, 23, 0.12)',
       }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-        <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t(col.label)}</span>
-        <span
-          className="text-xs font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center"
-          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-        >
-          {colTasks.length}
-        </span>
+      <div className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t(col.label)}</span>
+          <span
+            className="text-xs font-bold h-6 min-w-[1.5rem] px-2 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
+            {colTasks.length}
+          </span>
+        </div>
+        <button className="btn-ghost h-7 w-7 !min-h-0 !px-0 rounded-full" aria-label={`More options for ${t(col.label)}`}>
+          <MoreHorizontal size={14} />
+        </button>
       </div>
       {isOver && (
         <span className="sr-only" role="status" aria-live="polite">
@@ -790,9 +799,12 @@ function KanbanColumn({
         </span>
       )}
       <SortableContext items={colTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[calc(100vh-310px)]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[calc(100vh-300px)]">
           {colTasks.length === 0 ? (
-            <p className="text-xs text-center py-8" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
+            <div className="rounded-2xl border px-4 py-8 text-center space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <CheckSquare size={16} className="mx-auto" style={{ color: 'var(--text-tertiary)' }} />
+              <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
+            </div>
           ) : (
             colTasks.map(task => (
               <DraggableKanbanTaskCard
@@ -979,7 +991,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       onDragEnd={handleDragEnd}
       onDragCancel={() => { setActiveTaskId(null); setOverColumnId(null); setOverTaskId(null); }}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4 pr-2 snap-x snap-mandatory">
+      <div className="flex gap-5 overflow-x-auto pb-5 pr-2 snap-x snap-mandatory">
         {KANBAN_COLS.map(col => (
           <KanbanColumn
             key={col.key}
@@ -1128,8 +1140,8 @@ export default function TasksPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [platformFilter, setPlatformFilter] = useState('');
-  const [postTypeFilter, setPostTypeFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming'>('all');
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
 
@@ -1142,16 +1154,14 @@ export default function TasksPage() {
         clientFilter?: string;
         assignedFilter?: string;
         priorityFilter?: string;
-        platformFilter?: string;
-        postTypeFilter?: string;
+        dateFilter?: 'all' | 'overdue' | 'today' | 'upcoming';
         searchQuery?: string;
       };
       if (savedFilters.statusFilter) setStatusFilter(savedFilters.statusFilter);
       if (savedFilters.clientFilter) setClientFilter(savedFilters.clientFilter);
       if (savedFilters.assignedFilter) setAssignedFilter(savedFilters.assignedFilter);
       if (savedFilters.priorityFilter) setPriorityFilter(savedFilters.priorityFilter);
-      if (savedFilters.platformFilter) setPlatformFilter(savedFilters.platformFilter);
-      if (savedFilters.postTypeFilter) setPostTypeFilter(savedFilters.postTypeFilter);
+      if (savedFilters.dateFilter) setDateFilter(savedFilters.dateFilter);
       if (savedFilters.searchQuery) setSearchQuery(savedFilters.searchQuery);
     } catch {
       // ignore invalid saved filters
@@ -1170,28 +1180,30 @@ export default function TasksPage() {
         clientFilter,
         assignedFilter,
         priorityFilter,
-        platformFilter,
-        postTypeFilter,
+        dateFilter,
         searchQuery,
       }),
     );
-  }, [statusFilter, clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]);
+  }, [statusFilter, clientFilter, assignedFilter, priorityFilter, dateFilter, searchQuery]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── filtered tasks ───────────────────────────────────────────────────────
+  const todayIso = new Date().toISOString().slice(0, 10);
   const filtered = useMemo(() => tasks.filter(task => {
+    const dueDate = task.due_date ?? null;
     if (statusFilter !== 'all' && task.status !== statusFilter) return false;
     if (clientFilter && task.client_id !== clientFilter) return false;
     if (assignedFilter && task.assigned_to !== assignedFilter) return false;
     if (priorityFilter && task.priority !== priorityFilter) return false;
-    if (platformFilter && !(task.platforms ?? []).includes(platformFilter)) return false;
-    if (postTypeFilter && !(task.post_types ?? []).includes(postTypeFilter)) return false;
+    if (dateFilter === 'overdue' && !isOverdue(dueDate ?? undefined, task.status)) return false;
+    if (dateFilter === 'today' && !(dueDate === todayIso && !COMPLETED_STATUSES.has(task.status))) return false;
+    if (dateFilter === 'upcoming' && !(dueDate !== null && dueDate > todayIso && !COMPLETED_STATUSES.has(task.status))) return false;
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
-  }), [tasks, statusFilter, clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]);
+  }), [tasks, statusFilter, clientFilter, assignedFilter, priorityFilter, dateFilter, searchQuery, todayIso]);
 
   // ── create ───────────────────────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
@@ -1517,8 +1529,6 @@ export default function TasksPage() {
   const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
   const totalOverdue = useMemo(() => tasks.filter(task => isOverdue(task.due_date, task.status)).length, [tasks]);
   const doneCount = useMemo(() => tasks.filter(task => COMPLETED_STATUSES.has(task.status)).length, [tasks]);
-  const inProgressCount = useMemo(() => tasks.filter(task => IN_PROGRESS_STATUSES.has(task.status)).length, [tasks]);
-  const todayIso = new Date().toISOString().slice(0, 10);
   const dueBuckets = useMemo(() => {
     return tasks.reduce(
       (acc, task) => {
@@ -1531,11 +1541,11 @@ export default function TasksPage() {
       { overdue: 0, dueToday: 0, upcoming: 0 },
     );
   }, [tasks, todayIso]);
-  const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, platformFilter, postTypeFilter, searchQuery]
+  const activeFilterCount = [statusFilter !== 'all', clientFilter, assignedFilter, priorityFilter, dateFilter !== 'all', searchQuery]
     .filter(Boolean).length;
 
   return (
-    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in">
+    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in pb-24 sm:pb-14">
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -1546,7 +1556,7 @@ export default function TasksPage() {
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="openy-card p-4 sm:p-5">
+      <div className="openy-card p-4 sm:p-6">
         <div className="openy-page-header">
           <div>
             <h1 className="openy-page-header-title">{t('tasks')}</h1>
@@ -1554,163 +1564,190 @@ export default function TasksPage() {
               {filtered.length} task{filtered.length !== 1 ? 's' : ''} shown • {tasks.length} total
             </p>
           </div>
-          <div className="openy-page-actions sm:justify-end">
-            <div className="openy-tabs" role="tablist" aria-label="Task views">
+          <div className="openy-page-actions sm:justify-end gap-3">
+            <div
+              role="tablist"
+              aria-label="Task views"
+              className="inline-flex items-center gap-1 rounded-full p-1"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+            >
               <button
                 onClick={() => setView('list')}
-                className={`openy-tab ${view === 'list' ? 'openy-tab-active' : ''}`}
+                className="h-9 px-4 rounded-full text-sm font-semibold transition-all inline-flex items-center gap-1.5"
+                style={{
+                  background: view === 'list' ? NAVY_GRADIENT : 'transparent',
+                  color: view === 'list' ? '#fff' : 'var(--text-secondary)',
+                  border: view === 'list' ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                }}
                 role="tab"
                 aria-selected={view === 'list'}
                 aria-controls="tasks-list-panel"
                 id="tasks-list-tab"
               >
-                <List size={14} className="inline mr-1" />{t('list')}
+                <List size={14} />{t('list')}
               </button>
               <button
                 onClick={() => setView('kanban')}
-                className={`openy-tab ${view === 'kanban' ? 'openy-tab-active' : ''}`}
+                className="h-9 px-4 rounded-full text-sm font-semibold transition-all inline-flex items-center gap-1.5"
+                style={{
+                  background: view === 'kanban' ? NAVY_GRADIENT : 'transparent',
+                  color: view === 'kanban' ? '#fff' : 'var(--text-secondary)',
+                  border: view === 'kanban' ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                }}
                 role="tab"
                 aria-selected={view === 'kanban'}
                 aria-controls="tasks-kanban-panel"
                 id="tasks-kanban-tab"
               >
-                <LayoutGrid size={14} className="inline mr-1" />{t('kanban')}
+                <LayoutGrid size={14} />{t('kanban')}
               </button>
             </div>
             {canManageTasks && (
-              <button onClick={() => setCreateOpen(true)} className="btn-primary h-10 px-4 text-sm">
+              <button onClick={() => setCreateOpen(true)} className="btn-primary h-10 px-4 text-sm hidden sm:inline-flex">
                 <Plus size={16} />{t('newTask')}
               </button>
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-4">
-          {[
-            { label: 'Total', value: tasks.length, tone: 'var(--text)' },
-            { label: t('inProgress'), value: inProgressCount, tone: 'var(--color-info)' },
-            { label: t('done'), value: doneCount, tone: 'var(--color-success)' },
-            { label: t('overdue'), value: totalOverdue, tone: 'var(--color-danger)' },
-          ].map(item => (
-            <div key={item.label} className="rounded-xl px-3 py-2 border" style={{ ...glassInputStyle }}>
-              <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-tertiary)' }}>{item.label}</p>
-              <p className="text-xl font-bold" style={{ color: item.tone }}>{item.value}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {[
-            { key: 'overdue', label: 'Overdue', value: dueBuckets.overdue, tone: 'var(--color-danger)' },
-            { key: 'dueToday', label: 'Today', value: dueBuckets.dueToday, tone: 'var(--color-warning)' },
-            { key: 'upcoming', label: 'Upcoming', value: dueBuckets.upcoming, tone: 'var(--color-info)' },
-          ].map((bucket) => (
-            <div key={bucket.key} className="rounded-xl border px-3 py-2.5" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>{bucket.label}</p>
-              <p className="text-lg font-bold" style={{ color: bucket.tone }}>{bucket.value}</p>
-            </div>
-          ))}
+        <div className="mt-6 overflow-x-auto pb-1">
+          <div className="flex gap-3 min-w-max">
+            {[
+              { key: 'total', label: 'Total', value: tasks.length, icon: LayoutGrid, accent: true },
+              { key: 'done', label: t('done'), value: doneCount, icon: CheckSquare, accent: true },
+              { key: 'overdue', label: t('overdue'), value: totalOverdue, icon: AlertCircle, accent: false },
+              { key: 'today', label: 'Today', value: dueBuckets.dueToday, icon: Clock, accent: false },
+              { key: 'upcoming', label: 'Upcoming', value: dueBuckets.upcoming, icon: Calendar, accent: false },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.key}
+                  className="min-w-[164px] sm:min-w-[180px] rounded-2xl border p-4 transition-all duration-200 cursor-default"
+                  style={{
+                    background: SOFT_STAT_CARD_BG,
+                    borderColor: 'var(--border)',
+                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+                  }}
+                >
+                  <div className={`icon-box ${item.accent ? 'icon-box--accent' : 'icon-box--neutral'} h-9 w-9 min-w-9 rounded-xl`}>
+                    <Icon size={16} />
+                  </div>
+                  <p className="mt-3 text-[11px] uppercase tracking-[0.1em] font-semibold" style={{ color: 'var(--text-tertiary)' }}>{item.label}</p>
+                  <p className="mt-1 text-3xl font-bold leading-none" style={{ color: item.accent ? 'var(--accent)' : 'var(--text)' }}>{item.value}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="openy-page-toolbar">
-        <div className="relative min-w-[220px] flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('searchTasks')}
-            className="input-glass w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none"
+      <div className="openy-card p-4 sm:p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('searchTasks')}
+              className="input-glass w-full h-11 pl-9 pr-3 rounded-xl text-sm outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((prev) => !prev)}
+            className="btn-secondary h-11 px-3 rounded-xl shrink-0"
+            aria-label="Toggle filters"
+            aria-expanded={filtersOpen}
+          >
+            <SlidersHorizontal size={16} />
+            <span className="hidden sm:inline text-xs">{activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active</span>
+          </button>
+        </div>
+
+        <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex flex-wrap items-center gap-2`}>
+          <SelectDropdown
+            value={clientFilter}
+            onChange={setClientFilter}
+            className="!h-10 min-w-[150px] rounded-full !px-3"
+            placeholder={t('allClients')}
+            options={[
+              { value: '', label: t('allClients') },
+              ...clients.map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
+          <SelectDropdown
+            value={assignedFilter}
+            onChange={setAssignedFilter}
+            className="!h-10 min-w-[150px] rounded-full !px-3"
+            placeholder={t('allMembers')}
+            options={[
+              { value: '', label: t('allMembers') },
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
+            ]}
+          />
+          <SelectDropdown
+            value={priorityFilter}
+            onChange={setPriorityFilter}
+            className="!h-10 min-w-[132px] rounded-full !px-3"
+            placeholder={t('allPriorities')}
+            options={[
+              { value: '', label: t('allPriorities') },
+              { value: 'high', label: t('high') },
+              { value: 'medium', label: t('medium') },
+              { value: 'low', label: t('low') },
+            ]}
+          />
+          <SelectDropdown
+            value={dateFilter}
+            onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
+            className="!h-10 min-w-[132px] rounded-full !px-3"
+            placeholder="Date"
+            options={[
+              { value: 'all', label: 'Date: All' },
+              { value: 'overdue', label: 'Date: Overdue' },
+              { value: 'today', label: 'Date: Today' },
+              { value: 'upcoming', label: 'Date: Upcoming' },
+            ]}
           />
         </div>
-        <div className="flex items-center gap-2 text-xs px-2">
-          <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
-          <span style={{ color: 'var(--text-secondary)' }}>{activeFilterCount} active</span>
-        </div>
-        <SelectDropdown
-          value={clientFilter}
-          onChange={setClientFilter}
-          placeholder={t('allClients')}
-          options={[
-            { value: '', label: t('allClients') },
-            ...clients.map(c => ({ value: c.id, label: c.name })),
-          ]}
-        />
-        <SelectDropdown
-          value={assignedFilter}
-          onChange={setAssignedFilter}
-          placeholder={t('allMembers')}
-          options={[
-            { value: '', label: t('allMembers') },
-            ...team.map(m => ({ value: m.id, label: m.full_name })),
-          ]}
-        />
-        <SelectDropdown
-          value={priorityFilter}
-          onChange={setPriorityFilter}
-          placeholder={t('allPriorities')}
-          options={[
-            { value: '', label: t('allPriorities') },
-            { value: 'high', label: t('high') },
-            { value: 'medium', label: t('medium') },
-            { value: 'low', label: t('low') },
-          ]}
-        />
-        <SelectDropdown
-          value={platformFilter}
-          onChange={setPlatformFilter}
-          placeholder="All platforms"
-          options={[
-            { value: '', label: 'All platforms' },
-            ...PLATFORMS.map(p => ({ value: p.value, label: p.label })),
-          ]}
-        />
-        <SelectDropdown
-          value={postTypeFilter}
-          onChange={setPostTypeFilter}
-          placeholder="All post types"
-          options={[
-            { value: '', label: 'All post types' },
-            ...POST_TYPES.map(pt => ({ value: pt.value, label: pt.label })),
-          ]}
-        />
-      </div>
 
-      <div className="flex gap-2 flex-wrap items-center">
-        {statuses.map(s => {
-          const isActive = statusFilter === s;
-          const count = s === 'all'
-            ? tasks.length
-            : (s === 'overdue'
-              ? tasks.filter(tk => isOverdue(tk.due_date, tk.status)).length
-              : tasks.filter(tk => tk.status === s).length);
-          const tone = getStatusTone(s);
-          return (
+        <div className="flex gap-2 flex-wrap items-center">
+          {statuses.map(s => {
+            const isActive = statusFilter === s;
+            const count = s === 'all'
+              ? tasks.length
+              : (s === 'overdue'
+                ? tasks.filter(tk => isOverdue(tk.due_date, tk.status)).length
+                : tasks.filter(tk => tk.status === s).length);
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-xs font-semibold transition-all"
+                style={{
+                  background: isActive ? NAVY_GRADIENT : 'var(--surface-2)',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${isActive ? 'rgba(255,255,255,0.16)' : 'var(--border)'}`,
+                  boxShadow: isActive ? '0 10px 24px rgba(29, 78, 216, 0.24)' : 'none',
+                }}
+              >
+                {s === 'all' ? 'All' : statusLabel(s, t)}
+                <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold" style={{ background: isActive ? 'rgba(255,255,255,0.24)' : 'var(--surface-3)', color: isActive ? '#fff' : 'var(--text-secondary)' }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+          {(clientFilter || assignedFilter || priorityFilter || dateFilter !== 'all' || searchQuery || statusFilter !== 'all') && (
             <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-xs font-semibold transition-all"
-              style={{
-                background: isActive ? tone.bg : 'var(--surface)',
-                color: isActive ? tone.text : 'var(--text-secondary)',
-                border: `1px solid ${isActive ? tone.border : 'var(--border)'}`,
-                boxShadow: 'none',
-              }}
+              onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setDateFilter('all'); setSearchQuery(''); setStatusFilter('all'); }}
+              className="btn-ghost h-9 px-3 text-xs rounded-full"
             >
-              {s === 'all' ? 'All' : statusLabel(s, t)}
-              <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold" style={{ background: isActive ? 'rgba(255,255,255,0.35)' : 'var(--surface-2)', color: isActive ? tone.text : 'var(--text-secondary)' }}>
-                {count}
-              </span>
+              Clear filters
             </button>
-          );
-        })}
-        {(clientFilter || assignedFilter || priorityFilter || platformFilter || postTypeFilter || searchQuery || statusFilter !== 'all') && (
-          <button
-            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setPlatformFilter(''); setPostTypeFilter(''); setSearchQuery(''); setStatusFilter('all'); }}
-            className="btn-ghost h-8 px-3 text-xs"
-          >
-            Clear filters
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Task list / kanban */}
@@ -1749,7 +1786,7 @@ export default function TasksPage() {
           ]}
         />
       ) : view === 'kanban' ? (
-        <div className="rounded-2xl border p-2 sm:p-3 overflow-hidden" style={frostedPanelStyle} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
+        <div className="rounded-3xl border p-3 sm:p-5 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
           <KanbanBoard
             tasks={filtered}
             team={team}
@@ -1779,7 +1816,7 @@ export default function TasksPage() {
               const tone = getStatusTone(overdue ? 'overdue' : task.status);
               return (
                 <div key={task.id}>
-                  <div role="row" className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-4 py-3 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-lg" style={{ ...frostedPanelStyle, borderColor: tone.border }}>
+                  <div role="row" className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-5 py-4 rounded-2xl border transition-all hover:-translate-y-1" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: '0 12px 26px rgba(15, 23, 42, 0.12)' }}>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
                       {task.description && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
@@ -1813,6 +1850,22 @@ export default function TasksPage() {
             })}
           </div>
         </div>
+      )}
+
+      {canManageTasks && (
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="fixed right-5 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] sm:right-7 sm:bottom-7 z-30 h-14 w-14 rounded-full text-white inline-flex items-center justify-center transition-all duration-200 active:scale-95"
+          style={{
+            background: NAVY_GRADIENT,
+            boxShadow: '0 18px 42px rgba(30, 58, 138, 0.34)',
+            border: '1px solid rgba(255,255,255,0.18)',
+          }}
+          aria-label="Create new task"
+        >
+          <Plus size={20} />
+        </button>
       )}
 
       {/* Create Modal */}

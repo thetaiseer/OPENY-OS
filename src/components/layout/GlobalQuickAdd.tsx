@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
 import {
   Building2,
   CheckSquare,
@@ -71,6 +72,7 @@ function detectAssetTypeFromUrl(url: string): string | null {
 }
 
 export default function GlobalQuickAdd() {
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -364,6 +366,8 @@ export default function GlobalQuickAdd() {
       setSubmitting(false);
     }
   }
+
+  if (pathname === '/tasks' || pathname === '/tasks/all' || pathname === '/os/tasks') return null;
 
   return (
     <>
