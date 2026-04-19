@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
-import clsx from 'clsx';
+import { ActionButton } from '@/components/ui/system/Primitives';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
@@ -8,5 +8,5 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export default function Button({ variant = 'primary', className, ...props }: ButtonProps) {
-  return <button className={clsx('ds-button', `ds-button--${variant}`, className)} {...props} />;
+  return <ActionButton variant={variant} className={className} {...props} />;
 }
