@@ -27,14 +27,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
     <PremiumStatCard
       title={label}
       value={value}
-      icon={
-        <span
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-          style={{ background: tone.bg, color: tone.icon }}
-        >
-          {icon}
-        </span>
-      }
+      icon={<span style={{ color: tone.icon }}>{icon}</span>}
       action={trend ? (
         <span
           className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
