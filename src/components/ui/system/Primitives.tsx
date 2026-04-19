@@ -1,9 +1,10 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import clsx from 'clsx';
 
-type CardVariant = 'default' | 'soft' | 'elevated';
+type CardVariant = 'default' | 'stat' | 'info' | 'action' | 'soft' | 'elevated';
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
+type IconBoxTone = 'accent' | 'neutral';
 
 interface AppCardProps extends HTMLAttributes<HTMLElement> {
   as?: 'article' | 'section' | 'div';
@@ -11,9 +12,12 @@ interface AppCardProps extends HTMLAttributes<HTMLElement> {
 }
 
 const cardVariantClass: Record<CardVariant, string> = {
-  default: 'app-card',
-  soft: 'app-card bg-[var(--surface-2)]',
-  elevated: 'app-card',
+  default: 'app-card app-card--info',
+  stat: 'app-card app-card--stat',
+  info: 'app-card app-card--info',
+  action: 'app-card app-card--action',
+  soft: 'app-card app-card--soft',
+  elevated: 'app-card app-card--elevated',
 };
 
 export function AppCard({ as = 'section', variant = 'default', className, ...props }: AppCardProps) {
@@ -23,6 +27,19 @@ export function AppCard({ as = 'section', variant = 'default', className, ...pro
 
 export function SurfacePanel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={clsx('surface-panel', className)} {...props} />;
+}
+
+interface IconBoxProps extends HTMLAttributes<HTMLSpanElement> {
+  tone?: IconBoxTone;
+}
+
+const iconBoxToneClass: Record<IconBoxTone, string> = {
+  accent: 'icon-box--accent',
+  neutral: 'icon-box--neutral',
+};
+
+export function IconBox({ tone = 'neutral', className, ...props }: IconBoxProps) {
+  return <span className={clsx('icon-box', iconBoxToneClass[tone], className)} {...props} />;
 }
 
 interface SectionHeaderProps {
@@ -81,6 +98,7 @@ export function ActionButton({
       aria-busy={loading || undefined}
       {...props}
     >
+      {loading ? <span className="action-button__spinner" aria-hidden="true" /> : null}
       {children}
     </button>
   );
@@ -101,18 +119,55 @@ interface StatCardProps {
 
 export function StatCard({ title, value, meta, icon, action, className }: StatCardProps) {
   return (
-    <AppCard as="article" className={clsx('p-5', className)}>
+    <AppCard as="article" variant="stat" className={clsx('p-5', className)}>
       <div className="mb-3 flex items-start justify-between gap-2">
         {icon && (
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent)]">
-            {icon}
-          </div>
+          <IconBox tone="accent">{icon}</IconBox>
         )}
         {action}
       </div>
-      <p className="text-xs font-medium text-[var(--text-secondary)]">{title}</p>
-      <p className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">{value}</p>
-      {meta ? <p className="mt-1 text-xs text-[var(--text-tertiary)]">{meta}</p> : null}
+      <p className="card-meta">{title}</p>
+      <p className="card-value">{value}</p>
+      {meta ? <p className="card-meta card-meta--muted">{meta}</p> : null}
+    </AppCard>
+  );
+}
+
+interface InfoCardProps extends Omit<AppCardProps, 'variant'> {
+  heading: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function InfoCard({ heading, description, actions, className, children, ...props }: InfoCardProps) {
+  return (
+    <AppCard variant="info" className={clsx('p-5', className)} {...props}>
+      <div className="card-header">
+        <div>
+          <h3 className="card-title">{heading}</h3>
+          {description ? <p className="card-body">{description}</p> : null}
+        </div>
+        {actions ? <div>{actions}</div> : null}
+      </div>
+      {children}
+    </AppCard>
+  );
+}
+
+interface ActionCardProps extends Omit<AppCardProps, 'variant'> {
+  heading: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  icon?: ReactNode;
+}
+
+export function ActionCard({ heading, description, action, icon, className, ...props }: ActionCardProps) {
+  return (
+    <AppCard variant="action" className={clsx('p-5', className)} {...props}>
+      {icon ? <IconBox tone="accent">{icon}</IconBox> : null}
+      <h3 className="card-title mt-4">{heading}</h3>
+      {description ? <p className="card-body mt-2">{description}</p> : null}
+      {action ? <div className="mt-4">{action}</div> : null}
     </AppCard>
   );
 }
