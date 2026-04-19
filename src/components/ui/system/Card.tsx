@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import clsx from 'clsx';
+import { AppCard } from '@/components/ui/system/Primitives';
 
 interface CardProps {
   children?: ReactNode;
@@ -7,5 +7,5 @@ interface CardProps {
 }
 
 export default function Card({ children, className }: CardProps) {
-  return <section className={clsx('ds-card', className)}>{children}</section>;
+  return <AppCard className={className}>{children}</AppCard>;
 }
