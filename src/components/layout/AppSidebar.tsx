@@ -10,8 +10,7 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
-
-const MAX_DOCK_ITEMS_PER_ROW = 5;
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 export interface AppSidebarItem {
   href: string;
@@ -20,8 +19,18 @@ export interface AppSidebarItem {
   icon: LucideIcon;
 }
 
-interface AppSidebarProps {
+export interface AppSidebarGroup {
+  label?: string;
   items: AppSidebarItem[];
+}
+
+interface AppSidebarProps {
+  /** Flat list of items (displayed as a single group) */
+  items?: AppSidebarItem[];
+  /** Grouped nav sections — takes precedence over `items` */
+  groups?: AppSidebarGroup[];
+  /** Items pinned to the bottom above the user row */
+  bottomItems?: AppSidebarItem[];
   open?: boolean;
   onClose?: () => void;
   workspaceTag: string;
@@ -31,6 +40,8 @@ interface AppSidebarProps {
 
 export default function AppSidebar({
   items,
+  groups,
+  bottomItems,
   open,
   onClose,
   workspaceTag,
@@ -42,118 +53,137 @@ export default function AppSidebar({
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const isSlim = collapsed && !open;
-  const itemCount = items.length;
-  const dockRows = Math.ceil(itemCount / MAX_DOCK_ITEMS_PER_ROW);
+
+  // Resolve groups
+  const resolvedGroups: AppSidebarGroup[] = groups ?? (items ? [{ items }] : []);
+
+  function isActive(item: AppSidebarItem) {
+    return pathname === item.href || (item.base !== '/os/dashboard' && pathname.startsWith(item.base));
+  }
+
+  function NavItem({ item }: { item: AppSidebarItem }) {
+    const active = isActive(item);
+    return (
+      <Link
+        href={item.href}
+        onClick={onClose}
+        className={clsx(
+          'app-sidebar-item',
+          active ? 'nav-item-active' : '',
+        )}
+        title={item.label}
+      >
+        <span className={clsx('app-sidebar-icon-wrap', active && 'app-sidebar-icon-wrap-active')}>
+          <item.icon size={16} aria-hidden="true" />
+        </span>
+        {!isSlim && <span className="truncate">{item.label}</span>}
+      </Link>
+    );
+  }
 
   return (
     <>
-      {open ? <div className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden" onClick={onClose} /> : null}
+      {/* Mobile backdrop */}
+      {open && (
+        <div
+          className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
       <aside
         className={clsx(
-          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-3 top-3 z-40 flex h-[calc(100%-1.5rem)] w-[88vw] max-w-[328px] flex-col transition-[transform,width] duration-300 lg:sticky lg:top-4 lg:left-auto lg:z-20 lg:h-[calc(100dvh-2rem)] lg:max-w-none lg:translate-x-0',
-          isSlim ? 'lg:w-[92px]' : 'lg:w-[264px]',
+          'app-sidebar-panel fixed left-0 top-0 z-40 transition-[width,transform] duration-200 lg:static lg:translate-x-0',
+          isSlim ? 'app-sidebar-slim' : '',
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
+        style={{ width: isSlim ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)' }}
       >
+        {/* ── Header: logo + collapse button ── */}
         <div className="app-sidebar-header">
-          <div className="min-w-0 flex-1">
-            <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
-              {isSlim ? (
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border text-[11px] font-bold tracking-[0.08em]">OY</span>
-              ) : (
-                <OpenyLogo width={104} height={28} />
-              )}
-            </Link>
-            {!isSlim ? (
-              <>
-                <div className={clsx('app-sidebar-tag mt-3 inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.16em]', variant === 'docs' && 'app-sidebar-tag-docs')}>
-                  {workspaceTag}
-                </div>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Workspace navigation</p>
-              </>
-            ) : null}
-          </div>
+          <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
+            {isSlim ? (
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold tracking-[0.08em]" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                {variant === 'docs' ? 'D' : 'O'}
+              </span>
+            ) : (
+              <OpenyLogo width={90} height={24} />
+            )}
+          </Link>
+
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setCollapsed((value) => !value)}
+              onClick={() => setCollapsed(v => !v)}
               className="btn-icon hidden lg:inline-flex"
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
-              {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
             </button>
-            {onClose ? (
+            {onClose && (
               <button type="button" onClick={onClose} className="btn-icon lg:hidden" aria-label="Close sidebar">
-                <X size={16} />
+                <X size={15} />
               </button>
-            ) : null}
+            )}
           </div>
         </div>
 
-        <nav className="app-sidebar-nav flex-1 space-y-2 overflow-y-auto p-3">
-          {items.map(({ href, base, icon: Icon, label }) => {
-            const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={clsx(
-                  'app-sidebar-item flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold transition-all',
-                  isSlim && 'justify-center px-2',
-                  active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
-                )}
-                title={label}
-              >
-                <span className={clsx('app-sidebar-icon-wrap inline-flex h-9 w-9 items-center justify-center rounded-xl', active && 'app-sidebar-icon-wrap-active')}>
-                  <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
-                </span>
-                {!isSlim ? <span className="truncate">{label}</span> : null}
-              </Link>
-            );
-          })}
+        {/* ── Workspace switcher (slim: hidden) ── */}
+        {!isSlim && (
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <WorkspaceSwitcher />
+          </div>
+        )}
+
+        {/* ── Main navigation ── */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {resolvedGroups.map((group, groupIndex) => (
+            <div key={groupIndex}>
+              {group.label && !isSlim && (
+                <div className="sidebar-group-label">{group.label}</div>
+              )}
+              {group.items.map(item => <NavItem key={item.href} item={item} />)}
+              {groupIndex < resolvedGroups.length - 1 && !isSlim && (
+                <div className="sidebar-separator" />
+              )}
+            </div>
+          ))}
+
+          {/* Bottom-pinned nav items (Settings, Security, etc.) */}
+          {bottomItems && bottomItems.length > 0 && (
+            <>
+              <div className="sidebar-separator mt-auto" />
+              {bottomItems.map(item => <NavItem key={item.href} item={item} />)}
+            </>
+          )}
         </nav>
 
-        {profile && user && !isSlim ? (
+        {/* ── User / account row ── */}
+        {profile && user && (
           <div className="app-sidebar-user">
             <AccountMenu placement="sidebar">
-              <div className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-[var(--surface-2)]">
-                <div className="h-8 w-8 rounded-full bg-[var(--accent)] text-xs font-bold text-white inline-flex items-center justify-center">
+              <div className={clsx(
+                'flex items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-[var(--surface-2)] cursor-pointer',
+                isSlim && 'justify-center',
+              )}>
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ background: 'var(--accent)' }}
+                >
                   {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{user.name || user.email}</p>
-                  <p className="truncate text-xs text-[var(--text-secondary)]">{user.role}</p>
-                </div>
+                {!isSlim && (
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-semibold leading-tight">{user.name || user.email}</p>
+                    <p className="truncate text-[11px] text-[var(--text-secondary)] leading-tight mt-0.5">{user.role}</p>
+                  </div>
+                )}
               </div>
             </AccountMenu>
           </div>
-        ) : null}
+        )}
       </aside>
-
-      <nav
-        className="app-bottom-dock fixed bottom-3 left-1/2 z-30 grid w-[min(96vw,560px)] -translate-x-1/2 gap-1.5 rounded-2xl border px-2 py-2 lg:hidden"
-        style={{ gridTemplateColumns: `repeat(${Math.min(MAX_DOCK_ITEMS_PER_ROW, itemCount)}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${dockRows}, minmax(0, 1fr))` }}
-      >
-        {items.map(({ href, base, icon: Icon, label }) => {
-          const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
-          return (
-            <Link
-              key={`dock-${href}`}
-              href={href}
-              onClick={onClose}
-              className={clsx(
-                'app-dock-item flex h-12 items-center justify-center rounded-xl text-xs font-semibold',
-                active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
-              )}
-              title={label}
-            >
-              <Icon size={17} aria-hidden="true" />
-            </Link>
-          );
-        })}
-      </nav>
     </>
   );
 }
