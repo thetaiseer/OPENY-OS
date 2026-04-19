@@ -113,6 +113,12 @@ function getStatusTone(status: string) {
   return statusTone[status] ?? statusTone.default;
 }
 
+function getPriorityPill(priority: string, t: (k: string) => string) {
+  if (priority === 'high') return { icon: <AlertCircle size={11} />, label: t('high') };
+  if (priority === 'medium') return { icon: <Clock size={11} />, label: t('medium') };
+  return { icon: <Tag size={11} />, label: t('low') };
+}
+
 // ─── blank form ─────────────────────────────────────────────────────────────
 
 const blankForm = {
@@ -364,6 +370,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
   const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
   const tone = getStatusTone(overdue ? 'overdue' : task.status);
   const projectLabel = task.client?.name ?? (task.project_id ? 'Project linked' : null);
+  const priority = getPriorityPill(task.priority, t);
 
   return (
     <div
@@ -492,7 +499,10 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             </div>
           )}
         </div>
-        <Badge variant={priorityVariant(task.priority)}>{task.priority === 'high' ? `${t('high')} ↑` : t(task.priority)}</Badge>
+        <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          {priority.icon}
+          <span>{priority.label}</span>
+        </span>
         {overdue && <Badge variant="danger">{t('overdue')}</Badge>}
       </div>
     </div>
@@ -681,6 +691,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
   const overdue = isOverdue(task.due_date, task.status);
   const assignee = team.find(m => m.id === task.assigned_to);
   const tone = getStatusTone(overdue ? 'overdue' : task.status);
+  const priority = getPriorityPill(task.priority, t);
 
   return (
     <div className="space-y-2">
@@ -724,7 +735,10 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
           )}
         </div>
         <div className="flex items-center justify-between gap-2">
-          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            {priority.icon}
+            <span>{priority.label}</span>
+          </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
             {statusLabel(overdue ? 'overdue' : task.status, t)}
           </span>
