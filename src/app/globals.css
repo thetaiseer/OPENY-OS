@@ -290,19 +290,26 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--ds-space-3);
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-2);
 }
 
 .os-page-title {
   margin: 0;
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
-  letter-spacing: -0.02em;
+  font-size: clamp(1.7rem, 2.5vw, 2.35rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .os-page-subtitle {
-  margin: 8px 0 0;
-  color: var(--ds-muted);
-  font-size: 14px;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 72ch;
 }
 
 /* Sidebar */
@@ -623,6 +630,16 @@ textarea {
   align-items: center;
   gap: 8px;
   font-size: 15px;
+}
+
+.ds-section-head h2 svg {
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-2);
 }
 
 .ds-section-head p {
@@ -1176,13 +1193,21 @@ textarea {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
 }
 
+.app-card--stat {
+  min-height: 172px;
+}
+
+.app-card--info {
+  min-height: 148px;
+}
+
 .icon-box,
 .ds-kpi-icon,
 .os-nav-item-icon {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1210,8 +1235,8 @@ textarea {
 
 .card-title {
   margin: 0;
-  font-size: 0.96rem;
-  font-weight: 650;
+  font-size: 1.02rem;
+  font-weight: 680;
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
@@ -1235,10 +1260,10 @@ textarea {
 .card-meta {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .card-meta--muted {
@@ -1295,7 +1320,7 @@ textarea {
 .glass-btn--primary,
 .glass-btn--accent,
 .ds-button--primary {
-  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   border-color: rgba(15, 23, 42, 0.1);
   box-shadow: var(--shadow-button);
@@ -1338,7 +1363,7 @@ textarea {
 }
 
 .btn-danger {
-  background: #0f172a;
+  background: #111827;
   color: #ffffff;
   border-color: #1e293b;
 }
@@ -1522,16 +1547,16 @@ textarea {
 
 .section-header__title {
   margin: 0;
-  font-size: clamp(1rem, 1.8vw, 1.12rem);
+  font-size: clamp(1.06rem, 1.8vw, 1.24rem);
   letter-spacing: -0.02em;
   color: var(--text-primary);
-  font-weight: 650;
+  font-weight: 680;
 }
 
 .section-header__subtitle {
   margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 0.84rem;
+  font-size: 0.9rem;
 }
 
 /* Mobile comfort */

@@ -100,13 +100,13 @@ function statusLabel(s: string, t: (k: string) => string): string {
 
 const statusTone: Record<string, { bg: string; text: string; border: string; glow: string }> = {
   todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--accent-glow)', glow: 'var(--accent-glow)' },
-  in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)', glow: 'rgba(59,130,246,0.22)' },
-  in_review: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)', border: 'var(--color-warning-border)', glow: 'rgba(245,158,11,0.24)' },
-  review: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)', border: 'var(--color-warning-border)', glow: 'rgba(245,158,11,0.24)' },
-  done: { bg: 'var(--color-success-bg)', text: 'var(--color-success)', border: 'var(--color-success-border)', glow: 'rgba(16,185,129,0.24)' },
-  delivered: { bg: 'rgba(20,184,166,0.12)', text: '#0f766e', border: 'rgba(20,184,166,0.28)', glow: 'rgba(20,184,166,0.24)' },
-  overdue: { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)', border: 'var(--color-danger-border)', glow: 'rgba(239,68,68,0.24)' },
-  default: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(86,116,167,0.2)' },
+  in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)', glow: 'var(--accent-glow)' },
+  in_review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
+  review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
+  done: { bg: 'var(--color-success-bg)', text: 'var(--color-success)', border: 'var(--color-success-border)', glow: 'var(--accent-glow)' },
+  delivered: { bg: 'var(--surface-2)', text: 'var(--text)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
+  overdue: { bg: 'var(--surface-3)', text: 'var(--text)', border: 'var(--border-strong)', glow: 'rgba(100,116,139,0.24)' },
+  default: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.2)' },
 };
 
 function getStatusTone(status: string) {
@@ -419,7 +419,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
 
       {((task.platforms && task.platforms.length > 0) || (task.post_types && task.post_types.length > 0)) && (
         <div className="flex flex-wrap gap-1.5 items-center rounded-xl p-2 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-          <Send size={11} style={{ color: '#7c3aed' }} />
+          <Send size={11} style={{ color: 'var(--accent)' }} />
           {(task.platforms ?? []).map(p => {
             const pl = PLATFORMS.find(x => x.value === p);
             return (
@@ -443,7 +443,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users size={12} style={{ color: 'var(--text-secondary)' }} />
           {mentionedMembers.map(m => (
-            <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>
+            <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               @{m.full_name}
             </span>
           ))}
@@ -545,7 +545,7 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
           {mentionedMembers.length > 0 && row(t('mentions'),
             <div className="flex flex-wrap gap-1">
               {mentionedMembers.map(m => (
-                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>@{m.full_name}</span>
+                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>@{m.full_name}</span>
               ))}
             </div>
           )}
@@ -642,7 +642,7 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
         )}
         {task.due_date && (
           <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-            style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
+            style={{ background: overdue ? 'var(--surface-3)' : 'var(--surface)' }}>
             <Calendar size={10} />{fmtDate(task.due_date)}
           </span>
         )}
@@ -718,7 +718,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
           )}
           {task.due_date && (
             <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-              style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
+              style={{ background: overdue ? 'var(--surface-3)' : 'var(--surface)' }}>
               <Calendar size={10} />{fmtDate(task.due_date)}
             </span>
           )}
@@ -1011,7 +1011,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
         <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
         {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -1819,7 +1819,7 @@ export default function TasksPage() {
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError(null); }} title={t('newTask')} size="lg">
         <form onSubmit={handleCreate}>
           {createError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{createError}</span>
             </div>
@@ -1832,7 +1832,7 @@ export default function TasksPage() {
       <Modal open={!!editTask} onClose={() => { setEditTask(null); setEditError(null); }} title={t('editTask')} size="lg">
         <form onSubmit={handleEdit}>
           {editError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{editError}</span>
             </div>

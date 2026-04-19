@@ -10,6 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import { IconBox } from '@/components/ui/system/Primitives';
 
 interface ClientStat {
   id: string; name: string; totalTasks: number; completedTasks: number;
@@ -33,7 +34,7 @@ interface ReportsData {
   monthlyTrends: MonthlyTrend[];
 }
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
+const CHART_COLORS = ['#1d4ed8', '#2563eb', '#3b82f6', '#0f172a', '#1e293b', '#64748b', '#cbd5e1'];
 
 function toCSV<T extends object>(rows: T[], headers: Array<keyof T>): string {
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -53,12 +54,8 @@ function downloadCSV(csv: string, filename: string): void {
 
 function SummaryCard({ label, value, icon, color, sub }: { label: string; value: string | number; icon: React.ReactNode; color: string; sub?: string }) {
   return (
-    <div
-      className="surface-card p-5 flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5"
-    >
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border" style={{ background: `${color}14`, color, borderColor: `${color}22` }}>
-        {icon}
-      </div>
+    <div className="app-card app-card--stat p-5 flex items-start gap-4 transition-all duration-200 hover:-translate-y-0.5">
+      <IconBox tone="accent" className="shrink-0 mt-0.5">{icon}</IconBox>
       <div>
         <p className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>{value}</p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{label}</p>
@@ -72,10 +69,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-      style={active
-        ? { background: 'var(--accent-soft)', color: 'var(--accent)', boxShadow: 'inset 0 0 0 1px var(--accent-glow)' }
-        : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+      className={active ? 'btn-primary h-10 px-4 text-sm font-semibold' : 'btn-secondary h-10 px-4 text-sm font-semibold'}
     >
       {children}
     </button>
@@ -116,8 +110,7 @@ export default function ReportsPage() {
         <button
           onClick={() => void refetch()}
           disabled={isFetching}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          className="btn-secondary h-10 px-4 text-sm font-medium"
         >
           <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
           {isFetching ? 'Refreshing\u2026' : 'Refresh'}
@@ -125,7 +118,7 @@ export default function ReportsPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
           <AlertCircle size={16} />
           <p className="text-sm">Failed to load report data. Please try again.</p>
         </div>
@@ -148,20 +141,20 @@ export default function ReportsPage() {
           {tab === 'overview' && report && (
             <div className="space-y-8">
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <SummaryCard label="Total Clients"    value={report.summary.totalClients}    icon={<Users2 size={18} />}     color="#6366f1" />
-                <SummaryCard label="Total Tasks"      value={report.summary.totalTasks}      icon={<CheckSquare size={18} />} color="#10b981" />
-                <SummaryCard label="Total Assets"     value={report.summary.totalAssets}     icon={<FolderOpen size={18} />}  color="#f59e0b" />
-                <SummaryCard label="Posts Published"  value={report.summary.totalPublished}  icon={<Send size={18} />}        color="#8b5cf6" />
+                <SummaryCard label="Total Clients"    value={report.summary.totalClients}    icon={<Users2 size={18} />}     color="var(--accent)" />
+                <SummaryCard label="Total Tasks"      value={report.summary.totalTasks}      icon={<CheckSquare size={18} />} color="var(--text-secondary)" />
+                <SummaryCard label="Total Assets"     value={report.summary.totalAssets}     icon={<FolderOpen size={18} />}  color="var(--accent-2)" />
+                <SummaryCard label="Posts Published"  value={report.summary.totalPublished}  icon={<Send size={18} />}        color="var(--accent-3)" />
                 <SummaryCard
                   label="Task Completion Rate"
                   value={`${report.summary.completionRate}%`}
                   icon={<TrendingUp size={18} />}
-                  color="#06b6d4"
+                  color="var(--accent)"
                   sub={report.summary.completionRate >= 80 ? 'On track' : report.summary.completionRate >= 50 ? 'Needs attention' : 'At risk'}
                 />
               </div>
 
-              <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="app-card app-card--info p-6">
                 <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>6-Month Performance Trend</h2>
                 {report.monthlyTrends.length === 0 ? (
                   <p className="text-sm text-center py-10" style={{ color: 'var(--text-secondary)' }}>No trend data yet</p>
@@ -170,23 +163,23 @@ export default function ReportsPage() {
                     <AreaChart data={report.monthlyTrends} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="gcT" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="gcP" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="gcA" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
+                            <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gcP" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gcA" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
                       </defs>
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                       <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                      <Area type="monotone" dataKey="completedTasks" name="Completed Tasks" stroke="#6366f1" fill="url(#gcT)" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="publishedPosts"  name="Published Posts" stroke="#8b5cf6" fill="url(#gcP)" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="newAssets"       name="New Assets"      stroke="#10b981" fill="url(#gcA)" strokeWidth={2} dot={false} />
+                        <Area type="monotone" dataKey="completedTasks" name="Completed Tasks" stroke="#1d4ed8" fill="url(#gcT)" strokeWidth={2} dot={false} />
+                        <Area type="monotone" dataKey="publishedPosts"  name="Published Posts" stroke="#2563eb" fill="url(#gcP)" strokeWidth={2} dot={false} />
+                        <Area type="monotone" dataKey="newAssets"       name="New Assets"      stroke="#3b82f6" fill="url(#gcA)" strokeWidth={2} dot={false} />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -194,16 +187,16 @@ export default function ReportsPage() {
               </div>
 
               {report.platformStats.length > 0 && (
-                <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="app-card app-card--info p-6">
                   <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--text)' }}>Publishing by Platform</h2>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={report.platformStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <XAxis dataKey="platform" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="published" name="Published" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="scheduled" name="Scheduled" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="missed"    name="Missed"    fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="published" name="Published" fill="#1d4ed8" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="scheduled" name="Scheduled" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="missed"    name="Missed"    fill="#64748b" radius={[4, 4, 0, 0]} />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -215,17 +208,17 @@ export default function ReportsPage() {
           {tab === 'clients' && report && (
             <div className="space-y-4">
               <div className="flex justify-end">
-                <button onClick={exportClients} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                <button onClick={exportClients} className="btn-secondary h-9 px-3 text-sm font-medium">
                   <Download size={14} /> Export CSV
                 </button>
               </div>
               {report.clientStats.length === 0 ? (
-                <div className="rounded-2xl border p-12 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="app-card app-card--action p-12 text-center">
                   <BarChart2 size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No client data yet</p>
                 </div>
               ) : (
-                <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="app-card app-card--info overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 11 }}>
@@ -239,9 +232,9 @@ export default function ReportsPage() {
                         <tr key={c.id} className="border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
                           <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{c.name}</td>
                           <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.totalTasks}</td>
-                          <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>{c.completedTasks}</span></td>
+                            <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{c.completedTasks}</span></td>
                           <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.pendingTasks}</td>
-                          <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.overdueTasks > 0 ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)', color: c.overdueTasks > 0 ? '#ef4444' : 'var(--text-secondary)' }}>{c.overdueTasks}</span></td>
+                            <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.overdueTasks > 0 ? 'var(--surface-3)' : 'var(--surface-2)', color: c.overdueTasks > 0 ? 'var(--text)' : 'var(--text-secondary)' }}>{c.overdueTasks}</span></td>
                           <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{c.totalAssets}</td>
                         </tr>
                       ))}
@@ -255,29 +248,29 @@ export default function ReportsPage() {
           {tab === 'team' && report && (
             <div className="space-y-4">
               <div className="flex justify-end">
-                <button onClick={exportTeam} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                <button onClick={exportTeam} className="btn-secondary h-9 px-3 text-sm font-medium">
                   <Download size={14} /> Export CSV
                 </button>
               </div>
               {report.teamStats.length === 0 ? (
-                <div className="rounded-2xl border p-12 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="app-card app-card--action p-12 text-center">
                   <Users2 size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No team task data yet. Assign tasks to team members to see performance.</p>
                 </div>
               ) : (
                 <>
-                  <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="app-card app-card--info p-6">
                     <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Completed Tasks by Member</h2>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={report.teamStats} layout="vertical" margin={{ top: 4, right: 20, left: 40, bottom: 0 }}>
                         <XAxis type="number" tick={{ fontSize: 11 }} />
                         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={90} />
                         <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                        <Bar dataKey="completedTasks" name="Completed" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="completedTasks" name="Completed" fill="#1d4ed8" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="app-card app-card--info overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 11 }}>
@@ -295,12 +288,12 @@ export default function ReportsPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                                  <div className="h-full rounded-full" style={{ width: `${m.completionRate}%`, background: m.completionRate >= 80 ? '#10b981' : m.completionRate >= 50 ? '#f59e0b' : '#ef4444' }} />
+                                  <div className="h-full rounded-full" style={{ width: `${m.completionRate}%`, background: m.completionRate >= 80 ? '#1d4ed8' : m.completionRate >= 50 ? '#2563eb' : '#64748b' }} />
                                 </div>
                                 <span className="text-xs w-8 text-right" style={{ color: 'var(--text-secondary)' }}>{m.completionRate}%</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: m.overdueTasks > 0 ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)', color: m.overdueTasks > 0 ? '#ef4444' : 'var(--text-secondary)' }}>{m.overdueTasks}</span></td>
+                            <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: m.overdueTasks > 0 ? 'var(--surface-3)' : 'var(--surface-2)', color: m.overdueTasks > 0 ? 'var(--text)' : 'var(--text-secondary)' }}>{m.overdueTasks}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -315,7 +308,7 @@ export default function ReportsPage() {
             <div className="space-y-8">
               {report.platformStats.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="app-card app-card--info p-6">
                     <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Platform Distribution</h2>
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
@@ -326,36 +319,36 @@ export default function ReportsPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="app-card app-card--info p-6">
                     <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Published vs Scheduled vs Missed</h2>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={report.platformStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                         <XAxis dataKey="platform" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                        <Bar dataKey="published" name="Published" fill="#6366f1" radius={[4, 4, 0, 0]} stackId="a" />
-                        <Bar dataKey="scheduled" name="Scheduled" fill="#8b5cf6" stackId="a" />
-                        <Bar dataKey="missed"    name="Missed"    fill="#ef4444" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar dataKey="published" name="Published" fill="#1d4ed8" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar dataKey="scheduled" name="Scheduled" fill="#2563eb" stackId="a" />
+                        <Bar dataKey="missed"    name="Missed"    fill="#64748b" radius={[4, 4, 0, 0]} stackId="a" />
                         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border p-12 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="app-card app-card--action p-12 text-center">
                   <Send size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No publishing data yet. Start scheduling posts to see analytics.</p>
                 </div>
               )}
-              <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="app-card app-card--info p-6">
                 <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Monthly Publishing Velocity</h2>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={report.monthlyTrends} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="publishedPosts" name="Published Posts" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="newAssets"      name="New Assets"      fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="publishedPosts" name="Published Posts" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="newAssets"      name="New Assets"      fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                   </BarChart>
                 </ResponsiveContainer>
