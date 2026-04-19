@@ -15,6 +15,31 @@ const DOCS_NAV: NavItem[] = [
   { href: '/docs/dashboard', label: 'Dashboard',  icon: <LayoutDashboard size={16} /> },
   { href: '/docs/documents', label: 'Documents',  icon: <FolderOpen size={16} /> },
   { href: '/docs/settings',  label: 'Settings',   icon: <Settings size={16} /> },
+import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
+import AppSidebar, { type AppSidebarGroup } from './AppSidebar';
+
+const docsGroups: AppSidebarGroup[] = [
+  {
+    label: 'Documents',
+    items: [
+      { href: '/docs/documents/invoice',         base: '/docs/documents/invoice',         label: 'Invoice',         icon: FileText       },
+      { href: '/docs/documents/quotation',       base: '/docs/documents/quotation',       label: 'Quotation',       icon: ClipboardList  },
+      { href: '/docs/documents/client-contract', base: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature  },
+      { href: '/docs/documents/hr-contract',     base: '/docs/documents/hr-contract',     label: 'HR Contract',     icon: BookOpen       },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { href: '/docs/documents/employees', base: '/docs/documents/employees', label: 'Employees', icon: Users },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { href: '/docs/documents/accounting', base: '/docs/documents/accounting', label: 'Accounting', icon: BarChart2 },
+    ],
+  },
 ];
 
 interface DocsSidebarProps {
@@ -77,5 +102,14 @@ export function DocsSidebar({ activePath }: DocsSidebarProps) {
         </Link>
       </div>
     </aside>
+export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
+  return (
+    <AppSidebar
+      groups={docsGroups}
+      open={open}
+      onClose={onClose}
+      workspaceTag="DOCS"
+      variant="docs"
+    />
   );
 }

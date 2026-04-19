@@ -74,6 +74,15 @@ export function WorkspaceSwitcher({
             transition: 'transform 150ms',
           }}
         />
+        type="button"
+        className="inline-flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors hover:bg-[var(--surface-2)]"
+        style={{ color: 'var(--text-primary)' }}
+        onClick={() => setOpen(value => !value)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span className="truncate">{currentLabel}</span>
+        <ChevronDown size={13} className={open ? 'rotate-180 transition-transform shrink-0' : 'transition-transform shrink-0'} style={{ color: 'var(--text-secondary)' }} />
       </button>
 
       {open && (
