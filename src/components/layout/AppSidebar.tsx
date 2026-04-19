@@ -62,7 +62,7 @@ export default function AppSidebar({
     return (
       <Link href={item.href} onClick={onClose} className={clsx('os-nav-item', active && 'is-active')} title={item.label}>
         <span className="os-nav-item-icon">
-          <item.icon size={16} aria-hidden="true" />
+          <item.icon size={16} strokeWidth={1.6} aria-hidden="true" />
         </span>
         {!slim ? <span>{item.label}</span> : null}
       </Link>

@@ -14,19 +14,19 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
-    <div className="animate-openy-fade-in flex flex-col items-center justify-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-14 text-center">
+    <div className="animate-openy-fade-in flex flex-col items-center justify-center gap-5 rounded-3xl border px-8 py-16 text-center backdrop-blur-xl" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(5,5,5,0.68)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 28px 64px rgba(0,0,0,0.58)' }}>
       <div
-        className="inline-flex h-12 w-12 items-center justify-center rounded-xl"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+        className="inline-flex h-14 w-14 items-center justify-center rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--accent)', border: '1px solid rgba(255,255,255,0.14)' }}
       >
-        <Icon size={22} aria-hidden="true" />
+        <Icon size={24} strokeWidth={1.7} aria-hidden="true" />
       </div>
 
       <div>
-        <h3 className="text-[15px] font-700 tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-[19px] font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           {title}
         </h3>
-        <p className="mx-auto mt-1.5 max-w-sm text-[13.5px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {description}
         </p>
       </div>
@@ -38,13 +38,14 @@ export default function EmptyState({ icon: Icon, title, description, action, sug
           {suggestions.map((suggestion) => (
             <div
               key={suggestion.title}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3"
+              className="rounded-2xl border p-4"
+              style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
             >
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 {suggestion.title}
               </p>
               {suggestion.description ? (
-                <p className="mt-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   {suggestion.description}
                 </p>
               ) : null}

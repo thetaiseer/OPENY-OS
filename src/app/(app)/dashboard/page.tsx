@@ -15,11 +15,12 @@ import {
   Users2,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { motion } from 'framer-motion';
 import Card from '@/components/ui/system/Card';
 import Grid from '@/components/ui/system/Grid';
-import Table from '@/components/ui/system/Table';
 import Button from '@/components/ui/system/Button';
 import StatCard from '@/components/ui/StatCard';
+import EmptyState from '@/components/ui/EmptyState';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
@@ -37,7 +38,13 @@ function pluralize(count: number, singular: string, plural: string) {
 
 function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
   if (!data.length) {
-    return <p className="ds-empty">No completion data yet</p>;
+    return (
+      <EmptyState
+        icon={TrendingUp}
+        title="No trend data yet"
+        description="Complete your first tasks to unlock weekly performance insights."
+      />
+    );
   }
 
   const chartData = data.map(d => ({
@@ -204,25 +211,6 @@ export default function DashboardPage() {
     ];
   }, [trendsData, stats?.overdueTasks, recentAssets]);
 
-  const taskRows = (atRiskTasks ?? []).map(task => {
-    const due = task.due_date ? new Date(task.due_date) : null;
-    return {
-      id: task.id,
-      cells: [
-        task.title,
-        task.client?.name ?? '—',
-        due ? due.toLocaleDateString() : 'No date',
-      ],
-    };
-  });
-
-  const activityRows = (activitiesData ?? []).map(activity => ({
-    id: activity.id,
-    cells: [
-      activity.description,
-      new Date(activity.created_at).toLocaleDateString(),
-    ],
-  }));
   const clients = activeClients ?? [];
   const scheduleRows = scheduled ?? [];
   const assets = recentAssets ?? [];
@@ -262,7 +250,24 @@ export default function DashboardPage() {
             <h2><CheckSquare size={14} /> Tasks</h2>
             <p>At-risk queue</p>
           </div>
-          {(atRiskTasks ?? []).length === 0 ? <p className="ds-empty">No tasks at risk.</p> : <Table columns={['Task', 'Client', 'Due']} rows={taskRows} />}
+          {(atRiskTasks ?? []).length === 0 ? (
+            <EmptyState
+              icon={CheckSquare}
+              title="Everything is on track"
+              description="No critical tasks need attention right now."
+              action={<Link href="/os/tasks"><Button>Open Task Board</Button></Link>}
+            />
+          ) : (
+            <div className="ds-stack">
+              {(atRiskTasks ?? []).map(task => (
+                <Link key={task.id} href="/os/tasks" className="ds-list-row">
+                  <span>{task.title}</span>
+                  <span>{task.client?.name ?? 'Unassigned'}</span>
+                  <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'Set date'}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -271,7 +276,14 @@ export default function DashboardPage() {
             <p>Recently active</p>
           </div>
           <div className="ds-stack">
-            {clients.length === 0 ? <p className="ds-empty">No active clients.</p> : clients.map(client => (
+            {clients.length === 0 ? (
+              <EmptyState
+                icon={Users2}
+                title="Build your client roster"
+                description="Create your first client space to unlock projects, assets, and tasks."
+                action={<Link href="/os/clients"><Button>Create First Client</Button></Link>}
+              />
+            ) : clients.map(client => (
               <Link key={client.id} href={`/clients/${client.slug ?? client.id}/overview`} className="ds-list-row">
                 <span>{client.name}</span>
                 <span>{new Date(client.updated_at).toLocaleDateString()}</span>
@@ -286,7 +298,14 @@ export default function DashboardPage() {
             <p>Upcoming publishing</p>
           </div>
           <div className="ds-stack">
-            {scheduleRows.length === 0 ? <p className="ds-empty">No schedules coming up.</p> : scheduleRows.map(item => (
+            {scheduleRows.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                title="No scheduled content yet"
+                description="Plan and schedule your first campaign slot."
+                action={<Link href="/os/content"><Button>Schedule First Post</Button></Link>}
+              />
+            ) : scheduleRows.map(item => (
               <div key={item.id} className="ds-list-row">
                 <span>{item.asset?.name ?? item.caption ?? 'Scheduled post'}</span>
                 <span>{new Date(item.scheduled_date).toLocaleDateString()}</span>
@@ -303,10 +322,23 @@ export default function DashboardPage() {
         </div>
         <Grid cols={2}>
           <div className="ds-stack">
-            {contentDistItems.length === 0 ? <p className="ds-empty">No asset data yet.</p> : contentDistItems.map(item => (
+            {contentDistItems.length === 0 ? (
+              <EmptyState
+                icon={FolderOpen}
+                title="No asset distribution yet"
+                description="Upload your first assets to activate performance distribution."
+                action={<Link href="/os/assets"><Button>Upload First Asset</Button></Link>}
+              />
+            ) : contentDistItems.map(item => (
               <div key={item.label} className="ds-progress-row">
                 <span>{item.label}</span>
-                <div><i style={{ width: `${(item.count / maxContentCount) * 100}%` }} /></div>
+                <div>
+                  <motion.i
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(item.count / maxContentCount) * 100}%` }}
+                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
                 <strong>{item.count}</strong>
               </div>
             ))}
@@ -320,7 +352,22 @@ export default function DashboardPage() {
           <h2><Activity size={14} /> Recent Activity</h2>
           <p>Latest operational updates</p>
         </div>
-        {activityRows.length === 0 ? <p className="ds-empty">No recent activity.</p> : <Table columns={['Event', 'Date']} rows={activityRows} />}
+        {(activitiesData ?? []).length === 0 ? (
+          <EmptyState
+            icon={Activity}
+            title="Activity feed is waiting"
+            description="Start creating tasks, assets, and content to see workspace momentum."
+          />
+        ) : (
+          <div className="ds-stack">
+            {(activitiesData ?? []).map(activity => (
+              <div key={activity.id} className="ds-list-row">
+                <span>{activity.description}</span>
+                <span>{new Date(activity.created_at).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Grid cols={2}>
@@ -330,7 +377,14 @@ export default function DashboardPage() {
             <p>Most recent uploads</p>
           </div>
           <div className="ds-asset-grid">
-            {assets.length === 0 ? <p className="ds-empty">No assets uploaded yet.</p> : assets.map(asset => (
+            {assets.length === 0 ? (
+              <EmptyState
+                icon={ImageIcon}
+                title="No visual assets yet"
+                description="Upload your first image, video, or document to start building the vault."
+                action={<Link href="/os/assets"><Button>Upload First Asset</Button></Link>}
+              />
+            ) : assets.map(asset => (
               <div key={asset.id} className="ds-asset-item">
                 <p>{asset.name}</p>
                 <p>{asset.client_name ?? 'Unassigned'}</p>
