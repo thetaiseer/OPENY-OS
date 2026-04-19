@@ -30,6 +30,15 @@ export interface PipelineTask {
   updatedAt: string;
 }
 
+export const MIN_WORKLOAD_POINTS = 1;
+export const MAX_WORKLOAD_POINTS = 10;
+
+export function normalizeWorkloadPoints(value: number): number {
+  if (!Number.isFinite(value)) return MIN_WORKLOAD_POINTS;
+  const rounded = Math.round(value);
+  return Math.min(MAX_WORKLOAD_POINTS, Math.max(MIN_WORKLOAD_POINTS, rounded));
+}
+
 export interface VaultAsset {
   id: string;
   taskId: string | null;
