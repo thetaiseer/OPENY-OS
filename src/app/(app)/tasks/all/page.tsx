@@ -99,7 +99,7 @@ function statusLabel(s: string, t: (k: string) => string): string {
 }
 
 const statusTone: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-  todo: { bg: 'rgba(99,102,241,0.12)', text: '#4f46e5', border: 'rgba(99,102,241,0.22)', glow: 'rgba(99,102,241,0.24)' },
+  todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--accent-glow)', glow: 'var(--accent-glow)' },
   in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)', glow: 'rgba(59,130,246,0.22)' },
   in_review: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)', border: 'var(--color-warning-border)', glow: 'rgba(245,158,11,0.24)' },
   review: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)', border: 'var(--color-warning-border)', glow: 'rgba(245,158,11,0.24)' },
@@ -431,7 +431,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           {(task.post_types ?? []).map(pt => {
             const typ = POST_TYPES.find(x => x.value === pt);
             return (
-              <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+              <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                 {typ ? typ.label : pt}
               </span>
             );

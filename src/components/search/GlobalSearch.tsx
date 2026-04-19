@@ -65,8 +65,8 @@ function clearRecentSearches() {
 
 function typeBadgeStyle(type: ResultType): React.CSSProperties {
   const map: Record<ResultType, { bg: string; color: string }> = {
-    client:  { bg: 'rgba(99,102,241,0.12)', color: '#6366f1' },
-    task:    { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+    client:  { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+    task:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
     asset:   { bg: 'rgba(234,179,8,0.12)',  color: '#ca8a04' },
     content: { bg: 'rgba(168,85,247,0.12)', color: '#a855f7' },
     team:    { bg: 'rgba(34,197,94,0.12)',  color: '#16a34a' },

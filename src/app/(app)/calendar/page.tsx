@@ -434,7 +434,7 @@ export default function CalendarPage() {
                             </div>
                           ))}
                           {dayAssets.slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length - dayTasks.length)).map(a => (
-                            <div key={a.id} className="text-xs px-1 py-0.5 rounded truncate" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                            <div key={a.id} className="text-xs px-1 py-0.5 rounded truncate" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                               {a.name}
                             </div>
                           ))}
@@ -559,7 +559,7 @@ export default function CalendarPage() {
                                   </span>
                                 ))}
                                 {s.post_types.slice(0, 2).map(pt => (
-                                  <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
+                                  <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                                     {postTypeLabel(pt)}
                                   </span>
                                 ))}
@@ -788,7 +788,7 @@ export default function CalendarPage() {
                   <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>POST TYPES</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedSchedule.post_types.map(pt => (
-                      <span key={pt} className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                      <span key={pt} className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                         {postTypeLabel(pt)}
                       </span>
                     ))}
