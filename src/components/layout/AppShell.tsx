@@ -21,13 +21,13 @@ export default function AppShell({
   containerClassName,
 }: AppShellProps) {
   return (
-    <div className={clsx('app-shell-root app-shell-workspace', workspaceClassName)}>
-      <div className="app-shell-grid">
+    <div className={clsx('os-shell', workspaceClassName)}>
+      <div className="os-shell-grid">
         {sidebar}
-        <div className="app-shell-stage">
+        <div className="os-stage">
           {topbar}
-          <main className={clsx('app-shell-main', mainClassName)}>
-            <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
+          <main className={clsx('os-main', mainClassName)}>
+            <div className={clsx('os-main-container', containerClassName)}>{children}</div>
           </main>
         </div>
       </div>
