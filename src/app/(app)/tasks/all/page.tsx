@@ -24,7 +24,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
-  LayoutGrid, List, Search, Send, ArrowUpDown, GripVertical, SlidersHorizontal, MoreHorizontal,
+  LayoutGrid, List, Search, Send, ArrowUpDown, GripVertical, SlidersHorizontal,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -789,9 +789,6 @@ function KanbanColumn({
             {colTasks.length}
           </span>
         </div>
-        <button className="btn-ghost h-7 w-7 !min-h-0 !px-0 rounded-full" aria-label={`More options for ${t(col.label)}`}>
-          <MoreHorizontal size={14} />
-        </button>
       </div>
       {isOver && (
         <span className="sr-only" role="status" aria-live="polite">
@@ -1545,7 +1542,7 @@ export default function TasksPage() {
     .filter(Boolean).length;
 
   return (
-    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in pb-24 sm:pb-14">
+    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -1661,7 +1658,7 @@ export default function TasksPage() {
             aria-expanded={filtersOpen}
           >
             <SlidersHorizontal size={16} />
-            <span className="hidden sm:inline text-xs">{activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active</span>
+            <span className="hidden sm:inline text-xs">{activeFilterCount} {t('active')}</span>
           </button>
         </div>
 
@@ -1702,12 +1699,12 @@ export default function TasksPage() {
             value={dateFilter}
             onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
             className="!h-10 min-w-[132px] rounded-full !px-3"
-            placeholder="Date"
+            placeholder={t('date')}
             options={[
-              { value: 'all', label: 'Date: All' },
-              { value: 'overdue', label: 'Date: Overdue' },
-              { value: 'today', label: 'Date: Today' },
-              { value: 'upcoming', label: 'Date: Upcoming' },
+              { value: 'all', label: `${t('date')}: ${t('all')}` },
+              { value: 'overdue', label: `${t('date')}: ${t('overdue')}` },
+              { value: 'today', label: `${t('date')}: ${t('today')}` },
+              { value: 'upcoming', label: `${t('date')}: ${t('upcoming')}` },
             ]}
           />
         </div>
@@ -1732,7 +1729,7 @@ export default function TasksPage() {
                   boxShadow: isActive ? '0 10px 24px rgba(29, 78, 216, 0.24)' : 'none',
                 }}
               >
-                {s === 'all' ? 'All' : statusLabel(s, t)}
+                {s === 'all' ? t('all') : statusLabel(s, t)}
                 <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold" style={{ background: isActive ? 'rgba(255,255,255,0.24)' : 'var(--surface-3)', color: isActive ? '#fff' : 'var(--text-secondary)' }}>
                   {count}
                 </span>
@@ -1744,7 +1741,7 @@ export default function TasksPage() {
               onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setDateFilter('all'); setSearchQuery(''); setStatusFilter('all'); }}
               className="btn-ghost h-9 px-3 text-xs rounded-full"
             >
-              Clear filters
+              {t('clearFilters')}
             </button>
           )}
         </div>
