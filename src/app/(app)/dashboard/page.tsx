@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
-  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon,
+  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon, Sparkles,
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis, CartesianGrid } from 'recharts';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -116,31 +116,6 @@ function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
         </AreaChart>
       </ResponsiveContainer>
     </div>
-  );
-}
-
-// ── Team performance ──────────────────────────────────────────────────────────
-
-function TeamPerformance({ data }: { data: { id: string; name: string; completed: number }[] }) {
-  if (!data.length) {
-    return (
-      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No team completions this month</p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Performance bars appear once tasks are completed.</p>
-      </div>
-    );
-  }
-  const chartData = data.slice(0, 6).map(d => ({ name: d.name.split(' ')[0], completed: d.completed }));
-  return (
-    <ResponsiveContainer width="100%" height={180}>
-      <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-        <CartesianGrid stroke="var(--border-2)" strokeDasharray="3 6" horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" width={76} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, boxShadow: 'var(--shadow-sm)' }} cursor={{ fill: 'var(--surface-2)' }} />
-        <Bar dataKey="completed" fill="var(--accent)" radius={[0, 8, 8, 0]} maxBarSize={14} />
-      </BarChart>
-    </ResponsiveContainer>
   );
 }
 
@@ -327,17 +302,6 @@ export default function DashboardPage() {
     staleTime: 120_000,
   });
 
-  const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
-    queryKey: ['dashboard-team-performance'],
-    queryFn: async () => {
-      const res = await fetch('/api/dashboard/team-performance');
-      if (!res.ok) return [];
-      const json = await res.json() as { success: boolean; performance?: { id: string; name: string; completed: number }[] };
-      return json.performance ?? [];
-    },
-    staleTime: 120_000,
-  });
-
   const { data: atRiskTasks } = useQuery({
     queryKey: ['at-risk-tasks'],
     queryFn: async () => {
@@ -420,27 +384,9 @@ export default function DashboardPage() {
     <div className="dashboard-screen animate-openy-fade-in">
       <div className="dashboard-head">
         <h1 className="dashboard-head-title">{t('welcomeBack')}, {firstName} 👋</h1>
-        <p className="dashboard-head-subtitle">Operational canvas across delivery, risk, and content velocity.</p>
+        <p className="dashboard-head-subtitle">Deep blue operations center for tasks, clients, calendar, assets, and content.</p>
       </div>
 
-      {/* ── Stat cards ── */}
-      {statsLoading ? <SkeletonStatGrid count={5} /> : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <StatCard label={t('totalClients')}     value={stats?.totalClients     ?? 0} icon={<Users2 size={20} />}        color="blue"   />
-          <StatCard label={t('activeTasks')}      value={stats?.activeTasks      ?? 0} icon={<CheckSquare size={20} />}   color="mint"   />
-          <StatCard label={t('overdueTasks')}     value={stats?.overdueTasks     ?? 0} icon={<AlertTriangle size={20} />} color="rose"   />
-          <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={20} />}  color="violet" />
-          <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
-        </div>
-      )}
-
-      {/* ── Trend + Team performance ── */}
-      <div className="glass glass-card p-5 sm:p-6">
-        <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {lightInsights.map((text) => (
-            <div key={text} className="rounded-2xl px-4 py-3.5 text-sm" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)', color: 'var(--text)' }}>
-              {text}
       <div className="dashboard-canvas">
         <CanvasBlock className="dashboard-block--span-full">
           <SectionHead title="Core Metrics" icon={<Activity size={14} />} subtitle="Live baseline for your workspace" />
@@ -455,58 +401,110 @@ export default function DashboardPage() {
           )}
         </CanvasBlock>
 
-      {/* ── Trend + Team performance ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
-            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
-          </div>
-          {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
-        </div>
-        <div className="glass glass-card p-5 sm:p-6">
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
-          {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
-        </CanvasBlock>
-
-      {/* ── At-risk + Predictions ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="glass glass-card p-5 sm:p-6">
-        <CanvasBlock className="dashboard-block--span-half">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
-            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
-          </div>
-          <OverdueRisk tasks={atRiskTasks ?? []} />
-        </div>
-        <div className="glass glass-card p-5 sm:p-6">
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
-          <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Actionable short signals" />
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {lightInsights.map((text) => (
-              <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}>
-                {text}
-              </div>
-            ))}
+          <SectionHead title="Tasks" icon={<CheckSquare size={14} />} subtitle="At-risk and forecast signals" />
+          <div className="space-y-4">
+            <OverdueRisk tasks={atRiskTasks ?? []} />
+            <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
           </div>
         </CanvasBlock>
 
-      {/* ── Activity + Content distribution ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
-          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
+          <SectionHead title="Clients" icon={<Users2 size={14} />} subtitle="Most recently active client accounts" />
+          {!activeClients ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
+          ) : activeClients.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No active clients</p>
+          ) : (
+            <div className="space-y-2.5">
+              {activeClients.map(client => (
+                <Link
+                  key={client.id}
+                  href={`/clients/${client.slug ?? client.id}/overview`}
+                  className="flex items-center gap-3 rounded-xl border px-3.5 py-3"
+                  style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--accent)' }}>
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Updated {new Date(client.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
+          <SectionHead title="Calendar" icon={<CalendarDays size={14} />} subtitle="Upcoming scheduled publishing queue" />
+          {!scheduled ? (
+            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
+          ) : scheduled.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
+          ) : (
+            <div className="space-y-2.5">
+              {scheduled.map(s => (
+                <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3" style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Send size={15} style={{ color: 'var(--accent)' }} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{s.asset?.name ?? s.caption ?? 'Publishing schedule'}</p>
+                      {s.asset?.client_name && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                    {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
+          <SectionHead title="Assets" icon={<ImageIcon size={14} />} subtitle="Latest uploaded media snapshots" />
+          {!recentAssets ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
+            </div>
+          ) : recentAssets.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {recentAssets.map(asset => (
+                <div key={asset.id} className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}>
+                  {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
+                    <img src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url} alt={asset.name} className="w-full aspect-square object-cover" />
+                  ) : (
+                    <div className="w-full aspect-square flex items-center justify-center" style={{ background: 'var(--surface)' }}>
+                      <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
+                    </div>
+                  )}
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] font-medium truncate" style={{ color: 'var(--text)' }}>{asset.name}</p>
+                    {asset.client_name && <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{asset.client_name}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
+          <SectionHead title="Content" icon={<TrendingUp size={14} />} subtitle="Distribution mix and performance trend" />
+          <div className="space-y-4">
+            <ContentDistribution items={contentDistItems} />
+            {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
+          </div>
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
+          <SectionHead title={t('recentActivity')} icon={<Activity size={14} />} subtitle="Latest operational events" />
           {!activitiesData ? (
             <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
           ) : activitiesData.length === 0 ? (
@@ -527,173 +525,18 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
-        <div className="glass glass-card p-5 sm:p-6">
         </CanvasBlock>
 
-        <CanvasBlock className="dashboard-block--span-half">
-          <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
-          <ContentDistribution items={contentDistItems} />
-        </CanvasBlock>
-
-      {/* ── Upcoming scheduled posts ── */}
-      <div className="glass glass-card p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
-        </div>
-        {!scheduled ? (
-          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
-        ) : scheduled.length === 0 ? (
-          <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
-        ) : (
-          <div className="space-y-3">
-            {scheduled.map(s => (
-              <div key={s.id} className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <Send size={15} style={{ color: 'var(--accent)' }} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                      {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
-                    </p>
-                    {s.asset?.client_name && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
-                    )}
-                    {s.platforms?.length > 0 && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
-                    )}
         <CanvasBlock className="dashboard-block--span-full">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
-            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
+          <SectionHead title="Highlights" icon={<Sparkles size={14} />} subtitle="Concise operational summary for this week" />
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            {lightInsights.map((text) => (
+              <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--surface-2) 80%, transparent)', borderColor: 'var(--border-soft)', color: 'var(--text)' }}>
+                {text}
+              </div>
+            ))}
           </div>
-          {!scheduled ? (
-            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
-          ) : scheduled.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
-          ) : (
-            <div className="space-y-3">
-              {scheduled.map(s => (
-                <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Send size={15} style={{ color: 'var(--accent)' }} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                        {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
-                      </p>
-                      {s.asset?.client_name && (
-                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
-                      )}
-                      {s.platforms?.length > 0 && (
-                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                    {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-      {/* ── Recent Assets + Active Clients ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Assets */}
-        <div className="glass glass-card p-5 sm:p-6">
-        <CanvasBlock className="dashboard-block--span-half">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <ImageIcon size={15} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Recent Assets</h2>
-            </div>
-            <Link href="/assets" className="text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
-              View all
-            </Link>
-          </div>
-          {!recentAssets ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
-            </div>
-          ) : recentAssets.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {recentAssets.map(asset => (
-                <div key={asset.id} className="rounded-2xl overflow-hidden"
-                  style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-                  {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
-                    <img
-                      src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
-                      alt={asset.name}
-                      className="w-full aspect-square object-cover"
-                    />
-                  ) : (
-                    <div className="w-full aspect-square flex items-center justify-center"
-                      style={{ background: 'var(--surface)' }}>
-                      <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
-                    </div>
-                  )}
-                  <div className="px-2 py-1">
-                    <p className="text-[10px] font-medium truncate" style={{ color: 'var(--text)' }}>{asset.name}</p>
-                    {asset.client_name && (
-                      <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{asset.client_name}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-        {/* Active Clients */}
-        <div className="glass glass-card p-5 sm:p-6">
-        <CanvasBlock className="dashboard-block--span-half">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Users2 size={15} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Active Clients</h2>
-            </div>
-            <Link href="/clients" className="text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: 'var(--accent)' }}>
-              View all
-            </Link>
-          </div>
-          {!activeClients ? (
-            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
-          ) : activeClients.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No active clients</p>
-          ) : (
-            <div className="space-y-2">
-              {activeClients.map(client => (
-                <Link
-                  key={client.id}
-                  href={`/clients/${client.slug ?? client.id}/overview`}
-                  className="flex items-center gap-3 rounded-2xl px-3.5 py-3 transition-all hover:opacity-90"
-                  style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
-                >
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      Updated {new Date(client.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
-                    style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
-                    active
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
+        </div>
       </div>
     </div>
   );
