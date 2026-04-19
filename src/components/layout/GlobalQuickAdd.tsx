@@ -37,6 +37,7 @@ const MENU_ITEMS: { key: QuickAddKind; label: string; icon: LucideIcon }[] = [
   { key: 'asset', label: 'Add Asset', icon: ImagePlus },
 ];
 
+const DESKTOP_MENU_MIN_WIDTH = 248;
 const baseFieldCls = 'openy-field w-full h-10 px-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const FALLBACK_CLIENT_INITIALS = 'CL';
 
@@ -74,7 +75,7 @@ export default function GlobalQuickAdd() {
   const { toast } = useToast();
   const { user } = useAuth();
   const supabase = useMemo(() => createSupabase(), []);
-  const quickAddRef = useRef<HTMLDivElement | null>(null);
+  const quickAddRef = useRef<HTMLDivElement>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<QuickAddKind | null>(null);
@@ -141,7 +142,7 @@ export default function GlobalQuickAdd() {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const onInteract = (event: MouseEvent | TouchEvent) => {
+    const handleOutsideInteraction = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
       if (target && quickAddRef.current && !quickAddRef.current.contains(target)) {
         setMenuOpen(false);
@@ -151,12 +152,12 @@ export default function GlobalQuickAdd() {
       if (event.key === 'Escape') setMenuOpen(false);
     };
 
-    window.addEventListener('mousedown', onInteract);
-    window.addEventListener('touchstart', onInteract);
+    window.addEventListener('mousedown', handleOutsideInteraction);
+    window.addEventListener('touchstart', handleOutsideInteraction);
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      window.removeEventListener('mousedown', onInteract);
-      window.removeEventListener('touchstart', onInteract);
+      window.removeEventListener('mousedown', handleOutsideInteraction);
+      window.removeEventListener('touchstart', handleOutsideInteraction);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [menuOpen]);
@@ -370,7 +371,7 @@ export default function GlobalQuickAdd() {
         <div
           className="hidden sm:flex flex-col gap-2 rounded-2xl border p-2 transition-all duration-200"
           style={{
-            minWidth: 248,
+            minWidth: DESKTOP_MENU_MIN_WIDTH,
             background: 'rgba(15, 23, 42, 0.94)',
             borderColor: 'rgba(148, 163, 184, 0.24)',
             boxShadow: '0 20px 48px rgba(2, 6, 23, 0.35)',
@@ -428,7 +429,7 @@ export default function GlobalQuickAdd() {
             const Icon = item.icon;
             return (
               <button
-                key={`mobile-${item.key}`}
+                key={item.key}
                 type="button"
                 onClick={() => setActiveModal(item.key)}
                 aria-label={item.label}
