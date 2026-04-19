@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import { ThemeProvider as NextThemeProvider, useTheme as useNextTheme } from 'next-themes';
 
-export type Theme = 'light' | 'dark' | 'dim';
+export type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
@@ -16,34 +17,46 @@ function normalizeTheme(theme: Theme): 'light' | 'dark' {
   return theme === 'light' ? 'light' : 'dark';
 }
 
-function applyTheme(theme: Theme) {
-  const root = document.documentElement;
-  const normalized = normalizeTheme(theme);
-  root.dataset.theme = normalized;
-  root.classList.toggle('dark', normalized === 'dark');
+function ThemeContextBridge({ children }: { children: React.ReactNode }) {
+  const { theme: rawTheme, resolvedTheme, setTheme: setNextTheme } = useNextTheme();
+
+  const theme = useMemo<Theme>(() => {
+    const current = resolvedTheme ?? rawTheme ?? 'dark';
+    return current === 'light' ? 'light' : 'dark';
+  }, [rawTheme, resolvedTheme]);
+
+  const setTheme = useCallback((next: Theme) => {
+    setNextTheme(normalizeTheme(next));
+  }, [setNextTheme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  }, [setTheme, theme]);
+
+  const value = useMemo<ThemeContextType>(
+    () => ({
+      theme,
+      setTheme,
+      toggleTheme,
+    }),
+    [setTheme, theme, toggleTheme],
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('theme') as Theme | null;
-    const initial: Theme = saved === 'light' || saved === 'dark' || saved === 'dim' ? saved : 'dark';
-    setThemeState(initial);
-    applyTheme(initial);
-  }, []);
-
-  const setTheme = (next: Theme) => {
-    setThemeState(next);
-    localStorage.setItem('theme', next);
-    applyTheme(next);
-  };
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
-  return <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  return (
+    <NextThemeProvider
+      attribute="data-theme"
+      defaultTheme="dark"
+      enableSystem={false}
+      themes={['light', 'dark']}
+      disableTransitionOnChange
+    >
+      <ThemeContextBridge>{children}</ThemeContextBridge>
+    </NextThemeProvider>
+  );
 }
 
 export function useTheme() {

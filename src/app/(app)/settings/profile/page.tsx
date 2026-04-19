@@ -218,7 +218,7 @@ export default function SettingsProfilePage() {
             <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>Currently: {theme}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            {(['light', 'dark', 'dim'] as const).map((t) => (
+            {(['light', 'dark'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTheme(t)}
