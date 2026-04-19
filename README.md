@@ -15,6 +15,27 @@ A modern agency workspace built with **Next.js 15**, **React 18**, **TypeScript*
 
 The storage layer uses a provider abstraction (`src/lib/storage/`) so additional providers (OneDrive, S3, local) can be added later without changing any page or route.
 
+## OPENY Command Center Foundation (Bootstrap)
+
+Initial architecture for the bespoke Marketing Agency Command Center is now scaffolded in:
+
+- `src/features/command-center/domain.ts` — strict TypeScript domain contracts for:
+  - **Pipeline** (Kanban columns, deadline state, workload indicator)
+  - **Vault** (R2-linked asset metadata + multipart upload state)
+  - **Radar** (owner dashboard snapshot contract)
+- `prisma/schema.prisma` — ORM-level schema outline for core entities:
+  - `User`
+  - `Task`
+  - `Asset`
+
+This gives a typed foundation for implementing:
+
+1. Drag-and-drop Pipeline states (`todo`, `in_progress`, `review`, `client_approved`)
+2. 48h deadline warning and overdue state logic
+3. Workload-aware task assignment
+4. R2 multipart upload lifecycle persistence
+5. Radar analytics aggregation contracts
+
 ## Quick Setup
 
 1. Install dependencies:

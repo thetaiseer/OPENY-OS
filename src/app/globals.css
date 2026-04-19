@@ -169,6 +169,31 @@ textarea {
   backdrop-filter: blur(10px);
 }
 
+/* Command Center (premium dark + glass primitives) */
+.cc-shell {
+  background:
+    radial-gradient(1000px 500px at 12% -10%, rgba(255, 255, 255, 0.06), transparent 58%),
+    radial-gradient(1100px 520px at 92% -20%, rgba(93, 133, 255, 0.12), transparent 62%),
+    #000000;
+}
+
+.cc-glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  border-radius: 14px;
+}
+
+.cc-deadline-warning {
+  border-color: rgba(250, 204, 21, 0.55);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.24) inset;
+}
+
+.cc-deadline-overdue {
+  border-color: rgba(248, 113, 113, 0.62);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.28) inset;
+}
+
 .ds-button {
   border: 1px solid transparent;
   border-radius: 10px;
