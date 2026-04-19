@@ -23,12 +23,12 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
 
   return (
     <article
-      className="relative overflow-hidden rounded-xl border bg-[var(--surface)] p-5"
+      className="relative overflow-hidden rounded-xl border bg-[var(--surface)] p-4"
       style={{ borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-2.5">
         <div
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg"
           style={{ background: tone.bg, color: tone.icon }}
         >
           {icon}
@@ -47,10 +47,10 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
         ) : null}
       </div>
 
-      <p className="text-2xl font-800 tracking-tight" style={{ color: 'var(--text-primary)' }}>
+      <p className="text-3xl font-800 leading-tight tracking-tight" style={{ color: 'var(--text-primary)' }}>
         {value}
       </p>
-      <p className="mt-1 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mt-0.5 text-xs font-medium" style={{ color: 'var(--text-secondary)', opacity: 0.9 }}>
         {label}
       </p>
     </article>
