@@ -536,7 +536,7 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </div>
+        </CanvasBlock>
       </div>
     </div>
   );
