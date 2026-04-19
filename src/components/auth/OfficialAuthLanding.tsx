@@ -1,9 +1,10 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import clsx from 'clsx';
 import { BadgeCheck, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -27,6 +28,8 @@ const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصو�
 export default function OfficialAuthLanding() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const prefersReducedMotion = useReducedMotion();
+  const hasForcedDarkMode = useRef(false);
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -122,6 +125,8 @@ export default function OfficialAuthLanding() {
   }, [signupRequested, toast]);
 
   useEffect(() => {
+    if (hasForcedDarkMode.current) return;
+    hasForcedDarkMode.current = true;
     if (theme !== 'dark') setTheme('dark');
   }, [setTheme, theme]);
 
@@ -154,6 +159,12 @@ export default function OfficialAuthLanding() {
   const panelHeading = 'Welcome back to OPENY';
   const panelText = 'Sign in and choose your authorized workspace to continue with confidence.';
   const submitLabel = 'Sign In';
+  const submitButtonClassName = clsx(
+    'inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white',
+    'bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8]',
+    'shadow-[0_14px_40px_rgba(37,99,235,0.38)] transition-all duration-200',
+    'hover:brightness-110 hover:shadow-[0_16px_52px_rgba(59,130,246,0.45)] active:scale-[0.985] disabled:opacity-70',
+  );
 
   if (checkingSession) {
     return (
@@ -172,9 +183,9 @@ export default function OfficialAuthLanding() {
 
       <div className="relative mx-auto flex min-h-[88vh] w-full max-w-6xl items-center">
         <motion.section
-          initial={{ opacity: 0, y: 28 }}
+          initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_90px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
         >
           <div className="absolute inset-0 bg-[radial-gradient(60rem_26rem_at_78%_-20%,rgba(96,165,250,0.13),transparent_60%)]" />
@@ -183,7 +194,7 @@ export default function OfficialAuthLanding() {
               <div className="inline-flex items-center gap-3">
                 <OpenyLogo width={132} height={38} />
                 <span className="rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-100/85">
-                  Private Portal
+                  Official Authentication
                 </span>
               </div>
 
@@ -194,7 +205,7 @@ export default function OfficialAuthLanding() {
               <div className="mt-7 flex flex-wrap gap-2.5">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-blue-100/85">
                   <BadgeCheck size={14} strokeWidth={1.5} className="text-blue-300" />
-                  Theme calibrated for premium dark mode
+                  Optimized for dark mode
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-blue-100/85">
                   <ShieldCheck size={14} strokeWidth={1.5} className="text-blue-300" />
@@ -251,7 +262,7 @@ export default function OfficialAuthLanding() {
                       options={AUTH_WORKSPACE_OPTIONS.map(item => ({ value: item.value, label: item.value }))}
                       placeholder="Select Workspace"
                       fullWidth
-                      className="!h-12 !rounded-xl !border !border-white/10 !bg-white/[0.02] !text-white"
+                      className="h-12 rounded-xl border border-white/10 bg-white/[0.02] text-white"
                     />
                   </div>
 
@@ -264,7 +275,7 @@ export default function OfficialAuthLanding() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] text-sm font-semibold text-white shadow-[0_14px_40px_rgba(37,99,235,0.38)] transition-all duration-200 hover:brightness-110 hover:shadow-[0_16px_52px_rgba(59,130,246,0.45)] active:scale-[0.985] disabled:opacity-70"
+                    className={submitButtonClassName}
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                     {loading ? 'Please wait…' : submitLabel}
