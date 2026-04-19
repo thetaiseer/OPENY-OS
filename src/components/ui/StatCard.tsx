@@ -23,8 +23,8 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
 
   return (
     <article
-      className="relative overflow-hidden rounded-xl border bg-[var(--surface)] p-4"
-      style={{ borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+      className="openy-card relative overflow-hidden rounded-2xl bg-[var(--surface)] p-5"
+      style={{ boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="mb-3 flex items-start justify-between gap-2.5">
         <div

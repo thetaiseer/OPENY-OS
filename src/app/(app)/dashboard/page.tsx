@@ -63,7 +63,7 @@ function SectionHead({ icon, title, subtitle }: { icon?: React.ReactNode; title:
 function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
   if (!data.length) {
     return (
-      <div className="rounded-2xl border px-4 py-8 text-center" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-2)' }}>
+      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No completion data yet</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Complete tasks to unlock trend intelligence.</p>
       </div>
@@ -124,7 +124,7 @@ function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
 function TeamPerformance({ data }: { data: { id: string; name: string; completed: number }[] }) {
   if (!data.length) {
     return (
-      <div className="rounded-2xl border px-4 py-8 text-center" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-2)' }}>
+      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No team completions this month</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Performance bars appear once tasks are completed.</p>
       </div>
@@ -149,7 +149,7 @@ function TeamPerformance({ data }: { data: { id: string; name: string; completed
 function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?: string; status: string; client?: { name: string; slug?: string } | null }[] }) {
   if (!tasks.length) {
     return (
-      <div className="rounded-2xl border px-4 py-8 text-center" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-2)' }}>
+      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No at-risk tasks</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Excellent execution across this week.</p>
       </div>
@@ -163,10 +163,10 @@ function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?:
         return (
           <div
             key={t.id}
-            className="flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5"
+            className="flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5"
             style={{
               background: isOverdue ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
-              borderColor: isOverdue ? 'var(--color-danger-border)' : 'var(--color-warning-border)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             <div className="min-w-0">
@@ -203,7 +203,7 @@ function Predictions({ trends, overdueTasks }: { trends: { completed: number }[]
   const paceChange = olderPace > 0 ? ((recentPace - olderPace) / olderPace) * 100 : 0;
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border px-4 py-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}>
+      <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>Completion Pace</p>
         <p className="text-xl font-extrabold tabular-nums" style={{ color: 'var(--text)' }}>{recentPace.toFixed(1)} tasks/day</p>
         {olderPace > 0 ? (
@@ -215,10 +215,10 @@ function Predictions({ trends, overdueTasks }: { trends: { completed: number }[]
         )}
       </div>
       <div
-        className="rounded-xl border px-4 py-3"
+        className="rounded-2xl px-4 py-3"
         style={{
           background: overdueTasks > 0 ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
-          borderColor: overdueTasks > 0 ? 'var(--color-danger-border)' : 'var(--color-success-border)',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: overdueTasks > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
@@ -239,7 +239,7 @@ function Predictions({ trends, overdueTasks }: { trends: { completed: number }[]
 function ContentDistribution({ items }: { items: { label: string; count: number }[] }) {
   if (!items.length) {
     return (
-      <div className="rounded-2xl border px-4 py-8 text-center" style={{ borderColor: 'var(--border-2)', background: 'var(--surface-2)' }}>
+      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No assets yet</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Upload assets to track portfolio mix.</p>
       </div>
@@ -423,6 +423,24 @@ export default function DashboardPage() {
         <p className="dashboard-head-subtitle">Operational canvas across delivery, risk, and content velocity.</p>
       </div>
 
+      {/* ── Stat cards ── */}
+      {statsLoading ? <SkeletonStatGrid count={5} /> : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <StatCard label={t('totalClients')}     value={stats?.totalClients     ?? 0} icon={<Users2 size={20} />}        color="blue"   />
+          <StatCard label={t('activeTasks')}      value={stats?.activeTasks      ?? 0} icon={<CheckSquare size={20} />}   color="mint"   />
+          <StatCard label={t('overdueTasks')}     value={stats?.overdueTasks     ?? 0} icon={<AlertTriangle size={20} />} color="rose"   />
+          <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={20} />}  color="violet" />
+          <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
+        </div>
+      )}
+
+      {/* ── Trend + Team performance ── */}
+      <div className="glass glass-card p-5 sm:p-6">
+        <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {lightInsights.map((text) => (
+            <div key={text} className="rounded-2xl px-4 py-3.5 text-sm" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)', color: 'var(--text)' }}>
+              {text}
       <div className="dashboard-canvas">
         <CanvasBlock className="dashboard-block--span-full">
           <SectionHead title="Core Metrics" icon={<Activity size={14} />} subtitle="Live baseline for your workspace" />
@@ -437,12 +455,17 @@ export default function DashboardPage() {
           )}
         </CanvasBlock>
 
+      {/* ── Trend + Team performance ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
           </div>
           {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
+        </div>
+        <div className="glass glass-card p-5 sm:p-6">
         </CanvasBlock>
 
         <CanvasBlock className="dashboard-block--span-half">
@@ -450,12 +473,17 @@ export default function DashboardPage() {
           {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
         </CanvasBlock>
 
+      {/* ── At-risk + Predictions ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
           </div>
           <OverdueRisk tasks={atRiskTasks ?? []} />
+        </div>
+        <div className="glass glass-card p-5 sm:p-6">
         </CanvasBlock>
 
         <CanvasBlock className="dashboard-block--span-half">
@@ -474,6 +502,9 @@ export default function DashboardPage() {
           </div>
         </CanvasBlock>
 
+      {/* ── Activity + Content distribution ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
           {!activitiesData ? (
@@ -496,6 +527,8 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+        <div className="glass glass-card p-5 sm:p-6">
         </CanvasBlock>
 
         <CanvasBlock className="dashboard-block--span-half">
@@ -503,6 +536,32 @@ export default function DashboardPage() {
           <ContentDistribution items={contentDistItems} />
         </CanvasBlock>
 
+      {/* ── Upcoming scheduled posts ── */}
+      <div className="glass glass-card p-5 sm:p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
+          <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
+        </div>
+        {!scheduled ? (
+          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
+        ) : scheduled.length === 0 ? (
+          <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
+        ) : (
+          <div className="space-y-3">
+            {scheduled.map(s => (
+              <div key={s.id} className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <Send size={15} style={{ color: 'var(--accent)' }} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                      {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
+                    </p>
+                    {s.asset?.client_name && (
+                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
+                    )}
+                    {s.platforms?.length > 0 && (
+                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
+                    )}
         <CanvasBlock className="dashboard-block--span-full">
           <div className="flex items-center gap-2 mb-4">
             <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
@@ -540,6 +599,10 @@ export default function DashboardPage() {
           )}
         </CanvasBlock>
 
+      {/* ── Recent Assets + Active Clients ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Recent Assets */}
+        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -559,8 +622,8 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {recentAssets.map(asset => (
-                <div key={asset.id} className="rounded-xl overflow-hidden border"
-                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div key={asset.id} className="rounded-2xl overflow-hidden"
+                  style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
                   {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
                     <img
                       src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
@@ -585,6 +648,8 @@ export default function DashboardPage() {
           )}
         </CanvasBlock>
 
+        {/* Active Clients */}
+        <div className="glass glass-card p-5 sm:p-6">
         <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -605,8 +670,8 @@ export default function DashboardPage() {
                 <Link
                   key={client.id}
                   href={`/clients/${client.slug ?? client.id}/overview`}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--surface-2)' }}
+                  className="flex items-center gap-3 rounded-2xl px-3.5 py-3 transition-all hover:opacity-90"
+                  style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
                 >
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
