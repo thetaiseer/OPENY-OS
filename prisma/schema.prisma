@@ -80,23 +80,23 @@ model Task {
 }
 
 model Asset {
-  id                String        @id @default(uuid()) @db.Uuid
-  taskId             String?       @db.Uuid
-  uploadedById       String?       @db.Uuid
-  projectTag         String
-  fileName           String
-  mimeType           String
-  sizeBytes          BigInt
-  bucketName         String
-  r2Key              String        @unique
+  id               String         @id @default(uuid()) @db.Uuid
+  taskId           String?        @db.Uuid
+  uploadedById     String?        @db.Uuid
+  projectTag       String
+  fileName         String
+  mimeType         String
+  sizeBytes        BigInt
+  bucketName       String
+  r2Key            String         @unique
   provider           UploadProvider @default(r2)
   uploadStatus       UploadStatus   @default(pending)
-  multipartUploadId  String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  multipartUploadId String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  task               Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  uploadedBy         User?         @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  task             Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  uploadedBy       User?          @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([taskId])
   @@index([projectTag, createdAt])
