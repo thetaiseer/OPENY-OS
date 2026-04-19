@@ -1041,9 +1041,9 @@ textarea {
   --ds-topbar-bg: rgba(255, 255, 255, 0.96);
   --ds-shadow: var(--shadow-card);
 
-  --color-success: #1d4ed8;
-  --color-warning: #1e293b;
-  --color-danger: #111827;
+  --color-success: #2563eb;
+  --color-warning: #64748b;
+  --color-danger: #0f172a;
   --color-success-bg: #eef2ff;
   --color-warning-bg: #eef2f7;
   --color-danger-bg: #e2e8f0;
@@ -1320,7 +1320,7 @@ textarea {
 
 :is(.input-glass, .openy-field, .docs-input, .docs-textarea):focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  border-color: #3b82f6;
   box-shadow: var(--shadow-focus);
 }
 
@@ -1383,8 +1383,18 @@ textarea {
 
 .os-nav-item.is-active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-color: var(--border-strong);
   color: var(--text);
+}
+
+@supports (color: color-mix(in srgb, #000 50%, #fff)) {
+  :is(.input-glass, .openy-field, .docs-input, .docs-textarea):focus {
+    border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  }
+
+  .os-nav-item.is-active {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  }
 }
 
 .os-profile-trigger,
