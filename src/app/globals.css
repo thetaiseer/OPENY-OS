@@ -998,6 +998,32 @@ textarea {
   }
 }
 
+/* Premium baseline identity */
+:root {
+  --bg: #f9fafb;
+  --bg-base: #f9fafb;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+}
+
+:root[data-theme='dark'] {
+  --bg: #000000;
+  --bg-base: #000000;
+  --surface: #0a0a0a;
+  --surface-2: #0a0a0a;
+}
+
+body {
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.02em;
+}
+
 /* =========================================================
    OPENY Premium Navy Card + Button System (Global Override)
    ========================================================= */

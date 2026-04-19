@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -14,19 +15,25 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon: Icon, title, description, action, suggestions }: EmptyStateProps) {
   return (
-    <div className="animate-openy-fade-in flex flex-col items-center justify-center gap-5 rounded-3xl border px-8 py-16 text-center backdrop-blur-xl" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(5,5,5,0.68)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 28px 64px rgba(0,0,0,0.58)' }}>
-      <div
-        className="inline-flex h-14 w-14 items-center justify-center rounded-2xl"
-        style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--accent)', border: '1px solid rgba(255,255,255,0.14)' }}
-      >
-        <Icon size={24} strokeWidth={1.7} aria-hidden="true" />
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="animate-openy-fade-in flex flex-col items-center justify-center gap-5 overflow-hidden rounded-3xl border border-black/5 bg-white px-8 py-16 text-center shadow-sm dark:border-white/10 dark:bg-[#0A0A0A]/90 dark:shadow-none"
+    >
+      <div className="pointer-events-none relative">
+        <span className="absolute -left-6 top-1 h-12 w-12 rounded-full bg-slate-300/20 blur-xl dark:bg-white/20" />
+        <span className="absolute -right-6 -top-2 h-14 w-14 rounded-full bg-blue-300/20 blur-2xl dark:bg-blue-400/20" />
+        <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-black/10 bg-black/[0.03] text-slate-900 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-100">
+          <Icon size={24} strokeWidth={1.7} aria-hidden="true" />
+        </div>
       </div>
 
       <div>
-        <h3 className="text-[19px] font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-[19px] font-bold tracking-tight text-slate-900 dark:text-slate-50">
           {title}
         </h3>
-        <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-slate-600 dark:text-slate-300">
           {description}
         </p>
       </div>
@@ -38,14 +45,13 @@ export default function EmptyState({ icon: Icon, title, description, action, sug
           {suggestions.map((suggestion) => (
             <div
               key={suggestion.title}
-              className="rounded-2xl border p-4"
-              style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
+              className="rounded-2xl border border-black/5 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.03]"
             >
-              <p className="text-[13px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
                 {suggestion.title}
               </p>
               {suggestion.description ? (
-                <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="mt-1.5 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">
                   {suggestion.description}
                 </p>
               ) : null}
@@ -54,6 +60,6 @@ export default function EmptyState({ icon: Icon, title, description, action, sug
           ))}
         </div>
       ) : null}
-    </div>
+    </motion.div>
   );
 }
