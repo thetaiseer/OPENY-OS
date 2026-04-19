@@ -17,16 +17,8 @@ export function AppShell({ sidebar, topbar, children }: AppShellProps) {
       <div className="ui-main">
         {topbar}
         <div className="ui-content">{children}</div>
-    <div className={clsx('app-shell-root app-shell-workspace', workspaceClassName)}>
-      <div className="app-shell-grid">
-        {sidebar}
-        <div className="app-shell-stage">
-          {topbar}
-          <main className={clsx('app-shell-main', mainClassName)}>
-            <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
-          </main>
-        </div>
       </div>
     </div>
   );
 }
+

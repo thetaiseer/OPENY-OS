@@ -238,6 +238,9 @@ button { cursor: pointer; font-family: inherit; }
   align-items: center;
   gap: var(--space-3);
   font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    DESIGN TOKENS — DARK MODE (default)
    ─────────────────────────────────────────────────────────────────────────── */
@@ -703,6 +706,8 @@ button,
   padding: var(--space-5);
   box-shadow: var(--shadow-sm);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
 .topbar-icon-btn:hover,
 .btn-icon:hover {
   background: var(--surface-2);
@@ -955,8 +960,6 @@ button,
 
 .ui-btn-ghost:hover {
   background: var(--bg-soft);
-.app-dock-item:hover {
-  background: var(--surface-2);
   color: var(--text-primary);
   border-color: var(--border-subtle);
 }
@@ -1211,6 +1214,8 @@ button,
   .ui-topbar-search { display: none; }
   .ui-grid { grid-template-columns: 1fr 1fr; }
   .ui-stat-card { grid-column: span 1; }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    PAGE LAYOUT
    ─────────────────────────────────────────────────────────────────────────── */
