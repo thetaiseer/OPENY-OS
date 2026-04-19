@@ -1,19 +1,31 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon, Sparkles,
+  Activity,
+  AlertTriangle,
+  CalendarDays,
+  CheckSquare,
+  FolderOpen,
+  Image as ImageIcon,
+  Sparkles,
+  TrendingUp,
+  Users2,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import Link from 'next/link';
+import Card from '@/components/ui/system/Card';
+import Grid from '@/components/ui/system/Grid';
+import Table from '@/components/ui/system/Table';
+import Button from '@/components/ui/system/Button';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import { useDashboardStats } from '@/lib/queries';
-import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
+
 const WEEK_LENGTH_DAYS = 7;
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -21,229 +33,52 @@ function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
 }
 
-function CanvasBlock({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`dashboard-block ${className}`}>{children}</section>;
-}
-
-function MetricTile({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+function KpiCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
-    <div className="dashboard-metric">
-      <div className="dashboard-metric-icon">{icon}</div>
-      <div>
-        <p className="dashboard-metric-label">{label}</p>
-        <strong className="dashboard-metric-value">{value}</strong>
-      </div>
-    </div>
+    <Card className="ds-kpi-card">
+      <div className="ds-kpi-icon">{icon}</div>
+      <p className="ds-kpi-label">{label}</p>
+      <p className="ds-kpi-value">{value}</p>
+    </Card>
   );
 }
-
-function SectionHead({ icon, title, subtitle }: { icon?: React.ReactNode; title: string; subtitle?: string }) {
-  return (
-    <header className="mb-4 flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          {icon ? (
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-lg"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)', boxShadow: 'inset 0 0 0 1px var(--accent-glow)' }}
-            >
-              {icon}
-            </span>
-          ) : null}
-          <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>{title}</h2>
-        </div>
-        {subtitle ? <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>{subtitle}</p> : null}
-      </div>
-    </header>
-  );
-}
-
-// ── Trend chart ───────────────────────────────────────────────────────────────
 
 function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
   if (!data.length) {
-    return (
-      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No completion data yet</p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Complete tasks to unlock trend intelligence.</p>
-      </div>
-    );
+    return <p className="ds-empty">No completion data yet</p>;
   }
 
   const chartData = data.map(d => ({
     name: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     completed: d.completed,
   }));
-  const total = data.reduce((s, d) => s + d.completed, 0);
-  const firstHalf  = data.slice(0, 15).reduce((s, d) => s + d.completed, 0);
-  const secondHalf = data.slice(15).reduce((s, d) => s + d.completed, 0);
-  const up = secondHalf >= firstHalf;
+
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="type-metric" style={{ color: 'var(--text)' }}>{total}</p>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Completed tasks in last 30 days</p>
-        </div>
-        <span
-          className="rounded-full px-2.5 py-1 text-xs font-semibold"
-          style={{
-            background: up ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${up ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-            color: up ? 'var(--color-success)' : 'var(--color-danger)',
-          }}
-        >
-          {up ? '▲ Momentum up' : '▼ Momentum down'}
-        </span>
-      </div>
-      <ResponsiveContainer width="100%" height={170}>
-        <AreaChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+    <div className="ds-trend-chart">
+      <ResponsiveContainer width="100%" height={220}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id="dashboardTrendGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.46} />
-              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.02} />
+            <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--ds-accent)" stopOpacity={0.45} />
+              <stop offset="95%" stopColor="var(--ds-accent)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="var(--border-2)" strokeDasharray="3 5" />
-          <XAxis dataKey="name" tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={18} />
+          <CartesianGrid stroke="var(--ds-line)" strokeDasharray="4 4" />
+          <XAxis dataKey="name" tick={{ fill: 'var(--ds-muted)', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={16} />
           <Tooltip
-            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 11, boxShadow: 'var(--shadow-sm)' }}
-            labelStyle={{ color: 'var(--text-secondary)' }}
-            itemStyle={{ color: 'var(--text)' }}
-            cursor={{ stroke: 'var(--accent)', strokeOpacity: 0.3 }}
+            contentStyle={{
+              borderRadius: 10,
+              border: '1px solid var(--ds-line)',
+              background: 'var(--ds-surface)',
+              fontSize: 12,
+            }}
           />
-          <Area type="monotone" dataKey="completed" stroke="var(--accent)" fill="url(#dashboardTrendGradient)" strokeWidth={2.4} dot={false} activeDot={{ r: 4, stroke: 'var(--accent)', strokeWidth: 2 }} />
+          <Area type="monotone" dataKey="completed" stroke="var(--ds-accent)" fill="url(#trendGradient)" strokeWidth={2.4} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
-
-// ── Overdue risk ──────────────────────────────────────────────────────────────
-
-function OverdueRisk({ tasks }: { tasks: { id: string; title: string; due_date?: string; status: string; client?: { name: string; slug?: string } | null }[] }) {
-  if (!tasks.length) {
-    return (
-      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No at-risk tasks</p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Excellent execution across this week.</p>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-2.5">
-      {tasks.map(t => {
-        const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date).getTime() - Date.now()) / 86400000) : null;
-        const isOverdue = daysLeft !== null && daysLeft < 0;
-        return (
-          <div
-            key={t.id}
-            className="flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5"
-            style={{
-              background: isOverdue ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>{t.title}</p>
-              {t.client && (
-                t.client.slug
-                  ? <Link href={`/clients/${t.client.slug}/tasks`} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>{t.client.name}</Link>
-                  : <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.client.name}</p>
-              )}
-            </div>
-            {daysLeft !== null && (
-              <span
-                className="shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold"
-                style={{
-                  color: isOverdue ? 'var(--color-danger)' : 'var(--color-warning)',
-                  background: isOverdue ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)',
-                }}
-              >
-                {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Predictions ───────────────────────────────────────────────────────────────
-
-function Predictions({ trends, overdueTasks }: { trends: { completed: number }[]; overdueTasks: number }) {
-  const recentPace = trends.slice(-7).reduce((s, d) => s + d.completed, 0) / 7;
-  const olderPace  = trends.slice(-14, -7).reduce((s, d) => s + d.completed, 0) / 7;
-  const paceChange = olderPace > 0 ? ((recentPace - olderPace) / olderPace) * 100 : 0;
-  return (
-    <div className="space-y-3">
-      <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>Completion Pace</p>
-        <p className="text-xl font-extrabold tabular-nums" style={{ color: 'var(--text)' }}>{recentPace.toFixed(1)} tasks/day</p>
-        {olderPace > 0 ? (
-          <p className="mt-1 text-xs font-semibold" style={{ color: paceChange >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-            {paceChange >= 0 ? '▲' : '▼'} {Math.abs(paceChange).toFixed(0)}% vs previous week
-          </p>
-        ) : (
-          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Gathering baseline trend data</p>
-        )}
-      </div>
-      <div
-        className="rounded-2xl px-4 py-3"
-        style={{
-          background: overdueTasks > 0 ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: overdueTasks > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-          {overdueTasks > 0 ? 'Risk Forecast' : 'Operational Health'}
-        </p>
-        <p className="text-sm" style={{ color: 'var(--text)' }}>
-          {overdueTasks > 0
-            ? `${overdueTasks} overdue${recentPace > 0 ? ` — clear in ~${Math.ceil(overdueTasks / recentPace)} days at current pace.` : ' — prioritize high-impact items.'}`
-            : 'No overdue tasks. Team delivery pipeline is healthy.'}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ── Content distribution ──────────────────────────────────────────────────────
-
-function ContentDistribution({ items }: { items: { label: string; count: number }[] }) {
-  if (!items.length) {
-    return (
-      <div className="rounded-2xl px-4 py-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No assets yet</p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>Upload assets to track portfolio mix.</p>
-      </div>
-    );
-  }
-  const max = Math.max(...items.map(i => i.count), 1);
-  return (
-    <div className="space-y-3">
-      {items.map(item => (
-        <div key={item.label} className="grid grid-cols-[minmax(0,120px)_1fr_auto] items-center gap-2 sm:gap-3">
-          <span className="truncate text-xs" title={item.label} style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-          <div className="h-2.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <div
-              className="h-2.5 rounded-full transition-all duration-500"
-              style={{
-                width: `${(item.count / max) * 100}%`,
-                background: 'var(--accent)',
-                boxShadow: 'none',
-              }}
-            />
-          </div>
-          <span className="w-8 text-right text-xs font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{item.count}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -264,16 +99,12 @@ export default function DashboardPage() {
   const { data: assetRows } = useQuery<{ content_type: string | null }[]>({
     queryKey: ['asset-content-types'],
     queryFn: async () => {
-      // Limit to 500 rows to prevent fetching potentially thousands of records
-      // for the content-type distribution chart.  This is a representative
-      // sample — for exact aggregation move to a server-side GROUP BY endpoint.
       const { data } = await supabase.from('assets').select('content_type').limit(500);
       return (data ?? []) as { content_type: string | null }[];
     },
     staleTime: 60_000,
   });
 
-  // F2 fix: use publishing_schedules instead of deprecated assets.publish_date
   const { data: scheduled } = useQuery<PublishingSchedule[]>({
     queryKey: ['scheduled-posts'],
     queryFn: async () => {
@@ -285,7 +116,7 @@ export default function DashboardPage() {
         .gte('scheduled_date', todayStr)
         .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true })
-        .limit(5);
+        .limit(6);
       return (data ?? []) as unknown as PublishingSchedule[];
     },
     staleTime: 60_000,
@@ -339,7 +170,7 @@ export default function DashboardPage() {
         .select('id, name, slug, status, updated_at')
         .eq('status', 'active')
         .order('updated_at', { ascending: false })
-        .limit(5);
+        .limit(6);
       return (data ?? []) as Client[];
     },
     staleTime: 60_000,
@@ -357,12 +188,13 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [assetRows]);
 
-  const lightInsights = useMemo(() => {
+  const highlights = useMemo(() => {
     const trendRows = trendsData ?? [];
     let completedThisWeek = 0;
     for (let i = Math.max(0, trendRows.length - WEEK_LENGTH_DAYS); i < trendRows.length; i += 1) {
       completedThisWeek += trendRows[i]?.completed ?? 0;
     }
+
     const overdue = stats?.overdueTasks ?? 0;
     const assetsThisWeek = (recentAssets ?? []).filter(asset => {
       if (!asset.created_at) return false;
@@ -376,168 +208,145 @@ export default function DashboardPage() {
         : 'No overdue tasks right now',
       assetsThisWeek > 0
         ? `${assetsThisWeek} ${pluralize(assetsThisWeek, 'asset', 'assets')} added this week`
-        : 'No activity in assets this week',
+        : 'No asset activity this week',
     ];
   }, [trendsData, stats?.overdueTasks, recentAssets]);
 
+  const taskRows = (atRiskTasks ?? []).map(task => {
+    const due = task.due_date ? new Date(task.due_date) : null;
+    return [
+      <span key="title">{task.title}</span>,
+      <span key="client">{task.client?.name ?? '—'}</span>,
+      <span key="due">{due ? due.toLocaleDateString() : 'No date'}</span>,
+    ];
+  });
+
+  const activityRows = (activitiesData ?? []).map(activity => [
+    <span key="event">{activity.description}</span>,
+    <span key="date">{new Date(activity.created_at).toLocaleDateString()}</span>,
+  ]);
+
   return (
-    <div className="dashboard-screen animate-openy-fade-in">
-      <div className="dashboard-head">
-        <h1 className="dashboard-head-title">{t('welcomeBack')}, {firstName} 👋</h1>
-        <p className="dashboard-head-subtitle">Deep blue operations center for tasks, clients, calendar, assets, and content.</p>
-      </div>
+    <div className="ds-dashboard">
+      <Card className="ds-hero">
+        <div>
+          <p className="ds-eyebrow">Workspace Overview</p>
+          <h1>{t('welcomeBack')}, {firstName}</h1>
+          <p>Modern day mode and futuristic night mode now share one clean system architecture.</p>
+        </div>
+        <div className="ds-hero-actions">
+          <Link href="/os/tasks"><Button>Open Tasks</Button></Link>
+          <Link href="/os/calendar"><Button variant="secondary">Open Calendar</Button></Link>
+        </div>
+      </Card>
 
-      <div className="dashboard-canvas">
-        <CanvasBlock className="dashboard-block--span-full">
-          <SectionHead title="Core Metrics" icon={<Activity size={14} />} subtitle="Live baseline for your workspace" />
-          {statsLoading ? <SkeletonStatGrid count={5} /> : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <MetricTile label={t('totalClients')} value={stats?.totalClients ?? 0} icon={<Users2 size={16} />} />
-              <MetricTile label={t('activeTasks')} value={stats?.activeTasks ?? 0} icon={<CheckSquare size={16} />} />
-              <MetricTile label={t('overdueTasks')} value={stats?.overdueTasks ?? 0} icon={<AlertTriangle size={16} />} />
-              <MetricTile label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={16} />} />
-              <MetricTile label="Total Assets" value={stats?.totalAssets ?? 0} icon={<FolderOpen size={16} />} />
-            </div>
-          )}
-        </CanvasBlock>
+      {statsLoading ? (
+        <Grid cols={4} className="ds-loading-grid">
+          {Array.from({ length: 5 }).map((_, index) => <Card key={index} className="ds-skeleton" />)}
+        </Grid>
+      ) : (
+        <Grid cols={4}>
+          <KpiCard label={t('totalClients')} value={stats?.totalClients ?? 0} icon={<Users2 size={16} />} />
+          <KpiCard label={t('activeTasks')} value={stats?.activeTasks ?? 0} icon={<CheckSquare size={16} />} />
+          <KpiCard label={t('overdueTasks')} value={stats?.overdueTasks ?? 0} icon={<AlertTriangle size={16} />} />
+          <KpiCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={16} />} />
+          <KpiCard label="Total Assets" value={stats?.totalAssets ?? 0} icon={<FolderOpen size={16} />} />
+        </Grid>
+      )}
 
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Tasks" icon={<CheckSquare size={14} />} subtitle="At-risk and forecast signals" />
-          <div className="space-y-4">
-            <OverdueRisk tasks={atRiskTasks ?? []} />
-            <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
+      <Grid cols={3}>
+        <Card>
+          <div className="ds-section-head">
+            <h2><CheckSquare size={14} /> Tasks</h2>
+            <p>At-risk queue</p>
           </div>
-        </CanvasBlock>
+          {(atRiskTasks ?? []).length === 0 ? <p className="ds-empty">No tasks at risk.</p> : <Table columns={['Task', 'Client', 'Due']} rows={taskRows} />}
+        </Card>
 
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Clients" icon={<Users2 size={14} />} subtitle="Most recently active client accounts" />
-          {!activeClients ? (
-            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
-          ) : activeClients.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No active clients</p>
-          ) : (
-            <div className="space-y-2.5">
-              {activeClients.map(client => (
-                <Link
-                  key={client.id}
-                  href={`/clients/${client.slug ?? client.id}/overview`}
-                  className="flex items-center gap-3 rounded-xl border px-3.5 py-3"
-                  style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--accent)' }}>
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{client.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      Updated {new Date(client.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Calendar" icon={<CalendarDays size={14} />} subtitle="Upcoming scheduled publishing queue" />
-          {!scheduled ? (
-            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
-          ) : scheduled.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
-          ) : (
-            <div className="space-y-2.5">
-              {scheduled.map(s => (
-                <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3" style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Send size={15} style={{ color: 'var(--accent)' }} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{s.asset?.name ?? s.caption ?? 'Publishing schedule'}</p>
-                      {s.asset?.client_name && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                    {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Assets" icon={<ImageIcon size={14} />} subtitle="Latest uploaded media snapshots" />
-          {!recentAssets ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
-            </div>
-          ) : recentAssets.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {recentAssets.map(asset => (
-                <div key={asset.id} className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-soft)', background: 'color-mix(in srgb, var(--surface-2) 76%, transparent)' }}>
-                  {(asset.thumbnail_url ?? asset.preview_url ?? (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
-                    <img src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url} alt={asset.name} className="w-full aspect-square object-cover" />
-                  ) : (
-                    <div className="w-full aspect-square flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-                      <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
-                    </div>
-                  )}
-                  <div className="px-2 py-1">
-                    <p className="text-[10px] font-medium truncate" style={{ color: 'var(--text)' }}>{asset.name}</p>
-                    {asset.client_name && <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{asset.client_name}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title="Content" icon={<TrendingUp size={14} />} subtitle="Distribution mix and performance trend" />
-          <div className="space-y-4">
-            <ContentDistribution items={contentDistItems} />
-            {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
+        <Card>
+          <div className="ds-section-head">
+            <h2><Users2 size={14} /> Clients</h2>
+            <p>Recently active</p>
           </div>
-        </CanvasBlock>
+          <div className="ds-stack">
+            {(activeClients ?? []).length === 0 ? <p className="ds-empty">No active clients.</p> : activeClients.map(client => (
+              <Link key={client.id} href={`/clients/${client.slug ?? client.id}/overview`} className="ds-list-row">
+                <span>{client.name}</span>
+                <span>{new Date(client.updated_at).toLocaleDateString()}</span>
+              </Link>
+            ))}
+          </div>
+        </Card>
 
-        <CanvasBlock className="dashboard-block--span-half">
-          <SectionHead title={t('recentActivity')} icon={<Activity size={14} />} subtitle="Latest operational events" />
-          {!activitiesData ? (
-            <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
-          ) : activitiesData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <Activity size={28} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No recent activity</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activitiesData.map(a => (
-                <div key={a.id} className="flex gap-3">
-                  <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: 'var(--accent)' }} />
-                  <div>
-                    <p className="text-sm" style={{ color: 'var(--text)' }}>{a.description}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{new Date(a.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CanvasBlock>
-
-        <CanvasBlock className="dashboard-block--span-full">
-          <SectionHead title="Highlights" icon={<Sparkles size={14} />} subtitle="Concise operational summary for this week" />
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            {lightInsights.map((text) => (
-              <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--surface-2) 80%, transparent)', borderColor: 'var(--border-soft)', color: 'var(--text)' }}>
-                {text}
+        <Card>
+          <div className="ds-section-head">
+            <h2><CalendarDays size={14} /> Calendar</h2>
+            <p>Upcoming publishing</p>
+          </div>
+          <div className="ds-stack">
+            {(scheduled ?? []).length === 0 ? <p className="ds-empty">No schedules coming up.</p> : scheduled.map(item => (
+              <div key={item.id} className="ds-list-row">
+                <span>{item.asset?.name ?? item.caption ?? 'Scheduled post'}</span>
+                <span>{new Date(item.scheduled_date).toLocaleDateString()}</span>
               </div>
             ))}
           </div>
-        </CanvasBlock>
-      </div>
+        </Card>
+      </Grid>
+
+      <Card>
+        <div className="ds-section-head">
+          <h2><TrendingUp size={14} /> Content Performance</h2>
+          <p>Distribution and completion trend</p>
+        </div>
+        <Grid cols={2}>
+          <div className="ds-stack">
+            {contentDistItems.length === 0 ? <p className="ds-empty">No asset data yet.</p> : contentDistItems.map(item => (
+              <div key={item.label} className="ds-progress-row">
+                <span>{item.label}</span>
+                <div><i style={{ width: `${Math.min(100, item.count * 10)}%` }} /></div>
+                <strong>{item.count}</strong>
+              </div>
+            ))}
+          </div>
+          <TrendChart data={trendsData ?? []} />
+        </Grid>
+      </Card>
+
+      <Card>
+        <div className="ds-section-head">
+          <h2><Activity size={14} /> Recent Activity</h2>
+          <p>Latest operational updates</p>
+        </div>
+        {activityRows.length === 0 ? <p className="ds-empty">No recent activity.</p> : <Table columns={['Event', 'Date']} rows={activityRows} />}
+      </Card>
+
+      <Grid cols={2}>
+        <Card>
+          <div className="ds-section-head">
+            <h2><ImageIcon size={14} /> Latest Assets</h2>
+            <p>Most recent uploads</p>
+          </div>
+          <div className="ds-asset-grid">
+            {(recentAssets ?? []).length === 0 ? <p className="ds-empty">No assets uploaded yet.</p> : recentAssets?.map(asset => (
+              <div key={asset.id} className="ds-asset-item">
+                <p>{asset.name}</p>
+                <p>{asset.client_name ?? 'Unassigned'}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="ds-section-head">
+            <h2><Sparkles size={14} /> Highlights</h2>
+            <p>Weekly summary</p>
+          </div>
+          <div className="ds-stack">
+            {highlights.map(text => <p key={text} className="ds-note">{text}</p>)}
+          </div>
+        </Card>
+      </Grid>
     </div>
   );
 }

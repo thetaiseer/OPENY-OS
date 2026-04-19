@@ -25,11 +25,8 @@ export interface AppSidebarGroup {
 }
 
 interface AppSidebarProps {
-  /** Flat list of items (displayed as a single group) */
   items?: AppSidebarItem[];
-  /** Grouped nav sections — takes precedence over `items` */
   groups?: AppSidebarGroup[];
-  /** Items pinned to the bottom above the user row */
   bottomItems?: AppSidebarItem[];
   open?: boolean;
   onClose?: () => void;
@@ -44,7 +41,6 @@ export default function AppSidebar({
   bottomItems,
   open,
   onClose,
-  workspaceTag,
   variant = 'os',
   profile = false,
 }: AppSidebarProps) {
@@ -52,9 +48,8 @@ export default function AppSidebar({
   const { user } = useAuth();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const [collapsed, setCollapsed] = useState(false);
-  const isSlim = collapsed && !open;
+  const slim = collapsed && !open;
 
-  // Resolve groups
   const resolvedGroups: AppSidebarGroup[] = groups ?? (items ? [{ items }] : []);
 
   function isActive(item: AppSidebarItem) {
@@ -63,126 +58,76 @@ export default function AppSidebar({
 
   function NavItem({ item }: { item: AppSidebarItem }) {
     const active = isActive(item);
+
     return (
-      <Link
-        href={item.href}
-        onClick={onClose}
-        className={clsx(
-          'app-sidebar-item',
-          active ? 'nav-item-active' : '',
-        )}
-        title={item.label}
-      >
-        <span className={clsx('app-sidebar-icon-wrap', active && 'app-sidebar-icon-wrap-active')}>
+      <Link href={item.href} onClick={onClose} className={clsx('os-nav-item', active && 'is-active')} title={item.label}>
+        <span className="os-nav-item-icon">
           <item.icon size={16} aria-hidden="true" />
         </span>
-        {!isSlim && <span className="truncate">{item.label}</span>}
+        {!slim ? <span>{item.label}</span> : null}
       </Link>
     );
   }
 
   return (
     <>
-      {/* Mobile backdrop */}
-      {open && (
-        <div
-          className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
+      {open ? <button type="button" className="os-sidebar-overlay" onClick={onClose} aria-label="Close navigation overlay" /> : null}
 
-      <aside
-        className={clsx(
-          'app-sidebar-panel fixed left-0 top-0 z-40 transition-[width,transform] duration-200 lg:static lg:translate-x-0',
-          isSlim ? 'app-sidebar-slim' : '',
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-        style={{ width: isSlim ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)' }}
-      >
-        {/* ── Header: logo + collapse button ── */}
-        <div className="app-sidebar-header">
-          <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
-            {isSlim ? (
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold tracking-[0.08em]" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-                {variant === 'docs' ? 'D' : 'O'}
-              </span>
-            ) : (
-              <OpenyLogo width={90} height={24} />
-            )}
+      <aside className={clsx('os-sidebar', open && 'is-open', slim && 'is-slim')}>
+        <div className="os-sidebar-header">
+          <Link href={dashboardHref} onClick={onClose} className="os-sidebar-brand">
+            {slim ? <span className="os-sidebar-brand-mini">{variant === 'docs' ? 'D' : 'O'}</span> : <OpenyLogo width={88} height={24} />}
           </Link>
 
-          <div className="flex items-center gap-1">
+          <div className="os-sidebar-controls">
             <button
               type="button"
-              onClick={() => setCollapsed(v => !v)}
-              className="btn-icon hidden lg:inline-flex"
+              onClick={() => setCollapsed(value => !value)}
+              className="os-icon-button os-sidebar-collapse"
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
               {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
             </button>
-            {onClose && (
-              <button type="button" onClick={onClose} className="btn-icon lg:hidden" aria-label="Close sidebar">
+            {onClose ? (
+              <button type="button" onClick={onClose} className="os-icon-button os-sidebar-close" aria-label="Close sidebar">
                 <X size={15} />
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* ── Workspace switcher (slim: hidden) ── */}
-        {!isSlim && (
-          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-            <WorkspaceSwitcher />
-          </div>
-        )}
+        {!slim ? <div className="os-sidebar-switcher"><WorkspaceSwitcher /></div> : null}
 
-        {/* ── Main navigation ── */}
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="os-nav-groups">
           {resolvedGroups.map((group, groupIndex) => (
-            <div key={groupIndex}>
-              {group.label && !isSlim && (
-                <div className="sidebar-group-label">{group.label}</div>
-              )}
+            <div key={groupIndex} className="os-nav-group">
+              {group.label && !slim ? <p className="os-nav-group-label">{group.label}</p> : null}
               {group.items.map(item => <NavItem key={item.href} item={item} />)}
-              {groupIndex < resolvedGroups.length - 1 && !isSlim && (
-                <div className="sidebar-separator" />
-              )}
             </div>
           ))}
 
-          {/* Bottom-pinned nav items (Settings, Security, etc.) */}
-          {bottomItems && bottomItems.length > 0 && (
-            <>
-              <div className="sidebar-separator mt-auto" />
+          {bottomItems && bottomItems.length > 0 ? (
+            <div className="os-nav-group os-nav-group--bottom">
               {bottomItems.map(item => <NavItem key={item.href} item={item} />)}
-            </>
-          )}
+            </div>
+          ) : null}
         </nav>
 
-        {/* ── User / account row ── */}
-        {profile && user && (
-          <div className="app-sidebar-user">
+        {profile && user ? (
+          <div className="os-sidebar-profile">
             <AccountMenu placement="sidebar">
-              <div className={clsx(
-                'flex items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-[var(--surface-2)] cursor-pointer',
-                isSlim && 'justify-center',
-              )}>
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                {!isSlim && (
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-semibold leading-tight">{user.name || user.email}</p>
-                    <p className="truncate text-[11px] text-[var(--text-secondary)] leading-tight mt-0.5">{user.role}</p>
+              <div className="os-profile-trigger">
+                <div className="os-profile-avatar">{(user.name || user.email || 'U').charAt(0).toUpperCase()}</div>
+                {!slim ? (
+                  <div className="os-profile-meta">
+                    <p>{user.name || user.email}</p>
+                    <p>{user.role}</p>
                   </div>
-                )}
+                ) : null}
               </div>
             </AccountMenu>
           </div>
-        )}
+        ) : null}
       </aside>
     </>
   );
