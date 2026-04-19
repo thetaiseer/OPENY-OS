@@ -31,7 +31,7 @@ function MetricTile({ label, value, icon }: { label: string; value: number; icon
       <div className="dashboard-metric-icon">{icon}</div>
       <div>
         <p className="dashboard-metric-label">{label}</p>
-        <p className="dashboard-metric-value">{value}</p>
+        <strong className="dashboard-metric-value" aria-label={`${label}: ${value}`}>{value}</strong>
       </div>
     </div>
   );
@@ -415,6 +415,7 @@ export default function DashboardPage() {
         : 'No activity in assets this week',
     ];
   }, [trendsData, stats?.overdueTasks, recentAssets]);
+  const assetGridClassName = 'grid grid-cols-2 gap-2 sm:grid-cols-3';
 
   return (
     <div className="dashboard-screen animate-openy-fade-in">
@@ -551,13 +552,13 @@ export default function DashboardPage() {
             </Link>
           </div>
           {!recentAssets ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className={assetGridClassName}>
               {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
             </div>
           ) : recentAssets.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className={assetGridClassName}>
               {recentAssets.map(asset => (
                 <div key={asset.id} className="rounded-xl overflow-hidden border"
                   style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
