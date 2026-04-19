@@ -16,6 +16,8 @@
   --ds-success: #16a34a;
   --ds-danger: #dc2626;
   --ds-glow: rgba(37, 99, 235, 0.24);
+  --ds-accent-soft: rgba(37, 99, 235, 0.14);
+  --ds-topbar-bg: rgba(255, 255, 255, 0.88);
   --ds-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
   --ds-container: 1440px;
   --ds-sidebar-width: 272px;
@@ -43,6 +45,8 @@
   --ds-success: #5bdd9e;
   --ds-danger: #ff8da2;
   --ds-glow: rgba(113, 163, 255, 0.28);
+  --ds-accent-soft: rgba(113, 163, 255, 0.2);
+  --ds-topbar-bg: rgba(8, 26, 53, 0.82);
   --ds-shadow: 0 16px 48px rgba(3, 10, 25, 0.5);
 }
 
@@ -60,10 +64,11 @@ body {
   margin: 0;
   font-family: Inter, Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: var(--ds-text);
+  background-color: var(--ds-bg);
   background:
     radial-gradient(900px 420px at 20% -10%, rgba(122, 166, 255, 0.14), transparent 58%),
     radial-gradient(1100px 580px at 90% -20%, rgba(86, 139, 255, 0.12), transparent 64%),
-    linear-gradient(180deg, color-mix(in srgb, var(--ds-bg) 78%, #0b1f46 22%) 0%, var(--ds-bg) 62%, color-mix(in srgb, var(--ds-bg) 92%, #01050d 8%) 100%);
+    linear-gradient(180deg, #102748 0%, var(--ds-bg) 62%, #050d1c 100%);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -269,7 +274,7 @@ textarea {
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  background: color-mix(in srgb, var(--ds-accent) 24%, transparent);
+  background: var(--ds-accent-soft);
   color: var(--ds-accent);
 }
 
@@ -329,8 +334,8 @@ textarea {
 }
 
 .os-nav-item.is-active {
-  background: color-mix(in srgb, var(--ds-accent) 16%, transparent);
-  border-color: color-mix(in srgb, var(--ds-accent) 30%, transparent);
+  background: var(--ds-accent-soft);
+  border-color: var(--ds-accent-soft);
   color: var(--ds-text);
 }
 
@@ -397,7 +402,7 @@ textarea {
   z-index: 20;
   height: var(--ds-topbar-height);
   border-bottom: 1px solid var(--ds-line);
-  background: color-mix(in srgb, var(--ds-bg-elevated) 88%, transparent);
+  background: var(--ds-topbar-bg);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -512,7 +517,7 @@ textarea {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--ds-accent) 18%, transparent);
+  background: var(--ds-accent-soft);
   color: var(--ds-accent);
   display: inline-flex;
   align-items: center;
@@ -701,8 +706,44 @@ textarea {
 }
 
 .switcher__input:checked + .switcher__icon {
-  background: color-mix(in srgb, var(--ds-accent) 20%, transparent);
+  background: var(--ds-accent-soft);
   color: var(--ds-accent);
+}
+
+.openy-menu-panel {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  box-shadow: var(--ds-shadow);
+}
+
+.openy-menu-item {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--ds-text);
+}
+
+.openy-menu-item:hover {
+  background: var(--ds-surface-soft);
+  border-color: var(--ds-line);
+}
+
+.os-account-tools {
+  display: grid;
+  gap: 8px;
+}
+
+.os-account-tool-button {
+  width: 100%;
+  border: 1px solid var(--ds-line);
+  border-radius: 10px;
+  background: var(--ds-surface-soft);
+  color: var(--ds-text);
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 @media (min-width: 900px) {

@@ -97,7 +97,21 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
           <span>AI</span>
         </button>
 
-        <AccountMenu placement="header" triggerAriaLabel="Open account menu">
+        <AccountMenu
+          placement="header"
+          triggerAriaLabel="Open account menu"
+          menuContent={({ closeMenu }) => (
+            <div className="os-account-tools">
+              <ThemeSwitcher />
+              <button type="button" onClick={() => { toggleLang(); closeMenu(); }} className="os-account-tool-button">
+                <Globe size={14} /> Language
+              </button>
+              <button type="button" onClick={() => { openAi(); closeMenu(); }} className="os-account-tool-button">
+                <Sparkles size={14} /> AI Command Center
+              </button>
+            </div>
+          )}
+        >
           <div className="os-topbar-avatar">{(user?.name || user?.email || 'U').charAt(0).toUpperCase()}</div>
         </AccountMenu>
       </div>

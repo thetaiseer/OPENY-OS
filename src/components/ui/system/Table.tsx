@@ -1,8 +1,13 @@
 import type { ReactNode } from 'react';
 
+interface TableRow {
+  id: string;
+  cells: ReactNode[];
+}
+
 interface TableProps {
   columns: string[];
-  rows: ReactNode[][];
+  rows: TableRow[];
 }
 
 export default function Table({ columns, rows }: TableProps) {
@@ -17,10 +22,10 @@ export default function Table({ columns, rows }: TableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => (
-                <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>
+          {rows.map(row => (
+            <tr key={row.id}>
+              {row.cells.map((cell, cellIndex) => (
+                <td key={`${row.id}-${cellIndex}`}>{cell}</td>
               ))}
             </tr>
           ))}

@@ -28,6 +28,7 @@ import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from
 
 const WEEK_LENGTH_DAYS = 7;
 const MILLISECONDS_PER_DAY = 86_400_000;
+const KPI_COUNT = 5;
 
 function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
@@ -214,17 +215,27 @@ export default function DashboardPage() {
 
   const taskRows = (atRiskTasks ?? []).map(task => {
     const due = task.due_date ? new Date(task.due_date) : null;
-    return [
-      <span key="title">{task.title}</span>,
-      <span key="client">{task.client?.name ?? '—'}</span>,
-      <span key="due">{due ? due.toLocaleDateString() : 'No date'}</span>,
-    ];
+    return {
+      id: task.id,
+      cells: [
+        task.title,
+        task.client?.name ?? '—',
+        due ? due.toLocaleDateString() : 'No date',
+      ],
+    };
   });
 
-  const activityRows = (activitiesData ?? []).map(activity => [
-    <span key="event">{activity.description}</span>,
-    <span key="date">{new Date(activity.created_at).toLocaleDateString()}</span>,
-  ]);
+  const activityRows = (activitiesData ?? []).map(activity => ({
+    id: activity.id,
+    cells: [
+      activity.description,
+      new Date(activity.created_at).toLocaleDateString(),
+    ],
+  }));
+  const clients = activeClients ?? [];
+  const scheduleRows = scheduled ?? [];
+  const assets = recentAssets ?? [];
+  const maxContentCount = Math.max(...contentDistItems.map(item => item.count), 1);
 
   return (
     <div className="ds-dashboard">
@@ -242,7 +253,7 @@ export default function DashboardPage() {
 
       {statsLoading ? (
         <Grid cols={4} className="ds-loading-grid">
-          {Array.from({ length: 5 }).map((_, index) => <Card key={index} className="ds-skeleton" />)}
+          {Array.from({ length: KPI_COUNT }).map((_, index) => <Card key={index} className="ds-skeleton" />)}
         </Grid>
       ) : (
         <Grid cols={4}>
@@ -269,7 +280,7 @@ export default function DashboardPage() {
             <p>Recently active</p>
           </div>
           <div className="ds-stack">
-            {(activeClients ?? []).length === 0 ? <p className="ds-empty">No active clients.</p> : activeClients.map(client => (
+            {clients.length === 0 ? <p className="ds-empty">No active clients.</p> : clients.map(client => (
               <Link key={client.id} href={`/clients/${client.slug ?? client.id}/overview`} className="ds-list-row">
                 <span>{client.name}</span>
                 <span>{new Date(client.updated_at).toLocaleDateString()}</span>
@@ -284,7 +295,7 @@ export default function DashboardPage() {
             <p>Upcoming publishing</p>
           </div>
           <div className="ds-stack">
-            {(scheduled ?? []).length === 0 ? <p className="ds-empty">No schedules coming up.</p> : scheduled.map(item => (
+            {scheduleRows.length === 0 ? <p className="ds-empty">No schedules coming up.</p> : scheduleRows.map(item => (
               <div key={item.id} className="ds-list-row">
                 <span>{item.asset?.name ?? item.caption ?? 'Scheduled post'}</span>
                 <span>{new Date(item.scheduled_date).toLocaleDateString()}</span>
@@ -304,7 +315,7 @@ export default function DashboardPage() {
             {contentDistItems.length === 0 ? <p className="ds-empty">No asset data yet.</p> : contentDistItems.map(item => (
               <div key={item.label} className="ds-progress-row">
                 <span>{item.label}</span>
-                <div><i style={{ width: `${Math.min(100, item.count * 10)}%` }} /></div>
+                <div><i style={{ width: `${(item.count / maxContentCount) * 100}%` }} /></div>
                 <strong>{item.count}</strong>
               </div>
             ))}
@@ -328,7 +339,7 @@ export default function DashboardPage() {
             <p>Most recent uploads</p>
           </div>
           <div className="ds-asset-grid">
-            {(recentAssets ?? []).length === 0 ? <p className="ds-empty">No assets uploaded yet.</p> : recentAssets?.map(asset => (
+            {assets.length === 0 ? <p className="ds-empty">No assets uploaded yet.</p> : assets.map(asset => (
               <div key={asset.id} className="ds-asset-item">
                 <p>{asset.name}</p>
                 <p>{asset.client_name ?? 'Unassigned'}</p>
