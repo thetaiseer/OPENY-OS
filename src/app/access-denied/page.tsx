@@ -17,7 +17,7 @@ export default async function AccessDeniedPage({ searchParams }: { searchParams:
       >
         <InfoCallout
           icon={<ShieldAlert size={16} style={{ color: 'var(--accent)' }} />}
-          heading="Access"
+          heading="Access denied"
           body={`You do not have permission to access ${workspaceLabel}. Please contact the workspace owner.`}
           className="text-left"
         />
