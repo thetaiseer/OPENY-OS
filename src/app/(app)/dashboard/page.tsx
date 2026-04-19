@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
-  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon, Plus,
+  Users2, CheckSquare, AlertTriangle, Activity, FolderOpen, CalendarDays, TrendingUp, Send, Image as ImageIcon,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis, CartesianGrid } from 'recharts';
 import Link from 'next/link';
@@ -11,7 +11,6 @@ import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import { useDashboardStats } from '@/lib/queries';
-import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
@@ -22,24 +21,19 @@ function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
 }
 
-interface Stats {
-  totalClients: number;
-  activeTasks: number;
-  overdueTasks: number;
-  tasksDueThisWeek: number;
+function CanvasBlock({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <section className={`dashboard-block ${className}`}>{children}</section>;
 }
 
-function DashboardPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function MetricTile({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
-    <section className={`glass glass-card relative overflow-hidden p-5 md:p-6 ${className}`}>
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-20 h-24 opacity-75"
-        style={{
-          background: 'transparent',
-        }}
-      />
-      <div className="relative z-[1]">{children}</div>
-    </section>
+    <div className="dashboard-metric">
+      <div className="dashboard-metric-icon">{icon}</div>
+      <div>
+        <p className="dashboard-metric-label">{label}</p>
+        <strong className="dashboard-metric-value">{value}</strong>
+      </div>
+    </div>
   );
 }
 
@@ -423,74 +417,64 @@ export default function DashboardPage() {
   }, [trendsData, stats?.overdueTasks, recentAssets]);
 
   return (
-    <div className="openy-page-shell max-w-[1500px] mx-auto animate-openy-fade-in">
-      <div className="openy-page-header">
-        <div>
-          <h1 className="openy-page-header-title">
-          {t('welcomeBack')}, {firstName} 👋
-          </h1>
-          <p className="openy-page-header-description">
-          Here&apos;s what&apos;s happening today
-          </p>
-        </div>
+    <div className="dashboard-screen animate-openy-fade-in">
+      <div className="dashboard-head">
+        <h1 className="dashboard-head-title">{t('welcomeBack')}, {firstName} 👋</h1>
+        <p className="dashboard-head-subtitle">Operational canvas across delivery, risk, and content velocity.</p>
       </div>
 
-      {/* ── Stat cards ── */}
-      {statsLoading ? <SkeletonStatGrid count={5} /> : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 md:gap-4">
-          <StatCard label={t('totalClients')}     value={stats?.totalClients     ?? 0} icon={<Users2 size={20} />}        color="blue"   />
-          <StatCard label={t('activeTasks')}      value={stats?.activeTasks      ?? 0} icon={<CheckSquare size={20} />}   color="mint"   />
-          <StatCard label={t('overdueTasks')}     value={stats?.overdueTasks     ?? 0} icon={<AlertTriangle size={20} />} color="rose"   />
-          <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={20} />}  color="violet" />
-          <StatCard label="Total Assets"          value={stats?.totalAssets      ?? 0} icon={<FolderOpen size={20} />}    color="cyan"   />
-        </div>
-      )}
-
-      {/* ── Trend + Team performance ── */}
-      <div className="glass glass-card p-4">
-        <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Lightweight signals to guide your next move" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-          {lightInsights.map((text) => (
-            <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}>
-              {text}
+      <div className="dashboard-canvas">
+        <CanvasBlock className="dashboard-block--span-full">
+          <SectionHead title="Core Metrics" icon={<Activity size={14} />} subtitle="Live baseline for your workspace" />
+          {statsLoading ? <SkeletonStatGrid count={5} /> : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <MetricTile label={t('totalClients')} value={stats?.totalClients ?? 0} icon={<Users2 size={16} />} />
+              <MetricTile label={t('activeTasks')} value={stats?.activeTasks ?? 0} icon={<CheckSquare size={16} />} />
+              <MetricTile label={t('overdueTasks')} value={stats?.overdueTasks ?? 0} icon={<AlertTriangle size={16} />} />
+              <MetricTile label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={16} />} />
+              <MetricTile label="Total Assets" value={stats?.totalAssets ?? 0} icon={<FolderOpen size={16} />} />
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+        </CanvasBlock>
 
-      {/* ── Trend + Team performance ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="glass glass-card p-5">
+        <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Completion Trend (30d)</h2>
           </div>
           {trendsData ? <TrendChart data={trendsData} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
-        </div>
-        <div className="glass glass-card p-5">
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Team Performance (this month)</h2>
           {teamPerf ? <TeamPerformance data={teamPerf} /> : <div className="h-24 rounded-xl skeleton-shimmer" />}
-        </div>
-      </div>
+        </CanvasBlock>
 
-      {/* ── At-risk + Predictions ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="glass glass-card p-5">
+        <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
             <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>At-Risk Tasks (next 3 days)</h2>
           </div>
           <OverdueRisk tasks={atRiskTasks ?? []} />
-        </div>
-        <div className="glass glass-card p-5">
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>Predictions</h2>
           <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
-        </div>
-      </div>
+        </CanvasBlock>
 
-      {/* ── Activity + Content distribution ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="glass glass-card p-5">
+        <CanvasBlock className="dashboard-block--span-half">
+          <SectionHead title="Activity Insights" icon={<Activity size={14} />} subtitle="Actionable short signals" />
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {lightInsights.map((text) => (
+              <div key={text} className="rounded-xl border px-3.5 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)', color: 'var(--text)' }}>
+                {text}
+              </div>
+            ))}
+          </div>
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('recentActivity')}</h2>
           {!activitiesData ? (
             <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-xl skeleton-shimmer" />)}</div>
@@ -512,55 +496,51 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
-        <div className="glass glass-card p-5">
+        </CanvasBlock>
+
+        <CanvasBlock className="dashboard-block--span-half">
           <h2 className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text)' }}>{t('contentDistribution')}</h2>
           <ContentDistribution items={contentDistItems} />
-        </div>
-      </div>
+        </CanvasBlock>
 
-      {/* ── Upcoming scheduled posts ── */}
-      <div className="glass glass-card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
-        </div>
-        {!scheduled ? (
-          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
-        ) : scheduled.length === 0 ? (
-          <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
-        ) : (
-          <div className="space-y-3">
-            {scheduled.map(s => (
-              <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <Send size={15} style={{ color: 'var(--accent)' }} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                      {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
-                    </p>
-                    {s.asset?.client_name && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
-                    )}
-                    {s.platforms?.length > 0 && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
-                    )}
+        <CanvasBlock className="dashboard-block--span-full">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarDays size={16} style={{ color: 'var(--accent)' }} />
+            <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Upcoming Scheduled Posts</h2>
+          </div>
+          {!scheduled ? (
+            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-xl skeleton-shimmer" />)}</div>
+          ) : scheduled.length === 0 ? (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No scheduled posts coming up</p>
+          ) : (
+            <div className="space-y-3">
+              {scheduled.map(s => (
+                <div key={s.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-2)' }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Send size={15} style={{ color: 'var(--accent)' }} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                        {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
+                      </p>
+                      {s.asset?.client_name && (
+                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.asset.client_name}</p>
+                      )}
+                      {s.platforms?.length > 0 && (
+                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.platforms.join(', ')}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                    {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
                   </div>
                 </div>
-                <div className="shrink-0 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                  {new Date(s.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CanvasBlock>
 
-      {/* ── Recent Assets + Active Clients ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recent Assets */}
-        <div className="glass glass-card p-5">
+        <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <ImageIcon size={15} style={{ color: 'var(--accent)' }} />
@@ -571,13 +551,13 @@ export default function DashboardPage() {
             </Link>
           </div>
           {!recentAssets ? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-xl skeleton-shimmer" />)}
             </div>
           ) : recentAssets.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>No assets yet</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {recentAssets.map(asset => (
                 <div key={asset.id} className="rounded-xl overflow-hidden border"
                   style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
@@ -603,10 +583,9 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+        </CanvasBlock>
 
-        {/* Active Clients */}
-        <div className="glass glass-card p-5">
+        <CanvasBlock className="dashboard-block--span-half">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users2 size={15} style={{ color: 'var(--accent)' }} />
@@ -649,7 +628,7 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+        </CanvasBlock>
       </div>
     </div>
   );
