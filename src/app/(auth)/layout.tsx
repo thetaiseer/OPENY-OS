@@ -1,7 +1,12 @@
+import React from 'react';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <section className="ui-card" style={{ width: 'min(560px, 100%)' }}>{children}</section>
-    </main>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: 'var(--bg)' }}
+    >
+      {children}
+    </div>
   );
 }

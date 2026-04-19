@@ -1,2 +1,6 @@
+// Redirect /settings → /settings/profile
 import { redirect } from 'next/navigation';
-export default function Page() { redirect('/os/settings'); }
+
+export default function SettingsPage() {
+  redirect('/settings/profile');
+}
