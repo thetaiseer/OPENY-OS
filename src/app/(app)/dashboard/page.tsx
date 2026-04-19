@@ -19,6 +19,7 @@ import Card from '@/components/ui/system/Card';
 import Grid from '@/components/ui/system/Grid';
 import Table from '@/components/ui/system/Table';
 import Button from '@/components/ui/system/Button';
+import StatCard from '@/components/ui/StatCard';
 import supabase from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
@@ -32,16 +33,6 @@ const KPI_COUNT = 5;
 
 function pluralize(count: number, singular: string, plural: string) {
   return count === 1 ? singular : plural;
-}
-
-function KpiCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
-  return (
-    <Card className="ds-kpi-card">
-      <div className="ds-kpi-icon">{icon}</div>
-      <p className="ds-kpi-label">{label}</p>
-      <p className="ds-kpi-value">{value}</p>
-    </Card>
-  );
 }
 
 function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
@@ -257,11 +248,11 @@ export default function DashboardPage() {
         </Grid>
       ) : (
         <Grid cols={4}>
-          <KpiCard label={t('totalClients')} value={stats?.totalClients ?? 0} icon={<Users2 size={16} />} />
-          <KpiCard label={t('activeTasks')} value={stats?.activeTasks ?? 0} icon={<CheckSquare size={16} />} />
-          <KpiCard label={t('overdueTasks')} value={stats?.overdueTasks ?? 0} icon={<AlertTriangle size={16} />} />
-          <KpiCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={16} />} />
-          <KpiCard label="Total Assets" value={stats?.totalAssets ?? 0} icon={<FolderOpen size={16} />} />
+          <StatCard label={t('totalClients')} value={stats?.totalClients ?? 0} icon={<Users2 size={16} />} />
+          <StatCard label={t('activeTasks')} value={stats?.activeTasks ?? 0} icon={<CheckSquare size={16} />} />
+          <StatCard label={t('overdueTasks')} value={stats?.overdueTasks ?? 0} icon={<AlertTriangle size={16} />} />
+          <StatCard label={t('tasksDueThisWeek')} value={stats?.tasksDueThisWeek ?? 0} icon={<CalendarDays size={16} />} />
+          <StatCard label="Total Assets" value={stats?.totalAssets ?? 0} icon={<FolderOpen size={16} />} />
         </Grid>
       )}
 

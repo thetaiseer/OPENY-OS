@@ -65,6 +65,7 @@ interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  fullWidth?: boolean;
 }
 
 const buttonVariantClass: Record<ButtonVariant, string> = {
@@ -85,6 +86,7 @@ export function ActionButton({
   variant = 'primary',
   size = 'md',
   loading = false,
+  fullWidth = false,
   className,
   disabled,
   children,
@@ -92,8 +94,8 @@ export function ActionButton({
 }: ActionButtonProps) {
   const isDisabled = disabled || loading;
   return (
-    <button
-      className={clsx('action-button', buttonVariantClass[variant], buttonSizeClass[size], className)}
+      <button
+      className={clsx('action-button', buttonVariantClass[variant], buttonSizeClass[size], fullWidth && 'w-full', className)}
       disabled={isDisabled}
       aria-busy={loading || undefined}
       {...props}
