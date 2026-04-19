@@ -34,7 +34,15 @@ interface ReportsData {
   monthlyTrends: MonthlyTrend[];
 }
 
-const CHART_COLORS = ['#1d4ed8', '#2563eb', '#3b82f6', '#0f172a', '#1e293b', '#64748b', '#cbd5e1'];
+const CHART_COLORS = [
+  'var(--primary)',
+  'var(--primary-hover)',
+  'var(--surface-3)',
+  'var(--accent)',
+  'var(--accent-2)',
+  'var(--accent-3)',
+  'var(--text-tertiary)',
+];
 
 function toCSV<T extends object>(rows: T[], headers: Array<keyof T>): string {
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;

@@ -658,7 +658,7 @@ textarea {
   justify-content: space-between;
   gap: 10px;
   border: 1px solid var(--ds-line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--ds-surface-soft);
   padding: 10px 12px;
   font-size: 13px;
@@ -726,7 +726,7 @@ textarea {
 .ds-note {
   margin: 0;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--ds-line);
   background: var(--ds-surface-soft);
   font-size: 13px;
@@ -1236,7 +1236,7 @@ textarea {
 .card-title {
   margin: 0;
   font-size: 1.02rem;
-  font-weight: 680;
+  font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
@@ -1550,7 +1550,7 @@ textarea {
   font-size: clamp(1.06rem, 1.8vw, 1.24rem);
   letter-spacing: -0.02em;
   color: var(--text-primary);
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .section-header__subtitle {
