@@ -15,10 +15,10 @@
   --bg-app:       #f5f7fb;
   --bg-shell:     #f5f7fb;
   --bg-surface:   #f5f7fb;
-  --bg-surface-2: #eff3fa;
+  --bg-surface-2: #e7edf8;
   --surface:      #f5f7fb;
-  --surface-2:    #eff3fa;
-  --surface-3:    #e8eef8;
+  --surface-2:    #e7edf8;
+  --surface-3:    #dde6f5;
   --surface-solid: #f5f7fb;
   --bg: var(--bg-app);
 
@@ -125,10 +125,10 @@
   --bg-app:       #f5f7fb;
   --bg-shell:     #f5f7fb;
   --bg-surface:   #f5f7fb;
-  --bg-surface-2: #eff3fa;
+  --bg-surface-2: #e7edf8;
   --surface:      #f5f7fb;
-  --surface-2:    #eff3fa;
-  --surface-3:    #e8eef8;
+  --surface-2:    #e7edf8;
+  --surface-3:    #dde6f5;
   --surface-solid: #f5f7fb;
   --bg: var(--bg-app);
 
@@ -663,7 +663,7 @@ textarea::placeholder,
    MODALS
    ─────────────────────────────────────────────────────────────────────────── */
 .openy-modal-overlay {
-  background: rgba(22, 32, 51, 0.2);
+  background: rgba(22, 32, 51, 0.44);
   backdrop-filter: blur(4px);
 }
 
