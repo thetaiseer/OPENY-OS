@@ -1,36 +1,24 @@
-'use client';
-
-import type { ReactNode } from 'react';
-import clsx from 'clsx';
+import { ReactNode } from 'react';
 
 interface AppShellProps {
   sidebar: ReactNode;
   topbar: ReactNode;
   children: ReactNode;
-  workspaceClassName?: string;
-  mainClassName?: string;
-  containerClassName?: string;
 }
 
-export default function AppShell({
-  sidebar,
-  topbar,
-  children,
-  workspaceClassName,
-  mainClassName,
-  containerClassName,
-}: AppShellProps) {
+/**
+ * AppShell — primary layout frame.
+ * Renders a sticky sidebar + a scrollable main column (topbar + content).
+ */
+export function AppShell({ sidebar, topbar, children }: AppShellProps) {
   return (
-    <div className={clsx('app-shell-root app-shell-workspace', workspaceClassName)}>
-      <div className="app-shell-grid">
-        {sidebar}
-        <div className="app-shell-stage">
-          {topbar}
-          <main className={clsx('app-shell-main', mainClassName)}>
-            <div className={clsx('app-shell-container', containerClassName)}>{children}</div>
-          </main>
-        </div>
+    <div className="ui-shell">
+      {sidebar}
+      <div className="ui-main">
+        {topbar}
+        <div className="ui-content">{children}</div>
       </div>
     </div>
   );
 }
+

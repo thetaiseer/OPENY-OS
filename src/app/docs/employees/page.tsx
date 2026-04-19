@@ -1,5 +1,2 @@
-import { redirect } from 'next/navigation';
-
-export default function LegacyDocsEmployeesPage() {
-  redirect('/docs/documents/employees');
-}
+import { StandardPage } from '@/new-ui/page-composition';
+export default function Page() { return <StandardPage title="Docs employees" subtitle="Rebuilt docs module in the new visual system." tableName="employees" />; }

@@ -1,5 +1,2 @@
-import { redirect } from 'next/navigation';
-
-export default function ChooseWorkspacePage() {
-  redirect('/?switch=1');
-}
+import { SimpleScreen } from '@/new-ui/simple-screen';
+export default function Page() { return <SimpleScreen title="Choose workspace" subtitle="Select your workspace to continue." />; }

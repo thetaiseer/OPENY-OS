@@ -1,9 +1,4 @@
-'use client';
-
-import type { ReactNode } from 'react';
-import clsx from 'clsx';
-import { motion } from 'framer-motion';
-import { usePathname } from 'next/navigation';
+import { ReactNode } from 'react';
 
 interface AppPageProps {
   children: ReactNode;
@@ -12,36 +7,18 @@ interface AppPageProps {
   fill?: boolean;
 }
 
+/**
+ * AppPage — page-level layout wrapper.
+ * Provides consistent padding and optional full-width/fill behaviour.
+ */
 export function AppPage({ children, className, fullWidth = false, fill = false }: AppPageProps) {
-  const pathname = usePathname();
-  return (
-    <motion.section
-      key={pathname}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className={clsx('app-page', fullWidth && 'app-page-full', fill && 'app-page-fill', className)}
-    >
-      {children}
-    </motion.section>
-  );
+  const classes = [
+    'app-page',
+    fullWidth && 'app-page-full',
+    fill && 'app-page-fill',
+    className,
+  ].filter(Boolean).join(' ');
+
+  return <section className={classes}>{children}</section>;
 }
 
-interface AppPageHeaderProps {
-  title: ReactNode;
-  subtitle?: ReactNode;
-  actions?: ReactNode;
-  className?: string;
-}
-
-export function AppPageHeader({ title, subtitle, actions, className }: AppPageHeaderProps) {
-  return (
-    <header className={clsx('app-page-header', className)}>
-      <div className="min-w-0">
-        <h1 className="app-page-title">{title}</h1>
-        {subtitle ? <p className="app-page-subtitle">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="app-page-actions">{actions}</div> : null}
-    </header>
-  );
-}
