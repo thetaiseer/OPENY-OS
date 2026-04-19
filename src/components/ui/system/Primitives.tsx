@@ -104,7 +104,7 @@ export function StatCard({ title, value, meta, icon, action, className }: StatCa
     <AppCard as="article" className={clsx('p-5', className)}>
       <div className="mb-3 flex items-start justify-between gap-2">
         {icon && (
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+          <div className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent)]">
             {icon}
           </div>
         )}
