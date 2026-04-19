@@ -1,30 +1,29 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
 
-export type NavItem = { href: string; label: string };
+// Re-export AppShell from components so legacy imports keep working.
+export { AppShell } from '@/components/layout/AppShell';
 
-export function AppShell({ children, sidebar, topbar }: { children: ReactNode; sidebar: ReactNode; topbar: ReactNode }) {
-  return (
-    <div className="ui-shell">
-      {sidebar}
-      <main className="ui-main">
-        {topbar}
-        <div className="ui-content">{children}</div>
-      </main>
-    </div>
-  );
-}
+export type NavItem = { href: string; label: string };
 
 export function Sidebar({ title, nav, activePath }: { title: string; nav: NavItem[]; activePath: string }) {
   return (
     <aside className="ui-sidebar">
-      <div>
-        <strong>{title}</strong>
-        <p className="ui-subtitle">Rebuilt from zero</p>
+      <div className="ui-sidebar-brand">
+        <div className="ui-sidebar-logo">{title.charAt(0)}</div>
+        <div>
+          <div className="ui-sidebar-title">{title}</div>
+          <div className="ui-sidebar-subtitle">Workspace</div>
+        </div>
       </div>
-      <nav style={{ display: 'grid', gap: '8px' }}>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {nav.map(item => (
-          <Link key={item.href} href={item.href} className="ui-nav-item" data-active={activePath === item.href || activePath.startsWith(`${item.href}/`)}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="ui-nav-item"
+            data-active={activePath === item.href || activePath.startsWith(`${item.href}/`)}
+          >
             {item.label}
           </Link>
         ))}
@@ -36,13 +35,13 @@ export function Sidebar({ title, nav, activePath }: { title: string; nav: NavIte
 export function Topbar({ label }: { label: string }) {
   return (
     <header className="ui-topbar">
-      <div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>Openy OS</div>
-        <strong>{label}</strong>
+      <div className="ui-topbar-left">
+        <div className="ui-topbar-context">OPENY OS</div>
+        <div className="ui-topbar-title">{label}</div>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="ui-topbar-right">
         <button className="ui-btn">Search</button>
-        <button className="ui-btn ui-btn-primary">Quick Action</button>
+        <button className="ui-btn ui-btn-primary">New</button>
       </div>
     </header>
   );
@@ -68,9 +67,9 @@ export function StatGrid({ items }: { items: Array<{ label: string; value: strin
   return (
     <div className="ui-grid">
       {items.map(item => (
-        <div key={item.label} className="ui-card" style={{ gridColumn: 'span 3' }}>
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>{item.label}</p>
-          <h3 style={{ marginTop: 6 }}>{item.value}</h3>
+        <div key={item.label} className="ui-card ui-stat-card">
+          <div className="ui-stat-label">{item.label}</div>
+          <div className="ui-stat-value">{item.value}</div>
         </div>
       ))}
     </div>
@@ -84,7 +83,9 @@ export function SimpleTable({ headers, rows }: { headers: string[]; rows: string
         <tr>{headers.map(h => <th key={h}>{h}</th>)}</tr>
       </thead>
       <tbody>
-        {rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={`${i}-${j}`}>{c}</td>)}</tr>)}
+        {rows.map((r, i) => (
+          <tr key={i}>{r.map((c, j) => <td key={`${i}-${j}`}>{c}</td>)}</tr>
+        ))}
       </tbody>
     </table>
   );
@@ -93,7 +94,7 @@ export function SimpleTable({ headers, rows }: { headers: string[]; rows: string
 export function FilterBar() {
   return (
     <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1.2fr 1fr 1fr auto' }}>
-      <input className="ui-input" placeholder="Search" />
+      <input className="ui-input" placeholder="Search…" />
       <select className="ui-select"><option>Status</option></select>
       <select className="ui-select"><option>Owner</option></select>
       <button className="ui-btn">Filter</button>
@@ -105,7 +106,7 @@ export function EmptyState({ title, message }: { title: string; message: string 
   return (
     <div className="ui-empty">
       <strong>{title}</strong>
-      <p style={{ marginTop: 8 }}>{message}</p>
+      <p>{message}</p>
     </div>
   );
 }
