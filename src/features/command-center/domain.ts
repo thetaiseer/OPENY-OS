@@ -8,6 +8,8 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
 export type DeadlineState = 'normal' | 'warning' | 'overdue';
 
+export const DEFAULT_DEADLINE_WARNING_HOURS = 48;
+
 export interface CommandCenterUser {
   id: string;
   fullName: string;
@@ -25,6 +27,7 @@ export interface PipelineTask {
   priority: TaskPriority;
   status: PipelineColumn;
   dueAt: string | null;
+  /** Complexity estimate used in workload balancing, clamped to 1..10. */
   workloadPoints: number;
   createdAt: string;
   updatedAt: string;
@@ -66,7 +69,7 @@ export interface RadarSnapshot {
 export function getDeadlineState(
   dueAt: string | null,
   now: Date = new Date(),
-  warningHours = 48,
+  warningHours = DEFAULT_DEADLINE_WARNING_HOURS,
 ): DeadlineState {
   if (!dueAt) return 'normal';
 

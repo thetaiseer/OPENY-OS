@@ -89,8 +89,8 @@ model Asset {
   sizeBytes        BigInt
   bucketName       String
   r2Key            String         @unique
-  provider           UploadProvider @default(r2)
-  uploadStatus       UploadStatus   @default(pending)
+  provider          UploadProvider @default(r2)
+  uploadStatus      UploadStatus   @default(pending)
   multipartUploadId String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
