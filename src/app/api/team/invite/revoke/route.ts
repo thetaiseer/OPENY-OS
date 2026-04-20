@@ -4,7 +4,7 @@
  * Revokes a pending team invitation and removes the team member record.
  *
  * Body: { team_member_id: string }
- * Auth: owner only
+ * Auth: admin or manager only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +13,7 @@ import { requireRole } from '@/lib/api-auth';
 import { INVITATION_STATUS } from '@/lib/invitation-status';
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['owner']);
+  const auth = await requireRole(request, ['admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);

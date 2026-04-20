@@ -328,8 +328,8 @@ function BackupModal({ module, onClose, onRestore }: {
   }
 
   return (
-    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="openy-modal-panel rounded-2xl p-6 w-full max-w-md my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Restore Backup</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
@@ -1183,7 +1183,7 @@ export default function InvoicePage() {
           </button>
         </div>
 
-        <div className="preview-shell bg-white rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+        <div className="preview-shell bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
           <InvoicePreview model={documentModel} />
         </div>
       </div>

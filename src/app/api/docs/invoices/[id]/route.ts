@@ -6,7 +6,6 @@ import {
   hydrateInvoiceBranchGroups,
   mapInvoiceDbError,
   normalizeInvoiceBranchGroups,
-  pickInvoiceRootPayload,
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
 
@@ -48,7 +47,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
   const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
   const payload = {
-    ...pickInvoiceRootPayload(body),
+    id,
+    ...body,
+    branch_groups: branchGroups,
     ...totals,
   };
 
@@ -56,10 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
-    .update(payload)
-    .eq('id', id)
+    .upsert(payload, { onConflict: 'id' })
     .select()
-    .maybeSingle();
+    .single();
 
   if (error) {
     console.error('[docs/invoices/:id][PATCH] Failed to upsert invoice root record:', { id, error, payload });
@@ -67,9 +67,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       { error: mapInvoiceDbError(error, 'Unable to update invoice right now.') },
       { status: 500 },
     );
-  }
-  if (!data) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   try {
     await replaceInvoiceBranchGroups(db, id, branchGroups);

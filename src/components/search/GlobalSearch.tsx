@@ -35,7 +35,7 @@ const MAX_RECENT = 8;
 const TYPE_META: Record<ResultType, { label: string; icon: LucideIcon }> = {
   client:  { label: 'Client',  icon: Users2 },
   task:    { label: 'Task',    icon: CheckSquare },
-  asset:   { label: 'Files',   icon: FolderOpen },
+  asset:   { label: 'Asset',   icon: FolderOpen },
   content: { label: 'Content', icon: FileText },
   team:    { label: 'Team',    icon: Users },
 };
@@ -211,9 +211,11 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           onFocus={() => setFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search… (⌘K)"
-          className="topbar-search-input w-full h-9 pl-9 pr-8 rounded-xl text-sm outline-none"
+          className="w-full h-9 pl-9 pr-8 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
           style={{
+            background: 'var(--surface-2)',
             color: 'var(--text)',
+            border: '1px solid var(--border)',
           }}
           autoComplete="off"
           spellCheck={false}
@@ -233,8 +235,10 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       {isOpen && (
         <div
           ref={dropRef}
-          className="openy-menu-panel absolute top-full mt-2 left-0 right-0 rounded-2xl overflow-hidden z-[300] animate-openy-slide-down"
+          className="absolute top-full mt-2 left-0 right-0 rounded-2xl shadow-2xl border overflow-hidden z-[300]"
           style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
             minWidth: 320,
           }}
         >
@@ -265,7 +269,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
                 <button
                   key={s}
                   onClick={() => setQuery(s)}
-                  className="openy-menu-item w-full flex items-center gap-3 px-4 py-2 text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-[var(--surface-2)] transition-colors"
                 >
                   <Clock size={13} style={{ color: 'var(--text-secondary)' }} />
                   <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{s}</span>
@@ -303,8 +307,8 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
                           onClick={() => navigate(item.href, item.title)}
                           onMouseEnter={() => setActiveIdx(globalIdx)}
                           className={clsx(
-                            'openy-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-left',
-                            active ? 'openy-menu-item-active' : '',
+                            'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                            active ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--surface-2)]',
                           )}
                         >
                           <div className="flex-1 min-w-0">

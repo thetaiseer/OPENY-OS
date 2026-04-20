@@ -14,8 +14,7 @@ export const dynamic = 'force-dynamic';
  *
  * For large files (> 50 MB) the multipart path is used:
  *   1. POST /api/upload/multipart-init
- *   2. POST /api/upload/multipart-part (returns presigned URL per chunk)
- *      → browser uploads chunk directly to R2 with HTTP PUT
+ *   2. POST /api/upload/multipart-part (binary body per chunk, server uploads to R2)
  *   3. POST /api/upload/multipart-complete
  *   4. POST /api/upload/complete
  *

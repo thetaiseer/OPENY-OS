@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } f
 import {
   Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
-  Download, Square, CheckSquare, Users2, Trash2, AlertTriangle,
+  Download, Square, CheckSquare, Users2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -21,12 +21,10 @@ import {
 } from '@/lib/asset-utils';
 import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
-import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
-import { toPreviewInput } from '@/lib/asset-preview';
-import Modal from '@/components/ui/Modal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -47,11 +45,11 @@ interface FolderPath {
 function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium border"
-      style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
+      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
     >
       {label}
-      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter" aria-label={`Remove ${label} filter`}>
+      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter">
         <X size={11} />
       </button>
     </span>
@@ -73,18 +71,12 @@ interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
 function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
   if (toasts.length === 0) return null;
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-[340px] z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium"
-          style={{
-            background: toast.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            borderColor: toast.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)',
-            color: toast.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            minWidth: 240,
-            animation: 'fadeSlideUp 0.2s ease',
-          }}
+          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
+          style={{ background: toast.type === 'success' ? '#16a34a' : '#dc2626', minWidth: 240, animation: 'fadeSlideUp 0.2s ease' }}
         >
           {toast.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> : <X size={16} className="shrink-0" />}
           <span className="flex-1">{toast.message}</span>
@@ -110,25 +102,6 @@ function monthLabel(mm: string): string {
   return MONTH_NAMES[idx] ?? mm;
 }
 
-function normalizeClientLogoUrl(logo?: string): string | null {
-  if (!logo) return null;
-  const trimmed = logo.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('/')) return trimmed;
-  try {
-    const url = new URL(trimmed);
-    const allowedHosts = new Set<string>();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl) {
-      try { allowedHosts.add(new URL(supabaseUrl).hostname); } catch {}
-    }
-    if (url.protocol === 'https:' && allowedHosts.has(url.hostname)) return url.toString();
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 function getAssetYear(asset: Asset): string {
   if (asset.month_key && asset.month_key.length >= 4) return asset.month_key.slice(0, 4);
   if (asset.created_at) return new Date(asset.created_at).getFullYear().toString();
@@ -148,37 +121,52 @@ interface FolderCardProps {
 }
 
 function FolderCard({ label, count, color, onClick, onView, onDownload, isDownloading }: FolderCardProps) {
+  const hasActions = onView || onDownload;
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-      className="openy-card flex flex-col gap-3 p-4 cursor-pointer select-none
-        transition-all duration-200 ease-out hover:-translate-y-0.5
+      className="flex flex-col gap-2 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center">
         <div
-          className="flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200"
           style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
         >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 w-full">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
         </div>
       </div>
-      {(onView || onDownload) && (
-        <div className="flex gap-2 mt-auto">
+      {hasActions && (
+        <div className="flex gap-1.5 mt-auto">
           {onView && (
-            <button type="button" onClick={e => { e.stopPropagation(); onView(); }} className="btn-secondary h-8 px-3 text-xs">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onView(); }}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
               <FolderOpen size={11} /> View
             </button>
           )}
           {onDownload && (
-            <button type="button" onClick={e => { e.stopPropagation(); onDownload(); }} disabled={isDownloading} className="btn-secondary h-8 px-3 text-xs disabled:opacity-40">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onDownload(); }}
+              disabled={isDownloading}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', border: '1px solid rgba(99,102,241,0.3)' }}
+            >
               <Download size={11} />{isDownloading ? 'Zipping…' : 'Download'}
             </button>
           )}
@@ -194,94 +182,65 @@ function ClientFolderCard({
   label,
   count,
   slug,
-  logo,
   onView,
   onDownload,
   isDownloading,
-  canDelete,
-  onDelete,
 }: {
   label: string;
   count: number;
   slug?: string;
-  logo?: string;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
-  canDelete?: boolean;
-  onDelete?: () => void;
 }) {
-  const initial = label.trim().charAt(0).toUpperCase() || '?';
-  const logoUrl = normalizeClientLogoUrl(logo);
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onView}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(); } }}
-      className="openy-card flex flex-col gap-4 p-4 cursor-pointer select-none
-        transition-all duration-200 ease-out hover:-translate-y-0.5
+      className="flex flex-col gap-3 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-      style={{ minHeight: 168 }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
-      <div className="flex items-start justify-between gap-3 min-w-0">
-        <div className="min-w-0 flex items-center gap-3">
-          <div className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--accent)' }}>
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-lg font-bold text-white">{initial}</span>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{label}</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
-            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>Client</span>
-              {slug && (
-                <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>Workspace linked</span>
-              )}
-            </div>
-          </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-colors duration-200" style={{ background: 'rgba(99,102,241,0.1)' }}>
+          <Folder size={18} style={{ color: 'var(--accent)' }} />
         </div>
-        {canDelete && onDelete && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
-            style={{ color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.08)' }}
-            title={`Delete ${label}`}
-            aria-label={`Delete ${label}`}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
+        </div>
       </div>
       <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onView}
-          className="btn-secondary flex-1 h-9 text-sm"
+          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
-          <FolderOpen size={14} /> View
+          <FolderOpen size={12} /> View
         </button>
         {slug ? (
           <a
             href={`/clients/${slug}/assets`}
-            className="btn-primary flex-1 h-9 text-sm"
-            style={{ textDecoration: 'none' }}
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
           >
-            <Users2 size={14} /> Workspace
+            <Users2 size={12} /> Workspace
           </a>
         ) : (
           <button
             type="button"
             onClick={onDownload}
             disabled={isDownloading}
-            className="btn-secondary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
           >
-            <Download size={14} />{isDownloading ? '…' : 'Download'}
+            <Download size={12} />{isDownloading ? '…' : 'Download'}
           </button>
         )}
       </div>
@@ -295,25 +254,25 @@ interface BreadcrumbItem { label: string; path: FolderPath; }
 
 function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate: (path: FolderPath) => void }) {
   return (
-    <nav className="flex items-center gap-1.5 flex-wrap" aria-label="Folder navigation">
+    <nav className="flex items-center gap-1 flex-wrap" aria-label="Folder navigation">
       <button
         type="button"
         onClick={() => onNavigate({})}
-        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold border transition-opacity hover:opacity-80"
-        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+        className="flex items-center justify-center h-7 w-7 rounded-lg transition-opacity hover:opacity-70"
+        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
         title="All clients"
       >
-        <Home size={13} /> Root
+        <Home size={13} />
       </button>
       {items.map((item, idx) => (
         <span key={idx} className="flex items-center gap-1">
           <ChevronRight size={13} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
           {idx < items.length - 1 ? (
-            <button type="button" onClick={() => onNavigate(item.path)} className="inline-flex items-center h-8 px-3 rounded-full text-xs font-medium border hover:opacity-80" style={{ color: 'var(--accent)', borderColor: 'var(--accent-glow)', background: 'var(--accent-soft)' }}>
+            <button type="button" onClick={() => onNavigate(item.path)} className="text-xs font-medium hover:underline px-1" style={{ color: 'var(--accent)' }}>
               {item.label}
             </button>
           ) : (
-            <span className="inline-flex items-center h-8 px-3 rounded-full text-xs font-semibold border" style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface)' }}>{item.label}</span>
+            <span className="text-xs font-semibold px-1" style={{ color: 'var(--text)' }}>{item.label}</span>
           )}
         </span>
       ))}
@@ -366,7 +325,6 @@ function triggerDownload(url: string, filename: string): void {
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
-  const isOwner = user?.role === 'owner';
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
@@ -386,8 +344,6 @@ export default function AssetsPage() {
   const [previewAsset, setPreviewAsset]   = useState<Asset | null>(null);
   const [commentsAsset, setCommentsAsset] = useState<Asset | null>(null);
   const [scheduleAsset, setScheduleAsset] = useState<Asset | null>(null);
-  const [clientDeleteTarget, setClientDeleteTarget] = useState<Client | null>(null);
-  const [deletingClient, setDeletingClient] = useState(false);
   const [scheduleAfterUpload, setScheduleAfterUpload] = useState(false);
   const [toasts, setToasts]   = useState<ToastMsg[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -403,28 +359,6 @@ export default function AssetsPage() {
   const [filterFileType, setFilterFileType] = useState('');
 
   const [sortBy, setSortBy]               = useState<'newest' | 'oldest' | 'largest'>('newest');
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem('assets-page-filters') ?? '{}') as {
-        searchQuery?: string;
-        filterFileType?: string;
-        sortBy?: 'newest' | 'oldest' | 'largest';
-      };
-      if (saved.searchQuery) setSearchQuery(saved.searchQuery);
-      if (saved.filterFileType) setFilterFileType(saved.filterFileType);
-      if (saved.sortBy) setSortBy(saved.sortBy);
-    } catch {
-      // ignore invalid saved filters
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      'assets-page-filters',
-      JSON.stringify({ searchQuery, filterFileType, sortBy }),
-    );
-  }, [searchQuery, filterFileType, sortBy]);
 
   // ── Upload modal state ────────────────────────────────────────────────────
   const [pendingItems, setPendingItems]             = useState<FileUploadItem[]>([]);
@@ -508,7 +442,7 @@ export default function AssetsPage() {
   }, [latestAsset]);
 
   useEffect(() => {
-    supabase.from('clients').select('id, name, slug, logo').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
+    supabase.from('clients').select('id, name, slug').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
   }, []);
 
   useEffect(() => {
@@ -874,28 +808,6 @@ export default function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
-  const handleDeleteClient = useCallback(async () => {
-    if (!isOwner || !clientDeleteTarget?.id) return;
-    setDeletingClient(true);
-    try {
-      const { error } = await supabase.from('clients').delete().eq('id', clientDeleteTarget.id);
-      if (error) {
-        addToast(error.message, 'error');
-        return;
-      }
-      setClients(prev => prev.filter(client => client.id !== clientDeleteTarget.id));
-      setPage(0);
-      void fetchAssets(0);
-      setFolderPath(prev => (prev.client === clientDeleteTarget.name ? {} : prev));
-      addToast(`Client "${clientDeleteTarget.name}" deleted.`, 'success');
-      setClientDeleteTarget(null);
-    } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Failed to delete client', 'error');
-    } finally {
-      setDeletingClient(false);
-    }
-  }, [isOwner, clientDeleteTarget, addToast, fetchAssets]);
-
 
 
 
@@ -916,18 +828,8 @@ export default function AssetsPage() {
     addToast('Asset renamed successfully.', 'success');
   };
 
-  const handleView = async (asset: Asset) => {
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`);
-      if (!res.ok) {
-        setPreviewAsset(asset);
-        return;
-      }
-      const json = await res.json() as { asset?: Asset };
-      setPreviewAsset(json.asset ?? asset);
-    } catch {
-      setPreviewAsset(asset);
-    }
+  const handleView = (asset: Asset) => {
+    setPreviewAsset(asset);
   };
 
   const handleCopyLink = async (asset: Asset) => {
@@ -958,18 +860,6 @@ export default function AssetsPage() {
     return Array.from(types).sort();
   }, [assets]);
 
-  const assetGroupSummary = useMemo(() => {
-    const byType = filteredAssets.reduce<Record<string, number>>((acc, asset) => {
-      const raw = asset.file_type ?? asset.mime_type ?? 'other';
-      const key = raw.includes('/') ? raw.split('/')[0] : raw;
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(byType)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-  }, [filteredAssets]);
-
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -978,23 +868,24 @@ export default function AssetsPage() {
     <>
       <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      <div className="openy-page-shell max-w-[1500px] mx-auto" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="openy-page-header">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="openy-page-header-title">{t('assets')}</h1>
-            <p className="openy-page-header-description">
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Manage uploaded files · Drag &amp; drop or click Upload
             </p>
           </div>
-          <div className="openy-page-actions">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             {/* Upload File */}
             {canUpload && !selectionMode && (
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
                 disabled={isUploading}
-                className="btn-primary h-9 px-4 text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                style={{ background: 'var(--accent)' }}
               >
                 <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
               </button>
@@ -1003,7 +894,8 @@ export default function AssetsPage() {
             {!selectionMode ? (
               <button
                 onClick={enterSelectionMode}
-                className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-90"
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               >
                 <Square size={14} /> Select
               </button>
@@ -1012,7 +904,8 @@ export default function AssetsPage() {
                 {/* Select all / deselect all in current view */}
                 <button
                   onClick={handleToggleSelectAll}
-                  className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-80"
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
                 >
                   <CheckSquare size={14} />
                   {filteredAssets.length > 0 && filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
@@ -1021,7 +914,8 @@ export default function AssetsPage() {
                 <button
                   onClick={() => void handleDownloadSelected()}
                   disabled={selectedIds.size === 0 || downloadingZip}
-                  className="btn-primary h-9 px-3 text-sm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
                 >
                   <Download size={14} />
                   {downloadingZip ? 'Preparing…' : selectedIds.size > 0 ? `Download (${selectedIds.size})` : 'Download Selected'}
@@ -1029,7 +923,8 @@ export default function AssetsPage() {
                 {/* Cancel Selection */}
                 <button
                   onClick={exitSelectionMode}
-                  className="btn-danger h-9 px-3 text-sm transition-opacity hover:opacity-80"
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
                 >
                   <X size={14} /> Cancel
                 </button>
@@ -1041,13 +936,13 @@ export default function AssetsPage() {
 
         {/* ── Breadcrumb navigation ────────────────────────────────────────── */}
         {breadcrumbItems.length > 0 && (
-          <div className="openy-card px-4 py-2.5 flex items-center gap-2">
+          <div className="rounded-xl border px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
             <button
               type="button"
               onClick={goUp}
-              className="ml-auto inline-flex items-center gap-1 h-8 px-3 rounded-full border text-xs font-medium hover:opacity-80 transition-opacity"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              className="ml-auto flex items-center gap-1 text-xs font-medium hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <ChevronLeft size={12} /> Up
             </button>
@@ -1055,8 +950,8 @@ export default function AssetsPage() {
         )}
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
-        <div className="openy-page-toolbar">
-          <div className="flex flex-wrap gap-2 w-full">
+        <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-48">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
               <input
@@ -1064,7 +959,8 @@ export default function AssetsPage() {
                 placeholder="Search files…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="input-glass h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                className="h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               />
             </div>
             <SelectDropdown
@@ -1092,7 +988,7 @@ export default function AssetsPage() {
               ]}
             />
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="btn-danger h-9 px-3 text-sm hover:opacity-80">
+              <button onClick={clearFilters} className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                 <X size={13} /> Clear
               </button>
             )}
@@ -1101,19 +997,6 @@ export default function AssetsPage() {
             <div className="flex flex-wrap gap-1.5">
               {filterFileType && <FilterBadge label={fileTypeFilterLabel(filterFileType)} onRemove={() => setFilterFileType('')} />}
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
-            </div>
-          )}
-          {assetGroupSummary.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 w-full">
-              {assetGroupSummary.map(([type, count]) => (
-                <span
-                  key={type}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}: {count}
-                </span>
-              ))}
             </div>
           )}
         </div>
@@ -1160,53 +1043,32 @@ export default function AssetsPage() {
             }
             action={
               !hasActiveFilters && canUpload ? (
-                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="btn-primary h-9 px-4 text-sm disabled:opacity-60">
+                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                   <Upload size={16} />{t('uploadFile')}
                 </button>
               ) : (hasActiveFilters || breadcrumbItems.length > 0) ? (
-                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="btn-danger h-9 px-4 text-sm hover:opacity-80">
+                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                   <X size={14} /> Clear all
                 </button>
               ) : undefined
             }
-            suggestions={!hasActiveFilters ? [
-              {
-                title: 'Drag and drop files here',
-                description: 'Drop images, videos, PDFs, or docs directly into the workspace.',
-              },
-              {
-                title: 'Upload your first asset',
-                description: 'Use Upload to add campaign files and references.',
-              },
-              {
-                title: 'Suggested file types',
-                description: 'Images • Videos • PDFs • Docs',
-              },
-            ] : undefined}
           />
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
-            <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3'}>
-              {folderEntries.map(({ key, count }) => {
-                if (pathDepth === 0) {
-                  const clientMeta = clients.find(c => c.name === key);
-                  return (
-                    <ClientFolderCard
-                      key={key}
-                      label={key}
-                      count={count}
-                      slug={clientMeta?.slug}
-                      logo={clientMeta?.logo}
-                      onView={() => navigateInto(key)}
-                      onDownload={() => void handleDownloadClient(key)}
-                      isDownloading={downloadingClient === key}
-                      canDelete={isOwner && Boolean(clientMeta?.id)}
-                      onDelete={isOwner && clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
-                    />
-                  );
-                }
-                return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {folderEntries.map(({ key, count }) => (
+                pathDepth === 0 ? (
+                  <ClientFolderCard
+                    key={key}
+                    label={key}
+                    count={count}
+                    slug={clients.find(c => c.name === key)?.slug}
+                    onView={() => navigateInto(key)}
+                    onDownload={() => void handleDownloadClient(key)}
+                    isDownloading={downloadingClient === key}
+                  />
+                ) : (
                   <FolderCard
                     key={key}
                     label={folderCardLabel(key)}
@@ -1214,12 +1076,12 @@ export default function AssetsPage() {
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
                   />
-                );
-              })}
+                )
+              ))}
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
@@ -1242,7 +1104,7 @@ export default function AssetsPage() {
               selectable={selectionMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
-              onView={asset => { void handleView(asset); }}
+              onView={handleView}
               onDelete={asset => void handleDelete(asset)}
               onCopyLink={asset => void handleCopyLink(asset)}
               onComments={asset => setCommentsAsset(asset)}
@@ -1251,7 +1113,7 @@ export default function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
@@ -1296,56 +1158,25 @@ export default function AssetsPage() {
         />
       )}
 
-      <Modal
-        open={Boolean(clientDeleteTarget)}
-        onClose={() => { if (!deletingClient) setClientDeleteTarget(null); }}
-        title="Delete Client"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}>
-            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Delete “{clientDeleteTarget?.name}”?
-              </p>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                This action is permanent. Client-related files and folders may be removed according to workspace deletion rules.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setClientDeleteTarget(null)}
-              disabled={deletingClient}
-              className="h-9 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => { void handleDeleteClient(); }}
-              disabled={deletingClient}
-              className="h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#dc2626' }}
-            >
-              {deletingClient ? 'Deleting…' : 'Delete Client'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
       {/* ── Preview modal ─────────────────────────────────────────────────── */}
       {previewAsset && (
-        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
+        <FilePreviewModal
+          file={{
+            name: previewAsset.name,
+            url: previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size: previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
       )}
 
       {/* ── Comments modal ────────────────────────────────────────────────── */}
       {commentsAsset && (
-        <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={() => setCommentsAsset(null)}>
-          <div className="openy-modal-panel w-full max-w-md rounded-2xl p-6 space-y-5 shadow-xl my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setCommentsAsset(null)}>
+          <div className="w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>{commentsAsset.name}</h3>
               <button onClick={() => setCommentsAsset(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"><X size={16} /></button>

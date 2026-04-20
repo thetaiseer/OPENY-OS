@@ -6,9 +6,8 @@ import { FolderOpen, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
-import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import type { Asset } from '@/lib/types';
-import { toPreviewInput } from '@/lib/asset-preview';
 
 /**
  * Client read-only portal — shows their own assets.
@@ -18,20 +17,6 @@ export default function PortalPage() {
   const { user, clientId } = useAuth();
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
-  const handleViewAsset = async (asset: Asset) => {
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`);
-      if (!res.ok) {
-        setPreviewAsset(asset);
-        return;
-      }
-      const json = await res.json() as { asset?: Asset };
-      setPreviewAsset(json.asset ?? asset);
-    } catch {
-      setPreviewAsset(asset);
-    }
-  };
-
   const { data: assets, isLoading } = useQuery<Asset[]>({
     queryKey: ['portal-assets', user.id, clientId],
     enabled: !!user.id,
@@ -39,7 +24,7 @@ export default function PortalPage() {
       const supabase = createClient();
       let q = supabase
         .from('assets')
-        .select('id, name, content_type, file_url, file_path, storage_path, storage_key, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
+        .select('id, name, content_type, file_url, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (clientId) q = q.eq('client_id', clientId);
@@ -104,7 +89,7 @@ export default function PortalPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   {(a.web_view_link ?? a.view_url ?? a.file_url) && (
                     <button
-                      onClick={() => { void handleViewAsset(a); }}
+                      onClick={() => setPreviewAsset(a)}
                       className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
                       style={{ background: 'var(--surface-2)' }}
                       title="View"
@@ -126,7 +111,17 @@ export default function PortalPage() {
       </div>
 
       {previewAsset && (
-        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
+        <FilePreviewModal
+          file={{
+            name: previewAsset.name,
+            url: previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size: previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
       )}
     </>
   );

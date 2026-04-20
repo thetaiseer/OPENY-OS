@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Lock, Moon, Sun } from 'lucide-react';
+import { ArrowRight, Loader2, Lock, Moon, Sun } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { createClient } from '@/lib/supabase/client';
@@ -19,11 +19,11 @@ import {
 } from '@/lib/auth-workspace';
 import type { WorkspaceKey } from '@/lib/workspace-access';
 
+type Mode = 'signin' | 'signup';
+
 const ACCESS_DENIED_AR = 'ليس لديك صلاحية للدخول إلى هذا القسم';
 const ACCESS_DENIED_EN = 'You do not have access to this workspace';
 const ACCESS_DENIED_HINT_AR = 'تواصل مع مدير النظام للحصول على الصلاحية المناسبة';
-const SHELL_BACKGROUND = 'transparent';
-const FEATURE_BACKGROUND = 'var(--surface)';
 
 export default function OfficialAuthLanding() {
   const router = useRouter();
@@ -32,9 +32,11 @@ export default function OfficialAuthLanding() {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
 
-  const signupRequested = searchParams.get('mode') === 'signup' || searchParams.get('invite_only') === '1';
+  const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'signup' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [workspace, setWorkspace] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -115,13 +117,6 @@ export default function OfficialAuthLanding() {
     return () => { mounted = false; };
   }, [handleAccessDenied, isSwitchMode, nextPath, requestedWorkspace, router, supabase]);
 
-  useEffect(() => {
-    if (!signupRequested) return;
-    const message = 'Public sign-up is disabled. Ask your workspace owner for an invitation link.';
-    setFormError(message);
-    toast(message, 'error', 6000);
-  }, [signupRequested, toast]);
-
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -130,15 +125,71 @@ export default function OfficialAuthLanding() {
     const selectedWorkspace = ensureWorkspace();
     if (!selectedWorkspace) return;
 
+    if (mode === 'signup') {
+      if (!fullName.trim()) {
+        const message = 'Full name is required.';
+        setFormError(message);
+        toast(message, 'error');
+        return;
+      }
+      if (password !== confirmPassword) {
+        const message = 'Password mismatch.';
+        setFormError(message);
+        toast(message, 'error');
+        return;
+      }
+      if (password.length < 8) {
+        const message = 'Password must be at least 8 characters.';
+        setFormError(message);
+        toast(message, 'error');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      if (mode === 'signin') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error) throw error;
+        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
+        await finalizeAuth(data.user.id, data.user.email, selectedWorkspace);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          data: { name: fullName.trim(), full_name: fullName.trim() },
+        },
       });
       if (error) throw error;
-      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
-      await finalizeAuth(data.user.id, data.user.email, selectedWorkspace);
+
+      const userId = data.user?.id;
+      const userEmail = data.user?.email;
+      const session = data.session;
+
+      if (!userId) {
+        toast('Signup completed. Please verify your email, then sign in.', 'success', 6000);
+        setMode('signin');
+        setPassword('');
+        setConfirmPassword('');
+        return;
+      }
+
+      if (session) {
+        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
+      } else {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
+        }
+      }
+
+      await finalizeAuth(userId, userEmail, selectedWorkspace);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Network or server error. Please try again.';
       setFormError(message);
@@ -148,120 +199,125 @@ export default function OfficialAuthLanding() {
     }
   };
 
-  const panelHeading = 'Welcome back to OPENY';
-  const panelText = 'Sign in and choose your authorized workspace to continue with confidence.';
-  const submitLabel = 'Sign In';
+  const panelHeading = mode === 'signin' ? 'Welcome back to OPENY' : 'Create your OPENY account';
+  const panelText = mode === 'signin'
+    ? 'Sign in and choose your authorized workspace to continue with confidence.'
+    : 'Join the platform and continue to your authorized OPENY workspace instantly.';
+  const submitLabel = mode === 'signin' ? 'Sign In' : 'Sign Up';
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 os-workspace">
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}>
         <Loader2 size={26} className="animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8 os-workspace">
-      <div className="mx-auto w-full max-w-7xl min-h-[88vh] flex items-center">
+    <div
+      className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8"
+      style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}
+    >
+      <div className="mx-auto w-full max-w-6xl min-h-[88vh] flex items-center">
         <section
-          className="w-full overflow-hidden rounded-[2rem] border relative"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            boxShadow: 'none',
-          }}
+          className="w-full overflow-hidden rounded-[2rem] border shadow-[0_45px_90px_-52px_rgba(30,64,175,0.5)]"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: SHELL_BACKGROUND }}
-          />
-
-          <div className="relative z-10 flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-xs font-bold uppercase tracking-[0.22em] px-2.5 py-1 rounded-md border" style={{ color: 'var(--accent)', borderColor: 'var(--border)', background: 'var(--accent-soft)' }}>
+              <span className="hidden sm:inline-flex text-[10px] uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                 Official Authentication
               </span>
             </div>
             <button
               onClick={toggleTheme}
-              className="h-9 px-3 rounded-xl border inline-flex items-center justify-center gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className="h-10 px-3 rounded-xl border inline-flex items-center justify-center gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-              <span className="hidden sm:inline text-xs font-medium">{theme === 'dark' ? 'Day' : 'Night'}</span>
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
           </div>
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8">
-            <div className="lg:col-span-7 rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-between gap-7" style={{ borderColor: 'var(--border)', background: FEATURE_BACKGROUND }}>
-              <div>
-                <p className="text-xs uppercase tracking-[0.26em]" style={{ color: 'var(--text-secondary)' }}>OPENY Platform</p>
-                <h2 className="text-3xl sm:text-[2.5rem] font-semibold mt-3 leading-[1.15]" style={{ color: 'var(--text)' }}>{panelHeading}</h2>
-                <p className="text-sm sm:text-base mt-4 max-w-xl" style={{ color: 'var(--text-secondary)' }}>{panelText}</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                  <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Theme</p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>Day / Night experience with one switch</p>
-                </div>
-                <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                  <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Access</p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>Workspace rules are validated on sign in</p>
-                </div>
-                <div className="sm:col-span-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                  <p className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                    <Lock size={12} />
-                    Invite-only access: ask the workspace owner to invite your email address before signing in.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5">
-              <div className="h-full rounded-3xl border p-5 sm:p-6 lg:p-7" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                  Sign In
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            <div className={`relative p-5 sm:p-7 lg:p-9 transition-all duration-500 ${mode === 'signup' ? 'lg:order-2' : ''}`}>
+              <div className="max-w-md mx-auto w-full">
+                <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>
+                  {mode === 'signin' ? 'Sign In' : 'Sign Up'}
                 </p>
-                <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
-                  Access your workspace
+                <h1 className="text-3xl font-semibold mt-2 tracking-tight" style={{ color: 'var(--text)' }}>
+                  {mode === 'signin' ? 'Access your workspace' : 'Start with OPENY'}
                 </h1>
                 <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Authenticate and enter OPENY OS or OPENY DOCS based on your assigned access.
+                  {mode === 'signin'
+                    ? 'Authenticate and enter OPENY OS or OPENY DOCS based on your assigned access.'
+                    : 'Create your account details, select workspace, and continue if your membership is active.'}
                 </p>
 
                 <form onSubmit={submit} className="mt-6 space-y-4">
+                  {mode === 'signup' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full name</label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        required={mode === 'signup'}
+                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Email</label>
+                    <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
                     <input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       required
-                      className="input-glass w-full h-11 px-3 text-sm"
+                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Password</label>
-                      <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
-                        Forgot password?
-                      </Link>
+                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
+                      {mode === 'signin' && (
+                        <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                          Forgot password?
+                        </Link>
+                      )}
                     </div>
                     <input
                       type="password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
-                      className="input-glass w-full h-11 px-3 text-sm"
+                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
                     />
                   </div>
 
+                  {mode === 'signup' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Confirm password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        required={mode === 'signup'}
+                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{ background: 'var(--surface-2)', border: `1px solid ${confirmPassword && confirmPassword !== password ? '#fca5a5' : 'var(--border)'}`, color: 'var(--text)' }}
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Workspace</label>
+                    <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace</label>
                     <SelectDropdown
                       value={workspace}
                       onChange={setWorkspace}
@@ -274,11 +330,11 @@ export default function OfficialAuthLanding() {
 
                   {(formError || accessMessage) && (
                     <div
-                      className="rounded-xl px-3 py-2 text-sm whitespace-pre-line border"
+                      className="rounded-xl px-3 py-2 text-sm whitespace-pre-line"
                       style={{
-                        background: 'var(--color-danger-bg)',
-                        border: '1px solid var(--color-danger-border)',
-                        color: 'var(--color-danger)',
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.28)',
+                        color: '#ef4444',
                       }}
                     >
                       {formError ?? accessMessage}
@@ -288,7 +344,8 @@ export default function OfficialAuthLanding() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn-primary w-full h-11 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70"
+                    className="w-full h-11 rounded-xl font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all disabled:opacity-70 hover:translate-y-[-1px]"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)' }}
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                     {loading ? 'Please wait…' : submitLabel}
@@ -296,12 +353,40 @@ export default function OfficialAuthLanding() {
                 </form>
               </div>
             </div>
-          </div>
 
-          <div className="relative z-10 px-6 pb-6 sm:px-7 sm:pb-7 lg:px-8 lg:pb-8">
-            <div className="rounded-2xl border px-4 py-3 text-xs flex flex-wrap items-center justify-between gap-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-              <span>Authentication layer redesigned for clear day/night visual identity.</span>
-              <span style={{ color: 'var(--accent)' }}>Secure • Minimal • Invite Controlled</span>
+            <div
+              className={`relative p-6 sm:p-8 lg:p-10 transition-all duration-500 ${mode === 'signup' ? 'lg:order-1' : ''}`}
+              style={{
+                background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
+              }}
+            >
+              <div className="relative z-10 h-full flex flex-col justify-between gap-6">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
+                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">{panelHeading}</h2>
+                  <p className="text-sm sm:text-base mt-3 text-white/90 max-w-md">{panelText}</p>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === 'signin' ? 'signup' : 'signin');
+                      setFormError(null);
+                      setAccessMessage(null);
+                    }}
+                    className="h-11 px-5 rounded-xl border border-white/35 text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-white/10 transition-colors"
+                  >
+                    {mode === 'signin' ? 'Create account' : 'Back to sign in'}
+                    <ArrowRight size={15} />
+                  </button>
+                  <p className="text-xs text-white/80 flex items-center gap-2">
+                    <Lock size={12} />
+                    One secure session. Workspace access is validated per membership.
+                  </p>
+                </div>
+              </div>
+              <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)' }} />
             </div>
           </div>
         </section>

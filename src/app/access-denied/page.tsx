@@ -11,7 +11,7 @@ export default async function AccessDeniedPage({ searchParams }: { searchParams:
   return (
     <div className="min-h-screen flex items-center justify-center px-5" style={{ background: 'var(--bg)' }}>
       <div
-        className="w-full max-w-md rounded-3xl border px-6 py-7 text-center space-y-4"
+        className="w-full max-w-md rounded-3xl border px-6 py-7 text-center space-y-4 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.45)]"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         <div className="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>

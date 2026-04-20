@@ -18,7 +18,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { notifyClientCreated } from '@/lib/notification-service';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -106,13 +105,6 @@ export async function POST(request: NextRequest) {
   }
 
   console.log('[POST /api/clients] insert success — id:', data?.id);
-
-  if (data?.id && data?.name) {
-    void notifyClientCreated({
-      clientId: data.id as string,
-      clientName: data.name as string,
-    });
-  }
 
   return NextResponse.json({ success: true, client: data });
 }
