@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
-  BarChart2, Users, Settings, X, CalendarDays, Shield, FileText,
+  BarChart2, Users, Settings, X, CalendarDays, Shield, FileText, Activity,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
@@ -22,6 +22,7 @@ const navItems = [
   { href: '/os/assets',         base: '/os/assets',        icon: FolderOpen,      key: 'assets'         },
   { href: '/os/reports',        base: '/os/reports',       icon: BarChart2,       key: 'reports'        },
   { href: '/os/team',           base: '/os/team',          icon: Users,           key: 'team'           },
+  { href: '/os/activity',       base: '/os/activity',      icon: Activity,        key: 'activity'       },
   { href: '/os/security',       base: '/os/security',      icon: Shield,          key: 'security'       },
   { href: '/os/settings',       base: '/os/settings',      icon: Settings,        key: 'settings'       },
 ];
