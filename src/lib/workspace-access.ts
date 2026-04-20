@@ -37,8 +37,7 @@ export function mapWorkspaceRoleToUserRole(role: WorkspaceRole | null): 'owner' 
   return 'team_member';
 }
 
-export function mapAccessRoleToWorkspaceRole(value: string): 'owner' | 'admin' | 'member' | 'viewer' {
-  if (value === 'owner') return 'owner';
+export function mapAccessRoleToWorkspaceRole(value: string): 'admin' | 'member' | 'viewer' {
   if (value === 'admin' || value === 'manager') return 'admin';
   if (value === 'viewer') return 'viewer';
   return 'member';

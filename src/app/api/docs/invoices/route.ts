@@ -6,7 +6,6 @@ import {
   hydrateInvoiceBranchGroups,
   mapInvoiceDbError,
   normalizeInvoiceBranchGroups,
-  pickInvoiceRootPayload,
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
 
@@ -69,7 +68,8 @@ export async function POST(req: NextRequest) {
   const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
   const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
   const payload = {
-    ...pickInvoiceRootPayload(body),
+    ...body,
+    branch_groups: branchGroups,
     ...totals,
   };
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
-    .insert({ ...payload, created_by: auth.profile.id })
+    .upsert({ ...payload, created_by: auth.profile.id }, { onConflict: 'id' })
     .select()
     .single();
 

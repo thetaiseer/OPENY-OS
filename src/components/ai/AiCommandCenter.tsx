@@ -1,351 +1,494 @@
 'use client';
 
+/**
+ * AiCommandCenter — the new system-wide AI operating layer.
+ *
+ * Replaces the old floating chat widget with a powerful side-panel that
+ * supports four distinct modes:
+ *
+ *   Ask     — questions, summaries, explanations
+ *   Do      — real actions: create records, update data, trigger workflows
+ *   Suggest — next steps, priorities, scheduling, improvements
+ *   Review  — data quality, missing info, duplicates, cleanup
+ *
+ * The panel is context-aware: it reads the current app section (dashboard,
+ * clients, tasks, etc.) and shows relevant quick-action chips.
+ *
+ * Keyboard shortcut: Cmd/Ctrl + J
+ */
+
 import {
+  useState,
+  useRef,
   useCallback,
   useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
+  memo,
+  FormEvent,
 } from 'react';
 import {
   Bot,
   X,
   Send,
   Loader2,
-  Sparkles,
-  CheckCircle2,
-  AlertTriangle,
+  CheckCircle,
   XCircle,
-  Minimize2,
-  Maximize2,
-  MessageSquare,
-  Plus,
-  Upload,
-  ExternalLink,
-  WandSparkles,
+  AlertCircle,
+  Sparkles,
+  Zap,
+  Lightbulb,
+  Search,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  Users2,
+  FileText,
+  FolderOpen,
+  BarChart2,
+  Users,
+  LayoutDashboard,
+  Cpu,
 } from 'lucide-react';
 import { useAi, type AiMode, type AppSection } from '@/lib/ai-context';
-import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
-import { useAuth } from '@/lib/auth-context';
-import { MAIN_CATEGORIES, SUBCATEGORIES } from '@/lib/asset-utils';
-import { queryClient } from '@/app/providers';
 
-type MessageStatus = 'success' | 'error' | 'clarification' | 'pending';
-
-interface PendingAction {
-  intent: string;
-  entities: Record<string, unknown>;
-  professional_title?: string | null;
-  professional_description?: string | null;
-  confidence: number;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  status?: MessageStatus;
   intent?: string;
-  actionsTaken?: string[];
-  openUrl?: string | null;
-  needsConfirmation?: boolean;
-  pendingAction?: PendingAction;
-  matchedClients?: Array<{ id: string; name: string; score: number }>;
+  actions_taken?: string[];
+  data?: Record<string, unknown>;
+  status?: 'success' | 'error' | 'clarification' | 'pending';
 }
 
-interface SessionItem {
-  id: string;
-  title: string;
-  mode: AiMode;
-  section: AppSection;
-  latest_at: string;
-}
-
-interface UploadDraft {
-  files: File[];
-  clientName: string;
-  clientId: string;
-  mainCategory: string;
-  subCategory: string;
-  monthKey: string;
-  contentType: string;
-}
-
-interface ClientOption {
-  id: string;
-  name: string;
-}
-
-function genId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+function genId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function nowMonthKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
+// ── Mode configuration ────────────────────────────────────────────────────────
 
-function fileBaseName(name: string) {
-  const dot = name.lastIndexOf('.');
-  return dot > 0 ? name.slice(0, dot) : name;
-}
+const MODES: { id: AiMode; label: string; icon: React.ElementType; description: string }[] = [
+  {
+    id: 'ask',
+    label: 'Ask',
+    icon: Search,
+    description: 'Questions, summaries & explanations',
+  },
+  {
+    id: 'do',
+    label: 'Do',
+    icon: Zap,
+    description: 'Create records, trigger actions',
+  },
+  {
+    id: 'suggest',
+    label: 'Suggest',
+    icon: Lightbulb,
+    description: 'Next steps, priorities, improvements',
+  },
+  {
+    id: 'review',
+    label: 'Review',
+    icon: ClipboardList,
+    description: 'Quality check, cleanup, detect issues',
+  },
+];
 
-function detectLanguage(text: string): 'ar' | 'en' {
-  const ar = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
-  const en = (text.match(/[A-Za-z]/g) ?? []).length;
-  return ar >= en ? 'ar' : 'en';
-}
+// ── Section metadata ──────────────────────────────────────────────────────────
 
-const SECTION_SUGGESTIONS: Record<AppSection, string[]> = {
-  dashboard: ['أضف مهمة', 'اعرض المهام المتأخرة', 'ما ملخص يومي؟'],
-  clients: ['ابحث عن عميل', 'أضف عميل', 'أنشئ مشروع'],
-  tasks: ['أضف مهمة', 'حدّث مهمة', 'اعرض المهام المتأخرة'],
-  content: ['أضف محتوى', 'أنشئ خطة محتوى', 'لخّص المحتوى'],
-  calendar: ['ما المجدول هذا الأسبوع؟', 'أنشئ schedule', 'هل توجد تعارضات؟'],
-  assets: ['ارفع ملف', 'نظّم الملفات', 'ابحث عن ملف'],
-  reports: ['ما الملخص اليومي؟', 'حلّل الأداء', 'اعرض المخاطر'],
-  team: ['وزّع المهام', 'من overloaded؟', 'خطط الأسبوع'],
-  settings: ['راجع الصلاحيات', 'اقترح تحسينات أمان', 'راجع الإشعارات'],
-  general: ['أضف مهمة', 'أضف عميل', 'ارفع ملف'],
+type SectionMeta = {
+  label: string;
+  icon: React.ElementType;
+  color: string;
+  suggestions: Partial<Record<AiMode, string[]>>;
 };
 
-function statusIcon(status?: MessageStatus) {
-  if (status === 'success') return <CheckCircle2 size={15} style={{ color: '#16a34a' }} />;
-  if (status === 'error') return <XCircle size={15} style={{ color: '#ef4444' }} />;
-  if (status === 'clarification') return <AlertTriangle size={15} style={{ color: '#d97706' }} />;
-  return <Bot size={15} style={{ color: 'var(--accent)' }} />;
-}
+const SECTION_META: Record<AppSection, SectionMeta> = {
+  dashboard: {
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    color: 'var(--accent)',
+    suggestions: {
+      ask:     ['Summarize my workspace today', 'What are my overdue tasks?', 'Which clients need attention?'],
+      do:      ['Create a new task', 'Create a new client', 'Schedule a post'],
+      suggest: ['What should I focus on today?', 'Suggest a weekly plan', 'What work is at risk?'],
+      review:  ['Run a full quality check', 'Find tasks without assignees', 'Find missing deadlines'],
+    },
+  },
+  clients: {
+    label: 'Clients',
+    icon: Users2,
+    color: '#8b5cf6',
+    suggestions: {
+      ask:     ['Summarize this client status', 'What tasks are pending for this client?', 'What is this client missing?'],
+      do:      ['Create a client', 'Create onboarding tasks for this client', 'Create a content plan'],
+      suggest: ['Suggest next steps for this client', 'Suggest a monthly plan', 'Suggest content themes'],
+      review:  ['Review this client workspace', 'Find unassigned tasks', 'Find incomplete records'],
+    },
+  },
+  tasks: {
+    label: 'Tasks',
+    icon: ClipboardList,
+    color: '#f59e0b',
+    suggestions: {
+      ask:     ['Show overdue tasks', 'Summarize pending work', 'What tasks are due this week?'],
+      do:      ['Create a task', 'Create multiple tasks', 'Assign tasks to team members'],
+      suggest: ['Prioritize my tasks', 'Suggest schedule for this week', 'Suggest task assignments'],
+      review:  ['Find tasks without assignees', 'Find tasks without deadlines', 'Find stale tasks'],
+    },
+  },
+  content: {
+    label: 'Content',
+    icon: FileText,
+    color: '#10b981',
+    suggestions: {
+      ask:     ['Summarize the content pipeline', 'What content is due soon?', 'What is missing from this plan?'],
+      do:      ['Generate content ideas', 'Create a caption', 'Create a content plan', 'Schedule a post'],
+      suggest: ['Suggest content topics', 'Suggest publishing dates', 'Suggest improvements to this copy'],
+      review:  ['Find content without schedule', 'Find draft content', 'Find content without captions'],
+    },
+  },
+  calendar: {
+    label: 'Calendar',
+    icon: Calendar,
+    color: '#ef4444',
+    suggestions: {
+      ask:     ['Summarize upcoming work', 'What is scheduled this week?', 'Are there any conflicts?'],
+      do:      ['Schedule a post', 'Add a task to the calendar', 'Create an event'],
+      suggest: ['Suggest publishing dates', 'Suggest a weekly schedule', 'Optimize my schedule'],
+      review:  ['Find scheduling conflicts', 'Find overdue scheduled items', 'Find gaps in the schedule'],
+    },
+  },
+  assets: {
+    label: 'Assets',
+    icon: FolderOpen,
+    color: '#06b6d4',
+    suggestions: {
+      ask:     ['Summarize asset library', 'What files were uploaded recently?', 'Find assets for a client'],
+      do:      ['Link assets to a client', 'Organize files by client', 'Create upload structure'],
+      suggest: ['Suggest categories for files', 'Suggest naming conventions', 'Suggest folder structure'],
+      review:  ['Find unclassified files', 'Find poorly named assets', 'Detect duplicate assets'],
+    },
+  },
+  reports: {
+    label: 'Reports',
+    icon: BarChart2,
+    color: '#f97316',
+    suggestions: {
+      ask:     ['Summarize performance this month', 'What are the key metrics?', 'Which client is most active?'],
+      do:      ['Generate a report summary', 'Generate monthly executive summary', 'Export insights'],
+      suggest: ['Suggest areas for improvement', 'Identify bottlenecks', 'Identify top opportunities'],
+      review:  ['Identify weak areas', 'Find incomplete reports', 'Surface workload risks'],
+    },
+  },
+  team: {
+    label: 'Team',
+    icon: Users,
+    color: '#84cc16',
+    suggestions: {
+      ask:     ['Summarize team workload', 'Who is overloaded?', 'What is everyone working on?'],
+      do:      ['Assign tasks to team members', 'Invite a team member', 'Create a team plan'],
+      suggest: ['Suggest task distribution', 'Suggest workload balancing', 'Suggest focus areas per member'],
+      review:  ['Find overloaded team members', 'Find idle team members', 'Review task distribution'],
+    },
+  },
+  settings: {
+    label: 'Settings',
+    icon: Cpu,
+    color: 'var(--text-secondary)',
+    suggestions: {
+      ask:     ['What settings are available?', 'How do I configure roles?', 'Explain workspace settings'],
+      do:      ['Update workspace name', 'Invite a team member', 'Create a new role'],
+      suggest: ['Suggest security improvements', 'Suggest role configurations', 'Suggest notification settings'],
+      review:  ['Review security settings', 'Find inactive team members', 'Review permission setup'],
+    },
+  },
+  general: {
+    label: 'OPENY OS',
+    icon: Bot,
+    color: 'var(--accent)',
+    suggestions: {
+      ask:     ['What can you help me with?', 'Show me overdue tasks', 'Summarize my workspace'],
+      do:      ['Create a task', 'Create a client', 'Schedule a post'],
+      suggest: ['What should I focus on today?', 'Suggest a weekly plan'],
+      review:  ['Run a full quality check', 'Find missing data'],
+    },
+  },
+};
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+const ActionCard = memo(function ActionCard({ actions }: { actions: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const toggle = useCallback(() => setExpanded(v => !v), []);
+  const visible = expanded ? actions : actions.slice(0, 3);
+
+  return (
+    <div className="mt-2 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+      <div
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ background: 'var(--surface-2)' }}
+      >
+        <Zap size={12} style={{ color: 'var(--accent)' }} />
+        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          Actions Completed
+        </span>
+        {actions.length > 3 && (
+          <button
+            onClick={toggle}
+            className="ml-auto flex items-center gap-0.5 text-xs hover:opacity-70"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {expanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            {expanded ? 'Less' : `+${actions.length - 3} more`}
+          </button>
+        )}
+      </div>
+      {visible.map((action, i) => (
+        <div
+          key={i}
+          className="px-3 py-1.5 flex items-center gap-2 border-t text-xs"
+          style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+        >
+          <CheckCircle size={11} style={{ color: '#16a34a', flexShrink: 0 }} />
+          {action}
+        </div>
+      ))}
+    </div>
+  );
+});
+
+const MessageBubble = memo(function MessageBubble({ msg }: { msg: Message }) {
+  const isUser = msg.role === 'user';
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div
+          className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-br-sm text-sm"
+          style={{
+            background: 'var(--accent)',
+            color: '#fff',
+          }}
+        >
+          {msg.content}
+        </div>
+      </div>
+    );
+  }
+
+  const statusIcon = (() => {
+    if (msg.status === 'error') return <XCircle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />;
+    if (msg.status === 'clarification') return <AlertCircle size={14} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 2 }} />;
+    if (msg.status === 'success') return <CheckCircle size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />;
+    return <Bot size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />;
+  })();
+
+  return (
+    <div className="flex items-start gap-2.5">
+      <div
+        className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+        style={{ background: 'var(--accent-soft)' }}
+      >
+        {statusIcon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div
+          className="px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed"
+          style={{
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          {msg.content}
+        </div>
+        {msg.actions_taken && msg.actions_taken.length > 0 && (
+          <ActionCard actions={msg.actions_taken} />
+        )}
+        <p className="mt-1 text-[10px] pl-1" style={{ color: 'var(--text-secondary)' }}>
+          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {msg.intent && msg.intent !== 'unknown' && (
+            <span className="ml-2 opacity-60">· {msg.intent.replace(/_/g, ' ')}</span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+});
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function AiCommandCenter() {
   const { isOpen, close, mode, setMode, section, clientContext, initialPrompt } = useAi();
-  const { startBatch } = useUpload();
-  const { user } = useAuth();
-  const filePickerRef = useRef<HTMLInputElement>(null);
-  const messageEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null);
+  const [messages, setMessages]     = useState<Message[]>([]);
+  const [input, setInput]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [unconfigured, setUnconfigured] = useState(false);
+  const bottomRef                   = useRef<HTMLDivElement>(null);
+  const inputRef                    = useRef<HTMLTextAreaElement>(null);
 
-  const suggestions = useMemo(() => {
-    const base = SECTION_SUGGESTIONS[section] ?? SECTION_SUGGESTIONS.general;
-    return section === 'assets' ? [...base, 'أضف الأصول دي للعميل'] : base;
-  }, [section]);
+  const meta = SECTION_META[section];
+  const suggestions = meta.suggestions[mode] ?? meta.suggestions.ask ?? [];
 
-  const loadSessions = useCallback(async () => {
-    try {
-      const res = await fetch('/api/ai/sessions?limit=30');
-      const json = await res.json();
-      if (!res.ok || !json?.success) return;
-      setSessions((json.sessions ?? []).map((s: Record<string, unknown>) => ({
-        id: String(s.id),
-        title: String(s.title ?? 'New conversation'),
-        mode: (s.mode as AiMode) ?? 'ask',
-        section: (s.section as AppSection) ?? 'general',
-        latest_at: String(s.latest_at ?? s.created_at ?? ''),
-      })));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const loadClients = useCallback(async () => {
-    try {
-      const res = await fetch('/api/clients');
-      const json = await res.json();
-      if (!res.ok || !json?.success) return;
-      setClients((json.clients ?? []).map((c: Record<string, unknown>) => ({
-        id: String(c.id ?? ''),
-        name: String(c.name ?? ''),
-      })).filter((c: ClientOption) => c.id && c.name));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const loadSessionMessages = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/ai/sessions/${id}`);
-      const json = await res.json();
-      if (!res.ok || !json?.success) return;
-      const loaded: Message[] = (json.messages ?? []).map((m: Record<string, unknown>) => ({
-        id: String(m.id ?? genId()),
-        role: (m.role as 'user' | 'assistant') ?? 'assistant',
-        content: String(m.content ?? ''),
-        timestamp: new Date(String(m.timestamp ?? new Date().toISOString())),
-        intent: typeof m.intent === 'string' ? m.intent : undefined,
-        status: (m.status as MessageStatus) ?? undefined,
-        actionsTaken: Array.isArray(m.actions_taken) ? m.actions_taken.map(String) : undefined,
-      }));
-      setMessages(loaded);
-      setSessionId(id);
-      setShowHistory(false);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const startNewChat = useCallback(() => {
-    setMessages([]);
-    setSessionId(null);
-    setUploadDraft(null);
-    setShowHistory(false);
-    setInput('');
-  }, []);
-
+  // Cmd/Ctrl+J shortcut is handled in Header; close on Escape
   useEffect(() => {
     if (!isOpen) return;
-    void loadSessions();
-    void loadClients();
-  }, [isOpen, loadSessions, loadClients]);
+    function handler(e: KeyboardEvent) {
+      if (e.key === 'Escape') close();
+    }
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, close]);
 
+  // Pre-fill input from context
   useEffect(() => {
-    if (!isOpen) return;
-    if (initialPrompt) setInput(initialPrompt);
-    const t = setTimeout(() => textareaRef.current?.focus(), 120);
-    return () => clearTimeout(t);
+    if (isOpen && initialPrompt) {
+      setInput(initialPrompt);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
   }, [isOpen, initialPrompt]);
 
+  // Focus input on open
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, uploadDraft]);
+    if (isOpen) setTimeout(() => inputRef.current?.focus(), 150);
+  }, [isOpen]);
 
-  const contextPayload = useMemo(() => {
-    let contextualClient = clientContext;
-    if (!contextualClient?.id && typeof window !== 'undefined') {
-      const pathname = window.location.pathname;
-      if (pathname.includes('/clients/')) {
-        try {
-          const saved = window.localStorage.getItem('openy_last_client');
-          if (saved) {
-            const parsed = JSON.parse(saved) as { id?: string; name?: string; slug?: string };
-            if (parsed?.id) contextualClient = { id: parsed.id, name: parsed.name, slug: parsed.slug };
-          }
-        } catch {
-          // ignore
-        }
-      }
+  // Auto-scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const buildContextPrefix = useCallback((): string => {
+    const parts: string[] = [`[Section: ${section}]`];
+    if (clientContext?.name) parts.push(`[Client: ${clientContext.name}]`);
+    if (mode !== 'ask') parts.push(`[Mode: ${mode}]`);
+    return parts.join(' ') + ' ';
+  }, [section, clientContext, mode]);
+
+  const getModeInstruction = useCallback((): string => {
+    switch (mode) {
+      case 'do':
+        return 'Execute the following action: ';
+      case 'suggest':
+        return 'Please suggest options and next steps for: ';
+      case 'review':
+        return 'Please review and identify issues with: ';
+      default:
+        return '';
     }
-    return {
-      mode,
-      section,
-      clientContext: contextualClient ?? null,
+  }, [mode]);
+
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg: Message = {
+      id: genId(),
+      role: 'user',
+      content: trimmed,
+      timestamp: new Date(),
     };
-  }, [mode, section, clientContext]);
-
-  const invalidateAfterAction = useCallback((intent?: string) => {
-    if (!intent) return;
-    const invalidate = (key: string) => void queryClient.invalidateQueries({ queryKey: [key] });
-    if (intent.includes('task')) {
-      ['tasks', 'tasks-all', 'tasks-my', 'dashboard-stats', 'activities', 'calendar'].forEach(invalidate);
-    }
-    if (intent.includes('client')) {
-      ['clients', 'clients-list', 'clients-stats', 'dashboard-active-clients', 'activities'].forEach(invalidate);
-    }
-    if (intent.includes('project')) invalidate('projects');
-    if (intent.includes('content')) invalidate('content-items');
-    if (intent.includes('publish')) invalidate('scheduled-posts');
-  }, []);
-
-  const sendMessage = useCallback(async (rawText: string, pendingAction?: PendingAction, confirm = false) => {
-    const text = rawText.trim();
-    if (loading || (!text && !pendingAction)) return;
-
-    if (text) {
-      setMessages(prev => [...prev, {
-        id: genId(),
-        role: 'user',
-        content: text,
-        timestamp: new Date(),
-      }]);
-      setInput('');
-    }
-
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
     setLoading(true);
+
+    const contextualMessage = buildContextPrefix() + getModeInstruction() + trimmed;
+
     try {
-      const res = await fetch('/api/ai/command', {
+      let endpoint = '/api/ai/command';
+
+      // Route to specialized endpoints based on keywords
+      const lower = trimmed.toLowerCase();
+      if (
+        lower.includes('daily brief') ||
+        lower.includes('daily summary') ||
+        lower.includes('what\'s due today') ||
+        lower.includes('what is due today') ||
+        lower.includes('today\'s summary')
+      ) {
+        endpoint = '/api/ai/daily-brief';
+      } else if (
+        mode === 'review' ||
+        lower.includes('quality check') ||
+        lower.includes('find missing') ||
+        lower.includes('detect duplicates') ||
+        lower.includes('find unassigned') ||
+        lower.includes('find tasks without') ||
+        lower.includes('find content without')
+      ) {
+        endpoint = '/api/ai/quality-check';
+      }
+
+      const body = endpoint === '/api/ai/command'
+        ? { message: contextualMessage }
+        : { section, clientContext };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          session_id: sessionId,
-          context: contextPayload,
-          pending_action: pendingAction,
-          confirm_action: confirm,
-        }),
+        body: JSON.stringify(body),
       });
 
       const json = await res.json() as {
         success: boolean;
         message?: string;
-        error?: string;
-        intent?: string;
+        summary?: string;
+        brief?: string;
+        issues?: string[];
         actions_taken?: string[];
+        intent?: string;
+        data?: Record<string, unknown>;
         needs_clarification?: boolean;
         clarification_question?: string;
-        needs_confirmation?: boolean;
-        confirmation_message?: string;
-        pending_action?: PendingAction;
-        matched_clients?: Array<{ id: string; name: string; score: number }>;
-        session_id?: string;
-        open_url?: string | null;
+        error?: string;
       };
 
-      if (json.session_id) setSessionId(json.session_id);
-
-      if (json.needs_confirmation && json.pending_action) {
+      if (res.status === 503) {
+        setUnconfigured(true);
         setMessages(prev => [...prev, {
           id: genId(),
           role: 'assistant',
-          content: json.confirmation_message ?? 'Please confirm before execution.',
+          content: 'AI features are not configured. Please set GEMINI_API_KEY to enable AI capabilities.',
           timestamp: new Date(),
-          status: 'pending',
-          intent: json.intent,
-          needsConfirmation: true,
-          pendingAction: json.pending_action,
-          matchedClients: json.matched_clients,
+          status: 'error',
         }]);
-        void loadSessions();
         return;
       }
 
-      if (json.needs_clarification) {
+      if (json.needs_clarification && json.clarification_question) {
         setMessages(prev => [...prev, {
           id: genId(),
           role: 'assistant',
-          content: json.clarification_question ?? 'Could you clarify your request?',
+          content: json.clarification_question ?? 'Could you please clarify your request?',
           timestamp: new Date(),
           status: 'clarification',
-          intent: json.intent,
         }]);
-        void loadSessions();
         return;
       }
 
-      const assistantText = json.message ?? json.error ?? (json.success ? 'Done.' : 'Action failed.');
+      const content = json.message ?? json.summary ?? json.brief ?? (json.success ? 'Done.' : json.error ?? 'Something went wrong.');
+      const issueLines = json.issues?.map(i => `• ${i}`).join('\n') ?? '';
+      const fullContent = issueLines ? `${content}\n\n${issueLines}` : content;
+
       setMessages(prev => [...prev, {
         id: genId(),
         role: 'assistant',
-        content: assistantText,
+        content: fullContent,
         timestamp: new Date(),
-        status: json.success ? 'success' : 'error',
         intent: json.intent,
-        actionsTaken: json.actions_taken,
-        openUrl: json.open_url ?? null,
+        actions_taken: json.actions_taken,
+        data: json.data,
+        status: json.success ? 'success' : 'error',
       }]);
 
-      if (json.success) invalidateAfterAction(json.intent);
-      void loadSessions();
     } catch (err) {
       setMessages(prev => [...prev, {
         id: genId(),
@@ -357,398 +500,257 @@ export default function AiCommandCenter() {
     } finally {
       setLoading(false);
     }
-  }, [loading, sessionId, contextPayload, invalidateAfterAction, loadSessions]);
+  }, [loading, buildContextPrefix, getModeInstruction, section, clientContext, mode]);
 
-  const onSubmit = useCallback(async (e: FormEvent) => {
+  const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     await sendMessage(input);
-  }, [sendMessage, input]);
+  }, [input, sendMessage]);
 
-  const onPickFiles = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const fileArray = Array.from(files);
-    const language = detectLanguage(messages[messages.length - 1]?.content ?? input);
-    const inferredClient = contextPayload.clientContext?.name ?? '';
-    const inferredClientId = contextPayload.clientContext?.id ?? '';
-    setUploadDraft({
-      files: fileArray,
-      clientName: inferredClient,
-      clientId: inferredClientId,
-      mainCategory: 'social-media',
-      subCategory: SUBCATEGORIES['social-media'][0]?.slug ?? '',
-      monthKey: nowMonthKey(),
-      contentType: 'content_asset',
-    });
-    setMessages(prev => [...prev, {
-      id: genId(),
-      role: 'assistant',
-      content: language === 'ar'
-        ? `تم اختيار ${fileArray.length} ملف. أكمل البيانات ثم نفّذ الرفع.`
-        : `${fileArray.length} file(s) selected. Complete metadata and run upload.`,
-      timestamp: new Date(),
-      status: 'pending',
-    }]);
-  }, [contextPayload, input, messages]);
-
-  const runUpload = useCallback(() => {
-    if (!uploadDraft || uploadDraft.files.length === 0) return;
-    if (!uploadDraft.clientName || !uploadDraft.mainCategory || !uploadDraft.monthKey) return;
-
-    const items: InitialUploadItem[] = uploadDraft.files.map((file) => ({
-      id: genId(),
-      file,
-      previewUrl: null,
-      uploadName: fileBaseName(file.name),
-    }));
-
-    startBatch(items, {
-      clientName: uploadDraft.clientName,
-      clientId: uploadDraft.clientId,
-      contentType: uploadDraft.contentType,
-      mainCategory: uploadDraft.mainCategory,
-      subCategory: uploadDraft.subCategory,
-      monthKey: uploadDraft.monthKey,
-      uploadedBy: user?.name ?? user?.email ?? null,
-      uploadedByEmail: user?.email ?? null,
-    });
-
-    const monthLabel = uploadDraft.monthKey;
-    setMessages(prev => [...prev, {
-      id: genId(),
-      role: 'assistant',
-      content: `Upload queued. Path suggestion: ${uploadDraft.clientName} > ${uploadDraft.mainCategory} > ${monthLabel}${uploadDraft.subCategory ? ` > ${uploadDraft.subCategory}` : ''}`,
-      timestamp: new Date(),
-      status: 'success',
-      actionsTaken: ['Prepared upload batch', 'Queued files to global uploader'],
-      openUrl: '/assets',
-    }]);
-
-    setUploadDraft(null);
-    invalidateAfterAction('upload_asset');
-  }, [uploadDraft, startBatch, user, invalidateAfterAction]);
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void sendMessage(input);
+    }
+  }, [input, sendMessage]);
 
   const handleSuggestion = useCallback((s: string) => {
-    if (s.includes('ارفع') || s.toLowerCase().includes('upload')) {
-      filePickerRef.current?.click();
-      return;
-    }
     void sendMessage(s);
   }, [sendMessage]);
 
+  const handleDailyBrief = useCallback(() => {
+    void sendMessage('daily brief');
+  }, [sendMessage]);
+
+  const handleQualityCheck = useCallback(() => {
+    setMode('review');
+    void sendMessage('quality check');
+  }, [sendMessage, setMode]);
+
   if (!isOpen) return null;
 
-  const popupWidth = expanded ? 'min(860px, 96vw)' : 'min(460px, 96vw)';
-  const popupHeight = expanded ? '84vh' : '72vh';
+  const SectionIcon = meta.icon;
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={close} />
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+        onClick={close}
+      />
 
-      <section
-        className="fixed z-50 bottom-5 right-5 rounded-2xl overflow-hidden flex flex-col"
+      {/* Panel */}
+      <div
+        className="fixed top-0 right-0 h-full z-50 flex flex-col shadow-2xl"
         style={{
-          width: popupWidth,
-          height: popupHeight,
+          width: 'min(560px, 100vw)',
           background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          boxShadow: 'none',
+          borderLeft: '1px solid var(--border)',
         }}
       >
-        <header
-          className="px-4 py-3 border-b flex items-center gap-2"
+        {/* ── Header ── */}
+        <div
+          className="px-5 py-4 border-b flex items-center gap-3 shrink-0"
           style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
         >
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
-            <Sparkles size={15} style={{ color: 'var(--accent)' }} />
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: meta.color + '20' }}
+          >
+            <Sparkles size={18} style={{ color: meta.color }} />
           </div>
+
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>AI Assistant</p>
-            <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-              {loading ? 'Thinking…' : 'Ready'} · {section}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+                AI Command Center
+              </span>
+              <span
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                style={{ background: meta.color + '20', color: meta.color }}
+              >
+                <SectionIcon size={9} />
+                {meta.label}
+              </span>
+              {clientContext?.name && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                  style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  {clientContext.name}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+              Intelligent operating layer · Ask, Do, Suggest, Review
             </p>
           </div>
 
           <button
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ color: 'var(--text-secondary)' }}
-            onClick={() => setShowHistory(v => !v)}
-            title="Conversation history"
-          >
-            <MessageSquare size={14} />
-          </button>
-          <button
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ color: 'var(--text-secondary)' }}
-            onClick={() => setExpanded(v => !v)}
-            title={expanded ? 'Compact' : 'Expand'}
-          >
-            {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </button>
-          <button
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ color: 'var(--text-secondary)' }}
             onClick={close}
-            title="Close"
+            className="p-1.5 rounded-lg hover:opacity-70 transition-opacity shrink-0"
+            style={{ color: 'var(--text-secondary)' }}
+            aria-label="Close AI"
           >
-            <X size={15} />
-          </button>
-        </header>
-
-        {showHistory && (
-          <div className="border-b px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-            <button
-              onClick={startNewChat}
-              className="w-full mb-2 h-8 rounded-lg text-xs font-semibold flex items-center justify-center gap-1"
-              style={{ background: 'var(--accent)', color: '#fff' }}
-            >
-              <Plus size={12} /> New chat
-            </button>
-            <div className="max-h-28 overflow-y-auto space-y-1">
-              {sessions.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => void loadSessionMessages(s.id)}
-                  className="w-full text-left px-2 py-1.5 rounded-md text-xs"
-                  style={{
-                    background: sessionId === s.id ? 'var(--accent-soft)' : 'transparent',
-                    color: 'var(--text)',
-                    border: `1px solid ${sessionId === s.id ? 'var(--accent-glow)' : 'transparent'}`,
-                  }}
-                >
-                  <div className="truncate font-medium">{s.title || 'New conversation'}</div>
-                </button>
-              ))}
-              {sessions.length === 0 && (
-                <p className="text-xs px-1" style={{ color: 'var(--text-secondary)' }}>No conversations yet.</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="px-3 py-2 border-b flex items-center gap-1.5" style={{ borderColor: 'var(--border)' }}>
-          {(['ask', 'do', 'suggest', 'review'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase"
-              style={{
-                background: mode === m ? 'var(--accent)' : 'var(--surface-2)',
-                color: mode === m ? '#fff' : 'var(--text-secondary)',
-              }}
-            >
-              {m}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <button
-            onClick={() => filePickerRef.current?.click()}
-            className="px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-          >
-            <Upload size={11} /> Upload
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-          {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)' }}>
-                <WandSparkles size={22} style={{ color: 'var(--accent)' }} />
-              </div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>AI Assistant</p>
-              <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-                Daily assistant for OPENY OS with real actions and confirmations.
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-1.5 max-w-xs">
-                {suggestions.map((s, i) => (
-                  <button
-                    key={`${s}-${i}`}
-                    onClick={() => handleSuggestion(s)}
-                    className="px-2.5 py-1 rounded-full text-[11px]"
-                    style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg) => {
-            const isUser = msg.role === 'user';
+        {/* ── Mode Tabs ── */}
+        <div
+          className="px-4 py-2.5 border-b flex gap-1.5 shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          {MODES.map(m => {
+            const Icon = m.icon;
+            const active = mode === m.id;
             return (
-              <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                <div className="max-w-[88%]">
-                  {isUser ? (
-                    <div className="px-3 py-2 rounded-2xl rounded-br-sm text-sm" style={{ background: 'var(--accent)', color: '#fff' }}>
-                      {msg.content}
-                    </div>
-                  ) : (
-                    <div
-                      className="px-3 py-2.5 rounded-2xl rounded-tl-sm text-sm"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5">{statusIcon(msg.status)}</span>
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {!isUser && msg.needsConfirmation && msg.pendingAction && (
-                    <div className="mt-2 p-2 rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      {msg.matchedClients && msg.matchedClients.length > 0 && (
-                        <div className="mb-2 flex flex-wrap gap-1">
-                          {msg.matchedClients.map(c => (
-                            <span
-                              key={c.id}
-                              className="px-2 py-0.5 rounded-full text-[10px]"
-                              style={{ background: 'var(--accent-soft)', color: 'var(--text-secondary)' }}
-                            >
-                              {c.name} ({Math.round(c.score * 100)}%)
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex gap-1.5">
-                        <button
-                          className="flex-1 h-8 rounded-lg text-xs font-semibold"
-                          style={{ background: 'var(--accent)', color: '#fff' }}
-                          onClick={() => void sendMessage('', msg.pendingAction, true)}
-                        >
-                          نفّذ الآن
-                        </button>
-                        <button
-                          className="flex-1 h-8 rounded-lg text-xs font-semibold"
-                          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                          onClick={() => setInput(msg.content)}
-                        >
-                          تعديل
-                        </button>
-                        <button
-                          className="flex-1 h-8 rounded-lg text-xs font-semibold"
-                          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-                          onClick={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
-                        >
-                          إلغاء
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!isUser && msg.actionsTaken && msg.actionsTaken.length > 0 && (
-                    <div className="mt-2 p-2 rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      {msg.actionsTaken.map((action, i) => (
-                        <p key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>• {action}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {!isUser && msg.openUrl && (
-                    <button
-                      className="mt-2 px-2.5 h-7 rounded-lg text-xs font-semibold inline-flex items-center gap-1"
-                      style={{ background: 'var(--surface-2)', color: 'var(--accent)' }}
-                      onClick={() => window.location.assign(msg.openUrl!)}
-                    >
-                      Open <ExternalLink size={11} />
-                    </button>
-                  )}
-                </div>
-              </div>
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                title={m.description}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: active ? '#fff' : 'var(--text-secondary)',
+                  border: active ? '1px solid var(--accent)' : '1px solid transparent',
+                }}
+              >
+                <Icon size={12} />
+                {m.label}
+              </button>
             );
           })}
 
-          {uploadDraft && (
-            <div className="p-2.5 rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text)' }}>
-                Upload Assistant · {uploadDraft.files.length} file(s)
-              </p>
+          <div className="flex-1" />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                <select
-                  value={uploadDraft.clientId}
-                  onChange={(e) => {
-                    const selected = clients.find(c => c.id === e.target.value);
-                    setUploadDraft(prev => prev ? { ...prev, clientId: e.target.value, clientName: selected?.name ?? '' } : prev);
-                  }}
-                  className="h-8 px-2 rounded-lg text-xs"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                >
-                  <option value="">Select client</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+          {/* Quick actions */}
+          <button
+            onClick={handleDailyBrief}
+            disabled={loading}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:opacity-80 disabled:opacity-40"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+            title="Generate daily brief"
+          >
+            <Calendar size={11} />
+            Brief
+          </button>
 
-                <select
-                  value={uploadDraft.mainCategory}
-                  onChange={(e) => {
-                    const main = e.target.value;
-                    const firstSub = SUBCATEGORIES[main as keyof typeof SUBCATEGORIES]?.[0]?.slug ?? '';
-                    setUploadDraft(prev => prev ? { ...prev, mainCategory: main, subCategory: firstSub } : prev);
-                  }}
-                  className="h-8 px-2 rounded-lg text-xs"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                >
-                  {MAIN_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
-                </select>
-
-                <select
-                  value={uploadDraft.subCategory}
-                  onChange={(e) => setUploadDraft(prev => prev ? { ...prev, subCategory: e.target.value } : prev)}
-                  className="h-8 px-2 rounded-lg text-xs"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                >
-                  <option value="">General</option>
-                  {(SUBCATEGORIES[uploadDraft.mainCategory as keyof typeof SUBCATEGORIES] ?? []).map(s => (
-                    <option key={s.slug} value={s.slug}>{s.label}</option>
-                  ))}
-                </select>
-
-                <input
-                  value={uploadDraft.monthKey}
-                  onChange={(e) => setUploadDraft(prev => prev ? { ...prev, monthKey: e.target.value } : prev)}
-                  className="h-8 px-2 rounded-lg text-xs"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                  placeholder="YYYY-MM"
-                />
-              </div>
-
-              <div className="flex gap-1.5">
-                <button
-                  className="flex-1 h-8 rounded-lg text-xs font-semibold"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
-                  onClick={runUpload}
-                  disabled={!uploadDraft.clientName || !uploadDraft.mainCategory}
-                >
-                  ارفع الملفات
-                </button>
-                <button
-                  className="flex-1 h-8 rounded-lg text-xs font-semibold"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-                  onClick={() => setUploadDraft(null)}
-                >
-                  إلغاء
-                </button>
-              </div>
-            </div>
-          )}
-
-          {loading && (
-            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              <Loader2 size={13} className="animate-spin" /> Processing...
-            </div>
-          )}
-
-          <div ref={messageEndRef} />
+          <button
+            onClick={handleQualityCheck}
+            disabled={loading}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:opacity-80 disabled:opacity-40"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+            title="Run quality check"
+          >
+            <ClipboardList size={11} />
+            QC
+          </button>
         </div>
 
+        {/* ── Messages ── */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center pb-8">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                style={{ background: meta.color + '15' }}
+              >
+                <Sparkles size={26} style={{ color: meta.color }} />
+              </div>
+              <p className="text-base font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                AI Command Center
+              </p>
+              <p className="text-xs max-w-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {MODES.find(m => m.id === mode)?.description ?? 'How can I help you today?'}
+              </p>
+
+              {/* Suggestion chips */}
+              {suggestions.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2 justify-center max-w-sm">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestion(s)}
+                      disabled={loading}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80 disabled:opacity-40 text-left"
+                      style={{
+                        background: 'var(--surface-2)',
+                        color: 'var(--text)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {unconfigured && (
+                <div
+                  className="mt-4 px-4 py-3 rounded-xl text-xs max-w-xs"
+                  style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}
+                >
+                  AI is not configured. Set GEMINI_API_KEY to enable AI features.
+                </div>
+              )}
+            </div>
+          )}
+
+          {messages.map(msg => (
+            <MessageBubble key={msg.id} msg={msg} />
+          ))}
+
+          {loading && (
+            <div className="flex items-start gap-2.5">
+              <div
+                className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: 'var(--accent-soft)' }}
+              >
+                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
+              </div>
+              <div
+                className="px-4 py-3 rounded-2xl rounded-tl-sm text-sm"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                <span className="inline-flex gap-1 items-center">
+                  <span className="animate-pulse">Thinking</span>
+                  <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                  <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                  <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* ── Suggestion chips (when messages exist) ── */}
         {messages.length > 0 && (
-          <div className="px-3 py-2 border-t flex gap-1.5 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
-            {suggestions.slice(0, 4).map((s, i) => (
+          <div
+            className="px-4 py-2 border-t flex gap-1.5 overflow-x-auto shrink-0"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            {suggestions.slice(0, 3).map((s, i) => (
               <button
-                key={`${s}-${i}`}
+                key={i}
                 onClick={() => handleSuggestion(s)}
-                className="px-2 py-1 rounded-full text-[11px] whitespace-nowrap"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                disabled={loading}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0 transition-all hover:opacity-80 disabled:opacity-40"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                }}
               >
                 {s}
               </button>
@@ -756,61 +758,61 @@ export default function AiCommandCenter() {
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-end gap-2 p-2 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-            <button
-              type="button"
-              onClick={() => filePickerRef.current?.click()}
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
-            >
-              <Upload size={14} />
-            </button>
+        {/* ── Input ── */}
+        <form
+          onSubmit={handleSubmit}
+          className="px-4 py-3 border-t shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div
+            className="flex items-end gap-2 px-3 py-2 rounded-2xl"
+            style={{
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border)',
+            }}
+          >
             <textarea
-              ref={textareaRef}
+              ref={inputRef}
               rows={1}
               value={input}
-              onChange={(e) => {
+              onChange={e => {
                 setInput(e.target.value);
+                // Auto-resize
                 e.target.style.height = 'auto';
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void sendMessage(input);
-                }
-              }}
-              placeholder="اكتب طلبك…"
-              className="flex-1 bg-transparent text-sm resize-none outline-none max-h-[120px] min-h-[34px]"
-              style={{ color: 'var(--text)' }}
+              onKeyDown={handleKeyDown}
               disabled={loading}
+              placeholder={
+                mode === 'do'
+                  ? 'Tell me what to do…'
+                  : mode === 'suggest'
+                  ? 'What would you like suggestions for?'
+                  : mode === 'review'
+                  ? 'What should I review?'
+                  : 'Ask anything…'
+              }
+              className="flex-1 bg-transparent text-sm resize-none outline-none leading-relaxed min-h-[36px] max-h-[120px]"
+              style={{ color: 'var(--text)' }}
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--accent)', color: '#fff', opacity: loading || !input.trim() ? 0.45 : 1 }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 shrink-0"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+              aria-label="Send"
             >
-              <Send size={14} />
+              {loading
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Send size={14} />
+              }
             </button>
           </div>
-          <p className="text-[10px] text-center mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Enter to send · Shift+Enter newline · confirmations enabled
+          <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--text-secondary)' }}>
+            Enter to send · Shift+Enter for new line · Cmd+J to toggle
           </p>
         </form>
-
-        <input
-          ref={filePickerRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            onPickFiles(e.target.files);
-            e.currentTarget.value = '';
-          }}
-        />
-      </section>
+      </div>
     </>
   );
 }

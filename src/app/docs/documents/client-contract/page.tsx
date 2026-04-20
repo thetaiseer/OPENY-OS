@@ -173,8 +173,8 @@ function BackupModal({ module, onClose, onRestore }: {
     setBackups(b => b.filter(x => x.id !== id));
   }
   return (
-    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="openy-modal-panel rounded-2xl p-6 w-full max-w-md my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Restore Backup</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
@@ -251,7 +251,7 @@ function HistoryPanel({ contracts, loading, onEdit, onDuplicate, onDelete, onRel
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5"><span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{c.contract_number}</span><span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[var(--surface-2)]" style={{ color: 'var(--text-secondary)' }}>{c.status}</span></div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{c.party2_client_name ?? '—'} · {c.contract_date ?? '—'}</div>
-                <div className="text-xs font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>{fmt(c.total_value, c.currency)}</div>
+                <div className="text-xs font-semibold mt-0.5" style={{ color: '#0891b2' }}>{fmt(c.total_value, c.currency)}</div>
                 <a href={`/api/docs/client-contracts/${c.id}/export`} download onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-[10px] font-medium mt-1 hover:underline" style={{ color: 'var(--text-secondary)' }}>
                   <ExternalLink size={9} /> HTML Doc
                 </a>
@@ -524,7 +524,7 @@ export default function ClientContractPage() {
           <button onClick={exportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => { const html = document.getElementById('client-contract-preview')?.outerHTML ?? ''; const blob = new Blob([`<html><body>${html}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${form.contract_number}.doc`; a.click(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
-        <div className="bg-white rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+        <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
           <ContractPreview form={form} />
         </div>
       </div>

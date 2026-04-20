@@ -546,12 +546,13 @@ export default function NewTaskModal({
 
   return (
     <div
-      className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="openy-modal-panel w-full max-w-2xl rounded-2xl flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
-        style={{ animation: 'openy-modal-in 280ms var(--ease-spring) both' }}
+        className="w-full max-w-2xl rounded-2xl border shadow-2xl flex flex-col"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '92vh' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>

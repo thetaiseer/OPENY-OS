@@ -37,10 +37,11 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
   const [error,   setError]   = useState<string | null>(null);
 
   const inputClass =
-    'openy-field w-full h-10 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all';
+    'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all';
   const inputStyle: React.CSSProperties = {
+    background: 'var(--surface)',
     color:      'var(--text)',
-    border:     '1px solid var(--border)',
+    border:     '1.5px solid var(--border)',
   };
 
   const handleSave = async () => {
@@ -93,20 +94,23 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
   return (
     /* Backdrop — sits on top of UploadModal (z-50) */
     <div
-      className="openy-modal-overlay fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onCancel}
     >
       <div
-        className="openy-modal-panel openy-modal-shell w-full max-w-sm rounded-2xl flex flex-col max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
+        className="w-full max-w-sm rounded-2xl border shadow-2xl flex flex-col"
         style={{
-          animation: 'openy-modal-in 280ms var(--ease-spring) both',
+          background:  'var(--surface)',
+          borderColor: 'var(--border)',
+          maxHeight:   '90vh',
         }}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
         <div
-          className="openy-modal-header flex items-start justify-between px-5 py-3.5 border-b shrink-0"
+          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2">
@@ -118,15 +122,15 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
           <button
             type="button"
             onClick={onCancel}
-            className="btn-icon openy-modal-close"
-            style={{ color: 'var(--text-secondary)' }}
+            className="flex items-center justify-center w-7 h-7 rounded-lg hover:opacity-70 transition-opacity"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
           >
             <X size={14} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="openy-modal-body flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
           {/* Error */}
           {error && (
             <div
@@ -205,10 +209,11 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
               placeholder="Any notes about this client..."
               rows={2}
               disabled={saving}
-              className="openy-field w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all resize-none"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all resize-none"
               style={{
+                background: 'var(--surface)',
                 color:      'var(--text)',
-                border:     '1px solid var(--border)',
+                border:     '1.5px solid var(--border)',
               }}
             />
           </div>
@@ -216,15 +221,19 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
 
         {/* Footer */}
         <div
-          className="openy-modal-header flex items-center gap-2.5 px-5 py-3.5 border-t shrink-0"
+          className="flex items-center gap-2.5 px-5 py-4 border-t shrink-0"
           style={{ borderColor: 'var(--border)' }}
-          data-modal-footer="true"
         >
           <button
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="btn-secondary flex-1 h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+            className="flex-1 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+            style={{
+              background: 'var(--surface-2)',
+              color:      'var(--text)',
+              border:     '1px solid var(--border)',
+            }}
           >
             Cancel
           </button>
@@ -232,7 +241,8 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
             type="button"
             onClick={() => void handleSave()}
             disabled={saving || !name.trim()}
-            className="btn-primary flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 h-9 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ background: 'var(--accent)' }}
           >
             {saving ? (
               <><Loader2 size={14} className="animate-spin" /> Saving...</>

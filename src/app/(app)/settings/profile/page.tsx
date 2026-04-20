@@ -171,7 +171,7 @@ function R2StorageCard() {
 
 export default function SettingsProfilePage() {
   const { user, role, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -218,24 +218,15 @@ export default function SettingsProfilePage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Theme</p>
-            <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>Currently: {theme}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Currently: {theme}</p>
           </div>
-          <div className="flex items-center gap-1.5">
-            {(['light', 'dark', 'dim'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTheme(t)}
-                className="h-8 px-3 rounded-lg text-xs font-medium capitalize transition-colors"
-                style={{
-                  background: theme === t ? 'var(--accent-soft)' : 'var(--surface-2)',
-                  color: theme === t ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${theme === t ? 'var(--accent-glow)' : 'var(--border)'}`,
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={toggleTheme}
+            className="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          >
+            Switch to {theme === 'light' ? 'Dark' : 'Light'}
+          </button>
         </div>
         <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <div>

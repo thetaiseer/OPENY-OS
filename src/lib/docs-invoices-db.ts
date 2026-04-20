@@ -117,35 +117,6 @@ export function mapInvoiceDbError(
   return fallbackMessage;
 }
 
-const INVOICE_ROOT_FIELDS = [
-  'invoice_number',
-  'client_name',
-  'campaign_month',
-  'invoice_date',
-  'total_budget',
-  'final_budget',
-  'our_fees',
-  'grand_total',
-  'currency',
-  'status',
-  'custom_client',
-  'custom_project',
-  'notes',
-  'client_profile_id',
-] as const;
-
-type InvoiceRootField = typeof INVOICE_ROOT_FIELDS[number];
-
-export function pickInvoiceRootPayload(source: Record<string, unknown>) {
-  const payload: Partial<Record<InvoiceRootField, unknown>> = {};
-  INVOICE_ROOT_FIELDS.forEach((field) => {
-    const value = source[field];
-    if (typeof value === 'undefined') return;
-    payload[field] = value;
-  });
-  return payload;
-}
-
 export async function hydrateInvoiceBranchGroups(
   db: SupabaseClient,
   invoices: Array<{ id: string; branch_groups?: unknown }>,

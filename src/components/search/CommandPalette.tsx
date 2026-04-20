@@ -256,13 +256,14 @@ export default function CommandPalette({
     <>
       {/* Backdrop */}
       <div
-        className="openy-modal-overlay fixed inset-0 z-[500]"
+        className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div
-        className="openy-modal-panel fixed z-[510] top-[15vh] left-1/2 -translate-x-1/2 w-full max-w-xl rounded-2xl overflow-hidden animate-openy-slide-up"
+        className="fixed z-[510] top-[15vh] left-1/2 -translate-x-1/2 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         {/* Search input */}
         <div
@@ -326,8 +327,8 @@ export default function CommandPalette({
                     onClick={action.action}
                     onMouseEnter={() => setActiveIdx(globalIdx)}
                     className={clsx(
-                      'openy-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-left',
-                      isActive ? 'openy-menu-item-active' : '',
+                      'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                      isActive ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--surface-2)]',
                     )}
                   >
                     <div
