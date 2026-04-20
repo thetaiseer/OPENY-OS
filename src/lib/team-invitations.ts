@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { upsertWorkspaceMembershipsWithFallback, type WorkspaceMembershipUpsertPayload } from '@/lib/workspace-membership-upsert';
 import { notifyMemberJoined } from '@/lib/notification-service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -89,6 +90,8 @@ export function validateInvitationState(
 }
 
 type WorkspaceGrant = { workspace: WorkspaceKey; role: 'owner' | 'admin' | 'member' | 'viewer' };
+type WorkspaceMemberInsertRow = { workspace_id: string; user_id: string; role: 'owner' | 'admin' | 'member' };
+type WorkspaceRow = { id: string; slug: string | null; name: string | null };
 
 function normalizeWorkspaceMemberRole(role: string): 'owner' | 'admin' | 'member' {
   if (role === 'owner') return 'owner';
@@ -143,6 +146,42 @@ function resolveWorkspaceGrants(invitation: ResolvedInvitation): WorkspaceGrant[
       : fallbackRole;
     return { workspace, role };
   });
+}
+
+function resolveWorkspaceKeyFromName(name: string | null | undefined): WorkspaceKey | null {
+  if (!name) return null;
+  const normalized = name.trim().toLowerCase();
+  if (normalized === 'os' || normalized === 'openy os') return 'os';
+  if (normalized === 'docs' || normalized === 'openy docs') return 'docs';
+  return null;
+}
+
+function resolveWorkspaceIdByKey(workspaces: WorkspaceRow[], workspaceKey: WorkspaceKey): string | null {
+  const slugMatch = workspaces.find(workspace => normalizeWorkspaceKey(workspace.slug) === workspaceKey);
+  if (slugMatch?.id) return slugMatch.id;
+
+  const nameMatch = workspaces.find(workspace => resolveWorkspaceKeyFromName(workspace.name) === workspaceKey);
+  if (nameMatch?.id) return nameMatch.id;
+
+  if (workspaces.length === 1) return workspaces[0].id;
+  return null;
+}
+
+function workspaceMemberRoleRank(role: WorkspaceMemberInsertRow['role']): number {
+  if (role === 'owner') return 3;
+  if (role === 'admin') return 2;
+  return 1;
+}
+
+function toLegacyWorkspaceMemberRole(role: WorkspaceMemberInsertRow['role']): 'admin' | 'manager' | 'team_member' {
+  if (role === 'owner') return 'admin';
+  if (role === 'admin') return 'admin';
+  return 'team_member';
+}
+
+function shouldRetryWorkspaceMemberInsertWithLegacyRoles(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes('workspace_members_role_check') || lower.includes('violates check constraint');
 }
 
 async function getRequestUserId(request: NextRequest): Promise<string | null> {
@@ -300,20 +339,20 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   const workspaceKeys = [...new Set(grants.map(grant => grant.workspace))];
   const { data: workspaceRows, error: workspaceRowsError } = await db
     .from('workspaces')
-    .select('id, slug')
-    .in('slug', workspaceKeys);
+    .select('id, slug, name');
 
   if (workspaceRowsError) {
     console.error('[invitations/accept] Failed to resolve workspace ids:', workspaceRowsError.message);
     return { ok: false as const, status: 500, body: { error: workspaceRowsError.message } };
   }
 
-  const workspaceIdByKey = new Map<string, string>();
-  for (const row of workspaceRows ?? []) {
-    if (row.slug && row.id) workspaceIdByKey.set(row.slug, row.id);
+  const workspaceIdByKey = new Map<WorkspaceKey, string>();
+  for (const workspaceKey of workspaceKeys) {
+    const workspaceId = resolveWorkspaceIdByKey((workspaceRows ?? []) as WorkspaceRow[], workspaceKey);
+    if (workspaceId) workspaceIdByKey.set(workspaceKey, workspaceId);
   }
 
-  const membersToInsert = grants
+  const rawMembersToInsert = grants
     .map(grant => {
       const workspaceId = workspaceIdByKey.get(grant.workspace);
       if (!workspaceId) return null;
@@ -323,7 +362,16 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
         role: normalizeWorkspaceMemberRole(grant.role),
       };
     })
-    .filter((row): row is { workspace_id: string; user_id: string; role: 'owner' | 'admin' | 'member' } => Boolean(row));
+    .filter((row): row is WorkspaceMemberInsertRow => Boolean(row));
+
+  const membersByWorkspaceId = new Map<string, WorkspaceMemberInsertRow>();
+  for (const row of rawMembersToInsert) {
+    const existing = membersByWorkspaceId.get(row.workspace_id);
+    if (!existing || workspaceMemberRoleRank(row.role) > workspaceMemberRoleRank(existing.role)) {
+      membersByWorkspaceId.set(row.workspace_id, row);
+    }
+  }
+  const membersToInsert = [...membersByWorkspaceId.values()];
 
   if (membersToInsert.length === 0) {
     console.error('[invitations/accept] No target workspace_members rows could be resolved from invitation grants:', grants);
@@ -338,7 +386,20 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     .from('workspace_members')
     .upsert(membersToInsert, { onConflict: 'workspace_id,user_id' });
 
-  if (workspaceMemberInsertError) {
+  if (workspaceMemberInsertError && shouldRetryWorkspaceMemberInsertWithLegacyRoles(workspaceMemberInsertError.message)) {
+    const legacyMembersToInsert = membersToInsert.map(member => ({
+      workspace_id: member.workspace_id,
+      user_id: member.user_id,
+      role: toLegacyWorkspaceMemberRole(member.role),
+    }));
+    const { error: legacyInsertError } = await db
+      .from('workspace_members')
+      .upsert(legacyMembersToInsert, { onConflict: 'workspace_id,user_id' });
+    if (legacyInsertError) {
+      console.error('[invitations/accept] Failed to insert workspace_members rows (legacy retry):', legacyInsertError.message);
+      return { ok: false as const, status: 500, body: { error: legacyInsertError.message } };
+    }
+  } else if (workspaceMemberInsertError) {
     console.error('[invitations/accept] Failed to insert workspace_members rows:', workspaceMemberInsertError.message);
     return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError.message } };
   }
@@ -348,6 +409,33 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     userId: resolvedAuthUserId,
     workspaces: membersToInsert.map(member => `${member.workspace_id}:${member.role}`),
   });
+
+  const membershipRowsByKey = new Map<WorkspaceKey, WorkspaceMembershipUpsertPayload>();
+  for (const grant of grants) {
+    const existing = membershipRowsByKey.get(grant.workspace);
+    if (!existing || workspaceMemberRoleRank(normalizeWorkspaceMemberRole(grant.role)) > workspaceMemberRoleRank(normalizeWorkspaceMemberRole(existing.role))) {
+      membershipRowsByKey.set(grant.workspace, {
+        user_id: resolvedAuthUserId,
+        workspace_key: grant.workspace,
+        role: grant.role,
+        is_active: true,
+      });
+    }
+  }
+  const membershipWriteResult = await upsertWorkspaceMembershipsWithFallback(
+    db,
+    [...membershipRowsByKey.values()],
+    'invitations/accept',
+  );
+  if (!membershipWriteResult.ok) {
+    const message = membershipWriteResult.error;
+    if (/relation .*workspace_memberships.* does not exist/i.test(message)) {
+      console.warn('[invitations/accept] workspace_memberships table missing, skipped sync:', message);
+    } else {
+      console.error('[invitations/accept] Failed to upsert workspace_memberships rows:', message);
+      return { ok: false as const, status: 500, body: { error: message } };
+    }
+  }
 
   const { error: invitationUpdateError } = await db
     .from('team_invitations')
