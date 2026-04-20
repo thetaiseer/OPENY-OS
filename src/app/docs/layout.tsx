@@ -69,7 +69,6 @@ function DocsLayoutInner({ children }: { children: React.ReactNode }) {
         workspaceClassName="docs-workspace"
         sidebar={<DocsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
         topbar={<AppTopbar onMenuClick={() => setSidebarOpen(true)} />}
-        mainClassName="docs-main"
         containerClassName="docs-shell-container"
       >
         <AppPage fill>{children}</AppPage>

@@ -148,7 +148,7 @@ export default function SelectDropdown({
                 className={`openy-menu-item flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium ${active ? 'openy-menu-item-active' : ''}`}
               >
                 <span className="truncate">{option.label}</span>
-                {active ? <Check size={14} style={{ color: 'var(--accent)' }} /> : null}
+                {active ? <Check size={14} style={{ color: 'var(--accent-primary)' }} /> : null}
               </button>
             );
           })}

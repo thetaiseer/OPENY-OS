@@ -3,14 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
-import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import clsx from 'clsx';
-import { useState } from 'react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 import { useAuth } from '@/lib/auth-context';
 import AccountMenu from './AccountMenu';
-import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 export interface AppSidebarItem {
   href: string;
@@ -19,15 +17,8 @@ export interface AppSidebarItem {
   icon: LucideIcon;
 }
 
-export interface AppSidebarGroup {
-  label?: string;
-  items: AppSidebarItem[];
-}
-
 interface AppSidebarProps {
-  items?: AppSidebarItem[];
-  groups?: AppSidebarGroup[];
-  bottomItems?: AppSidebarItem[];
+  items: AppSidebarItem[];
   open?: boolean;
   onClose?: () => void;
   workspaceTag: string;
@@ -37,93 +28,76 @@ interface AppSidebarProps {
 
 export default function AppSidebar({
   items,
-  groups,
-  bottomItems,
   open,
   onClose,
+  workspaceTag,
   variant = 'os',
   profile = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
-  const [collapsed, setCollapsed] = useState(false);
-  const slim = collapsed && !open;
-
-  const resolvedGroups: AppSidebarGroup[] = groups ?? (items ? [{ items }] : []);
-
-  function isActive(item: AppSidebarItem) {
-    return pathname === item.href || (item.base !== '/os/dashboard' && pathname.startsWith(item.base));
-  }
-
-  function NavItem({ item }: { item: AppSidebarItem }) {
-    const active = isActive(item);
-
-    return (
-      <Link href={item.href} onClick={onClose} className={clsx('os-nav-item', active && 'is-active')} title={item.label}>
-        <span className="os-nav-item-icon">
-          <item.icon size={16} strokeWidth={1.6} aria-hidden="true" />
-        </span>
-        {!slim ? <span>{item.label}</span> : null}
-      </Link>
-    );
-  }
 
   return (
     <>
-      {open ? <button type="button" className="os-sidebar-overlay" onClick={onClose} aria-label="Close navigation overlay" /> : null}
+      {open ? <div className="app-sidebar-backdrop fixed inset-0 z-30 lg:hidden" onClick={onClose} /> : null}
 
-      <aside className={clsx('os-sidebar', open && 'is-open', slim && 'is-slim')}>
-        <div className="os-sidebar-header">
-          <Link href={dashboardHref} onClick={onClose} className="os-sidebar-brand">
-            {slim ? <span className="os-sidebar-brand-mini">{variant === 'docs' ? 'D' : 'O'}</span> : <OpenyLogo width={88} height={24} />}
-          </Link>
-
-          <div className="os-sidebar-controls">
-            <button
-              type="button"
-              onClick={() => setCollapsed(value => !value)}
-              className="os-icon-button os-sidebar-collapse"
-              aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-            >
-              {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-            </button>
-            {onClose ? (
-              <button type="button" onClick={onClose} className="os-icon-button os-sidebar-close" aria-label="Close sidebar">
-                <X size={15} />
-              </button>
-            ) : null}
+      <aside
+        className={clsx(
+          'app-sidebar-panel app-sidebar-shell sidebar-glass fixed left-0 top-0 z-40 flex h-full w-[88vw] max-w-[328px] flex-col transition-transform duration-300 lg:static lg:z-auto lg:h-auto lg:w-[280px] lg:translate-x-0',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
+        <div className="app-sidebar-header">
+          <div className="min-w-0">
+            <Link href={dashboardHref} onClick={onClose} className="inline-flex items-center">
+              <OpenyLogo width={102} height={28} />
+            </Link>
+            <div className={clsx('app-sidebar-tag mt-3 inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.16em]', variant === 'docs' && 'app-sidebar-tag-docs')}>
+              {workspaceTag}
+            </div>
+            <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Workspace navigation</p>
           </div>
+          {onClose ? (
+            <button type="button" onClick={onClose} className="btn-icon lg:hidden" aria-label="Close sidebar">
+              <X size={16} />
+            </button>
+          ) : null}
         </div>
 
-        {!slim ? <div className="os-sidebar-switcher"><WorkspaceSwitcher /></div> : null}
-
-        <nav className="os-nav-groups">
-          {resolvedGroups.map((group, groupIndex) => (
-            <div key={groupIndex} className="os-nav-group">
-              {group.label && !slim ? <p className="os-nav-group-label">{group.label}</p> : null}
-              {group.items.map(item => <NavItem key={item.href} item={item} />)}
-            </div>
-          ))}
-
-          {bottomItems && bottomItems.length > 0 ? (
-            <div className="os-nav-group os-nav-group--bottom">
-              {bottomItems.map(item => <NavItem key={item.href} item={item} />)}
-            </div>
-          ) : null}
+        <nav className="app-sidebar-nav flex-1 space-y-2 overflow-y-auto p-3">
+          {items.map(({ href, base, icon: Icon, label }) => {
+            const active = pathname === href || (base !== '/os/dashboard' && pathname.startsWith(base));
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                className={clsx(
+                  'app-sidebar-item flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all',
+                  active ? 'nav-item-active' : 'text-[var(--text-secondary)]',
+                )}
+              >
+                <span className={clsx('app-sidebar-icon-wrap inline-flex h-9 w-9 items-center justify-center rounded-xl', active && 'app-sidebar-icon-wrap-active')}>
+                  <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: active ? 'var(--accent-secondary)' : 'currentColor' }} />
+                </span>
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         {profile && user ? (
-          <div className="os-sidebar-profile">
+          <div className="app-sidebar-user">
             <AccountMenu placement="sidebar">
-              <div className="os-profile-trigger">
-                <div className="os-profile-avatar">{(user.name || user.email || 'U').charAt(0).toUpperCase()}</div>
-                {!slim ? (
-                  <div className="os-profile-meta">
-                    <p>{user.name || user.email}</p>
-                    <p>{user.role}</p>
-                  </div>
-                ) : null}
+              <div className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-[var(--surface-2)]">
+                <div className="h-8 w-8 rounded-full bg-[var(--accent)] text-xs font-bold text-white inline-flex items-center justify-center">
+                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{user.name || user.email}</p>
+                  <p className="truncate text-xs text-[var(--text-secondary)]">{user.role}</p>
+                </div>
               </div>
             </AccountMenu>
           </div>

@@ -591,23 +591,6 @@ export default function ClientsPage() {
                   )}
                 </div>
 
-                <div className="mb-4 flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border-2)', background: 'rgba(255,255,255,0.02)' }}>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-                    Client Signature
-                  </span>
-                  <div className="flex -space-x-2">
-                    {[0, 1, 2].map(avatarIndex => (
-                      <span
-                        key={avatarIndex}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold"
-                        style={{ borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(0,123,255,0.2)', color: 'var(--text-primary)' }}
-                      >
-                        {`${(client.name ?? 'C').charAt(0).toUpperCase()}${avatarIndex + 1}`}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="mt-auto grid grid-cols-3 gap-2 opacity-90 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <Link
                     href={overviewHref ?? '/clients'}
@@ -754,7 +737,7 @@ export default function ClientsPage() {
       )}
 
       {warnMsg && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'var(--border-strong)', boxShadow: 'none', color: 'var(--text)' }}>
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(245,158,11,0.35)', boxShadow: 'none', color: 'var(--text)' }}>
           <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-warning)' }} />
           <span className="flex-1">{warnMsg}</span>
           <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
@@ -764,7 +747,7 @@ export default function ClientsPage() {
       )}
 
       {successMsg && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'var(--accent-glow)', boxShadow: 'none', color: 'var(--text)' }}>
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium animate-openy-toast-in" style={{ background: 'var(--surface)', borderColor: 'rgba(16,185,129,0.35)', boxShadow: 'none', color: 'var(--text)' }}>
           <AlertCircle size={16} className="shrink-0" style={{ color: 'var(--color-success)' }} />
           <span className="flex-1">{successMsg}</span>
           <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
@@ -776,7 +759,7 @@ export default function ClientsPage() {
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setSaveError(null); }} title={t('newClient')}>
         <form onSubmit={handleSave} className="space-y-4">
           {saveError && (
-            <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+            <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <span>{saveError}</span>
             </div>

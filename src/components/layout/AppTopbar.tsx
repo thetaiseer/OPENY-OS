@@ -10,7 +10,9 @@ import NotificationDropdown from '@/components/notifications/NotificationDropdow
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useCommandPalette } from '@/lib/command-palette-context';
 import { useAi } from '@/lib/ai-context';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref, getWorkspaceFromPathname } from '@/lib/workspace-navigation';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 import AccountMenu from './AccountMenu';
 import ThemeSwitcher from './ThemeSwitcher';
 
@@ -21,7 +23,7 @@ interface AppTopbarProps {
 const WORKSPACE_SEGMENTS = new Set(['os', 'docs']);
 
 function formatBreadcrumbLabel(segment: string) {
-  return decodeURIComponent(segment).replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return decodeURIComponent(segment).replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
@@ -32,14 +34,11 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const { toggleLang } = useLang();
   const { user } = useAuth();
   const { open: openPalette } = useCommandPalette();
-  const { open: openAi } = useAi();
+  const { open: openAi, isOpen: aiOpen } = useAi();
 
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split('/').filter(Boolean);
-    return segments
-      .filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment)))
-      .map(formatBreadcrumbLabel)
-      .slice(0, 4);
+    return segments.filter((segment, index) => !(index === 0 && WORKSPACE_SEGMENTS.has(segment))).map(formatBreadcrumbLabel).slice(0, 4);
   }, [pathname]);
 
   useEffect(() => {
@@ -49,70 +48,115 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         openPalette();
       }
     };
-
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [openPalette]);
 
+  function renderUtilityMenu(closeMenu: () => void, includeNavigation: boolean) {
+    return (
+      <div className="space-y-2">
+        {includeNavigation ? (
+          <button type="button" onClick={() => { closeMenu(); onMenuClick?.(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
+            <Menu size={15} /> Open navigation
+          </button>
+        ) : null}
+        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
+          <WorkspaceSwitcher />
+        </div>
+        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
+          <ThemeSwitcher />
+        </div>
+        <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)' }}>
+          <NotificationDropdown />
+        </div>
+        <button type="button" onClick={() => { toggleLang(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
+          <Globe size={15} /> Language
+        </button>
+        <button type="button" onClick={() => { openAi(); closeMenu(); }} className="openy-menu-item flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm">
+          <Sparkles size={15} /> AI Command Center
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <header className="os-topbar">
-      <div className="os-topbar-left">
-        <button type="button" onClick={onMenuClick} className="os-icon-button os-mobile-only" aria-label="Open navigation">
-          <Menu size={17} />
+    <header className="app-topbar app-topbar-shell header-glass sticky top-0 z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:px-3 sm:py-2.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <AccountMenu
+          placement="header"
+          panelClassName="sm:hidden right-auto left-0"
+          menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, true)}
+          triggerAriaLabel="Open mobile quick menu"
+        >
+          <div className="topbar-icon-btn sm:hidden">
+            <Menu size={18} />
+          </div>
+        </AccountMenu>
+
+        <button type="button" onClick={onMenuClick} className="topbar-icon-btn hidden sm:inline-flex lg:hidden" aria-label="Open menu">
+          <Menu size={18} />
         </button>
 
-        <Link href={dashboardHref} className="os-topbar-brand">
-          {workspaceLabel}
+        <Link href={dashboardHref} className="inline-flex items-center gap-1.5 sm:mr-2">
+          <OpenyLogo width={82} height={24} />
+          <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--text-secondary)]">{workspaceLabel}</span>
         </Link>
-
-        <div className="os-breadcrumbs">
-          {breadcrumbs.map((crumb, index) => (
-            <span key={`${crumb}-${index}`}>
-              <ChevronRight size={11} />
-              <span>{crumb}</span>
-            </span>
-          ))}
-        </div>
       </div>
 
-      <div className="os-topbar-search">
+      <div className="topbar-breadcrumb hidden min-w-0 flex-1 lg:flex">
+        <span className="font-semibold">{workspaceLabel}</span>
+        {breadcrumbs.map((crumb, index) => (
+          <span key={`${crumb}-${index}`} className="inline-flex min-w-0 items-center gap-1">
+            <ChevronRight size={12} />
+            <span className={index === breadcrumbs.length - 1 ? 'topbar-breadcrumb-current truncate' : 'truncate'}>{crumb}</span>
+          </span>
+        ))}
+      </div>
+
+      <button type="button" onClick={openPalette} className="topbar-icon-btn justify-self-center sm:hidden" aria-label="Open search">
+        <Search size={16} />
+      </button>
+
+      <div className="hidden min-w-0 flex-1 sm:block sm:max-w-md lg:max-w-xl">
         <GlobalSearch />
       </div>
 
-      <div className="os-topbar-right">
-        <button type="button" onClick={openPalette} className="os-icon-button os-mobile-only" aria-label="Open search">
-          <Search size={16} />
-        </button>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <div className="app-topbar-tools hidden items-center gap-1 lg:flex">
+          <ThemeSwitcher />
+          <WorkspaceSwitcher />
 
-        <ThemeSwitcher />
+          <button type="button" onClick={toggleLang} className="topbar-icon-btn hidden sm:inline-flex" title="Toggle language">
+            <Globe size={16} />
+          </button>
 
-        <button type="button" onClick={toggleLang} className="os-icon-button" title="Toggle language">
-          <Globe size={15} />
-        </button>
+          <NotificationDropdown />
 
-        <NotificationDropdown />
-
-        <button type="button" onClick={() => openAi()} className="ds-button ds-button--secondary os-ai-button" title="AI Command Center (⌘J)">
-          <Sparkles size={13} />
-          <span>AI</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => openAi()}
+            className="topbar-ai-btn topbar-ai-pill"
+            style={{
+              background: aiOpen ? 'var(--accent)' : 'var(--surface-2)',
+              color: aiOpen ? '#fff' : 'var(--text-primary)',
+              border: `1px solid ${aiOpen ? 'var(--accent)' : 'var(--border)'}`,
+            }}
+            title="AI Command Center (⌘J)"
+          >
+            <Sparkles size={13} />
+            <span className="hidden sm:inline">AI</span>
+          </button>
+        </div>
 
         <AccountMenu
           placement="header"
+          panelClassName="lg:hidden"
+          menuContent={({ closeMenu }) => renderUtilityMenu(closeMenu, false)}
           triggerAriaLabel="Open account menu"
-          menuContent={({ closeMenu }) => (
-            <div className="os-account-tools">
-              <ThemeSwitcher />
-              <button type="button" onClick={() => { toggleLang(); closeMenu(); }} className="os-account-tool-button">
-                <Globe size={14} /> Language
-              </button>
-              <button type="button" onClick={() => { openAi(); closeMenu(); }} className="os-account-tool-button">
-                <Sparkles size={14} /> AI Command Center
-              </button>
-            </div>
-          )}
         >
-          <div className="os-topbar-avatar">{(user?.name || user?.email || 'U').charAt(0).toUpperCase()}</div>
+          <div className="topbar-avatar">
+            {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+          </div>
         </AccountMenu>
       </div>
     </header>

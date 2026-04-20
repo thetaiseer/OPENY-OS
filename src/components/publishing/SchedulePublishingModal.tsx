@@ -105,7 +105,7 @@ function PostTypeBadge({ value }: { value: string }) {
   return (
     <span
       className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium"
-      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+      style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}
     >
       {pt.label}
     </span>
@@ -276,7 +276,7 @@ export default function SchedulePublishingModal({
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0"
-              style={{ background: 'var(--accent-soft)' }}
+              style={{ background: 'rgba(99,102,241,0.12)' }}
             >
               <Send size={15} style={{ color: 'var(--accent)' }} />
             </div>
@@ -392,7 +392,7 @@ export default function SchedulePublishingModal({
                       onClick={() => togglePostType(pt.value)}
                       className="flex flex-col items-start px-3 py-2 rounded-xl border text-left transition-all"
                       style={{
-                        background:  selected ? 'var(--accent-soft)' : 'var(--surface-2)',
+                        background:  selected ? 'rgba(99,102,241,0.12)' : 'var(--surface-2)',
                         borderColor: selected ? 'var(--accent)' : 'var(--border)',
                         minWidth: '90px',
                       }}

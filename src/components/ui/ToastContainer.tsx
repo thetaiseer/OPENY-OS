@@ -5,22 +5,22 @@ import { useToast, type ToastItem } from '@/lib/toast-context';
 
 const styleMap: Record<ToastItem['type'], { icon: React.ReactNode; border: string; color: string }> = {
   success: {
-    icon: <CheckCircle size={15} className="shrink-0" />,
+    icon: <CheckCircle size={16} className="shrink-0" />,
     border: 'var(--color-success-border)',
     color: 'var(--color-success)',
   },
   error: {
-    icon: <AlertCircle size={15} className="shrink-0" />,
+    icon: <AlertCircle size={16} className="shrink-0" />,
     border: 'var(--color-danger-border)',
     color: 'var(--color-danger)',
   },
   warning: {
-    icon: <AlertTriangle size={15} className="shrink-0" />,
+    icon: <AlertTriangle size={16} className="shrink-0" />,
     border: 'var(--color-warning-border)',
     color: 'var(--color-warning)',
   },
   info: {
-    icon: <Info size={15} className="shrink-0" />,
+    icon: <Info size={16} className="shrink-0" />,
     border: 'var(--color-info-border)',
     color: 'var(--color-info)',
   },
@@ -31,28 +31,23 @@ export default function ToastContainer() {
   if (!toasts.length) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-4 z-[60] flex max-w-xs flex-col gap-2 sm:right-5">
+    <div className="pointer-events-none fixed bottom-5 right-4 z-[60] flex max-w-sm flex-col gap-2 sm:right-6">
       {toasts.map((toast) => {
         const style = styleMap[toast.type];
         return (
           <div
             key={toast.id}
-            className="animate-openy-toast-in pointer-events-auto flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-[13px] font-medium"
-            style={{
-              borderColor: style.border,
-              background: 'var(--surface)',
-              boxShadow: 'var(--shadow-md)',
-              color: 'var(--text-primary)',
-            }}
+            className="animate-openy-toast-in pointer-events-auto flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-medium"
+            style={{ borderColor: style.border, background: 'var(--surface)', boxShadow: 'var(--shadow-md)' }}
           >
             <span style={{ color: style.color }}>{style.icon}</span>
-            <span className="flex-1 leading-snug">{toast.message}</span>
+            <span className="flex-1">{toast.message}</span>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              className="rounded p-0.5 opacity-50 transition-opacity hover:opacity-100"
-              style={{ color: 'var(--text-secondary)' }}
-              aria-label="Dismiss"
+              className="rounded p-0.5 opacity-60 transition-opacity hover:opacity-100"
+              style={{ color: style.color }}
+              aria-label="Dismiss toast"
             >
               <X size={13} />
             </button>

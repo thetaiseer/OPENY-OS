@@ -11,7 +11,6 @@ import { useToast } from '@/lib/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import EmptyState from '@/components/ui/EmptyState';
 
 const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string; bg: string }[] = [
   { status: 'draft', label: 'Draft', color: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
@@ -270,7 +269,7 @@ function ContentCard({ item, compact, onStatusChange, onDelete, onPreview, onEdi
             </span>
           ))}
           {(item.post_types ?? []).slice(0, 2).map(type => (
-            <span key={type} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            <span key={type} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
               {type}
             </span>
           ))}
@@ -531,16 +530,11 @@ export default function ContentPage() {
           {[...Array(6)].map((_, i) => <div key={i} className="rounded-2xl h-48 animate-pulse" style={{ background: 'var(--surface)' }} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="Create your first content piece"
-          description="Kick off your premium content pipeline with one high-impact draft."
-          action={(
-            <button onClick={() => setNewOpen(true)} className="btn-primary h-10 px-5 text-sm">
-              <Plus size={16} /> Create First Content
-            </button>
-          )}
-        />
+        <div className="rounded-2xl border p-16 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <FileText size={36} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
+          <p className="text-base font-medium" style={{ color: 'var(--text)' }}>No content items yet</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Create a new item to start the pipeline.</p>
+        </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
           {filtered.map(item => (
