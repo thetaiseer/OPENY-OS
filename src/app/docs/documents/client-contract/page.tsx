@@ -63,7 +63,6 @@ function ContractPreview({ form }: { form: FormState }) {
     <OpenyDocumentPage
       id="client-contract-preview"
       dir={dir}
-      fontFamily={isAr ? "'Tajawal', sans-serif" : "'Inter', sans-serif"}
       fontSize={12}
     >
       <OpenyDocumentHeader

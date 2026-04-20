@@ -68,7 +68,6 @@ function HrContractPreview({ form }: { form: SF }) {
     <OpenyDocumentPage
       id="hr-contract-preview"
       dir={isAr ? 'rtl' : 'ltr'}
-      fontFamily={isAr ? "'Tajawal', sans-serif" : "'Inter', sans-serif"}
       fontSize={12}
     >
       <OpenyDocumentHeader

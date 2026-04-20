@@ -24,7 +24,7 @@ export function OpenyDocumentPage({
       className="bg-white text-gray-900 w-full"
       dir={dir}
       style={{
-        fontFamily: fontFamily ?? (dir === 'rtl' ? "'Tajawal', sans-serif" : "'Inter', sans-serif"),
+        fontFamily: fontFamily ?? 'var(--font-arabic), Inter, system-ui, sans-serif',
         fontSize,
         width: '210mm',
         minHeight: '297mm',
@@ -163,6 +163,6 @@ export function openyStatusPillStyle(status: 'paid' | 'unpaid'): CSSProperties {
     fontWeight: 800,
     fontSize: 10,
     letterSpacing: 0.4,
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: 'var(--font-arabic), Inter, system-ui, sans-serif',
   };
 }
