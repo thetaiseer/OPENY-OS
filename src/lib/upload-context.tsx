@@ -62,6 +62,10 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
 
+/** Supabase Storage bucket used by direct browser uploads. */
+const SUPABASE_STORAGE_BUCKET =
+  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET?.trim() || 'client-assets';
+
 const DB_FAIL_ARABIC =
   'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
 
@@ -350,7 +354,7 @@ function classifyUploadError(opts: {
     raw.includes('econnreset')           ||
     isOffline;
 
-  let arabicMessage: string;
+  let displayMessage: string;
   let code: string;
 
   // ── DB-save steps (file already in storage) ───────────────────────────────
@@ -360,92 +364,92 @@ function classifyUploadError(opts: {
     step === 'complete_parse'   ||
     step === 'complete_unknown'
   ) {
-    arabicMessage = DB_FAIL_ARABIC;
+    displayMessage = DB_FAIL_ARABIC;
     code = step === 'complete_network' ? 'NETWORK_ERROR' : 'DB_SAVE_FAILED';
 
   // ── CORS / ETag missing ───────────────────────────────────────────────────
   } else if (step.endsWith('_etag') || step === 'missing_etag') {
-    arabicMessage = 'فشل الرفع: خطأ في إعدادات التخزين (ETag مفقود) — يجب إضافة ExposeHeaders: ["ETag"] في إعدادات CORS للـ Bucket';
+    displayMessage = 'فشل الرفع: خطأ في إعدادات التخزين (ETag مفقود) — يجب إضافة ExposeHeaders: ["ETag"] في إعدادات CORS للـ Bucket';
     code = 'CORS_MISCONFIGURED';
 
   // ── CORS blocked (browser rejected PUT before reaching R2) ──────────────
   } else if (isCorsBlocked) {
-    arabicMessage = 'فشل الرفع: طلب الرفع مرفوض من المتصفح (CORS) — تحقق من إعدادات CORS على الـ Bucket (AllowedHeaders وExposeHeaders)';
+    displayMessage = 'فشل الرفع: طلب الرفع مرفوض من المتصفح (CORS) — تحقق من إعدادات CORS على الـ Bucket (AllowedHeaders وExposeHeaders)';
     code = 'CORS_MISCONFIGURED';
 
   // ── Device offline ────────────────────────────────────────────────────────
   } else if (isOffline) {
-    arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف — تحقق من اتصالك وأعد المحاولة';
+    displayMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف — تحقق من اتصالك وأعد المحاولة';
     code = 'NETWORK_ERROR';
 
   // ── Multipart completion ──────────────────────────────────────────────────
   } else if (step === 'multipart_complete') {
     if (isNetworkFailure) {
-      arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء إكمال الرفع المتعدد';
+      displayMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء إكمال الرفع المتعدد';
       code = 'NETWORK_ERROR';
     } else {
-      arabicMessage = 'فشل الرفع: تعذر إكمال الرفع المتعدد';
+      displayMessage = 'فشل الرفع: تعذر إكمال الرفع المتعدد';
       code = httpStatus ? `HTTP_${httpStatus}` : 'MULTIPART_COMPLETE_FAILED';
     }
 
   // ── Multipart chunk ───────────────────────────────────────────────────────
   } else if (step.startsWith('chunk_')) {
     if (isNetworkFailure) {
-      arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
+      displayMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
       code = 'NETWORK_ERROR';
     } else if (httpStatus === 401 || httpStatus === 403) {
-      arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
+      displayMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
       code = `HTTP_${httpStatus}`;
     } else {
-      arabicMessage = 'فشل الرفع: فشل أحد أجزاء الرفع المتعدد';
+      displayMessage = 'فشل الرفع: فشل أحد أجزاء الرفع المتعدد';
       code = 'CHUNK_FAILED';
     }
 
   // ── Network layer ─────────────────────────────────────────────────────────
   } else if (isNetworkFailure) {
-    arabicMessage = 'فشل الرفع: الاتصال بالإنترنت انقطع أثناء رفع الملف';
+    displayMessage = 'Upload failed: network error';
     code = 'NETWORK_ERROR';
 
   // ── HTTP status codes ─────────────────────────────────────────────────────
   } else if (httpStatus === 401 || httpStatus === 403) {
-    arabicMessage = 'فشل الرفع: رابط الرفع انتهت صلاحيته أو الطلب غير مصرح به';
+    displayMessage = 'Upload failed: permission issue';
     code = `HTTP_${httpStatus}`;
 
   } else if (httpStatus === 404) {
-    arabicMessage = 'فشل الرفع: مسار الرفع أو التخزين غير موجود — تحقق من إعدادات التخزين';
+    displayMessage = 'فشل الرفع: مسار الرفع أو التخزين غير موجود — تحقق من إعدادات التخزين';
     code = 'HTTP_404';
 
   } else if (httpStatus === 413) {
-    arabicMessage = 'فشل الرفع: حجم الملف أكبر من الحد المسموح به';
+    displayMessage = 'Upload failed: file too large';
     code = 'HTTP_413';
 
   } else if (httpStatus === 415) {
-    arabicMessage = 'فشل الرفع: نوع الملف غير مدعوم';
+    displayMessage = 'فشل الرفع: نوع الملف غير مدعوم';
     code = 'HTTP_415';
 
   } else if (httpStatus === 500) {
     if (step === 'multipart_init' || step === 'multipart_init_parse') {
-      arabicMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر (خطأ داخلي)';
+      displayMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر (خطأ داخلي)';
     } else {
-      arabicMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
+      displayMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
     }
     code = 'HTTP_500';
 
   } else if (httpStatus && httpStatus >= 400) {
-    arabicMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
+    displayMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
     code = `HTTP_${httpStatus}`;
 
   // ── Step-based fallbacks ──────────────────────────────────────────────────
   } else if (step === 'multipart_init' || step === 'multipart_init_parse') {
-    arabicMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر';
+    displayMessage = 'فشل الرفع: تعذر إنشاء جلسة الرفع من السيرفر';
     code = 'MULTIPART_INIT_FAILED';
 
   } else if (step === 'r2_put') {
-    arabicMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
+    displayMessage = 'فشل الرفع: السيرفر رفض رفع الملف';
     code = 'STORAGE_REJECTED';
 
   } else {
-    arabicMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
+    displayMessage = 'فشل الرفع: خطأ غير متوقع من السيرفر';
     code = 'UPLOAD_ERROR';
   }
 
@@ -453,7 +457,7 @@ function classifyUploadError(opts: {
     step,
     code,
     status:             httpStatus ?? null,
-    message:            arabicMessage,
+    message:            displayMessage,
     providerMessage:    providerBody ? providerBody.slice(0, 400) : null,
     fileReachedStorage,
     dbSaved,
@@ -607,6 +611,18 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const ctrl = new AbortController();
     abortControllersRef.current.set(item.id, ctrl);
 
+    if (!item.file || item.file.size <= 0 || !item.file.name) {
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step:               'file_validation',
+          rawMessage:         'Invalid file payload',
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
+      });
+      return;
+    }
+
     const fileMimeType = (item.fileMimeType ?? item.file.type) || 'application/octet-stream';
 
     try {
@@ -614,7 +630,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       if (item.r2Key) {
         const retryPublicUrlData = item.publicUrl
           ? { publicUrl: item.publicUrl }
-          : supabase.storage.from('client-assets').getPublicUrl(item.r2Key).data;
+          : supabase.storage.from(item.r2Bucket ?? SUPABASE_STORAGE_BUCKET).getPublicUrl(item.r2Key).data;
         const retryPublicUrl = retryPublicUrlData?.publicUrl ?? '';
         if (!retryPublicUrl) {
           setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
@@ -632,14 +648,25 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           progress:     100,
           uploadedBytes: item.totalBytes,
         });
-        await doSaveMetadata(item, item.r2Key, item.r2FileName ?? item.file.name, retryPublicUrl, fileMimeType, ctrl.signal);
+        const retryStorageBucket = item.r2Bucket ?? (item.isMultipart ? null : SUPABASE_STORAGE_BUCKET);
+        await doSaveMetadata(
+          item,
+          item.r2Key,
+          item.r2FileName ?? item.file.name,
+          retryPublicUrl,
+          fileMimeType,
+          ctrl.signal,
+          retryStorageBucket,
+          item.isMultipart ? 'r2' : 'supabase',
+        );
         return;
       }
 
       console.log('[upload] start:', {
         name: item.file.name,
         size: item.file.size,
-        multipart: false,
+        multipart: item.file.size > MULTIPART_THRESHOLD,
+        bucket: SUPABASE_STORAGE_BUCKET,
       });
       await doSingleUpload(item, fileMimeType, ctrl);
 
@@ -703,17 +730,30 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
     const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
 
+    console.log('[upload] supabase upload request:', {
+      fileName: item.file.name,
+      fileSize: item.file.size,
+      storagePath,
+      bucket: SUPABASE_STORAGE_BUCKET,
+    });
+
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('client-assets')
+      .from(SUPABASE_STORAGE_BUCKET)
       .upload(storagePath, item.file, {
         contentType: mimeType,
-        upsert: false,
+        upsert: true,
       });
 
     if (uploadError) {
-      console.error('upload error', uploadError);
+      console.error('[upload] supabase storage upload error', {
+        fileName: item.file.name,
+        fileSize: item.file.size,
+        storagePath,
+        bucket: SUPABASE_STORAGE_BUCKET,
+        error: uploadError,
+      });
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step:               'supabase_storage_upload',
@@ -727,18 +767,33 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
     if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    console.log('upload success', uploadData);
-    const { data: publicData } = supabase.storage.from('client-assets').getPublicUrl(storagePath);
+    console.log('[upload] supabase storage upload success', uploadData);
+    const { data: publicData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(storagePath);
     const publicUrl = publicData.publicUrl;
 
-    update(item.id, { r2Key: storagePath, r2FileName: displayName, publicUrl, fileMimeType: mimeType });
+    update(item.id, {
+      r2Key: storagePath,
+      r2Bucket: SUPABASE_STORAGE_BUCKET,
+      r2FileName: displayName,
+      publicUrl,
+      fileMimeType: mimeType,
+    });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
       progress:      100,
       uploadedBytes: item.file.size,
     });
 
     // Phase 3: save metadata.
-    await doSaveMetadata(item, storagePath, displayName, publicUrl, mimeType, ctrl.signal);
+    await doSaveMetadata(
+      item,
+      storagePath,
+      displayName,
+      publicUrl,
+      mimeType,
+      ctrl.signal,
+      SUPABASE_STORAGE_BUCKET,
+      'supabase',
+    );
   }
 
   // ── Multipart upload (> MULTIPART_THRESHOLD) ──────────────────────────────
@@ -868,6 +923,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       update(item.id, {
         uploadId,
         r2Key:         storageKey,
+        r2Bucket:      null,
         r2FileName:    displayName,
         publicUrl,
         fileMimeType:  mimeType,
@@ -1058,7 +1114,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Phase 4: save metadata to DB.
-    await doSaveMetadata(item, storageKey, displayName, publicUrl, mimeType, ctrl.signal);
+    await doSaveMetadata(item, storageKey, displayName, publicUrl, mimeType, ctrl.signal, null, 'r2');
   }
 
   // ── Save metadata helper (shared by single + multipart) ───────────────────
@@ -1070,6 +1126,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     publicUrl:   string,
     mimeType:    string,
     signal:      AbortSignal,
+    storageBucket: string | null,
+    storageProvider: 'supabase' | 'r2',
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
@@ -1077,6 +1135,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       storageKey,
       displayName,
       publicUrl,
+      storageBucket,
+      storageProvider,
       clientName: item.clientName,
       clientId: item.clientId,
       fileType: mimeType,
