@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Plus,
-  X,
   UserPlus,
   CheckSquare,
   FileText,
@@ -61,6 +60,8 @@ export default function GlobalQuickActionsFab() {
       if (event.key === 'Escape') setOpen(false);
     }
 
+    if (!open) return;
+
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('touchstart', handleOutsideClick, { passive: true });
     window.addEventListener('keydown', handleEscape);
@@ -70,22 +71,37 @@ export default function GlobalQuickActionsFab() {
       document.removeEventListener('touchstart', handleOutsideClick);
       window.removeEventListener('keydown', handleEscape);
     };
-  }, []);
+  }, [open]);
 
   return (
+    /*
+     * Wrapper is anchored to the bottom-right corner with enough clearance to:
+     *  - clear the mobile browser chrome and bottom navigation bars (80px base)
+     *  - respect iOS safe-area-inset-bottom (env() fallback to 0px)
+     *
+     * Z-index 48 places the FAB:
+     *  - above the sidebar / AI panel overlay (z-40)
+     *  - below all modals and their backdrops (z-50+)
+     *
+     * flex-col layout (menu first, button second) with a bottom anchor means
+     * the menu always expands UPWARD from the FAB button.
+     */
     <div
       ref={wrapperRef}
-      className="fixed right-4 sm:right-6 z-[45] flex flex-col items-end gap-2"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
+      className="fixed right-4 z-[48] flex flex-col items-end gap-3"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
     >
+      {/* Quick-action menu — renders above FAB due to flex-col + bottom anchor */}
       <ul
         id={menuId}
         role="menu"
         aria-label="Quick actions"
-        className={`w-48 rounded-2xl border p-2 shadow-xl backdrop-blur-sm transition-all duration-200 origin-bottom-right ${
-          open ? 'translate-y-0 scale-100 opacity-100 pointer-events-auto' : 'translate-y-2 scale-95 opacity-0 pointer-events-none'
+        className={`w-48 rounded-2xl border p-2 shadow-2xl transition-all duration-200 origin-bottom-right ${
+          open
+            ? 'translate-y-0 scale-100 opacity-100 pointer-events-auto'
+            : 'translate-y-2 scale-95 opacity-0 pointer-events-none'
         }`}
-        style={{ background: 'color-mix(in srgb, var(--surface) 94%, transparent)', borderColor: 'var(--border)' }}
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         {orderedActions.map(action => (
           <li key={action.id} role="none">
@@ -96,17 +112,18 @@ export default function GlobalQuickActionsFab() {
                 setOpen(false);
                 router.push(action.href);
               }}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               style={{ color: 'var(--text)' }}
               aria-label={action.label}
             >
-              <span className="shrink-0" style={{ color: 'var(--text-secondary)' }}>{action.icon}</span>
+              <span className="shrink-0" style={{ color: 'var(--accent)' }}>{action.icon}</span>
               <span>{action.label}</span>
             </button>
           </li>
         ))}
       </ul>
 
+      {/* FAB button — always sits at the very bottom of the wrapper */}
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
@@ -114,10 +131,15 @@ export default function GlobalQuickActionsFab() {
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
-        className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+        className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-200 hover:scale-[1.05] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         style={{ background: 'var(--accent)' }}
       >
-        {open ? <X size={22} /> : <Plus size={22} />}
+        <span
+          className="transition-transform duration-200"
+          style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}
+        >
+          <Plus size={22} />
+        </span>
       </button>
     </div>
   );
