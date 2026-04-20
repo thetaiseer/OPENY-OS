@@ -7,6 +7,19 @@ import { buildR2Url, R2ConfigError } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
+function buildSupabasePublicUrl(bucketName: string, storageKey: string): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL for Supabase Storage public URL generation');
+  }
+  const encodedKey = storageKey
+    .split('/')
+    .filter(Boolean)
+    .map(segment => encodeURIComponent(segment))
+    .join('/');
+  return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${bucketName}/${encodedKey}`;
+}
+
 /**
  * POST /api/upload/complete
  *
@@ -57,6 +70,14 @@ export async function POST(req: NextRequest) {
   const uploadedBy          = (body.uploadedBy          as string | undefined)?.trim() || null;
   const thumbnailStorageKey = (body.thumbnailStorageKey as string | undefined)?.trim() || null;
   const previewStorageKey   = (body.previewStorageKey   as string | undefined)?.trim() || null;
+  const providedPublicUrl   = (body.publicUrl           as string | undefined)?.trim() || '';
+  const requestedProvider   = (body.storageProvider     as string | undefined)?.trim().toLowerCase() || 'r2';
+  const storageProvider     = requestedProvider === 'supabase' ? 'supabase' : 'r2';
+  const providedBucket      = (body.storageBucket       as string | undefined)?.trim() || '';
+  const bucketName = providedBucket
+    || (storageProvider === 'supabase'
+      ? (process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? 'client-assets')
+      : (process.env.R2_BUCKET_NAME ?? 'client-assets'));
   const durationSeconds     = typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
     ? (body.durationSeconds as number)
     : null;
@@ -68,16 +89,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' }, { status: 400 });
   }
 
-  let publicUrl: string;
-  try {
-    publicUrl = buildR2Url(storageKey);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const isConfigErr = err instanceof R2ConfigError;
-    return NextResponse.json(
-      { success: false, stage: 'failed_db', error: msg },
-      { status: isConfigErr ? 500 : 502 },
-    );
+  let publicUrl = providedPublicUrl;
+  if (!publicUrl) {
+    try {
+      publicUrl = storageProvider === 'supabase'
+        ? buildSupabasePublicUrl(bucketName, storageKey)
+        : buildR2Url(storageKey);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isConfigErr = err instanceof R2ConfigError;
+      return NextResponse.json(
+        { success: false, stage: 'failed_db', error: msg },
+        { status: isConfigErr ? 500 : 502 },
+      );
+    }
   }
 
   let supabase: ReturnType<typeof getServiceClient>;
@@ -133,7 +158,6 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────
-  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
   const insertRow: Record<string, unknown> = {
     name:             displayName,
     file_name:        displayName,
@@ -150,7 +174,7 @@ export async function POST(req: NextRequest) {
     file_size:        fileSize,
     bucket_name:      bucketName,
     storage_bucket:   bucketName,
-    storage_provider: 'r2',
+    storage_provider: storageProvider,
     client_name:        clientName,
     client_folder_name: clientName,
     month_key:        monthKey,
