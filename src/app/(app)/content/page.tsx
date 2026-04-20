@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -230,7 +230,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
-export default function ContentPage() {
+function ContentPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -441,5 +441,13 @@ export default function ContentPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function ContentPageWrapper() {
+  return (
+    <Suspense>
+      <ContentPage />
+    </Suspense>
   );
 }

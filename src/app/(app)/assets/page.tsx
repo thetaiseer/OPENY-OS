@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Upload, FolderOpen, File, X, AlertCircle,
@@ -300,7 +300,7 @@ function triggerDownload(url: string, filename: string): void {
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AssetsPage() {
+function AssetsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1159,5 +1159,13 @@ export default function AssetsPage() {
       )}
 
     </>
+  );
+}
+
+export default function AssetsPageWrapper() {
+  return (
+    <Suspense>
+      <AssetsPage />
+    </Suspense>
   );
 }

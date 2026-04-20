@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus, Search, Users2, AlertCircle,
@@ -48,7 +48,7 @@ interface ClientStats {
   lastDesc:     string | null; // short description or null
 }
 
-export default function ClientsPage() {
+function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
@@ -527,5 +527,13 @@ export default function ClientsPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function ClientsPageWrapper() {
+  return (
+    <Suspense>
+      <ClientsPage />
+    </Suspense>
   );
 }
