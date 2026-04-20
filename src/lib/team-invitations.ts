@@ -327,7 +327,11 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
 
   if (membersToInsert.length === 0) {
     console.error('[invitations/accept] No target workspace_members rows could be resolved from invitation grants:', grants);
-    return { ok: false as const, status: 500, body: { error: 'No valid workspace target found for invitation.' } };
+    return {
+      ok: false as const,
+      status: 500,
+      body: { error: 'Invitation workspace keys did not resolve to existing workspaces.' },
+    };
   }
 
   const { error: workspaceMemberInsertError } = await db
