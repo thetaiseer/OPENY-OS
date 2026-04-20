@@ -125,14 +125,22 @@ export default function NotificationsPage() {
   };
 
   const archiveNotif = async (id: string) => {
+    // Optimistic: remove from view immediately
     setNotifications(prev => prev.filter(n => n.id !== id));
     try {
-      await fetch(`/api/notifications/${id}`, {
+      const res = await fetch(`/api/notifications/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_archived: true }),
       });
-    } catch { /* best-effort */ }
+      if (!res.ok) {
+        // Revert: reload notifications to restore the item
+        void loadNotifications(1, false);
+      }
+    } catch {
+      // Revert on network error
+      void loadNotifications(1, false);
+    }
   };
 
   const markAllRead = async () => {

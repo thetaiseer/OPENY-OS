@@ -63,8 +63,9 @@ export async function GET(req: NextRequest) {
     if (from)       query = query.gte('created_at', from);
     if (to)         query = query.lte('created_at', to);
     if (q) {
-      // Text search across title + description
-      query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+      // Sanitize special LIKE characters to prevent unexpected wildcard behavior
+      const sanitizedQ = q.replace(/[%_\\]/g, c => `\\${c}`);
+      query = query.or(`title.ilike.%${sanitizedQ}%,description.ilike.%${sanitizedQ}%`);
     }
 
     const { data, error, count } = await query;

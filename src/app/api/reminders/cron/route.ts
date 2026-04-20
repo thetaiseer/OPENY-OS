@@ -76,8 +76,11 @@ async function resolveAssignees(
   return map;
 }
 
-/** Build idempotency key so we never send the same reminder twice per window */
-function ikey(type: string, entityId: string, userId: string | null, window: 'day' | 'hour' | '15min') {
+/** Build an idempotency key for a reminder notification.
+ * Format: `{type}:{entityId}:{userId}:{windowSegment}`
+ * where windowSegment changes per window size to allow re-notifications.
+ */
+function buildReminderIkey(type: string, entityId: string, userId: string | null, window: 'day' | 'hour' | '15min') {
   const now = new Date();
   let windowStr: string;
   if (window === 'day')   windowStr = now.toISOString().slice(0, 10);  // YYYY-MM-DD
@@ -136,7 +139,7 @@ export async function GET(req: NextRequest) {
           entity_type:      'task',
           entity_id:        task.id,
           action_url:       '/os/tasks',
-          idempotency_key:  ikey('task_due_soon', task.id, userId, 'day'),
+          idempotency_key:  buildReminderIkey('task_due_soon', task.id, userId, 'day'),
         });
         dueSoonCount++;
 
@@ -194,7 +197,7 @@ export async function GET(req: NextRequest) {
           entity_type:      'task',
           entity_id:        task.id,
           action_url:       '/os/tasks',
-          idempotency_key:  ikey('task_overdue', task.id, userId, 'day'),
+          idempotency_key:  buildReminderIkey('task_overdue', task.id, userId, 'day'),
         });
         overdueCount++;
 
@@ -260,7 +263,7 @@ export async function GET(req: NextRequest) {
           entity_type:      'publishing_schedule',
           entity_id:        sched.id,
           action_url:       '/os/calendar',
-          idempotency_key:  ikey('publish_window', sched.id, userId, windowKey as 'hour' | '15min'),
+          idempotency_key:  buildReminderIkey('publish_window', sched.id, userId, windowKey as 'hour' | '15min'),
         });
         publishCount++;
 
@@ -323,7 +326,7 @@ export async function GET(req: NextRequest) {
           entity_type:      'task',
           entity_id:        task.id,
           action_url:       '/os/tasks',
-          idempotency_key:  ikey('task_stale', task.id, userId, 'day'),
+          idempotency_key:  buildReminderIkey('task_stale', task.id, userId, 'day'),
         });
         staleCount++;
       } catch (err) {

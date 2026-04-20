@@ -367,6 +367,19 @@ const DEFAULT_RULE: EventRule = {
 // ── Deduplication ─────────────────────────────────────────────────────────────
 
 /**
+ * Dedup window constants.
+ * These control how long after a notification is created that an identical
+ * event (same idempotency_key + user) is silently dropped.
+ *
+ * CRITICAL events use a longer window to prevent admin spam from rapid repeated
+ * failures, while still allowing re-notification once the window expires.
+ * Non-critical events reuse the same key but with a shorter window so users
+ * are reminded if an issue persists past the window.
+ */
+const DEDUP_WINDOW_CRITICAL_HOURS = 4;
+const DEDUP_WINDOW_DEFAULT_HOURS  = 1;
+
+/**
  * Build an idempotency key for a notification.
  * Format: `{event_type}:{entity_id}:{user_id}` — within 1-hour window
  * the exact same key will be blocked by the DB unique index.
@@ -449,7 +462,7 @@ async function createNotificationForUser(
 
   // Critical events use a longer dedup window (4 h) to ensure admins are not
   // spammed by rapidly repeated failures, but still notified when truly new.
-  const dedupHours = rule.priority === 'critical' ? 4 : 1;
+  const dedupHours = rule.priority === 'critical' ? DEDUP_WINDOW_CRITICAL_HOURS : DEDUP_WINDOW_DEFAULT_HOURS;
   const dup        = await isDuplicate(db, ikey, user_id, dedupHours);
   if (dup) return null;
 

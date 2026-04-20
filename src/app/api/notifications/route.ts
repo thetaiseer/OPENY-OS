@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Unread count (active, not archived)
+    // Attempt to filter by is_archived; guarded in case the migration has not been
+    // applied yet on a given environment (column may not exist on older schemas).
     let countQuery = db
       .from('notifications')
       .select('id', { count: 'exact', head: true })
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
       .eq('read', false);
     try {
       countQuery = countQuery.eq('is_archived', false);
-    } catch { /* column may not exist yet on older schemas */ }
+    } catch { /* is_archived column not yet present — skip filter */ }
     const { count: unreadCount } = await countQuery;
 
     return NextResponse.json({

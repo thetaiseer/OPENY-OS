@@ -19,8 +19,13 @@ ALTER TABLE public.notifications
   ADD COLUMN IF NOT EXISTS idempotency_key  TEXT,        -- dedup: event_type:entity_id[:user_id]
   ADD COLUMN IF NOT EXISTS workspace_id     UUID REFERENCES public.workspaces(id) ON DELETE SET NULL;
 
--- Idempotency uniqueness: one notification per key per user within a 1-hour window is
--- enforced at the application layer; the unique index below covers the same-key exact match.
+-- Idempotency uniqueness: one notification per key per user.
+-- The unique index here prevents exact-same-key duplicates from ever being persisted,
+-- acting as a hard guard. The application layer (event-engine.ts isDuplicate()) further
+-- enforces a time-based window (e.g. 1 hour) so that the same logical event can
+-- re-notify after the window expires without being blocked by the index.
+-- Old entries are retained (archive-only policy); the time window check in the app layer
+-- is therefore the primary dedup mechanism, while this index is the safety net.
 CREATE UNIQUE INDEX IF NOT EXISTS notifications_idempotency_user_idx
   ON public.notifications (idempotency_key, user_id)
   WHERE idempotency_key IS NOT NULL AND user_id IS NOT NULL;
