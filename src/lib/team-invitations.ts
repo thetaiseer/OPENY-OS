@@ -1,0 +1,288 @@
+import { createServerClient } from '@supabase/ssr';
+import type { NextRequest } from 'next/server';
+import { getServiceClient } from '@/lib/supabase/service-client';
+import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
+import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
+
+export type InvitationValidationReason = 'expired' | 'not_found' | 'used';
+
+export type ResolvedInvitation = {
+  id: string;
+  token: string;
+  email: string;
+  role: string | null;
+  status: string;
+  expires_at: string;
+  team_member_id: string;
+  workspace_access?: unknown;
+  workspace_roles?: unknown;
+  team_member?: { full_name?: string | null } | Array<{ full_name?: string | null }> | null;
+};
+
+export function normalizeInvitationToken(raw: string | null | undefined): string {
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw).trim();
+  } catch {
+    return raw.trim();
+  }
+}
+
+export async function getInvitationByToken(token: string): Promise<ResolvedInvitation | null> {
+  const db = getServiceClient();
+  const { data, error } = await db
+    .from('team_invitations')
+    .select('id, token, email, role, status, expires_at, team_member_id, workspace_access, workspace_roles, team_member:team_members(full_name)')
+    .eq('token', token)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[invitations] DB query error while fetching invitation by token:', error.message);
+    return null;
+  }
+
+  if (!data) return null;
+  return data as ResolvedInvitation;
+}
+
+export function validateInvitationState(
+  invitation: ResolvedInvitation | null,
+): { valid: true; invitation: ResolvedInvitation } | { valid: false; reason: InvitationValidationReason } {
+  if (!invitation) return { valid: false, reason: 'not_found' };
+
+  const expiresAtMs = new Date(invitation.expires_at).getTime();
+  const nowMs = Date.now();
+  const isExpired = Number.isNaN(expiresAtMs) || expiresAtMs <= nowMs;
+  const isPending = ACTIVE_INVITATION_STATUSES.includes(invitation.status as (typeof ACTIVE_INVITATION_STATUSES)[number]);
+
+  console.log('[invitations] Expiration check result:', {
+    invitationId: invitation.id,
+    status: invitation.status,
+    expires_at: invitation.expires_at,
+    isExpired,
+    isPending,
+  });
+
+  if (isExpired) return { valid: false, reason: 'expired' };
+  if (!isPending) return { valid: false, reason: 'used' };
+  return { valid: true, invitation };
+}
+
+type WorkspaceGrant = { workspace: WorkspaceKey; role: 'owner' | 'admin' | 'member' | 'viewer' };
+
+function parseWorkspaceAccess(raw: unknown): WorkspaceKey[] {
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+      ? (() => {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })()
+      : [];
+
+  const keys = values
+    .map(v => normalizeWorkspaceKey(v))
+    .filter((v): v is WorkspaceKey => Boolean(v));
+
+  if (keys.length === 0) return ['os'];
+  return [...new Set(keys)];
+}
+
+function parseWorkspaceRoles(raw: unknown): Record<string, string> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, string>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function resolveWorkspaceGrants(invitation: ResolvedInvitation): WorkspaceGrant[] {
+  const access = parseWorkspaceAccess(invitation.workspace_access);
+  const roles = parseWorkspaceRoles(invitation.workspace_roles);
+  const fallbackRole = mapAccessRoleToWorkspaceRole((invitation.role ?? '').toLowerCase());
+
+  return access.map(workspace => {
+    const requestedRole = (roles[workspace] ?? '').toLowerCase();
+    const role = (requestedRole && WORKSPACE_ROLES.includes(requestedRole as (typeof WORKSPACE_ROLES)[number]))
+      ? requestedRole as WorkspaceGrant['role']
+      : fallbackRole;
+    return { workspace, role };
+  });
+}
+
+async function getRequestUserId(request: NextRequest): Promise<string | null> {
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll() {},
+    },
+  });
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+export async function acceptInvitationToken(request: NextRequest, tokenRaw: string, password?: string, fullName?: string) {
+  const token = normalizeInvitationToken(tokenRaw);
+  console.log('[invitations/accept] Token received from request:', token);
+  if (!token) return { ok: false as const, status: 400, body: { error: 'Invitation token is required' } };
+
+  const invitation = await getInvitationByToken(token);
+  console.log('[invitations/accept] DB query result:', invitation ? {
+    id: invitation.id,
+    email: invitation.email,
+    status: invitation.status,
+    expires_at: invitation.expires_at,
+  } : null);
+
+  const validation = validateInvitationState(invitation);
+  if (!validation.valid) {
+    return {
+      ok: false as const,
+      status: validation.reason === 'expired' ? 410 : 404,
+      body: {
+        error: validation.reason === 'expired' ? 'This invitation has expired' : 'Invalid or already used invitation',
+        reason: validation.reason,
+      },
+    };
+  }
+
+  const validInvitation = validation.invitation;
+  const db = getServiceClient();
+  const invitationEmail = validInvitation.email.toLowerCase();
+  const teamMember = Array.isArray(validInvitation.team_member) ? validInvitation.team_member[0] : validInvitation.team_member;
+  const profileName = (fullName ?? teamMember?.full_name ?? invitationEmail.split('@')[0] ?? '').trim();
+
+  const requestUserId = await getRequestUserId(request);
+  const { data: usersPage } = await db.auth.admin.listUsers({ page: 1, perPage: 200 });
+  const existingUser = usersPage.users.find(user => (user.email ?? '').toLowerCase() === invitationEmail);
+
+  let authUserId = existingUser?.id ?? null;
+  let userCreated = false;
+
+  if (!authUserId) {
+    if (!password || password.length < 8) {
+      return {
+        ok: false as const,
+        status: 400,
+        body: { error: 'Set a password with at least 8 characters to create your account.', reason: 'password_required' },
+      };
+    }
+
+    const { data: created, error: createError } = await db.auth.admin.createUser({
+      email: invitationEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { name: profileName },
+    });
+
+    if (createError || !created.user) {
+      console.error('[invitations/accept] Failed to create auth user:', createError?.message ?? 'unknown');
+      return {
+        ok: false as const,
+        status: 500,
+        body: { error: createError?.message ?? 'Failed to create user account' },
+      };
+    }
+    authUserId = created.user.id;
+    userCreated = true;
+  } else if (requestUserId && requestUserId !== authUserId) {
+    return {
+      ok: false as const,
+      status: 403,
+      body: { error: 'You are signed in as a different account. Sign out and use the invited email.' },
+    };
+  }
+
+  if (!authUserId) {
+    return { ok: false as const, status: 500, body: { error: 'Unable to resolve invited user account' } };
+  }
+
+  const { error: profileError } = await db
+    .from('profiles')
+    .upsert({
+      id: authUserId,
+      email: invitationEmail,
+      name: profileName,
+      role: 'team_member',
+    }, { onConflict: 'id' });
+
+  if (profileError) {
+    console.error('[invitations/accept] Failed to upsert profile row:', profileError.message);
+    return { ok: false as const, status: 500, body: { error: profileError.message } };
+  }
+
+  const { error: memberError } = await db
+    .from('team_members')
+    .update({
+      profile_id: authUserId,
+      status: MEMBER_STATUS.ACTIVE,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', validInvitation.team_member_id);
+
+  if (memberError) {
+    console.error('[invitations/accept] Failed to update team_members row:', memberError.message);
+    return { ok: false as const, status: 500, body: { error: memberError.message } };
+  }
+
+  const grants = resolveWorkspaceGrants(validInvitation);
+  const memberships = grants.map(grant => ({
+    user_id: authUserId,
+    workspace_key: grant.workspace,
+    role: grant.role,
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error: membershipError } = await db
+    .from('workspace_memberships')
+    .upsert(memberships, { onConflict: 'user_id,workspace_key' });
+
+  if (membershipError) {
+    console.error('[invitations/accept] Failed to upsert workspace memberships:', membershipError.message);
+    return { ok: false as const, status: 500, body: { error: membershipError.message } };
+  }
+
+  const { error: invitationUpdateError } = await db
+    .from('team_invitations')
+    .update({
+      status: INVITATION_STATUS.ACCEPTED,
+      accepted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', validInvitation.id)
+    .in('status', [...ACTIVE_INVITATION_STATUSES]);
+
+  if (invitationUpdateError) {
+    console.error('[invitations/accept] Failed to update invitation status:', invitationUpdateError.message);
+    return { ok: false as const, status: 500, body: { error: invitationUpdateError.message } };
+  }
+
+  return {
+    ok: true as const,
+    status: 200,
+    body: {
+      success: true,
+      user_created: userCreated,
+      email: invitationEmail,
+      workspaces: grants.map(grant => grant.workspace),
+    },
+  };
+}

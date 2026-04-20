@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInvitationByToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
-  const { token: rawToken } = await context.params;
-  const token = normalizeInvitationToken(rawToken);
-  console.log('[team/invite/[token]] Token received from URL:', token);
+export async function GET(request: NextRequest) {
+  const token = normalizeInvitationToken(request.nextUrl.searchParams.get('token'));
+  console.log('[invitations/validate] Token received from URL:', token);
+
+  if (!token) {
+    return NextResponse.json(
+      { valid: false, reason: 'not_found', error: 'Invalid or already used invitation' },
+      { status: 400 },
+    );
+  }
 
   const invitation = await getInvitationByToken(token);
-  console.log('[team/invite/[token]] DB query result:', invitation ? {
+  console.log('[invitations/validate] DB query result:', invitation ? {
     id: invitation.id,
     email: invitation.email,
     status: invitation.status,
@@ -17,9 +23,16 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   const validation = validateInvitationState(invitation);
   if (!validation.valid) {
     if (validation.reason === 'expired') {
-      return NextResponse.json({ error: 'This invitation has expired', reason: 'expired' }, { status: 410 });
+      return NextResponse.json(
+        { valid: false, reason: 'expired', error: 'This invitation has expired' },
+        { status: 410 },
+      );
     }
-    return NextResponse.json({ error: 'Invalid or already used invitation', reason: validation.reason }, { status: 404 });
+
+    return NextResponse.json(
+      { valid: false, reason: validation.reason, error: 'Invalid or already used invitation' },
+      { status: 404 },
+    );
   }
 
   const teamMember = Array.isArray(validation.invitation.team_member)
@@ -27,11 +40,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
     : validation.invitation.team_member;
 
   return NextResponse.json({
+    valid: true,
     invitation: {
       id: validation.invitation.id,
       email: validation.invitation.email,
       role: validation.invitation.role,
-      status: validation.invitation.status,
       expires_at: validation.invitation.expires_at,
       full_name: teamMember?.full_name ?? '',
     },
