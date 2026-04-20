@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import '@fontsource/cairo/300.css';
+import '@fontsource/cairo/400.css';
+import '@fontsource/cairo/500.css';
+import '@fontsource/cairo/600.css';
+import '@fontsource/cairo/700.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
 import { AuthProvider } from '@/lib/auth-context';

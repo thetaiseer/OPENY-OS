@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --font-arabic: Cairo;
   --bg: #f8f9fa;
   --surface: #ffffff;
   --surface-2: #f1f3f5;
@@ -41,15 +41,11 @@
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', 'Cairo', sans-serif;
+  font-family: var(--font-arabic), Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   min-height: 100dvh;
   text-rendering: optimizeLegibility;
-}
-
-[dir="rtl"] body {
-  font-family: 'Cairo', 'Inter', sans-serif;
 }
 
 img,
