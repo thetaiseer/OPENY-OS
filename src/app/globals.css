@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  --font-arabic: Cairo;
   --bg: #f8f9fa;
   --surface: #ffffff;
   --surface-2: #f1f3f5;

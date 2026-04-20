@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Cairo } from 'next/font/google';
 import './globals.css';
+import '@fontsource/cairo/300.css';
+import '@fontsource/cairo/400.css';
+import '@fontsource/cairo/500.css';
+import '@fontsource/cairo/600.css';
+import '@fontsource/cairo/700.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
 import { AuthProvider } from '@/lib/auth-context';
 import Providers from './providers';
-
-const cairo = Cairo({
-  subsets: ['arabic'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-arabic',
-});
 
 export const metadata: Metadata = {
   title: 'OPENY OS',
@@ -33,7 +31,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cairo.variable}>
+      <body>
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
