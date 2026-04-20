@@ -13,6 +13,12 @@ import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
+import {
+  debugClientRouting,
+  isClientUuid,
+  sanitizeClientRouteToken,
+  warnClientRouting,
+} from '@/lib/client-route-utils';
 import { ClientWorkspaceContext } from './client-context';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -89,8 +95,45 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
   const loadClient = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('clients').select('*').eq('slug', slug).single();
+
+    const routeParam = typeof slug === 'string' ? slug : '';
+    const decodedParam = (() => {
+      try { return decodeURIComponent(routeParam); } catch { return routeParam; }
+    })();
+    const normalizedParam = sanitizeClientRouteToken(decodedParam);
+
+    debugClientRouting('[client layout] route param received', { routeParam, normalizedParam, decodedParam });
+
+    if (!normalizedParam) {
+      warnClientRouting('[client layout] invalid route param', { decodedParam });
+      setClient(null);
+      setClientId('');
+      setLoading(false);
+      return;
+    }
+    const shouldLookupByIdFirst = isClientUuid(normalizedParam);
+
+    const findByField = async (field: 'slug' | 'id') => {
+      debugClientRouting('[client layout] querying client', { field, value: normalizedParam });
+      const result = await supabase.from('clients').select('*').eq(field, normalizedParam).single();
+      debugClientRouting('[client layout] query result', { field, hasData: !!result.data, error: result.error?.message ?? null });
+      return result;
+    };
+
+    const primaryLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'id' : 'slug';
+    const fallbackLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'slug' : 'id';
+
+    let { data, error } = await findByField(primaryLookupField);
+
+    if (!data) {
+      const fallbackResult = await findByField(fallbackLookupField);
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+
     if (error || !data) {
+      setClient(null);
+      setClientId('');
       setLoading(false);
       return;
     }
