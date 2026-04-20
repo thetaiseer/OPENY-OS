@@ -89,8 +89,6 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
   const loadClient = useCallback(async () => {
     setLoading(true);
-    setClient(null);
-    setClientId('');
 
     const routeParam = typeof slug === 'string' ? slug : '';
     const normalizedParam = routeParam.trim();
@@ -102,6 +100,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
     if (!decodedParam || decodedParam === 'undefined' || decodedParam === 'null') {
       console.warn('[client layout] invalid route param', { decodedParam });
+      setClient(null);
+      setClientId('');
       setLoading(false);
       return;
     }
@@ -128,6 +128,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     }
 
     if (error || !data) {
+      setClient(null);
+      setClientId('');
       setLoading(false);
       return;
     }

@@ -49,9 +49,12 @@ interface ClientStats {
   lastDesc:     string | null; // short description or null
 }
 
-const getClientRouteKey = (client: Pick<Client, 'id' | 'slug'>): string => {
-  const value = (client.slug ?? '').trim() || client.id;
-  return encodeURIComponent(value);
+const getClientRouteKey = (client: { id?: string; slug?: string | null }): string | null => {
+  const slug = client.slug?.trim();
+  if (slug) return encodeURIComponent(slug);
+  const id = client.id?.trim();
+  if (id) return encodeURIComponent(id);
+  return null;
 };
 
 export default function ClientsPage() {
@@ -231,14 +234,14 @@ export default function ClientsPage() {
         );
       }
 
-      const createdClientRouteKey = result.client?.slug?.trim() || result.client?.id;
+      const createdClientRouteKey = result.client ? getClientRouteKey(result.client) : null;
       if (createdClientRouteKey) {
         console.debug('[clients] created client route key', {
           id: result.client?.id,
           slug: result.client?.slug,
           routeKey: createdClientRouteKey,
         });
-        router.push(`/clients/${encodeURIComponent(createdClientRouteKey)}`);
+        router.push(`/clients/${createdClientRouteKey}`);
       } else {
         setSuccessMsg(`Client "${form.name}" created successfully.`);
         setTimeout(() => setSuccessMsg(null), 4000);
@@ -334,6 +337,7 @@ export default function ClientsPage() {
           {filteredClients.map(client => {
             const stats = statsMap[client.id] ?? { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
             const routeKey = getClientRouteKey(client);
+            if (!routeKey) return null;
             const baseClientHref = `/clients/${routeKey}`;
 
             return (
