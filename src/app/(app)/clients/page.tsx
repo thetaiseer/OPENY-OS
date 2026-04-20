@@ -14,6 +14,7 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
+import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
@@ -23,7 +24,6 @@ const statusVariant = (s: string) => {
 
 const WARN_TOAST_BG    = '#d97706';
 const SUCCESS_TOAST_BG = '#16a34a';
-const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
 
 /** Lightweight relative-time formatter (no external dep). */
 function formatRelative(iso: string): string {
@@ -49,19 +49,6 @@ interface ClientStats {
   lastActivity: string | null; // ISO or null
   lastDesc:     string | null; // short description or null
 }
-
-const getClientRouteKey = (client: { id?: string; slug?: string | null }): string | null => {
-  const slug = client.slug?.trim();
-  if (slug) return encodeURIComponent(slug);
-  const id = client.id?.trim();
-  if (id) return encodeURIComponent(id);
-  return null;
-};
-
-const debugClientRouting = (message: string, payload: Record<string, unknown>) => {
-  if (!shouldDebugClientRouting) return;
-  console.debug(message, payload);
-};
 
 export default function ClientsPage() {
   const { t } = useLang();

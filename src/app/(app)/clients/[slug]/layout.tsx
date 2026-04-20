@@ -13,6 +13,12 @@ import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
+import {
+  debugClientRouting,
+  isClientUuid,
+  sanitizeClientRouteToken,
+  warnClientRouting,
+} from '@/lib/client-route-utils';
 import { ClientWorkspaceContext } from './client-context';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -55,18 +61,6 @@ const statusVariant = (s: string) => {
   return 'info' as const;
 };
 
-const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
-
-const debugClientRouting = (message: string, payload: Record<string, unknown>) => {
-  if (!shouldDebugClientRouting) return;
-  console.debug(message, payload);
-};
-
-const warnClientRouting = (message: string, payload: Record<string, unknown>) => {
-  if (!shouldDebugClientRouting) return;
-  console.warn(message, payload);
-};
-
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export default function ClientWorkspaceLayout({ children }: { children: React.ReactNode }) {
@@ -103,27 +97,25 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     setLoading(true);
 
     const routeParam = typeof slug === 'string' ? slug : '';
-    const normalizedParam = routeParam.trim();
     const decodedParam = (() => {
-      try { return decodeURIComponent(normalizedParam); } catch { return normalizedParam; }
+      try { return decodeURIComponent(routeParam); } catch { return routeParam; }
     })();
+    const normalizedParam = sanitizeClientRouteToken(decodedParam);
 
     debugClientRouting('[client layout] route param received', { routeParam, normalizedParam, decodedParam });
 
-    if (!decodedParam || decodedParam === 'undefined' || decodedParam === 'null') {
+    if (!normalizedParam) {
       warnClientRouting('[client layout] invalid route param', { decodedParam });
       setClient(null);
       setClientId('');
       setLoading(false);
       return;
     }
-
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const shouldLookupByIdFirst = uuidRegex.test(decodedParam);
+    const shouldLookupByIdFirst = isClientUuid(normalizedParam);
 
     const findByField = async (field: 'slug' | 'id') => {
-      debugClientRouting('[client layout] querying client', { field, value: decodedParam });
-      const result = await supabase.from('clients').select('*').eq(field, decodedParam).single();
+      debugClientRouting('[client layout] querying client', { field, value: normalizedParam });
+      const result = await supabase.from('clients').select('*').eq(field, normalizedParam).single();
       debugClientRouting('[client layout] query result', { field, hasData: !!result.data, error: result.error?.message ?? null });
       return result;
     };
