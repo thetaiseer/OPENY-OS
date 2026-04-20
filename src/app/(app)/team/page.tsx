@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
+import { getWorkspaceLabel } from '@/lib/workspace-access';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
@@ -1003,23 +1004,25 @@ function MemberCard({
               <Mail size={11} />{member.email}
             </p>
           )}
-          <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Access:</p>
-          <div className="mt-0.5 flex flex-wrap gap-1.5">
-            {workspaceAccess?.os?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                OPENY OS · {formatWorkspaceRole(workspaceAccess.os.role)}
-              </span>
-            )}
-            {workspaceAccess?.docs?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                OPENY DOCS · {formatWorkspaceRole(workspaceAccess.docs.role)}
-              </span>
-            )}
-            {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                No workspace access
-              </span>
-            )}
+          <div className="mt-1" aria-label="Workspace access">
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
+            <ul className="mt-0.5 flex flex-wrap gap-1.5">
+              {workspaceAccess?.os?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
+                </li>
+              )}
+              {workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('docs')} · {formatWorkspaceRole(workspaceAccess.docs.role)}
+                </li>
+              )}
+              {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  No workspace access
+                </li>
+              )}
+            </ul>
           </div>
           {invitation && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>

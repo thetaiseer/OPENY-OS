@@ -15,6 +15,7 @@ import {
   resolveWorkspaceKey,
 } from '@/lib/auth-workspace';
 import {
+  getWorkspaceLabel,
   isGlobalOwnerEmail,
   normalizeWorkspaceKey,
   type WorkspaceKey,
@@ -242,7 +243,7 @@ export default function OfficialAuthLanding() {
                         className="w-full h-11 rounded-xl border px-4 text-left text-sm font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:opacity-70"
                         style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                       >
-                        {workspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS'}
+                        {getWorkspaceLabel(workspace)}
                       </button>
                     ))}
                   </div>
