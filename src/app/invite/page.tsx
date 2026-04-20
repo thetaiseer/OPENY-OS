@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -39,7 +39,7 @@ function formatRole(value: string | null | undefined): string {
 
 const supabaseClient = createClient();
 
-export default function InvitePage() {
+function InvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -228,5 +228,13 @@ export default function InvitePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InvitePageWrapper() {
+  return (
+    <Suspense>
+      <InvitePage />
+    </Suspense>
   );
 }

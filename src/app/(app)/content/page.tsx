@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FileText, Plus, Search, Filter, Pencil, Trash2, ChevronRight,
@@ -229,7 +230,10 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
-export default function ContentPage() {
+function ContentPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { role } = useAuth();
   const canDeleteContent = role === 'admin' || role === 'owner';
   const { toast } = useToast();
@@ -286,6 +290,15 @@ export default function ContentPage() {
       },
     );
   }, [clientFilter, queryClient, statusFilter]);
+
+  useEffect(() => {
+    if (searchParams.get('quickAction') !== 'add-content') return;
+    setNewOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('quickAction');
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams, setNewOpen]);
 
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {
@@ -428,5 +441,13 @@ export default function ContentPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function ContentPageWrapper() {
+  return (
+    <Suspense>
+      <ContentPage />
+    </Suspense>
   );
 }

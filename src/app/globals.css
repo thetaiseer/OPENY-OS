@@ -19,6 +19,7 @@
   --shell-pad-y: 0.875rem;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
+  --font-arabic: 'Cairo';
 }
 
 .dark {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo, Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Upload, FolderOpen, File, X, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
@@ -299,7 +300,10 @@ function triggerDownload(url: string, filename: string): void {
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AssetsPage() {
+function AssetsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -423,6 +427,17 @@ export default function AssetsPage() {
         setScheduleCounts(counts);
       });
   }, [assets]);
+
+  useEffect(() => {
+    if (searchParams.get('quickAction') !== 'add-asset') return;
+    if (canUpload) {
+      fileRef.current?.click();
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('quickAction');
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [canUpload, pathname, router, searchParams, fileRef]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 
@@ -1144,5 +1159,13 @@ export default function AssetsPage() {
       )}
 
     </>
+  );
+}
+
+export default function AssetsPageWrapper() {
+  return (
+    <Suspense>
+      <AssetsPage />
+    </Suspense>
   );
 }
