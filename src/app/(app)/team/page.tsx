@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
+import { getWorkspaceLabel, WORKSPACE_ROLES } from '@/lib/workspace-access';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
@@ -72,6 +73,12 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
     return member.role;
   }
   return null;
+}
+
+function formatWorkspaceRole(role: string | undefined): string {
+  const candidate = (role ?? '').toLowerCase();
+  const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number]) ? candidate : 'member';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 // ── Group label mapping ───────────────────────────────────────────────────────
@@ -998,17 +1005,25 @@ function MemberCard({
               <Mail size={11} />{member.email}
             </p>
           )}
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {workspaceAccess?.os?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                OS · {workspaceAccess.os.role}
-              </span>
-            )}
-            {workspaceAccess?.docs?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                DOCS · {workspaceAccess.docs.role}
-              </span>
-            )}
+          <div className="mt-1">
+            <p id={`member-access-${member.id}`} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
+            <ul aria-labelledby={`member-access-${member.id}`} className="mt-0.5 flex flex-wrap gap-1.5">
+              {workspaceAccess?.os?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
+                </li>
+              )}
+              {workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('docs')} · {formatWorkspaceRole(workspaceAccess.docs.role)}
+                </li>
+              )}
+              {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  No workspace access
+                </li>
+              )}
+            </ul>
           </div>
           {invitation && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
