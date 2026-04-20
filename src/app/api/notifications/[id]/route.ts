@@ -1,6 +1,6 @@
 /**
- * PATCH /api/notifications/[id] — mark as read / unread
- * DELETE /api/notifications/[id] — delete a notification
+ * PATCH /api/notifications/[id] — mark as read / unread / archive
+ * DELETE /api/notifications/[id] — hard-delete (admin only; prefer archive for normal users)
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
@@ -19,8 +19,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const db = getServiceClient();
   const updateData: Record<string, unknown> = {};
-  if (typeof body.read === 'boolean') updateData.read = body.read;
-  if (typeof body.is_read === 'boolean') updateData.read = body.is_read;
+  if (typeof body.read === 'boolean') {
+    updateData.read = body.read;
+    if (body.read) updateData.read_at = new Date().toISOString();
+  }
+  if (typeof body.is_read === 'boolean') {
+    updateData.read = body.is_read;
+    if (body.is_read) updateData.read_at = new Date().toISOString();
+  }
+  if (typeof body.is_archived === 'boolean') {
+    updateData.is_archived = body.is_archived;
+  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ success: false, error: 'Nothing to update' }, { status: 400 });
@@ -49,3 +58,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
+

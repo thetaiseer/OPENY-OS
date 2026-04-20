@@ -13,12 +13,15 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const requestedUserId = searchParams.get('user_id');
-  const unreadOnly = searchParams.get('unread') === 'true';
-  const page       = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
-  const limit      = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), 100);
-  const offset     = (page - 1) * limit;
+  const unreadOnly  = searchParams.get('unread') === 'true';
+  const category    = searchParams.get('category');  // tasks|content|assets|team|system
+  const archived    = searchParams.get('archived') === 'true';
+  const priority    = searchParams.get('priority');  // low|medium|high|critical
+  const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  const limit       = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), 100);
+  const offset      = (page - 1) * limit;
   const isAdminLike = auth.profile.role === 'admin' || auth.profile.role === 'owner';
-  const userId = isAdminLike && requestedUserId ? requestedUserId : auth.profile.id;
+  const userId      = isAdminLike && requestedUserId ? requestedUserId : auth.profile.id;
 
   try {
     const db = getServiceClient();
@@ -29,9 +32,15 @@ export async function GET(req: NextRequest) {
       .range(offset, offset + limit - 1);
 
     query = query.or(`user_id.eq.${userId},user_id.is.null`);
-    if (unreadOnly) {
-      query = query.eq('read', false);
+
+    // Default: exclude archived unless explicitly requested
+    if (!archived) {
+      query = query.eq('is_archived', false);
     }
+
+    if (unreadOnly) query = query.eq('read', false);
+    if (category)   query = query.eq('category', category);
+    if (priority)   query = query.eq('priority', priority);
 
     const { data, error } = await query;
     if (error) {
@@ -39,11 +48,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const { count: unreadCount } = await db
+    // Unread count (active, not archived)
+    let countQuery = db
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .or(`user_id.eq.${userId},user_id.is.null`)
       .eq('read', false);
+    try {
+      countQuery = countQuery.eq('is_archived', false);
+    } catch { /* column may not exist yet on older schemas */ }
+    const { count: unreadCount } = await countQuery;
 
     return NextResponse.json({
       success: true,
@@ -80,7 +94,10 @@ export async function POST(req: NextRequest) {
       title,
       message,
       type:        typeof body.type === 'string' ? body.type : 'info',
+      priority:    typeof body.priority === 'string' ? body.priority : 'medium',
+      category:    typeof body.category === 'string' ? body.category : null,
       read:        false,
+      is_archived: false,
       user_id:     typeof body.userId === 'string' ? body.userId : typeof body.user_id === 'string' ? body.user_id : null,
       actor_id:    typeof body.actorId === 'string' ? body.actorId : typeof body.actor_id === 'string' ? body.actor_id : null,
       metadata:    body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
@@ -102,3 +119,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
+
