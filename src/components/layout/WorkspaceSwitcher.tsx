@@ -80,14 +80,14 @@ export default function WorkspaceSwitcher() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="inline-flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors hover:bg-[var(--surface-2)]"
-        style={{ color: 'var(--text-primary)' }}
+        className="workspace-switcher-trigger inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-semibold sm:text-sm"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
         onClick={() => setOpen(value => !value)}
         aria-haspopup="menu"
         aria-expanded={open}
       >
         <span className="truncate">{currentLabel}</span>
-        <ChevronDown size={13} className={open ? 'rotate-180 transition-transform shrink-0' : 'transition-transform shrink-0'} style={{ color: 'var(--text-secondary)' }} />
+        <ChevronDown size={13} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
       </button>
 
       {open ? (

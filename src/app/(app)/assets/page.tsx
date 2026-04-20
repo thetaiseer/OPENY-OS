@@ -161,7 +161,7 @@ function FolderCard({ label, count, color, onClick, onView, onDownload, isDownlo
       <div className="flex items-center gap-3 min-w-0">
         <div
           className="flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 shrink-0"
-          style={{ background: color ? `${color}22` : 'var(--accent-soft)' }}
+          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
         >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
@@ -250,7 +250,7 @@ function ClientFolderCard({
             type="button"
             onClick={e => { e.stopPropagation(); onDelete(); }}
             className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
-            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)', background: 'var(--surface-2)' }}
+            style={{ color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.08)' }}
             title={`Delete ${label}`}
             aria-label={`Delete ${label}`}
           >
@@ -325,10 +325,10 @@ function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate
 
 const CATEGORY_COLORS: Record<string, string> = {
   'social-media': '#3b82f6',
-  'videos': '#2563eb',
-  'designs': '#1d4ed8',
-  'documents': '#64748b',
-  'other': '#64748b',
+  'videos':       '#8b5cf6',
+  'designs':      '#f59e0b',
+  'documents':    '#10b981',
+  'other':        '#6b7280',
 };
 
 const FILE_TYPE_LABELS: Record<string, string> = {
@@ -1120,7 +1120,7 @@ export default function AssetsPage() {
 
         {/* ── Drag-over overlay ────────────────────────────────────────────── */}
         {isDragOver && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'var(--accent-soft)', outline: '3px dashed var(--accent)' }}>
+          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(99,102,241,0.12)', outline: '3px dashed var(--accent)' }}>
             <div className="text-center space-y-2">
               <Upload size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
               <p className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>Drop files to upload</p>
@@ -1130,7 +1130,7 @@ export default function AssetsPage() {
 
         {/* ── Fetch error ──────────────────────────────────────────────────── */}
         {fetchError && !loading && (
-          <div className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <div className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444', color: '#ef4444' }}>
             <AlertCircle size={16} className="shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="font-medium">Failed to load assets</p>
@@ -1303,8 +1303,8 @@ export default function AssetsPage() {
         size="sm"
       >
         <div className="space-y-4">
-          <div className="rounded-xl border p-3 flex items-start gap-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
+          <div className="rounded-xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}>
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
             <div className="space-y-1">
               <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                 Delete “{clientDeleteTarget?.name}”?
@@ -1329,7 +1329,7 @@ export default function AssetsPage() {
               onClick={() => { void handleDeleteClient(); }}
               disabled={deletingClient}
               className="h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#111827' }}
+              style={{ background: '#dc2626' }}
             >
               {deletingClient ? 'Deleting…' : 'Delete Client'}
             </button>
