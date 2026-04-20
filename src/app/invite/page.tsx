@@ -127,7 +127,7 @@ export default function InvitePage() {
 
       const acceptedWorkspaces = (payload.workspaces ?? [])
         .map((workspace: unknown) => normalizeWorkspaceKey(workspace))
-        .filter((workspace: unknown): workspace is 'os' | 'docs' => Boolean(workspace));
+        .filter((workspace: unknown): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
       const redirectTarget = acceptedWorkspaces.length > 1
         ? '/?switch=1'
         : acceptedWorkspaces.length === 1

@@ -1005,9 +1005,9 @@ function MemberCard({
               <Mail size={11} />{member.email}
             </p>
           )}
-          <div className="mt-1" aria-label="Workspace access">
-            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
-            <ul className="mt-0.5 flex flex-wrap gap-1.5">
+          <div className="mt-1">
+            <p id={`member-access-${member.id}`} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
+            <ul aria-labelledby={`member-access-${member.id}`} className="mt-0.5 flex flex-wrap gap-1.5">
               {workspaceAccess?.os?.enabled && (
                 <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
                   {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
