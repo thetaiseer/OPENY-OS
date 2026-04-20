@@ -190,7 +190,7 @@ async function getResponseErrorMessage(response: Response, fallback: string) {
 
 function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocumentModel> }) {
   return (
-    <div id="invoice-preview" style={{ background: '#fff', color: INVOICE_BLACK, width: '210mm', minHeight: '297mm', padding: '12mm', boxSizing: 'border-box', fontSize: 12, fontFamily: "'Inter', sans-serif" }}>
+    <div id="invoice-preview" style={{ background: '#fff', color: INVOICE_BLACK, width: '210mm', minHeight: '297mm', padding: '12mm', boxSizing: 'border-box', fontSize: 12, fontFamily: 'var(--font-arabic), Inter, system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <OpenyLogo forceVariant="light" width={146} height={40} />
