@@ -3,13 +3,14 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, Search, Users2, AlertCircle, X,
+  Plus, Search, Users2, AlertCircle,
   FolderOpen, Image as ImageIcon, CheckSquare, FileText, Activity, Globe,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -21,9 +22,6 @@ const statusVariant = (s: string) => {
   if (s === 'inactive') return 'default' as const;
   return 'info' as const;
 };
-
-const WARN_TOAST_BG    = '#d97706';
-const SUCCESS_TOAST_BG = '#16a34a';
 
 /** Lightweight relative-time formatter (no external dep). */
 function formatRelative(iso: string): string {
@@ -53,6 +51,7 @@ interface ClientStats {
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
   const queryClient = useQueryClient();
   const canManageClients = role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
@@ -60,8 +59,6 @@ export default function ClientsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [warnMsg, setWarnMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', industry: '', status: 'active', notes: '',
   });
@@ -236,8 +233,7 @@ export default function ClientsPage() {
         });
         router.push(`/clients/${createdClientRouteKey}`);
       } else {
-        setSuccessMsg(`Client "${form.name}" created successfully.`);
-        setTimeout(() => setSuccessMsg(null), 4000);
+        toast(`Client "${form.name}" created successfully.`, 'success');
 
         // Refresh list non-blocking via React Query cache invalidation
         console.log('[client create] triggering list refetch');
@@ -444,26 +440,6 @@ export default function ClientsPage() {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {warnMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: WARN_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
-          <span className="flex-1">{warnMsg}</span>
-          <button onClick={() => setWarnMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white" style={{ background: SUCCESS_TOAST_BG, minWidth: 280 }}>
-          <AlertCircle size={16} className="shrink-0" />
-          <span className="flex-1">{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
         </div>
       )}
 

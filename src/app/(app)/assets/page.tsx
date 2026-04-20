@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 import {
-  Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
+  Upload, FolderOpen, File, X, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
   Download, Square, CheckSquare, Users2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -64,29 +65,6 @@ interface FileUploadItem {
   thumbnailBlob:   Blob | null;
   durationSeconds: number | null;
   previewBlob:     Blob | null;
-}
-
-interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
-
-function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="fixed bottom-6 right-[340px] z-50 flex flex-col gap-2 pointer-events-none">
-      {toasts.map(toast => (
-        <div
-          key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
-          style={{ background: toast.type === 'success' ? '#16a34a' : '#dc2626', minWidth: 240, animation: 'fadeSlideUp 0.2s ease' }}
-        >
-          {toast.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> : <X size={16} className="shrink-0" />}
-          <span className="flex-1">{toast.message}</span>
-          <button onClick={() => remove(toast.id)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ── File helpers (upload-specific) ────────────────────────────────────────────
@@ -304,7 +282,6 @@ function fileTypeFilterLabel(value: string): string {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS  = 15_000;
-const TOAST_DURATION_MS = 4500;
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null { return isImageFile(file.name, file.type) ? URL.createObjectURL(file) : null; }
 
@@ -325,6 +302,7 @@ function triggerDownload(url: string, filename: string): void {
 export default function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
+  const { toast } = useToast();
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
@@ -345,11 +323,9 @@ export default function AssetsPage() {
   const [commentsAsset, setCommentsAsset] = useState<Asset | null>(null);
   const [scheduleAsset, setScheduleAsset] = useState<Asset | null>(null);
   const [scheduleAfterUpload, setScheduleAfterUpload] = useState(false);
-  const [toasts, setToasts]   = useState<ToastMsg[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileRef     = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const toastIdRef  = useRef(0);
 
   // ── Folder navigation ─────────────────────────────────────────────────────
   const [folderPath, setFolderPath] = useState<FolderPath>({});
@@ -370,23 +346,6 @@ export default function AssetsPage() {
 
   const deferredAssets      = useDeferredValue(assets);
   const deferredSearchQuery = useDeferredValue(searchQuery);
-
-  // ── Toast ─────────────────────────────────────────────────────────────────
-
-  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    const id = ++toastIdRef.current;
-    setToasts(prev => [...prev, { id, message, type }]);
-    const timer = setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-      toastTimersRef.current = toastTimersRef.current.filter(t => t !== timer);
-    }, TOAST_DURATION_MS);
-    toastTimersRef.current.push(timer);
-  }, []);
-
-  useEffect(() => () => { toastTimersRef.current.forEach(clearTimeout); }, []);
-  const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
   // ── Fetch assets ──────────────────────────────────────────────────────────
 
@@ -718,7 +677,7 @@ export default function AssetsPage() {
       uploadedBy,
       uploadedByEmail,
     });
-    addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
+    toast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
   // ── Selection state ───────────────────────────────────────────────────────
@@ -761,20 +720,20 @@ export default function AssetsPage() {
       const res = await fetch(`/api/assets/download-zip?ids=${ids.join(',')}`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        addToast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
+        toast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
         return;
       }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       triggerDownload(url, archiveName);
       URL.revokeObjectURL(url);
-      addToast('Download ready', 'success');
+      toast('Download ready', 'success');
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
     } finally {
       setDownloadingZip(false);
     }
-  }, [addToast]);
+  }, [toast]);
 
   const handleDownloadClient = useCallback(async (clientName: string) => {
     setDownloadingClient(clientName);
@@ -784,16 +743,16 @@ export default function AssetsPage() {
         .select('id')
         .eq('client_name', clientName)
         .neq('is_deleted', true);
-      if (error) { addToast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
+      if (error) { toast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
       const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
-      if (ids.length === 0) { addToast('No downloadable files found for this client', 'error'); return; }
+      if (ids.length === 0) { toast('No downloadable files found for this client', 'error'); return; }
       await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
     } finally {
       setDownloadingClient(null);
     }
-  }, [addToast, downloadZip]);
+  }, [downloadZip, toast]);
 
   const handleDownloadSelected = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -815,17 +774,17 @@ export default function AssetsPage() {
     if (!confirm(`Delete "${asset.name}"?`)) return;
     const res  = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
     const json = await res.json();
-    if (!res.ok) { addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
+    if (!res.ok) { toast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
     setAssets(prev => prev.filter(a => a.id !== asset.id));
-    addToast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
+    toast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
   };
 
   const handleRename = async (asset: Asset, newName: string) => {
     const res  = await fetch(`/api/assets/${asset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) });
     const json = await res.json() as { success?: boolean; error?: string; name?: string };
-    if (!res.ok) { addToast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); throw new Error(json.error ?? `HTTP ${res.status}`); }
+    if (!res.ok) { toast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); throw new Error(json.error ?? `HTTP ${res.status}`); }
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, name: json.name ?? newName } : a));
-    addToast('Asset renamed successfully.', 'success');
+    toast('Asset renamed successfully.', 'success');
   };
 
   const handleView = (asset: Asset) => {
@@ -833,8 +792,8 @@ export default function AssetsPage() {
   };
 
   const handleCopyLink = async (asset: Asset) => {
-    try { await navigator.clipboard.writeText(asset.view_url ?? asset.file_url); addToast('Link copied', 'success'); }
-    catch { addToast('Failed to copy link', 'error'); }
+    try { await navigator.clipboard.writeText(asset.view_url ?? asset.file_url); toast('Link copied', 'success'); }
+    catch { toast('Failed to copy link', 'error'); }
   };
 
   const handleScheduleCreated = (schedule: PublishingSchedule) => {
@@ -848,7 +807,7 @@ export default function AssetsPage() {
         return { ...prev, [assetId]: { count: existing.count + 1, nextDate } };
       });
     }
-    addToast('Publishing scheduled successfully!', 'success');
+    toast('Publishing scheduled successfully!', 'success');
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterFileType);
@@ -866,8 +825,6 @@ export default function AssetsPage() {
 
   return (
     <>
-      <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
       <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -1186,7 +1143,6 @@ export default function AssetsPage() {
         </div>
       )}
 
-      <Toast toasts={toasts} remove={removeToast} />
     </>
   );
 }

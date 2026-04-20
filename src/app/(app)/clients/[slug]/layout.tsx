@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Building2, Mail, Phone, Globe, Pencil, Trash2, CheckCircle, X,
+  ArrowLeft, Building2, Mail, Phone, Globe, Pencil, Trash2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
+import { useToast } from '@/lib/toast-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
@@ -20,35 +21,6 @@ import {
   warnClientRouting,
 } from '@/lib/client-route-utils';
 import { ClientWorkspaceContext } from './client-context';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
-
-// ── Toast ─────────────────────────────────────────────────────────────────────
-
-function ClientToast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
-      {toasts.map(toast => (
-        <div
-          key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
-          style={{ background: toast.type === 'success' ? '#16a34a' : '#dc2626', minWidth: 240, animation: 'fadeSlideUp 0.2s ease' }}
-        >
-          {toast.type === 'success'
-            ? <CheckCircle size={16} className="shrink-0" />
-            : <X size={16} className="shrink-0" />}
-          <span className="flex-1">{toast.message}</span>
-          <button onClick={() => remove(toast.id)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -68,23 +40,11 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   const pathname  = usePathname();
   const router    = useRouter();
   const { t }     = useLang();
+  const { toast } = useToast();
 
   const [client,   setClient]   = useState<Client | null>(null);
   const [clientId, setClientId] = useState('');
   const [loading,  setLoading]  = useState(true);
-
-  const [toastIdRef] = useState({ current: 0 });
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
-
-  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    const tid = ++toastIdRef.current;
-    setToasts(prev => [...prev, { id: tid, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== tid)), 4500);
-  }, [toastIdRef]);
-
-  const removeToast = useCallback((tid: number) => {
-    setToasts(prev => prev.filter(t => t.id !== tid));
-  }, []);
 
   // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -176,9 +136,9 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
         description: `Client "${editForm.name}" updated`,
         client_id: clientId,
       });
-      addToast('Client updated', 'success');
+      toast('Client updated', 'success');
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Failed to update client', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to update client', 'error');
     } finally {
       setSaving(false);
     }
@@ -188,7 +148,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     if (!client) return;
     if (!confirm(`Delete client "${client.name}"? This cannot be undone.`)) return;
     const { error } = await supabase.from('clients').delete().eq('id', client.id);
-    if (error) { addToast(error.message, 'error'); return; }
+    if (error) { toast(error.message, 'error'); return; }
     router.push('/clients');
   };
 
@@ -218,9 +178,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     );
   }
 
-  return (
-    <ClientWorkspaceContext.Provider value={{ client, clientId, setClient, reload: loadClient }}>
-      <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    return (
+      <ClientWorkspaceContext.Provider value={{ client, clientId, setClient, reload: loadClient }}>
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Back link */}
@@ -391,7 +350,6 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
       </div>
 
-      <ClientToast toasts={toasts} remove={removeToast} />
     </ClientWorkspaceContext.Provider>
   );
 }
