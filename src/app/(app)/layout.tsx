@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
+import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
@@ -149,6 +150,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto app-shell-main">{children}</main>
       </div>
 
+      <GlobalQuickActionsFab />
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
       <AiCommandCenter />
