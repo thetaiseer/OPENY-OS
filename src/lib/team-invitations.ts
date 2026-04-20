@@ -9,6 +9,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
 const DEFAULT_WORKSPACE_KEY: WorkspaceKey = 'os';
 const MAX_USER_SCAN_PAGES = 50;
+const DEFAULT_PROFILE_NAME = 'Team Member';
 
 export type InvitationValidationReason = 'expired' | 'not_found' | 'used';
 
@@ -68,6 +69,7 @@ export function validateInvitationState(
   const nowMs = Date.now();
   const hasValidExpiry = !Number.isNaN(expiresAtMs);
   // Strict validity contract: invitation is valid only when expires_at > now.
+  // Therefore expires_at === now is treated as expired.
   const isExpired = hasValidExpiry && expiresAtMs <= nowMs;
   const isPending = ACTIVE_INVITATION_STATUSES.includes(invitation.status as (typeof ACTIVE_INVITATION_STATUSES)[number]);
 
@@ -204,7 +206,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   const db = getServiceClient();
   const invitationEmail = validInvitation.email.toLowerCase();
   const teamMember = Array.isArray(validInvitation.team_member) ? validInvitation.team_member[0] : validInvitation.team_member;
-  const profileName = (fullName ?? teamMember?.full_name ?? invitationEmail.split('@')[0]).trim();
+  const profileName = (fullName ?? teamMember?.full_name ?? DEFAULT_PROFILE_NAME).trim();
 
   const requestUserId = await getRequestUserId(request);
   const existingUser = await findAuthUserByEmail(invitationEmail);

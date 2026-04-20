@@ -36,11 +36,12 @@ function formatRole(value: string | null | undefined): string {
     .replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
+const supabaseClient = createClient();
+
 export default function InvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
-  const [supabase] = useState(() => createClient());
 
   const [validation, setValidation] = useState<ValidationState>({ status: 'loading' });
   const [fullName, setFullName] = useState('');
@@ -77,6 +78,7 @@ export default function InvitePage() {
       setValidation({ status: 'valid', invitation: payload.invitation });
     };
 
+    // Fire-and-forget: result updates component state internally.
     void run();
   }, [token]);
 
@@ -116,7 +118,7 @@ export default function InvitePage() {
       }
 
       if (password) {
-        await supabase.auth.signInWithPassword({
+        await supabaseClient.auth.signInWithPassword({
           email: validation.invitation.email,
           password,
         });
