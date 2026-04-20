@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+const REDIRECT_DELAY_MS = 1200;
+
 type ValidationState =
   | { status: 'loading' }
   | { status: 'invalid'; message: string }
@@ -107,7 +109,7 @@ export default function InvitePage() {
       setSubmitMessage('Invitation accepted successfully. Redirecting…');
       setTimeout(() => {
         router.push('/?workspace=os');
-      }, 1200);
+      }, REDIRECT_DELAY_MS);
     } finally {
       setSubmitting(false);
     }

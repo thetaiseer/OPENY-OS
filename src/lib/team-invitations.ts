@@ -7,6 +7,7 @@ import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, t
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
+const DEFAULT_WORKSPACE_KEY: WorkspaceKey = 'os';
 
 export type InvitationValidationReason = 'expired' | 'not_found' | 'used';
 
@@ -94,7 +95,7 @@ function parseWorkspaceAccess(raw: unknown): WorkspaceKey[] {
     .map(v => normalizeWorkspaceKey(v))
     .filter((v): v is WorkspaceKey => Boolean(v));
 
-  if (keys.length === 0) return ['os'];
+  if (keys.length === 0) return [DEFAULT_WORKSPACE_KEY];
   return [...new Set(keys)];
 }
 
@@ -138,6 +139,28 @@ async function getRequestUserId(request: NextRequest): Promise<string | null> {
   return user?.id ?? null;
 }
 
+async function findAuthUserByEmail(email: string): Promise<{ id: string } | null> {
+  const db = getServiceClient();
+  let page = 1;
+
+  while (true) {
+    const { data: usersPage, error } = await db.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) {
+      console.error('[invitations/accept] Failed to list auth users:', error.message);
+      return null;
+    }
+
+    const users = usersPage.users ?? [];
+    const match = users.find(user => (user.email ?? '').toLowerCase() === email);
+    if (match?.id) return { id: match.id };
+
+    if (users.length < 200) break;
+    page += 1;
+  }
+
+  return null;
+}
+
 export async function acceptInvitationToken(request: NextRequest, tokenRaw: string, password?: string, fullName?: string) {
   const token = normalizeInvitationToken(tokenRaw);
   console.log('[invitations/accept] Token received from request:', token);
@@ -170,8 +193,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   const profileName = (fullName ?? teamMember?.full_name ?? invitationEmail.split('@')[0] ?? '').trim();
 
   const requestUserId = await getRequestUserId(request);
-  const { data: usersPage } = await db.auth.admin.listUsers({ page: 1, perPage: 200 });
-  const existingUser = usersPage.users.find(user => (user.email ?? '').toLowerCase() === invitationEmail);
+  const existingUser = await findAuthUserByEmail(invitationEmail);
 
   let authUserId = existingUser?.id ?? null;
   let userCreated = false;
