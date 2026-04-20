@@ -34,6 +34,12 @@ export function normalizeInvitationToken(raw: string | null | undefined): string
   }
 }
 
+export function maskInvitationToken(token: string): string {
+  if (!token) return '';
+  if (token.length <= 8) return `${token.slice(0, 2)}...${token.slice(-2)}`;
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
 export async function getInvitationByToken(token: string): Promise<ResolvedInvitation | null> {
   const db = getServiceClient();
   const { data, error } = await db
@@ -60,8 +66,9 @@ export function validateInvitationState(
 
   const expiresAtMs = new Date(invitation.expires_at).getTime();
   const nowMs = Date.now();
+  const hasValidExpiry = !Number.isNaN(expiresAtMs);
   // Strict validity contract: invitation is valid only when expires_at > now.
-  const isExpired = Number.isNaN(expiresAtMs) || expiresAtMs <= nowMs;
+  const isExpired = hasValidExpiry && expiresAtMs <= nowMs;
   const isPending = ACTIVE_INVITATION_STATUSES.includes(invitation.status as (typeof ACTIVE_INVITATION_STATUSES)[number]);
 
   console.log('[invitations] Expiration check result:', {
@@ -72,6 +79,7 @@ export function validateInvitationState(
     isPending,
   });
 
+  if (!hasValidExpiry) return { valid: false, reason: 'not_found' };
   if (isExpired) return { valid: false, reason: 'expired' };
   if (!isPending) return { valid: false, reason: 'used' };
   return { valid: true, invitation };
@@ -169,7 +177,7 @@ async function findAuthUserByEmail(email: string): Promise<{ id: string } | null
 
 export async function acceptInvitationToken(request: NextRequest, tokenRaw: string, password?: string, fullName?: string) {
   const token = normalizeInvitationToken(tokenRaw);
-  console.log('[invitations/accept] Token received from request:', token);
+  console.log('[invitations/accept] Token received from request:', maskInvitationToken(token));
   if (!token) return { ok: false as const, status: 400, body: { error: 'Invitation token is required' } };
 
   const invitation = await getInvitationByToken(token);
@@ -196,7 +204,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   const db = getServiceClient();
   const invitationEmail = validInvitation.email.toLowerCase();
   const teamMember = Array.isArray(validInvitation.team_member) ? validInvitation.team_member[0] : validInvitation.team_member;
-  const profileName = (fullName ?? teamMember?.full_name ?? invitationEmail.split('@')[0] ?? '').trim();
+  const profileName = (fullName ?? teamMember?.full_name ?? invitationEmail.split('@')[0]).trim();
 
   const requestUserId = await getRequestUserId(request);
   const existingUser = await findAuthUserByEmail(invitationEmail);

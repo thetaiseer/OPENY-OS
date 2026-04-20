@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvitationByToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
+import { getInvitationByToken, maskInvitationToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
 
 export async function GET(request: NextRequest) {
   const token = normalizeInvitationToken(request.nextUrl.searchParams.get('token'));
-  console.log('[invitations/validate] Token received from URL:', token);
+  console.log('[invitations/validate] Token received from URL:', maskInvitationToken(token));
 
   if (!token) {
     return NextResponse.json(

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvitationByToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
+import { getInvitationByToken, maskInvitationToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token: rawToken } = await context.params;
   const token = normalizeInvitationToken(rawToken);
-  console.log('[team/invite/[token]] Token received from URL:', token);
+  console.log('[team/invite/[token]] Token received from URL:', maskInvitationToken(token));
 
   const invitation = await getInvitationByToken(token);
   console.log('[team/invite/[token]] DB query result:', invitation ? {
