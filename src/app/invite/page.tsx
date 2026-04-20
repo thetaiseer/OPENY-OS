@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeWorkspaceKey } from '@/lib/workspace-access';
 
 // Small delay lets users see success feedback before redirecting.
 const REDIRECT_DELAY_MS = 1200;
@@ -124,7 +125,9 @@ export default function InvitePage() {
         });
       }
 
-      const acceptedWorkspaces = (payload.workspaces ?? []).filter((workspace: unknown): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
+      const acceptedWorkspaces = (payload.workspaces ?? [])
+        .map((workspace: unknown) => normalizeWorkspaceKey(workspace))
+        .filter((workspace: unknown): workspace is 'os' | 'docs' => Boolean(workspace));
       const redirectTarget = acceptedWorkspaces.length > 1
         ? '/?switch=1'
         : acceptedWorkspaces.length === 1

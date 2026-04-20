@@ -86,7 +86,8 @@ export default function OfficialAuthLanding() {
         }
 
         const requested = requestedWorkspace ?? preferredWorkspace;
-        if (assignedWorkspaces.length > 1 && (isSwitchMode || !requested)) {
+        const shouldShowWorkspaceSelection = assignedWorkspaces.length > 1 && (isSwitchMode || !requested);
+        if (shouldShowWorkspaceSelection) {
           setWorkspaceChoices(assignedWorkspaces);
           setAccessMessage(null);
           if (successToast) {

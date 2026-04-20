@@ -13,7 +13,8 @@ type UpsertResult =
   | { ok: true; usedFallback: boolean; upserted: number }
   | { ok: false; usedFallback: boolean; error: string };
 
-function shouldUseConflictFallback(message: string): boolean {
+function shouldUseConflictFallback(message: string, code?: string): boolean {
+  if (code === '42P10') return true;
   return /no unique or exclusion constraint matching the on conflict specification/i.test(message);
 }
 
@@ -35,7 +36,7 @@ export async function upsertWorkspaceMembershipsWithFallback(
   }
 
   const message = upsertError.message ?? 'Failed to upsert workspace memberships';
-  if (!shouldUseConflictFallback(message)) {
+  if (!shouldUseConflictFallback(message, upsertError.code)) {
     return { ok: false, usedFallback: false, error: message };
   }
 

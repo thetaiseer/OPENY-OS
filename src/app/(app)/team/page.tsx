@@ -14,7 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
-import { getWorkspaceLabel } from '@/lib/workspace-access';
+import { getWorkspaceLabel, WORKSPACE_ROLES } from '@/lib/workspace-access';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
@@ -76,7 +76,8 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
 }
 
 function formatWorkspaceRole(role: string | undefined): string {
-  const normalized = (role ?? 'member').toLowerCase();
+  const candidate = (role ?? '').toLowerCase();
+  const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number]) ? candidate : 'member';
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
