@@ -3,6 +3,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export const TOAST_ENTER_ANIMATION_MS = 220;
+export const TOAST_EXIT_ANIMATION_MS = 180;
 
 export interface ToastItem {
   id: number;
@@ -27,9 +29,16 @@ let nextId = 1;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastsRef = useRef<ToastItem[]>([]);
   const autoDismissTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const removeTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Keep latest toasts accessible from stable callbacks without re-creating them.
+  useEffect(() => {
+    toastsRef.current = toasts;
+  }, [toasts]);
+
+  // Refs are intentionally used here so timer maps stay stable across renders.
   const clearTimers = useCallback((id: number) => {
     const autoDismissTimer = autoDismissTimers.current.get(id);
     if (autoDismissTimer) {
@@ -49,16 +58,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [clearTimers]);
 
   const dismiss = useCallback((id: number) => {
-    let shouldScheduleRemoval = false;
+    const existing = toastsRef.current.find(t => t.id === id);
+    if (!existing || existing.closing) return;
     setToasts(prev => prev.map(t => {
       if (t.id !== id) return t;
-      if (t.closing) return t;
-      shouldScheduleRemoval = true;
       return { ...t, closing: true };
     }));
     const existingRemoveTimer = removeTimers.current.get(id);
-    if (shouldScheduleRemoval && !existingRemoveTimer) {
-      const removeTimer = setTimeout(() => remove(id), 180);
+    if (!existingRemoveTimer) {
+      const removeTimer = setTimeout(() => remove(id), TOAST_EXIT_ANIMATION_MS);
       removeTimers.current.set(id, removeTimer);
     }
   }, [remove]);
@@ -70,11 +78,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     autoDismissTimers.current.set(id, tid);
   }, [dismiss]);
 
-  useEffect(() => () => {
-    autoDismissTimers.current.forEach(clearTimeout);
-    removeTimers.current.forEach(clearTimeout);
-    autoDismissTimers.current.clear();
-    removeTimers.current.clear();
+  // Cleanup timers only when the provider unmounts.
+  useEffect(() => {
+    const autoDismissMap = autoDismissTimers.current;
+    const removeMap = removeTimers.current;
+    return () => {
+      autoDismissMap.forEach(timer => clearTimeout(timer));
+      removeMap.forEach(timer => clearTimeout(timer));
+      autoDismissMap.clear();
+      removeMap.clear();
+    };
   }, []);
 
   return (
