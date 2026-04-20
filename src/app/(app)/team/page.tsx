@@ -406,18 +406,21 @@ export default function TeamPage() {
     queryKey: ['team-data'],
     queryFn: async () => {
       const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
-        // Select only the columns the UI actually uses to reduce payload size.
-        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,status,created_at').order('full_name'),
+        fetch('/api/team/members', { credentials: 'include' }),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
         fetch('/api/team/workspace-access', { credentials: 'include' }),
       ]);
-      if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
+      if (!membersRes.ok) {
+        const message = await membersRes.text().catch(() => 'failed to fetch team members');
+        console.error('[team] members fetch error:', message);
+      }
       if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
+      const membersJson = membersRes.ok ? await membersRes.json() : { members: [] as TeamMember[] };
       const workspaceAccessJson = workspaceAccessRes.ok
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
       return {
-        members:     (!membersRes.error  ? (membersRes.data  ?? []) : []) as TeamMember[],
+        members:     (membersJson.members ?? []) as TeamMember[],
         invitations: (!invitesRes.error  ? (invitesRes.data  ?? []) : []) as TeamInvitation[],
         workspaceAccess: workspaceAccessJson.access as Record<string, Record<string, { enabled: boolean; role: string }>>,
       };

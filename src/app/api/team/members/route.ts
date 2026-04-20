@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiUser } from '@/lib/api-auth';
+import { getServiceClient } from '@/lib/supabase/service-client';
+import { getWorkspaceFromAppPath, normalizeWorkspaceKey, type WorkspaceKey } from '@/lib/workspace-access';
+
+type TeamMemberPayload = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: 'owner' | 'admin' | 'member';
+  status: 'active';
+  job_title: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+function resolveWorkspaceKey(request: NextRequest): WorkspaceKey {
+  const fromQuery = normalizeWorkspaceKey(request.nextUrl.searchParams.get('workspace'));
+  if (fromQuery) return fromQuery;
+
+  const referer = request.headers.get('referer') ?? '';
+  if (referer) {
+    try {
+      const pathname = new URL(referer).pathname;
+      const fromPath = getWorkspaceFromAppPath(pathname);
+      if (fromPath) return fromPath;
+    } catch {}
+  }
+
+  return 'os';
+}
+
+function normalizeMemberRole(role: string | null | undefined): 'owner' | 'admin' | 'member' {
+  if (role === 'owner') return 'owner';
+  if (role === 'admin') return 'admin';
+  return 'member';
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await getApiUser(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const workspaceKey = resolveWorkspaceKey(request);
+  const db = getServiceClient();
+
+  const { data: workspaceRow, error: workspaceError } = await db
+    .from('workspaces')
+    .select('id, slug')
+    .eq('slug', workspaceKey)
+    .maybeSingle();
+
+  if (workspaceError) {
+    console.error('[team/members/get] Failed to resolve workspace:', workspaceError.message);
+    return NextResponse.json({ error: workspaceError.message }, { status: 500 });
+  }
+
+  if (!workspaceRow?.id) {
+    console.log('[team/members/get] Team fetched:', { workspace: workspaceKey, workspaceId: null, count: 0 });
+    return NextResponse.json({ members: [] as TeamMemberPayload[] });
+  }
+
+  const { data: workspaceMembers, error: membersError } = await db
+    .from('workspace_members')
+    .select('id, workspace_id, user_id, role, joined_at')
+    .eq('workspace_id', workspaceRow.id);
+
+  if (membersError) {
+    console.error('[team/members/get] Failed to fetch workspace_members:', membersError.message);
+    return NextResponse.json({ error: membersError.message }, { status: 500 });
+  }
+
+  const userIds = [...new Set((workspaceMembers ?? []).map(member => member.user_id).filter(Boolean))];
+  const { data: profileRows, error: profileError } = userIds.length > 0
+    ? await db
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', userIds)
+    : { data: [] as Array<{ id: string; name: string | null; email: string | null }>, error: null };
+
+  if (profileError) {
+    console.error('[team/members/get] Failed to fetch profiles:', profileError.message);
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  const { data: teamRows, error: teamRowsError } = userIds.length > 0
+    ? await db
+        .from('team_members')
+        .select('id, profile_id, email, full_name, job_title, status, created_at, updated_at')
+        .in('profile_id', userIds)
+    : { data: [] as Array<{
+        id: string;
+        profile_id: string | null;
+        email: string | null;
+        full_name: string | null;
+        job_title: string | null;
+        status: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>, error: null };
+
+  if (teamRowsError) {
+    console.error('[team/members/get] Failed to fetch team_members:', teamRowsError.message);
+    return NextResponse.json({ error: teamRowsError.message }, { status: 500 });
+  }
+
+  const profileById = new Map((profileRows ?? []).map(profile => [profile.id, profile]));
+  const teamByProfileId = new Map(
+    (teamRows ?? [])
+      .filter(row => Boolean(row.profile_id))
+      .map(row => [row.profile_id as string, row]),
+  );
+
+  const members: TeamMemberPayload[] = (workspaceMembers ?? []).map(member => {
+    const team = teamByProfileId.get(member.user_id);
+    const profile = profileById.get(member.user_id);
+    const fullName = team?.full_name
+      ?? profile?.name
+      ?? profile?.email
+      ?? member.user_id;
+    const email = team?.email ?? profile?.email ?? '';
+    return {
+      id: team?.id ?? member.user_id,
+      full_name: fullName,
+      email,
+      role: normalizeMemberRole(member.role),
+      status: 'active',
+      job_title: team?.job_title ?? null,
+      created_at: team?.created_at ?? member.joined_at ?? new Date().toISOString(),
+      updated_at: team?.updated_at ?? null,
+    };
+  });
+
+  members.sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  console.log('[team/members/get] Team fetched:', {
+    workspace: workspaceKey,
+    workspaceId: workspaceRow.id,
+    count: members.length,
+  });
+
+  return NextResponse.json({ members });
+}

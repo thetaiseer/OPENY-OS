@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
-import { upsertWorkspaceMembershipsWithFallback } from '@/lib/workspace-membership-upsert';
 import { notifyMemberJoined } from '@/lib/notification-service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -90,6 +89,12 @@ export function validateInvitationState(
 }
 
 type WorkspaceGrant = { workspace: WorkspaceKey; role: 'owner' | 'admin' | 'member' | 'viewer' };
+
+function normalizeWorkspaceMemberRole(role: string): 'owner' | 'admin' | 'member' {
+  if (role === 'owner') return 'owner';
+  if (role === 'admin') return 'admin';
+  return 'member';
+}
 
 function parseWorkspaceAccess(raw: unknown): WorkspaceKey[] {
   const values = Array.isArray(raw)
@@ -292,23 +297,52 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   }
 
   const grants = resolveWorkspaceGrants(validInvitation);
-  const memberships = grants.map(grant => ({
-    user_id: resolvedAuthUserId,
-    workspace_key: grant.workspace,
-    role: grant.role,
-    is_active: true,
-    updated_at: new Date().toISOString(),
-  }));
+  const workspaceKeys = [...new Set(grants.map(grant => grant.workspace))];
+  const { data: workspaceRows, error: workspaceRowsError } = await db
+    .from('workspaces')
+    .select('id, slug')
+    .in('slug', workspaceKeys);
 
-  const membershipWrite = await upsertWorkspaceMembershipsWithFallback(db, memberships, 'invitations/accept');
-  if (!membershipWrite.ok) {
-    console.error('[invitations/accept] Failed to upsert workspace memberships:', membershipWrite.error);
-    return { ok: false as const, status: 500, body: { error: membershipWrite.error } };
+  if (workspaceRowsError) {
+    console.error('[invitations/accept] Failed to resolve workspace ids:', workspaceRowsError.message);
+    return { ok: false as const, status: 500, body: { error: workspaceRowsError.message } };
   }
-  console.log('[invitations/accept] Workspace memberships upserted:', {
-    count: membershipWrite.upserted,
-    usedFallback: membershipWrite.usedFallback,
-    workspaces: grants.map(grant => `${grant.workspace}:${grant.role}`),
+
+  const workspaceIdByKey = new Map<string, string>();
+  for (const row of workspaceRows ?? []) {
+    if (row.slug && row.id) workspaceIdByKey.set(row.slug, row.id);
+  }
+
+  const membersToInsert = grants
+    .map(grant => {
+      const workspaceId = workspaceIdByKey.get(grant.workspace);
+      if (!workspaceId) return null;
+      return {
+        workspace_id: workspaceId,
+        user_id: resolvedAuthUserId,
+        role: normalizeWorkspaceMemberRole(grant.role),
+      };
+    })
+    .filter((row): row is { workspace_id: string; user_id: string; role: 'owner' | 'admin' | 'member' } => Boolean(row));
+
+  if (membersToInsert.length === 0) {
+    console.error('[invitations/accept] No target workspace_members rows could be resolved from invitation grants:', grants);
+    return { ok: false as const, status: 500, body: { error: 'No valid workspace target found for invitation.' } };
+  }
+
+  const { error: workspaceMemberInsertError } = await db
+    .from('workspace_members')
+    .upsert(membersToInsert, { onConflict: 'workspace_id,user_id' });
+
+  if (workspaceMemberInsertError) {
+    console.error('[invitations/accept] Failed to insert workspace_members rows:', workspaceMemberInsertError.message);
+    return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError.message } };
+  }
+
+  console.log('[invitations/accept] workspace_members inserted:', {
+    count: membersToInsert.length,
+    userId: resolvedAuthUserId,
+    workspaces: membersToInsert.map(member => `${member.workspace_id}:${member.role}`),
   });
 
   const { error: invitationUpdateError } = await db
