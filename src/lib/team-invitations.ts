@@ -327,19 +327,23 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   }
 
   void (async () => {
-    const { data: admins } = await db
-      .from('team_members')
-      .select('profile_id')
-      .eq('role', 'admin');
-    const adminUserIds = (admins ?? [])
-      .map((m: { profile_id?: string | null }) => m.profile_id)
-      .filter((v): v is string => Boolean(v));
-    if (adminUserIds.length === 0) return;
-    await notifyMemberJoined({
-      joinedUserId: resolvedAuthUserId,
-      joinedName: profileName,
-      adminUserIds,
-    });
+    try {
+      const { data: admins } = await db
+        .from('team_members')
+        .select('profile_id')
+        .eq('role', 'admin');
+      const adminUserIds = (admins ?? [])
+        .map((m: { profile_id?: string | null }) => m.profile_id)
+        .filter((v): v is string => Boolean(v));
+      if (adminUserIds.length === 0) return;
+      await notifyMemberJoined({
+        joinedUserId: resolvedAuthUserId,
+        joinedName: profileName,
+        adminUserIds,
+      });
+    } catch (err) {
+      console.warn('[invitations/accept] notifyMemberJoined failed:', err instanceof Error ? err.message : String(err));
+    }
   })();
 
   return {

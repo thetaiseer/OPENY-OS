@@ -234,22 +234,26 @@ export async function POST(req: NextRequest) {
   // ── Notify (fire-and-forget) ───────────────────────────────────────────────
   if (inserted) {
     void (async () => {
-      const { data: members } = await supabase
-        .from('team_members')
-        .select('profile_id')
-        .eq('status', 'active');
+      try {
+        const { data: members } = await supabase
+          .from('team_members')
+          .select('profile_id')
+          .eq('status', 'active');
 
-      const teamMemberUserIds = (members ?? [])
-        .map((m: { profile_id?: string | null }) => m.profile_id)
-        .filter((v): v is string => Boolean(v));
+        const teamMemberUserIds = (members ?? [])
+          .map((m: { profile_id?: string | null }) => m.profile_id)
+          .filter((v): v is string => Boolean(v));
 
-      await notifyAssetUploaded({
-        assetId:      inserted.id as string,
-        assetName:    displayName,
-        clientId:     clientId ?? null,
-        uploadedById: auth.profile.id,
-        teamMemberUserIds,
-      });
+        await notifyAssetUploaded({
+          assetId:      inserted.id as string,
+          assetName:    displayName,
+          clientId:     clientId ?? null,
+          uploadedById: auth.profile.id,
+          teamMemberUserIds,
+        });
+      } catch (err) {
+        console.warn('[upload/complete] notifyAssetUploaded failed:', err instanceof Error ? err.message : String(err));
+      }
     })();
   }
 

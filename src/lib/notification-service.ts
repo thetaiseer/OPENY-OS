@@ -5,6 +5,7 @@
  */
 
 import { getServiceClient } from '@/lib/supabase/service-client';
+const COMMENT_PREVIEW_LENGTH = 120;
 
 export type NotificationEventType =
   | 'task_created'
@@ -48,27 +49,29 @@ export interface CreateNotificationInput {
 
 async function insertNotificationWithFallback(row: Record<string, unknown>): Promise<void> {
   const db = getServiceClient();
+  const isOptionalColumnMissingError = (message: string) => {
+    const msg = message.toLowerCase();
+    const mentionsMetadata = msg.includes('metadata');
+    const mentionsActorId = msg.includes('actor_id');
+    const isMissingColumnPattern = msg.includes('column') || msg.includes('could not find');
+    return isMissingColumnPattern && (mentionsMetadata || mentionsActorId);
+  };
+  const omitFields = (source: Record<string, unknown>, fields: string[]) => {
+    const next: Record<string, unknown> = { ...source };
+    for (const field of fields) delete next[field];
+    return next;
+  };
   const candidates: Record<string, unknown>[] = [
     row,
-    (() => {
-      const { metadata: _metadata, ...rest } = row;
-      return rest;
-    })(),
-    (() => {
-      const { actor_id: _actorId, ...rest } = row;
-      return rest;
-    })(),
-    (() => {
-      const { metadata: _metadata, actor_id: _actorId, ...rest } = row;
-      return rest;
-    })(),
+    omitFields(row, ['metadata']),
+    omitFields(row, ['actor_id']),
+    omitFields(row, ['metadata', 'actor_id']),
   ];
 
   for (const candidate of candidates) {
     const { error } = await db.from('notifications').insert(candidate);
     if (!error) return;
-    const msg = error.message.toLowerCase();
-    const isMissingColumn = msg.includes('column') || msg.includes('schema cache');
+    const isMissingColumn = isOptionalColumnMissingError(error.message);
     if (!isMissingColumn) {
       console.warn('[notification-service] insert failed:', error.message);
       return;
@@ -314,7 +317,7 @@ export async function notifyCommentAdded(opts: {
 }): Promise<void> {
   await createNotificationsForUsers(opts.watcherUserIds, {
     title:       'New Comment',
-    message:     `${opts.actorName?.trim() || 'Someone'} commented: "${opts.content.slice(0, 120)}"`,
+    message:     `${opts.actorName?.trim() || 'Someone'} commented: "${opts.content.slice(0, COMMENT_PREVIEW_LENGTH)}"`,
     type:        'info',
     eventType:   'comment.added',
     actorId:     opts.actorId,

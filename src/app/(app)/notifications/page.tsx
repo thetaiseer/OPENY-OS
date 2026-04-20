@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Bell, Info, CheckCircle, AlertTriangle, XCircle, Check, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Notification } from '@/lib/types';
+const MAX_EVENT_SUMMARY_DISPLAY = 3;
 
 const TYPE_ICON = {
   info:    Info,
@@ -126,13 +127,13 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const groupedUnread = notifications
+  const groupedUnread = useMemo(() => notifications
     .filter(n => !n.read && n.event_type)
     .reduce<Record<string, number>>((acc, n) => {
       const key = n.event_type as string;
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
-    }, {});
+    }, {}), [notifications]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -182,7 +183,7 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
-      {Object.entries(groupedUnread).slice(0, 3).map(([eventType, count]) => (
+      {Object.entries(groupedUnread).slice(0, MAX_EVENT_SUMMARY_DISPLAY).map(([eventType, count]) => (
         <p key={eventType} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
           {count} new {EVENT_LABEL[eventType] ?? eventType}
         </p>

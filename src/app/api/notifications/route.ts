@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       title,
       message,
       type:        typeof body.type === 'string' ? body.type : 'info',
-      read:        typeof body.is_read === 'boolean' ? body.is_read : false,
+      read:        false,
       user_id:     typeof body.userId === 'string' ? body.userId : typeof body.user_id === 'string' ? body.user_id : null,
       actor_id:    typeof body.actorId === 'string' ? body.actorId : typeof body.actor_id === 'string' ? body.actor_id : null,
       metadata:    body.metadata && typeof body.metadata === 'object' ? body.metadata : {},

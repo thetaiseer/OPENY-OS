@@ -109,20 +109,24 @@ export async function POST(request: NextRequest) {
 
   if (data?.id) {
     void (async () => {
-      const { data: admins } = await db
-        .from('team_members')
-        .select('profile_id')
-        .eq('role', 'admin');
-      const adminUserIds = (admins ?? [])
-        .map((m: { profile_id?: string | null }) => m.profile_id)
-        .filter((v): v is string => Boolean(v));
-      if (adminUserIds.length === 0) return;
-      await notifyClientCreated({
-        clientId: data.id as string,
-        clientName: data.name as string,
-        actorId: auth.profile.id,
-        adminUserIds,
-      });
+      try {
+        const { data: admins } = await db
+          .from('team_members')
+          .select('profile_id')
+          .eq('role', 'admin');
+        const adminUserIds = (admins ?? [])
+          .map((m: { profile_id?: string | null }) => m.profile_id)
+          .filter((v): v is string => Boolean(v));
+        if (adminUserIds.length === 0) return;
+        await notifyClientCreated({
+          clientId: data.id as string,
+          clientName: data.name as string,
+          actorId: auth.profile.id,
+          adminUserIds,
+        });
+      } catch (err) {
+        console.warn('[POST /api/clients] notifyClientCreated failed:', err instanceof Error ? err.message : String(err));
+      }
     })();
   }
 
