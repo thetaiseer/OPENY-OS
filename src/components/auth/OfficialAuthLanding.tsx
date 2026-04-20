@@ -76,7 +76,7 @@ export default function OfficialAuthLanding() {
         const assignedWorkspaces = await loadAssignedWorkspaces(userId, userEmail);
         if (assignedWorkspaces.length === 0) {
           setAccessMessage(NO_WORKSPACE_MESSAGE);
-          toast(NO_WORKSPACE_MESSAGE, 'error', 6000);
+          toast(`${NO_WORKSPACE_MESSAGE} Contact your workspace admin to get access.`, 'error', 6000);
           await supabase.auth.signOut();
           return;
         }
@@ -93,7 +93,7 @@ export default function OfficialAuthLanding() {
         }
         redirectToWorkspace(router, targetWorkspace, nextPath);
       } catch (error) {
-        console.error('[auth] Failed to finalize workspace access after sign-in:', error);
+        console.error('[OfficialAuthLanding] Failed to finalize workspace access after sign-in:', error);
         const message = 'Unable to load your workspace access right now. Please try again.';
         setAccessMessage(message);
         toast(message, 'error');

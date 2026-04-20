@@ -76,12 +76,12 @@ export async function PATCH(
 
   const nextFullName = body.full_name === undefined ? undefined : String(body.full_name).trim();
   if (nextFullName !== undefined && nextFullName.length === 0) {
-    return NextResponse.json({ error: 'full_name cannot be empty' }, { status: 400 });
+    return NextResponse.json({ error: 'Full name cannot be empty' }, { status: 400 });
   }
 
   const nextEmail = normalizeEmail(body.email);
   if (typeof nextEmail === 'string' && !EMAIL_PATTERN.test(nextEmail)) {
-    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid email format. Example: name@company.com' }, { status: 400 });
   }
 
   const payloadRaw = {

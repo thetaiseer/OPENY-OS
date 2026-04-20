@@ -557,7 +557,7 @@ export default function TeamPage() {
       });
       if (!memberRes.ok) {
         const payload = await memberRes.json().catch(() => ({}));
-        throw new Error(payload.error ?? 'Failed to update member');
+        throw new Error(payload.error ?? 'Failed to update team member. Please try again.');
       }
       if (editForm.email) {
         const accessRes = await fetch('/api/team/workspace-access', {
