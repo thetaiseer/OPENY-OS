@@ -61,6 +61,10 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
 
+/** Client-visible bucket label for temporary upload logs. */
+const R2_BUCKET_LOG_NAME =
+  process.env.NEXT_PUBLIC_R2_BUCKET_NAME?.trim() || 'client-assets';
+
 const DB_FAIL_ARABIC =
   'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
 
@@ -644,7 +648,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         size: item.file.size,
         multipart: item.file.size > MULTIPART_THRESHOLD,
         provider: 'cloudflare-r2',
-        bucket: 'R2_BUCKET_NAME',
+        bucket: R2_BUCKET_LOG_NAME,
       });
       if (item.file.size > MULTIPART_THRESHOLD) {
         await doMultipartUpload(item, fileMimeType, ctrl);
@@ -683,7 +687,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
 
     const monthKey = item.monthKey;
-    if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
+    if (!monthKey || !/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) {
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step:               'month_key',
@@ -699,7 +703,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       fileName: item.file.name,
       fileSize: item.file.size,
       provider: 'cloudflare-r2',
-      bucket: 'R2_BUCKET_NAME',
+      bucket: R2_BUCKET_LOG_NAME,
     });
 
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
@@ -716,9 +720,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     if (item.subCategory) formData.append('subCategory', item.subCategory);
     if (item.uploadName?.trim()) formData.append('customFileName', item.uploadName.trim());
 
-    let presignRes: Response;
+    let r2UploadRes: Response;
     try {
-      presignRes = await fetch('/api/upload/presign', {
+      r2UploadRes = await fetch('/api/upload/presign', {
         method: 'POST',
         body: formData,
       });
@@ -740,32 +744,32 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const presignText = await presignRes.text();
-    type PresignResponse = { storageKey?: string; publicUrl?: string; displayName?: string; error?: string };
-    let presignJson: PresignResponse | null = null;
+    const r2UploadText = await r2UploadRes.text();
+    type R2UploadResponse = { storageKey?: string; publicUrl?: string; displayName?: string; error?: string };
+    let r2UploadJson: R2UploadResponse | null = null;
     try {
-      presignJson = presignText ? JSON.parse(presignText) as PresignResponse : null;
+      r2UploadJson = r2UploadText ? JSON.parse(r2UploadText) as R2UploadResponse : null;
     } catch {
-      presignJson = null;
+      r2UploadJson = null;
     }
 
-    if (!presignRes.ok || !presignJson?.storageKey || !presignJson.publicUrl || !presignJson.displayName) {
-      const errorMessage = presignJson?.error
-        ?? `Upload failed (HTTP ${presignRes.status})`;
+    if (!r2UploadRes.ok || !r2UploadJson?.storageKey || !r2UploadJson.publicUrl || !r2UploadJson.displayName) {
+      const errorMessage = r2UploadJson?.error
+        ?? `Upload failed (HTTP ${r2UploadRes.status})`;
       console.error('[upload] single upload failed during R2 upload', {
         fileName: item.file.name,
         fileSize: item.file.size,
         provider: 'cloudflare-r2',
-        bucket: 'R2_BUCKET_NAME',
+        bucket: R2_BUCKET_LOG_NAME,
         error: errorMessage,
-        response: presignText || null,
+        response: r2UploadText || null,
       });
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step:               'r2_upload',
           rawMessage:         errorMessage,
-          providerBody:       presignText || null,
-          httpStatus:         presignRes.status,
+          providerBody:       r2UploadText || null,
+          httpStatus:         r2UploadRes.status,
           fileReachedStorage: false,
           dbSaved:            false,
         }),
@@ -776,15 +780,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     console.log('[upload] single upload success', {
       provider: 'cloudflare-r2',
-      bucket: 'R2_BUCKET_NAME',
-      storageKey: presignJson.storageKey,
+      bucket: R2_BUCKET_LOG_NAME,
+      storageKey: r2UploadJson.storageKey,
     });
 
     update(item.id, {
-      r2Key: presignJson.storageKey,
+      r2Key: r2UploadJson.storageKey,
       r2Bucket: null,
-      r2FileName: presignJson.displayName,
-      publicUrl: presignJson.publicUrl,
+      r2FileName: r2UploadJson.displayName,
+      publicUrl: r2UploadJson.publicUrl,
       fileMimeType: mimeType,
     });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
@@ -795,9 +799,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Phase 3: save metadata.
     await doSaveMetadata(
       item,
-      presignJson.storageKey,
-      presignJson.displayName,
-      presignJson.publicUrl,
+      r2UploadJson.storageKey,
+      r2UploadJson.displayName,
+      r2UploadJson.publicUrl,
       mimeType,
       ctrl.signal,
       null,
