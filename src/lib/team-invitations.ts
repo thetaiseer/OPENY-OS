@@ -8,6 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
 const DEFAULT_WORKSPACE_KEY: WorkspaceKey = 'os';
+const MAX_USER_SCAN_PAGES = 50;
 
 export type InvitationValidationReason = 'expired' | 'not_found' | 'used';
 
@@ -59,6 +60,7 @@ export function validateInvitationState(
 
   const expiresAtMs = new Date(invitation.expires_at).getTime();
   const nowMs = Date.now();
+  // Strict validity contract: invitation is valid only when expires_at > now.
   const isExpired = Number.isNaN(expiresAtMs) || expiresAtMs <= nowMs;
   const isPending = ACTIVE_INVITATION_STATUSES.includes(invitation.status as (typeof ACTIVE_INVITATION_STATUSES)[number]);
 
@@ -143,7 +145,7 @@ async function findAuthUserByEmail(email: string): Promise<{ id: string } | null
   const db = getServiceClient();
   let page = 1;
 
-  while (true) {
+  while (page <= MAX_USER_SCAN_PAGES) {
     const { data: usersPage, error } = await db.auth.admin.listUsers({ page, perPage: 200 });
     if (error) {
       console.error('[invitations/accept] Failed to list auth users:', error.message);
@@ -156,6 +158,10 @@ async function findAuthUserByEmail(email: string): Promise<{ id: string } | null
 
     if (users.length < 200) break;
     page += 1;
+  }
+
+  if (page > MAX_USER_SCAN_PAGES) {
+    console.warn('[invitations/accept] Reached auth user scan page limit while searching email:', email);
   }
 
   return null;

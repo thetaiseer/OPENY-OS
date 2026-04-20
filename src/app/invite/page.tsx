@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -20,11 +20,14 @@ type ValidationState =
     };
   };
 
+type ValidateResponse = { error?: string; reason?: string; invitation?: { full_name?: string } };
+type AcceptResponse = { error?: string; email?: string };
+
 export default function InvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
-  const supabase = useMemo(() => createClient(), []);
+  const [supabase] = useState(() => createClient());
 
   const [validation, setValidation] = useState<ValidationState>({ status: 'loading' });
   const [fullName, setFullName] = useState('');
@@ -46,7 +49,7 @@ export default function InvitePage() {
       const encodedToken = encodeURIComponent(token);
       console.log('[invite/page] Token sent to backend:', encodedToken);
       const res = await fetch(`/api/invitations/validate?token=${encodedToken}`, { cache: 'no-store' });
-      const payload = await res.json().catch(() => ({} as { error?: string; reason?: string; invitation?: { full_name?: string } }));
+      const payload = await res.json().catch(() => ({} as ValidateResponse));
 
       if (!res.ok || !payload?.invitation) {
         if (payload?.reason === 'expired') {
@@ -92,7 +95,7 @@ export default function InvitePage() {
           full_name: fullName || undefined,
         }),
       });
-      const payload = await res.json().catch(() => ({} as { error?: string; email?: string }));
+      const payload = await res.json().catch(() => ({} as AcceptResponse));
 
       if (!res.ok) {
         setSubmitError(payload.error ?? 'Failed to accept invitation.');
