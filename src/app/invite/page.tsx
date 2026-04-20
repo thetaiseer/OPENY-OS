@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+// Small delay lets users see success feedback before redirecting.
 const REDIRECT_DELAY_MS = 1200;
 
 type ValidationState =
@@ -27,6 +28,12 @@ function maskToken(token: string): string {
   if (!token) return '';
   if (token.length <= 8) return `${token.slice(0, 2)}...${token.slice(-2)}`;
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+function formatRole(value: string | null | undefined): string {
+  return (value ?? 'team_member')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 export default function InvitePage() {
@@ -158,7 +165,7 @@ export default function InvitePage() {
                 <strong>Email:</strong> {validation.invitation.email}
               </p>
               <p className="text-sm" style={{ color: '#374151' }}>
-                <strong>Role:</strong> {(validation.invitation.role ?? 'team_member').replaceAll('_', ' ')}
+                <strong>Role:</strong> {formatRole(validation.invitation.role)}
               </p>
               <input
                 type="text"

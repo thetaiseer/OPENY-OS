@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInvitationByToken, maskInvitationToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
+  void request;
   const { token: rawToken } = await context.params;
   const token = normalizeInvitationToken(rawToken);
   console.log('[team/invite/[token]] Token received from URL:', maskInvitationToken(token));

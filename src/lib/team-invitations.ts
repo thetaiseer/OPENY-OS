@@ -249,11 +249,12 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   if (!authUserId) {
     return { ok: false as const, status: 500, body: { error: 'Unable to resolve invited user account' } };
   }
+  const resolvedAuthUserId = authUserId;
 
   const { error: profileError } = await db
     .from('profiles')
     .upsert({
-      id: authUserId,
+      id: resolvedAuthUserId,
       email: invitationEmail,
       name: profileName,
       role: 'team_member',
@@ -267,7 +268,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
   const { error: memberError } = await db
     .from('team_members')
     .update({
-      profile_id: authUserId,
+      profile_id: resolvedAuthUserId,
       status: MEMBER_STATUS.ACTIVE,
       updated_at: new Date().toISOString(),
     })
@@ -280,7 +281,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
 
   const grants = resolveWorkspaceGrants(validInvitation);
   const memberships = grants.map(grant => ({
-    user_id: authUserId,
+    user_id: resolvedAuthUserId,
     workspace_key: grant.workspace,
     role: grant.role,
     is_active: true,
