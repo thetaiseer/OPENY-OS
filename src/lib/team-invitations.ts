@@ -4,6 +4,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
 import { upsertWorkspaceMembershipsWithFallback } from '@/lib/workspace-membership-upsert';
+import { notifyMemberJoined } from '@/lib/notification-service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -324,6 +325,26 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     console.error('[invitations/accept] Failed to update invitation status:', invitationUpdateError.message);
     return { ok: false as const, status: 500, body: { error: invitationUpdateError.message } };
   }
+
+  void (async () => {
+    try {
+      const { data: admins } = await db
+        .from('team_members')
+        .select('profile_id')
+        .eq('role', 'admin');
+      const adminUserIds = (admins ?? [])
+        .map((m: { profile_id?: string | null }) => m.profile_id)
+        .filter((v): v is string => Boolean(v));
+      if (adminUserIds.length === 0) return;
+      await notifyMemberJoined({
+        joinedUserId: resolvedAuthUserId,
+        joinedName: profileName,
+        adminUserIds,
+      });
+    } catch (err) {
+      console.warn('[invitations/accept] notifyMemberJoined failed:', err instanceof Error ? err.message : String(err));
+    }
+  })();
 
   return {
     ok: true as const,

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Bell, Info, CheckCircle, AlertTriangle, XCircle, Check, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Notification } from '@/lib/types';
+const MAX_EVENT_SUMMARY_DISPLAY = 3;
 
 const TYPE_ICON = {
   info:    Info,
@@ -24,19 +25,28 @@ const TYPE_COLOR = {
 
 const EVENT_LABEL: Record<string, string> = {
   task_created:           'Task Created',
+  'task.created':         'Task Created',
   task_assigned:          'Task Assigned',
+  'task.assigned':        'Task Assigned',
   task_updated:           'Task Updated',
+  'task.updated':         'Task Updated',
   task_due_soon:          'Due Soon',
   task_overdue:           'Overdue',
   task_completed:         'Completed',
+  'task.completed':       'Completed',
   task_published:         'Published',
   publishing_scheduled:   'Publishing Scheduled',
   publishing_rescheduled: 'Rescheduled',
   publishing_published:   'Published',
   asset_uploaded:         'Asset Uploaded',
+  'file.uploaded':        'File Uploaded',
   asset_linked:           'Asset Linked',
   client_created:         'Client Created',
+  'client.created':       'Client Created',
   team_invitation:        'Team Invitation',
+  'member.invited':       'Team Invitation',
+  'member.joined':        'Member Joined',
+  'comment.added':        'Comment Added',
 };
 
 function fmtDate(d: string) {
@@ -54,25 +64,35 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
+  const loadNotifications = useCallback(async (nextPage = 1, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '20', page: String(nextPage) });
       if (user?.id) params.set('user_id', user.id);
+      if (showUnreadOnly) params.set('unread', 'true');
       const res = await fetch(`/api/notifications?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
-      const json = await res.json() as { notifications?: Notification[] };
-      setNotifications(json.notifications ?? []);
+      const json = await res.json() as { notifications?: Notification[]; hasMore?: boolean };
+      const incoming = json.notifications ?? [];
+      setNotifications(prev => append ? [...prev, ...incoming] : incoming);
+      setHasMore(Boolean(json.hasMore));
+      setPage(nextPage);
     } catch (err) {
       console.error('[notifications] load error:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [user]);
+  }, [user, showUnreadOnly]);
 
-  useEffect(() => { void loadNotifications(); }, [loadNotifications]);
+  useEffect(() => { void loadNotifications(1, false); }, [loadNotifications]);
 
   const markRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -107,6 +127,13 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const groupedUnread = useMemo(() => notifications
+    .filter(n => !n.read && n.event_type)
+    .reduce<Record<string, number>>((acc, n) => {
+      const key = n.event_type as string;
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {}), [notifications]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -121,17 +148,46 @@ export default function NotificationsPage() {
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
           </p>
         </div>
-        {unreadCount > 0 && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={markAllRead}
-            disabled={markingAll}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            onClick={() => setShowUnreadOnly(false)}
+            className="h-8 px-3 rounded-lg text-xs font-medium"
+            style={{
+              background: showUnreadOnly ? 'var(--surface)' : 'var(--surface-2)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
           >
-            <CheckCheck size={14} /> Mark all read
+            All
           </button>
-        )}
+          <button
+            onClick={() => setShowUnreadOnly(true)}
+            className="h-8 px-3 rounded-lg text-xs font-medium"
+            style={{
+              background: showUnreadOnly ? 'var(--surface-2)' : 'var(--surface)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            Unread
+          </button>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              disabled={markingAll}
+              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              <CheckCheck size={14} /> Mark all read
+            </button>
+          )}
+        </div>
       </div>
+      {Object.entries(groupedUnread).slice(0, MAX_EVENT_SUMMARY_DISPLAY).map(([eventType, count]) => (
+        <p key={eventType} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {count} new {EVENT_LABEL[eventType] ?? eventType}
+        </p>
+      ))}
 
       {/* List */}
       {loading ? (
@@ -212,9 +268,18 @@ export default function NotificationsPage() {
               </div>
             );
           })}
+          {hasMore && (
+            <button
+              onClick={() => void loadNotifications(page + 1, true)}
+              disabled={loadingMore}
+              className="w-full h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
-

@@ -345,12 +345,25 @@ export async function POST(request: NextRequest) {
   }
 
   // Notify team (best-effort — after successful email send)
-  void notifyInvitation({
-    teamMemberId: member.id,
-    inviteeName:  full_name,
-    inviterName:  auth.profile.name ?? null,
-    role:         access_role,
-  });
+  void (async () => {
+    try {
+      const { data: inviteeProfile } = await db
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      await notifyInvitation({
+        teamMemberId:  member.id,
+        inviteeName:   full_name,
+        inviterName:   auth.profile.name ?? null,
+        role:          access_role,
+        inviteeUserId: inviteeProfile?.id ?? null,
+      });
+    } catch (err) {
+      console.warn('[team/invite] notifyInvitation failed:', err instanceof Error ? err.message : String(err));
+    }
+  })();
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });
 }
