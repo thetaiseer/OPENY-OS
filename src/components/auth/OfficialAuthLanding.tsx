@@ -36,6 +36,8 @@ export default function OfficialAuthLanding() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
+  const [workspaceChoices, setWorkspaceChoices] = useState<WorkspaceKey[]>([]);
+  const [selectingWorkspace, setSelectingWorkspace] = useState(false);
 
   const nextPath = searchParams.get('next');
   const requestedWorkspace = resolveWorkspaceKey(searchParams.get('workspace') ?? '');
@@ -75,6 +77,7 @@ export default function OfficialAuthLanding() {
       try {
         const assignedWorkspaces = await loadAssignedWorkspaces(userId, userEmail);
         if (assignedWorkspaces.length === 0) {
+          setWorkspaceChoices([]);
           setAccessMessage(NO_WORKSPACE_MESSAGE);
           toast(`${NO_WORKSPACE_MESSAGE} Contact your workspace admin to get access.`, 'error', 6000);
           await supabase.auth.signOut();
@@ -82,10 +85,19 @@ export default function OfficialAuthLanding() {
         }
 
         const requested = requestedWorkspace ?? preferredWorkspace;
+        if (assignedWorkspaces.length > 1 && (isSwitchMode || !requested)) {
+          setWorkspaceChoices(assignedWorkspaces);
+          setAccessMessage(null);
+          if (successToast) {
+            toast('Signed in successfully. Choose a workspace to continue.', 'success');
+          }
+          return;
+        }
         const targetWorkspace =
           (requested && assignedWorkspaces.includes(requested) ? requested : null) ??
           assignedWorkspaces[0];
 
+        setWorkspaceChoices([]);
         persistSelectedWorkspace(targetWorkspace);
         setAccessMessage(null);
         if (successToast) {
@@ -99,7 +111,7 @@ export default function OfficialAuthLanding() {
         toast(message, 'error');
       }
     },
-    [loadAssignedWorkspaces, nextPath, requestedWorkspace, router, supabase.auth, toast],
+    [isSwitchMode, loadAssignedWorkspaces, nextPath, requestedWorkspace, router, supabase.auth, toast],
   );
 
   useEffect(() => {
@@ -109,7 +121,7 @@ export default function OfficialAuthLanding() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!mounted) return;
 
-      if (!session || isSwitchMode) {
+      if (!session) {
         setCheckingSession(false);
         return;
       }
@@ -117,7 +129,7 @@ export default function OfficialAuthLanding() {
       await finalizeAuth(
         session.user.id,
         session.user.email,
-        readSelectedWorkspace(),
+        isSwitchMode ? null : readSelectedWorkspace(),
         false,
       );
 
@@ -160,6 +172,12 @@ export default function OfficialAuthLanding() {
   };
 
   const submitLabel = 'Sign In';
+
+  const handleWorkspaceSelect = (workspace: WorkspaceKey) => {
+    setSelectingWorkspace(true);
+    persistSelectedWorkspace(workspace);
+    redirectToWorkspace(router, workspace, nextPath);
+  };
 
   if (checkingSession) {
     return (
@@ -210,59 +228,79 @@ export default function OfficialAuthLanding() {
                   Sign in with your assigned account. Workspace access is loaded automatically based on your membership.
                 </p>
 
-                <form onSubmit={submit} className="mt-6 space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                    />
+                {workspaceChoices.length > 0 ? (
+                  <div className="mt-6 space-y-3">
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      Select a workspace to continue.
+                    </p>
+                    {workspaceChoices.map(workspace => (
+                      <button
+                        key={workspace}
+                        type="button"
+                        disabled={selectingWorkspace}
+                        onClick={() => handleWorkspaceSelect(workspace)}
+                        className="w-full h-11 rounded-xl border px-4 text-left text-sm font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:opacity-70"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                      >
+                        {workspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS'}
+                      </button>
+                    ))}
                   </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
-                      <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
-                        Forgot password?
-                      </Link>
+                ) : (
+                  <form onSubmit={submit} className="mt-6 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        required
+                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      />
                     </div>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                    />
-                  </div>
 
-                  {(formError || accessMessage) && (
-                    <div
-                      className="rounded-xl px-3 py-2 text-sm whitespace-pre-line"
-                      style={{
-                        background: 'rgba(239,68,68,0.08)',
-                        border: '1px solid rgba(239,68,68,0.28)',
-                        color: '#ef4444',
-                      }}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
+                        <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                          Forgot password?
+                        </Link>
+                      </div>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        required
+                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      />
+                    </div>
+
+                    {(formError || accessMessage) && (
+                      <div
+                        className="rounded-xl px-3 py-2 text-sm whitespace-pre-line"
+                        style={{
+                          background: 'rgba(239,68,68,0.08)',
+                          border: '1px solid rgba(239,68,68,0.28)',
+                          color: '#ef4444',
+                        }}
+                      >
+                        {formError ?? accessMessage}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-11 rounded-xl font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all disabled:opacity-70 hover:translate-y-[-1px]"
+                      style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)' }}
                     >
-                      {formError ?? accessMessage}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full h-11 rounded-xl font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all disabled:opacity-70 hover:translate-y-[-1px]"
-                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)' }}
-                  >
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {loading ? 'Please wait…' : submitLabel}
-                  </button>
-                </form>
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                      {loading ? 'Please wait…' : submitLabel}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
 

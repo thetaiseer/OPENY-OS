@@ -80,7 +80,7 @@ export function canShowWorkspaceSwitcher(
   memberships: WorkspaceMembershipInfo[],
 ): boolean {
   if (isGlobalOwnerEmail(userEmail)) return true;
-  return memberships.some(membership => membership.role === 'owner');
+  return memberships.filter(membership => membership.hasMembership).length > 1;
 }
 
 export function switchWorkspace(

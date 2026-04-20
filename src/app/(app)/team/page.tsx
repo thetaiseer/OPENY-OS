@@ -74,6 +74,11 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
   return null;
 }
 
+function formatWorkspaceRole(role: string | undefined): string {
+  const normalized = (role ?? 'member').toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 // ── Group label mapping ───────────────────────────────────────────────────────
 // Maps a job_title → friendly section name. Falls back to role-based section.
 const JOB_TITLE_TO_GROUP: Record<string, string> = {
@@ -998,15 +1003,21 @@ function MemberCard({
               <Mail size={11} />{member.email}
             </p>
           )}
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Access:</p>
+          <div className="mt-0.5 flex flex-wrap gap-1.5">
             {workspaceAccess?.os?.enabled && (
               <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                OS · {workspaceAccess.os.role}
+                OPENY OS · {formatWorkspaceRole(workspaceAccess.os.role)}
               </span>
             )}
             {workspaceAccess?.docs?.enabled && (
               <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                DOCS · {workspaceAccess.docs.role}
+                OPENY DOCS · {formatWorkspaceRole(workspaceAccess.docs.role)}
+              </span>
+            )}
+            {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
+              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                No workspace access
               </span>
             )}
           </div>

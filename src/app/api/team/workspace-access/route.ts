@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser, requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { upsertWorkspaceMembershipsWithFallback, type WorkspaceMembershipUpsertPayload } from '@/lib/workspace-membership-upsert';
 
 type AccessPayload = Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>;
 
@@ -94,6 +95,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'User account not found for this email' }, { status: 404 });
   }
 
+  const updates: WorkspaceMembershipUpsertPayload[] = [];
   for (const [workspaceKeyRaw, config] of Object.entries(access)) {
     const workspace = normalizeWorkspaceKey(workspaceKeyRaw);
     if (!workspace) continue;
@@ -104,20 +106,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: `Invalid role for ${workspace}: ${role}` }, { status: 400 });
     }
 
-    const payload = {
+    updates.push({
       user_id: user.id,
       workspace_key: workspace,
       role,
       is_active: Boolean(config.enabled),
-    };
-
-    const { error } = await db
-      .from('workspace_memberships')
-      .upsert(payload, { onConflict: 'user_id,workspace_key' });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    });
   }
 
-  return NextResponse.json({ success: true });
+  const writeResult = await upsertWorkspaceMembershipsWithFallback(db, updates, 'team/workspace-access');
+  if (!writeResult.ok) {
+    return NextResponse.json({ error: writeResult.error }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, updated: updates.length, fallback: writeResult.usedFallback });
 }

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { upsertWorkspaceMembershipsWithFallback } from '@/lib/workspace-membership-upsert';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -210,6 +211,11 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
 
   const requestUserId = await getRequestUserId(request);
   const existingUser = await findAuthUserByEmail(invitationEmail);
+  console.log('[invitations/accept] User lookup result:', {
+    invitationEmail,
+    requestUserId,
+    foundExistingUser: Boolean(existingUser?.id),
+  });
 
   let authUserId = existingUser?.id ?? null;
   let userCreated = false;
@@ -240,12 +246,15 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     }
     authUserId = created.user.id;
     userCreated = true;
+    console.log('[invitations/accept] Created auth user:', { userId: authUserId, email: invitationEmail });
   } else if (requestUserId && requestUserId !== authUserId) {
     return {
       ok: false as const,
       status: 403,
       body: { error: 'You are signed in as a different account. Sign out and use the invited email.' },
     };
+  } else {
+    console.log('[invitations/accept] Using existing auth user:', { userId: authUserId, email: invitationEmail });
   }
 
   if (!authUserId) {
@@ -290,14 +299,16 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     updated_at: new Date().toISOString(),
   }));
 
-  const { error: membershipError } = await db
-    .from('workspace_memberships')
-    .upsert(memberships, { onConflict: 'user_id,workspace_key' });
-
-  if (membershipError) {
-    console.error('[invitations/accept] Failed to upsert workspace memberships:', membershipError.message);
-    return { ok: false as const, status: 500, body: { error: membershipError.message } };
+  const membershipWrite = await upsertWorkspaceMembershipsWithFallback(db, memberships, 'invitations/accept');
+  if (!membershipWrite.ok) {
+    console.error('[invitations/accept] Failed to upsert workspace memberships:', membershipWrite.error);
+    return { ok: false as const, status: 500, body: { error: membershipWrite.error } };
   }
+  console.log('[invitations/accept] Workspace memberships upserted:', {
+    count: membershipWrite.upserted,
+    usedFallback: membershipWrite.usedFallback,
+    workspaces: grants.map(grant => `${grant.workspace}:${grant.role}`),
+  });
 
   const { error: invitationUpdateError } = await db
     .from('team_invitations')
@@ -322,6 +333,7 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
       user_created: userCreated,
       email: invitationEmail,
       workspaces: grants.map(grant => grant.workspace),
+      workspace_roles: grants,
     },
   };
 }

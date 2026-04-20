@@ -22,7 +22,7 @@ type ValidationState =
   };
 
 type ValidateResponse = { error?: string; reason?: string; invitation?: { full_name?: string } };
-type AcceptResponse = { error?: string; email?: string };
+type AcceptResponse = { error?: string; email?: string; workspaces?: Array<'os' | 'docs'> };
 
 function maskToken(token: string): string {
   if (!token) return '';
@@ -124,9 +124,16 @@ export default function InvitePage() {
         });
       }
 
+      const acceptedWorkspaces = (payload.workspaces ?? []).filter((workspace): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
+      const redirectTarget = acceptedWorkspaces.length > 1
+        ? '/?switch=1'
+        : acceptedWorkspaces.length === 1
+          ? `/?workspace=${acceptedWorkspaces[0]}`
+          : '/?workspace=os';
+
       setSubmitMessage('Invitation accepted successfully. Redirecting…');
       setTimeout(() => {
-        router.push('/?workspace=os');
+        router.push(redirectTarget);
       }, REDIRECT_DELAY_MS);
     } finally {
       setSubmitting(false);
