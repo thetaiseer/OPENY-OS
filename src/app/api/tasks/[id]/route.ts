@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { notifyTaskCompleted } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = [
@@ -180,6 +181,13 @@ export async function PATCH(
   }
 
   const db = getServiceClient();
+  const { data: existingTask } = await db
+    .from('tasks')
+    .select('status, title, created_by_id, client_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  const wasCompleted = ['done', 'completed'].includes(String(existingTask?.status ?? '').toLowerCase());
   const { data, error } = await db
     .from('tasks')
     .update(updatePayload)
@@ -196,6 +204,17 @@ export async function PATCH(
   }
 
   console.log('[PATCH /api/tasks/[id]] update success — id:', data?.id);
+
+  const isCompleted = ['done', 'completed'].includes(String(data?.status ?? '').toLowerCase());
+  if (data?.id && isCompleted && !wasCompleted) {
+    void notifyTaskCompleted({
+      taskId: data.id,
+      taskTitle: data.title ?? existingTask?.title ?? 'Task',
+      ownerId: data.created_by_id ?? existingTask?.created_by_id ?? null,
+      actorId: auth.profile.id,
+      clientId: data.client_id ?? existingTask?.client_id ?? null,
+    });
+  }
 
   return NextResponse.json({ success: true, task: data });
 }

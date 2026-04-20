@@ -12,9 +12,13 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const userId     = searchParams.get('user_id');
+  const requestedUserId = searchParams.get('user_id');
   const unreadOnly = searchParams.get('unread') === 'true';
-  const limit      = parseInt(searchParams.get('limit') ?? '50', 10);
+  const page       = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  const limit      = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), 100);
+  const offset     = (page - 1) * limit;
+  const isAdminLike = auth.profile.role === 'admin' || auth.profile.role === 'owner';
+  const userId = isAdminLike && requestedUserId ? requestedUserId : auth.profile.id;
 
   try {
     const db = getServiceClient();
@@ -22,11 +26,9 @@ export async function GET(req: NextRequest) {
       .from('notifications')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(Math.min(limit, 100));
+      .range(offset, offset + limit - 1);
 
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},user_id.is.null`);
-    }
+    query = query.or(`user_id.eq.${userId},user_id.is.null`);
     if (unreadOnly) {
       query = query.eq('read', false);
     }
@@ -36,10 +38,21 @@ export async function GET(req: NextRequest) {
       console.error('[GET /api/notifications] error:', error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
-    const unreadCount = (data ?? []).filter((n: { read: boolean }) => !n.read).length;
-    // When unreadOnly=true, all returned items are unread so count equals data length
-    const effectiveUnreadCount = unreadOnly ? (data ?? []).length : unreadCount;
-    return NextResponse.json({ success: true, notifications: data ?? [], unreadCount: effectiveUnreadCount });
+
+    const { count: unreadCount } = await db
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .or(`user_id.eq.${userId},user_id.is.null`)
+      .eq('read', false);
+
+    return NextResponse.json({
+      success: true,
+      notifications: data ?? [],
+      unreadCount: unreadCount ?? 0,
+      page,
+      pageSize: limit,
+      hasMore: (data ?? []).length === limit,
+    });
   } catch (err) {
     console.error('[GET /api/notifications] unexpected:', err);
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
@@ -67,14 +80,16 @@ export async function POST(req: NextRequest) {
       title,
       message,
       type:        typeof body.type === 'string' ? body.type : 'info',
-      read:        false,
-      user_id:     typeof body.user_id === 'string' ? body.user_id : null,
+      read:        typeof body.is_read === 'boolean' ? body.is_read : false,
+      user_id:     typeof body.userId === 'string' ? body.userId : typeof body.user_id === 'string' ? body.user_id : null,
+      actor_id:    typeof body.actorId === 'string' ? body.actorId : typeof body.actor_id === 'string' ? body.actor_id : null,
+      metadata:    body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
       client_id:   typeof body.client_id === 'string' ? body.client_id : null,
       task_id:     typeof body.task_id === 'string' ? body.task_id : null,
       entity_type: typeof body.entity_type === 'string' ? body.entity_type : null,
       entity_id:   typeof body.entity_id === 'string' ? body.entity_id : null,
-      action_url:  typeof body.action_url === 'string' ? body.action_url : null,
-      event_type:  typeof body.event_type === 'string' ? body.event_type : null,
+      action_url:  typeof body.actionUrl === 'string' ? body.actionUrl : typeof body.action_url === 'string' ? body.action_url : null,
+      event_type:  typeof body.eventType === 'string' ? body.eventType : typeof body.event_type === 'string' ? body.event_type : null,
     }).select().single();
 
     if (error) {

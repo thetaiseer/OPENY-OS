@@ -11,12 +11,14 @@ export async function PATCH(req: NextRequest) {
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const userId = typeof body.user_id === 'string' ? body.user_id : null;
+  const requestedUserId = typeof body.user_id === 'string' ? body.user_id : null;
+  const canTargetAnyUser = auth.profile.role === 'admin' || auth.profile.role === 'owner';
+  const userId = canTargetAnyUser && requestedUserId ? requestedUserId : auth.profile.id;
 
   const db = getServiceClient();
 
   let query = db.from('notifications').update({ read: true }).eq('read', false);
-  if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+  query = query.or(`user_id.eq.${userId},user_id.is.null`);
 
   const { error } = await query;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { MessageSquare, Send } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useAuth } from '@/lib/auth-context';
 import type { Comment } from '@/lib/types';
 
 interface CommentsPanelProps {
@@ -12,7 +11,6 @@ interface CommentsPanelProps {
 }
 
 export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
-  const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -32,17 +30,21 @@ export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
   const addComment = async () => {
     if (!text.trim()) return;
     setSaving(true);
-    const payload: Record<string, unknown> = {
-      content: text.trim(),
-      user_id: user.id,
-      user_name: user.name,
-    };
-    if (assetId) payload.asset_id = assetId;
-    if (taskId)  payload.task_id  = taskId;
-    const { error } = await supabase.from('comments').insert(payload);
-    if (!error) {
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: text.trim(),
+          ...(assetId ? { asset_id: assetId } : {}),
+          ...(taskId ? { task_id: taskId } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error('failed');
       setText('');
       await fetchComments();
+    } catch {
+      // best-effort
     }
     setSaving(false);
   };

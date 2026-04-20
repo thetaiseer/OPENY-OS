@@ -301,6 +301,8 @@ export interface Notification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
   read: boolean;
+  actor_id?: string | null;
+  metadata?: Record<string, unknown> | null;
   client_id?: string | null;
   user_id?: string | null;
   task_id?: string | null;

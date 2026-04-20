@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { notifyClientCreated } from '@/lib/notification-service';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -105,6 +106,25 @@ export async function POST(request: NextRequest) {
   }
 
   console.log('[POST /api/clients] insert success — id:', data?.id);
+
+  if (data?.id) {
+    void (async () => {
+      const { data: admins } = await db
+        .from('team_members')
+        .select('profile_id')
+        .eq('role', 'admin');
+      const adminUserIds = (admins ?? [])
+        .map((m: { profile_id?: string | null }) => m.profile_id)
+        .filter((v): v is string => Boolean(v));
+      if (adminUserIds.length === 0) return;
+      await notifyClientCreated({
+        clientId: data.id as string,
+        clientName: data.name as string,
+        actorId: auth.profile.id,
+        adminUserIds,
+      });
+    })();
+  }
 
   return NextResponse.json({ success: true, client: data });
 }
