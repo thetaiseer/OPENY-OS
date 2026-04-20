@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser, requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey } from '@/lib/workspace-access';
+import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
 import { upsertWorkspaceMembershipsWithFallback, type WorkspaceMembershipUpsertPayload } from '@/lib/workspace-membership-upsert';
 
 type AccessPayload = Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>;
@@ -109,7 +109,7 @@ export async function PATCH(request: NextRequest) {
     updates.push({
       user_id: user.id,
       workspace_key: workspace,
-      role,
+      role: role as WorkspaceRole,
       is_active: Boolean(config.enabled),
     });
   }

@@ -124,7 +124,7 @@ export default function InvitePage() {
         });
       }
 
-      const acceptedWorkspaces = (payload.workspaces ?? []).filter((workspace): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
+      const acceptedWorkspaces = (payload.workspaces ?? []).filter((workspace: 'os' | 'docs'): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
       const redirectTarget = acceptedWorkspaces.length > 1
         ? '/?switch=1'
         : acceptedWorkspaces.length === 1
