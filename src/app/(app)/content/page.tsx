@@ -298,7 +298,7 @@ export default function ContentPage() {
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+  }, [pathname, router, searchParams, setNewOpen]);
 
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {

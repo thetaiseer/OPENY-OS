@@ -431,13 +431,13 @@ export default function AssetsPage() {
   useEffect(() => {
     if (searchParams.get('quickAction') !== 'add-asset') return;
     if (canUpload) {
-      window.requestAnimationFrame(() => fileRef.current?.click());
+      fileRef.current?.click();
     }
     const params = new URLSearchParams(searchParams.toString());
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [canUpload, pathname, router, searchParams]);
+  }, [canUpload, pathname, router, searchParams, fileRef]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 

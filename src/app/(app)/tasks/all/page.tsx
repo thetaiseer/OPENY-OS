@@ -1088,7 +1088,7 @@ export default function TasksPage() {
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+  }, [pathname, router, searchParams, setCreateOpen]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });

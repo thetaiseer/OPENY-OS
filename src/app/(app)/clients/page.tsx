@@ -148,7 +148,7 @@ export default function ClientsPage() {
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+  }, [pathname, router, searchParams, setModalOpen]);
 
   const logActivity = (description: string, clientId?: string) => {
     console.log('[client create] before activity log:', description);
