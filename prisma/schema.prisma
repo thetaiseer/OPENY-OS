@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SUPABASE_DB_URL")
+}
+
+enum UserRole {
+  owner
+  manager
+  team_member
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  client_approved
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum UploadProvider {
+  r2
+}
+
+enum UploadStatus {
+  pending
+  uploading
+  completed
+  failed
+  aborted
+}
+
+model User {
+  id               String  @id @default(uuid()) @db.Uuid
+  email            String  @unique
+  fullName         String
+  role             UserRole @default(team_member)
+  capacityLimit    Int     @default(8)
+  isActive         Boolean @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assignedTasks    Task[]  @relation("TaskAssignee")
+  createdTasks     Task[]  @relation("TaskCreator")
+  uploadedAssets   Asset[] @relation("AssetUploader")
+
+  @@index([role, isActive])
+}
+
+model Task {
+  id             String       @id @default(uuid()) @db.Uuid
+  title          String
+  description    String?
+  projectTag     String
+  status         TaskStatus   @default(todo)
+  priority       TaskPriority @default(medium)
+  workloadPoints Int          @default(1)
+  dueAt          DateTime?
+  assigneeId     String?      @db.Uuid
+  createdById    String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy      User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assets         Asset[]
+
+  @@index([status, dueAt])
+  @@index([assigneeId, status])
+  @@index([projectTag])
+}
+
+model Asset {
+  id               String         @id @default(uuid()) @db.Uuid
+  taskId           String?        @db.Uuid
+  uploadedById     String?        @db.Uuid
+  projectTag       String
+  fileName         String
+  mimeType         String
+  sizeBytes        BigInt
+  bucketName       String
+  r2Key            String         @unique
+  provider          UploadProvider @default(r2)
+  uploadStatus      UploadStatus   @default(pending)
+  multipartUploadId String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  task             Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  uploadedBy       User?          @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([projectTag, createdAt])
+  @@index([uploadStatus])
+}
