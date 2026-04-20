@@ -55,6 +55,18 @@ const statusVariant = (s: string) => {
   return 'info' as const;
 };
 
+const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
+
+const debugClientRouting = (message: string, payload: Record<string, unknown>) => {
+  if (!shouldDebugClientRouting) return;
+  console.debug(message, payload);
+};
+
+const warnClientRouting = (message: string, payload: Record<string, unknown>) => {
+  if (!shouldDebugClientRouting) return;
+  console.warn(message, payload);
+};
+
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export default function ClientWorkspaceLayout({ children }: { children: React.ReactNode }) {
@@ -96,10 +108,10 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       try { return decodeURIComponent(normalizedParam); } catch { return normalizedParam; }
     })();
 
-    console.debug('[client layout] route param received', { routeParam, normalizedParam, decodedParam });
+    debugClientRouting('[client layout] route param received', { routeParam, normalizedParam, decodedParam });
 
     if (!decodedParam || decodedParam === 'undefined' || decodedParam === 'null') {
-      console.warn('[client layout] invalid route param', { decodedParam });
+      warnClientRouting('[client layout] invalid route param', { decodedParam });
       setClient(null);
       setClientId('');
       setLoading(false);
@@ -110,9 +122,9 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     const shouldLookupByIdFirst = uuidRegex.test(decodedParam);
 
     const findByField = async (field: 'slug' | 'id') => {
-      console.debug('[client layout] querying client', { field, value: decodedParam });
+      debugClientRouting('[client layout] querying client', { field, value: decodedParam });
       const result = await supabase.from('clients').select('*').eq(field, decodedParam).single();
-      console.debug('[client layout] query result', { field, hasData: !!result.data, error: result.error?.message ?? null });
+      debugClientRouting('[client layout] query result', { field, hasData: !!result.data, error: result.error?.message ?? null });
       return result;
     };
 

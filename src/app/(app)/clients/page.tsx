@@ -23,6 +23,7 @@ const statusVariant = (s: string) => {
 
 const WARN_TOAST_BG    = '#d97706';
 const SUCCESS_TOAST_BG = '#16a34a';
+const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
 
 /** Lightweight relative-time formatter (no external dep). */
 function formatRelative(iso: string): string {
@@ -55,6 +56,11 @@ const getClientRouteKey = (client: { id?: string; slug?: string | null }): strin
   const id = client.id?.trim();
   if (id) return encodeURIComponent(id);
   return null;
+};
+
+const debugClientRouting = (message: string, payload: Record<string, unknown>) => {
+  if (!shouldDebugClientRouting) return;
+  console.debug(message, payload);
 };
 
 export default function ClientsPage() {
@@ -236,7 +242,7 @@ export default function ClientsPage() {
 
       const createdClientRouteKey = result.client ? getClientRouteKey(result.client) : null;
       if (createdClientRouteKey) {
-        console.debug('[clients] created client route key', {
+        debugClientRouting('[clients] created client route key', {
           id: result.client?.id,
           slug: result.client?.slug,
           routeKey: createdClientRouteKey,
@@ -346,13 +352,13 @@ export default function ClientsPage() {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  console.debug('[clients] clicked client route key', { id: client.id, slug: client.slug, routeKey });
+                  debugClientRouting('[clients] clicked client route key', { id: client.id, slug: client.slug, routeKey });
                   router.push(baseClientHref);
                 }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    console.debug('[clients] keyboard-open client route key', { id: client.id, slug: client.slug, routeKey });
+                    debugClientRouting('[clients] keyboard-open client route key', { id: client.id, slug: client.slug, routeKey });
                     router.push(baseClientHref);
                   }
                 }}
