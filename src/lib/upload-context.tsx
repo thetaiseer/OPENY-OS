@@ -8,9 +8,9 @@
  *                                 ↘ failed_db     (R2 OK, DB save failed)
  *   queued → uploading → failed_upload (upload / multipart failed)
  *
- * Small files (≤ MULTIPART_THRESHOLD) — Supabase Storage upload:
- *   1. supabase.storage.upload()   → file goes to Supabase (with progress)
- *   2. POST /api/upload/complete   → save metadata to DB (optional, or direct DB insert)
+ * Small files (≤ MULTIPART_THRESHOLD) — R2 direct server upload:
+ *   1. POST /api/upload/presign   → server uploads file to R2, returns storageKey + publicUrl
+ *   2. POST /api/upload/complete  → save metadata to DB
  *
  * Large files (> MULTIPART_THRESHOLD) — R2 multipart upload (server-side):
  *   1. POST /api/upload/multipart-init  → uploadId + storageKey + publicUrl
@@ -37,7 +37,6 @@ import React, {
   useRef,
 } from 'react';
 import type { Asset } from './types';
-import supabase from './supabase';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -61,10 +60,6 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
-
-/** Supabase Storage bucket used by direct browser uploads. */
-const SUPABASE_STORAGE_BUCKET =
-  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET?.trim() || 'client-assets';
 
 const DB_FAIL_ARABIC =
   'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
@@ -628,36 +623,18 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     try {
       // ── failed_db retry — storage upload already done, skip to DB save ─────
       if (item.r2Key) {
-        const retryPublicUrlData = item.publicUrl
-          ? { publicUrl: item.publicUrl }
-          : supabase.storage.from(item.r2Bucket ?? SUPABASE_STORAGE_BUCKET).getPublicUrl(item.r2Key).data;
-        const retryPublicUrl = retryPublicUrlData?.publicUrl ?? '';
-        if (!retryPublicUrl) {
-          setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
-            progress: 100,
-            errorDetail: classifyUploadError({
-              step:               'public_url',
-              rawMessage:         'Could not resolve public URL for uploaded file.',
-              fileReachedStorage: true,
-              dbSaved:            false,
-            }),
-          });
-          return;
-        }
         setStage(item.id, 'uploaded', 'Saving to system\u2026', {
           progress:     100,
           uploadedBytes: item.totalBytes,
         });
-        const retryStorageBucket = item.r2Bucket ?? (item.isMultipart ? null : SUPABASE_STORAGE_BUCKET);
         await doSaveMetadata(
           item,
           item.r2Key,
           item.r2FileName ?? item.file.name,
-          retryPublicUrl,
+          item.publicUrl ?? '',
           fileMimeType,
           ctrl.signal,
-          retryStorageBucket,
-          item.isMultipart ? 'r2' : 'supabase',
+          item.r2Bucket ?? null,
         );
         return;
       }
@@ -666,9 +643,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         name: item.file.name,
         size: item.file.size,
         multipart: item.file.size > MULTIPART_THRESHOLD,
-        bucket: SUPABASE_STORAGE_BUCKET,
+        provider: 'cloudflare-r2',
+        bucket: 'R2_BUCKET_NAME',
       });
-      await doSingleUpload(item, fileMimeType, ctrl);
+      if (item.file.size > MULTIPART_THRESHOLD) {
+        await doMultipartUpload(item, fileMimeType, ctrl);
+      } else {
+        await doSingleUpload(item, fileMimeType, ctrl);
+      }
 
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return;
@@ -700,12 +682,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       uploadedBytes: 0,
     });
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
+    const monthKey = item.monthKey;
+    if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
-          step:               'auth',
-          rawMessage:         authError?.message ?? 'You must be logged in to upload files.',
+          step:               'month_key',
+          rawMessage:         'monthKey must be in YYYY-MM format before upload.',
           fileReachedStorage: false,
           dbSaved:            false,
         }),
@@ -713,52 +695,77 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const rawExt = item.file.name.includes('.') ? (item.file.name.split('.').pop() ?? '') : '';
-    const ext = rawExt ? `.${rawExt}` : '';
-    const safeOriginalName = item.file.name.replace(/[\\/]/g, '-');
-    if (!item.clientId) {
-      setStage(item.id, 'failed_upload', 'Upload failed', {
-        errorDetail: classifyUploadError({
-          step:               'client_id',
-          rawMessage:         'Client ID is required before upload.',
-          fileReachedStorage: false,
-          dbSaved:            false,
-        }),
-      });
-      return;
-    }
-    const storagePath = `${item.clientId}/${Date.now()}-${safeOriginalName}`;
-    const displayName = item.uploadName?.trim() ? `${item.uploadName.trim()}${ext}` : item.file.name;
-
-    console.log('[upload] supabase upload request:', {
+    console.log('[upload] single upload started', {
       fileName: item.file.name,
       fileSize: item.file.size,
-      storagePath,
-      bucket: SUPABASE_STORAGE_BUCKET,
+      provider: 'cloudflare-r2',
+      bucket: 'R2_BUCKET_NAME',
     });
 
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(SUPABASE_STORAGE_BUCKET)
-      .upload(storagePath, item.file, {
-        contentType: mimeType,
-        upsert: true,
-      });
+    const formData = new FormData();
+    formData.append('file', item.file, item.file.name);
+    formData.append('fileName', item.file.name);
+    formData.append('fileType', mimeType);
+    formData.append('fileSize', String(item.file.size));
+    formData.append('clientName', item.clientName);
+    formData.append('mainCategory', item.mainCategory);
+    formData.append('monthKey', monthKey);
+    if (item.clientId) formData.append('clientId', item.clientId);
+    if (item.subCategory) formData.append('subCategory', item.subCategory);
+    if (item.uploadName?.trim()) formData.append('customFileName', item.uploadName.trim());
 
-    if (uploadError) {
-      console.error('[upload] supabase storage upload error', {
+    let presignRes: Response;
+    try {
+      presignRes = await fetch('/api/upload/presign', {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('[upload] single upload failed before R2 upload', {
         fileName: item.file.name,
-        fileSize: item.file.size,
-        storagePath,
-        bucket: SUPABASE_STORAGE_BUCKET,
-        error: uploadError,
+        error: errMsg,
       });
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
-          step:               'supabase_storage_upload',
-          rawMessage:         uploadError.message,
-          providerBody:       uploadError.name ?? null,
+          step:               'r2_upload_request',
+          rawMessage:         `Request to /api/upload/presign failed: ${errMsg}`,
+          providerBody:       errMsg,
+          fileReachedStorage: false,
+          dbSaved:            false,
+        }),
+      });
+      return;
+    }
+
+    const presignText = await presignRes.text();
+    type PresignResponse = { storageKey?: string; publicUrl?: string; displayName?: string; error?: string };
+    let presignJson: PresignResponse | null = null;
+    try {
+      presignJson = presignText ? JSON.parse(presignText) as PresignResponse : null;
+    } catch {
+      presignJson = null;
+    }
+
+    if (!presignRes.ok || !presignJson?.storageKey || !presignJson.publicUrl || !presignJson.displayName) {
+      const errorMessage = presignJson?.error
+        ?? `Upload failed (HTTP ${presignRes.status})`;
+      console.error('[upload] single upload failed during R2 upload', {
+        fileName: item.file.name,
+        fileSize: item.file.size,
+        provider: 'cloudflare-r2',
+        bucket: 'R2_BUCKET_NAME',
+        error: errorMessage,
+        response: presignText || null,
+      });
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step:               'r2_upload',
+          rawMessage:         errorMessage,
+          providerBody:       presignText || null,
+          httpStatus:         presignRes.status,
           fileReachedStorage: false,
           dbSaved:            false,
         }),
@@ -767,15 +774,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
     if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    console.log('[upload] supabase storage upload success', uploadData);
-    const { data: publicData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(storagePath);
-    const publicUrl = publicData.publicUrl;
+    console.log('[upload] single upload success', {
+      provider: 'cloudflare-r2',
+      bucket: 'R2_BUCKET_NAME',
+      storageKey: presignJson.storageKey,
+    });
 
     update(item.id, {
-      r2Key: storagePath,
-      r2Bucket: SUPABASE_STORAGE_BUCKET,
-      r2FileName: displayName,
-      publicUrl,
+      r2Key: presignJson.storageKey,
+      r2Bucket: null,
+      r2FileName: presignJson.displayName,
+      publicUrl: presignJson.publicUrl,
       fileMimeType: mimeType,
     });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
@@ -786,13 +795,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Phase 3: save metadata.
     await doSaveMetadata(
       item,
-      storagePath,
-      displayName,
-      publicUrl,
+      presignJson.storageKey,
+      presignJson.displayName,
+      presignJson.publicUrl,
       mimeType,
       ctrl.signal,
-      SUPABASE_STORAGE_BUCKET,
-      'supabase',
+      null,
     );
   }
 
@@ -1114,7 +1122,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Phase 4: save metadata to DB.
-    await doSaveMetadata(item, storageKey, displayName, publicUrl, mimeType, ctrl.signal, null, 'r2');
+    await doSaveMetadata(item, storageKey, displayName, publicUrl, mimeType, ctrl.signal, null);
   }
 
   // ── Save metadata helper (shared by single + multipart) ───────────────────
@@ -1127,7 +1135,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     mimeType:    string,
     signal:      AbortSignal,
     storageBucket: string | null,
-    storageProvider: 'supabase' | 'r2',
   ) {
     if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
@@ -1136,7 +1143,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       displayName,
       publicUrl,
       storageBucket,
-      storageProvider,
+      storageProvider: 'r2',
       clientName: item.clientName,
       clientId: item.clientId,
       fileType: mimeType,
