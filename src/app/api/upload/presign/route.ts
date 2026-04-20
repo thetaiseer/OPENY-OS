@@ -129,6 +129,15 @@ export async function POST(req: NextRequest) {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
 
+  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  console.log('[upload/presign] upload started', {
+    provider: 'r2',
+    bucketName,
+    storageKey,
+    userId: auth.profile.id,
+    clientId,
+  });
+
   // ── Upload to R2 server-side ───────────────────────────────────────────────
   try {
     const buffer      = Buffer.from(await fileField.arrayBuffer());
@@ -139,6 +148,8 @@ export async function POST(req: NextRequest) {
     const publicUrl = buildR2Url(storageKey);
 
     console.log('[upload/presign] uploaded to R2:', {
+      provider: 'r2',
+      bucketName,
       userId: auth.profile.id,
       clientId,
       storageKey,
@@ -150,7 +161,12 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
-    console.error('[upload/presign] failed to upload to R2:', msg);
+    console.error('[upload/presign] upload failure', {
+      provider: 'r2',
+      bucketName,
+      storageKey,
+      error: msg,
+    });
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });
   }
 }
