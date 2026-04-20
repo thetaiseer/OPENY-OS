@@ -4,7 +4,7 @@
  * Creates a pending team member + invitation record and sends the invite email.
  *
  * Body: { full_name: string; email: string; access_role: string; job_title?: string }
- * Auth: owner, admin, or manager only
+ * Auth: owner or admin only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -140,7 +140,7 @@ async function insertInvitationWithFallback(
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['owner', 'admin', 'manager']);
+  const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);

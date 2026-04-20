@@ -4,7 +4,7 @@
  * Resends a team invitation email, regenerating the token and resetting expiry.
  *
  * Body: { team_member_id: string }
- * Auth: admin or manager only
+ * Auth: owner or admin only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +17,7 @@ import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 const INVITE_EXPIRY_DAYS = 7;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['admin', 'manager']);
+  const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);

@@ -392,7 +392,7 @@ export default function TeamPage() {
   const { role: myRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const canManage = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
+  const canManage = myRole === 'owner' || myRole === 'admin';
 
   // ── React Query: fetch and cache team members and invitations ─────────────
   const { data: teamData, isLoading: loading } = useQuery({
@@ -545,13 +545,20 @@ export default function TeamPage() {
     if (!editMember) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('team_members').update({
-        full_name: editForm.full_name.trim(),
-        email:     editForm.email || null,
-        role:      editForm.role || null,
-        job_title: editForm.job_title || null,
-      }).eq('id', editMember.id);
-      if (error) throw error;
+      const memberRes = await fetch(`/api/team/members/${editMember.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: editForm.full_name.trim(),
+          email: editForm.email || null,
+          role: editForm.role || null,
+          job_title: editForm.job_title || null,
+        }),
+      });
+      if (!memberRes.ok) {
+        const payload = await memberRes.json().catch(() => ({}));
+        throw new Error(payload.error ?? 'Failed to update team member. Please try again.');
+      }
       if (editForm.email) {
         const accessRes = await fetch('/api/team/workspace-access', {
           method: 'PATCH',
