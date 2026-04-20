@@ -186,7 +186,7 @@ const translations: Record<string, Record<string, string>> = {
     password: 'كلمة المرور',
     name: 'الاسم الكامل',
     signIn: 'تسجيل الدخول',
-    signUp: 'الوصول يتم عبر الإدارة',
+    signUp: 'الوصول يتم من قبل مسؤول النظام',
     noAccount: 'تحتاج إلى وصول؟',
     hasAccount: 'لديك وصول بالفعل؟',
     contentDistribution: 'توزيع المحتوى',

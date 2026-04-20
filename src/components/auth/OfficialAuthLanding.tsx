@@ -21,6 +21,7 @@ import {
 } from '@/lib/workspace-access';
 
 const NO_WORKSPACE_MESSAGE = 'You don’t have access to any workspace yet';
+type WorkspaceMembershipRow = { workspace_key: string | null };
 
 export default function OfficialAuthLanding() {
   const router = useRouter();
@@ -44,14 +45,19 @@ export default function OfficialAuthLanding() {
     async (userId: string, userEmail: string | null | undefined): Promise<WorkspaceKey[]> => {
       if (isGlobalOwnerEmail(userEmail)) return ['os', 'docs'];
 
-      const { data } = await supabase
+      const query = await supabase
         .from('workspace_memberships')
         .select('workspace_key')
         .eq('user_id', userId)
         .eq('is_active', true);
 
-      const keys = (data ?? [])
-        .map(row => normalizeWorkspaceKey((row as { workspace_key?: string | null }).workspace_key ?? null))
+      if (query.error) {
+        throw new Error('Failed to load workspace memberships');
+      }
+
+      const rows = (query.data ?? []) as WorkspaceMembershipRow[];
+      const keys = rows
+        .map(row => normalizeWorkspaceKey(row.workspace_key))
         .filter((v): v is WorkspaceKey => Boolean(v));
 
       return [...new Set(keys)];
@@ -66,25 +72,32 @@ export default function OfficialAuthLanding() {
       preferredWorkspace: WorkspaceKey | null,
       successToast: boolean,
     ) => {
-      const assignedWorkspaces = await loadAssignedWorkspaces(userId, userEmail);
-      if (assignedWorkspaces.length === 0) {
-        setAccessMessage(NO_WORKSPACE_MESSAGE);
-        toast(NO_WORKSPACE_MESSAGE, 'error', 6000);
-        await supabase.auth.signOut();
-        return;
-      }
+      try {
+        const assignedWorkspaces = await loadAssignedWorkspaces(userId, userEmail);
+        if (assignedWorkspaces.length === 0) {
+          setAccessMessage(NO_WORKSPACE_MESSAGE);
+          toast(NO_WORKSPACE_MESSAGE, 'error', 6000);
+          await supabase.auth.signOut();
+          return;
+        }
 
-      const requested = requestedWorkspace ?? preferredWorkspace;
-      const targetWorkspace =
-        (requested && assignedWorkspaces.includes(requested) ? requested : null) ??
-        assignedWorkspaces[0];
+        const requested = requestedWorkspace ?? preferredWorkspace;
+        const targetWorkspace =
+          (requested && assignedWorkspaces.includes(requested) ? requested : null) ??
+          assignedWorkspaces[0];
 
-      persistSelectedWorkspace(targetWorkspace);
-      setAccessMessage(null);
-      if (successToast) {
-        toast('Signed in successfully.', 'success');
+        persistSelectedWorkspace(targetWorkspace);
+        setAccessMessage(null);
+        if (successToast) {
+          toast('Signed in successfully.', 'success');
+        }
+        redirectToWorkspace(router, targetWorkspace, nextPath);
+      } catch (error) {
+        console.error('[auth] Failed to finalize workspace access after sign-in:', error);
+        const message = 'Unable to load your workspace access right now. Please try again.';
+        setAccessMessage(message);
+        toast(message, 'error');
       }
-      redirectToWorkspace(router, targetWorkspace, nextPath);
     },
     [loadAssignedWorkspaces, nextPath, requestedWorkspace, router, supabase.auth, toast],
   );
@@ -115,7 +128,7 @@ export default function OfficialAuthLanding() {
 
     void run();
     return () => { mounted = false; };
-  }, [finalizeAuth, isSwitchMode, supabase.auth]);
+  }, [finalizeAuth, isSwitchMode, nextPath, requestedWorkspace, router, supabase]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
