@@ -89,7 +89,44 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
   const loadClient = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('clients').select('*').eq('slug', slug).single();
+    setClient(null);
+    setClientId('');
+
+    const routeParam = typeof slug === 'string' ? slug : '';
+    const normalizedParam = routeParam.trim();
+    const decodedParam = (() => {
+      try { return decodeURIComponent(normalizedParam); } catch { return normalizedParam; }
+    })();
+
+    console.debug('[client layout] route param received', { routeParam, normalizedParam, decodedParam });
+
+    if (!decodedParam || decodedParam === 'undefined' || decodedParam === 'null') {
+      console.warn('[client layout] invalid route param', { decodedParam });
+      setLoading(false);
+      return;
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const shouldLookupByIdFirst = uuidRegex.test(decodedParam);
+
+    const findByField = async (field: 'slug' | 'id') => {
+      console.debug('[client layout] querying client', { field, value: decodedParam });
+      const result = await supabase.from('clients').select('*').eq(field, decodedParam).single();
+      console.debug('[client layout] query result', { field, hasData: !!result.data, error: result.error?.message ?? null });
+      return result;
+    };
+
+    const primaryLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'id' : 'slug';
+    const fallbackLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'slug' : 'id';
+
+    let { data, error } = await findByField(primaryLookupField);
+
+    if (!data) {
+      const fallbackResult = await findByField(fallbackLookupField);
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+
     if (error || !data) {
       setLoading(false);
       return;

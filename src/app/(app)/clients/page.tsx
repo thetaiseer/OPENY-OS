@@ -49,6 +49,11 @@ interface ClientStats {
   lastDesc:     string | null; // short description or null
 }
 
+const getClientRouteKey = (client: Pick<Client, 'id' | 'slug'>): string => {
+  const value = (client.slug ?? '').trim() || client.id;
+  return encodeURIComponent(value);
+};
+
 export default function ClientsPage() {
   const { t } = useLang();
   const { role } = useAuth();
@@ -226,9 +231,14 @@ export default function ClientsPage() {
         );
       }
 
-      // Navigate to the new client's page if slug is available, otherwise show toast
-      if (result.client?.slug) {
-        router.push(`/clients/${result.client.slug}`);
+      const createdClientRouteKey = result.client?.slug?.trim() || result.client?.id;
+      if (createdClientRouteKey) {
+        console.debug('[clients] created client route key', {
+          id: result.client?.id,
+          slug: result.client?.slug,
+          routeKey: createdClientRouteKey,
+        });
+        router.push(`/clients/${encodeURIComponent(createdClientRouteKey)}`);
       } else {
         setSuccessMsg(`Client "${form.name}" created successfully.`);
         setTimeout(() => setSuccessMsg(null), 4000);
@@ -323,14 +333,25 @@ export default function ClientsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredClients.map(client => {
             const stats = statsMap[client.id] ?? { assets: 0, tasks: 0, content: 0, lastActivity: null, lastDesc: null };
+            const routeKey = getClientRouteKey(client);
+            const baseClientHref = `/clients/${routeKey}`;
 
             return (
               <div
                 key={client.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => router.push(`/clients/${client.slug}`)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.slug}`); } }}
+                onClick={() => {
+                  console.debug('[clients] clicked client route key', { id: client.id, slug: client.slug, routeKey });
+                  router.push(baseClientHref);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    console.debug('[clients] keyboard-open client route key', { id: client.id, slug: client.slug, routeKey });
+                    router.push(baseClientHref);
+                  }
+                }}
                 className="group flex flex-col p-5 rounded-2xl border cursor-pointer select-none
                   transition-all duration-200 ease-out
                   hover:-translate-y-0.5 hover:shadow-lg hover:border-[var(--accent)]
@@ -402,21 +423,21 @@ export default function ClientsPage() {
                 {/* ── Actions ──────────────────────────────────────────────── */}
                 <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
                   <a
-                    href={`/clients/${client.slug}/overview`}
+                    href={`${baseClientHref}/overview`}
                     className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                     style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', textDecoration: 'none' }}
                   >
                     <FolderOpen size={12} /> Open
                   </a>
                   <a
-                    href={`/clients/${client.slug}/assets`}
+                    href={`${baseClientHref}/assets`}
                     className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
                   >
                     <ImageIcon size={11} /> Assets
                   </a>
                   <a
-                    href={`/clients/${client.slug}/tasks`}
+                    href={`${baseClientHref}/tasks`}
                     className="flex items-center justify-center gap-1 h-7 px-3 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                     style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
                   >
