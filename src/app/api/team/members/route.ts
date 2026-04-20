@@ -14,6 +14,14 @@ type TeamMemberPayload = {
   updated_at: string | null;
 };
 
+type WorkspaceRow = {
+  id: string;
+  slug: string | null;
+  name: string | null;
+  owner_id: string | null;
+  created_at: string | null;
+};
+
 function resolveWorkspaceKey(request: NextRequest): WorkspaceKey {
   const fromQuery = normalizeWorkspaceKey(request.nextUrl.searchParams.get('workspace'));
   if (fromQuery) return fromQuery;
@@ -30,6 +38,39 @@ function resolveWorkspaceKey(request: NextRequest): WorkspaceKey {
   return 'os';
 }
 
+async function resolveWorkspaceRow(
+  db: ReturnType<typeof getServiceClient>,
+  workspaceKey: WorkspaceKey,
+): Promise<{ row: WorkspaceRow | null; error: string | null }> {
+  const primary = await db
+    .from('workspaces')
+    .select('id, slug, name, owner_id, created_at')
+    .eq('slug', workspaceKey)
+    .maybeSingle();
+  if (primary.error) return { row: null, error: primary.error.message };
+  if (primary.data?.id) return { row: primary.data as WorkspaceRow, error: null };
+
+  const nameMatch = await db
+    .from('workspaces')
+    .select('id, slug, name, owner_id, created_at')
+    .ilike('name', `OPENY ${workspaceKey.toUpperCase()}`)
+    .limit(1)
+    .maybeSingle();
+  if (nameMatch.error) return { row: null, error: nameMatch.error.message };
+  if (nameMatch.data?.id) return { row: nameMatch.data as WorkspaceRow, error: null };
+
+  const fallback = await db
+    .from('workspaces')
+    .select('id, slug, name, owner_id, created_at')
+    .limit(2);
+  if (fallback.error) return { row: null, error: fallback.error.message };
+  if ((fallback.data ?? []).length === 1) {
+    return { row: (fallback.data as WorkspaceRow[])[0], error: null };
+  }
+
+  return { row: null, error: null };
+}
+
 function normalizeMemberRole(role: string | null | undefined): 'owner' | 'admin' | 'member' {
   if (role === 'owner') return 'owner';
   if (role === 'admin') return 'admin';
@@ -43,15 +84,10 @@ export async function GET(request: NextRequest) {
   const workspaceKey = resolveWorkspaceKey(request);
   const db = getServiceClient();
 
-  const { data: workspaceRow, error: workspaceError } = await db
-    .from('workspaces')
-    .select('id, slug')
-    .eq('slug', workspaceKey)
-    .maybeSingle();
-
+  const { row: workspaceRow, error: workspaceError } = await resolveWorkspaceRow(db, workspaceKey);
   if (workspaceError) {
-    console.error('[team/members/get] Failed to resolve workspace:', workspaceError.message);
-    return NextResponse.json({ error: workspaceError.message }, { status: 500 });
+    console.error('[team/members/get] Failed to resolve workspace:', workspaceError);
+    return NextResponse.json({ error: workspaceError }, { status: 500 });
   }
 
   if (!workspaceRow?.id) {
@@ -69,7 +105,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: membersError.message }, { status: 500 });
   }
 
-  const userIds = [...new Set((workspaceMembers ?? []).map(member => member.user_id).filter(Boolean))];
+  const normalizedWorkspaceMembers = [...(workspaceMembers ?? [])];
+  if (workspaceRow.owner_id) {
+    const ownerMembershipIndex = normalizedWorkspaceMembers.findIndex(member => member.user_id === workspaceRow.owner_id);
+    if (ownerMembershipIndex === -1) {
+      normalizedWorkspaceMembers.push({
+        id: `synthetic-owner-membership-${workspaceRow.owner_id}`,
+        workspace_id: workspaceRow.id,
+        user_id: workspaceRow.owner_id,
+        role: 'owner',
+        joined_at: workspaceRow.created_at ?? new Date().toISOString(),
+      });
+    }
+  }
+
+  const userIds = [...new Set(normalizedWorkspaceMembers.map(member => member.user_id).filter(Boolean))];
   const { data: profileRows, error: profileError } = userIds.length > 0
     ? await db
         .from('profiles')
@@ -110,7 +160,7 @@ export async function GET(request: NextRequest) {
       .map(row => [row.profile_id as string, row]),
   );
 
-  const members: TeamMemberPayload[] = (workspaceMembers ?? []).map(member => {
+  const members: TeamMemberPayload[] = normalizedWorkspaceMembers.map(member => {
     const team = teamByProfileId.get(member.user_id);
     const profile = profileById.get(member.user_id);
     const fullName = team?.full_name
@@ -122,7 +172,7 @@ export async function GET(request: NextRequest) {
       id: team?.id ?? member.user_id,
       full_name: fullName,
       email,
-      role: normalizeMemberRole(member.role),
+      role: member.user_id === workspaceRow.owner_id ? 'owner' : normalizeMemberRole(member.role),
       status: 'active',
       job_title: team?.job_title ?? null,
       created_at: team?.created_at ?? member.joined_at ?? new Date().toISOString(),
