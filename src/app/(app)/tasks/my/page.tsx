@@ -292,7 +292,7 @@ export default function MyTasksPage() {
     return registerQuickActionHandler('add-task', () => {
       setShowNewTask(true);
     });
-  }, [registerQuickActionHandler]);
+  }, [registerQuickActionHandler, setShowNewTask]);
 
   const memberTasks = useMemo(() => {
     let result = tasks;

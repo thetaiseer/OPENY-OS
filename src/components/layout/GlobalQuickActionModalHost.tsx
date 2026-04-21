@@ -45,7 +45,7 @@ export default function GlobalQuickActionModalHost() {
   const { fallbackAction, clearFallbackAction } = useQuickActions();
 
   const [assetFiles, setAssetFiles] = useState<UploadFileItem[]>([]);
-  const [uploadMainCategory, setUploadMainCategory] = useState(MAIN_CATEGORIES[0]?.slug ?? 'other');
+  const [uploadMainCategory, setUploadMainCategory] = useState<string>(MAIN_CATEGORIES[0]?.slug ?? 'other');
   const [uploadSubCategory, setUploadSubCategory] = useState('');
   const [uploadMonth, setUploadMonth] = useState(nowMonthKey());
   const [uploadClientName, setUploadClientName] = useState('');
@@ -81,8 +81,14 @@ export default function GlobalQuickActionModalHost() {
     setAssetFiles([]);
   }, [fallbackAction]);
 
-  const quickTaskClients = useMemo(
-    () => clients.map(client => ({ ...client, email: '', status: 'active', created_at: '', updated_at: '' })),
+  const quickTaskClients = useMemo<Client[]>(
+    () => clients.map(client => ({
+      ...client,
+      email: client.email ?? '',
+      status: (client.status ?? 'active') as Client['status'],
+      created_at: client.created_at ?? '',
+      updated_at: client.updated_at ?? '',
+    })),
     [clients],
   );
 

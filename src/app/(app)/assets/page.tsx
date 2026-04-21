@@ -438,14 +438,14 @@ function AssetsPage() {
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [canUpload, pathname, router, searchParams]);
+  }, [canUpload, pathname, router, searchParams, setQuickActionUploadOpen]);
 
   useEffect(() => {
     return registerQuickActionHandler('add-asset', () => {
       if (!canUpload) return;
       setQuickActionUploadOpen(true);
     });
-  }, [canUpload, registerQuickActionHandler]);
+  }, [canUpload, registerQuickActionHandler, setQuickActionUploadOpen]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 

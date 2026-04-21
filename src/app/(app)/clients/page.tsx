@@ -156,7 +156,7 @@ function ClientsPage() {
     return registerQuickActionHandler('add-client', () => {
       setModalOpen(true);
     });
-  }, [registerQuickActionHandler]);
+  }, [registerQuickActionHandler, setModalOpen]);
 
   const logActivity = (description: string, clientId?: string) => {
     console.log('[client create] before activity log:', description);

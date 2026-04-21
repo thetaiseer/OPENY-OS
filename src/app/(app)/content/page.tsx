@@ -197,7 +197,7 @@ function ContentPage() {
     return registerQuickActionHandler('add-content', () => {
       setNewOpen(true);
     });
-  }, [registerQuickActionHandler]);
+  }, [registerQuickActionHandler, setNewOpen]);
 
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {

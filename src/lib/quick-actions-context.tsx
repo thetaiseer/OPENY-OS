@@ -75,4 +75,3 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
 export function useQuickActions() {
   return useContext(QuickActionsContext);
 }
-

@@ -1096,7 +1096,7 @@ function TasksPage() {
     return registerQuickActionHandler('add-task', () => {
       setCreateOpen(true);
     });
-  }, [registerQuickActionHandler]);
+  }, [registerQuickActionHandler, setCreateOpen]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });

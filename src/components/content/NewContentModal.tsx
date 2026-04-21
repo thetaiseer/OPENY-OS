@@ -112,4 +112,3 @@ export default function NewContentModal({ open, onClose, clients, onCreated }: N
     </div>
   );
 }
-
