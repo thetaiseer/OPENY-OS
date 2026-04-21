@@ -974,10 +974,11 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           async () => {
             // POST chunk bytes directly to the server.
             // The server uploads the part to R2 and returns { partNumber, etag }.
-            const partUrl = new URL('/api/upload/multipart-part', window.location.origin);
-            partUrl.searchParams.set('storageKey', storageKey);
-            partUrl.searchParams.set('uploadId',   uploadId);
-            partUrl.searchParams.set('partNumber', String(partNumber));
+            const partUrl = `/api/upload/multipart-part?${new URLSearchParams({
+              storageKey,
+              uploadId,
+              partNumber: String(partNumber),
+            }).toString()}`;
 
             const chunkBytesStart = uploadedBytes;
             // Capture upload start time snapshot for speed calculation.
@@ -985,7 +986,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
             const result = await sendBlobViaXHR(
               'POST',
-              partUrl.toString(),
+              partUrl,
               chunk,
               'application/octet-stream',
               (loaded) => {

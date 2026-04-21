@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import { createClient } from './supabase/client';
 import type { User } from './types';
 import { OWNER_EMAIL } from './constants/auth';
@@ -192,6 +193,7 @@ async function fetchUserStateFromTables(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const supabase = useMemo(() => {
     const client = createClient();
     if (typeof window !== 'undefined') {
@@ -313,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .forEach(k => localStorage.removeItem(k));
       } catch { /* ignore — storage may be unavailable */ }
       console.log('[auth] Redirecting to /');
-      window.location.replace('/');
+      router.replace('/');
     }
   };
 

@@ -1,16 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import {
-  canShowWorkspaceSwitcher,
   getCurrentWorkspace,
   getUserWorkspaceMemberships,
   switchWorkspace,
-  type WorkspaceMembershipInfo,
 } from '@/lib/workspace-switcher';
 import { isGlobalOwnerEmail } from '@/lib/workspace-access';
 
@@ -20,12 +17,11 @@ export default function WorkspaceSwitcher() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
 
-  const [open, setOpen] = useState(false);
-  const [memberships, setMemberships] = useState<WorkspaceMembershipInfo[]>([]);
+  const [memberships, setMemberships] = useState<Array<{ key: 'os' | 'docs'; label: 'OPENY OS' | 'OPENY DOCS'; hasMembership: boolean }>>([]);
   const [ready, setReady] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const currentWorkspace = getCurrentWorkspace(pathname);
+  const isGlobalOwner = isGlobalOwnerEmail(user.email);
 
   useEffect(() => {
     if (!user.id) {
@@ -54,83 +50,46 @@ export default function WorkspaceSwitcher() {
     };
   }, [supabase, user.id]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [open]);
+  const access = memberships.reduce<Record<'os' | 'docs', boolean>>((acc, membership) => {
+    acc[membership.key] = isGlobalOwner || membership.hasMembership;
+    return acc;
+  }, { os: isGlobalOwner, docs: isGlobalOwner });
 
   if (loading || !ready) return null;
 
-  const canShow = canShowWorkspaceSwitcher(user.email, memberships);
-  if (!canShow) return null;
-
-  const isGlobalOwner = isGlobalOwnerEmail(user.email);
-  const currentLabel = currentWorkspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS';
-
   return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(value => !value)}
-        className="h-9 max-w-[126px] sm:max-w-none px-2.5 sm:px-3 rounded-lg border text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 sm:gap-2 transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title={currentLabel}
-      >
-        <span className="truncate">{currentLabel}</span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--text-secondary)' }} />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-2 z-50 min-w-[180px] rounded-xl border shadow-lg overflow-hidden"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="py-1">
-            {memberships.map(workspace => {
-              const isCurrent = workspace.key === currentWorkspace;
-              const canAccess = isGlobalOwner || workspace.hasMembership;
-              return (
-                <button
-                  key={workspace.key}
-                  type="button"
-                  role="menuitem"
-                  disabled={!canAccess}
-                  onClick={() => {
-                    if (isCurrent) return;
-                    setOpen(false);
-                    switchWorkspace(router, workspace.key);
-                  }}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45"
-                  style={{
-                    color: isCurrent ? 'var(--accent)' : 'var(--text)',
-                    background: isCurrent ? 'var(--accent-soft)' : 'transparent',
-                    fontWeight: isCurrent ? 600 : 500,
-                  }}
-                >
-                  <span className="truncate">{workspace.label}</span>
-                  {isCurrent && <Check size={14} className="shrink-0" style={{ color: 'var(--accent)' }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+    <div
+      className="h-9 rounded-lg border p-0.5 inline-flex items-center gap-0.5"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+      aria-label="Workspace switch"
+    >
+      {([
+        { key: 'os', label: 'OPENY OS' },
+        { key: 'docs', label: 'OPENY DOCS' },
+      ] as const).map((workspace) => {
+        const isCurrent = workspace.key === currentWorkspace;
+        const canAccess = access[workspace.key];
+        return (
+          <button
+            key={workspace.key}
+            type="button"
+            disabled={!canAccess}
+            onClick={() => {
+              if (isCurrent || !canAccess) return;
+              switchWorkspace(router, workspace.key);
+            }}
+            className="h-7 px-2.5 rounded-md text-[11px] sm:text-xs font-semibold transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+            style={{
+              background: isCurrent ? 'var(--accent-soft)' : 'transparent',
+              color: isCurrent ? 'var(--accent)' : 'var(--text-secondary)',
+            }}
+            title={canAccess ? `Go to ${workspace.label}` : `No access to ${workspace.label}`}
+            aria-current={isCurrent ? 'page' : undefined}
+          >
+            {workspace.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

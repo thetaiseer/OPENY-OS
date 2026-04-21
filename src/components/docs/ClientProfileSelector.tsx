@@ -27,7 +27,7 @@ export default function ClientProfileSelector({
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
         <label className="block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</label>
-        <Link href="/docs/documents/client-profiles" className="text-[11px] hover:underline" style={{ color: 'var(--accent)' }}>
+        <Link href="/docs/client-profiles" className="text-[11px] hover:underline" style={{ color: 'var(--accent)' }}>
           Manage clients & templates
         </Link>
       </div>

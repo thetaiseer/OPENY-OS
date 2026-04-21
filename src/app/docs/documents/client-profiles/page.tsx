@@ -171,7 +171,7 @@ export default function ClientProfilesPage() {
         subtitle="Manage client-specific document defaults, template behavior, and supported DOCS workflows."
         actions={(
           <Link
-            href="/docs/documents"
+            href="/docs/dashboard"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium hover:bg-[var(--surface-2)]"
             style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
           >

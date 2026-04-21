@@ -13,12 +13,12 @@ import { useTheme } from '@/lib/theme-context';
 
 const docsNav = [
   { href: '/docs/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/docs/documents/invoice', label: 'Invoice', icon: FileText },
-  { href: '/docs/documents/quotation', label: 'Quotation', icon: ClipboardList },
-  { href: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature },
-  { href: '/docs/documents/hr-contract', label: 'HR Contract', icon: BookOpen },
-  { href: '/docs/documents/employees', label: 'Employees', icon: Users },
-  { href: '/docs/documents/accounting', label: 'Accounting', icon: BarChart2 },
+  { href: '/docs/invoice', label: 'Invoice', icon: FileText },
+  { href: '/docs/quotation', label: 'Quotation', icon: ClipboardList },
+  { href: '/docs/client-contract', label: 'Client Contract', icon: FileSignature },
+  { href: '/docs/hr-contract', label: 'HR Contract', icon: BookOpen },
+  { href: '/docs/employees', label: 'Employees', icon: Users },
+  { href: '/docs/accounting', label: 'Accounting', icon: BarChart2 },
 ];
 
 interface DocsSidebarProps {
