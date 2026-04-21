@@ -22,8 +22,12 @@
   --surface-floating: rgba(255, 255, 255, 0.86);
   --surface-active-chip: rgba(58, 95, 224, 0.16);
   --gradient-card-glass: linear-gradient(155deg, rgba(255, 255, 255, 0.75) 0%, rgba(252, 255, 255, 0.66) 52%, rgba(239, 246, 255, 0.62) 100%);
+  --gradient-main-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 34%, transparent 62%);
   --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
   --overlay-base-dark: #050b17;
+  --bg-glow-top-right: rgba(126, 142, 255, 0.22);
+  --bg-glow-bottom-left: rgba(86, 170, 255, 0.16);
+  --bg-gradient-base: linear-gradient(142deg, #d6e4ff 0%, #e5defb 46%, #edf1f8 100%);
 
   /* ── Text ── */
   --text: #0d1829;
@@ -71,6 +75,9 @@
   /* ── Shell ── */
   --sidebar-bg: rgba(245, 249, 255, 0.90);
   --sidebar-border: rgba(180, 200, 240, 0.45);
+  --sidebar-tint: rgba(133, 154, 207, 0.12);
+  --sidebar-icon-chip-base: 82%;
+  --sidebar-icon-chip-tint: 18%;
   --header-bg: rgba(248, 251, 255, 0.82);
 
   /* ── Spacing ── */
@@ -131,8 +138,12 @@
   --surface-floating: rgba(17, 32, 60, 0.94);
   --surface-active-chip: rgba(97, 127, 255, 0.24);
   --gradient-card-glass: linear-gradient(155deg, rgba(24, 42, 76, 0.78) 0%, rgba(18, 34, 64, 0.72) 55%, rgba(20, 37, 68, 0.7) 100%);
+  --gradient-main-overlay: linear-gradient(180deg, rgba(34, 56, 96, 0.45) 0%, rgba(22, 40, 74, 0.16) 36%, transparent 66%);
   --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
   --overlay-base-dark: #050b17;
+  --bg-glow-top-right: rgba(120, 140, 255, 0.24);
+  --bg-glow-bottom-left: rgba(55, 120, 200, 0.18);
+  --bg-gradient-base: linear-gradient(142deg, #091225 0%, #0d1932 46%, #0b172f 100%);
 
   --text: #e8f0ff;
   --text-secondary: #8fa5cc;
@@ -173,6 +184,9 @@
 
   --sidebar-bg: rgba(8, 16, 32, 0.88);
   --sidebar-border: rgba(40, 70, 130, 0.45);
+  --sidebar-tint: rgba(108, 138, 212, 0.2);
+  --sidebar-icon-chip-base: 76%;
+  --sidebar-icon-chip-tint: 24%;
   --header-bg: rgba(8, 16, 32, 0.80);
 
   --shadow-xs: 0 2px 8px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(40, 70, 130, 0.30);
@@ -195,9 +209,9 @@
 
 body {
   background:
-    radial-gradient(54rem 42rem at 92% 4%, rgba(126, 142, 255, 0.22), transparent 58%),
-    radial-gradient(56rem 46rem at 4% 96%, rgba(86, 170, 255, 0.16), transparent 62%),
-    linear-gradient(142deg, #d6e4ff 0%, #e5defb 46%, #edf1f8 100%);
+    radial-gradient(58vw 48vh at 92% 4%, var(--bg-glow-top-right), transparent 58%),
+    radial-gradient(62vw 52vh at 4% 96%, var(--bg-glow-bottom-left), transparent 62%),
+    var(--bg-gradient-base);
   color: var(--text);
   font-family: var(--font-arabic), Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -293,14 +307,6 @@ input, select, textarea, button { font: inherit; }
 }
 
 /* Apply glass card shadow to common Tailwind combos */
-[class*='rounded-2xl'][class*='border'],
-[class*='rounded-xl'][class*='border'] {
-  background: var(--gradient-card-glass) !important;
-  border-color: var(--border-glass) !important;
-  backdrop-filter: var(--blur-glass) !important;
-  -webkit-backdrop-filter: var(--blur-glass) !important;
-  box-shadow: var(--shadow-card), var(--highlight-inset) !important;
-}
 
 /* ============================================================
    BUTTON SYSTEM
@@ -367,12 +373,6 @@ input, select, textarea, button { font: inherit; }
   box-shadow: var(--highlight-inset);
 }
 
-button[class*='rounded-lg'],
-button[class*='rounded-xl'],
-a[class*='rounded-lg'],
-a[class*='rounded-xl'] {
-  border-radius: var(--radius-pill);
-}
 
 /* Hover states */
 .btn:hover,

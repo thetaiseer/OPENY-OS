@@ -70,7 +70,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           )}
           style={{
-            background: 'color-mix(in srgb, var(--gradient-card-glass) 85%, rgba(150,165,210,0.15) 15%)',
+            background: 'color-mix(in srgb, var(--surface-panel) 88%, var(--sidebar-tint) 12%)',
             borderColor: 'var(--sidebar-border)',
             backdropFilter: 'var(--blur-panel)',
             WebkitBackdropFilter: 'var(--blur-panel)',
@@ -129,7 +129,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
                 style={active ? {
-                  background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 76%, var(--accent-3) 24%) 0%, color-mix(in srgb, var(--accent-3) 80%, var(--accent) 20%) 100%)',
+                  background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
                   color: '#fff',
                   boxShadow: 'var(--shadow-sm), var(--glow-accent-sm)',
                 } : {}}
@@ -142,7 +142,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     color: '#fff',
                     boxShadow: 'var(--glow-accent-sm)',
                   } : {
-                    background: 'color-mix(in srgb, var(--surface-2) 82%, var(--accent-soft) 18%)',
+                    background: 'color-mix(in srgb, var(--surface-2) var(--sidebar-icon-chip-base), var(--accent-soft) var(--sidebar-icon-chip-tint))',
                     color: 'var(--text-tertiary)',
                   }}
                 >
