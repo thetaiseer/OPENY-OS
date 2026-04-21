@@ -114,7 +114,7 @@ export default function InvoicePage() {
   const [autoGen, setAutoGen] = useState<AutoGenState>({
     totalBudget: 50000,
     fees: 500,
-    rowCounts: { instagram: 6, snapchat: 4, tiktok: 2 },
+    rowCounts: { instagram: 6, snapchat: 4, tiktok: 2, google_ads: 3, salla: 2 },
   });
   const [autoGenOpen, setAutoGenOpen] = useState(false);
 
@@ -434,6 +434,28 @@ export default function InvoicePage() {
                           onChange={(e) => updateRowCount('tiktok', Number(e.target.value))}
                         />
                       </div>
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Google Ads Rows</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className={inputClass}
+                          value={autoGen.rowCounts.google_ads}
+                          onChange={(e) => updateRowCount('google_ads', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Salla Rows</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className={inputClass}
+                          value={autoGen.rowCounts.salla}
+                          onChange={(e) => updateRowCount('salla', Number(e.target.value))}
+                        />
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -441,7 +463,7 @@ export default function InvoicePage() {
                       className="w-full py-2 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5"
                       style={{ background: 'var(--accent)' }}
                     >
-                      <Zap size={13} /> Generate (3 Branches × 3 Platforms)
+                      <Zap size={13} /> Generate (3 Branches × 5 Platforms)
                     </button>
                   </div>
                 )}

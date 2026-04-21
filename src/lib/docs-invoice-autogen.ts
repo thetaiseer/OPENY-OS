@@ -138,17 +138,27 @@ interface PlatformSpec {
 const PLATFORM_SPECS: PlatformSpec[] = [
   {
     name: 'Instagram',
-    budgetPct: 0.5,
+    budgetPct: 0.4,
     cpa: { costMin: 20, costMax: 25, resultType: 'Messages' },
   },
   {
     name: 'Snapchat',
-    budgetPct: 0.3,
+    budgetPct: 0.25,
     cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
   },
   {
     name: 'TikTok',
-    budgetPct: 0.2,
+    budgetPct: 0.15,
+    cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
+  },
+  {
+    name: 'Google Ads',
+    budgetPct: 0.15,
+    cpa: { costMin: 2, costMax: 5, resultType: 'Clicks' },
+  },
+  {
+    name: 'Salla',
+    budgetPct: 0.05,
     cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
   },
 ];
@@ -159,6 +169,8 @@ export interface AutoGenRowCounts {
   instagram: number;
   snapchat: number;
   tiktok: number;
+  google_ads: number;
+  salla: number;
 }
 
 export interface AutoGenParams {
@@ -176,6 +188,8 @@ const DEFAULT_ROW_COUNTS: AutoGenRowCounts = {
   instagram: 6,
   snapchat: 4,
   tiktok: 2,
+  google_ads: 3,
+  salla: 2,
 };
 
 // ── 6. Main orchestrator ──────────────────────────────────────────────────────
@@ -185,7 +199,7 @@ const DEFAULT_ROW_COUNTS: AutoGenRowCounts = {
  *
  * 1. Net Budget = Total Budget − Fees
  * 2. Split Net Budget into 3 branch budgets (Riyadh, Jeddah, Khobar) via splitBudget
- * 3. For each branch, split into platforms (IG 50%, Snap 30%, TikTok 20%)
+ * 3. For each branch, split into platforms (IG 40%, Snap 25%, TikTok 15%, Google Ads 15%, Salla 5%)
  * 4. For each platform, split platform budget into N rows via splitBudget
  * 5. Generate date and results (CPA-based) for every row
  */
@@ -207,7 +221,13 @@ export function autoGenerateProIconKSA(
 
   // Steps 3–5 – Build branches
   return branchBudgets.map((branchBudget, bi): InvoiceBranchGroup => {
-    const platformCounts = [rowCounts.instagram, rowCounts.snapchat, rowCounts.tiktok];
+    const platformCounts = [
+      rowCounts.instagram,
+      rowCounts.snapchat,
+      rowCounts.tiktok,
+      rowCounts.google_ads,
+      rowCounts.salla,
+    ];
 
     const platformGroups: InvoicePlatformGroup[] = PLATFORM_SPECS.map(
       (spec, pi): InvoicePlatformGroup => {
