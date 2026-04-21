@@ -217,7 +217,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           onFocus={() => setFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search… (⌘K)"
-          className="w-full h-10 pl-9 pr-8 rounded-pill text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
+          className="w-full h-10 pl-9 pr-8 rounded-full text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
           style={{
             background: 'var(--surface-shell)',
             color: 'var(--text)',

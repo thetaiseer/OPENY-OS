@@ -21,6 +21,9 @@
   --surface-panel: rgba(255, 255, 255, 0.84);
   --surface-floating: rgba(255, 255, 255, 0.92);
   --surface-active-chip: rgba(58, 95, 224, 0.16);
+  --gradient-card-glass: linear-gradient(160deg, color-mix(in srgb, var(--surface-glass) 92%, var(--accent) 8%) 0%, var(--surface-glass) 55%, color-mix(in srgb, var(--surface-glass) 95%, var(--accent-3) 5%) 100%);
+  --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
+  --overlay-base-dark: #050b17;
 
   /* ── Text ── */
   --text: #0d1829;
@@ -127,6 +130,9 @@
   --surface-panel: rgba(14, 26, 50, 0.86);
   --surface-floating: rgba(17, 32, 60, 0.94);
   --surface-active-chip: rgba(97, 127, 255, 0.24);
+  --gradient-card-glass: linear-gradient(160deg, color-mix(in srgb, var(--surface-glass) 93%, var(--accent) 7%) 0%, var(--surface-glass) 58%, color-mix(in srgb, var(--surface-glass) 95%, var(--accent-3) 5%) 100%);
+  --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
+  --overlay-base-dark: #050b17;
 
   --text: #e8f0ff;
   --text-secondary: #8fa5cc;
@@ -232,18 +238,17 @@ input, select, textarea, button { font: inherit; }
 
 .app-page-title {
   font-size: var(--type-page-title);
-  line-height: 1.15;
   font-weight: 800;
+  line-height: 1.15;
   letter-spacing: -0.025em;
   color: var(--text);
 }
 
 .app-page-subtitle {
   margin-top: 0.45rem;
-  font-size: 0.92rem;
+  font-size: var(--type-body);
   color: var(--text-secondary);
   line-height: 1.5;
-  font-size: var(--type-body);
 }
 
 /* ============================================================
@@ -252,8 +257,7 @@ input, select, textarea, button { font: inherit; }
 
 /* Base premium glass card */
 .openy-card {
-  background:
-    linear-gradient(160deg, color-mix(in srgb, var(--surface-glass) 92%, var(--accent) 8%) 0%, var(--surface-glass) 55%, color-mix(in srgb, var(--surface-glass) 95%, var(--accent-3) 5%) 100%);
+  background: var(--gradient-card-glass);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border: 1px solid var(--border-glass);
@@ -263,8 +267,7 @@ input, select, textarea, button { font: inherit; }
 
 /* Elevated variant — for modals, dropdowns, popovers */
 .openy-card-elevated {
-  background:
-    linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
+  background: var(--gradient-card-elevated);
   backdrop-filter: var(--blur-panel);
   -webkit-backdrop-filter: var(--blur-panel);
   border: 1px solid var(--border);
@@ -744,7 +747,7 @@ select option { white-space: normal; }
 }
 
 .docs-app .fixed.inset-0.z-50 {
-  background: color-mix(in srgb, #050b17 45%, transparent) !important;
+  background: color-mix(in srgb, var(--overlay-base-dark) 45%, transparent) !important;
   backdrop-filter: var(--blur-overlay);
   -webkit-backdrop-filter: var(--blur-overlay);
 }

@@ -59,7 +59,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
       >
         <button
           onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl transition-colors shrink-0 hover:bg-[var(--surface-2)]"
+          className="lg:hidden p-2 rounded-xl transition-colors shrink-0 hover:bg-[var(--surface-2)]"
           style={{ color: 'var(--text-secondary)' }}
         >
           <Menu size={20} />
@@ -71,7 +71,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         >
           <OpenyLogo width={82} height={24} />
           <span
-              className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-full"
+            className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-full"
             style={{
               background: 'var(--accent-soft)',
               color: 'var(--accent)',

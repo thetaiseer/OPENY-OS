@@ -1519,7 +1519,7 @@ function TasksPage() {
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="openy-card rounded-2xl border p-4 sm:p-6" style={{ borderColor: 'var(--border-glass)' }}>
+      <div className="openy-card p-4 sm:p-6">
         <div className="app-page-header">
           <div>
             <h1 className="app-page-title">{t('tasks')}</h1>
@@ -1532,7 +1532,6 @@ function TasksPage() {
               role="tablist"
               aria-label="Task views"
               className="openy-segmented"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
             >
               <button
                 onClick={() => setView('list')}
@@ -1591,7 +1590,7 @@ function TasksPage() {
         </div>
       </div>
 
-      <div className="openy-card rounded-2xl border p-4 sm:p-5 space-y-4" style={{ borderColor: 'var(--border-glass)' }}>
+      <div className="openy-card p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
@@ -1721,7 +1720,7 @@ function TasksPage() {
           }
         />
       ) : view === 'kanban' ? (
-        <div className="openy-card rounded-2xl border p-3 sm:p-5 overflow-hidden" style={{ borderColor: 'var(--border-glass)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
+        <div className="openy-card p-3 sm:p-5 overflow-hidden" role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
           <KanbanBoard
             tasks={filtered}
             team={team}

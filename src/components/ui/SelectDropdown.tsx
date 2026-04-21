@@ -203,7 +203,7 @@ export default function SelectDropdown({
         type="button"
         disabled={disabled}
         onClick={e => { e.stopPropagation(); if (!disabled) setOpen(o => !o); }}
-        className={`flex items-center gap-2 px-3 h-10 rounded-pill text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
+        className={`flex items-center gap-2 px-3 h-10 rounded-full text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
         style={{
           background:  'var(--surface-shell)',
           color:       hasValue ? 'var(--text)' : 'var(--text-secondary)',

@@ -59,7 +59,7 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div
-      className="h-10 rounded-pill border p-1 inline-flex items-center gap-1"
+      className="h-10 rounded-full border p-1 inline-flex items-center gap-1"
       style={{
         borderColor: 'var(--border)',
         background: 'var(--surface-shell)',
@@ -84,7 +84,7 @@ export default function WorkspaceSwitcher() {
               if (isCurrent || !canAccess) return;
               switchWorkspace(router, workspace.key);
             }}
-            className="h-7 px-2.5 rounded-pill text-[11px] sm:text-xs font-semibold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+            className="h-7 px-2.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
             style={{
               background: isCurrent
                 ? 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, var(--accent-3)) 100%)'
