@@ -7,11 +7,13 @@ import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
+import GlobalQuickActionModalHost from '@/components/layout/GlobalQuickActionModalHost';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
 import { AiProvider, useAi } from '@/lib/ai-context';
 import { queryClient } from '@/app/providers';
+import { QuickActionsProvider } from '@/lib/quick-actions-context';
 
 // Lazy-load non-critical panels after the page shell has rendered.
 // ssr: false ensures these are client-only (they use browser APIs) and avoids
@@ -151,6 +153,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <GlobalQuickActionsFab />
+      <GlobalQuickActionModalHost />
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
       <AiCommandCenter />
@@ -167,11 +170,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <UploadProvider>
-      <CommandPaletteProvider>
-        <AiProvider>
-          <AppShell>{children}</AppShell>
-        </AiProvider>
-      </CommandPaletteProvider>
+      <QuickActionsProvider>
+        <CommandPaletteProvider>
+          <AiProvider>
+            <AppShell>{children}</AppShell>
+          </AiProvider>
+        </CommandPaletteProvider>
+      </QuickActionsProvider>
     </UploadProvider>
   );
 }

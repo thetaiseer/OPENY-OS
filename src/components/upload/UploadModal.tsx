@@ -14,7 +14,7 @@
  *  - Consistent design system styling
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, FileImage, FileText, FileVideo, FileAudio, File, Plus } from 'lucide-react';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
@@ -57,6 +57,7 @@ export interface UploadModalProps {
   onNewClientCreated?:  (client: Client) => void;
   onUploadNameChange:   (id: string, name: string) => void;
   onRemoveFile:         (id: string) => void;
+  onAddFiles?:          (files: FileList) => void;
   onConfirm:            () => void;
   /** Upload files and open scheduling modal immediately after */
   onConfirmAndSchedule?: () => void;
@@ -225,11 +226,13 @@ export default function UploadModal({
   onNewClientCreated,
   onUploadNameChange,
   onRemoveFile,
+  onAddFiles,
   onConfirm,
   onConfirmAndSchedule,
   onCancel,
 }: UploadModalProps) {
   const [showCreateClient, setShowCreateClient] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasErrors  = files.some(f => validateUploadName(f.uploadName) !== null);
   const canConfirm = files.length > 0 && !hasErrors && (lockClient || !!clientName) && !!mainCategory;
@@ -279,7 +282,7 @@ export default function UploadModal({
           >
             <div>
               <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-                Upload {files.length === 1 ? 'File' : `${files.length} Files`}
+                {files.length === 0 ? 'Upload Files' : (files.length === 1 ? 'Upload File' : `Upload ${files.length} Files`)}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 Review details before uploading
@@ -301,7 +304,37 @@ export default function UploadModal({
 
             {/* File list */}
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-              {files.map(item => (
+              {files.length === 0 ? (
+                <div
+                  className="rounded-xl border border-dashed p-4 text-center space-y-2"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                >
+                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>No files selected</p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose files to continue</p>
+                  {onAddFiles && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={e => {
+                          if (e.target.files?.length) onAddFiles(e.target.files);
+                          e.currentTarget.value = '';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 px-3 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                      >
+                        Choose Files
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : files.map(item => (
                 <FileRow
                   key={item.id}
                   item={item}
@@ -440,5 +473,4 @@ export default function UploadModal({
     </>
   );
 }
-
 

@@ -16,6 +16,7 @@ import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
@@ -55,6 +56,7 @@ function ClientsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
   const canManageClients = role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
   const [search, setSearch] = useState('');
@@ -149,6 +151,12 @@ function ClientsPage() {
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }, [pathname, router, searchParams, setModalOpen]);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-client', () => {
+      setModalOpen(true);
+    });
+  }, [registerQuickActionHandler]);
 
   const logActivity = (description: string, clientId?: string) => {
     console.log('[client create] before activity log:', description);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Plus,
   UserPlus,
@@ -9,34 +9,32 @@ import {
   FileText,
   Upload,
 } from 'lucide-react';
-
-type QuickActionId = 'add-client' | 'add-task' | 'add-content' | 'add-asset';
+import { useQuickActions, type QuickActionId } from '@/lib/quick-actions-context';
 
 interface QuickAction {
   id: QuickActionId;
   label: string;
-  href: string;
   icon: React.ReactNode;
 }
 
 const DEFAULT_ACTIONS: QuickAction[] = [
-  { id: 'add-client', label: 'Add Client', href: '/clients?quickAction=add-client', icon: <UserPlus size={16} /> },
-  { id: 'add-task', label: 'Add Task', href: '/tasks/all?quickAction=add-task', icon: <CheckSquare size={16} /> },
-  { id: 'add-content', label: 'Add Content', href: '/content?quickAction=add-content', icon: <FileText size={16} /> },
-  { id: 'add-asset', label: 'Add Asset', href: '/assets?quickAction=add-asset', icon: <Upload size={16} /> },
+  { id: 'add-client', label: 'Add Client', icon: <UserPlus size={16} /> },
+  { id: 'add-task', label: 'Add Task', icon: <CheckSquare size={16} /> },
+  { id: 'add-content', label: 'Add Content', icon: <FileText size={16} /> },
+  { id: 'add-asset', label: 'Add Asset', icon: <Upload size={16} /> },
 ];
 
 function getPriorityAction(pathname: string): QuickActionId | null {
-  if (pathname.startsWith('/clients')) return 'add-client';
-  if (pathname.startsWith('/tasks')) return 'add-task';
-  if (pathname.startsWith('/content')) return 'add-content';
-  if (pathname.startsWith('/assets')) return 'add-asset';
+  if (pathname.startsWith('/clients') || pathname.startsWith('/os/clients')) return 'add-client';
+  if (pathname.startsWith('/tasks') || pathname.startsWith('/os/tasks')) return 'add-task';
+  if (pathname.startsWith('/content') || pathname.startsWith('/os/content')) return 'add-content';
+  if (pathname.startsWith('/assets') || pathname.startsWith('/os/assets')) return 'add-asset';
   return null;
 }
 
 export default function GlobalQuickActionsFab() {
-  const router = useRouter();
   const pathname = usePathname() ?? '';
+  const { triggerQuickAction } = useQuickActions();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const menuId = 'global-quick-actions-menu';
@@ -110,7 +108,7 @@ export default function GlobalQuickActionsFab() {
               role="menuitem"
               onClick={() => {
                 setOpen(false);
-                router.push(action.href);
+                triggerQuickAction(action.id);
               }}
               className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               style={{ color: 'var(--text)' }}

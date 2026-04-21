@@ -16,6 +16,7 @@ import NewTaskModal from '@/components/tasks/NewTaskModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -245,6 +246,7 @@ export default function MyTasksPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
 
   const { data: queryData, isLoading: loading } = useQuery({
@@ -285,6 +287,12 @@ export default function MyTasksPage() {
   const [activeSection, setActiveSection]   = useState<SectionKey>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [showNewTask, setShowNewTask]       = useState(false);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-task', () => {
+      setShowNewTask(true);
+    });
+  }, [registerQuickActionHandler]);
 
   const memberTasks = useMemo(() => {
     let result = tasks;
