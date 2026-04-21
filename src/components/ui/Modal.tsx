@@ -24,21 +24,32 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(3,10,24,0.48)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'rgba(3,10,24,0.52)', backdropFilter: 'var(--blur-overlay)', WebkitBackdropFilter: 'var(--blur-overlay)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className={`w-full ${widthMap[size]} rounded-t-3xl sm:rounded-2xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-md)' }}
+        style={{
+          background: 'var(--surface-elevated)',
+          backdropFilter: 'var(--blur-panel)',
+          WebkitBackdropFilter: 'var(--blur-panel)',
+          borderColor: 'var(--border-glass)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
       >
         <div
           className="flex items-center justify-between px-4 sm:px-6 py-4 border-b"
           style={{ borderColor: 'var(--border)' }}
         >
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{title}</h2>
+          <h2
+            className="text-lg font-bold"
+            style={{ color: 'var(--text)', letterSpacing: '-0.015em' }}
+          >
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+            className="p-1.5 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
           >
             <X size={18} />

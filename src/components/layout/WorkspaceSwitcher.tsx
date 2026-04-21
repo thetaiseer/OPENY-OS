@@ -59,8 +59,14 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div
-      className="h-9 rounded-lg border p-0.5 inline-flex items-center gap-0.5"
-      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+      className="h-9 rounded-xl border p-0.5 inline-flex items-center gap-0.5"
+      style={{
+        borderColor: 'var(--border)',
+        background: 'var(--surface-glass)',
+        backdropFilter: 'var(--blur-glass)',
+        WebkitBackdropFilter: 'var(--blur-glass)',
+        boxShadow: 'var(--shadow-xs)',
+      }}
       aria-label="Workspace switch"
     >
       {([
@@ -78,10 +84,13 @@ export default function WorkspaceSwitcher() {
               if (isCurrent || !canAccess) return;
               switchWorkspace(router, workspace.key);
             }}
-            className="h-7 px-2.5 rounded-md text-[11px] sm:text-xs font-semibold transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+            className="h-7 px-2.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
             style={{
-              background: isCurrent ? 'var(--accent-soft)' : 'transparent',
-              color: isCurrent ? 'var(--accent)' : 'var(--text-secondary)',
+              background: isCurrent
+                ? 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, var(--accent-3)) 100%)'
+                : 'transparent',
+              color: isCurrent ? '#fff' : 'var(--text-secondary)',
+              boxShadow: isCurrent ? 'var(--glow-accent-sm)' : 'none',
             }}
             title={canAccess ? `Go to ${workspace.label}` : `No access to ${workspace.label}`}
             aria-current={isCurrent ? 'page' : undefined}
