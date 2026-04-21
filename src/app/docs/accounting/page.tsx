@@ -1,1 +1,5 @@
-export { default } from '@/modules/docs/pages/accounting-page';
+import { redirect } from 'next/navigation';
+
+export default function DocsAccountingPage() {
+  redirect('/accounting');
+}

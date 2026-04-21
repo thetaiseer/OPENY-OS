@@ -15,5 +15,15 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      { source: '/invoice', destination: '/docs-legacy/index.html' },
+      { source: '/quotation', destination: '/docs-legacy/index.html' },
+      { source: '/client-contract', destination: '/docs-legacy/index.html' },
+      { source: '/hr-contract', destination: '/docs-legacy/index.html' },
+      { source: '/employees', destination: '/docs-legacy/index.html' },
+      { source: '/accounting', destination: '/docs-legacy/index.html' },
+    ];
+  },
 };
 export default nextConfig;

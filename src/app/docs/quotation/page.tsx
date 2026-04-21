@@ -1,1 +1,5 @@
-export { default } from '@/modules/docs/pages/quotation-page';
+import { redirect } from 'next/navigation';
+
+export default function DocsQuotationPage() {
+  redirect('/quotation');
+}

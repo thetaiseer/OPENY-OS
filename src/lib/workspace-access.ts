@@ -28,6 +28,9 @@ export function isGlobalOwnerEmail(email?: string | null): boolean {
 
 export function getWorkspaceFromAppPath(pathname: string): WorkspaceKey | null {
   if (pathname === '/docs' || pathname.startsWith('/docs/')) return 'docs';
+  if (pathname === '/docs-legacy' || pathname.startsWith('/docs-legacy/')) return 'docs';
+  if (pathname === '/invoice' || pathname === '/quotation' || pathname === '/client-contract'
+    || pathname === '/hr-contract' || pathname === '/employees' || pathname === '/accounting') return 'docs';
   if (pathname === '/os' || pathname.startsWith('/os/')) return 'os';
   return null;
 }

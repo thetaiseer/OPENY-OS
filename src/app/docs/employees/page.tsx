@@ -1,1 +1,5 @@
-export { default } from '@/modules/docs/pages/employees-page';
+import { redirect } from 'next/navigation';
+
+export default function DocsEmployeesPage() {
+  redirect('/employees');
+}
