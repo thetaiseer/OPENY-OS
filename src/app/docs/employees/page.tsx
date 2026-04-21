@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation';
-
-export default function LegacyDocsEmployeesPage() {
-  redirect('/docs/documents/employees');
-}
+export { default } from '@/modules/docs/pages/employees-page';
