@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Workbook } from 'exceljs';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { requireRole } from '@/lib/api-auth';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { writeInvoiceWorksheet } from '@/lib/docs-invoice-excel';
 import { hydrateInvoiceBranchGroups, mapInvoiceDbError } from '@/lib/docs-invoices-db';
@@ -8,7 +9,10 @@ import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 
 interface Params { id: string }
 
-export async function GET(_: NextRequest, { params }: { params: Promise<Params> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
   const db = getServiceClient();
   const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();

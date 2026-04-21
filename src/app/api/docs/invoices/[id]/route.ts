@@ -11,7 +11,10 @@ import {
 
 interface Params { id: string }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<Params> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
   const db = getServiceClient();
   const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();
