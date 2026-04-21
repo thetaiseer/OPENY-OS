@@ -33,6 +33,7 @@ import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import StatCard from '@/components/ui/StatCard';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
@@ -91,25 +92,17 @@ function avatarInitials(name?: string | null) {
 }
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const NAVY_GRADIENT = 'linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 100%)';
-const SOFT_STAT_CARD_BG = 'color-mix(in srgb, var(--surface) 88%, var(--surface-2))';
-const KANBAN_COLUMN_BG = 'color-mix(in srgb, var(--surface-2) 92%, var(--surface))';
-const frostedPanelStyle = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-};
-const glassInputStyle = { background: 'color-mix(in srgb, var(--surface-2) 92%, transparent)', color: 'var(--text)', border: '1px solid var(--border)' };
-const inputStyle = glassInputStyle;
+const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
-const statusTone: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-  todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--accent-glow)', glow: 'var(--accent-glow)' },
-  in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)', glow: 'var(--accent-glow)' },
-  in_review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
-  review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
-  done: { bg: 'var(--color-success-bg)', text: 'var(--color-success)', border: 'var(--color-success-border)', glow: 'var(--accent-glow)' },
-  delivered: { bg: 'var(--surface-2)', text: 'var(--text)', border: 'var(--border)', glow: 'rgba(100,116,139,0.24)' },
-  overdue: { bg: 'var(--surface-3)', text: 'var(--text)', border: 'var(--border-strong)', glow: 'rgba(100,116,139,0.24)' },
-  default: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)', glow: 'rgba(100,116,139,0.2)' },
+const statusTone: Record<string, { bg: string; text: string; border: string }> = {
+  todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--border)' },
+  in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)' },
+  in_review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
+  review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
+  done: { bg: 'var(--color-success-bg)', text: 'var(--color-success)', border: 'var(--color-success-border)' },
+  delivered: { bg: 'var(--surface-2)', text: 'var(--text)', border: 'var(--border)' },
+  overdue: { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)', border: 'var(--color-danger-border)' },
+  default: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
 };
 
 function getStatusTone(status: string) {
@@ -371,20 +364,17 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
   const overdue = isOverdue(task.due_date, task.status);
   const soon = isDueSoon(task.due_date, task.status);
   const assignee = team.find(m => m.id === task.assigned_to);
-  const creator = team.find(m => m.id === task.created_by);
   const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
 
-  const borderLeft = overdue ? '#ef4444' : soon ? '#f59e0b' : task.status === 'done' ? '#22c55e' : 'var(--border)';
-  const tone = getStatusTone(overdue ? 'overdue' : task.status);
   const projectLabel = task.client?.name ?? (task.project_id ? 'Project linked' : null);
 
   return (
     <div
-      className="rounded-3xl border p-5 space-y-4 transition-all duration-200 ease-out hover:-translate-y-1"
+      className="rounded-2xl border p-5 space-y-4 transition-all duration-200 ease-out hover:-translate-y-0.5"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
-        boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       {/* Header row */}
@@ -622,7 +612,7 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
         width: '18rem',
         background: 'var(--surface)',
         borderColor: 'var(--border)',
-        boxShadow: '0 16px 36px rgba(2, 6, 23, 0.2)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -687,14 +677,14 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
         ref={setNodeRef}
         {...attributes}
         {...listeners}
-        className="rounded-2xl border p-4 space-y-3 transition-all duration-200 ease-out cursor-grab active:cursor-grabbing select-none hover:-translate-y-1"
+        className="rounded-2xl border p-4 space-y-3 transition-all duration-200 ease-out cursor-grab active:cursor-grabbing select-none hover:-translate-y-0.5"
         style={{
           transform: CSS.Transform.toString(transform),
           transition,
           opacity: isDragging ? 0.2 : 1,
           background: 'var(--surface)',
           borderColor: 'var(--border)',
-          boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
         <div className="flex items-start justify-between gap-2">
@@ -763,11 +753,11 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className="flex-shrink-0 snap-start w-[18.25rem] sm:w-[19.5rem] rounded-3xl border flex flex-col transition-all duration-200"
+      className="flex-shrink-0 snap-start w-[18.25rem] sm:w-[19.5rem] rounded-2xl border flex flex-col transition-all duration-200"
       style={{
-        background: KANBAN_COLUMN_BG,
+        background: 'var(--surface)',
         borderColor: isOver ? 'var(--accent)' : 'var(--border)',
-        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent), 0 18px 42px rgba(2, 6, 23, 0.18)' : '0 14px 30px rgba(2, 6, 23, 0.12)',
+        boxShadow: isOver ? 'var(--shadow-focus)' : 'var(--shadow-sm)',
       }}
     >
       <div className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -1000,7 +990,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
         <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
         {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -1518,39 +1508,39 @@ function TasksPage() {
     .filter(Boolean).length;
 
   return (
-    <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
+    <div className="app-page-shell max-w-7xl mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       {/* Fetch error banner */}
       {fetchError && (
         <div
           className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="openy-card p-4 sm:p-6">
-        <div className="openy-page-header">
+      <div className="rounded-2xl border p-4 sm:p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="app-page-header">
           <div>
-            <h1 className="openy-page-header-title">{t('tasks')}</h1>
-            <p className="openy-page-header-description">
+            <h1 className="app-page-title">{t('tasks')}</h1>
+            <p className="app-page-subtitle">
               {filtered.length} task{filtered.length !== 1 ? 's' : ''} shown • {tasks.length} total
             </p>
           </div>
-          <div className="openy-page-actions sm:justify-end gap-3">
+          <div className="flex items-center flex-wrap gap-3 sm:justify-end">
             <div
               role="tablist"
               aria-label="Task views"
-              className="inline-flex items-center gap-1 rounded-full p-1"
+              className="inline-flex items-center gap-1 rounded-lg p-1"
               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
             >
               <button
                 onClick={() => setView('list')}
-                className="h-9 px-4 rounded-full text-sm font-semibold transition-all inline-flex items-center gap-1.5"
+                className="h-9 px-4 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5"
                 style={{
-                  background: view === 'list' ? NAVY_GRADIENT : 'transparent',
-                  color: view === 'list' ? '#fff' : 'var(--text-secondary)',
-                  border: view === 'list' ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                  background: view === 'list' ? 'var(--accent)' : 'var(--surface-2)',
+                  color: view === 'list' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                  border: `1px solid ${view === 'list' ? 'var(--accent)' : 'var(--border)'}`,
                 }}
                 role="tab"
                 aria-selected={view === 'list'}
@@ -1561,11 +1551,11 @@ function TasksPage() {
               </button>
               <button
                 onClick={() => setView('kanban')}
-                className="h-9 px-4 rounded-full text-sm font-semibold transition-all inline-flex items-center gap-1.5"
+                className="h-9 px-4 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5"
                 style={{
-                  background: view === 'kanban' ? NAVY_GRADIENT : 'transparent',
-                  color: view === 'kanban' ? '#fff' : 'var(--text-secondary)',
-                  border: view === 'kanban' ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                  background: view === 'kanban' ? 'var(--accent)' : 'var(--surface-2)',
+                  color: view === 'kanban' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                  border: `1px solid ${view === 'kanban' ? 'var(--accent)' : 'var(--border)'}`,
                 }}
                 role="tab"
                 aria-selected={view === 'kanban'}
@@ -1582,39 +1572,26 @@ function TasksPage() {
             )}
           </div>
         </div>
-        <div className="mt-6 overflow-x-auto pb-1">
-          <div className="flex gap-3 min-w-max">
-            {[
-              { key: 'total', label: 'Total', value: tasks.length, icon: LayoutGrid, accent: true },
-              { key: 'done', label: t('done'), value: doneCount, icon: CheckSquare, accent: true },
-              { key: 'overdue', label: t('overdue'), value: totalOverdue, icon: AlertCircle, accent: false },
-              { key: 'today', label: 'Today', value: dueBuckets.dueToday, icon: Clock, accent: false },
-              { key: 'upcoming', label: 'Upcoming', value: dueBuckets.upcoming, icon: Calendar, accent: false },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.key}
-                  className="min-w-[164px] sm:min-w-[180px] rounded-2xl border p-4 transition-all duration-200 cursor-default"
-                  style={{
-                    background: SOFT_STAT_CARD_BG,
-                    borderColor: 'var(--border)',
-                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-                  }}
-                >
-                  <div className={`icon-box ${item.accent ? 'icon-box--accent' : 'icon-box--neutral'} h-9 w-9 min-w-9 rounded-xl`}>
-                    <Icon size={16} />
-                  </div>
-                  <p className="mt-3 text-[11px] uppercase tracking-[0.1em] font-semibold" style={{ color: 'var(--text-tertiary)' }}>{item.label}</p>
-                  <p className="mt-1 text-3xl font-bold leading-none" style={{ color: item.accent ? 'var(--accent)' : 'var(--text)' }}>{item.value}</p>
-                </div>
-              );
-            })}
+        <div className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="min-w-0">
+            <StatCard label="Total" value={tasks.length} icon={<LayoutGrid size={18} />} color="blue" />
+          </div>
+          <div className="min-w-0">
+            <StatCard label={t('done')} value={doneCount} icon={<CheckSquare size={18} />} color="green" />
+          </div>
+          <div className="min-w-0">
+            <StatCard label={t('overdue')} value={totalOverdue} icon={<AlertCircle size={18} />} color="red" />
+          </div>
+          <div className="min-w-0">
+            <StatCard label="Today" value={dueBuckets.dueToday} icon={<Clock size={18} />} color="amber" />
+          </div>
+          <div className="min-w-0">
+            <StatCard label="Upcoming" value={dueBuckets.upcoming} icon={<Calendar size={18} />} color="violet" />
           </div>
         </div>
       </div>
 
-      <div className="openy-card p-4 sm:p-5 space-y-4">
+      <div className="rounded-2xl border p-4 sm:p-5 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
@@ -1623,7 +1600,8 @@ function TasksPage() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t('searchTasks')}
-              className="input-glass w-full h-11 pl-9 pr-3 rounded-xl text-sm outline-none"
+              className="w-full h-10 pl-9 pr-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              style={inputStyle}
             />
           </div>
           <button
@@ -1642,7 +1620,7 @@ function TasksPage() {
           <SelectDropdown
             value={clientFilter}
             onChange={setClientFilter}
-            className="!h-10 min-w-[150px] rounded-full !px-3"
+            className="!h-10 min-w-[150px] rounded-lg !px-3"
             placeholder={t('allClients')}
             options={[
               { value: '', label: t('allClients') },
@@ -1652,7 +1630,7 @@ function TasksPage() {
           <SelectDropdown
             value={assignedFilter}
             onChange={setAssignedFilter}
-            className="!h-10 min-w-[150px] rounded-full !px-3"
+            className="!h-10 min-w-[150px] rounded-lg !px-3"
             placeholder={t('allMembers')}
             options={[
               { value: '', label: t('allMembers') },
@@ -1662,7 +1640,7 @@ function TasksPage() {
           <SelectDropdown
             value={priorityFilter}
             onChange={setPriorityFilter}
-            className="!h-10 min-w-[132px] rounded-full !px-3"
+            className="!h-10 min-w-[132px] rounded-lg !px-3"
             placeholder={t('allPriorities')}
             options={[
               { value: '', label: t('allPriorities') },
@@ -1674,7 +1652,7 @@ function TasksPage() {
           <SelectDropdown
             value={dateFilter}
             onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
-            className="!h-10 min-w-[132px] rounded-full !px-3"
+            className="!h-10 min-w-[132px] rounded-lg !px-3"
             placeholder={t('date')}
             options={[
               { value: 'all', label: `${t('date')}: ${t('all')}` },
@@ -1697,16 +1675,15 @@ function TasksPage() {
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-xs font-semibold transition-all"
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-semibold transition-colors"
                 style={{
-                  background: isActive ? NAVY_GRADIENT : 'var(--surface-2)',
-                  color: isActive ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${isActive ? 'rgba(255,255,255,0.16)' : 'var(--border)'}`,
-                  boxShadow: isActive ? '0 10px 24px rgba(29, 78, 216, 0.24)' : 'none',
+                  background: isActive ? 'var(--accent)' : 'var(--surface-2)',
+                  color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
                 }}
               >
                 {s === 'all' ? t('all') : statusLabel(s, t)}
-                <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold" style={{ background: isActive ? 'rgba(255,255,255,0.24)' : 'var(--surface-3)', color: isActive ? '#fff' : 'var(--text-secondary)' }}>
+                <span className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold" style={{ background: isActive ? 'rgba(255,255,255,0.22)' : 'var(--surface-3)', color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)' }}>
                   {count}
                 </span>
               </button>
@@ -1715,7 +1692,7 @@ function TasksPage() {
           {(clientFilter || assignedFilter || priorityFilter || dateFilter !== 'all' || searchQuery || statusFilter !== 'all') && (
             <button
               onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setDateFilter('all'); setSearchQuery(''); setStatusFilter('all'); }}
-              className="btn-ghost h-9 px-3 text-xs rounded-full"
+              className="btn-ghost h-9 px-3 text-xs rounded-lg"
             >
               {t('clearFilters')}
             </button>
@@ -1744,7 +1721,7 @@ function TasksPage() {
           }
         />
       ) : view === 'kanban' ? (
-        <div className="rounded-3xl border p-3 sm:p-5 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
+        <div className="rounded-2xl border p-3 sm:p-5 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
           <KanbanBoard
             tasks={filtered}
             team={team}
@@ -1758,7 +1735,7 @@ function TasksPage() {
       ) : (
         <div className="space-y-3" role="table" aria-label="Tasks list" aria-rowcount={filtered.length} aria-colcount={6} id="tasks-list-panel" aria-labelledby="tasks-list-tab">
           <div role="rowgroup" className="hidden md:block">
-            <div role="row" className="grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 px-4 py-2 rounded-xl border text-[11px] uppercase tracking-wide font-semibold" style={{ ...glassInputStyle, color: 'var(--text-tertiary)' }}>
+            <div role="row" className="grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 px-4 py-2 rounded-xl border text-[11px] uppercase tracking-wide font-semibold" style={{ ...inputStyle, color: 'var(--text-tertiary)' }}>
               <span role="columnheader">Task</span>
               <span role="columnheader">Client / Project</span>
               <span role="columnheader">{t('status')}</span>
@@ -1774,7 +1751,7 @@ function TasksPage() {
               const tone = getStatusTone(overdue ? 'overdue' : task.status);
               return (
                 <div key={task.id}>
-                  <div role="row" className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-5 py-4 rounded-2xl border transition-all hover:-translate-y-1" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: '0 12px 26px rgba(15, 23, 42, 0.12)' }}>
+                  <div role="row" className="hidden md:grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 items-center px-5 py-4 rounded-2xl border transition-all hover:-translate-y-0.5" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
                       {task.description && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
@@ -1816,9 +1793,9 @@ function TasksPage() {
           onClick={() => setCreateOpen(true)}
           className="fixed right-5 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] sm:right-7 sm:bottom-7 z-30 h-14 w-14 rounded-full text-white inline-flex items-center justify-center transition-all duration-200 active:scale-95"
           style={{
-            background: NAVY_GRADIENT,
-            boxShadow: '0 18px 42px rgba(30, 58, 138, 0.34)',
-            border: '1px solid rgba(255,255,255,0.18)',
+            background: 'var(--accent)',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid transparent',
           }}
           aria-label="Create new task"
         >
@@ -1830,7 +1807,7 @@ function TasksPage() {
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError(null); }} title={t('newTask')} size="lg">
         <form onSubmit={handleCreate}>
           {createError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{createError}</span>
             </div>
@@ -1843,7 +1820,7 @@ function TasksPage() {
       <Modal open={!!editTask} onClose={() => { setEditTask(null); setEditError(null); }} title={t('editTask')} size="lg">
         <form onSubmit={handleEdit}>
           {editError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{editError}</span>
             </div>
