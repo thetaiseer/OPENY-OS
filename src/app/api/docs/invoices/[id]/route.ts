@@ -11,7 +11,11 @@ import {
 
 interface Params { id: string }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<Params> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const { getApiUser } = await import('@/lib/api-auth');
+  const auth = await getApiUser(req);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   const db = getServiceClient();
   const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();

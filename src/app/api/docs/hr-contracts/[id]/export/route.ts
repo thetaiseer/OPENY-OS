@@ -5,6 +5,10 @@ import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const { getApiUser } = await import('@/lib/api-auth');
+  const auth = await getApiUser(req);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   const logoUrl = new URL(OPENY_LOGO_LIGHT_URL, req.nextUrl.origin).toString();
   const db = getServiceClient();
