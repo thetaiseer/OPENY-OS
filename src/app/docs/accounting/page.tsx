@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function LegacyDocsAccountingPage() {
-  redirect('/docs/documents/accounting');
+export default function DocsAccountingPage() {
+  redirect('/accounting');
 }
