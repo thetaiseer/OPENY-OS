@@ -1,83 +1,117 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Bell, Info, CheckCircle, AlertTriangle, XCircle, Check, CheckCheck, ExternalLink } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Bell, Info, CheckCircle, AlertTriangle, XCircle, Check,
+  CheckCheck, Archive, ExternalLink, BriefcaseBusiness,
+  FileText, FolderOpen, Users, Shield, Layout,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLang } from '@/lib/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
-import type { Notification } from '@/lib/types';
+import type { Notification, NotificationCategory, NotificationPriority } from '@/lib/types';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type TabId = 'all' | 'unread' | NotificationCategory;
+
+interface Tab { id: TabId; label: string; icon: React.ElementType }
+
+const TABS: Tab[] = [
+  { id: 'all',     label: 'All',     icon: Layout },
+  { id: 'unread',  label: 'Unread',  icon: Bell },
+  { id: 'tasks',   label: 'Tasks',   icon: BriefcaseBusiness },
+  { id: 'content', label: 'Content', icon: FileText },
+  { id: 'assets',  label: 'Assets',  icon: FolderOpen },
+  { id: 'team',    label: 'Team',    icon: Users },
+  { id: 'system',  label: 'System',  icon: Shield },
+];
+
+// ── Priority visuals ──────────────────────────────────────────────────────────
+
+const PRIORITY_COLOR: Record<NotificationPriority, string> = {
+  low:      'var(--text-secondary)',
+  medium:   '#3b82f6',
+  high:     '#f59e0b',
+  critical: '#dc2626',
+};
+
+const PRIORITY_LABEL: Record<NotificationPriority, string> = {
+  low:      '',
+  medium:   '',
+  high:     'HIGH',
+  critical: 'CRITICAL',
+};
 
 const TYPE_ICON = {
-  info: Info,
+  info:    Info,
   success: CheckCircle,
   warning: AlertTriangle,
-  error: XCircle,
+  error:   XCircle,
 } as const;
 
-const TYPE_COLOR = {
-  info: '#3b82f6',
-  success: '#16a34a',
-  warning: '#d97706',
-  error: '#dc2626',
-} as const;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
   const date = new Date(d);
-  const now = new Date();
+  const now  = new Date();
   const diff = now.getTime() - date.getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 60_000)     return 'just now';
+  if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function dayKey(dateIso: string): 'today' | 'yesterday' | 'earlier' {
-  const d = new Date(dateIso);
-  const now = new Date();
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startYesterday = startToday - 86_400_000;
-  const t = d.getTime();
-  if (t >= startToday) return 'today';
-  if (t >= startYesterday) return 'yesterday';
-  return 'earlier';
+function getIconColor(n: Notification): string {
+  const priority = (n.priority ?? 'low') as NotificationPriority;
+  if (priority === 'critical' || priority === 'high') return PRIORITY_COLOR[priority];
+  const map: Record<string, string> = {
+    success: '#16a34a', warning: '#d97706', error: '#dc2626', info: '#3b82f6',
+  };
+  return map[n.type] ?? '#3b82f6';
 }
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [markingAll, setMarkingAll] = useState(false);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState('');
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const limit = 30;
+  const [loading, setLoading]         = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [markingAll, setMarkingAll]   = useState(false);
+  const [activeTab, setActiveTab]     = useState<TabId>('all');
+  const [page, setPage]     = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
+  const loadNotifications = useCallback(async (nextPage = 1, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: String(limit), page: String(page) });
+      const params = new URLSearchParams({ limit: '20', page: String(nextPage) });
       if (user?.id) params.set('user_id', user.id);
-      if (search.trim()) params.set('q', search.trim());
-      if (category) params.set('category', category);
-      if (priority) params.set('priority', priority);
+      if (activeTab === 'unread') {
+        params.set('unread', 'true');
+      } else if (activeTab !== 'all') {
+        params.set('category', activeTab);
+      }
       const res = await fetch(`/api/notifications?${params.toString()}`);
       if (!res.ok) throw new Error('fetch failed');
-      const json = await res.json() as { notifications?: Notification[]; total?: number };
-      setNotifications(json.notifications ?? []);
-      setTotal(json.total ?? 0);
+      const json = await res.json() as { notifications?: Notification[]; hasMore?: boolean };
+      const incoming = json.notifications ?? [];
+      setNotifications(prev => append ? [...prev, ...incoming] : incoming);
+      setHasMore(Boolean(json.hasMore));
+      setPage(nextPage);
     } catch (err) {
       console.error('[notifications] load error:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [user, page, search, category, priority]);
+  }, [user, activeTab]);
 
-  useEffect(() => { void loadNotifications(); }, [loadNotifications]);
-  useEffect(() => { setPage(1); }, [search, category, priority]);
+  useEffect(() => { void loadNotifications(1, false); }, [loadNotifications]);
 
   const markRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -88,6 +122,25 @@ export default function NotificationsPage() {
         body: JSON.stringify({ read: true }),
       });
     } catch { /* best-effort */ }
+  };
+
+  const archiveNotif = async (id: string) => {
+    // Optimistic: remove from view immediately
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_archived: true }),
+      });
+      if (!res.ok) {
+        // Revert: reload notifications to restore the item
+        void loadNotifications(1, false);
+      }
+    } catch {
+      // Revert on network error
+      void loadNotifications(1, false);
+    }
   };
 
   const markAllRead = async () => {
@@ -104,31 +157,12 @@ export default function NotificationsPage() {
     }
   };
 
-  const markTaskDone = async (taskId: string, notificationId: string) => {
-    try {
-      await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      });
-      await markRead(notificationId);
-    } catch {
-      // best-effort
-    }
-  };
-
-  const grouped = useMemo(() => {
-    const g = { today: [] as Notification[], yesterday: [] as Notification[], earlier: [] as Notification[] };
-    for (const n of notifications) g[dayKey(n.created_at)].push(n);
-    return g;
-  }, [notifications]);
-
   const unreadCount = notifications.filter(n => !n.read).length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
             <Bell size={22} style={{ color: 'var(--accent)' }} />
@@ -150,40 +184,30 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search notifications..."
-          className="h-10 px-3 rounded-lg border text-sm"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="h-10 px-3 rounded-lg border text-sm"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        >
-          <option value="">All categories</option>
-          <option value="task">Task</option>
-          <option value="content">Content</option>
-          <option value="team">Team</option>
-          <option value="system">System</option>
-        </select>
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className="h-10 px-3 rounded-lg border text-sm"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
-        >
-          <option value="">All priorities</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="critical">Critical</option>
-        </select>
+      {/* ── Category tabs ────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
+        {TABS.map(tab => {
+          const Icon   = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium whitespace-nowrap transition-colors"
+              style={{
+                background:   active ? 'var(--accent)' : 'var(--surface)',
+                color:        active ? '#fff' : 'var(--text-secondary)',
+                border:       `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              <Icon size={13} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
+      {/* ── Notification list ────────────────────────────────────────────── */}
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -191,115 +215,111 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <EmptyState icon={Bell} title="No notifications found" description="Try changing filters or search." />
+        <EmptyState
+          icon={Bell}
+          title="No notifications"
+          description={
+            activeTab === 'unread'
+              ? "You're all caught up — no unread notifications."
+              : `No ${activeTab === 'all' ? '' : activeTab + ' '}notifications yet.`
+          }
+        />
       ) : (
-        <div className="space-y-5">
-          {(['today', 'yesterday', 'earlier'] as const).map((bucket) => (
-            grouped[bucket].length > 0 ? (
-              <div key={bucket} className="space-y-2">
-                <h2 className="text-xs uppercase tracking-wide font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  {bucket}
-                </h2>
-                {grouped[bucket].map(n => {
-                  const Icon = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
-                  const color = TYPE_COLOR[n.type as keyof typeof TYPE_COLOR] ?? '#3b82f6';
-                  return (
-                    <div
-                      key={n.id}
-                      className="flex items-start gap-3 px-4 py-3 rounded-xl border transition-all"
-                      style={{
-                        background: n.read ? 'var(--surface)' : 'var(--surface-2)',
-                        borderColor: n.read ? 'var(--border)' : color,
-                        borderLeftWidth: n.read ? '1px' : '3px',
-                        opacity: n.read ? 0.75 : 1,
-                      }}
-                    >
-                      <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${color}18` }}>
-                        <Icon size={16} style={{ color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{n.title}</p>
-                          <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>{fmtDate(n.created_at)}</span>
-                        </div>
-                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{n.message}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {n.category && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs" style={{ background: `${color}18`, color }}>
-                              {n.category}
-                            </span>
-                          )}
-                          {n.priority && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                              {n.priority}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {n.action_url && (
-                          <Link
-                            href={n.action_url}
-                            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-                            style={{ color: 'var(--text-secondary)' }}
-                            title="Open related item"
-                          >
-                            <ExternalLink size={14} />
-                          </Link>
-                        )}
-                        {!n.read && (
-                          <button
-                            onClick={() => markRead(n.id)}
-                            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-                            style={{ color: 'var(--text-secondary)' }}
-                            title="Mark as read"
-                          >
-                            <Check size={14} />
-                          </button>
-                        )}
-                        {n.task_id && (
-                          <button
-                            onClick={() => markTaskDone(n.task_id as string, n.id)}
-                            className="px-2 h-7 rounded-md text-xs border"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                            title="Mark task as done"
-                          >
-                            Mark done
-                          </button>
-                        )}
-                      </div>
+        <div className="space-y-2">
+          {notifications.map(n => {
+            const Icon       = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
+            const color      = getIconColor(n);
+            const priority   = (n.priority ?? 'low') as NotificationPriority;
+            const priorityLbl = PRIORITY_LABEL[priority];
+            const isCritical = priority === 'critical';
+            const isHigh     = priority === 'high';
+            const borderColor = (isCritical || isHigh) ? PRIORITY_COLOR[priority] : (n.read ? 'var(--border)' : color);
+
+            return (
+              <div
+                key={n.id}
+                className="flex items-start gap-3 px-4 py-3 rounded-xl border transition-all"
+                style={{
+                  background:      n.read ? 'var(--surface)' : 'var(--surface-2)',
+                  borderColor,
+                  borderLeftWidth: n.read ? '1px' : '3px',
+                  opacity:         n.read && !isCritical ? 0.75 : 1,
+                }}
+              >
+                {/* Icon */}
+                <div
+                  className="mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ background: `${color}18` }}
+                >
+                  <Icon size={16} style={{ color }} />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{n.title}</p>
+                      {priorityLbl && (
+                        <span
+                          className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: `${PRIORITY_COLOR[priority]}20`, color: PRIORITY_COLOR[priority] }}
+                        >
+                          {priorityLbl}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                    <span className="text-xs shrink-0" style={{ color: 'var(--text-secondary)' }}>{fmtDate(n.created_at)}</span>
+                  </div>
+                  <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{n.message}</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {n.action_url && (
+                    <Link
+                      href={n.action_url}
+                      className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+                      style={{ color: 'var(--text-secondary)' }}
+                      title="Open related item"
+                    >
+                      <ExternalLink size={13} />
+                    </Link>
+                  )}
+                  {!n.read && (
+                    <button
+                      onClick={() => markRead(n.id)}
+                      className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+                      style={{ color: 'var(--text-secondary)' }}
+                      title="Mark as read"
+                    >
+                      <Check size={13} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => archiveNotif(n.id)}
+                    className="p-1.5 rounded-lg transition-colors hover:opacity-70"
+                    style={{ color: 'var(--text-secondary)' }}
+                    title="Archive"
+                  >
+                    <Archive size={13} />
+                  </button>
+                </div>
               </div>
-            ) : null
-          ))}
+            );
+          })}
+
+          {hasMore && (
+            <button
+              onClick={() => void loadNotifications(page + 1, true)}
+              disabled={loadingMore}
+              className="w-full h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          )}
         </div>
       )}
-
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Page {page} / {totalPages}
-        </span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="h-8 px-3 rounded-lg text-xs border disabled:opacity-50"
-            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="h-8 px-3 rounded-lg text-xs border disabled:opacity-50"
-            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-          >
-            Next
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

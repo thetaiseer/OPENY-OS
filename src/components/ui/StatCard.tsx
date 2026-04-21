@@ -1,45 +1,38 @@
-import { StatCard as PremiumStatCard } from '@/components/ui/system/Primitives';
-
 interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  color?: 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'mint' | 'rose' | 'cyan' | 'neutral';
-  trend?: { value: number; label?: string };
+  color?: 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'mint' | 'rose' | 'cyan';
 }
 
-const toneMap = {
-  blue: { color: 'var(--accent)' },
-  green: { color: 'var(--accent)' },
-  amber: { color: 'var(--accent)' },
-  red: { color: 'var(--text-secondary)' },
-  violet: { color: 'var(--accent)' },
-  mint: { color: 'var(--accent)' },
-  rose: { color: 'var(--text-secondary)' },
-  cyan: { color: 'var(--accent)' },
-  neutral: { color: 'var(--text-secondary)' },
+const colorMap = {
+  blue:   { bg: '#eff6ff', text: '#2563eb' },
+  green:  { bg: '#f0fdf4', text: '#16a34a' },
+  amber:  { bg: '#fffbeb', text: '#d97706' },
+  red:    { bg: '#fef2f2', text: '#dc2626' },
+  violet: { bg: '#f5f3ff', text: '#7c3aed' },
+  mint:   { bg: '#f0fdf4', text: '#059669' },
+  rose:   { bg: '#fff1f2', text: '#e11d48' },
+  cyan:   { bg: '#ecfeff', text: '#0891b2' },
 };
 
-export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
-  const tone = toneMap[color];
-  const up = trend ? trend.value >= 0 : null;
-
+export default function StatCard({ label, value, icon, color = 'blue' }: StatCardProps) {
+  const c = colorMap[color];
   return (
-    <PremiumStatCard
-      title={label}
-      value={value}
-      icon={<span style={{ color: tone.color }}>{icon}</span>}
-      action={trend ? (
-        <span
-          className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-          style={{
-            background: up ? 'var(--accent-soft)' : 'var(--surface-2)',
-            color: up ? 'var(--accent)' : 'var(--text-secondary)',
-          }}
+    <div
+      className="rounded-2xl p-6 border"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: c.bg, color: c.text }}
         >
-          {up ? '▲' : '▼'} {Math.abs(trend.value)}%{trend.label ? ` ${trend.label}` : ''}
-        </span>
-      ) : null}
-    />
+          {icon}
+        </div>
+      </div>
+      <div className="text-3xl font-bold mb-1" style={{ color: 'var(--text)' }}>{value}</div>
+      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+    </div>
   );
 }

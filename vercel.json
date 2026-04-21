@@ -4,6 +4,10 @@
   "installCommand": "npm ci",
   "crons": [
     {
+      "path": "/api/assets/sync/cron",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/reminders/cron",
       "schedule": "0 8 * * *"
     }

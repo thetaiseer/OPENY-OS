@@ -14,20 +14,21 @@ import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation } from '@/lib/types';
+import { getWorkspaceLabel, WORKSPACE_ROLES } from '@/lib/workspace-access';
 
-const inputCls = 'input-glass w-full h-9 px-3 text-sm';
-const inputStyle: React.CSSProperties = {};
+const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
 // ── System access roles ───────────────────────────────────────────────────────
 // These are the valid values for team_members.role (access control).
-const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'member', 'team_member', 'viewer', 'client'] as const;
+// 'owner' is intentionally excluded — ownership cannot be granted via invitation.
+const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
 
 const ACCESS_ROLE_OPTIONS = [
-  { value: 'owner',   label: 'Owner — full control' },
-  { value: 'admin',   label: 'Admin — manage data, limited user control' },
-  { value: 'manager', label: 'Manager — manage tasks/content' },
-  { value: 'member',  label: 'Member — basic operations' },
-  { value: 'viewer',  label: 'Viewer — read-only access' },
+  { value: 'admin',       label: 'Admin — full access' },
+  { value: 'manager',     label: 'Manager — manage tasks & team' },
+  { value: 'team_member', label: 'Team Member — standard access' },
+  { value: 'viewer',      label: 'Viewer — read-only access' },
 ];
 
 const WORKSPACE_ROLE_OPTIONS = [
@@ -74,6 +75,12 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
   return null;
 }
 
+function formatWorkspaceRole(role: string | undefined): string {
+  const candidate = (role ?? '').toLowerCase();
+  const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number]) ? candidate : 'member';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 // ── Group label mapping ───────────────────────────────────────────────────────
 // Maps a job_title → friendly section name. Falls back to role-based section.
 const JOB_TITLE_TO_GROUP: Record<string, string> = {
@@ -98,7 +105,6 @@ const JOB_TITLE_TO_GROUP: Record<string, string> = {
 
 const ROLE_TO_GROUP: Record<string, string> = {
   admin:       'Admins',
-  member:      'Members',
   manager:     'Managers',
   team_member: 'Team Members',
   viewer:      'Viewers',
@@ -113,7 +119,6 @@ const SECTION_ORDER = [
   'Video Editors',
   'Content Creators',
   'Developers',
-  'Members',
   'Team Members',
   'Viewers',
   'Clients',
@@ -124,12 +129,6 @@ function getGroupLabel(member: TeamMember): string {
   if (jt && JOB_TITLE_TO_GROUP[jt]) return JOB_TITLE_TO_GROUP[jt];
   if (jt) return jt; // keep non-standard job title as its own section label
   return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
-}
-
-function formatAccessRole(role?: string): string {
-  if (!role) return '';
-  if (role === 'team_member') return 'member';
-  return role;
 }
 
 function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
@@ -400,26 +399,28 @@ export default function TeamPage() {
   const { role: myRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const canManage = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
-  const canInvite = myRole === 'owner';
+  const canManage = myRole === 'owner' || myRole === 'admin';
 
   // ── React Query: fetch and cache team members and invitations ─────────────
   const { data: teamData, isLoading: loading } = useQuery({
     queryKey: ['team-data'],
     queryFn: async () => {
       const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
-        // Select only the columns the UI actually uses to reduce payload size.
-        supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,status,created_at').order('full_name'),
+        fetch('/api/team/members', { credentials: 'include' }),
         supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
         fetch('/api/team/workspace-access', { credentials: 'include' }),
       ]);
-      if (membersRes.error) console.error('[team] members fetch error:', membersRes.error.message);
+      if (!membersRes.ok) {
+        const message = await membersRes.text().catch(() => 'failed to fetch team members');
+        console.error('[team] members fetch error:', message);
+      }
       if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
+      const membersJson = membersRes.ok ? await membersRes.json() : { members: [] as TeamMember[] };
       const workspaceAccessJson = workspaceAccessRes.ok
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
       return {
-        members:     (!membersRes.error  ? (membersRes.data  ?? []) : []) as TeamMember[],
+        members:     (membersJson.members ?? []) as TeamMember[],
         invitations: (!invitesRes.error  ? (invitesRes.data  ?? []) : []) as TeamInvitation[],
         workspaceAccess: workspaceAccessJson.access as Record<string, Record<string, { enabled: boolean; role: string }>>,
       };
@@ -451,10 +452,6 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
-    if (!canInvite) {
-      setActionError('Only the workspace owner can send invitations.');
-      return;
-    }
     if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.access_role.trim()) {
       setActionError('Full name, email, and access role are required.');
       return;
@@ -558,13 +555,20 @@ export default function TeamPage() {
     if (!editMember) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('team_members').update({
-        full_name: editForm.full_name.trim(),
-        email:     editForm.email || null,
-        role:      editForm.role || null,
-        job_title: editForm.job_title || null,
-      }).eq('id', editMember.id);
-      if (error) throw error;
+      const memberRes = await fetch(`/api/team/members/${editMember.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: editForm.full_name.trim(),
+          email: editForm.email || null,
+          role: editForm.role || null,
+          job_title: editForm.job_title || null,
+        }),
+      });
+      if (!memberRes.ok) {
+        const payload = await memberRes.json().catch(() => ({}));
+        throw new Error(payload.error ?? 'Failed to update team member. Please try again.');
+      }
       if (editForm.email) {
         const accessRes = await fetch('/api/team/workspace-access', {
           method: 'PATCH',
@@ -669,19 +673,20 @@ export default function TeamPage() {
   const groupedActive  = groupMembers(activeMembers);
 
   return (
-    <div className="openy-page-shell max-w-[1500px] mx-auto">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="openy-page-header">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="openy-page-header-title">{t('team')}</h1>
-          <p className="openy-page-header-description">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('team')}</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {activeMembers.length + ownerMembers.length} active · {invitedMembers.length} pending
           </p>
         </div>
-        {canInvite && (
+        {canManage && (
           <button
             onClick={() => { setActionError(''); setInviteOpen(true); }}
-            className="btn-primary h-9 px-4 text-sm hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--accent)' }}
           >
             <Send size={15} />Invite Member
           </button>
@@ -700,7 +705,7 @@ export default function TeamPage() {
           title={t('noTeamMembers')}
           description={t('noTeamMembersDesc')}
           action={
-            canInvite ? (
+            canManage ? (
               <button
                 onClick={() => setInviteOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
@@ -742,7 +747,6 @@ export default function TeamPage() {
                     workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
-                    canInvite={canInvite}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
                     onResend={handleResend}
@@ -764,7 +768,6 @@ export default function TeamPage() {
                     workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
                     invitation={inviteByMember(m.id)}
                     canManage={canManage}
-                    canInvite={canInvite}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
                     onResend={handleResend}
@@ -948,7 +951,6 @@ function MemberCard({
   workspaceAccess,
   invitation,
   canManage,
-  canInvite,
   onEdit,
   onDelete,
   onResend,
@@ -959,7 +961,6 @@ function MemberCard({
   workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
   invitation?: TeamInvitation;
   canManage: boolean;
-  canInvite: boolean;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
   onResend: (m: TeamMember) => void;
@@ -998,26 +999,34 @@ function MemberCard({
             <span
               className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-              >
-                {formatAccessRole(member.role)}
-              </span>
+            >
+              {member.role}
+            </span>
           )}
           {member.email && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
               <Mail size={11} />{member.email}
             </p>
           )}
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {workspaceAccess?.os?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                OS · {workspaceAccess.os.role}
-              </span>
-            )}
-            {workspaceAccess?.docs?.enabled && (
-              <span className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                DOCS · {workspaceAccess.docs.role}
-              </span>
-            )}
+          <div className="mt-1">
+            <p id={`member-access-${member.id}`} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
+            <ul aria-labelledby={`member-access-${member.id}`} className="mt-0.5 flex flex-wrap gap-1.5">
+              {workspaceAccess?.os?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
+                </li>
+              )}
+              {workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  {getWorkspaceLabel('docs')} · {formatWorkspaceRole(workspaceAccess.docs.role)}
+                </li>
+              )}
+              {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
+                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                  No workspace access
+                </li>
+              )}
+            </ul>
           </div>
           {invitation && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -1039,7 +1048,7 @@ function MemberCard({
       </div>
 
       {/* Invite actions row */}
-      {canInvite && isInvited && (
+      {canManage && isInvited && (
         <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={() => onResend(member)}

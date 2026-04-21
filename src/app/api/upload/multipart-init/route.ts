@@ -126,11 +126,22 @@ export async function POST(req: NextRequest) {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
 
+  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  console.log('[upload/multipart-init] upload started', {
+    provider: 'r2',
+    bucketName,
+    storageKey,
+    userId: auth.profile.id,
+    clientId,
+  });
+
   // ── Initiate multipart upload ──────────────────────────────────────────────
   try {
     const result = await createMultipartUpload(storageKey, fileType);
 
     console.log('[upload/multipart-init] initiated:', {
+      provider: 'r2',
+      bucketName,
       userId:     auth.profile.id,
       clientId,
       storageKey,
@@ -148,7 +159,12 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
-    console.error('[upload/multipart-init] failed:', msg);
+    console.error('[upload/multipart-init] upload failure', {
+      provider: 'r2',
+      bucketName,
+      storageKey,
+      error: msg,
+    });
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });
   }
 }

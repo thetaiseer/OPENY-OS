@@ -4,7 +4,7 @@
  * Creates a pending team member + invitation record and sends the invite email.
  *
  * Body: { full_name: string; email: string; access_role: string; job_title?: string }
- * Auth: owner only
+ * Auth: owner or admin only
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -140,7 +140,7 @@ async function insertInvitationWithFallback(
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, ['owner']);
+  const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
@@ -166,21 +166,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'full_name, email, and access_role are required' }, { status: 400 });
   }
 
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!EMAIL_REGEX.test(email)) {
-    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
-  }
-
   // Validate access_role strictly.
-  const VALID_ACCESS_ROLES = ['owner', 'admin', 'manager', 'member', 'team_member', 'viewer'];
+  // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
+  const VALID_ACCESS_ROLES = ['admin', 'manager', 'team_member', 'viewer'];
   if (!VALID_ACCESS_ROLES.includes(access_role)) {
     return NextResponse.json(
       { error: `Invalid access role "${access_role}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}` },
       { status: 400 },
     );
   }
-  const canonicalAccessRole = access_role === 'member' ? 'team_member' : access_role;
-  const inviteDisplayRole = canonicalAccessRole === 'team_member' ? 'member' : canonicalAccessRole;
 
   const workspace_access: WorkspaceKey[] = requestedWorkspaceAccess
     .map((v: unknown) => normalizeWorkspaceKey(v))
@@ -188,8 +182,8 @@ export async function POST(request: NextRequest) {
   const effectiveWorkspaceAccess: WorkspaceKey[] = workspace_access.length > 0 ? workspace_access : ['os'];
 
   const workspace_roles: Record<WorkspaceKey, string> = {
-    os: mapAccessRoleToWorkspaceRole(canonicalAccessRole),
-    docs: mapAccessRoleToWorkspaceRole(canonicalAccessRole),
+    os: mapAccessRoleToWorkspaceRole(access_role),
+    docs: mapAccessRoleToWorkspaceRole(access_role),
   };
   for (const key of effectiveWorkspaceAccess) {
     const requestedRole = (requestedWorkspaceRoles[key] ?? '').toLowerCase();
@@ -245,7 +239,7 @@ export async function POST(request: NextRequest) {
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
-    .insert({ full_name, email, role: canonicalAccessRole, job_title: job_title || null, status: MEMBER_STATUS.INVITED })
+    .insert({ full_name, email, role: access_role, job_title: job_title || null, status: MEMBER_STATUS.INVITED })
     .select()
     .single();
 
@@ -257,7 +251,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_members row:', { id: member.id, email, access_role: canonicalAccessRole, status: 'invited' });
+  console.log('[team/invite] Created team_members row:', { id: member.id, email, access_role, status: 'invited' });
 
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
@@ -268,7 +262,7 @@ export async function POST(request: NextRequest) {
   const { invitation, errorMessage: inviteInsertError, attemptedErrors } = await insertInvitationWithFallback(db, {
     team_member_id: member.id,
     email,
-    role: canonicalAccessRole,
+    role: access_role,
     token,
     invited_by: auth.profile.id,
     expires_at: expiresAt,
@@ -308,7 +302,7 @@ export async function POST(request: NextRequest) {
     workspaceName:  effectiveWorkspaceAccess.length === 2
       ? 'OPENY PLATFORM'
       : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`,
-    role:           inviteDisplayRole,
+    role:           access_role,
     inviteUrl,
     expiresInDays:  INVITE_EXPIRY_DAYS,
   });
@@ -351,12 +345,25 @@ export async function POST(request: NextRequest) {
   }
 
   // Notify team (best-effort — after successful email send)
-  void notifyInvitation({
-    teamMemberId: member.id,
-    inviteeName:  full_name,
-    inviterName:  auth.profile.name ?? null,
-    role:         inviteDisplayRole,
-  });
+  void (async () => {
+    try {
+      const { data: inviteeProfile } = await db
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      await notifyInvitation({
+        teamMemberId:  member.id,
+        inviteeName:   full_name,
+        inviterName:   auth.profile.name ?? null,
+        role:          access_role,
+        inviteeUserId: inviteeProfile?.id ?? null,
+      });
+    } catch (err) {
+      console.warn('[team/invite] notifyInvitation failed:', err instanceof Error ? err.message : String(err));
+    }
+  })();
 
   return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });
 }

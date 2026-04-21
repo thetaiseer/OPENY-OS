@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useDeferredValue, useMemo, Suspense } from 'react';
 import {
-  Upload, FolderOpen, File, X, CheckCircle, AlertCircle,
+  Upload, FolderOpen, File, X, AlertCircle,
   Search, ChevronRight, Folder, ChevronLeft, Home,
-  Download, Square, CheckSquare, Users2, Trash2, AlertTriangle,
+  Download, Square, CheckSquare, Users2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -21,12 +22,11 @@ import {
 } from '@/lib/asset-utils';
 import { useUpload } from '@/lib/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
-import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
-import { toPreviewInput } from '@/lib/asset-preview';
-import Modal from '@/components/ui/Modal';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -47,11 +47,11 @@ interface FolderPath {
 function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium border"
-      style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
+      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
     >
       {label}
-      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter" aria-label={`Remove ${label} filter`}>
+      <button onClick={onRemove} className="hover:opacity-70 transition-opacity leading-none" title="Remove filter">
         <X size={11} />
       </button>
     </span>
@@ -68,35 +68,6 @@ interface FileUploadItem {
   previewBlob:     Blob | null;
 }
 
-interface ToastMsg { id: number; message: string; type: 'success' | 'error' }
-
-function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: number) => void }) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
-      {toasts.map(toast => (
-        <div
-          key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium"
-          style={{
-            background: toast.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            borderColor: toast.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)',
-            color: toast.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            minWidth: 240,
-            animation: 'fadeSlideUp 0.2s ease',
-          }}
-        >
-          {toast.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> : <X size={16} className="shrink-0" />}
-          <span className="flex-1">{toast.message}</span>
-          <button onClick={() => remove(toast.id)} className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── File helpers (upload-specific) ────────────────────────────────────────────
 
 function getFileExtension(name: string): string { const p = name.split('.'); return p.length > 1 ? `.${p.pop()!.toLowerCase()}` : ''; }
@@ -108,25 +79,6 @@ function monthLabel(mm: string): string {
   const idx = parseInt(mm, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx > 11) return mm;
   return MONTH_NAMES[idx] ?? mm;
-}
-
-function normalizeClientLogoUrl(logo?: string): string | null {
-  if (!logo) return null;
-  const trimmed = logo.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('/')) return trimmed;
-  try {
-    const url = new URL(trimmed);
-    const allowedHosts = new Set<string>();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl) {
-      try { allowedHosts.add(new URL(supabaseUrl).hostname); } catch {}
-    }
-    if (url.protocol === 'https:' && allowedHosts.has(url.hostname)) return url.toString();
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 function getAssetYear(asset: Asset): string {
@@ -148,37 +100,52 @@ interface FolderCardProps {
 }
 
 function FolderCard({ label, count, color, onClick, onView, onDownload, isDownloading }: FolderCardProps) {
+  const hasActions = onView || onDownload;
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-      className="openy-card flex flex-col gap-3 p-4 cursor-pointer select-none
-        transition-all duration-200 ease-out hover:-translate-y-0.5
+      className="flex flex-col gap-2 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: hasActions ? 120 : 100 }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex flex-col items-center gap-2 flex-1 min-w-0 text-center">
         <div
-          className="flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 shrink-0"
-          style={{ background: color ? `${color}22` : 'var(--accent-soft)' }}
+          className="flex items-center justify-center w-10 h-10 rounded-xl transition-colors duration-200"
+          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
         >
           <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 w-full">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
         </div>
       </div>
-      {(onView || onDownload) && (
-        <div className="flex gap-2 mt-auto">
+      {hasActions && (
+        <div className="flex gap-1.5 mt-auto">
           {onView && (
-            <button type="button" onClick={e => { e.stopPropagation(); onView(); }} className="btn-secondary h-8 px-3 text-xs">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onView(); }}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
               <FolderOpen size={11} /> View
             </button>
           )}
           {onDownload && (
-            <button type="button" onClick={e => { e.stopPropagation(); onDownload(); }} disabled={isDownloading} className="btn-secondary h-8 px-3 text-xs disabled:opacity-40">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onDownload(); }}
+              disabled={isDownloading}
+              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', border: '1px solid rgba(99,102,241,0.3)' }}
+            >
               <Download size={11} />{isDownloading ? 'Zipping…' : 'Download'}
             </button>
           )}
@@ -194,94 +161,65 @@ function ClientFolderCard({
   label,
   count,
   slug,
-  logo,
   onView,
   onDownload,
   isDownloading,
-  canDelete,
-  onDelete,
 }: {
   label: string;
   count: number;
   slug?: string;
-  logo?: string;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
-  canDelete?: boolean;
-  onDelete?: () => void;
 }) {
-  const initial = label.trim().charAt(0).toUpperCase() || '?';
-  const logoUrl = normalizeClientLogoUrl(logo);
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onView}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(); } }}
-      className="openy-card flex flex-col gap-4 p-4 cursor-pointer select-none
-        transition-all duration-200 ease-out hover:-translate-y-0.5
+      className="flex flex-col gap-3 p-4 rounded-2xl border cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]
+        active:translate-y-0 active:scale-[0.99] active:shadow-sm
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
-      style={{ minHeight: 168 }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
-      <div className="flex items-start justify-between gap-3 min-w-0">
-        <div className="min-w-0 flex items-center gap-3">
-          <div className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--accent)' }}>
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={`${label} logo`} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-lg font-bold text-white">{initial}</span>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{label}</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
-            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>Client</span>
-              {slug && (
-                <span className="text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>Workspace linked</span>
-              )}
-            </div>
-          </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-colors duration-200" style={{ background: 'rgba(99,102,241,0.1)' }}>
+          <Folder size={18} style={{ color: 'var(--accent)' }} />
         </div>
-        {canDelete && onDelete && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
-            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)', background: 'var(--surface-2)' }}
-            title={`Delete ${label}`}
-            aria-label={`Delete ${label}`}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'file' : 'files'}</p>
+        </div>
       </div>
       <div className="flex gap-2 mt-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onView}
-          className="btn-secondary flex-1 h-9 text-sm"
+          className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
-          <FolderOpen size={14} /> View
+          <FolderOpen size={12} /> View
         </button>
         {slug ? (
           <a
             href={`/clients/${slug}/assets`}
-            className="btn-primary flex-1 h-9 text-sm"
-            style={{ textDecoration: 'none' }}
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none' }}
           >
-            <Users2 size={14} /> Workspace
+            <Users2 size={12} /> Workspace
           </a>
         ) : (
           <button
             type="button"
             onClick={onDownload}
             disabled={isDownloading}
-            className="btn-secondary flex-1 h-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
           >
-            <Download size={14} />{isDownloading ? '…' : 'Download'}
+            <Download size={12} />{isDownloading ? '…' : 'Download'}
           </button>
         )}
       </div>
@@ -295,25 +233,25 @@ interface BreadcrumbItem { label: string; path: FolderPath; }
 
 function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate: (path: FolderPath) => void }) {
   return (
-    <nav className="flex items-center gap-1.5 flex-wrap" aria-label="Folder navigation">
+    <nav className="flex items-center gap-1 flex-wrap" aria-label="Folder navigation">
       <button
         type="button"
         onClick={() => onNavigate({})}
-        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold border transition-opacity hover:opacity-80"
-        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+        className="flex items-center justify-center h-7 w-7 rounded-lg transition-opacity hover:opacity-70"
+        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
         title="All clients"
       >
-        <Home size={13} /> Root
+        <Home size={13} />
       </button>
       {items.map((item, idx) => (
         <span key={idx} className="flex items-center gap-1">
           <ChevronRight size={13} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
           {idx < items.length - 1 ? (
-            <button type="button" onClick={() => onNavigate(item.path)} className="inline-flex items-center h-8 px-3 rounded-full text-xs font-medium border hover:opacity-80" style={{ color: 'var(--accent)', borderColor: 'var(--accent-glow)', background: 'var(--accent-soft)' }}>
+            <button type="button" onClick={() => onNavigate(item.path)} className="text-xs font-medium hover:underline px-1" style={{ color: 'var(--accent)' }}>
               {item.label}
             </button>
           ) : (
-            <span className="inline-flex items-center h-8 px-3 rounded-full text-xs font-semibold border" style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface)' }}>{item.label}</span>
+            <span className="text-xs font-semibold px-1" style={{ color: 'var(--text)' }}>{item.label}</span>
           )}
         </span>
       ))}
@@ -325,10 +263,10 @@ function Breadcrumb({ items, onNavigate }: { items: BreadcrumbItem[]; onNavigate
 
 const CATEGORY_COLORS: Record<string, string> = {
   'social-media': '#3b82f6',
-  'videos': '#2563eb',
-  'designs': '#1d4ed8',
-  'documents': '#64748b',
-  'other': '#64748b',
+  'videos':       '#8b5cf6',
+  'designs':      '#f59e0b',
+  'documents':    '#10b981',
+  'other':        '#6b7280',
 };
 
 const FILE_TYPE_LABELS: Record<string, string> = {
@@ -345,7 +283,6 @@ function fileTypeFilterLabel(value: string): string {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS  = 15_000;
-const TOAST_DURATION_MS = 4500;
 function nextFileId() { return crypto.randomUUID(); }
 function makePreviewUrl(file: File): string | null { return isImageFile(file.name, file.type) ? URL.createObjectURL(file) : null; }
 
@@ -363,14 +300,15 @@ function triggerDownload(url: string, filename: string): void {
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AssetsPage() {
+function AssetsPage() {
   const { t } = useLang();
   const { user } = useAuth();
-  const isOwner = user?.role === 'owner';
+  const { toast } = useToast();
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
   const { startBatch, isUploading, latestAsset } = useUpload();
+  const { registerQuickActionHandler } = useQuickActions();
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [assets, setAssets]           = useState<Asset[]>([]);
@@ -386,14 +324,10 @@ export default function AssetsPage() {
   const [previewAsset, setPreviewAsset]   = useState<Asset | null>(null);
   const [commentsAsset, setCommentsAsset] = useState<Asset | null>(null);
   const [scheduleAsset, setScheduleAsset] = useState<Asset | null>(null);
-  const [clientDeleteTarget, setClientDeleteTarget] = useState<Client | null>(null);
-  const [deletingClient, setDeletingClient] = useState(false);
   const [scheduleAfterUpload, setScheduleAfterUpload] = useState(false);
-  const [toasts, setToasts]   = useState<ToastMsg[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileRef     = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const toastIdRef  = useRef(0);
 
   // ── Folder navigation ─────────────────────────────────────────────────────
   const [folderPath, setFolderPath] = useState<FolderPath>({});
@@ -404,28 +338,6 @@ export default function AssetsPage() {
 
   const [sortBy, setSortBy]               = useState<'newest' | 'oldest' | 'largest'>('newest');
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem('assets-page-filters') ?? '{}') as {
-        searchQuery?: string;
-        filterFileType?: string;
-        sortBy?: 'newest' | 'oldest' | 'largest';
-      };
-      if (saved.searchQuery) setSearchQuery(saved.searchQuery);
-      if (saved.filterFileType) setFilterFileType(saved.filterFileType);
-      if (saved.sortBy) setSortBy(saved.sortBy);
-    } catch {
-      // ignore invalid saved filters
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      'assets-page-filters',
-      JSON.stringify({ searchQuery, filterFileType, sortBy }),
-    );
-  }, [searchQuery, filterFileType, sortBy]);
-
   // ── Upload modal state ────────────────────────────────────────────────────
   const [pendingItems, setPendingItems]             = useState<FileUploadItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState<string>(MAIN_CATEGORIES[0].slug);
@@ -433,26 +345,10 @@ export default function AssetsPage() {
   const [uploadMonth, setUploadMonth]               = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [uploadClientName, setUploadClientName]     = useState<string>('');
   const [uploadClientId, setUploadClientId]         = useState<string>('');
+  const [quickActionUploadOpen, setQuickActionUploadOpen] = useState(false);
 
   const deferredAssets      = useDeferredValue(assets);
   const deferredSearchQuery = useDeferredValue(searchQuery);
-
-  // ── Toast ─────────────────────────────────────────────────────────────────
-
-  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    const id = ++toastIdRef.current;
-    setToasts(prev => [...prev, { id, message, type }]);
-    const timer = setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-      toastTimersRef.current = toastTimersRef.current.filter(t => t !== timer);
-    }, TOAST_DURATION_MS);
-    toastTimersRef.current.push(timer);
-  }, []);
-
-  useEffect(() => () => { toastTimersRef.current.forEach(clearTimeout); }, []);
-  const removeToast = useCallback((id: number) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
   // ── Fetch assets ──────────────────────────────────────────────────────────
 
@@ -508,7 +404,7 @@ export default function AssetsPage() {
   }, [latestAsset]);
 
   useEffect(() => {
-    supabase.from('clients').select('id, name, slug, logo').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
+    supabase.from('clients').select('id, name, slug').order('name').then(({ data }) => { if (data) setClients(data as Client[]); });
   }, []);
 
   useEffect(() => {
@@ -530,6 +426,13 @@ export default function AssetsPage() {
         setScheduleCounts(counts);
       });
   }, [assets]);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-asset', () => {
+      if (!canUpload) return;
+      setQuickActionUploadOpen(true);
+    });
+  }, [canUpload, registerQuickActionHandler, setQuickActionUploadOpen]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 
@@ -763,6 +666,7 @@ export default function AssetsPage() {
     const items = [...pendingItems];
     if (!items.length) return;
     setPendingItems([]);
+    setQuickActionUploadOpen(false);
     if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
     const uploadedByEmail = user?.email || null;
@@ -784,7 +688,7 @@ export default function AssetsPage() {
       uploadedBy,
       uploadedByEmail,
     });
-    addToast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
+    toast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
 
   // ── Selection state ───────────────────────────────────────────────────────
@@ -827,20 +731,20 @@ export default function AssetsPage() {
       const res = await fetch(`/api/assets/download-zip?ids=${ids.join(',')}`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        addToast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
+        toast((json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`, 'error');
         return;
       }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       triggerDownload(url, archiveName);
       URL.revokeObjectURL(url);
-      addToast('Download ready', 'success');
+      toast('Download ready', 'success');
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
     } finally {
       setDownloadingZip(false);
     }
-  }, [addToast]);
+  }, [toast]);
 
   const handleDownloadClient = useCallback(async (clientName: string) => {
     setDownloadingClient(clientName);
@@ -850,16 +754,16 @@ export default function AssetsPage() {
         .select('id')
         .eq('client_name', clientName)
         .neq('is_deleted', true);
-      if (error) { addToast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
+      if (error) { toast(`Failed to fetch assets: ${error.message}`, 'error'); return; }
       const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
-      if (ids.length === 0) { addToast('No downloadable files found for this client', 'error'); return; }
+      if (ids.length === 0) { toast('No downloadable files found for this client', 'error'); return; }
       await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Download failed', 'error');
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
     } finally {
       setDownloadingClient(null);
     }
-  }, [addToast, downloadZip]);
+  }, [downloadZip, toast]);
 
   const handleDownloadSelected = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -874,28 +778,6 @@ export default function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
-  const handleDeleteClient = useCallback(async () => {
-    if (!isOwner || !clientDeleteTarget?.id) return;
-    setDeletingClient(true);
-    try {
-      const { error } = await supabase.from('clients').delete().eq('id', clientDeleteTarget.id);
-      if (error) {
-        addToast(error.message, 'error');
-        return;
-      }
-      setClients(prev => prev.filter(client => client.id !== clientDeleteTarget.id));
-      setPage(0);
-      void fetchAssets(0);
-      setFolderPath(prev => (prev.client === clientDeleteTarget.name ? {} : prev));
-      addToast(`Client "${clientDeleteTarget.name}" deleted.`, 'success');
-      setClientDeleteTarget(null);
-    } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Failed to delete client', 'error');
-    } finally {
-      setDeletingClient(false);
-    }
-  }, [isOwner, clientDeleteTarget, addToast, fetchAssets]);
-
 
 
 
@@ -903,36 +785,26 @@ export default function AssetsPage() {
     if (!confirm(`Delete "${asset.name}"?`)) return;
     const res  = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
     const json = await res.json();
-    if (!res.ok) { addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
+    if (!res.ok) { toast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
     setAssets(prev => prev.filter(a => a.id !== asset.id));
-    addToast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
+    toast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
   };
 
   const handleRename = async (asset: Asset, newName: string) => {
     const res  = await fetch(`/api/assets/${asset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) });
     const json = await res.json() as { success?: boolean; error?: string; name?: string };
-    if (!res.ok) { addToast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); throw new Error(json.error ?? `HTTP ${res.status}`); }
+    if (!res.ok) { toast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); throw new Error(json.error ?? `HTTP ${res.status}`); }
     setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, name: json.name ?? newName } : a));
-    addToast('Asset renamed successfully.', 'success');
+    toast('Asset renamed successfully.', 'success');
   };
 
-  const handleView = async (asset: Asset) => {
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`);
-      if (!res.ok) {
-        setPreviewAsset(asset);
-        return;
-      }
-      const json = await res.json() as { asset?: Asset };
-      setPreviewAsset(json.asset ?? asset);
-    } catch {
-      setPreviewAsset(asset);
-    }
+  const handleView = (asset: Asset) => {
+    setPreviewAsset(asset);
   };
 
   const handleCopyLink = async (asset: Asset) => {
-    try { await navigator.clipboard.writeText(asset.view_url ?? asset.file_url); addToast('Link copied', 'success'); }
-    catch { addToast('Failed to copy link', 'error'); }
+    try { await navigator.clipboard.writeText(asset.view_url ?? asset.file_url); toast('Link copied', 'success'); }
+    catch { toast('Failed to copy link', 'error'); }
   };
 
   const handleScheduleCreated = (schedule: PublishingSchedule) => {
@@ -946,7 +818,7 @@ export default function AssetsPage() {
         return { ...prev, [assetId]: { count: existing.count + 1, nextDate } };
       });
     }
-    addToast('Publishing scheduled successfully!', 'success');
+    toast('Publishing scheduled successfully!', 'success');
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterFileType);
@@ -958,43 +830,30 @@ export default function AssetsPage() {
     return Array.from(types).sort();
   }, [assets]);
 
-  const assetGroupSummary = useMemo(() => {
-    const byType = filteredAssets.reduce<Record<string, number>>((acc, asset) => {
-      const raw = asset.file_type ?? asset.mime_type ?? 'other';
-      const key = raw.includes('/') ? raw.split('/')[0] : raw;
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(byType)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-  }, [filteredAssets]);
-
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <>
-      <style>{`@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
-      <div className="openy-page-shell max-w-[1500px] mx-auto" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="openy-page-header">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="openy-page-header-title">{t('assets')}</h1>
-            <p className="openy-page-header-description">
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Manage uploaded files · Drag &amp; drop or click Upload
             </p>
           </div>
-          <div className="openy-page-actions">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             {/* Upload File */}
             {canUpload && !selectionMode && (
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
                 disabled={isUploading}
-                className="btn-primary h-9 px-4 text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                style={{ background: 'var(--accent)' }}
               >
                 <Upload size={16} />{isUploading ? 'Uploading…' : t('uploadFile')}
               </button>
@@ -1003,7 +862,8 @@ export default function AssetsPage() {
             {!selectionMode ? (
               <button
                 onClick={enterSelectionMode}
-                className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-90"
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               >
                 <Square size={14} /> Select
               </button>
@@ -1012,7 +872,8 @@ export default function AssetsPage() {
                 {/* Select all / deselect all in current view */}
                 <button
                   onClick={handleToggleSelectAll}
-                  className="btn-secondary h-9 px-3 text-sm transition-opacity hover:opacity-80"
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
                 >
                   <CheckSquare size={14} />
                   {filteredAssets.length > 0 && filteredAssets.every(a => selectedIds.has(a.id)) ? 'Deselect All' : 'Select All'}
@@ -1021,7 +882,8 @@ export default function AssetsPage() {
                 <button
                   onClick={() => void handleDownloadSelected()}
                   disabled={selectedIds.size === 0 || downloadingZip}
-                  className="btn-primary h-9 px-3 text-sm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
                 >
                   <Download size={14} />
                   {downloadingZip ? 'Preparing…' : selectedIds.size > 0 ? `Download (${selectedIds.size})` : 'Download Selected'}
@@ -1029,7 +891,8 @@ export default function AssetsPage() {
                 {/* Cancel Selection */}
                 <button
                   onClick={exitSelectionMode}
-                  className="btn-danger h-9 px-3 text-sm transition-opacity hover:opacity-80"
+                  className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
                 >
                   <X size={14} /> Cancel
                 </button>
@@ -1041,13 +904,13 @@ export default function AssetsPage() {
 
         {/* ── Breadcrumb navigation ────────────────────────────────────────── */}
         {breadcrumbItems.length > 0 && (
-          <div className="openy-card px-4 py-2.5 flex items-center gap-2">
+          <div className="rounded-xl border px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
             <button
               type="button"
               onClick={goUp}
-              className="ml-auto inline-flex items-center gap-1 h-8 px-3 rounded-full border text-xs font-medium hover:opacity-80 transition-opacity"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              className="ml-auto flex items-center gap-1 text-xs font-medium hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <ChevronLeft size={12} /> Up
             </button>
@@ -1055,8 +918,8 @@ export default function AssetsPage() {
         )}
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
-        <div className="openy-page-toolbar">
-          <div className="flex flex-wrap gap-2 w-full">
+        <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-48">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-secondary)' }} />
               <input
@@ -1064,7 +927,8 @@ export default function AssetsPage() {
                 placeholder="Search files…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="input-glass h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                className="h-9 text-sm pl-8 w-full rounded-lg outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
               />
             </div>
             <SelectDropdown
@@ -1092,7 +956,7 @@ export default function AssetsPage() {
               ]}
             />
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="btn-danger h-9 px-3 text-sm hover:opacity-80">
+              <button onClick={clearFilters} className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                 <X size={13} /> Clear
               </button>
             )}
@@ -1103,24 +967,11 @@ export default function AssetsPage() {
               {searchQuery && <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />}
             </div>
           )}
-          {assetGroupSummary.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 w-full">
-              {assetGroupSummary.map(([type, count]) => (
-                <span
-                  key={type}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}: {count}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Drag-over overlay ────────────────────────────────────────────── */}
         {isDragOver && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'var(--accent-soft)', outline: '3px dashed var(--accent)' }}>
+          <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(99,102,241,0.12)', outline: '3px dashed var(--accent)' }}>
             <div className="text-center space-y-2">
               <Upload size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
               <p className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>Drop files to upload</p>
@@ -1130,7 +981,7 @@ export default function AssetsPage() {
 
         {/* ── Fetch error ──────────────────────────────────────────────────── */}
         {fetchError && !loading && (
-          <div className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <div className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444', color: '#ef4444' }}>
             <AlertCircle size={16} className="shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="font-medium">Failed to load assets</p>
@@ -1160,53 +1011,32 @@ export default function AssetsPage() {
             }
             action={
               !hasActiveFilters && canUpload ? (
-                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="btn-primary h-9 px-4 text-sm disabled:opacity-60">
+                <button onClick={() => !isUploading && fileRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
                   <Upload size={16} />{t('uploadFile')}
                 </button>
               ) : (hasActiveFilters || breadcrumbItems.length > 0) ? (
-                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="btn-danger h-9 px-4 text-sm hover:opacity-80">
+                <button onClick={() => { clearFilters(); setFolderPath({}); }} className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium hover:opacity-80" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                   <X size={14} /> Clear all
                 </button>
               ) : undefined
             }
-            suggestions={!hasActiveFilters ? [
-              {
-                title: 'Drag and drop files here',
-                description: 'Drop images, videos, PDFs, or docs directly into the workspace.',
-              },
-              {
-                title: 'Upload your first asset',
-                description: 'Use Upload to add campaign files and references.',
-              },
-              {
-                title: 'Suggested file types',
-                description: 'Images • Videos • PDFs • Docs',
-              },
-            ] : undefined}
           />
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
-            <div className={pathDepth === 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3'}>
-              {folderEntries.map(({ key, count }) => {
-                if (pathDepth === 0) {
-                  const clientMeta = clients.find(c => c.name === key);
-                  return (
-                    <ClientFolderCard
-                      key={key}
-                      label={key}
-                      count={count}
-                      slug={clientMeta?.slug}
-                      logo={clientMeta?.logo}
-                      onView={() => navigateInto(key)}
-                      onDownload={() => void handleDownloadClient(key)}
-                      isDownloading={downloadingClient === key}
-                      canDelete={isOwner && Boolean(clientMeta?.id)}
-                      onDelete={isOwner && clientMeta?.id ? () => setClientDeleteTarget(clientMeta) : undefined}
-                    />
-                  );
-                }
-                return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {folderEntries.map(({ key, count }) => (
+                pathDepth === 0 ? (
+                  <ClientFolderCard
+                    key={key}
+                    label={key}
+                    count={count}
+                    slug={clients.find(c => c.name === key)?.slug}
+                    onView={() => navigateInto(key)}
+                    onDownload={() => void handleDownloadClient(key)}
+                    isDownloading={downloadingClient === key}
+                  />
+                ) : (
                   <FolderCard
                     key={key}
                     label={folderCardLabel(key)}
@@ -1214,12 +1044,12 @@ export default function AssetsPage() {
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
                   />
-                );
-              })}
+                )
+              ))}
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
@@ -1242,7 +1072,7 @@ export default function AssetsPage() {
               selectable={selectionMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
-              onView={asset => { void handleView(asset); }}
+              onView={handleView}
               onDelete={asset => void handleDelete(asset)}
               onCopyLink={asset => void handleCopyLink(asset)}
               onComments={asset => setCommentsAsset(asset)}
@@ -1251,7 +1081,7 @@ export default function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn-secondary h-9 px-6 text-sm">Load More</button>
+                <button onClick={loadMore} className="btn h-9 px-6 text-sm">Load More</button>
               </div>
             )}
           </>
@@ -1259,7 +1089,7 @@ export default function AssetsPage() {
       </div>
 
       {/* ── Upload modal ─────────────────────────────────────────────────────── */}
-      {pendingItems.length > 0 && (
+      {(pendingItems.length > 0 || quickActionUploadOpen) && (
         <UploadModal
           files={pendingItems}
           mainCategory={uploadMainCategory}
@@ -1275,7 +1105,8 @@ export default function AssetsPage() {
           onNewClientCreated={handleNewClientCreated}
           onConfirm={() => startUploadBatch(false)}
           onConfirmAndSchedule={() => startUploadBatch(true)}
-          onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
+          onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); setQuickActionUploadOpen(false); }}
+          onAddFiles={(files) => openPendingBatch(Array.from(files))}
           onUploadNameChange={handleUploadNameChange}
           onRemoveFile={id => setPendingItems(prev => {
             const removed = prev.find(i => i.id === id);
@@ -1296,56 +1127,25 @@ export default function AssetsPage() {
         />
       )}
 
-      <Modal
-        open={Boolean(clientDeleteTarget)}
-        onClose={() => { if (!deletingClient) setClientDeleteTarget(null); }}
-        title="Delete Client"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border p-3 flex items-start gap-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-            <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Delete “{clientDeleteTarget?.name}”?
-              </p>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                This action is permanent. Client-related files and folders may be removed according to workspace deletion rules.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setClientDeleteTarget(null)}
-              disabled={deletingClient}
-              className="h-9 px-4 rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => { void handleDeleteClient(); }}
-              disabled={deletingClient}
-              className="h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#111827' }}
-            >
-              {deletingClient ? 'Deleting…' : 'Delete Client'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
       {/* ── Preview modal ─────────────────────────────────────────────────── */}
       {previewAsset && (
-        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
+        <FilePreviewModal
+          file={{
+            name: previewAsset.name,
+            url: previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl: previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size: previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
       )}
 
       {/* ── Comments modal ────────────────────────────────────────────────── */}
       {commentsAsset && (
-        <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={() => setCommentsAsset(null)}>
-          <div className="openy-modal-panel w-full max-w-md rounded-2xl p-6 space-y-5 shadow-xl my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setCommentsAsset(null)}>
+          <div className="w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>{commentsAsset.name}</h3>
               <button onClick={() => setCommentsAsset(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"><X size={16} /></button>
@@ -1355,7 +1155,14 @@ export default function AssetsPage() {
         </div>
       )}
 
-      <Toast toasts={toasts} remove={removeToast} />
     </>
+  );
+}
+
+export default function AssetsPageWrapper() {
+  return (
+    <Suspense>
+      <AssetsPage />
+    </Suspense>
   );
 }

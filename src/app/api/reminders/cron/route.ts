@@ -1,481 +1,395 @@
 /**
  * GET /api/reminders/cron
  *
- * Daily reminder processor — runs once per day at 08:00 UTC via Vercel cron.
+ * Scheduled job that processes all time-sensitive reminders:
+ *   1. Tasks due within 24 hours   → "due soon" alert + email
+ *   2. Overdue tasks               → "overdue" alert + email
+ *   3. Content publishing soon     → publish-window alert (15m / 60m before)
+ *   4. Stale tasks                 → not updated in STALE_TASK_DAYS days
  *
- * Compatible with Vercel Hobby plan (max 2 daily cron jobs).
+ * All notification inserts use idempotency_key dedup to prevent flooding.
  *
- * Strategy — event-driven job queue:
- *   1. Process pending `reminder_jobs` rows (due_soon, overdue_1h, overdue_24h,
- *      pre_publish) that were scheduled when events happened (task created,
- *      publishing scheduled). No polling of the full tasks table.
- *   2. For `overdue_daily` jobs: fire notification and self-renew for tomorrow.
- *   3. For `pre_publish` jobs: fire a "you have content to publish today" alert.
- *   4. Lightweight continued-overdue scan for tasks overdue > 48 h that have no
- *      active overdue_daily job (safety net for tasks created before this system).
- *   5. Send daily digest emails.
+ * Security: protected by CRON_SECRET env var (header x-cron-secret or ?secret=…).
+ * Schedule: Vercel Cron at 08:00 UTC daily + separate 15-min cron for publish windows.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { dispatchNotification, scheduleReminderJobs } from '@/lib/notification-service';
-import { dailyTaskDigestEmail, logEmailSent, sendEmail } from '@/lib/email';
+import { createNotification } from '@/lib/notification-service';
+import { sendEmail, deadlineAlertEmail, logEmailSent } from '@/lib/email';
 
-const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered', 'done'];
-const MS_PER_HOUR = 3_600_000;
-const MS_PER_DAY = 86_400_000;
+const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered'];
+const MS_PER_DAY        = 86_400_000;
+const MS_PER_HOUR       = 3_600_000;
+const MS_PER_MINUTE     = 60_000;
+const STALE_TASK_DAYS   = 7;  // alert when task has no update for this many days
+
 
 function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return true;
   const headerSecret = req.headers.get('x-cron-secret');
-  const querySecret = new URL(req.url).searchParams.get('secret');
+  const querySecret  = new URL(req.url).searchParams.get('secret');
   return headerSecret === secret || querySecret === secret;
-}
-
-interface ReminderJobRow {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  job_type: string;
-  execute_at: string;
-  user_id: string | null;
-  client_id: string | null;
-  status: string;
-  metadata_json: Record<string, unknown> | null;
 }
 
 interface TaskRow {
   id: string;
   title: string;
   due_date: string;
+  updated_at?: string;
   assignee_id: string | null;
   client_id: string | null;
   status: string;
 }
 
-interface Member {
+interface PublishRow {
+  id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  timezone: string;
+  client_id: string | null;
+  client_name: string | null;
+  assigned_to: string | null;
+  status: string;
+}
+
+interface AssigneeMember {
   profile_id: string | null;
   full_name: string | null;
   email: string;
 }
 
-// ── Process pending reminder_jobs ─────────────────────────────────────────────
-
-async function processPendingJobs(
+async function resolveAssignees(
   db: ReturnType<typeof getServiceClient>,
-  now: Date,
-  managerIds: string[],
-): Promise<{ processed: number; renewed: number; errors: number }> {
-  const { data: jobs, error: fetchErr } = await db
-    .from('reminder_jobs')
-    .select('id,entity_type,entity_id,job_type,execute_at,user_id,client_id,status,metadata_json')
-    .eq('status', 'pending')
-    .lte('execute_at', now.toISOString())
-    .limit(500);
-
-  if (fetchErr) {
-    console.error('[reminders/cron] fetch reminder_jobs error:', fetchErr.message);
-    return { processed: 0, renewed: 0, errors: 1 };
-  }
-
-  let processed = 0;
-  let renewed = 0;
-  let errors = 0;
-
-  for (const rawJob of (jobs ?? []) as ReminderJobRow[]) {
-    try {
-      await handleJob(db, rawJob, now, managerIds);
-      processed++;
-
-      // Self-renew overdue_daily jobs for tomorrow.
-      if (rawJob.job_type === 'overdue_daily') {
-        // Check if the task is still outstanding before renewing.
-        if (rawJob.entity_type === 'task') {
-          const { data: task } = await db
-            .from('tasks')
-            .select('status')
-            .eq('id', rawJob.entity_id)
-            .maybeSingle();
-          const isTerminal = !task || TERMINAL_STATUSES.includes(String(task.status));
-          if (!isTerminal) {
-            await db.from('reminder_jobs').insert({
-              entity_type:   rawJob.entity_type,
-              entity_id:     rawJob.entity_id,
-              job_type:      'overdue_daily',
-              execute_at:    new Date(now.getTime() + MS_PER_DAY).toISOString(),
-              user_id:       rawJob.user_id ?? null,
-              client_id:     rawJob.client_id ?? null,
-              status:        'pending',
-              metadata_json: rawJob.metadata_json ?? null,
-            });
-            renewed++;
-          }
-        }
-      }
-
-      // Mark job as processed.
-      await db
-        .from('reminder_jobs')
-        .update({ status: 'processed', processed_at: now.toISOString() })
-        .eq('id', rawJob.id);
-    } catch (err) {
-      console.error('[reminders/cron] job error:', rawJob.id, err);
-      errors++;
-    }
-  }
-
-  return { processed, renewed, errors };
-}
-
-async function handleJob(
-  db: ReturnType<typeof getServiceClient>,
-  job: ReminderJobRow,
-  now: Date,
-  managerIds: string[],
-): Promise<void> {
-  if (job.entity_type === 'task') {
-    await handleTaskJob(db, job, now, managerIds);
-  } else if (job.entity_type === 'publishing_schedule') {
-    await handlePublishJob(db, job, now, managerIds);
-  }
-}
-
-async function handleTaskJob(
-  db: ReturnType<typeof getServiceClient>,
-  job: ReminderJobRow,
-  now: Date,
-  managerIds: string[],
-): Promise<void> {
-  const { data: task } = await db
-    .from('tasks')
-    .select('id,title,due_date,assignee_id,client_id,status')
-    .eq('id', job.entity_id)
-    .maybeSingle();
-
-  if (!task) return;
-  if (TERMINAL_STATUSES.includes(String(task.status))) return;
-
-  const meta = (job.metadata_json ?? {}) as Record<string, unknown>;
-  const taskTitle = String((meta.title as string | null) ?? (task as TaskRow).title ?? 'Task');
-
-  if (job.job_type === 'due_soon') {
-    await dispatchNotification({
-      title: 'Task Due Soon',
-      message: `"${taskTitle}" is due within 24 hours`,
-      type: 'warning',
-      category: 'task',
-      priority: 'high',
-      event_type: 'task_due_soon',
-      user_id: job.user_id,
-      client_id: job.client_id,
-      task_id: job.entity_id,
-      entity_type: 'task',
-      entity_id: job.entity_id,
-      action_url: '/my-tasks',
-      dedupe_key: `task_due_soon:${job.entity_id}:${now.toISOString().slice(0, 10)}`,
-      send_email: Boolean(job.user_id),
-      email_subject: `Task Due Soon: ${taskTitle}`,
-    });
-  } else if (job.job_type === 'overdue_1h') {
-    await dispatchNotification({
-      title: 'Task Overdue',
-      message: `"${taskTitle}" is past its due date`,
-      type: 'error',
-      category: 'task',
-      priority: 'high',
-      event_type: 'task_overdue',
-      user_id: job.user_id,
-      client_id: job.client_id,
-      task_id: job.entity_id,
-      entity_type: 'task',
-      entity_id: job.entity_id,
-      action_url: '/my-tasks',
-      dedupe_key: `task_overdue:${job.entity_id}:1h`,
-      send_email: Boolean(job.user_id),
-      email_subject: `Overdue Task Reminder: ${taskTitle}`,
-    });
-  } else if (job.job_type === 'overdue_24h') {
-    await dispatchNotification({
-      title: 'Task Overdue — 24 Hours',
-      message: `"${taskTitle}" has been overdue for 24 hours`,
-      type: 'error',
-      category: 'task',
-      priority: 'high',
-      event_type: 'task_overdue',
-      user_id: job.user_id,
-      client_id: job.client_id,
-      task_id: job.entity_id,
-      entity_type: 'task',
-      entity_id: job.entity_id,
-      action_url: '/my-tasks',
-      dedupe_key: `task_overdue:${job.entity_id}:24h`,
-      send_email: Boolean(job.user_id),
-      email_subject: `Overdue Task Reminder (24h): ${taskTitle}`,
-    });
-  } else if (job.job_type === 'overdue_daily') {
-    const dueTime = new Date((task as TaskRow).due_date).getTime();
-    const daysOverdue = Math.max(2, Math.floor((now.getTime() - dueTime) / MS_PER_DAY));
-    const priority = daysOverdue >= 3 ? 'critical' : 'high';
-
-    await dispatchNotification({
-      title: 'Task Still Overdue',
-      message: `"${taskTitle}" has been overdue for ${daysOverdue} day(s)`,
-      type: 'error',
-      category: 'task',
-      priority,
-      event_type: 'task_overdue',
-      user_id: job.user_id,
-      client_id: job.client_id,
-      task_id: job.entity_id,
-      entity_type: 'task',
-      entity_id: job.entity_id,
-      action_url: '/my-tasks',
-      dedupe_key: `task_overdue:${job.entity_id}:daily:${now.toISOString().slice(0, 10)}`,
-      send_email: Boolean(job.user_id),
-      email_subject: `Overdue Task (Day ${daysOverdue}): ${taskTitle}`,
-    });
-
-    // Escalate to managers when overdue >= 3 days.
-    if (daysOverdue >= 3) {
-      for (const managerId of managerIds) {
-        if (managerId === job.user_id) continue;
-        await dispatchNotification({
-          title: 'Escalation: Task Long Overdue',
-          message: `"${taskTitle}" has been overdue for ${daysOverdue} day(s)`,
-          type: 'error',
-          category: 'task',
-          priority: 'critical',
-          event_type: 'task_overdue',
-          user_id: managerId,
-          client_id: job.client_id,
-          task_id: job.entity_id,
-          entity_type: 'task',
-          entity_id: job.entity_id,
-          action_url: '/tasks/all',
-          dedupe_key: `task_escalation:${job.entity_id}:${daysOverdue}:${managerId}`,
-          send_email: true,
-          email_subject: `Escalation: ${taskTitle} is ${daysOverdue} days overdue`,
-        });
-      }
-    }
-  }
-}
-
-async function handlePublishJob(
-  db: ReturnType<typeof getServiceClient>,
-  job: ReminderJobRow,
-  now: Date,
-  managerIds: string[],
-): Promise<void> {
-  if (job.job_type !== 'pre_publish') return;
-
-  const { data: schedule } = await db
-    .from('publishing_schedules')
-    .select('id,scheduled_date,scheduled_time,client_name,platforms,status,task_id')
-    .eq('id', job.entity_id)
-    .maybeSingle();
-
-  if (!schedule) return;
-  const terminalStatuses = ['published', 'cancelled', 'missed'];
-  if (terminalStatuses.includes(String(schedule.status))) return;
-
-  const meta = (job.metadata_json ?? {}) as Record<string, unknown>;
-  const clientName = String((meta.client_name as string | null) ?? schedule.client_name ?? 'client');
-  const platforms = (meta.platforms as string[] | null) ?? (schedule.platforms as string[] | null) ?? [];
-  const platformText = platforms.join(', ') || 'platform';
-  const publishTime = schedule.scheduled_time ?? '';
-
-  const message = `You have content to publish today at ${publishTime} for ${clientName} on ${platformText}.`;
-
-  await dispatchNotification({
-    title: 'Reminder: Content Publishes Today',
-    message,
-    type: 'warning',
-    category: 'content',
-    priority: 'high',
-    event_type: 'publishing_about_to_publish',
-    user_id: job.user_id,
-    client_id: job.client_id,
-    task_id: schedule.task_id ?? null,
-    entity_type: 'publishing_schedule',
-    entity_id: job.entity_id,
-    action_url: '/calendar',
-    dedupe_key: `pre_publish:${job.entity_id}:${schedule.scheduled_date}`,
-    send_email: Boolean(job.user_id),
-    email_subject: `Reminder: Scheduled publish today at ${publishTime}`,
-  });
-
-  // Alert managers.
-  for (const managerId of managerIds) {
-    if (managerId === job.user_id) continue;
-    await dispatchNotification({
-      title: 'Moderator Alert: Content Publishes Today',
-      message: `"${clientName}" content publishes at ${publishTime} on ${platformText}`,
-      type: 'warning',
-      category: 'content',
-      priority: 'high',
-      event_type: 'publishing_about_to_publish',
-      user_id: managerId,
-      client_id: job.client_id,
-      task_id: schedule.task_id ?? null,
-      entity_type: 'publishing_schedule',
-      entity_id: job.entity_id,
-      action_url: '/calendar',
-      dedupe_key: `moderator_publish_alert:${job.entity_id}:${schedule.scheduled_date}:${managerId}`,
-      send_email: true,
-      email_subject: `Moderator Alert: ${clientName} publishes today`,
-    });
-  }
-}
-
-// ── Safety net: legacy overdue tasks (no reminder_jobs entry) ─────────────────
-
-async function processLegacyOverdue(
-  db: ReturnType<typeof getServiceClient>,
-  now: Date,
-  managerIds: string[],
-): Promise<{ count: number; errors: number }> {
-  // Only look for tasks overdue > 48h that have NO pending/processed overdue_daily job.
-  // This handles tasks created before the reminder_jobs system was deployed.
-  const cutoff = new Date(now.getTime() - 48 * MS_PER_HOUR).toISOString();
-  const { data: overdue } = await db
-    .from('tasks')
-    .select('id,title,due_date,assignee_id,client_id,status')
-    .lt('due_date', cutoff)
-    .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
-    .limit(100);
-
-  if (!overdue?.length) return { count: 0, errors: 0 };
-
-  // Filter to those with no reminder_jobs entry at all.
-  const ids = (overdue as TaskRow[]).map(t => t.id);
-  const { data: existing } = await db
-    .from('reminder_jobs')
-    .select('entity_id')
-    .eq('entity_type', 'task')
-    .in('entity_id', ids)
-    .in('job_type', ['overdue_daily', 'overdue_1h', 'overdue_24h']);
-
-  const hasJob = new Set((existing ?? []).map((r: Record<string, unknown>) => r.entity_id as string));
-
-  let count = 0;
-  let errors = 0;
-  for (const task of (overdue as TaskRow[])) {
-    if (hasJob.has(task.id)) continue;
-    try {
-      // Insert reminder_jobs so next run picks them up via the queue.
-      const due = new Date(task.due_date);
-      await scheduleReminderJobs({
-        entityType: 'task',
-        entityId:   task.id,
-        userId:     task.assignee_id,
-        clientId:   task.client_id,
-        dueAt:      due,
-        metadata:   { title: task.title },
-      });
-      count++;
-    } catch (err) {
-      console.error('[reminders/cron] legacy overdue schedule error:', err);
-      errors++;
-    }
-  }
-  return { count, errors };
-}
-
-// ── Daily digest emails ───────────────────────────────────────────────────────
-
-async function sendDailyDigests(db: ReturnType<typeof getServiceClient>, now: Date): Promise<number> {
-  const { data: members } = await db
+  assigneeIds: string[],
+): Promise<Map<string, AssigneeMember>> {
+  const map = new Map<string, AssigneeMember>();
+  if (!assigneeIds.length) return map;
+  const { data } = await db
     .from('team_members')
     .select('profile_id, full_name, email')
-    .not('profile_id', 'is', null)
-    .limit(300);
-
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  if (!appUrl || !members?.length) return 0;
-
-  let sent = 0;
-  for (const member of members as Member[]) {
-    if (!member.profile_id || !member.email) continue;
-
-    const [{ data: pending }, { data: overdueData }] = await Promise.all([
-      db
-        .from('tasks')
-        .select('title')
-        .eq('assignee_id', member.profile_id)
-        .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
-        .order('due_date', { ascending: true })
-        .limit(8),
-      db
-        .from('tasks')
-        .select('title')
-        .eq('assignee_id', member.profile_id)
-        .lt('due_date', now.toISOString())
-        .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
-        .order('due_date', { ascending: true })
-        .limit(8),
-    ]);
-
-    // Skip users with nothing to report.
-    if (!(pending ?? []).length && !(overdueData ?? []).length) continue;
-
-    const subject = 'OPENY OS — Daily Task Summary';
-    try {
-      await sendEmail({
-        to: member.email,
-        subject,
-        html: dailyTaskDigestEmail({
-          recipientName: member.full_name ?? member.email,
-          pendingTasks:  (pending ?? []).map(p => String((p as { title?: string }).title ?? 'Task')),
-          overdueTasks:  (overdueData ?? []).map(t => String((t as { title?: string }).title ?? 'Task')),
-          appUrl,
-        }),
-      });
-      void logEmailSent({ to: member.email, subject, eventType: 'daily_digest', entityType: 'task' });
-      sent++;
-    } catch (err) {
-      void logEmailSent({ to: member.email, subject, eventType: 'daily_digest', entityType: 'task', status: 'failed', error: String(err) });
-    }
+    .in('profile_id', assigneeIds);
+  for (const m of data ?? []) {
+    if (m.profile_id) map.set(m.profile_id as string, m as AssigneeMember);
   }
-  return sent;
+  return map;
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+/** Build an idempotency key for a reminder notification.
+ * Format: `{type}:{entityId}:{userId}:{windowSegment}`
+ * where windowSegment changes per window size to allow re-notifications.
+ */
+function buildReminderIkey(type: string, entityId: string, userId: string | null, window: 'day' | 'hour' | '15min') {
+  const now = new Date();
+  let windowStr: string;
+  if (window === 'day')   windowStr = now.toISOString().slice(0, 10);  // YYYY-MM-DD
+  else if (window === 'hour')  windowStr = now.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  else                   windowStr = `${now.toISOString().slice(0, 13)}:${Math.floor(now.getMinutes() / 15) * 15}`;
+  return `${type}:${entityId}:${userId ?? 'all'}:${windowStr}`;
+}
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorised(req)) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!isAuthorised(req)) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
 
-  const db = getServiceClient();
-  const now = new Date();
+  const db      = getServiceClient();
+  const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const now     = new Date();
+  const in24h   = new Date(now.getTime() + MS_PER_DAY);
+  const in1h    = new Date(now.getTime() + MS_PER_HOUR);
+  const in15min = new Date(now.getTime() + 15 * MS_PER_MINUTE);
 
-  // Fetch manager/admin IDs for escalation notifications.
-  const { data: managerRows } = await db
-    .from('team_members')
-    .select('profile_id')
-    .in('role', ['admin', 'manager'])
-    .not('profile_id', 'is', null)
-    .limit(100);
-  const managerIds = (managerRows ?? [])
-    .map(r => (r as { profile_id?: string | null }).profile_id)
-    .filter((id): id is string => Boolean(id));
+  let dueSoonCount    = 0;
+  let overdueCount    = 0;
+  let publishCount    = 0;
+  let staleCount      = 0;
+  let errors          = 0;
 
-  // 1. Process event-driven reminder_jobs.
-  const { processed, renewed, errors: jobErrors } = await processPendingJobs(db, now, managerIds);
+  try {
+    // ── 1. Tasks due within the next 24 hours ─────────────────────────────────
+    const { data: dueSoon } = await db
+      .from('tasks')
+      .select('id, title, due_date, assignee_id, client_id, status')
+      .gt('due_date',  now.toISOString())
+      .lte('due_date', in24h.toISOString())
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .limit(100);
 
-  // 2. Safety net for legacy tasks (creates reminder_jobs for them; handled next run).
-  const { count: legacyCount, errors: legacyErrors } = await processLegacyOverdue(db, now, managerIds);
+    const dueSoonIds = (dueSoon ?? [])
+      .map((t: Record<string, string | null>) => t.assignee_id)
+      .filter((id): id is string => !!id);
+    const dueSoonAssignees = await resolveAssignees(db, dueSoonIds);
 
-  // 3. Daily digest emails.
-  const digests = await sendDailyDigests(db, now);
+    for (const task of (dueSoon ?? []) as TaskRow[]) {
+      try {
+        const daysLeft = Math.max(1, Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / MS_PER_DAY));
+        const userId   = task.assignee_id ?? null;
+        await createNotification({
+          title:            'Task Due Soon',
+          message:          `"${task.title}" is due in ${daysLeft <= 0 ? 'less than a day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}`,
+          type:             'warning',
+          priority:         'medium',
+          category:         'tasks',
+          event_type:       'task_due_soon',
+          user_id:          userId,
+          client_id:        task.client_id ?? null,
+          task_id:          task.id,
+          entity_type:      'task',
+          entity_id:        task.id,
+          action_url:       '/os/tasks',
+          idempotency_key:  buildReminderIkey('task_due_soon', task.id, userId, 'day'),
+        });
+        dueSoonCount++;
 
-  return NextResponse.json({
-    success: true,
-    processed,
-    renewed,
-    legacyScheduled: legacyCount,
-    digests,
-    errors: jobErrors + legacyErrors,
-  });
+        // Send email to assignee
+        const assignee = userId ? dueSoonAssignees.get(userId) ?? null : null;
+        if (assignee?.email && appUrl) {
+          try {
+            await sendEmail({
+              to:      assignee.email,
+              subject: `⏰ Task due soon: ${task.title}`,
+              html:    deadlineAlertEmail({
+                recipientName: assignee.full_name ?? assignee.email,
+                taskTitle:     task.title,
+                daysLeft,
+                appUrl,
+              }),
+            });
+            void logEmailSent({ to: assignee.email, subject: `Task due soon: ${task.title}`, eventType: 'task_due_soon', entityType: 'task', entityId: task.id });
+          } catch (emailErr) {
+            void logEmailSent({ to: assignee.email, subject: `Task due soon: ${task.title}`, eventType: 'task_due_soon', entityType: 'task', entityId: task.id, status: 'failed', error: String(emailErr) });
+          }
+        }
+      } catch (err) {
+        console.error('[reminders/cron] due-soon task error:', task.id, err);
+        errors++;
+      }
+    }
+
+    // ── 2. Overdue tasks ──────────────────────────────────────────────────────
+    const { data: overdue } = await db
+      .from('tasks')
+      .select('id, title, due_date, assignee_id, client_id, status')
+      .lt('due_date', now.toISOString())
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .limit(100);
+
+    const overdueIds = (overdue ?? [])
+      .map((t: Record<string, string | null>) => t.assignee_id)
+      .filter((id): id is string => !!id);
+    const overdueAssignees = await resolveAssignees(db, overdueIds);
+
+    for (const task of (overdue ?? []) as TaskRow[]) {
+      try {
+        const userId = task.assignee_id ?? null;
+        await createNotification({
+          title:            'Task Overdue',
+          message:          `"${task.title}" is overdue`,
+          type:             'error',
+          priority:         'high',
+          category:         'tasks',
+          event_type:       'task_overdue',
+          user_id:          userId,
+          client_id:        task.client_id ?? null,
+          task_id:          task.id,
+          entity_type:      'task',
+          entity_id:        task.id,
+          action_url:       '/os/tasks',
+          idempotency_key:  buildReminderIkey('task_overdue', task.id, userId, 'day'),
+        });
+        overdueCount++;
+
+        // Send overdue email to assignee
+        const assignee = userId ? overdueAssignees.get(userId) ?? null : null;
+        if (assignee?.email && appUrl) {
+          try {
+            await sendEmail({
+              to:      assignee.email,
+              subject: `🚨 Task overdue: ${task.title}`,
+              html:    deadlineAlertEmail({
+                recipientName: assignee.full_name ?? assignee.email,
+                taskTitle:     task.title,
+                daysLeft:      0,
+                appUrl,
+              }),
+            });
+            void logEmailSent({ to: assignee.email, subject: `Task overdue: ${task.title}`, eventType: 'task_overdue', entityType: 'task', entityId: task.id });
+          } catch (emailErr) {
+            void logEmailSent({ to: assignee.email, subject: `Task overdue: ${task.title}`, eventType: 'task_overdue', entityType: 'task', entityId: task.id, status: 'failed', error: String(emailErr) });
+          }
+        }
+      } catch (err) {
+        console.error('[reminders/cron] overdue task error:', task.id, err);
+        errors++;
+      }
+    }
+
+    // ── 3. Content publish-window reminders (15m and 1h before) ───────────────
+    // Fetch publishing schedules whose publish time is within the next 15 minutes
+    // that have not been published yet.
+    const { data: upcoming15m } = await db
+      .from('publishing_schedules')
+      .select('id, scheduled_date, scheduled_time, timezone, client_id, client_name, assigned_to, status')
+      .in('status', ['scheduled', 'queued'])
+      .limit(50);
+
+    for (const sched of (upcoming15m ?? []) as PublishRow[]) {
+      try {
+        const schedDt = new Date(`${sched.scheduled_date}T${sched.scheduled_time}`);
+        const msUntil = schedDt.getTime() - now.getTime();
+
+        // 15-minute window: 0 < msUntil <= 15 * MS_PER_MINUTE
+        const in15Window = msUntil > 0 && msUntil <= 15 * MS_PER_MINUTE;
+        // 1-hour window: 15 * MS_PER_MINUTE < msUntil <= MS_PER_HOUR
+        const in1hWindow = msUntil > 15 * MS_PER_MINUTE && msUntil <= MS_PER_HOUR;
+
+        if (!in15Window && !in1hWindow) continue;
+
+        const windowLabel = in15Window ? '15 minutes' : '1 hour';
+        const windowKey   = in15Window ? '15min' : 'hour';
+        const userId      = sched.assigned_to ?? null;
+
+        await createNotification({
+          title:            '📅 Publish Window Approaching',
+          message:          `Content is scheduled to publish in ~${windowLabel}${sched.client_name ? ` — ${sched.client_name}` : ''}`,
+          type:             'warning',
+          priority:         'high',
+          category:         'content',
+          eventType:        'publish_window.approaching',
+          user_id:          userId,
+          client_id:        sched.client_id ?? null,
+          entity_type:      'publishing_schedule',
+          entity_id:        sched.id,
+          action_url:       '/os/calendar',
+          idempotency_key:  buildReminderIkey('publish_window', sched.id, userId, windowKey as 'hour' | '15min'),
+        });
+        publishCount++;
+
+        // Send email reminder to the assigned user
+        if (userId && appUrl) {
+          const { data: member } = await db
+            .from('team_members')
+            .select('email, full_name')
+            .eq('profile_id', userId)
+            .maybeSingle();
+          if (member?.email) {
+            try {
+              const subj = `📅 Content publishing in ~${windowLabel}`;
+              await sendEmail({
+                to: member.email,
+                subject: subj,
+                html: publishWindowEmail({
+                  recipientName: member.full_name ?? member.email,
+                  windowLabel,
+                  clientName: sched.client_name ?? undefined,
+                  scheduledDate: sched.scheduled_date,
+                  scheduledTime: sched.scheduled_time,
+                  appUrl,
+                }),
+              });
+              void logEmailSent({ to: member.email, subject: subj, eventType: 'publish_window.approaching', entityType: 'publishing_schedule', entityId: sched.id });
+            } catch (emailErr) {
+              console.warn('[reminders/cron] publish window email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[reminders/cron] publish window error:', sched.id, err);
+        errors++;
+      }
+    }
+
+    // ── 4. Stale tasks (no update in STALE_TASK_DAYS days) ────────────────────
+    const staleThreshold = new Date(now.getTime() - STALE_TASK_DAYS * MS_PER_DAY).toISOString();
+    const { data: staleTasks } = await db
+      .from('tasks')
+      .select('id, title, assignee_id, client_id, status, updated_at')
+      .lt('updated_at', staleThreshold)
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .limit(50);
+
+    for (const task of (staleTasks ?? []) as TaskRow[]) {
+      try {
+        const userId = task.assignee_id ?? null;
+        await createNotification({
+          title:            'Task Has No Recent Updates',
+          message:          `"${task.title}" has not been updated in ${STALE_TASK_DAYS}+ days`,
+          type:             'warning',
+          priority:         'medium',
+          category:         'tasks',
+          eventType:        'task.stale',
+          user_id:          userId,
+          client_id:        task.client_id ?? null,
+          task_id:          task.id,
+          entity_type:      'task',
+          entity_id:        task.id,
+          action_url:       '/os/tasks',
+          idempotency_key:  buildReminderIkey('task_stale', task.id, userId, 'day'),
+        });
+        staleCount++;
+      } catch (err) {
+        console.error('[reminders/cron] stale task error:', task.id, err);
+        errors++;
+      }
+    }
+
+  } catch (err) {
+    console.error('[reminders/cron] unexpected error:', err);
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  }
+
+  console.log(`[reminders/cron] done — dueSoon:${dueSoonCount} overdue:${overdueCount} publishWindow:${publishCount} stale:${staleCount} errors:${errors}`);
+  return NextResponse.json({ success: true, dueSoonCount, overdueCount, publishCount, staleCount, errors });
 }
 
+// ── Email template for publish-window reminder ────────────────────────────────
+
+function publishWindowEmail(opts: {
+  recipientName: string;
+  windowLabel: string;
+  clientName?: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  appUrl: string;
+}): string {
+  const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Publishing Soon</title></head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f0f0">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" style="background-color:#7c3aed;padding:28px 32px;border-radius:12px 12px 0 0;">
+          <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">OPENY OS</h1>
+          <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.85);">📅 Content Publishing Soon</p>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:32px;border:1px solid #e0e0e0;border-top:none;">
+          <p style="margin:0 0 16px;font-size:17px;font-weight:bold;color:#111111;">Hi ${firstName},</p>
+          <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+            Content is scheduled to publish in approximately <strong style="color:#7c3aed;">${opts.windowLabel}</strong>.
+          </p>
+          <div style="background:#f7f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+            ${opts.clientName ? `<p style="margin:0 0 6px;color:#555;font-size:14px;">Client: <strong>${opts.clientName}</strong></p>` : ''}
+            <p style="margin:0;color:#555;font-size:14px;">Scheduled: <strong>${opts.scheduledDate} at ${opts.scheduledTime}</strong></p>
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#7c3aed;border-radius:8px;">
+              <a href="${opts.appUrl}/os/calendar" target="_blank"
+                 style="display:inline-block;color:#ffffff;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;">
+                View Calendar →
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:12px 32px 20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#aaaaaa;">&copy; ${new Date().getFullYear()} OPENY OS</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}

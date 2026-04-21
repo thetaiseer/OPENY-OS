@@ -12,70 +12,61 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const userId      = searchParams.get('user_id');
+  const requestedUserId = searchParams.get('user_id');
   const unreadOnly  = searchParams.get('unread') === 'true';
-  const limit       = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 100);
-  const page        = Math.max(parseInt(searchParams.get('page') ?? '1', 10), 1);
-  const q           = searchParams.get('q');
-  const type        = searchParams.get('type');
-  const category    = searchParams.get('category');
-  const priority    = searchParams.get('priority');
-  const eventType   = searchParams.get('event_type');
-  const clientId    = searchParams.get('client_id');
-  const dateFrom    = searchParams.get('date_from');
-  const dateTo      = searchParams.get('date_to');
+  const category    = searchParams.get('category');  // tasks|content|assets|team|system
+  const archived    = searchParams.get('archived') === 'true';
+  const priority    = searchParams.get('priority');  // low|medium|high|critical
+  const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  const limit       = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), 100);
+  const offset      = (page - 1) * limit;
+  const isAdminLike = auth.profile.role === 'admin' || auth.profile.role === 'owner';
+  const userId      = isAdminLike && requestedUserId ? requestedUserId : auth.profile.id;
 
   try {
     const db = getServiceClient();
     let query = db
       .from('notifications')
-      .select('*', { count: 'exact' })
+      .select('*')
       .order('created_at', { ascending: false })
-      .range((page - 1) * limit, (page - 1) * limit + limit - 1);
+      .range(offset, offset + limit - 1);
 
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},user_id.is.null`);
-    }
-    if (unreadOnly) {
-      query = query.eq('read', false);
-    }
-    if (type) query = query.eq('type', type);
-    if (category) query = query.eq('category', category);
-    if (priority) query = query.eq('priority', priority);
-    if (eventType) query = query.eq('event_type', eventType);
-    if (clientId) query = query.eq('client_id', clientId);
-    if (dateFrom) query = query.gte('created_at', dateFrom);
-    if (dateTo) query = query.lte('created_at', dateTo);
-    if (q) {
-      const pattern = `%${q}%`;
-      query = query.or(`title.ilike.${pattern},message.ilike.${pattern}`);
+    query = query.or(`user_id.eq.${userId},user_id.is.null`);
+
+    // Default: exclude archived unless explicitly requested
+    if (!archived) {
+      query = query.eq('is_archived', false);
     }
 
-    const { data, error, count } = await query;
+    if (unreadOnly) query = query.eq('read', false);
+    if (category)   query = query.eq('category', category);
+    if (priority)   query = query.eq('priority', priority);
+
+    const { data, error } = await query;
     if (error) {
       console.error('[GET /api/notifications] error:', error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    let unreadCount = 0;
-    if (userId) {
-      const { count: unread } = await db
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .or(`user_id.eq.${userId},user_id.is.null`)
-        .eq('read', false);
-      unreadCount = unread ?? 0;
-    } else {
-      unreadCount = (data ?? []).filter((n: { read: boolean }) => !n.read).length;
-    }
+    // Attempt to filter by is_archived; guarded in case the migration has not been
+    // applied yet on a given environment (column may not exist on older schemas).
+    let countQuery = db
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .or(`user_id.eq.${userId},user_id.is.null`)
+      .eq('read', false);
+    try {
+      countQuery = countQuery.eq('is_archived', false);
+    } catch { /* is_archived column not yet present — skip filter */ }
+    const { count: unreadCount } = await countQuery;
 
     return NextResponse.json({
       success: true,
       notifications: data ?? [],
-      unreadCount,
-      total: count ?? (data ?? []).length,
+      unreadCount: unreadCount ?? 0,
       page,
-      limit,
+      pageSize: limit,
+      hasMore: (data ?? []).length === limit,
     });
   } catch (err) {
     console.error('[GET /api/notifications] unexpected:', err);
@@ -104,19 +95,19 @@ export async function POST(req: NextRequest) {
       title,
       message,
       type:        typeof body.type === 'string' ? body.type : 'info',
-      category:    typeof body.category === 'string' ? body.category : null,
       priority:    typeof body.priority === 'string' ? body.priority : 'medium',
+      category:    typeof body.category === 'string' ? body.category : null,
       read:        false,
-      user_id:     typeof body.user_id === 'string' ? body.user_id : null,
+      is_archived: false,
+      user_id:     typeof body.userId === 'string' ? body.userId : typeof body.user_id === 'string' ? body.user_id : null,
+      actor_id:    typeof body.actorId === 'string' ? body.actorId : typeof body.actor_id === 'string' ? body.actor_id : null,
+      metadata:    body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
       client_id:   typeof body.client_id === 'string' ? body.client_id : null,
       task_id:     typeof body.task_id === 'string' ? body.task_id : null,
       entity_type: typeof body.entity_type === 'string' ? body.entity_type : null,
       entity_id:   typeof body.entity_id === 'string' ? body.entity_id : null,
-      action_url:  typeof body.action_url === 'string' ? body.action_url : null,
-      event_type:  typeof body.event_type === 'string' ? body.event_type : null,
-      dedupe_key:  typeof body.dedupe_key === 'string' ? body.dedupe_key : null,
-      metadata_json: typeof body.metadata_json === 'object' && body.metadata_json !== null ? body.metadata_json : null,
-      delivery_channels: Array.isArray(body.delivery_channels) ? body.delivery_channels : ['in_app'],
+      action_url:  typeof body.actionUrl === 'string' ? body.actionUrl : typeof body.action_url === 'string' ? body.action_url : null,
+      event_type:  typeof body.eventType === 'string' ? body.eventType : typeof body.event_type === 'string' ? body.event_type : null,
     }).select().single();
 
     if (error) {
@@ -129,3 +120,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
+

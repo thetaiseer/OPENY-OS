@@ -4,8 +4,8 @@
  * R2 is S3-compatible; we use the AWS SDK v3 S3 client pointed at the R2 endpoint.
  * Never import this file from client components.
  *
- * All file access uses the public CDN URL (R2_PUBLIC_URL). Multipart uploads
- * use short-lived presigned part URLs so browsers can PUT directly to R2.
+ * All file access uses the public CDN URL (R2_PUBLIC_URL).  No presigned or
+ * signed URLs are generated.  Uploads go server-side through Next.js API routes.
  *
  * Required environment variables:
  *   R2_ACCOUNT_ID        – Cloudflare account ID
@@ -26,7 +26,6 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // ── Error classes ─────────────────────────────────────────────────────────────
 
@@ -257,33 +256,6 @@ export async function uploadPartToR2(
   }
 
   return { etag: result.ETag, partNumber };
-}
-
-/**
- * Generate a presigned URL for uploading a single multipart part directly
- * from the browser to R2 via HTTP PUT.
- */
-export async function createMultipartPartPresignedUrl(
-  key:        string,
-  uploadId:   string,
-  partNumber: number,
-  expiresInSeconds = 900,
-): Promise<{ presignedUrl: string }> {
-  const config = getR2Config();
-  const client = buildS3Client(config);
-
-  const command = new UploadPartCommand({
-    Bucket:     config.bucketName,
-    Key:        key,
-    UploadId:   uploadId,
-    PartNumber: partNumber,
-  });
-
-  const presignedUrl = await getSignedUrl(client, command, {
-    expiresIn: Math.max(60, Math.min(expiresInSeconds, 3600)),
-  });
-
-  return { presignedUrl };
 }
 
 export interface CompletedPart {

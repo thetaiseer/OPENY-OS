@@ -3,6 +3,10 @@ import { OWNER_EMAIL } from '@/lib/constants/auth';
 
 export const WORKSPACE_KEYS = ['os', 'docs'] as const;
 export type WorkspaceKey = (typeof WORKSPACE_KEYS)[number];
+export const WORKSPACE_LABELS: Record<WorkspaceKey, 'OPENY OS' | 'OPENY DOCS'> = {
+  os: 'OPENY OS',
+  docs: 'OPENY DOCS',
+};
 
 export const WORKSPACE_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
@@ -12,6 +16,10 @@ export function normalizeWorkspaceKey(value: unknown): WorkspaceKey | null {
   const lower = value.toLowerCase();
   if (lower === 'os' || lower === 'docs') return lower;
   return null;
+}
+
+export function getWorkspaceLabel(workspace: WorkspaceKey): 'OPENY OS' | 'OPENY DOCS' {
+  return WORKSPACE_LABELS[workspace];
 }
 
 export function isGlobalOwnerEmail(email?: string | null): boolean {
@@ -37,8 +45,7 @@ export function mapWorkspaceRoleToUserRole(role: WorkspaceRole | null): 'owner' 
   return 'team_member';
 }
 
-export function mapAccessRoleToWorkspaceRole(value: string): 'owner' | 'admin' | 'member' | 'viewer' {
-  if (value === 'owner') return 'owner';
+export function mapAccessRoleToWorkspaceRole(value: string): 'admin' | 'member' | 'viewer' {
   if (value === 'admin' || value === 'manager') return 'admin';
   if (value === 'viewer') return 'viewer';
   return 'member';

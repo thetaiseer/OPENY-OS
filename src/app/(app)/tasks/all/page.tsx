@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -36,7 +36,8 @@ import Badge from '@/components/ui/Badge';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
-import type { Task, Client, TeamMember, Project, ContentItem } from '@/lib/types';
+import type { Task, Client, TeamMember, Project } from '@/lib/types';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -64,12 +65,12 @@ function todayMidnight() {
 }
 
 function isOverdue(due_date?: string, status?: string) {
-  if (!due_date || COMPLETED_STATUSES.has((status ?? 'todo') as Task['status'])) return false;
+  if (!due_date || status === 'done') return false;
   return new Date(due_date) < todayMidnight();
 }
 
 function isDueSoon(due_date?: string, status?: string) {
-  if (!due_date || COMPLETED_STATUSES.has((status ?? 'todo') as Task['status'])) return false;
+  if (!due_date || status === 'done') return false;
   const diff = (new Date(due_date).getTime() - todayMidnight().getTime()) / 86400000;
   return diff >= 0 && diff <= 3;
 }
@@ -98,13 +99,7 @@ const frostedPanelStyle = {
   border: '1px solid var(--border)',
 };
 const glassInputStyle = { background: 'color-mix(in srgb, var(--surface-2) 92%, transparent)', color: 'var(--text)', border: '1px solid var(--border)' };
-
-function statusLabel(s: string, t: (k: string) => string): string {
-  if (s === 'in_progress') return t('inProgress');
-  if (s === 'in_review' || s === 'review') return t('review');
-  if (s === 'delivered')   return t('delivered');
-  return t(s);
-}
+const inputStyle = glassInputStyle;
 
 const statusTone: Record<string, { bg: string; text: string; border: string; glow: string }> = {
   todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--accent-glow)', glow: 'var(--accent-glow)' },
@@ -121,12 +116,18 @@ function getStatusTone(status: string) {
   return statusTone[status] ?? statusTone.default;
 }
 
+function statusLabel(s: string, t: (k: string) => string): string {
+  if (s === 'in_progress') return t('inProgress');
+  if (s === 'in_review' || s === 'review') return t('review');
+  if (s === 'delivered')   return t('delivered');
+  return t(s);
+}
+
 // ─── blank form ─────────────────────────────────────────────────────────────
 
 const blankForm = {
   title: '', description: '', status: 'todo', priority: 'medium',
   start_date: '', due_date: '', client_id: '', project_id: '', assigned_to: '', created_by: '',
-  content_item_id: '',
   mentions: [] as string[], tags: '',
 };
 
@@ -138,20 +139,15 @@ interface TaskFormProps {
   clients: Client[];
   projects: Project[];
   team: TeamMember[];
-  contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[];
   saving: boolean;
   onCancel: () => void;
   t: (k: string) => string;
 }
 
-function TaskForm({ form, setForm, clients, projects, team, contentItems, saving, onCancel, t }: TaskFormProps) {
+function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t }: TaskFormProps) {
   const projectOptions = useMemo(
     () => projects.filter(p => Boolean(form.client_id) && p.client_id === form.client_id),
     [projects, form.client_id],
-  );
-  const contentOptions = useMemo(
-    () => contentItems.filter(item => !form.client_id || item.client_id === form.client_id),
-    [contentItems, form.client_id],
   );
 
   const toggleMention = (id: string) => {
@@ -163,188 +159,194 @@ function TaskForm({ form, setForm, clients, projects, team, contentItems, saving
 
   return (
     <div className="space-y-4">
-      <section className="openy-form-section space-y-3">
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <label className="openy-label">{t('title')} *</label>
-          <AiImproveButton value={form.title} onImproved={v => setForm(f => ({ ...f, title: v }))} />
+      {/* Title */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('title')} *</label>
+          <AiImproveButton
+            value={form.title}
+            onImproved={v => setForm(f => ({ ...f, title: v }))}
+          />
         </div>
         <input
           required
           value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           className={inputCls}
-          style={glassInputStyle}
+          style={inputStyle}
           placeholder="Task title"
         />
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <label className="openy-label">{t('description')}</label>
-          <AiImproveButton value={form.description} onImproved={v => setForm(f => ({ ...f, description: v }))} showMenu />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('description')}</label>
+          <AiImproveButton
+            value={form.description}
+            onImproved={v => setForm(f => ({ ...f, description: v }))}
+            showMenu
+          />
         </div>
         <textarea
           value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           rows={3}
           className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-          style={glassInputStyle}
+          style={inputStyle}
           placeholder="Detailed description..."
         />
-      </section>
+      </div>
 
-      <section className="openy-form-section space-y-3">
-        <p className="openy-label">Task setup</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')} *</label>
-            <SelectDropdown
-              fullWidth
-              value={form.client_id}
-              onChange={v => setForm(f => ({ ...f, client_id: v }))}
-              placeholder={t('none')}
-              options={[
-                { value: '', label: t('none') },
-                ...clients.map(c => ({ value: c.id, label: c.name })),
-              ]}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Project</label>
-            <SelectDropdown
-              fullWidth
-              value={form.project_id}
-              onChange={v => setForm(f => ({ ...f, project_id: v }))}
-              placeholder={t('none')}
-              options={[
-                { value: '', label: t('none') },
-                ...projectOptions.map(p => ({ value: p.id, label: p.name })),
-              ]}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
-            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} style={glassInputStyle} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')} *</label>
-            <input required type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={glassInputStyle} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-            <SelectDropdown
-              fullWidth
-              value={form.priority}
-              onChange={v => setForm(f => ({ ...f, priority: v }))}
-              options={[
-                { value: 'low', label: t('low') },
-                { value: 'medium', label: t('medium') },
-                { value: 'high', label: t('high') },
-              ]}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-            <SelectDropdown
-              fullWidth
-              value={form.status}
-              onChange={v => setForm(f => ({ ...f, status: v }))}
-              options={[
-                { value: 'todo', label: t('todo') },
-                { value: 'in_progress', label: t('inProgress') },
-                { value: 'in_review', label: t('review') },
-                { value: 'done', label: t('done') },
-                { value: 'delivered', label: t('delivered') },
-              ]}
-              />
-          </div>
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Linked Content (optional)</label>
-            <SelectDropdown
-              fullWidth
-              value={form.content_item_id}
-              onChange={v => setForm(f => ({ ...f, content_item_id: v }))}
-              placeholder={t('none')}
-              options={[
-                { value: '', label: t('none') },
-                ...contentOptions.map(c => ({ value: c.id, label: c.title })),
-              ]}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="openy-form-section space-y-3">
-        <p className="openy-label">Ownership</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')} *</label>
-            <SelectDropdown
-              fullWidth
-              value={form.assigned_to}
-              onChange={v => setForm(f => ({ ...f, assigned_to: v }))}
-              placeholder={t('unassigned')}
-              options={[
-                { value: '', label: t('unassigned') },
-                ...team.map(m => ({ value: m.id, label: m.full_name })),
-              ]}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('createdBy')}</label>
-            <SelectDropdown
-              fullWidth
-              value={form.created_by}
-              onChange={v => setForm(f => ({ ...f, created_by: v }))}
-              placeholder={t('none')}
-              options={[
-                { value: '', label: t('none') },
-                ...team.map(m => ({ value: m.id, label: m.full_name })),
-              ]}
-            />
-          </div>
-        </div>
-
-        {team.length > 0 && (
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('mentions')}</label>
-            <div className="flex flex-wrap gap-2 p-2 rounded-lg" style={glassInputStyle}>
-              {team.map(m => {
-                const selected = form.mentions.includes(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => toggleMention(m.id)}
-                    className="h-7 px-3 rounded-full text-xs font-medium transition-colors"
-                    style={{
-                      background: selected ? 'var(--accent)' : 'var(--surface)',
-                      color: selected ? '#fff' : 'var(--text-secondary)',
-                      border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
-                    }}
-                  >
-                    @{m.full_name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+      {/* Client + Project */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('tags')}</label>
-          <input
-            value={form.tags}
-            onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-            className={inputCls}
-            style={glassInputStyle}
-            placeholder="design, urgent, review"
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('clients')} *</label>
+          <SelectDropdown
+            fullWidth
+            value={form.client_id}
+            onChange={v => setForm(f => ({ ...f, client_id: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...clients.map(c => ({ value: c.id, label: c.name })),
+            ]}
           />
         </div>
-      </section>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Project</label>
+          <SelectDropdown
+            fullWidth
+            value={form.project_id}
+            onChange={v => setForm(f => ({ ...f, project_id: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...projectOptions.map(p => ({ value: p.id, label: p.name })),
+            ]}
+          />
+        </div>
+      </div>
 
-      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
-        <button type="button" onClick={onCancel} className="btn-secondary h-10 px-4 text-sm">
+      {/* Start Date + Deadline */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('startDate')}</label>
+          <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} style={inputStyle} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('deadline')} *</label>
+          <input required type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className={inputCls} style={inputStyle} />
+        </div>
+      </div>
+
+      {/* Priority + Status */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
+          <SelectDropdown
+            fullWidth
+            value={form.priority}
+            onChange={v => setForm(f => ({ ...f, priority: v }))}
+            options={[
+              { value: 'low',    label: t('low') },
+              { value: 'medium', label: t('medium') },
+              { value: 'high',   label: t('high') },
+            ]}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
+          <SelectDropdown
+            fullWidth
+            value={form.status}
+            onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[
+              { value: 'todo',        label: t('todo') },
+              { value: 'in_progress', label: t('inProgress') },
+              { value: 'in_review',   label: t('review') },
+              { value: 'done',        label: t('done') },
+              { value: 'delivered',   label: t('delivered') },
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* Assigned To + Created By */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')} *</label>
+          <SelectDropdown
+            fullWidth
+            value={form.assigned_to}
+            onChange={v => setForm(f => ({ ...f, assigned_to: v }))}
+            placeholder={t('unassigned')}
+            options={[
+              { value: '', label: t('unassigned') },
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
+            ]}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('createdBy')}</label>
+          <SelectDropdown
+            fullWidth
+            value={form.created_by}
+            onChange={v => setForm(f => ({ ...f, created_by: v }))}
+            placeholder={t('none')}
+            options={[
+              { value: '', label: t('none') },
+              ...team.map(m => ({ value: m.id, label: m.full_name })),
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* Mentions */}
+      {team.length > 0 && (
+        <div className="space-y-1">
+          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('mentions')}</label>
+          <div className="flex flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            {team.map(m => {
+              const selected = form.mentions.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => toggleMention(m.id)}
+                  className="h-7 px-3 rounded-full text-xs font-medium transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'var(--surface)',
+                    color: selected ? '#fff' : 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  @{m.full_name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('tags')}</label>
+        <input
+          value={form.tags}
+          onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+          className={inputCls}
+          style={inputStyle}
+          placeholder="design, urgent, review"
+        />
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
           {t('cancel')}
         </button>
-        <button type="submit" disabled={saving} className="btn-primary h-10 px-4 text-sm">
+        <button type="submit" disabled={saving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 transition-opacity" style={{ background: 'var(--accent)' }}>
           {saving ? t('loading') : t('save')}
         </button>
       </div>
@@ -369,7 +371,10 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
   const overdue = isOverdue(task.due_date, task.status);
   const soon = isDueSoon(task.due_date, task.status);
   const assignee = team.find(m => m.id === task.assigned_to);
+  const creator = team.find(m => m.id === task.created_by);
   const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
+
+  const borderLeft = overdue ? '#ef4444' : soon ? '#f59e0b' : task.status === 'done' ? '#22c55e' : 'var(--border)';
   const tone = getStatusTone(overdue ? 'overdue' : task.status);
   const projectLabel = task.client?.name ?? (task.project_id ? 'Project linked' : null);
 
@@ -382,21 +387,23 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
       }}
     >
-      <div className="flex items-start gap-2.5">
+      {/* Header row */}
+      <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
           {task.description && (
-            <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
+            <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
           )}
         </div>
+        {/* Action buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onView(task)} title="View" className="btn-ghost p-1.5 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
+          <button onClick={() => onView(task)} title="View" className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
             <Eye size={14} />
           </button>
-          <button onClick={() => onEdit(task)} title="Edit" className="btn-ghost p-1.5 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
+          <button onClick={() => onEdit(task)} title="Edit" className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
             <Pencil size={14} />
           </button>
-          <button onClick={() => onDelete(task)} title="Delete" className="btn-ghost p-1.5 rounded-lg text-red-500 hover:bg-red-500/10">
+          <button onClick={() => onDelete(task)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500">
             <Trash2 size={14} />
           </button>
         </div>
@@ -425,8 +432,8 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
       )}
 
       {((task.platforms && task.platforms.length > 0) || (task.post_types && task.post_types.length > 0)) && (
-        <div className="flex flex-wrap gap-1.5 items-center rounded-xl p-2 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-          <Send size={11} style={{ color: 'var(--accent)' }} />
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <Send size={11} style={{ color: '#7c3aed' }} />
           {(task.platforms ?? []).map(p => {
             const pl = PLATFORMS.find(x => x.value === p);
             return (
@@ -438,7 +445,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           {(task.post_types ?? []).map(pt => {
             const typ = POST_TYPES.find(x => x.value === pt);
             return (
-              <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <span key={pt} className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
                 {typ ? typ.label : pt}
               </span>
             );
@@ -446,17 +453,19 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         </div>
       )}
 
+      {/* Mentions */}
       {mentionedMembers.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users size={12} style={{ color: 'var(--text-secondary)' }} />
           {mentionedMembers.map(m => (
-            <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>
               @{m.full_name}
             </span>
           ))}
         </div>
       )}
 
+      {/* Tags */}
       {task.tags && task.tags.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <Tag size={12} style={{ color: 'var(--text-secondary)' }} />
@@ -468,28 +477,24 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-1 flex-wrap">
+      {/* Footer: status + priority */}
+      <div className="flex items-center gap-2 pt-1">
         <div className="relative">
           <button
             onClick={() => setStatusOpen(o => !o)}
-            className="flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-semibold"
-            style={{ background: tone.bg, color: tone.text, border: `1px solid ${tone.border}` }}
-            aria-label={`Status: ${statusLabel(overdue ? 'overdue' : task.status, t)}. Click to change status`}
-            aria-haspopup="menu"
-            aria-expanded={statusOpen}
+            className="flex items-center gap-1 text-xs rounded-full px-2.5 py-0.5 font-medium"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             {statusLabel(task.status, t)}
             <ChevronDown size={10} />
           </button>
           {statusOpen && (
             <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
-              role="menu"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              {['todo', 'in_progress', 'in_review', 'done', 'delivered'].map(s => (
+              {['todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'].map(s => (
                 <button
                   key={s}
                   onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
-                  role="menuitem"
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--surface-2)] transition-colors"
                   style={{ color: 'var(--text)' }}
                 >
@@ -513,7 +518,6 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
   const creator = team.find(m => m.id === task.created_by);
   const mentionedMembers = (task.mentions ?? []).map(id => team.find(m => m.id === id)).filter(Boolean) as TeamMember[];
   const overdue = isOverdue(task.due_date, task.status);
-  const tone = getStatusTone(overdue ? 'overdue' : task.status);
 
   const row = (label: string, value: React.ReactNode) => (
     <div className="flex items-start gap-3 py-2 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
@@ -525,20 +529,14 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
   return (
     <Modal open={open} onClose={onClose} title={t('taskDetails')} size="lg">
       <div className="space-y-4">
-        <div className="space-y-2">
+        <div>
           <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{task.title}</h3>
           {task.description && (
             <p className="mt-2 text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>
           )}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs px-2.5 py-1 rounded-full border font-semibold" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>
-              {statusLabel(overdue ? 'overdue' : task.status, t)}
-            </span>
-            <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
-          </div>
         </div>
-        <div className="openy-form-section">
-          {row(t('status'), <span className="text-xs px-2.5 py-1 rounded-full border font-semibold inline-flex" style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}>{statusLabel(overdue ? 'overdue' : task.status, t)}</span>)}
+        <div className="rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+          {row(t('status'), <Badge variant={statusVariant(task.status)}>{statusLabel(task.status, t)}</Badge>)}
           {row(t('priority'), <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>)}
           {task.client && row(t('clients'), task.client.name)}
           {task.start_date && row(t('startDate'), fmtDate(task.start_date))}
@@ -551,7 +549,7 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
           {mentionedMembers.length > 0 && row(t('mentions'),
             <div className="flex flex-wrap gap-1">
               {mentionedMembers.map(m => (
-                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>@{m.full_name}</span>
+                <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}>@{m.full_name}</span>
               ))}
             </div>
           )}
@@ -568,40 +566,33 @@ function TaskDetailModal({ task, team, open, onClose, t }: { task: Task | null; 
 
 // ─── KanbanBoard ─────────────────────────────────────────────────────────────
 
-type KanbanColumnId = 'todo' | 'in_progress' | 'in_review' | 'done' | 'delivered' | 'overdue';
+type KanbanColumnId = 'todo' | 'in_progress' | 'in_review' | 'done';
 
 const KANBAN_COLS: { key: KanbanColumnId; label: string }[] = [
   { key: 'todo', label: 'todo' },
   { key: 'in_progress', label: 'inProgress' },
   { key: 'in_review', label: 'review' },
   { key: 'done', label: 'done' },
-  { key: 'delivered', label: 'delivered' },
-  { key: 'overdue', label: 'overdue' },
 ];
 
 const KANBAN_STATUS_MAP: Record<KanbanColumnId, Task['status'][]> = {
   todo: ['todo'],
   in_progress: ['in_progress'],
-  in_review: ['in_review', 'review', 'waiting_client', 'approved', 'scheduled'],
-  done: ['done', 'completed', 'published', 'cancelled'],
-  delivered: ['delivered'],
-  overdue: [],
+  in_review: ['in_review', 'review'],
+  done: ['done', 'completed', 'delivered', 'published'],
 };
 
-function getKanbanColumn(task: Task): KanbanColumnId | null {
-  if (isOverdue(task.due_date, task.status) || KANBAN_STATUS_MAP.overdue.includes(task.status)) return 'overdue';
-  if (KANBAN_STATUS_MAP.todo.includes(task.status)) return 'todo';
-  if (KANBAN_STATUS_MAP.in_progress.includes(task.status)) return 'in_progress';
-  if (KANBAN_STATUS_MAP.in_review.includes(task.status)) return 'in_review';
-  if (KANBAN_STATUS_MAP.done.includes(task.status)) return 'done';
-  if (KANBAN_STATUS_MAP.delivered.includes(task.status)) return 'delivered';
+function getKanbanColumn(status: Task['status']): KanbanColumnId | null {
+  if (KANBAN_STATUS_MAP.todo.includes(status)) return 'todo';
+  if (KANBAN_STATUS_MAP.in_progress.includes(status)) return 'in_progress';
+  if (KANBAN_STATUS_MAP.in_review.includes(status)) return 'in_review';
+  if (KANBAN_STATUS_MAP.done.includes(status)) return 'done';
   return null;
 }
 
 function getPersistedStatus(col: KanbanColumnId): Task['status'] {
   if (col === 'in_review') return 'in_review';
   if (col === 'done') return 'done';
-  if (col === 'delivered') return 'delivered';
   return col;
 }
 
@@ -690,7 +681,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
   return (
     <div className="space-y-2">
       {showDropIndicator && (
-        <div className="h-1.5 rounded-full animate-openy-slide-down" style={{ background: 'var(--accent)' }} />
+        <div className="h-1 rounded-full" style={{ background: 'var(--accent)' }} />
       )}
       <div
         ref={setNodeRef}
@@ -790,11 +781,6 @@ function KanbanColumn({
           </span>
         </div>
       </div>
-      {isOver && (
-        <span className="sr-only" role="status" aria-live="polite">
-          {`Drop in ${t(col.label)} column`}
-        </span>
-      )}
       <SortableContext items={colTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[calc(100vh-300px)]">
           {colTasks.length === 0 ? (
@@ -847,11 +833,9 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       in_progress: [],
       in_review: [],
       done: [],
-      delivered: [],
-      overdue: [],
     };
     for (const task of tasks) {
-      const col = getKanbanColumn(task);
+      const col = getKanbanColumn(task.status);
       if (!col) continue;
       mapped[col].push(task);
     }
@@ -860,8 +844,6 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       in_progress: sortKanbanTasks(mapped.in_progress),
       in_review: sortKanbanTasks(mapped.in_review),
       done: sortKanbanTasks(mapped.done),
-      delivered: sortKanbanTasks(mapped.delivered),
-      overdue: sortKanbanTasks(mapped.overdue),
     };
   }, [tasks]);
 
@@ -869,7 +851,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
 
   const getColumnByTaskId = useCallback((taskId: string): KanbanColumnId | null => {
     const task = tasks.find(t => t.id === taskId);
-    return task ? getKanbanColumn(task) : null;
+    return task ? getKanbanColumn(task.status) : null;
   }, [tasks]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -909,15 +891,13 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
     const activeTask = tasks.find(task => task.id === activeId);
     if (!activeTask) return;
 
-    const sourceColumn = getKanbanColumn(activeTask);
+    const sourceColumn = getKanbanColumn(activeTask.status);
     if (!sourceColumn) return;
 
     const destinationColumn = overId.startsWith('column-')
       ? (overId.replace('column-', '') as KanbanColumnId)
       : getColumnByTaskId(overId);
     if (!destinationColumn) return;
-    // Prevent dropping into overdue because it is a computed read-only lane.
-    if (destinationColumn === 'overdue') return;
 
     const sourceTasks = [...columns[sourceColumn]];
     const destinationTasks = sourceColumn === destinationColumn
@@ -1020,16 +1000,16 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
         <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
         {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary h-9 px-4 text-sm">
+          <button type="button" onClick={onClose} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
             {t('cancel')}
           </button>
-          <button type="button" onClick={onConfirm} className="btn-danger h-9 px-4 text-sm">
+          <button type="button" onClick={onConfirm} className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">
             {t('deleteTask')}
           </button>
         </div>
@@ -1044,7 +1024,8 @@ const INVALIDATION_DELAY_MS = 120;
 
 
 
-export default function TasksPage() {
+function TasksPage() {
+  const { registerQuickActionHandler } = useQuickActions();
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
@@ -1059,13 +1040,12 @@ export default function TasksPage() {
   const { data: queryData, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['tasks-all'],
     queryFn: async () => {
-      const [tasksRes, clientsRes, projectsRes, teamRes, contentRes] = await Promise.allSettled([
+      const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
         supabase.from('tasks').select('*, client:clients(id,name)').order('created_at', { ascending: false }).limit(200),
         supabase.from('clients').select('id,name').order('name'),
         supabase.from('projects').select('id,name,client_id').order('name'),
         // Select only the columns the UI actually uses to reduce payload size.
         supabase.from('team_members').select('id,full_name,email,role,avatar_url,job_title,created_at').order('full_name'),
-        supabase.from('content_items').select('id,title,client_id').order('created_at', { ascending: false }).limit(300),
       ]);
 
       if (tasksRes.status === 'rejected') {
@@ -1080,17 +1060,12 @@ export default function TasksPage() {
       else if (projectsRes.value.error) console.error('[tasks] projects fetch error:', projectsRes.value.error);
       if (teamRes.status === 'rejected') console.error('[tasks] team fetch rejected:', teamRes.reason);
       else if (teamRes.value.error) console.error('[tasks] team fetch error:', teamRes.value.error);
-      if (contentRes.status === 'rejected') console.error('[tasks] content fetch rejected:', contentRes.reason);
-      else if (contentRes.value.error) console.error('[tasks] content fetch error:', contentRes.value.error);
 
       return {
         tasks:   (tasksRes.status   === 'fulfilled' && !tasksRes.value.error)   ? (tasksRes.value.data   ?? []) as Task[]       : [],
         clients: (clientsRes.status === 'fulfilled' && !clientsRes.value.error) ? (clientsRes.value.data ?? []) as Client[]     : [],
         projects: (projectsRes.status === 'fulfilled' && !projectsRes.value.error) ? (projectsRes.value.data ?? []) as Project[] : [],
         team:    (teamRes.status    === 'fulfilled' && !teamRes.value.error)    ? (teamRes.value.data    ?? []) as TeamMember[]  : [],
-        contentItems: (contentRes.status === 'fulfilled' && !contentRes.value.error)
-          ? (contentRes.value.data ?? []) as Pick<ContentItem, 'id' | 'title' | 'client_id'>[]
-          : [],
       };
     },
   });
@@ -1099,12 +1074,11 @@ export default function TasksPage() {
 
   // Local state for optimistic updates — seeded from React Query cache on
   // first render and kept in sync when the background fetch completes.
-  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[]; contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[] }>(['tasks-all']);
+  const cachedOnMount = queryClient.getQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(['tasks-all']);
   const [tasks,   setTasks]   = useState<Task[]>      (() => cachedOnMount?.tasks   ?? []);
   const [clients, setClients] = useState<Client[]>    (() => cachedOnMount?.clients ?? []);
   const [projects, setProjects] = useState<Project[]>(() => cachedOnMount?.projects ?? []);
   const [team,    setTeam]    = useState<TeamMember[]>(() => cachedOnMount?.team    ?? []);
-  const [contentItems, setContentItems] = useState<Pick<ContentItem, 'id' | 'title' | 'client_id'>[]>(() => cachedOnMount?.contentItems ?? []);
 
   // Keep local state in sync when React Query data arrives / updates.
   useEffect(() => {
@@ -1113,7 +1087,6 @@ export default function TasksPage() {
       setClients(queryData.clients);
       setProjects(queryData.projects);
       setTeam(queryData.team);
-      setContentItems(queryData.contentItems ?? []);
     }
   }, [queryData]);
 
@@ -1183,6 +1156,12 @@ export default function TasksPage() {
     );
   }, [statusFilter, clientFilter, assignedFilter, priorityFilter, dateFilter, searchQuery]);
 
+  useEffect(() => {
+    return registerQuickActionHandler('add-task', () => {
+      setCreateOpen(true);
+    });
+  }, [registerQuickActionHandler, setCreateOpen]);
+
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
@@ -1224,7 +1203,6 @@ export default function TasksPage() {
         due_date:    createForm.due_date,
         client_id:   createForm.client_id,
         project_id:  createForm.project_id || null,
-        content_item_id: createForm.content_item_id || null,
         assigned_to: createForm.assigned_to,
         created_by:  createForm.created_by || null,
         mentions:    Array.isArray(createForm.mentions) ? createForm.mentions : [],
@@ -1273,7 +1251,7 @@ export default function TasksPage() {
       if (result.task) {
         const createdTask = result.task;
         setTasks(prev => [createdTask, ...prev.filter(t => t.id !== createdTask.id)]);
-        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[]; contentItems: Pick<ContentItem, 'id' | 'title' | 'client_id'>[] }>(
+        queryClient.setQueryData<{ tasks: Task[]; clients: Client[]; projects: Project[]; team: TeamMember[] }>(
           ['tasks-all'],
           old => old
             ? { ...old, tasks: [createdTask, ...old.tasks.filter(t => t.id !== createdTask.id)] }
@@ -1307,7 +1285,6 @@ export default function TasksPage() {
       due_date: task.due_date ?? '',
       client_id: task.client_id ?? '',
       project_id: task.project_id ?? '',
-      content_item_id: task.content_item_id ?? '',
       assigned_to: task.assigned_to ?? '',
       created_by: task.created_by ?? '',
       mentions: task.mentions ?? [],
@@ -1333,7 +1310,6 @@ export default function TasksPage() {
         due_date:    editForm.due_date || null,
         client_id:   editForm.client_id || null,
         project_id:  editForm.project_id || null,
-        content_item_id: editForm.content_item_id || null,
         assigned_to: editForm.assigned_to || null,
         created_by:  editForm.created_by || null,
         mentions:    Array.isArray(editForm.mentions) ? editForm.mentions : [],
@@ -1546,8 +1522,8 @@ export default function TasksPage() {
       {/* Fetch error banner */}
       {fetchError && (
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm border"
-          style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
@@ -1751,7 +1727,7 @@ export default function TasksPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-40 rounded-xl skeleton-shimmer" />
+            <div key={i} className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
       ) : fetchError ? null : filtered.length === 0 ? (
@@ -1766,21 +1742,6 @@ export default function TasksPage() {
               </button>
             ) : undefined
           }
-          suggestions={[
-            {
-              title: 'Create your first task',
-              description: 'Start with a high-impact deliverable and assign ownership.',
-              action: canManageTasks ? (
-                <button onClick={() => setCreateOpen(true)} className="text-xs font-semibold hover:opacity-80" style={{ color: 'var(--accent)' }}>
-                  Open task form
-                </button>
-              ) : undefined,
-            },
-            {
-              title: 'Import tasks from a previous client',
-              description: 'Duplicate proven workflows to move faster this week.',
-            },
-          ]}
         />
       ) : view === 'kanban' ? (
         <div className="rounded-3xl border p-3 sm:p-5 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
@@ -1869,12 +1830,12 @@ export default function TasksPage() {
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError(null); }} title={t('newTask')} size="lg">
         <form onSubmit={handleCreate}>
           {createError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{createError}</span>
             </div>
           )}
-          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} projects={projects} team={team} contentItems={contentItems} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
+          <TaskForm form={createForm} setForm={setCreateForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setCreateOpen(false); setCreateError(null); }} t={t} />
         </form>
       </Modal>
 
@@ -1882,12 +1843,12 @@ export default function TasksPage() {
       <Modal open={!!editTask} onClose={() => { setEditTask(null); setEditError(null); }} title={t('editTask')} size="lg">
         <form onSubmit={handleEdit}>
           {editError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{editError}</span>
             </div>
           )}
-          <TaskForm form={editForm} setForm={setEditForm} clients={clients} projects={projects} team={team} contentItems={contentItems} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
+          <TaskForm form={editForm} setForm={setEditForm} clients={clients} projects={projects} team={team} saving={saving} onCancel={() => { setEditTask(null); setEditError(null); }} t={t} />
         </form>
       </Modal>
 
@@ -1897,5 +1858,13 @@ export default function TasksPage() {
       {/* Delete Modal */}
       <DeleteConfirmModal task={deleteTask} open={!!deleteTask} onClose={() => { setDeleteTask(null); setDeleteError(null); }} onConfirm={handleDelete} error={deleteError} t={t} />
     </div>
+  );
+}
+
+export default function TasksPageWrapper() {
+  return (
+    <Suspense>
+      <TasksPage />
+    </Suspense>
   );
 }

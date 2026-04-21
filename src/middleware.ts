@@ -2,8 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getWorkspaceFromAppPath, isGlobalOwnerEmail, type WorkspaceKey } from '@/lib/workspace-access';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
   '/clients': '/os/clients',
@@ -22,40 +22,24 @@ const LEGACY_OS_REDIRECTS: Record<string, string> = {
 };
 
 export async function middleware(request: NextRequest) {
-  const looksConfigured =
-    !!supabaseUrl &&
-    !!supabaseAnonKey &&
-    /^https?:\/\//.test(supabaseUrl) &&
-    !/your[-_ ]?supabase/i.test(supabaseUrl) &&
-    !/your[-_ ]?anon/i.test(supabaseAnonKey);
-
-  if (!looksConfigured) {
-    return NextResponse.next({ request });
-  }
-
   let supabaseResponse = NextResponse.next({ request });
 
-  let supabase;
-  try {
-    supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
       },
-    });
-  } catch {
-    return NextResponse.next({ request });
-  }
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value),
+        );
+        supabaseResponse = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options),
+        );
+      },
+    },
+  });
 
   // IMPORTANT: always call getUser() to refresh the session token.
   const {
@@ -63,22 +47,6 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const signupModeRequested = request.nextUrl.searchParams.get('mode') === 'signup';
-
-  if (pathname === '/' && signupModeRequested) {
-    const redirectUrl = new URL('/', request.url);
-    request.nextUrl.searchParams.forEach((value, key) => {
-      if (key !== 'mode') redirectUrl.searchParams.set(key, value);
-    });
-    redirectUrl.searchParams.set('invite_only', '1');
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (pathname === '/signup' || pathname.startsWith('/signup/') || pathname === '/register' || pathname.startsWith('/register/')) {
-    const redirectUrl = new URL('/', request.url);
-    redirectUrl.searchParams.set('invite_only', '1');
-    return NextResponse.redirect(redirectUrl);
-  }
 
   const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
   const requiredWorkspaceFromPath = getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);

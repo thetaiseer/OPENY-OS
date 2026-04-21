@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { dispatchNotification } from '@/lib/notification-service';
 
 
 const VALID_STATUSES = ['draft', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'] as const;
@@ -49,11 +48,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (typeof body.purpose     === 'string') updates.purpose      = body.purpose;
   if (Array.isArray(body.platform_targets)) updates.platform_targets = body.platform_targets;
   if (Array.isArray(body.post_types))        updates.post_types       = body.post_types;
-  if (typeof body.schedule_date === 'string') {
-    const trimmedScheduleDate = body.schedule_date.trim();
-    updates.schedule_date = trimmedScheduleDate ? trimmedScheduleDate : null;
-  }
-  if (typeof body.task_id === 'string') updates.task_id = body.task_id.trim() || null;
 
   let newStatus: string | null = null;
   if (typeof body.status === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
@@ -105,35 +99,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
           if (calErr) console.warn('[PATCH /api/content-items/[id]] calendar event failed:', calErr.message);
         });
       }
-
-      void dispatchNotification({
-        title: newStatus === 'published' ? 'Content Published' : 'Content Updated',
-        message: `Content "${existing.title}" moved to ${newStatus}`,
-        type: newStatus === 'published' ? 'success' : 'info',
-        category: 'content',
-        priority: newStatus === 'published' ? 'high' : 'medium',
-        event_type: newStatus === 'published' ? 'publishing_published' : 'activity',
-        user_id: auth.profile.id,
-        client_id: existing.client_id ?? null,
-        entity_type: 'content_item',
-        entity_id: id,
-        action_url: '/content',
-        dedupe_key: `content_status:${id}:${newStatus}`,
-        send_email: true,
-        email_subject: `Content Status: ${existing.title}`,
-      });
-    }
-
-    // Keep linked task due_date in sync with scheduled date when available (best-effort)
-    const nextScheduleDate = typeof body.schedule_date === 'string' ? body.schedule_date.trim() : '';
-    if (nextScheduleDate && data?.task_id) {
-      void db
-        .from('tasks')
-        .update({ due_date: nextScheduleDate, updated_at: new Date().toISOString() })
-        .eq('id', data.task_id)
-        .then(({ error: taskSyncErr }) => {
-          if (taskSyncErr) console.warn('[PATCH /api/content-items/[id]] linked task due_date sync failed:', taskSyncErr.message);
-        });
     }
 
     // Log general update activity if non-status fields changed (fire-and-forget)

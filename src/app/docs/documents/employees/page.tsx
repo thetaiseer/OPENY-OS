@@ -70,8 +70,8 @@ function SalaryModal({ employee, onClose, onDone }: {
   }
 
   return (
-    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="openy-modal-panel rounded-2xl p-6 w-full max-w-md my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Update Salary — {employee.full_name}</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
@@ -146,8 +146,8 @@ function EmployeeModal({ initial, onClose, onDone, employees }: {
   const lbl = (l: string) => <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{l}</label>;
 
   return (
-    <div className="openy-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="openy-modal-panel rounded-2xl p-6 w-full max-w-2xl my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-auto py-6">
+      <div className="rounded-2xl shadow-xl p-6 w-full max-w-2xl m-auto" style={{ background: 'var(--surface)' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{initial ? 'Edit Employee' : 'Add Employee'}</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>

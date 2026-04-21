@@ -4,7 +4,6 @@ import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
-import type { UserRole } from '@/lib/auth-context';
 
 // Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
 type Db = SupabaseClient<any>;
@@ -49,42 +48,6 @@ const ALLOWED_INTENTS = new Set([
   'clean_workspace_workflow',
   'unknown',
 ]);
-
-const MUTATING_INTENTS = new Set([
-  'create_task',
-  'update_task',
-  'create_client',
-  'update_client',
-  'create_publishing_schedule',
-  'create_content_item',
-  'invite_team_member',
-  'create_project',
-  'create_note',
-  'start_timer',
-  'stop_timer',
-  'start_new_client_workflow',
-  'prepare_month_workflow',
-  'clean_workspace_workflow',
-]);
-
-const ROLE_ORDER: Record<UserRole, number> = {
-  owner: 100,
-  admin: 80,
-  manager: 60,
-  team_member: 40,
-  viewer: 10,
-  client: 5,
-};
-
-const INTENT_MIN_ROLE: Partial<Record<string, UserRole>> = {
-  invite_team_member: 'owner',
-};
-
-function hasIntentPermission(role: UserRole, intent: string): boolean {
-  const min = INTENT_MIN_ROLE[intent];
-  if (!min) return true;
-  return (ROLE_ORDER[role] ?? 0) >= (ROLE_ORDER[min] ?? 999);
-}
 
 // Columns that are safe to select from the tasks table.
 // This list reflects what the current schema actually has; never include
@@ -180,7 +143,7 @@ Return JSON schema:
 }
 
 Professional rewriting rules:
-- Detect input language (Arabic or English) and keep rewrites in the same dominant language.
+- If intent is create_task, rewrite task_title and description in professional English regardless of input language.
 - Keep professional_title concise (max 8 words).
 - Keep professional_description clear and actionable (1-2 sentences).`;
 
@@ -221,189 +184,41 @@ interface ExecutionResult {
   error?: string;
 }
 
-interface PendingAction {
-  intent: string;
-  entities: ParsedCommand['entities'];
-  professional_title?: string | null;
-  professional_description?: string | null;
-  confidence: number;
-}
-
-type ResponseLanguage = 'ar' | 'en';
-
-type ClientMatch = {
-  id: string;
-  name: string;
-  score: number;
-};
-
-const ARABIC_CHAR_RE = /[\u0600-\u06FF]/;
-const ENGLISH_CHAR_RE = /[A-Za-z]/;
-
-function detectLanguage(text: string): ResponseLanguage {
-  const ar = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
-  const en = (text.match(/[A-Za-z]/g) ?? []).length;
-  if (ar === 0 && en === 0) return 'en';
-  return ar >= en ? 'ar' : 'en';
-}
-
-function t(lang: ResponseLanguage, en: string, ar: string): string {
-  return lang === 'ar' ? ar : en;
-}
-
-function normalizeSearchText(input: string): string {
-  const arMap: Record<string, string> = {
-    'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ى': 'ي', 'ئ': 'ي', 'ؤ': 'و', 'ة': 'ه',
-  };
-  const latinized = input
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '');
-  const arUnified = latinized.replace(/[أإآىئؤة]/g, ch => arMap[ch] ?? ch);
-  return arUnified
-    .replace(/[\u064B-\u065F\u0670]/g, '')
-    .replace(/[_\-./\\()[\]{}:;,'"`~!@#$%^&*+=?|<>]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function simpleTransliteration(input: string): string {
-  const map: Record<string, string> = {
-    ا: 'a', ب: 'b', ت: 't', ث: 'th', ج: 'j', ح: 'h', خ: 'kh',
-    د: 'd', ذ: 'th', ر: 'r', ز: 'z', س: 's', ش: 'sh', ص: 's',
-    ض: 'd', ط: 't', ظ: 'z', ع: 'a', غ: 'gh', ف: 'f', ق: 'q',
-    ك: 'k', ل: 'l', م: 'm', ن: 'n', ه: 'h', و: 'w', ي: 'y',
-    ة: 'h', ى: 'a', ئ: 'y', ؤ: 'w',
-  };
-  return normalizeSearchText(input)
-    .split('')
-    .map(ch => map[ch] ?? ch)
-    .join('')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const v0 = new Array(b.length + 1).fill(0);
-  const v1 = new Array(b.length + 1).fill(0);
-  for (let i = 0; i <= b.length; i++) v0[i] = i;
-  for (let i = 0; i < a.length; i++) {
-    v1[0] = i + 1;
-    for (let j = 0; j < b.length; j++) {
-      const cost = a[i] === b[j] ? 0 : 1;
-      v1[j + 1] = Math.min(
-        v1[j] + 1,
-        v0[j + 1] + 1,
-        v0[j] + cost,
-      );
-    }
-    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
-  }
-  return v1[b.length];
-}
-
-function similarityScore(query: string, candidate: string): number {
-  if (!query || !candidate) return 0;
-  if (query === candidate) return 1;
-  if (candidate.includes(query) || query.includes(candidate)) return 0.92;
-  const dist = levenshtein(query, candidate);
-  const maxLen = Math.max(query.length, candidate.length);
-  const levScore = maxLen > 0 ? 1 - dist / maxLen : 0;
-  const qTokens = new Set(query.split(' ').filter(Boolean));
-  const cTokens = new Set(candidate.split(' ').filter(Boolean));
-  const overlap = [...qTokens].filter(t => cTokens.has(t)).length;
-  const tokenScore = Math.max(qTokens.size, cTokens.size) > 0
-    ? overlap / Math.max(qTokens.size, cTokens.size)
-    : 0;
-  return levScore * 0.7 + tokenScore * 0.3;
-}
-
-function actionPreview(parsed: ParsedCommand, lang: ResponseLanguage, bestClientName?: string | null): string {
-  const e = parsed.entities;
-  switch (parsed.intent) {
-    case 'create_task':
-      return t(
-        lang,
-        `I will create a task "${parsed.professional_title ?? e.task_title ?? 'New Task'}"${bestClientName ? ` for ${bestClientName}` : ''}${e.due_date ? ` due on ${e.due_date}` : ''}.`,
-        `سأنشئ مهمة بعنوان "${parsed.professional_title ?? e.task_title ?? 'مهمة جديدة'}"${bestClientName ? ` للعميل ${bestClientName}` : ''}${e.due_date ? ` بتاريخ ${e.due_date}` : ''}.`,
-      );
-    case 'create_project':
-      return t(
-        lang,
-        `I will create a project "${parsed.professional_title ?? e.task_title ?? 'New Project'}"${bestClientName ? ` for ${bestClientName}` : ''}.`,
-        `سأنشئ مشروعًا بعنوان "${parsed.professional_title ?? e.task_title ?? 'مشروع جديد'}"${bestClientName ? ` للعميل ${bestClientName}` : ''}.`,
-      );
-    case 'create_client':
-      return t(
-        lang,
-        `I will create a client "${parsed.professional_title ?? e.client_name ?? 'New Client'}".`,
-        `سأنشئ عميلًا باسم "${parsed.professional_title ?? e.client_name ?? 'عميل جديد'}".`,
-      );
-    case 'create_content_item':
-      return t(
-        lang,
-        `I will create a content item "${parsed.professional_title ?? e.task_title ?? 'New Content'}"${bestClientName ? ` for ${bestClientName}` : ''}.`,
-        `سأنشئ عنصر محتوى بعنوان "${parsed.professional_title ?? e.task_title ?? 'محتوى جديد'}"${bestClientName ? ` للعميل ${bestClientName}` : ''}.`,
-      );
-    default:
-      return t(lang, 'I will execute this action now.', 'سأنفذ هذا الإجراء الآن.');
-  }
-}
-
-function shouldRequireConfirmation(parsed: ParsedCommand, hasClientAmbiguity: boolean): boolean {
-  if (!MUTATING_INTENTS.has(parsed.intent)) return false;
-  if (parsed.confidence < 0.78) return true;
-  if (hasClientAmbiguity) return true;
-  if (parsed.intent === 'create_task') {
-    const missingTitle = !(parsed.professional_title ?? parsed.entities.task_title);
-    const missingDueDate = !parsed.entities.due_date;
-    return missingTitle || missingDueDate;
-  }
-  return false;
-}
-
-function localizeFailurePrefix(lang: ResponseLanguage): string {
-  return t(lang, 'Action failed', 'فشل التنفيذ');
-}
-
 // ── Smart client matching ─────────────────────────────────────────────────────
 
 async function findBestClientMatch(
   sb: Db,
   nameQuery: string
-): Promise<{ best: ClientMatch | null; candidates: ClientMatch[] }> {
+): Promise<{ id: string; name: string } | null> {
   const { data } = await sb
     .from('clients')
     .select('id, name')
     .order('name');
 
-  if (!data?.length) return { best: null, candidates: [] };
+  if (!data?.length) return null;
 
-  const q = normalizeSearchText(nameQuery);
-  const qTrans = simpleTransliteration(nameQuery);
-  const scored: ClientMatch[] = (data as { id: string; name: string }[])
-    .map((client) => {
-      const normalizedName = normalizeSearchText(client.name);
-      const translitName = simpleTransliteration(client.name);
-      const direct = similarityScore(q, normalizedName);
-      const cross = similarityScore(qTrans, translitName);
-      const hasArabicBridge = ARABIC_CHAR_RE.test(nameQuery) !== ARABIC_CHAR_RE.test(client.name)
-        || ENGLISH_CHAR_RE.test(nameQuery) !== ENGLISH_CHAR_RE.test(client.name);
-      const bridgeBoost = hasArabicBridge ? 0.03 : 0;
-      return {
-        id: client.id,
-        name: client.name,
-        score: Math.min(1, Math.max(direct, cross) + bridgeBoost),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
+  const q = nameQuery.toLowerCase().trim();
 
-  const best = scored[0]?.score >= 0.58 ? scored[0] : null;
-  const candidates = scored.filter(c => c.score >= 0.45).slice(0, 5);
-  return { best, candidates };
+  // Exact match first
+  const exact = data.find((c: { id: string; name: string }) => c.name.toLowerCase() === q);
+  if (exact) return exact;
+
+  // Contains match
+  const contains = data.find((c: { id: string; name: string }) => c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase()));
+  if (contains) return contains;
+
+  // Fuzzy: count common characters
+  let bestScore = 0;
+  let best: { id: string; name: string } | null = null;
+  for (const client of data as { id: string; name: string }[]) {
+    const name = client.name.toLowerCase();
+    let score = 0;
+    for (const ch of q) { if (name.includes(ch)) score++; }
+    const normalized = score / Math.max(q.length, name.length);
+    if (normalized > bestScore) { bestScore = normalized; best = client; }
+  }
+
+  return bestScore > 0.5 ? best : null;
 }
 
 // ── Action executors ──────────────────────────────────────────────────────────
@@ -420,7 +235,7 @@ async function executeCreateTask(
   let clientId: string | null = null;
   let clientName: string | null = null;
   if (entities.client_name) {
-    const { best: client } = await findBestClientMatch(sb, entities.client_name);
+    const client = await findBestClientMatch(sb, entities.client_name);
     if (client) { clientId = client.id; clientName = client.name; }
   }
 
@@ -488,7 +303,7 @@ async function executeListTasks(
 
   if (entities.status) query = query.eq('status', entities.status);
   if (entities.client_name) {
-    const { best: client } = await findBestClientMatch(sb, entities.client_name);
+    const client = await findBestClientMatch(sb, entities.client_name);
     if (client) query = query.eq('client_id', client.id);
   }
 
@@ -516,7 +331,7 @@ async function executeSearchClient(
 ): Promise<ExecutionResult> {
   const nameQuery = parsed.entities.client_name ?? parsed.entities.query ?? '';
   logAction('search_client', `query="${nameQuery}"`);
-  const { best: client } = await findBestClientMatch(sb, nameQuery);
+  const client = await findBestClientMatch(sb, nameQuery);
 
   if (!client) {
     return { success: false, message: `No client found matching "${nameQuery}".`, actions_taken: [] };
@@ -643,7 +458,7 @@ async function executeCreatePublishingSchedule(
   let clientId: string | null = null;
   let clientName: string | null = null;
   if (entities.client_name) {
-    const { best: client } = await findBestClientMatch(sb, entities.client_name);
+    const client = await findBestClientMatch(sb, entities.client_name);
     if (client) { clientId = client.id; clientName = client.name; }
   }
 
@@ -758,7 +573,7 @@ async function executeSummarizeClientStatus(
   parsed: ParsedCommand,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
-  const client = entities.client_name ? (await findBestClientMatch(sb, entities.client_name)).best : null;
+  const client = entities.client_name ? await findBestClientMatch(sb, entities.client_name) : null;
   logAction('summarize_client_status', `client=${client?.name ?? 'workspace'}`);
 
   let tasksQuery = sb.from('tasks').select('title, status, priority, due_date').order('due_date');
@@ -819,7 +634,7 @@ async function executeCreateProject(
   let clientId: string | null = null;
   let clientName: string | null = null;
   if (entities.client_name) {
-    const { best: client } = await findBestClientMatch(sb, entities.client_name);
+    const client = await findBestClientMatch(sb, entities.client_name);
     if (client) { clientId = client.id; clientName = client.name; }
   }
 
@@ -901,7 +716,7 @@ async function executeStartTimer(
 
   let clientId: string | null = null;
   if (entities.client_name) {
-    const { best: client } = await findBestClientMatch(sb, entities.client_name);
+    const client = await findBestClientMatch(sb, entities.client_name);
     if (client) clientId = client.id;
   }
 
@@ -1150,45 +965,14 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
-  let body: {
-    message?: string;
-    confirm_action?: boolean;
-    pending_action?: PendingAction;
-    session_id?: string;
-    context?: { mode?: string; section?: string; clientContext?: { id?: string; name?: string } };
-  };
+  let body: { message?: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const message = body.message?.trim() ?? '';
-  const lang = detectLanguage(message || JSON.stringify(body.pending_action ?? ''));
-  const userId = auth.profile.id;
-  const sb = getServiceClient() as Db;
-
-  if (!message && !body.pending_action) {
-    return NextResponse.json({ success: false, error: t(lang, 'message is required', 'الرسالة مطلوبة') }, { status: 400 });
-  }
-
-  let sessionId = body.session_id?.trim() || '';
-  if (sessionId) {
-    const { data: existingSession } = await sb
-      .from('ai_sessions')
-      .select('id')
-      .eq('id', sessionId)
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (!existingSession) sessionId = '';
-  }
-  if (!sessionId) {
-    const { data: newSession } = await sb.from('ai_sessions').insert({
-      user_id: userId,
-      mode: (body.context?.mode as string | undefined) ?? 'ask',
-      section: body.context?.section ?? null,
-      entity_type: body.context?.clientContext?.id ? 'client' : null,
-      entity_id: body.context?.clientContext?.id ?? null,
-    }).select('id').single();
-    sessionId = (newSession as { id?: string } | null)?.id ?? '';
+  const { message } = body;
+  if (!message?.trim()) {
+    return NextResponse.json({ success: false, error: 'message is required' }, { status: 400 });
   }
 
   // Use UTC date consistently regardless of server timezone
@@ -1196,109 +980,52 @@ export async function POST(req: NextRequest) {
   const systemPrompt = SYSTEM_PROMPT.replace('{TODAY}', today);
 
   try {
+    // Step 1: Parse intent + entities
+    const rawParsed = await callAI({
+      system: systemPrompt,
+      user: message,
+      maxTokens: 1024,
+      temperature: 0.2,
+    });
+
     let parsed: ParsedCommand;
-    if (body.pending_action && body.confirm_action) {
-      parsed = {
-        intent: body.pending_action.intent,
-        confidence: body.pending_action.confidence,
-        entities: body.pending_action.entities,
-        professional_title: body.pending_action.professional_title ?? null,
-        professional_description: body.pending_action.professional_description ?? null,
-        needs_clarification: false,
-      };
-    } else {
-      const rawParsed = await callAI({
-        system: systemPrompt,
-        user: message,
-        maxTokens: 1024,
-        temperature: 0.2,
-      });
-      try {
-        const jsonStr = rawParsed.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        parsed = JSON.parse(jsonStr) as ParsedCommand;
-      } catch {
-        return NextResponse.json({
-          success: false,
-          error: t(lang, 'Failed to parse AI response', 'فشل تحليل استجابة الذكاء الاصطناعي'),
-          raw: rawParsed,
-          session_id: sessionId || null,
-        }, { status: 500 });
-      }
-    }
-
-    if (!ALLOWED_INTENTS.has(parsed.intent)) {
-      logFailure(parsed.intent, 'Intent not in allowed list');
+    try {
+      const jsonStr = rawParsed.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsed = JSON.parse(jsonStr) as ParsedCommand;
+    } catch {
       return NextResponse.json({
         success: false,
-        error: t(lang, `Intent "${parsed.intent}" is not supported.`, `الأمر "${parsed.intent}" غير مدعوم.`),
-        intent: parsed.intent,
-        needs_clarification: false,
-        session_id: sessionId || null,
-      });
+        error: 'Failed to parse AI response',
+        raw: rawParsed,
+      }, { status: 500 });
     }
 
-    if (!hasIntentPermission(auth.profile.role, parsed.intent)) {
-      return NextResponse.json({
-        success: false,
-        error: t(lang, 'You do not have permission for this action.', 'ليس لديك صلاحية لتنفيذ هذا الإجراء.'),
-        intent: parsed.intent,
-        session_id: sessionId || null,
-      }, { status: 403 });
-    }
-
+    // Step 2: If needs clarification, return question
     if (parsed.needs_clarification) {
       return NextResponse.json({
         success: true,
         needs_clarification: true,
-        clarification_question: parsed.clarification_question ?? t(lang, 'Could you clarify?', 'هل يمكنك توضيح الطلب؟'),
+        clarification_question: parsed.clarification_question,
         parsed,
-        session_id: sessionId || null,
-        language: lang,
       });
     }
 
-    let bestClient: ClientMatch | null = null;
-    let clientCandidates: ClientMatch[] = [];
-    if (parsed.entities.client_name) {
-      const match = await findBestClientMatch(sb, parsed.entities.client_name);
-      bestClient = match.best;
-      clientCandidates = match.candidates;
-      if (bestClient) parsed.entities.client_name = bestClient.name;
-    }
-
-    const hasClientAmbiguity =
-      clientCandidates.length > 1 &&
-      (clientCandidates[0].score - clientCandidates[1].score) < 0.08;
-
-    if (!body.confirm_action && shouldRequireConfirmation(parsed, hasClientAmbiguity)) {
-      const confirmationMessage = actionPreview(parsed, lang, bestClient?.name ?? null);
-      void sb.from('ai_actions').insert({
-        session_id: sessionId || null,
-        user_id: userId,
-        intent: parsed.intent,
-        prompt: message || confirmationMessage,
-        status: 'pending',
-        response_text: confirmationMessage,
-        actions_taken: [],
-      });
+    // Step 3: Guard — reject unknown intents before touching the database
+    if (!ALLOWED_INTENTS.has(parsed.intent)) {
+      logFailure(parsed.intent, 'Intent not in allowed list');
       return NextResponse.json({
-        success: true,
-        needs_confirmation: true,
-        confirmation_message: `${confirmationMessage} ${t(lang, 'Do you confirm?', 'هل تؤكد التنفيذ؟')}`,
+        success: false,
+        ok: false,
+        error: `Intent "${parsed.intent}" is not supported.`,
         intent: parsed.intent,
-        pending_action: {
-          intent: parsed.intent,
-          entities: parsed.entities,
-          professional_title: parsed.professional_title ?? null,
-          professional_description: parsed.professional_description ?? null,
-          confidence: parsed.confidence,
-        } satisfies PendingAction,
-        matched_clients: clientCandidates.map(c => ({ id: c.id, name: c.name, score: Number(c.score.toFixed(3)) })),
-        session_id: sessionId || null,
-        language: lang,
+        needs_clarification: false,
       });
     }
 
+    // Step 4: Execute the safe action, wrapped in its own try/catch so a DB
+    // error in one handler cannot crash the entire request or freeze the UI.
+    const sb = getServiceClient() as Db;
+    const userId = auth.profile.id;
     let result: ExecutionResult;
     const actionStartMs = Date.now();
 
@@ -1332,6 +1059,7 @@ export async function POST(req: NextRequest) {
         case 'generate_content_ideas':
           result = await executeGenerateContentIdeas(parsed);
           break;
+        // v3 new intents
         case 'create_project':
           result = await executeCreateProject(sb, parsed, userId);
           break;
@@ -1357,7 +1085,7 @@ export async function POST(req: NextRequest) {
           let clientId: string | null = null;
           let clientName: string | null = null;
           if (parsed.entities.client_name) {
-            const { best: client } = await findBestClientMatch(sb, parsed.entities.client_name);
+            const client = await findBestClientMatch(sb, parsed.entities.client_name);
             if (client) { clientId = client.id; clientName = client.name; }
           }
           const title = parsed.professional_title ?? parsed.entities.task_title ?? 'New Content';
@@ -1373,85 +1101,64 @@ export async function POST(req: NextRequest) {
           if (error) throw new Error(error.message);
           result = {
             success: true,
-            message: t(
-              lang,
-              `Content item "${title}" created${clientName ? ` for ${clientName}` : ''}.`,
-              `تم إنشاء عنصر المحتوى "${title}"${clientName ? ` للعميل ${clientName}` : ''}.`,
-            ),
+            message: `Content item "${title}" created${clientName ? ` for ${clientName}` : ''}.`,
             data: data as Record<string, unknown>,
-            actions_taken: [t(lang, `Created content item: ${title}`, `تم إنشاء عنصر محتوى: ${title}`)],
+            actions_taken: [`Created content item: ${title}`],
           };
           break;
         }
         default:
           result = {
             success: false,
-            message: t(
-              lang,
-              "I didn't understand that command. Try asking me to create a task, project, schedule a post, search for a client, or start a timer.",
-              'لم أفهم الطلب. يمكنك طلب إنشاء مهمة أو مشروع أو البحث عن عميل أو بدء مؤقت.',
-            ),
+            message: "I didn't understand that command. Try asking me to create a task, project, schedule a post, search for a client, start a timer, or kick off a new client workflow.",
             actions_taken: [],
           };
       }
     } catch (actionErr) {
+      // Per-action error: log it and return a safe structured response.
+      // This prevents UI freezing — the assistant panel shows the error message.
       logFailure(parsed.intent, actionErr);
       const errMsg = actionErr instanceof Error ? actionErr.message : String(actionErr);
+
+      // AI audit log (best-effort)
       void (async () => {
         try {
           await sb.from('ai_actions').insert({
-            session_id: sessionId || null,
-            user_id: userId,
-            intent: parsed.intent,
-            prompt: message || JSON.stringify(body.pending_action ?? {}),
-            status: 'error',
+            user_id:       userId,
+            intent:        parsed.intent,
+            prompt:        message,
+            status:        'error',
             error_message: errMsg,
-            duration_ms: Date.now() - actionStartMs,
+            duration_ms:   Date.now() - actionStartMs,
             actions_taken: [],
           });
         } catch { /* ignore */ }
       })();
+
       return NextResponse.json({
+        ok: false,
         success: false,
         intent: parsed.intent,
         entities: parsed.entities,
         error: errMsg,
-        message: `${localizeFailurePrefix(lang)}: ${errMsg}`,
+        message: `Action failed: ${errMsg}`,
         needs_clarification: false,
-        session_id: sessionId || null,
-        language: lang,
       });
     }
 
+    // AI audit log (best-effort, fire-and-forget)
     void (async () => {
       try {
         await sb.from('ai_actions').insert({
-          session_id: sessionId || null,
-          user_id: userId,
-          intent: parsed.intent,
-          prompt: message || JSON.stringify(body.pending_action ?? {}),
-          status: result.success ? 'success' : 'partial',
+          user_id:       userId,
+          intent:        parsed.intent,
+          prompt:        message,
+          status:        result.success ? 'success' : 'partial',
           response_text: result.message,
           actions_taken: result.actions_taken ?? [],
-          duration_ms: Date.now() - actionStartMs,
+          duration_ms:   Date.now() - actionStartMs,
         });
       } catch { /* ignore */ }
-    })();
-
-    const openUrl = (() => {
-      if (!result.success) return null;
-      if (parsed.intent === 'create_task') return '/tasks/all';
-      if (parsed.intent === 'create_project') return '/clients';
-      if (parsed.intent === 'create_client') {
-        const id = result.data?.id as string | undefined;
-        return id ? `/clients/${id}/overview` : '/clients';
-      }
-      if (parsed.intent === 'create_content_item') return '/content';
-      if (parsed.intent === 'search_client') {
-        const id = result.data?.id as string | undefined;
-        return id ? `/clients/${id}/overview` : '/clients';
-      }
-      return null;
     })();
 
     return NextResponse.json({
@@ -1462,11 +1169,8 @@ export async function POST(req: NextRequest) {
       data: result.data,
       actions_taken: result.actions_taken,
       needs_clarification: false,
-      session_id: sessionId || null,
-      language: lang,
-      open_url: openUrl,
-      matched_clients: clientCandidates.map(c => ({ id: c.id, name: c.name, score: Number(c.score.toFixed(3)) })),
     });
+
   } catch (err) {
     if (err instanceof AiUnconfiguredError) {
       return NextResponse.json({ success: false, error: err.message }, { status: 503 });

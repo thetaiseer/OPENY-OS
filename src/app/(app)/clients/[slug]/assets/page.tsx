@@ -1,23 +1,19 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Upload, Download, Search, Sparkles } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Upload, Download } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
-import AssetPreviewModal from '@/components/asset-preview/AssetPreviewModal';
+import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
-import EmptyState from '@/components/ui/EmptyState';
-import SmartSuggestionCards from '@/components/ui/SmartSuggestionCards';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
-import { toPreviewInput } from '@/lib/asset-preview';
 
 export default function ClientAssetsPage() {
   const { client, clientId } = useClientWorkspace();
@@ -25,22 +21,18 @@ export default function ClientAssetsPage() {
   const { user } = useAuth();
   const { toast: addToast } = useToast();
   const { startBatch, latestAsset } = useUpload();
-  const searchParams = useSearchParams();
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [downloadingZip, setDownloadingZip] = useState(false);
-  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [assets,          setAssets]          = useState<Asset[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [downloadingZip,  setDownloadingZip]  = useState(false);
+  const [previewAsset,    setPreviewAsset]    = useState<Asset | null>(null);
 
-  const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
-  const [uploadMainCategory, setUploadMainCategory] = useState('social-media');
-  const [uploadSubCategory, setUploadSubCategory] = useState('');
-  const [uploadMonthKey, setUploadMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
-
-  const [search, setSearch] = useState('');
-  const [showUploadHint, setShowUploadHint] = useState(false);
+  const [pendingItems,        setPendingItems]        = useState<UploadFileItem[]>([]);
+  const [uploadMainCategory,  setUploadMainCategory]  = useState('social-media');
+  const [uploadSubCategory,   setUploadSubCategory]   = useState('');
+  const [uploadMonthKey,      setUploadMonthKey]      = useState(() => new Date().toISOString().slice(0, 7));
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -56,44 +48,29 @@ export default function ClientAssetsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Prepend newly uploaded assets
   useEffect(() => {
     if (!latestAsset) return;
     if (!clientId || latestAsset.client_id !== clientId) return;
     setAssets(prev => {
-      if (prev.some(asset => asset.id === latestAsset.id)) return prev;
+      if (prev.some(a => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
   }, [latestAsset, clientId]);
-
-  useEffect(() => {
-    if (searchParams.get('quickAction') === 'upload') {
-      setShowUploadHint(true);
-      const timer = setTimeout(() => setShowUploadHint(false), 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams]);
-
-  const filteredAssets = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return assets;
-    return assets.filter(asset => asset.name.toLowerCase().includes(q) || asset.file_type?.toLowerCase().includes(q));
-  }, [assets, search]);
 
   const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (fileRef.current) fileRef.current.value = '';
     if (!files.length) return;
-
     const items: UploadFileItem[] = files.map(file => ({
-      id: crypto.randomUUID(),
+      id:              crypto.randomUUID(),
       file,
-      previewUrl: /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
-      uploadName: file.name.replace(/\.[^.]+$/, ''),
-      thumbnailBlob: null,
+      previewUrl:      /^image\//.test(file.type) ? URL.createObjectURL(file) : null,
+      uploadName:      file.name.replace(/\.[^.]+$/, ''),
+      thumbnailBlob:   null,
       durationSeconds: null,
-      previewBlob: null,
+      previewBlob:     null,
     }));
-
     setPendingItems(items);
     setUploadMainCategory('social-media');
     setUploadSubCategory('');
@@ -103,11 +80,11 @@ export default function ClientAssetsPage() {
       if (!isVideoFile(item.file.name, item.file.type)) return;
       void generateVideoThumbnail(item.file).then(result => {
         if (!result) return;
-        setPendingItems(prev => prev.map(row => (
-          row.id === item.id
-            ? { ...row, previewUrl: result.blobUrl, thumbnailBlob: result.blob, durationSeconds: result.durationSeconds }
-            : row
-        )));
+        setPendingItems(prev => prev.map(i =>
+          i.id === item.id
+            ? { ...i, previewUrl: result.blobUrl, thumbnailBlob: result.blob, durationSeconds: result.durationSeconds }
+            : i,
+        ));
       });
     });
 
@@ -115,37 +92,34 @@ export default function ClientAssetsPage() {
       if (!isPdfFile(item.file.name, item.file.type)) return;
       void generatePdfPreview(item.file).then(result => {
         if (!result) return;
-        setPendingItems(prev => prev.map(row => (
-          row.id === item.id ? { ...row, previewUrl: result.blobUrl, previewBlob: result.blob } : row
-        )));
+        setPendingItems(prev => prev.map(i =>
+          i.id === item.id ? { ...i, previewUrl: result.blobUrl, previewBlob: result.blob } : i,
+        ));
       });
     });
   };
 
   const handleUploadConfirm = () => {
     if (!pendingItems.length || !client) return;
-
-    const initialItems: InitialUploadItem[] = pendingItems.map(item => ({
-      id: item.id,
-      file: item.file,
-      previewUrl: item.previewUrl,
-      uploadName: item.uploadName,
-      thumbnailBlob: item.thumbnailBlob,
-      durationSeconds: item.durationSeconds,
-      previewBlob: item.previewBlob,
+    const initialItems: InitialUploadItem[] = pendingItems.map(i => ({
+      id:              i.id,
+      file:            i.file,
+      previewUrl:      i.previewUrl,
+      uploadName:      i.uploadName,
+      thumbnailBlob:   i.thumbnailBlob,
+      durationSeconds: i.durationSeconds,
+      previewBlob:     i.previewBlob,
     }));
-
     startBatch(initialItems, {
-      clientName: client.name,
+      clientName:   client.name,
       clientId,
-      contentType: '',
+      contentType:  '',
       mainCategory: uploadMainCategory,
-      subCategory: uploadSubCategory,
-      monthKey: uploadMonthKey,
-      uploadedBy: user?.name ?? user?.email ?? null,
+      subCategory:  uploadSubCategory,
+      monthKey:     uploadMonthKey,
+      uploadedBy:   user?.name ?? user?.email ?? null,
       uploadedByEmail: user?.email ?? null,
     });
-
     setPendingItems([]);
     addToast(`${initialItems.length} file${initialItems.length !== 1 ? 's' : ''} queued for upload`, 'success');
   };
@@ -153,19 +127,17 @@ export default function ClientAssetsPage() {
   const handleDownloadZip = async () => {
     if (!client) return;
     setDownloadingZip(true);
-
     try {
       const res = await fetch(`/api/clients/${clientId}/download-zip`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({})) as { error?: string };
-        const message = json.error ?? `Download failed (HTTP ${res.status})`;
-        addToast(res.status === 404 && message.includes('No R2-hosted assets') ? 'No downloadable files found for this client' : message, 'error');
+        const msg  = json.error ?? `Download failed (HTTP ${res.status})`;
+        addToast(res.status === 404 && msg.includes('No R2-hosted assets') ? 'No downloadable files found for this client' : msg, 'error');
         return;
       }
-
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
       a.href = url;
       a.download = `${client.name.replace(/[^a-z0-9_\- ]/gi, '_')}.zip`;
       document.body.appendChild(a);
@@ -182,21 +154,13 @@ export default function ClientAssetsPage() {
 
   const handleDeleteAsset = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
-    const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
+    const res  = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
     const json = await res.json() as { error?: string };
-
-    if (!res.ok) {
-      addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
-      return;
-    }
-
-    setAssets(prev => prev.filter(row => row.id !== asset.id));
+    if (!res.ok) { addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error'); return; }
+    setAssets(prev => prev.filter(a => a.id !== asset.id));
     addToast('File deleted', 'success');
-
     await supabase.from('activities').insert({
-      type: 'delete',
-      description: `Asset "${asset.name}" deleted`,
-      client_id: clientId,
+      type: 'delete', description: `Asset "${asset.name}" deleted`, client_id: clientId,
     });
   };
 
@@ -206,20 +170,6 @@ export default function ClientAssetsPage() {
       addToast('Link copied', 'success');
     } catch {
       addToast('Failed to copy link', 'error');
-    }
-  };
-
-  const handleViewAsset = async (asset: Asset) => {
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`);
-      if (!res.ok) {
-        setPreviewAsset(asset);
-        return;
-      }
-      const json = await res.json() as { asset?: Asset };
-      setPreviewAsset(json.asset ?? asset);
-    } catch {
-      setPreviewAsset(asset);
     }
   };
 
@@ -241,99 +191,61 @@ export default function ClientAssetsPage() {
 
   return (
     <div className="space-y-4">
-      <SmartSuggestionCards
-        storageKey={`openy_suggestions_client_assets_${clientId}`}
-        items={[
-          {
-            id: 'organize-folder',
-            title: 'Organize into folders?',
-            description: 'Group assets by campaign type to keep retrieval instant.',
-          },
-          {
-            id: 'upload-brand-files',
-            title: 'Upload brand assets?',
-            description: 'Start with logos, style guides, and reusable templates.',
-          },
-        ]}
-      />
-      <div className="glass-card p-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="input-glass h-9 w-full pl-8 pr-3 text-sm"
-              placeholder="Search asset name or file type"
-            />
-          </div>
-
-          <button
-            onClick={() => void handleDownloadZip()}
-            disabled={downloadingZip || assets.length === 0}
-            className="btn-secondary h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
-          >
-            <Download size={14} />
-            {downloadingZip ? 'Preparing download…' : 'Download Folder'}
-          </button>
-
-          <button
-            onClick={() => fileRef.current?.click()}
-            className={`h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 text-white transition-all ${showUploadHint ? 'animate-openy-scale-in' : ''}`}
-            style={{ background: showUploadHint ? 'var(--color-info)' : 'var(--accent)' }}
-          >
-            {showUploadHint ? <Sparkles size={14} /> : <Upload size={14} />}
-            {showUploadHint ? 'Upload Assets' : t('uploadFile')}
-          </button>
-
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            aria-label="Upload files"
-            className="hidden"
-            onChange={handleFileChosen}
-          />
-        </div>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => void handleDownloadZip()}
+          disabled={downloadingZip || assets.length === 0}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+        >
+          <Download size={14} />
+          {downloadingZip ? 'Preparing download…' : 'Download Client Folder'}
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: 'var(--accent)' }}
+        >
+          <Upload size={14} />{t('uploadFile')}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          aria-label="Upload files"
+          className="hidden"
+          onChange={handleFileChosen}
+        />
       </div>
 
-      {filteredAssets.length === 0 ? (
-        <div className="glass-card">
-          <EmptyState
-            icon={Upload}
-            title="No assets yet"
-            description="Upload campaign files, references, and deliverables for this client workspace."
-            action={(
-              <button onClick={() => fileRef.current?.click()} className="btn-primary h-9 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2">
-                <Upload size={14} /> Upload asset
-              </button>
-            )}
-            suggestions={[
-              {
-                title: 'Upload brand assets',
-                description: 'Start with logo files, visuals, and brand references.',
-              },
-              {
-                title: 'Organize into folders',
-                description: 'Group files by type to keep this client workspace tidy.',
-              },
-            ]}
-          />
-        </div>
+      {assets.length === 0 ? (
+        <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>{t('noAssetsYet')}</div>
       ) : (
         <AssetsGrid
-          assets={filteredAssets}
+          assets={assets}
           canDelete={user?.role === 'admin' || user?.role === 'owner'}
-          onView={asset => { void handleViewAsset(asset); }}
+          onView={asset => setPreviewAsset(asset)}
           onDelete={asset => void handleDeleteAsset(asset)}
           onCopyLink={asset => void handleCopyAssetLink(asset)}
         />
       )}
 
+      {/* Asset preview modal */}
       {previewAsset && (
-        <AssetPreviewModal asset={toPreviewInput(previewAsset)} onClose={() => setPreviewAsset(null)} />
+        <FilePreviewModal
+          file={{
+            name:        previewAsset.name,
+            url:         previewAsset.preview_url || previewAsset.file_url,
+            downloadUrl: previewAsset.download_url ?? previewAsset.file_url,
+            openUrl:     previewAsset.web_view_link || previewAsset.view_url || null,
+            mimeType:    previewAsset.file_type ?? previewAsset.mime_type ?? null,
+            size:        previewAsset.file_size ?? null,
+          }}
+          onClose={() => setPreviewAsset(null)}
+        />
       )}
 
+      {/* Upload modal */}
       {pendingItems.length > 0 && client && (
         <UploadModal
           files={pendingItems}
@@ -348,18 +260,16 @@ export default function ClientAssetsPage() {
           onSubCategoryChange={setUploadSubCategory}
           onMonthChange={setUploadMonthKey}
           onUploadNameChange={(itemId, name) =>
-            setPendingItems(prev => prev.map(item => (item.id === itemId ? { ...item, uploadName: name } : item)))
+            setPendingItems(prev => prev.map(i => i.id === itemId ? { ...i, uploadName: name } : i))
           }
           onRemoveFile={itemId => {
-            const removed = pendingItems.find(item => item.id === itemId);
+            const removed = pendingItems.find(i => i.id === itemId);
             if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
-            setPendingItems(prev => prev.filter(item => item.id !== itemId));
+            setPendingItems(prev => prev.filter(i => i.id !== itemId));
           }}
           onConfirm={handleUploadConfirm}
           onCancel={() => {
-            pendingItems.forEach(item => {
-              if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-            });
+            pendingItems.forEach(i => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl); });
             setPendingItems([]);
           }}
         />

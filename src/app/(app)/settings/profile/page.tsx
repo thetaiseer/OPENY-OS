@@ -21,12 +21,12 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
       style={{
-        background: ok ? 'var(--accent-soft)' : 'var(--surface-2)',
-        color: ok ? 'var(--accent)' : 'var(--text-secondary)',
-        border: `1px solid ${ok ? 'var(--accent-glow)' : 'var(--border)'}`,
+        background: ok ? 'rgba(22,163,74,0.10)' : 'rgba(239,68,68,0.10)',
+        color:      ok ? '#16a34a'               : '#ef4444',
+        border:     `1px solid ${ok ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
       }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: ok ? 'var(--accent)' : 'var(--text-tertiary)' }} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: ok ? '#16a34a' : '#ef4444' }} />
       {label}
     </span>
   );
@@ -38,7 +38,7 @@ function DiagRow({ label, value, ok }: { label: string; value: string; ok?: bool
       <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span
         className="font-mono truncate max-w-[180px] text-right"
-        style={{ color: ok === false ? 'var(--text-tertiary)' : ok === true ? 'var(--accent)' : 'var(--text)' }}
+        style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
       >
         {value}
       </span>
@@ -72,18 +72,20 @@ function R2StorageCard() {
 
   return (
     <div
-      className="app-card app-card--info p-6 space-y-5"
+      className="rounded-2xl border p-6 space-y-5"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="icon-box icon-box--accent"><HardDrive size={18} /></span>
+          <HardDrive size={18} style={{ color: 'var(--accent)' }} />
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Cloudflare R2 Storage</h2>
         </div>
         <button
           onClick={fetchStatus}
           disabled={loading}
           title="Refresh status"
-          className="btn-icon"
+          className="flex items-center justify-center w-8 h-8 rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
+          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
         >
           {loading ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
         </button>
@@ -103,13 +105,13 @@ function R2StorageCard() {
           <div
             className="flex items-start gap-3 rounded-xl p-4"
             style={{
-              background: status?.configured ? 'var(--accent-soft)' : 'var(--surface-2)',
-              border: `1px solid ${status?.configured ? 'var(--accent-glow)' : 'var(--border)'}`,
+              background:  status?.configured ? 'rgba(22,163,74,0.06)' : 'rgba(239,68,68,0.06)',
+              border: `1px solid ${status?.configured ? 'rgba(22,163,74,0.20)' : 'rgba(239,68,68,0.20)'}`,
             }}
           >
             {status?.configured
-              ? <CheckCircle size={17} style={{ color: 'var(--accent)' }} className="shrink-0 mt-0.5" />
-              : <AlertCircle size={17} style={{ color: 'var(--text-tertiary)' }} className="shrink-0 mt-0.5" />}
+              ? <CheckCircle size={17} style={{ color: '#16a34a' }} className="shrink-0 mt-0.5" />
+              : <AlertCircle size={17} style={{ color: '#ef4444' }} className="shrink-0 mt-0.5" />}
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
@@ -119,13 +121,13 @@ function R2StorageCard() {
               </div>
               {!status?.configured && (status?.missingVars?.length ?? 0) > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Missing environment variable(s):</p>
+                  <p className="text-xs" style={{ color: '#ef4444' }}>Missing environment variable(s):</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {status!.missingVars.map(v => (
                       <code
                         key={v}
                         className="px-1 rounded text-xs"
-                        style={{ background: 'var(--surface-3)', fontFamily: 'monospace', color: 'var(--text-tertiary)' }}
+                        style={{ background: 'rgba(239,68,68,0.12)', fontFamily: 'monospace', color: '#ef4444' }}
                       >
                         {v}
                       </code>
@@ -155,7 +157,8 @@ function R2StorageCard() {
           href="https://dash.cloudflare.com/?to=/:account/r2"
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-secondary h-9 px-4 text-sm font-medium"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
         >
           <CloudLightning size={15} /> Open Cloudflare R2
         </a>
@@ -168,7 +171,7 @@ function R2StorageCard() {
 
 export default function SettingsProfilePage() {
   const { user, role, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, t } = useLang();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -196,7 +199,7 @@ export default function SettingsProfilePage() {
   return (
     <div className="space-y-6">
       {/* Profile */}
-      <div className="app-card app-card--info p-6 space-y-4">
+      <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Profile</h2>
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white" style={{ background: 'var(--accent)' }}>
@@ -210,29 +213,20 @@ export default function SettingsProfilePage() {
       </div>
 
       {/* Appearance */}
-      <div className="app-card app-card--info p-6 space-y-4">
+      <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Appearance</h2>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Theme</p>
-            <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>Currently: {theme}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Currently: {theme}</p>
           </div>
-          <div className="flex items-center gap-1.5">
-            {(['light', 'dark', 'dim'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTheme(t)}
-                className="btn-secondary h-8 px-3 text-xs font-medium capitalize"
-                style={{
-                  background: theme === t ? 'var(--accent-soft)' : 'var(--surface-2)',
-                  color: theme === t ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${theme === t ? 'var(--accent-glow)' : 'var(--border)'}`,
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={toggleTheme}
+            className="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          >
+            Switch to {theme === 'light' ? 'Dark' : 'Light'}
+          </button>
         </div>
         <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <div>
@@ -243,7 +237,8 @@ export default function SettingsProfilePage() {
           </div>
           <button
             onClick={toggleLang}
-            className="btn-secondary h-9 px-4 text-sm font-medium"
+            className="h-9 px-4 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
           >
             Switch to {lang === 'en' ? 'Arabic' : 'English'}
           </button>
@@ -254,9 +249,9 @@ export default function SettingsProfilePage() {
       {isAdmin && <R2StorageCard />}
 
       {/* Role & Access */}
-      <div className="app-card app-card--info p-6 space-y-4">
+      <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-2">
-          <span className="icon-box icon-box--accent"><ShieldCheck size={18} /></span>
+          <ShieldCheck size={18} style={{ color: 'var(--accent)' }} />
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Role & Access</h2>
         </div>
         <div
@@ -288,12 +283,12 @@ export default function SettingsProfilePage() {
       </div>
 
       {/* Sign Out */}
-      <div className="app-card app-card--info p-6">
+      <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text)' }}>Session</h2>
         {signOutError && (
           <div
             className="mb-3 px-3 py-2 rounded-lg text-sm"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
           >
             {signOutError}
           </div>
@@ -301,7 +296,8 @@ export default function SettingsProfilePage() {
         <button
           onClick={handleSignOut}
           disabled={signingOut}
-          className="btn-secondary flex items-center gap-2 h-9 px-4 text-sm font-medium disabled:opacity-50"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
         >
           <LogOut size={15} /> {signingOut ? 'Signing out…' : 'Sign out'}
         </button>

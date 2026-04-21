@@ -2,19 +2,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
-import AppTopbar from '@/components/layout/AppTopbar';
-import AppShellLayout from '@/components/layout/AppShell';
-import { AppPage } from '@/components/layout/AppPage';
+import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
-import GlobalQuickAdd from '@/components/layout/GlobalQuickAdd';
+import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
+import GlobalQuickActionModalHost from '@/components/layout/GlobalQuickActionModalHost';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
 import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
 import { AiProvider, useAi } from '@/lib/ai-context';
 import { queryClient } from '@/app/providers';
+import { QuickActionsProvider } from '@/lib/quick-actions-context';
 
 // Lazy-load non-critical panels after the page shell has rendered.
 // ssr: false ensures these are client-only (they use browser APIs) and avoids
@@ -39,8 +38,7 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // ── Inner layout — needs access to CommandPaletteContext ──────────────────────
 
-function AppLayoutInner({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -132,19 +130,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     function handleAiShortcut(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
         e.preventDefault();
-        let clientContext: { id?: string; name?: string; slug?: string } | undefined;
-        if (window.location.pathname.includes('/clients/')) {
-          try {
-            const saved = window.localStorage.getItem('openy_last_client');
-            if (saved) {
-              const parsed = JSON.parse(saved) as { id?: string; name?: string; slug?: string };
-              if (parsed?.id) clientContext = parsed;
-            }
-          } catch {
-            // ignore
-          }
-        }
-        openAi({ clientContext });
+        openAi();
       }
     }
     window.addEventListener('keydown', handleAiShortcut);
@@ -158,25 +144,16 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     };
   }, [openAi]);
 
-  useEffect(() => {
-    if (!pathname) return;
-    try {
-      window.localStorage.setItem('openy_last_opened_page', pathname);
-    } catch {
-      // ignore storage errors
-    }
-  }, [pathname]);
-
   return (
-    <>
-      <AppShellLayout
-        workspaceClassName="os-workspace"
-        sidebar={<Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
-        topbar={<AppTopbar onMenuClick={() => setSidebarOpen(true)} />}
-      >
-        <AppPage>{children}</AppPage>
-      </AppShellLayout>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto app-shell-main">{children}</main>
+      </div>
 
+      <GlobalQuickActionsFab />
+      <GlobalQuickActionModalHost />
       {/* Global upload queue panel — visible across all routes */}
       <GlobalUploadQueue />
       <AiCommandCenter />
@@ -184,9 +161,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       <NotificationRealtimeSync />
       {/* Universal command palette — CMD+K */}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
-      {/* Global quick add FAB */}
-      <GlobalQuickAdd />
-    </>
+    </div>
   );
 }
 
@@ -195,11 +170,13 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <UploadProvider>
-      <CommandPaletteProvider>
-        <AiProvider>
-          <AppLayoutInner>{children}</AppLayoutInner>
-        </AiProvider>
-      </CommandPaletteProvider>
+      <QuickActionsProvider>
+        <CommandPaletteProvider>
+          <AiProvider>
+            <AppShell>{children}</AppShell>
+          </AiProvider>
+        </CommandPaletteProvider>
+      </QuickActionsProvider>
     </UploadProvider>
   );
 }

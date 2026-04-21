@@ -1,4 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+// Self-hosted via @fontsource/cairo — no network fetch at build time.
+import '@fontsource/cairo/arabic-300.css';
+import '@fontsource/cairo/arabic-400.css';
+import '@fontsource/cairo/arabic-500.css';
+import '@fontsource/cairo/arabic-600.css';
+import '@fontsource/cairo/arabic-700.css';
+import '@fontsource/cairo/latin-300.css';
+import '@fontsource/cairo/latin-400.css';
+import '@fontsource/cairo/latin-500.css';
+import '@fontsource/cairo/latin-600.css';
+import '@fontsource/cairo/latin-700.css';
 import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { LangProvider } from '@/lib/lang-context';
@@ -20,7 +31,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#ffffff',
+  themeColor: '#6366f1',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
-              <Providers>{children}</Providers>
+              <Providers>
+                {children}
+              </Providers>
             </AuthProvider>
           </LangProvider>
         </ThemeProvider>

@@ -10,7 +10,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Bell, Info, CheckCircle, AlertTriangle, XCircle,
-  Check, CheckCheck, ExternalLink,
+  Check, CheckCheck, ExternalLink, Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -114,6 +114,13 @@ export default function NotificationDropdown() {
     } catch { /* best-effort */ }
   };
 
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const deleteNotif = async (id: string, wasUnread: boolean) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    if (wasUnread) setUnreadCount(c => Math.max(0, c - 1));
+    try { await fetch(`/api/notifications/${id}`, { method: 'DELETE' }); } catch { /* best-effort */ }
+  };
+
   // ── Mark all as read ─────────────────────────────────────────────────────
   const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -134,7 +141,7 @@ export default function NotificationDropdown() {
       {/* Bell button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="relative topbar-icon-btn"
+        className="relative p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
         style={{ color: 'var(--text-secondary)' }}
         aria-label="Notifications"
       >
@@ -152,9 +159,11 @@ export default function NotificationDropdown() {
       {/* Dropdown */}
       {open && (
         <div
-          className="openy-menu-panel absolute right-0 top-full mt-2 rounded-2xl overflow-hidden z-[200] animate-openy-slide-down"
+          className="absolute right-0 top-full mt-2 rounded-2xl shadow-xl border overflow-hidden z-[200]"
           style={{
             width: 360,
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
           }}
         >
           {/* Header */}
@@ -173,11 +182,11 @@ export default function NotificationDropdown() {
               )}
             </span>
             {unread > 0 && (
-                <button
-                  onClick={markAllRead}
-                  className="btn-ghost flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
-                  style={{ color: 'var(--accent)' }}
-                >
+              <button
+                onClick={markAllRead}
+                className="flex items-center gap-1 text-xs hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--accent)' }}
+              >
                 <CheckCheck size={12} /> Mark all read
               </button>
             )}
@@ -204,7 +213,7 @@ export default function NotificationDropdown() {
                   return (
                     <div
                       key={n.id}
-                      className="openy-menu-item flex items-start gap-3 px-4 py-3 group"
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-2)] transition-colors group"
                       style={{
                         borderLeft: n.read ? 'none' : '3px solid ' + color,
                         // Compensate left-padding so content stays aligned when the 3px indicator border is shown
@@ -261,6 +270,14 @@ export default function NotificationDropdown() {
                             <Check size={12} />
                           </button>
                         )}
+                        <button
+                          onClick={() => deleteNotif(n.id, !n.read)}
+                          className="p-1 rounded-lg hover:bg-[var(--border)] transition-colors"
+                          style={{ color: 'var(--text-secondary)' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
                   );
@@ -277,7 +294,7 @@ export default function NotificationDropdown() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="btn-ghost block text-center text-xs font-medium rounded-lg py-1.5"
+              className="block text-center text-xs font-medium hover:opacity-70 transition-opacity"
               style={{ color: 'var(--accent)' }}
             >
               View all notifications →

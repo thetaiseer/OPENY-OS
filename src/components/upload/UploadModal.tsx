@@ -14,7 +14,7 @@
  *  - Consistent design system styling
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, FileImage, FileText, FileVideo, FileAudio, File, Plus } from 'lucide-react';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
@@ -57,6 +57,7 @@ export interface UploadModalProps {
   onNewClientCreated?:  (client: Client) => void;
   onUploadNameChange:   (id: string, name: string) => void;
   onRemoveFile:         (id: string) => void;
+  onAddFiles?:          (files: FileList) => void;
   onConfirm:            () => void;
   /** Upload files and open scheduling modal immediately after */
   onConfirmAndSchedule?: () => void;
@@ -130,10 +131,10 @@ function FileRow({
 
   return (
     <div
-      className="rounded-xl p-3 space-y-2.5 transition-colors"
+      className="rounded-xl border p-3 space-y-2.5 transition-colors"
       style={{
-        background:   'color-mix(in srgb, var(--surface-2) 82%, transparent)',
-        border:       `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'color-mix(in srgb, var(--border) 86%, transparent)'}`,
+        background:   'var(--surface-2)',
+        borderColor:  error ? 'rgba(239,68,68,0.5)' : 'var(--border)',
       }}
     >
       {/* Top row: icon + original name + size + remove */}
@@ -163,11 +164,11 @@ function FileRow({
         </div>
         <button
           type="button"
-            onClick={onRemove}
-            className="btn-icon shrink-0 flex items-center justify-center rounded-md hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--text-secondary)', width: '1.6rem', height: '1.6rem' }}
-            title="Remove file"
-          >
+          onClick={onRemove}
+          className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:opacity-70 transition-opacity"
+          style={{ color: 'var(--text-secondary)' }}
+          title="Remove file"
+        >
           <X size={13} />
         </button>
       </div>
@@ -192,10 +193,11 @@ function FileRow({
           value={item.uploadName}
           onChange={e => onChangeName(e.target.value)}
           placeholder="Enter file name..."
-          className="openy-field w-full h-10 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
+          className="w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all"
           style={{
+            background:  'var(--surface)',
             color:       'var(--text)',
-            border:      `1px solid ${error ? 'rgba(239,68,68,0.6)' : 'var(--border)'}`,
+            border:      `1.5px solid ${error ? 'rgba(239,68,68,0.6)' : 'var(--border)'}`,
           }}
         />
         {error && (
@@ -224,11 +226,13 @@ export default function UploadModal({
   onNewClientCreated,
   onUploadNameChange,
   onRemoveFile,
+  onAddFiles,
   onConfirm,
   onConfirmAndSchedule,
   onCancel,
 }: UploadModalProps) {
   const [showCreateClient, setShowCreateClient] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasErrors  = files.some(f => validateUploadName(f.uploadName) !== null);
   const canConfirm = files.length > 0 && !hasErrors && (lockClient || !!clientName) && !!mainCategory;
@@ -258,34 +262,37 @@ export default function UploadModal({
   return (
     <>
       <div
-        className="openy-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.65)' }}
         onClick={onCancel}
       >
         <div
-          className="openy-modal-panel openy-modal-shell w-full max-w-xl rounded-2xl flex flex-col max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-2rem)] my-auto overflow-hidden"
+          className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col"
           style={{
-            animation: 'openy-modal-in 280ms var(--ease-spring) both',
+            background:   'var(--surface)',
+            borderColor:  'var(--border)',
+            maxHeight:    '92vh',
           }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
           <div
-            className="openy-modal-header flex items-start justify-between px-5 sm:px-6 py-4 border-b shrink-0"
+            className="flex items-center justify-between px-6 py-4 border-b shrink-0"
             style={{ borderColor: 'var(--border)' }}
           >
             <div>
-              <h2 className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>
-                Upload {files.length === 1 ? 'File' : `${files.length} Files`}
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
+                {files.length === 0 ? 'Upload Files' : (files.length === 1 ? 'Upload File' : `Upload ${files.length} Files`)}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Add media and metadata before final upload
+                Review details before uploading
               </p>
             </div>
             <button
               type="button"
               onClick={onCancel}
-              className="btn-icon openy-modal-close"
-              style={{ color: 'var(--text-secondary)' }}
+              className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
               title="Cancel"
             >
               <X size={16} />
@@ -293,11 +300,41 @@ export default function UploadModal({
           </div>
 
           {/* Scrollable body */}
-          <div className="openy-modal-body flex-1 overflow-y-auto px-5 sm:px-6 py-4 sm:py-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
             {/* File list */}
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-              {files.map(item => (
+              {files.length === 0 ? (
+                <div
+                  className="rounded-xl border border-dashed p-4 text-center space-y-2"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                >
+                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>No files selected</p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose files to continue</p>
+                  {onAddFiles && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={e => {
+                          if (e.target.files?.length) onAddFiles(e.target.files);
+                          e.currentTarget.value = '';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 px-3 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                      >
+                        Choose Files
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : files.map(item => (
                 <FileRow
                   key={item.id}
                   item={item}
@@ -307,7 +344,10 @@ export default function UploadModal({
               ))}
             </div>
 
-            <div className="space-y-4">
+            <div
+              className="rounded-2xl border p-4 space-y-4"
+              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+            >
               {/* Client selector */}
               {!lockClient && (
                 <div>
@@ -382,14 +422,18 @@ export default function UploadModal({
 
           {/* Footer */}
           <div
-            className="openy-modal-header flex items-center gap-2.5 px-5 sm:px-6 py-3.5 border-t shrink-0"
+            className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
             style={{ borderColor: 'var(--border)' }}
-            data-modal-footer="true"
           >
             <button
               type="button"
               onClick={onCancel}
-              className="btn-secondary flex-1 h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+              className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{
+                background: 'var(--surface-2)',
+                color:      'var(--text)',
+                border:     '1px solid var(--border)',
+              }}
             >
               Cancel
             </button>
@@ -398,8 +442,8 @@ export default function UploadModal({
                 type="button"
                 onClick={onConfirmAndSchedule}
                 disabled={!canConfirm}
-                className="btn-secondary flex-1 h-10 rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ color: 'var(--accent)', borderColor: 'var(--accent-glow)' }}
+                className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
               >
                 Upload &amp; Schedule
               </button>
@@ -408,7 +452,8 @@ export default function UploadModal({
               type="button"
               onClick={onConfirm}
               disabled={!canConfirm}
-              className="btn-primary flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'var(--accent)' }}
             >
               {files.length === 1
                 ? 'Upload File'
@@ -428,3 +473,4 @@ export default function UploadModal({
     </>
   );
 }
+

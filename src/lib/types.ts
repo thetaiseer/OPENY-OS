@@ -215,8 +215,6 @@ export interface Asset {
   sub_category?: string | null;
   /** Canonical storage key: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-{file} */
   storage_key?: string | null;
-  /** Canonical storage path for preview resolution. */
-  storage_path?: string | null;
   created_at: string;
 }
 
@@ -297,15 +295,25 @@ export interface Comment {
   created_at: string;
 }
 
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+export type NotificationCategory = 'tasks' | 'content' | 'assets' | 'team' | 'system';
+
 export interface Notification {
   id: string;
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
-  category?: 'task' | 'content' | 'system' | 'team' | null;
-  priority?: 'low' | 'medium' | 'high' | 'critical' | null;
   read: boolean;
+  /** Optional: set by read action */
   read_at?: string | null;
+  /** Priority level — drives visual treatment and email urgency */
+  priority?: NotificationPriority;
+  /** Module category for tab filtering */
+  category?: NotificationCategory | null;
+  /** Soft-delete — archived notifications are hidden from main view */
+  is_archived?: boolean;
+  actor_id?: string | null;
+  metadata?: Record<string, unknown> | null;
   client_id?: string | null;
   user_id?: string | null;
   task_id?: string | null;
@@ -313,9 +321,63 @@ export interface Notification {
   entity_id?: string | null;
   action_url?: string | null;
   event_type?: string | null;
-  dedupe_key?: string | null;
+  /** Whether delivered in-app */
+  delivered_in_app?: boolean;
+  /** Whether email was sent */
+  delivered_email?: boolean;
+  workspace_id?: string | null;
+  idempotency_key?: string | null;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  event_type: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  realtime_enabled: boolean;
+  digest_enabled: boolean;
+  mute_until?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReminderStatus = 'pending' | 'sent' | 'cancelled' | 'failed';
+
+export interface ScheduledReminder {
+  id: string;
+  workspace_id?: string | null;
+  target_user_id?: string | null;
+  event_type: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  scheduled_for: string;
+  status: ReminderStatus;
+  idempotency_key?: string | null;
+  created_at: string;
+  sent_at?: string | null;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  workspace_id?: string | null;
+  /** UUID FK to profiles — canonical actor reference */
+  actor_id?: string | null;
+  /** @deprecated use actor_id (UUID) */
+  user_id?: string | null;
+  /** @deprecated use actor_id (UUID) */
+  user_uuid?: string | null;
+  type: string;
+  category?: NotificationCategory | null;
+  title?: string | null;
+  description: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  before_value?: Record<string, unknown> | null;
+  after_value?: Record<string, unknown> | null;
   metadata_json?: Record<string, unknown> | null;
-  delivery_channels?: string[] | null;
+  client_id?: string | null;
   created_at: string;
 }
 

@@ -249,57 +249,146 @@ export function deadlineAlertEmail(opts: {
   <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:20px 24px;margin-bottom:24px">
     <p style="margin:0;font-weight:600;color:#111">${opts.taskTitle}</p>
   </div>
-  <a href="${opts.appUrl}/tasks" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">View Task →</a>
+  <a href="${opts.appUrl}/os/tasks" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">View Task →</a>
 </div>`;
 }
 
-export function genericNotificationEmail(opts: {
+export function publishFailedEmail(opts: {
   recipientName: string;
-  title: string;
-  message: string;
-  ctaLabel: string;
-  ctaUrl: string;
-  accent?: string;
-}): string {
-  const accent = opts.accent ?? '#6366f1';
-  return `
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f4f5ff">
-  <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
-    <div style="padding:18px 22px;background:${accent};color:#fff">
-      <h2 style="margin:0;font-size:18px;font-weight:700">OPENY OS</h2>
-    </div>
-    <div style="padding:24px 22px">
-      <p style="margin:0 0 10px;color:#111;font-weight:600">Hi ${opts.recipientName},</p>
-      <h3 style="margin:0 0 8px;color:#111">${opts.title}</h3>
-      <p style="margin:0 0 20px;color:#4b5563;line-height:1.6">${opts.message}</p>
-      <a href="${opts.ctaUrl}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">${opts.ctaLabel}</a>
-    </div>
-  </div>
-</div>`;
-}
-
-export function dailyTaskDigestEmail(opts: {
-  recipientName: string;
-  pendingTasks: string[];
-  overdueTasks: string[];
+  contentTitle?: string;
+  scheduledDate?: string;
+  reason?: string;
   appUrl: string;
 }): string {
-  const pendingList = opts.pendingTasks.length
-    ? `<ul style="margin:8px 0 0;padding-left:18px;color:#374151">${opts.pendingTasks.map(t => `<li>${t}</li>`).join('')}</ul>`
-    : '<p style="margin:8px 0 0;color:#6b7280">No pending tasks 🎉</p>';
-  const overdueList = opts.overdueTasks.length
-    ? `<ul style="margin:8px 0 0;padding-left:18px;color:#b91c1c">${opts.overdueTasks.map(t => `<li>${t}</li>`).join('')}</ul>`
-    : '<p style="margin:8px 0 0;color:#6b7280">No overdue tasks ✅</p>';
-  return `
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 10px;color:#111">Daily Task Summary</h2>
-  <p style="margin:0 0 18px;color:#4b5563">Hi ${opts.recipientName}, here is your daily OPENY OS summary.</p>
-  <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px">
-    <p style="margin:0;font-weight:700;color:#111">Pending Tasks</p>${pendingList}
-  </div>
-  <div style="border:1px solid #fecaca;background:#fff5f5;border-radius:12px;padding:14px 16px">
-    <p style="margin:0;font-weight:700;color:#991b1b">Overdue Tasks</p>${overdueList}
-  </div>
-  <p style="margin:18px 0 0"><a href="${opts.appUrl}/tasks/my" style="color:#6366f1;font-weight:600;text-decoration:none">Open My Tasks →</a></p>
-</div>`;
+  const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Publish Failed</title></head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f0f0">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" style="background-color:#dc2626;padding:28px 32px;border-radius:12px 12px 0 0;">
+          <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">OPENY OS</h1>
+          <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.85);">🚨 Content Publish Failed</p>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:32px;border:1px solid #e0e0e0;border-top:none;">
+          <p style="margin:0 0 16px;font-size:17px;font-weight:bold;color:#111111;">Hi ${firstName},</p>
+          <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+            A scheduled content item <strong>failed to publish</strong> at its scheduled time and requires your attention.
+          </p>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+            ${opts.contentTitle ? `<p style="margin:0 0 6px;font-weight:600;color:#111;">${opts.contentTitle}</p>` : ''}
+            ${opts.scheduledDate ? `<p style="margin:0 0 6px;color:#555;font-size:14px;">Scheduled: <strong>${opts.scheduledDate}</strong></p>` : ''}
+            ${opts.reason ? `<p style="margin:0;color:#dc2626;font-size:14px;">Reason: ${opts.reason}</p>` : ''}
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#dc2626;border-radius:8px;">
+              <a href="${opts.appUrl}/os/calendar" target="_blank"
+                 style="display:inline-block;color:#ffffff;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;">
+                Review in Calendar →
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:12px 32px 20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#aaaaaa;">&copy; ${new Date().getFullYear()} OPENY OS. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+export function uploadFailedEmail(opts: {
+  recipientName: string;
+  assetName?: string;
+  reason?: string;
+  appUrl: string;
+}): string {
+  const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Upload Failed</title></head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f0f0">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" style="background-color:#f59e0b;padding:28px 32px;border-radius:12px 12px 0 0;">
+          <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">OPENY OS</h1>
+          <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.85);">🚨 File Upload Failed</p>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:32px;border:1px solid #e0e0e0;border-top:none;">
+          <p style="margin:0 0 16px;font-size:17px;font-weight:bold;color:#111111;">Hi ${firstName},</p>
+          <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+            A file upload <strong>failed</strong> and the asset was not saved. Please try again or contact support if the problem persists.
+          </p>
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+            ${opts.assetName ? `<p style="margin:0 0 6px;font-weight:600;color:#111;">${opts.assetName}</p>` : ''}
+            ${opts.reason ? `<p style="margin:0;color:#92400e;font-size:14px;">Reason: ${opts.reason}</p>` : ''}
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#f59e0b;border-radius:8px;">
+              <a href="${opts.appUrl}/os/assets" target="_blank"
+                 style="display:inline-block;color:#ffffff;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;">
+                Go to Assets →
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:12px 32px 20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#aaaaaa;">&copy; ${new Date().getFullYear()} OPENY OS. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+export function criticalSystemAlertEmail(opts: {
+  recipientName: string;
+  errorDescription: string;
+  details?: string;
+  appUrl: string;
+}): string {
+  const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Critical System Alert</title></head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f0f0">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" style="background-color:#111111;padding:28px 32px;border-radius:12px 12px 0 0;">
+          <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ef4444;font-family:Arial,Helvetica,sans-serif;">⚠ CRITICAL ALERT</h1>
+          <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7);">OPENY OS System Alert</p>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:32px;border:1px solid #e0e0e0;border-top:none;">
+          <p style="margin:0 0 16px;font-size:17px;font-weight:bold;color:#111111;">Hi ${firstName},</p>
+          <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+            A <strong style="color:#dc2626;">critical system error</strong> has been detected in OPENY OS that requires immediate attention.
+          </p>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+            <p style="margin:0 0 8px;font-weight:600;color:#dc2626;">${opts.errorDescription}</p>
+            ${opts.details ? `<p style="margin:0;color:#555;font-size:13px;font-family:monospace;white-space:pre-wrap;">${opts.details}</p>` : ''}
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#dc2626;border-radius:8px;">
+              <a href="${opts.appUrl}/os/settings" target="_blank"
+                 style="display:inline-block;color:#ffffff;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;">
+                View System Settings →
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background-color:#ffffff;padding:12px 32px 20px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#aaaaaa;">&copy; ${new Date().getFullYear()} OPENY OS. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }
