@@ -28,13 +28,13 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`w-full ${widthMap[size]} rounded-t-3xl sm:rounded-2xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
+        className={`w-full ${widthMap[size]} rounded-t-3xl sm:rounded-3xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
         style={{
           background: 'var(--surface-elevated)',
           backdropFilter: 'var(--blur-panel)',
           WebkitBackdropFilter: 'var(--blur-panel)',
           borderColor: 'var(--border-glass)',
-          boxShadow: 'var(--shadow-lg)',
+          boxShadow: 'var(--shadow-lg), var(--highlight-inset)',
         }}
       >
         <div

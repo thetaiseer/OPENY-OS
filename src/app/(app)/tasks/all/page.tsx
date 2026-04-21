@@ -1508,7 +1508,7 @@ function TasksPage() {
     .filter(Boolean).length;
 
   return (
-    <div className="app-page-shell max-w-7xl mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
+    <div className="app-page-shell openy-tasks-page max-w-7xl mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -1519,7 +1519,7 @@ function TasksPage() {
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="rounded-2xl border p-4 sm:p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="openy-card rounded-2xl border p-4 sm:p-6" style={{ borderColor: 'var(--border-glass)' }}>
         <div className="app-page-header">
           <div>
             <h1 className="app-page-title">{t('tasks')}</h1>
@@ -1531,7 +1531,7 @@ function TasksPage() {
             <div
               role="tablist"
               aria-label="Task views"
-              className="inline-flex items-center gap-1 rounded-lg p-1"
+              className="openy-segmented"
               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
             >
               <button
@@ -1591,7 +1591,7 @@ function TasksPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border p-4 sm:p-5 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="openy-card rounded-2xl border p-4 sm:p-5 space-y-4" style={{ borderColor: 'var(--border-glass)' }}>
         <div className="flex items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
@@ -1721,7 +1721,7 @@ function TasksPage() {
           }
         />
       ) : view === 'kanban' ? (
-        <div className="rounded-2xl border p-3 sm:p-5 overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
+        <div className="openy-card rounded-2xl border p-3 sm:p-5 overflow-hidden" style={{ borderColor: 'var(--border-glass)' }} role="tabpanel" id="tasks-kanban-panel" aria-labelledby="tasks-kanban-tab">
           <KanbanBoard
             tasks={filtered}
             team={team}

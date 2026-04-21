@@ -217,11 +217,12 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           onFocus={() => setFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search… (⌘K)"
-          className="w-full h-9 pl-9 pr-8 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
+          className="w-full h-10 pl-9 pr-8 rounded-pill text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
           style={{
-            background: 'var(--surface-2)',
+            background: 'var(--surface-shell)',
             color: 'var(--text)',
             border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-xs)',
           }}
           autoComplete="off"
           spellCheck={false}
@@ -241,11 +242,14 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       {isOpen && (
         <div
           ref={dropRef}
-          className="absolute top-full mt-2 left-0 right-0 rounded-2xl shadow-2xl border overflow-hidden z-[300]"
+          className="absolute top-full mt-2 left-0 right-0 rounded-3xl shadow-2xl border overflow-hidden z-[300]"
           style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
+            background: 'var(--surface-floating)',
+            borderColor: 'var(--border-glass)',
             minWidth: 320,
+            backdropFilter: 'var(--blur-panel)',
+            WebkitBackdropFilter: 'var(--blur-panel)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
           {/* Loading */}

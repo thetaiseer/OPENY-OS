@@ -70,7 +70,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           )}
           style={{
-            background: 'var(--sidebar-bg)',
+            background: 'var(--surface-shell)',
             borderColor: 'var(--sidebar-border)',
             backdropFilter: 'var(--blur-panel)',
             WebkitBackdropFilter: 'var(--blur-panel)',
@@ -121,20 +121,20 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-label={displayLabel}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all',
                   'lg:justify-center xl:justify-start',
                   active
                     ? 'text-[var(--accent)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
                 style={active ? {
-                  background: 'var(--accent-soft)',
-                  boxShadow: 'var(--shadow-xs)',
+                  background: 'var(--surface-active-chip)',
+                  boxShadow: 'var(--shadow-xs), var(--highlight-inset)',
                 } : {}}
               >
                 {/* Icon badge */}
                 <span
-                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all"
+                  className="w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 transition-all"
                   style={active ? {
                     background: 'var(--accent)',
                     color: '#fff',
