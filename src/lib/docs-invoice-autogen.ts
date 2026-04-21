@@ -1,267 +1,281 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// OPENY DOCS — Invoice Auto-Generation Algorithms ("Pro icon KSA")
-//
-// Implements the exact mathematical logic specified for OPENY DOCS:
-//   • splitBudget   – distributes a total into N parts with ±5–10% variance
-//   • generateDate  – spreads row dates across the first 15 days of a month
-//   • generateResults – calculates CPA-based results per platform
-//   • autoGenerateProIconKSA – top-level orchestrator (Total Budget → Branches)
-// ─────────────────────────────────────────────────────────────────────────────
-
 import type {
   InvoiceBranchGroup,
   InvoiceCampaignRow,
   InvoicePlatformGroup,
 } from '@/lib/docs-types';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+export type InvoiceTemplateName = 'Manual' | 'Pro icon KSA Template';
+
+interface PlatformTemplateSpec {
+  name: 'Instagram' | 'Snapchat' | 'TikTok';
+  rows: number;
+  weight: number;
+  resultSuffix: 'Messages' | 'Visits';
+  cpaRange: [number, number];
+}
+
+interface InvoiceTemplateSpec {
+  name: InvoiceTemplateName;
+  clientName: string;
+  branches: readonly string[];
+  branchWeights: readonly number[];
+  platforms: readonly PlatformTemplateSpec[];
+  defaultFinalBudget: number;
+  defaultFees: number;
+}
+
+export const INVOICE_TEMPLATES: Record<InvoiceTemplateName, InvoiceTemplateSpec> = {
+  Manual: {
+    name: 'Manual',
+    clientName: '',
+    branches: [],
+    branchWeights: [],
+    platforms: [],
+    defaultFinalBudget: 0,
+    defaultFees: 0,
+  },
+  'Pro icon KSA Template': {
+    name: 'Pro icon KSA Template',
+    clientName: 'Pro icon KSA',
+    branches: ['Riyadh', 'Jeddah', 'Khobar'],
+    branchWeights: [0.4, 0.33, 0.27],
+    platforms: [
+      { name: 'Instagram', rows: 6, weight: 0.5, resultSuffix: 'Messages', cpaRange: [20, 28] },
+      { name: 'Snapchat', rows: 4, weight: 0.3, resultSuffix: 'Visits', cpaRange: [4, 8] },
+      { name: 'TikTok', rows: 2, weight: 0.2, resultSuffix: 'Visits', cpaRange: [5, 10] },
+    ],
+    defaultFinalBudget: 49500,
+    defaultFees: 500,
+  },
+};
+
+export interface GenerateInvoiceFromTemplateParams {
+  templateName: InvoiceTemplateName;
+  campaignMonth: string;
+  invoiceDate?: string;
+  finalBudget?: number;
+  fees?: number;
+}
+
+export interface GeneratedInvoiceTemplate {
+  templateName: InvoiceTemplateName;
+  clientName: string;
+  finalBudget: number;
+  fees: number;
+  grandTotal: number;
+  branchGroups: InvoiceBranchGroup[];
+}
 
 const uid = (): string =>
   (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2, 11));
 
-// ── 1. splitBudget – variance distribution algorithm ──────────────────────────
-
-/**
- * Distributes `total` into `parts` integers with realistic ±5–10% per-slice
- * variance so the output does NOT look evenly divided.
- *
- * Rules (from spec):
- *  • Each intermediate slice gets avg ± (5–10)% random variance.
- *  • The last slice takes the exact remainder (no drift).
- *  • Result is sorted descending so the largest value comes first.
- */
-export function splitBudget(total: number, parts: number): number[] {
-  if (parts <= 0) return [];
-  if (parts === 1) return [total];
-
-  const splits: number[] = [];
-  let remaining = total;
-
-  for (let i = 0; i < parts - 1; i++) {
-    const avg = remaining / (parts - i);
-    // Magnitude factor: random value in [0.05, 0.10] → 5–10% of avg
-    // then applied positively or negatively for realistic human-like variance
-    const variance =
-      avg *
-      (Math.random() * 0.05 + 0.05) *
-      (Math.random() > 0.5 ? 1 : -1);
-    const current = Math.round(avg + variance);
-    splits.push(current);
-    remaining -= current;
+function hashString(input: string) {
+  let h = 1779033703 ^ input.length;
+  for (let i = 0; i < input.length; i += 1) {
+    h = Math.imul(h ^ input.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
   }
-
-  // Last part takes the exact remainder
-  splits.push(remaining);
-
-  // Always sort descending
-  return splits.sort((a, b) => b - a);
-}
-
-// ── 2. Date generation ────────────────────────────────────────────────────────
-
-/**
- * Generates a date string in "dd-MMM-yyyy" format, spreading `rowIndex` (0-based)
- * across the first 15 days of the given `campaignMonth` ("Mar-2026" format).
- *
- * Formula (from spec):
- *   step     = totalRows > 1 ? 14 / (totalRows - 1) : 0
- *   baseDay  = Math.round(1 + rowIndex * step)
- *   variance = Math.floor(Math.random() * 3) - 1   // -1, 0, or +1
- *   finalDay = clamp(baseDay + variance, 1, 15)
- */
-function generateDate(
-  rowIndex: number,
-  totalRows: number,
-  campaignMonth: string,
-): string {
-  // Parse "Mar-2026" → monthAbbr="Mar", year="2026"
-  const parts = campaignMonth.split('-');
-  const monthAbbr = parts[0] ?? 'Jan';
-  const year = parts[1] ?? String(new Date().getFullYear());
-
-  const step = totalRows > 1 ? 14 / (totalRows - 1) : 0;
-  const baseDay = Math.round(1 + rowIndex * step);
-  const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
-  const finalDay = Math.max(1, Math.min(15, baseDay + variance));
-
-  return `${String(finalDay).padStart(2, '0')}-${monthAbbr}-${year}`;
-}
-
-// ── 3. CPA / Results generation ───────────────────────────────────────────────
-
-interface PlatformCpaConfig {
-  costMin: number;
-  costMax: number;
-  resultType: string;
-}
-
-/**
- * Calculates the "Results" string for a row.
- *
- * Formula (from spec):
- *   progressRatio = totalRows > 1 ? rowIndex / (totalRows - 1) : 0
- *   expectedCPA   = costMin + progressRatio * (costMax - costMin)
- *   randomVariance = 1 + (Math.random() * 0.2 - 0.1)   // ±10%
- *   finalCPA      = clamp(expectedCPA * randomVariance, costMin, costMax)
- *   results       = Math.floor(rowCost / finalCPA)
- */
-function generateResults(
-  rowCost: number,
-  rowIndex: number,
-  totalRows: number,
-  config: PlatformCpaConfig,
-): string {
-  const { costMin, costMax, resultType } = config;
-
-  const progressRatio = totalRows > 1 ? rowIndex / (totalRows - 1) : 0;
-  const expectedCPA = costMin + progressRatio * (costMax - costMin);
-  const randomVariance = 1 + (Math.random() * 0.2 - 0.1); // ±10%
-  const finalCPA = Math.max(
-    costMin,
-    Math.min(costMax, expectedCPA * randomVariance),
-  );
-
-  const results = Math.floor(rowCost / finalCPA);
-  return `${results} ${resultType}`;
-}
-
-// ── 4. Platform configuration ─────────────────────────────────────────────────
-
-interface PlatformSpec {
-  name: string;
-  budgetPct: number;
-  cpa: PlatformCpaConfig;
-}
-
-const PLATFORM_SPECS: PlatformSpec[] = [
-  {
-    name: 'Instagram',
-    budgetPct: 0.4,
-    cpa: { costMin: 20, costMax: 25, resultType: 'Messages' },
-  },
-  {
-    name: 'Snapchat',
-    budgetPct: 0.25,
-    cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
-  },
-  {
-    name: 'TikTok',
-    budgetPct: 0.15,
-    cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
-  },
-  {
-    name: 'Google Ads',
-    budgetPct: 0.15,
-    cpa: { costMin: 2, costMax: 5, resultType: 'Clicks' },
-  },
-  {
-    name: 'Salla',
-    budgetPct: 0.05,
-    cpa: { costMin: 2, costMax: 4, resultType: 'Visits' },
-  },
-];
-
-// ── 5. Public interface ───────────────────────────────────────────────────────
-
-export interface AutoGenRowCounts {
-  instagram: number;
-  snapchat: number;
-  tiktok: number;
-  google_ads: number;
-  salla: number;
-}
-
-export interface AutoGenParams {
-  /** Total budget the client is charged (e.g. 50 000). */
-  totalBudget: number;
-  /** Fixed fees deducted before distributing ad-spend (typically 500). */
-  fees: number;
-  /** "Mar-2026" format — used to build row dates. */
-  campaignMonth: string;
-  /** How many campaign rows to generate per platform. */
-  rowCounts?: AutoGenRowCounts;
-}
-
-const DEFAULT_ROW_COUNTS: AutoGenRowCounts = {
-  instagram: 6,
-  snapchat: 4,
-  tiktok: 2,
-  google_ads: 3,
-  salla: 2,
-};
-
-// ── 6. Main orchestrator ──────────────────────────────────────────────────────
-
-/**
- * Top-down budget distribution for the "Pro icon KSA" client type.
- *
- * 1. Net Budget = Total Budget − Fees
- * 2. Split Net Budget into 3 branch budgets (Riyadh, Jeddah, Khobar) via splitBudget
- * 3. For each branch, split into platforms (IG 40%, Snap 25%, TikTok 15%, Google Ads 15%, Salla 5%)
- * 4. For each platform, split platform budget into N rows via splitBudget
- * 5. Generate date and results (CPA-based) for every row
- */
-export function autoGenerateProIconKSA(
-  params: AutoGenParams,
-): InvoiceBranchGroup[] {
-  const { totalBudget, fees, campaignMonth } = params;
-  const rowCounts: AutoGenRowCounts = {
-    ...DEFAULT_ROW_COUNTS,
-    ...(params.rowCounts ?? {}),
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return h >>> 0;
   };
+}
 
-  // Step 1 – Net Budget
-  const netBudget = totalBudget - fees;
+function createSeededRandom(seed: string) {
+  const next = hashString(seed);
+  return () => next() / 4294967296;
+}
 
-  // Step 2 – Split into 3 branch budgets, sorted descending (Riyadh gets most)
-  const branchNames = ['Riyadh Branch', 'Jeddah Branch', 'Khobar Branch'];
-  const branchBudgets = splitBudget(netBudget, 3);
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
-  // Steps 3–5 – Build branches
-  return branchBudgets.map((branchBudget, bi): InvoiceBranchGroup => {
-    const platformCounts = [
-      rowCounts.instagram,
-      rowCounts.snapchat,
-      rowCounts.tiktok,
-      rowCounts.google_ads,
-      rowCounts.salla,
-    ];
+function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
+  const direct = campaignMonth.trim();
+  const monthMap: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  const mmmMatch = /^([a-z]{3})-(\d{4})$/i.exec(direct);
+  if (mmmMatch) {
+    const month = monthMap[mmmMatch[1]!.toLowerCase()] ?? 0;
+    return { month, year: Number(mmmMatch[2]) };
+  }
+  const isoMonthMatch = /^(\d{4})[-/](\d{1,2})$/.exec(direct);
+  if (isoMonthMatch) {
+    return { month: clamp(Number(isoMonthMatch[2]) - 1, 0, 11), year: Number(isoMonthMatch[1]) };
+  }
+  const fromDate = (invoiceDate && !Number.isNaN(Date.parse(invoiceDate)))
+    ? new Date(invoiceDate)
+    : new Date();
+  return { month: fromDate.getMonth(), year: fromDate.getFullYear() };
+}
 
-    const platformGroups: InvoicePlatformGroup[] = PLATFORM_SPECS.map(
-      (spec, pi): InvoicePlatformGroup => {
-        const nRows = platformCounts[pi] ?? 1;
+function formatCampaignMonth(campaignMonth: string, invoiceDate?: string) {
+  const { month, year } = normalizeMonth(campaignMonth, invoiceDate);
+  const d = new Date(Date.UTC(year, month, 1));
+  const monthLabel = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+  return `${monthLabel}-${year}`;
+}
 
-        // Step 3 – Platform budget = branch budget × platform percentage
-        const platformBudget = Math.round(branchBudget * spec.budgetPct);
+function formatRowDate(day: number, campaignMonth: string, invoiceDate?: string) {
+  const { month, year } = normalizeMonth(campaignMonth, invoiceDate);
+  const d = new Date(Date.UTC(year, month, clamp(day, 1, 28)));
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mmm = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+  return `${dd}-${mmm}-${d.getUTCFullYear()}`;
+}
 
-        // Step 4 – Split platform budget into N rows
-        const rowBudgets = splitBudget(platformBudget, nRows);
+function splitBudgetWithWeights(
+  total: number,
+  weights: number[],
+  rng: () => number,
+  variance = 0.08,
+) {
+  if (weights.length === 0) return [];
+  if (total <= 0) return weights.map(() => 0);
+  const safeWeights = weights.map((w) => (Number.isFinite(w) && w > 0 ? w : 1));
+  const sum = safeWeights.reduce((s, w) => s + w, 0);
+  const noisy = safeWeights.map((w) => {
+    const base = w / sum;
+    const v = 1 + ((rng() * 2 - 1) * variance);
+    return Math.max(0.001, base * v);
+  });
+  const noisySum = noisy.reduce((s, w) => s + w, 0);
+  const raw = noisy.map((w) => (w / noisySum) * total);
+  const rounded = raw.map((n) => Math.floor(n));
+  let remainder = total - rounded.reduce((s, v) => s + v, 0);
+  const fracOrder = raw
+    .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+    .sort((a, b) => b.frac - a.frac);
+  let idx = 0;
+  while (remainder > 0 && fracOrder.length > 0) {
+    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    remainder -= 1;
+    idx += 1;
+  }
+  return rounded;
+}
 
-        // Step 5 – Generate each campaign row
-        const campaignRows: InvoiceCampaignRow[] = rowBudgets.map(
-          (rowCost, ri): InvoiceCampaignRow => ({
-            id: uid(),
-            ad_name: `${spec.name} Ad ${ri + 1}`,
-            date: generateDate(ri, nRows, campaignMonth),
-            results: generateResults(rowCost, ri, nRows, spec.cpa),
-            cost: rowCost,
-          }),
-        );
+function generateRowDays(rowCount: number, rng: () => number) {
+  if (rowCount <= 0) return [];
+  if (rowCount === 1) return [1];
+  const step = 14 / (rowCount - 1);
+  const days = Array.from({ length: rowCount }, (_, i) => {
+    const base = Math.round(1 + (i * step));
+    const jitter = Math.floor(rng() * 3) - 1;
+    return clamp(base + jitter, 1, 15);
+  }).sort((a, b) => a - b);
+  for (let i = 1; i < days.length; i += 1) {
+    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, 15);
+  }
+  return days;
+}
 
-        return {
-          id: uid(),
-          platform_name: spec.name,
-          campaign_rows: campaignRows,
-        };
-      },
+function buildResults(
+  platform: PlatformTemplateSpec,
+  spend: number,
+  rowIndex: number,
+  rowCount: number,
+  rng: () => number,
+) {
+  const [minCpa, maxCpa] = platform.cpaRange;
+  const ratio = rowCount > 1 ? rowIndex / (rowCount - 1) : 0;
+  const targetCpa = minCpa + ((maxCpa - minCpa) * ratio);
+  const variance = 1 + ((rng() * 2 - 1) * 0.1);
+  const finalCpa = clamp(targetCpa * variance, minCpa, maxCpa);
+  const count = Math.max(1, Math.round(spend / finalCpa));
+  return `${count} ${platform.resultSuffix}`;
+}
+
+function generateProIconKsaTemplate(
+  params: Omit<GenerateInvoiceFromTemplateParams, 'templateName'>,
+): GeneratedInvoiceTemplate {
+  const template = INVOICE_TEMPLATES['Pro icon KSA Template'];
+  const formattedMonth = formatCampaignMonth(params.campaignMonth, params.invoiceDate);
+  const finalBudget = Math.max(0, Math.round(params.finalBudget ?? template.defaultFinalBudget));
+  const fees = Math.max(0, Math.round(params.fees ?? template.defaultFees));
+  const seed = [
+    template.name,
+    formattedMonth,
+    params.invoiceDate ?? '',
+    String(finalBudget),
+    String(fees),
+  ].join('|');
+  const rng = createSeededRandom(seed);
+
+  const branchWeights = template.branchWeights.length === template.branches.length
+    ? template.branchWeights
+    : Array.from({ length: template.branches.length }, () => 1);
+  const branchBudgets = splitBudgetWithWeights(finalBudget, [...branchWeights], rng, 0.07);
+
+  const branchGroups: InvoiceBranchGroup[] = template.branches.map((branchName, branchIndex) => {
+    const branchBudget = branchBudgets[branchIndex] ?? 0;
+    const platformBudgets = splitBudgetWithWeights(
+      branchBudget,
+      template.platforms.map((platform) => platform.weight),
+      rng,
+      0.08,
     );
+
+    const platformGroups: InvoicePlatformGroup[] = template.platforms.map((platform, platformIndex) => {
+      const platformBudget = platformBudgets[platformIndex] ?? 0;
+      const rowBudgets = splitBudgetWithWeights(
+        platformBudget,
+        // Descending per-row weights intentionally front-load spend on early rows,
+        // creating realistic pacing while preserving exact platform totals.
+        Array.from({ length: platform.rows }, (_, i) => platform.rows - i),
+        rng,
+        0.1,
+      );
+      const rowDays = generateRowDays(platform.rows, rng);
+      const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => ({
+        id: uid(),
+        ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
+        date: formatRowDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
+        results: buildResults(platform, cost, rowIndex, platform.rows, rng),
+        cost,
+      }));
+      return {
+        id: uid(),
+        platform_name: platform.name,
+        campaign_rows: rows,
+      };
+    });
 
     return {
       id: uid(),
-      branch_name: branchNames[bi] ?? `Branch ${bi + 1}`,
+      branch_name: branchName,
       platform_groups: platformGroups,
     };
   });
+
+  return {
+    templateName: 'Pro icon KSA Template',
+    clientName: template.clientName,
+    finalBudget,
+    fees,
+    grandTotal: finalBudget + fees,
+    branchGroups,
+  };
+}
+
+export function generateInvoiceFromTemplate(
+  params: GenerateInvoiceFromTemplateParams,
+): GeneratedInvoiceTemplate {
+  if (params.templateName === 'Pro icon KSA Template') {
+    return generateProIconKsaTemplate(params);
+  }
+  return {
+    templateName: 'Manual',
+    clientName: '',
+    finalBudget: 0,
+    fees: 0,
+    grandTotal: 0,
+    branchGroups: [],
+  };
 }

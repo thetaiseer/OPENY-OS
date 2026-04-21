@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Trash2, Save, Download, Printer, AlertCircle, Check, Zap,
+  Plus, Trash2, Save, Download, Printer, AlertCircle, Check,
 } from 'lucide-react';
 import clsx from 'clsx';
 import type {
@@ -18,15 +18,16 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
-import { autoGenerateProIconKSA } from '@/lib/docs-invoice-autogen';
-import type { AutoGenRowCounts } from '@/lib/docs-invoice-autogen';
-
-type ClientType = 'Manual' | 'Pro icon KSA';
+import {
+  generateInvoiceFromTemplate,
+  INVOICE_TEMPLATES,
+} from '@/lib/docs-invoice-autogen';
+import type { InvoiceTemplateName } from '@/lib/docs-invoice-autogen';
 
 interface FormState {
   id?: string;
   client_profile_id: string | null;
-  client_type: ClientType;
+  invoice_template: InvoiceTemplateName;
   invoice_number: string;
   client_name: string;
   campaign_month: string;
@@ -38,10 +39,9 @@ interface FormState {
   branch_groups: InvoiceBranchGroup[];
 }
 
-interface AutoGenState {
-  totalBudget: number;
+interface TemplateState {
+  finalBudget: number;
   fees: number;
-  rowCounts: AutoGenRowCounts;
 }
 
 const uid = () => (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 11));
@@ -71,7 +71,7 @@ function nextInvoiceNumber(invoices: DocsInvoice[]) {
 function blank(invoices: DocsInvoice[]): FormState {
   return {
     client_profile_id: null,
-    client_type: 'Manual',
+    invoice_template: 'Manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
     campaign_month: monthNow(),
@@ -88,7 +88,7 @@ function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
     client_profile_id: invoice.client_profile_id ?? null,
-    client_type: 'Manual',
+    invoice_template: invoice.invoice_template ?? 'Manual',
     invoice_number: invoice.invoice_number,
     client_name: invoice.client_name,
     campaign_month: invoice.campaign_month ?? monthNow(),
@@ -110,13 +110,10 @@ export default function InvoicePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Auto-generation state for "Pro icon KSA" client type
-  const [autoGen, setAutoGen] = useState<AutoGenState>({
-    totalBudget: 50000,
-    fees: 500,
-    rowCounts: { instagram: 6, snapchat: 4, tiktok: 2, google_ads: 3, salla: 2 },
+  const [templateState, setTemplateState] = useState<TemplateState>({
+    finalBudget: INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFinalBudget,
+    fees: INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFees,
   });
-  const [autoGenOpen, setAutoGenOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,6 +149,17 @@ export default function InvoicePage() {
 
   const model = useMemo(() => buildInvoiceDocumentModel(form), [form]);
 
+  useEffect(() => {
+    if (form.invoice_template !== 'Pro icon KSA Template') return;
+    const next = {
+      finalBudget: Math.max(0, Math.round(model.totals.finalBudget)),
+      fees: Math.max(0, Math.round(form.our_fees)),
+    };
+    setTemplateState((prev) => (
+      prev.finalBudget === next.finalBudget && prev.fees === next.fees ? prev : next
+    ));
+  }, [form.invoice_template, form.our_fees, model.totals.finalBudget]);
+
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -160,27 +168,29 @@ export default function InvoicePage() {
     setForm((prev) => ({ ...prev, branch_groups: updater(prev.branch_groups) }));
   }
 
-  /** Runs the "Pro icon KSA" top-down auto-generation and replaces branch_groups. */
-  function runAutoGenerate() {
-    const generated = autoGenerateProIconKSA({
-      totalBudget: autoGen.totalBudget,
-      fees: autoGen.fees,
-      campaignMonth: form.campaign_month,
-      rowCounts: autoGen.rowCounts,
+  function applyTemplateGeneration(overrides?: Partial<TemplateState> & { campaignMonth?: string; invoiceDate?: string }) {
+    const campaignMonth = overrides?.campaignMonth ?? form.campaign_month;
+    const invoiceDate = overrides?.invoiceDate ?? form.invoice_date;
+    const next = {
+      finalBudget: overrides?.finalBudget ?? templateState.finalBudget,
+      fees: overrides?.fees ?? templateState.fees,
+    };
+    const generated = generateInvoiceFromTemplate({
+      templateName: 'Pro icon KSA Template',
+      campaignMonth,
+      invoiceDate,
+      finalBudget: next.finalBudget,
+      fees: next.fees,
     });
+    setTemplateState(next);
     setForm((prev) => ({
       ...prev,
-      our_fees: autoGen.fees,
-      branch_groups: generated,
-    }));
-    setAutoGenOpen(false);
-  }
-
-  /** Updates a single platform's row count in auto-gen state. */
-  function updateRowCount(platform: keyof AutoGenRowCounts, value: number) {
-    setAutoGen((s) => ({
-      ...s,
-      rowCounts: { ...s.rowCounts, [platform]: Math.max(1, value) },
+      invoice_template: 'Pro icon KSA Template',
+      campaign_month: campaignMonth,
+      invoice_date: invoiceDate,
+      client_name: generated.clientName,
+      our_fees: generated.fees,
+      branch_groups: generated.branchGroups,
     }));
   }
 
@@ -199,6 +209,7 @@ export default function InvoicePage() {
     try {
       const payload = {
         client_profile_id: form.client_profile_id,
+        invoice_template: form.invoice_template,
         invoice_number: form.invoice_number,
         client_name: form.client_name,
         campaign_month: form.campaign_month,
@@ -312,11 +323,34 @@ export default function InvoicePage() {
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Date</label>
-                <input type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={form.invoice_date}
+                  onChange={(e) => {
+                    const nextDate = e.target.value;
+                    if (form.invoice_template === 'Pro icon KSA Template') {
+                      applyTemplateGeneration({ invoiceDate: nextDate });
+                      return;
+                    }
+                    setField('invoice_date', nextDate);
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Month</label>
-                <input className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={form.campaign_month}
+                  onChange={(e) => {
+                    const nextMonth = e.target.value;
+                    if (form.invoice_template === 'Pro icon KSA Template') {
+                      applyTemplateGeneration({ campaignMonth: nextMonth });
+                      return;
+                    }
+                    setField('campaign_month', nextMonth);
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Currency</label>
@@ -333,140 +367,70 @@ export default function InvoicePage() {
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Our Fees</label>
-                <input type="number" className={inputClass} value={form.our_fees} onChange={(e) => setField('our_fees', Number(e.target.value))} />
+                <input
+                  type="number"
+                  className={inputClass}
+                  value={form.our_fees}
+                  onChange={(e) => {
+                    const nextFees = Math.max(0, Number(e.target.value) || 0);
+                    if (form.invoice_template === 'Pro icon KSA Template') {
+                      applyTemplateGeneration({ fees: nextFees });
+                      return;
+                    }
+                    setField('our_fees', nextFees);
+                  }}
+                />
               </div>
             </div>
 
-            {/* ── Client Type ──────────────────────────────────────────── */}
+            {/* ── Invoice Template ─────────────────────────────────────── */}
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Client Type</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Template</label>
               <select
                 className={inputClass}
-                value={form.client_type}
+                value={form.invoice_template}
                 onChange={(e) => {
-                  const val = e.target.value as ClientType;
-                  setField('client_type', val);
-                  setAutoGenOpen(val === 'Pro icon KSA');
+                  const selected = e.target.value as InvoiceTemplateName;
+                  if (selected === 'Pro icon KSA Template') {
+                    applyTemplateGeneration();
+                    return;
+                  }
+                  setField('invoice_template', 'Manual');
                 }}
               >
                 <option value="Manual">Manual</option>
-                <option value="Pro icon KSA">Pro icon KSA</option>
+                <option value="Pro icon KSA Template">Pro icon KSA Template</option>
               </select>
             </div>
 
-            {/* ── Pro icon KSA Auto-Generate Panel ─────────────────────── */}
-            {form.client_type === 'Pro icon KSA' && (
+            {form.invoice_template === 'Pro icon KSA Template' && (
               <div className="rounded-xl border p-3 space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                    <Zap size={12} className="inline mr-1 text-yellow-500" />
-                    Auto-Generate Budget Distribution
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setAutoGenOpen((v) => !v)}
-                    className="text-[11px]"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {autoGenOpen ? 'Hide' : 'Configure'}
-                  </button>
-                </div>
-
-                {autoGenOpen && (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
-                        <input
-                          type="number"
-                          className={inputClass}
-                          value={autoGen.totalBudget}
-                          onChange={(e) => setAutoGen((s) => ({ ...s, totalBudget: Number(e.target.value) }))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Fees (deducted)</label>
-                        <input
-                          type="number"
-                          className={inputClass}
-                          value={autoGen.fees}
-                          onChange={(e) => setAutoGen((s) => ({ ...s, fees: Number(e.target.value) }))}
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                      Net Ad Spend: <strong style={{ color: 'var(--text)' }}>
-                        {(autoGen.totalBudget - autoGen.fees).toLocaleString()}
-                      </strong>
-                      {' '}· splits into Riyadh, Jeddah, Khobar
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>IG Rows</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          className={inputClass}
-                          value={autoGen.rowCounts.instagram}
-                          onChange={(e) => updateRowCount('instagram', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Snap Rows</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          className={inputClass}
-                          value={autoGen.rowCounts.snapchat}
-                          onChange={(e) => updateRowCount('snapchat', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>TikTok Rows</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          className={inputClass}
-                          value={autoGen.rowCounts.tiktok}
-                          onChange={(e) => updateRowCount('tiktok', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Google Ads Rows</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          className={inputClass}
-                          value={autoGen.rowCounts.google_ads}
-                          onChange={(e) => updateRowCount('google_ads', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Salla Rows</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          className={inputClass}
-                          value={autoGen.rowCounts.salla}
-                          onChange={(e) => updateRowCount('salla', Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={runAutoGenerate}
-                      className="w-full py-2 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      <Zap size={13} /> Generate (3 Branches × 5 Platforms)
-                    </button>
+                <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                  Template: Pro icon KSA · Riyadh/Jeddah/Khobar · Instagram (6) / Snapchat (4) / TikTok (2)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Final Budget (Ad Spend)</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      value={templateState.finalBudget}
+                      onChange={(e) => applyTemplateGeneration({ finalBudget: Math.max(0, Number(e.target.value) || 0) })}
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Our Fees</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      value={templateState.fees}
+                      onChange={(e) => applyTemplateGeneration({ fees: Math.max(0, Number(e.target.value) || 0) })}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  Grand Total: {(templateState.finalBudget + templateState.fees).toLocaleString()} {form.currency}
+                </p>
               </div>
             )}
 
