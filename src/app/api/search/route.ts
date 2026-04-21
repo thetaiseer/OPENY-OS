@@ -131,11 +131,14 @@ export async function GET(request: NextRequest) {
   if (tasks.data?.length) {
     for (const t of tasks.data.slice(0, MAX_PER_GROUP)) {
       const client = Array.isArray(t.client) ? t.client[0] : t.client;
+      const clientName = client && typeof client === 'object' && 'name' in client
+        ? String(client.name)
+        : undefined;
       results.push({
         id: t.id,
         type: 'task',
         title: t.title,
-        subtitle: (client as { name?: string } | null)?.name,
+        subtitle: clientName,
         badge: t.status,
         href: `/os/tasks`,
       });
@@ -158,11 +161,14 @@ export async function GET(request: NextRequest) {
   if (content.data?.length) {
     for (const ci of content.data.slice(0, MAX_PER_GROUP)) {
       const client = Array.isArray(ci.client) ? ci.client[0] : ci.client;
+      const clientName = client && typeof client === 'object' && 'name' in client
+        ? String(client.name)
+        : undefined;
       results.push({
         id: ci.id,
         type: 'content',
         title: ci.title,
-        subtitle: (client as { name?: string } | null)?.name,
+        subtitle: clientName,
         badge: ci.status,
         href: `/os/content`,
       });

@@ -56,7 +56,6 @@ export interface InvoiceBranchGroup {
 }
 
 export interface DocsInvoice extends BaseDocument {
-  export_pdf_url:   string | null;
   invoice_number:   string;
   client_name:      string;
   campaign_month:   string | null;
@@ -89,7 +88,6 @@ export interface QuotationDeliverable {
 }
 
 export interface DocsQuotation extends BaseDocument {
-  export_pdf_url:        string | null;
   quote_number:          string;
   quote_date:            string | null;
   currency:              DocsCurrency;
@@ -118,7 +116,6 @@ export interface ContractClause {
 }
 
 export interface DocsClientContract extends BaseDocument {
-  export_pdf_url:        string | null;
   contract_number:       string;
   contract_date:         string | null;
   duration_months:       number;
@@ -157,7 +154,6 @@ export interface DocsClientContract extends BaseDocument {
 // ── HR Contract ───────────────────────────────────────────────────────────────
 
 export interface DocsHrContract extends BaseDocument {
-  export_pdf_url:          string | null;
   contract_number:         string;
   contract_date:           string | null;
   duration:                string | null;
