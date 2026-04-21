@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation';
-
-export default function LegacyDocsHrContractPage() {
-  redirect('/docs/documents/hr-contract');
-}
+export { default } from '@/modules/docs/pages/hr-contract-page';
