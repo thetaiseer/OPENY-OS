@@ -5,9 +5,8 @@ import { requireRole } from '@/lib/api-auth';
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const { getApiUser } = await import('@/lib/api-auth');
-  const auth = await getApiUser(req);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
   const db = getServiceClient();

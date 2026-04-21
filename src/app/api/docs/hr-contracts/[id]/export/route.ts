@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { requireRole } from '@/lib/api-auth';
 import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const { getApiUser } = await import('@/lib/api-auth');
-  const auth = await getApiUser(req);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
   const logoUrl = new URL(OPENY_LOGO_LIGHT_URL, req.nextUrl.origin).toString();
