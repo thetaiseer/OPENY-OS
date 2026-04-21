@@ -1,1 +1,5 @@
-export { default } from '@/modules/docs/pages/client-contract-page';
+import { redirect } from 'next/navigation';
+
+export default function DocsClientContractPage() {
+  redirect('/client-contract');
+}
