@@ -57,6 +57,7 @@ export interface InvoiceBranchGroup {
 
 export interface DocsInvoice extends BaseDocument {
   invoice_number:   string;
+  invoice_template?: 'Manual' | 'Pro icon KSA Template' | null;
   client_name:      string;
   campaign_month:   string | null;
   invoice_date:     string | null;
