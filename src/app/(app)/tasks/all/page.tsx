@@ -25,7 +25,6 @@ import {
   Plus, CheckSquare, ChevronDown, Pencil, Trash2, Eye,
   Calendar, User, Users, Tag, AlertCircle, Clock,
   LayoutGrid, List, Search, Send, ArrowUpDown, GripVertical, SlidersHorizontal,
-  LayoutGrid, List, Search, Send,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -116,15 +115,6 @@ const statusTone: Record<string, { bg: string; text: string; border: string; glo
 function getStatusTone(status: string) {
   return statusTone[status] ?? statusTone.default;
 }
-
-function statusLabel(s: string, t: (k: string) => string): string {
-  if (s === 'in_progress') return t('inProgress');
-  if (s === 'in_review' || s === 'review') return t('review');
-  if (s === 'delivered')   return t('delivered');
-  return t(s);
-}
-
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
 
 function statusLabel(s: string, t: (k: string) => string): string {
   if (s === 'in_progress') return t('inProgress');
@@ -294,60 +284,6 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
             options={[
               { value: '', label: t('unassigned') },
               ...team.map(m => ({ value: m.id, label: m.full_name })),
-
-      {/* Priority + Status */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('priority')}</label>
-          <SelectDropdown
-            fullWidth
-            value={form.priority}
-            onChange={v => setForm(f => ({ ...f, priority: v }))}
-            options={[
-              { value: 'low',    label: t('low') },
-              { value: 'medium', label: t('medium') },
-              { value: 'high',   label: t('high') },
-            ]}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('createdBy')}</label>
-          <SelectDropdown
-            fullWidth
-            value={form.created_by}
-            onChange={v => setForm(f => ({ ...f, created_by: v }))}
-            placeholder={t('none')}
-            options={[
-              { value: '', label: t('none') },
-              ...team.map(m => ({ value: m.id, label: m.full_name })),
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('status')}</label>
-          <SelectDropdown
-            fullWidth
-            value={form.status}
-            onChange={v => setForm(f => ({ ...f, status: v }))}
-            options={[
-              { value: 'todo',        label: t('todo') },
-              { value: 'in_progress', label: t('inProgress') },
-              { value: 'in_review',   label: t('review') },
-              { value: 'done',        label: t('done') },
-              { value: 'delivered',   label: t('delivered') },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Assigned To + Created By */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('assignedTo')} *</label>
-          <SelectDropdown
-            fullWidth
-            value={form.assigned_to}
-            onChange={v => setForm(f => ({ ...f, assigned_to: v }))}
-            placeholder={t('unassigned')}
-            options={[
-              { value: '', label: t('unassigned') },
-              ...team.map(m => ({ value: m.id, label: m.full_name })),
             ]}
           />
         </div>
@@ -450,11 +386,6 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         borderColor: 'var(--border)',
         boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
       }}
-
-  return (
-    <div
-      className="rounded-xl border p-4 space-y-3 transition-shadow hover:shadow-sm"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', borderLeft: `3px solid ${borderLeft}` }}
     >
       {/* Header row */}
       <div className="flex items-start gap-2">
@@ -500,36 +431,6 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         </div>
       )}
 
-      {/* Meta row */}
-      <div className="flex flex-wrap gap-2 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-        {task.client && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <User size={11} />{task.client.name}
-          </span>
-        )}
-        {task.due_date && (
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${overdue ? 'text-red-500' : soon ? 'text-amber-500' : ''}`}
-            style={{ background: overdue ? '#fef2f2' : soon ? '#fffbeb' : 'var(--surface-2)' }}>
-            {overdue ? <AlertCircle size={11} /> : <Calendar size={11} />}
-            {fmtDate(task.due_date)}
-          </span>
-        )}
-        {assignee && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <User size={11} />{assignee.full_name}
-          </span>
-        )}
-        {creator && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-            <Clock size={11} />by {creator.full_name}
-          </span>
-        )}
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
-          <Calendar size={11} />{fmtDate(task.created_at)}
-        </span>
-      </div>
-
-      {/* Publishing schedule badges */}
       {((task.platforms && task.platforms.length > 0) || (task.post_types && task.post_types.length > 0)) && (
         <div className="flex flex-wrap gap-1.5 items-center">
           <Send size={11} style={{ color: '#7c3aed' }} />
@@ -604,7 +505,6 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           )}
         </div>
         {overdue && <Badge variant="danger">{t('overdue')}</Badge>}
-        <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
       </div>
     </div>
   );
@@ -714,6 +614,7 @@ type KanbanPatch = { id: string; status: Task['status']; position: number };
 const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t }: { task: Task; team: TeamMember[]; t: (k: string) => string }) {
   const assignee = team.find(m => m.id === task.assigned_to);
   const overdue = isOverdue(task.due_date, task.status);
+  const tone = getStatusTone(overdue ? 'overdue' : task.status);
   return (
     <div
       className="rounded-2xl border p-4 space-y-3 opacity-95 scale-[1.02]"
@@ -748,34 +649,6 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
           {fmtDate(task.due_date)}
         </div>
       )}
-      className="rounded-xl border p-3 space-y-2 shadow-lg opacity-95"
-      style={{
-        width: '17rem',
-        background: 'var(--surface-2)',
-        borderColor: 'var(--border)',
-        borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
-      }}
-    >
-      <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
-      <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-        {task.client && (
-          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-            <User size={10} />{task.client.name}
-          </span>
-        )}
-        {assignee && (
-          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-            <User size={10} />{assignee.full_name}
-          </span>
-        )}
-        {task.due_date && (
-          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-            style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
-            <Calendar size={10} />{fmtDate(task.due_date)}
-          </span>
-        )}
-      </div>
-      <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
     </div>
   );
 });
@@ -803,6 +676,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
   });
   const overdue = isOverdue(task.due_date, task.status);
   const assignee = team.find(m => m.id === task.assigned_to);
+  const tone = getStatusTone(overdue ? 'overdue' : task.status);
 
   return (
     <div className="space-y-2">
@@ -834,32 +708,6 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
           <div className="flex items-center gap-2 min-w-0 text-xs">
             <span className="h-7 w-7 rounded-full border inline-flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
               {avatarInitials(assignee?.full_name)}
-        className="rounded-xl border p-3 space-y-2 transition-all duration-200 ease-out hover:shadow-sm cursor-grab active:cursor-grabbing select-none"
-        style={{
-          transform: CSS.Transform.toString(transform),
-          transition,
-          opacity: isDragging ? 0.45 : 1,
-          background: 'var(--surface-2)',
-          borderColor: 'var(--border)',
-          borderLeft: `3px solid ${overdue ? '#ef4444' : 'var(--accent)'}`,
-        }}
-      >
-        <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{task.title}</p>
-        <div className="flex flex-wrap gap-1.5 items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {task.client && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-              <User size={10} />{task.client.name}
-            </span>
-          )}
-          {assignee && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)' }}>
-              <User size={10} />{assignee.full_name}
-            </span>
-          )}
-          {task.due_date && (
-            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${overdue ? 'text-red-500' : ''}`}
-              style={{ background: overdue ? '#fef2f2' : 'var(--surface)' }}>
-              <Calendar size={10} />{fmtDate(task.due_date)}
             </span>
             <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{assignee?.full_name ?? 'Unassigned'}</span>
           </div>
@@ -875,7 +723,6 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
               {fmtDate(task.due_date)}
             </span>
           )}
-          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
           <div className="flex items-center gap-1">
             <button onClick={(e) => { e.stopPropagation(); onView(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Eye size={13} /></button>
             <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="p-1 rounded hover:bg-[var(--surface)] transition-colors" style={{ color: 'var(--text-secondary)' }}><Pencil size={13} /></button>
@@ -921,11 +768,6 @@ function KanbanColumn({
         background: KANBAN_COLUMN_BG,
         borderColor: isOver ? 'var(--accent)' : 'var(--border)',
         boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent), 0 18px 42px rgba(2, 6, 23, 0.18)' : '0 14px 30px rgba(2, 6, 23, 0.12)',
-      className="flex-shrink-0 w-72 rounded-2xl border flex flex-col transition-all duration-200"
-      style={{
-        background: 'var(--surface)',
-        borderColor: isOver ? 'var(--accent)' : 'var(--border)',
-        boxShadow: isOver ? '0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent)' : 'none',
       }}
     >
       <div className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -946,9 +788,6 @@ function KanbanColumn({
               <CheckSquare size={16} className="mx-auto" style={{ color: 'var(--text-tertiary)' }} />
               <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
             </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[calc(100vh-280px)]">
-          {colTasks.length === 0 ? (
-            <p className="text-xs text-center py-6" style={{ color: 'var(--text-secondary)' }}>{t('noTasksKanban')}</p>
           ) : (
             colTasks.map(task => (
               <DraggableKanbanTaskCard
@@ -1130,7 +969,6 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       onDragCancel={() => { setActiveTaskId(null); setOverColumnId(null); setOverTaskId(null); }}
     >
       <div className="flex gap-5 overflow-x-auto pb-5 pr-2 snap-x snap-mandatory">
-      <div className="flex gap-4 overflow-x-auto pb-4">
         {KANBAN_COLS.map(col => (
           <KanbanColumn
             key={col.key}
@@ -1681,9 +1519,6 @@ function TasksPage() {
 
   return (
     <div className="openy-page-shell w-full max-w-[1500px] mx-auto animate-openy-fade-in sm:pb-14" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -1886,155 +1721,6 @@ function TasksPage() {
             </button>
           )}
         </div>
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('tasks')}</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {filtered.length} task{filtered.length !== 1 ? 's' : ''} across all clients
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View switcher */}
-          <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-            <button
-              onClick={() => setView('list')}
-              className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium transition-colors"
-              style={{
-                background: view === 'list' ? 'var(--accent)' : 'var(--surface)',
-                color: view === 'list' ? '#fff' : 'var(--text-secondary)',
-              }}
-            >
-              <List size={14} />{t('list')}
-            </button>
-            <button
-              onClick={() => setView('kanban')}
-              className="flex items-center gap-1.5 h-9 px-3 text-xs font-medium transition-colors"
-              style={{
-                background: view === 'kanban' ? 'var(--accent)' : 'var(--surface)',
-                color: view === 'kanban' ? '#fff' : 'var(--text-secondary)',
-              }}
-            >
-              <LayoutGrid size={14} />{t('kanban')}
-            </button>
-          </div>
-          {canManageTasks && (
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-              style={{ background: 'var(--accent)' }}
-            >
-              <Plus size={16} />{t('newTask')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder={t('searchTasks')}
-          className="w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-          style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        />
-      </div>
-
-      {/* Status chips */}
-      <div className="flex gap-2 flex-wrap items-center">
-        {statuses.map(s => {
-          const isActive = statusFilter === s;
-          const count = s !== 'all' ? tasks.filter(tk => tk.status === s).length : null;
-          return (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-xs font-medium transition-all"
-              style={{
-                background: isActive ? 'var(--accent)' : 'var(--surface)',
-                color: isActive ? '#fff' : 'var(--text-secondary)',
-                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-                boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
-              }}
-            >
-              {s === 'all' ? 'All' : statusLabel(s, t)}
-              {count !== null && (
-                <span
-                  className="inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full text-[10px] font-bold"
-                  style={{
-                    background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
-                    color: isActive ? '#fff' : 'var(--text-secondary)',
-                  }}
-                >
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Dropdown filters */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <SelectDropdown
-          value={clientFilter}
-          onChange={setClientFilter}
-          placeholder={t('allClients')}
-          options={[
-            { value: '', label: t('allClients') },
-            ...clients.map(c => ({ value: c.id, label: c.name })),
-          ]}
-        />
-        <SelectDropdown
-          value={assignedFilter}
-          onChange={setAssignedFilter}
-          placeholder={t('allMembers')}
-          options={[
-            { value: '', label: t('allMembers') },
-            ...team.map(m => ({ value: m.id, label: m.full_name })),
-          ]}
-        />
-        <SelectDropdown
-          value={priorityFilter}
-          onChange={setPriorityFilter}
-          placeholder={t('allPriorities')}
-          options={[
-            { value: '',       label: t('allPriorities') },
-            { value: 'high',   label: t('high') },
-            { value: 'medium', label: t('medium') },
-            { value: 'low',    label: t('low') },
-          ]}
-        />
-        <SelectDropdown
-          value={platformFilter}
-          onChange={setPlatformFilter}
-          placeholder="All platforms"
-          options={[
-            { value: '', label: 'All platforms' },
-            ...PLATFORMS.map(p => ({ value: p.value, label: p.label })),
-          ]}
-        />
-        <SelectDropdown
-          value={postTypeFilter}
-          onChange={setPostTypeFilter}
-          placeholder="All post types"
-          options={[
-            { value: '', label: 'All post types' },
-            ...POST_TYPES.map(pt => ({ value: pt.value, label: pt.label })),
-          ]}
-        />
-        {(clientFilter || assignedFilter || priorityFilter || platformFilter || postTypeFilter || searchQuery) && (
-          <button
-            onClick={() => { setClientFilter(''); setAssignedFilter(''); setPriorityFilter(''); setPlatformFilter(''); setPostTypeFilter(''); setSearchQuery(''); }}
-            className="inline-flex items-center h-9 px-3.5 rounded-lg text-sm font-medium transition-all"
-            style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
-          >
-            Clear filters
-          </button>
-        )}
       </div>
 
       {/* Task list / kanban */}
@@ -2121,29 +1807,6 @@ function TasksPage() {
               );
             })}
           </div>
-        <KanbanBoard
-          tasks={filtered}
-          team={team}
-          onView={setViewTask}
-          onEdit={openEdit}
-          onDelete={setDeleteTask}
-          t={t}
-          onReorder={handleKanbanReorder}
-        />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              team={team}
-              onView={setViewTask}
-              onEdit={openEdit}
-              onDelete={setDeleteTask}
-              onStatusChange={handleStatusChange}
-              t={t}
-            />
-          ))}
         </div>
       )}
 
