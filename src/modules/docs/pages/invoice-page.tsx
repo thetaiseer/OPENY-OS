@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
   Download, Printer, Check, X, AlertCircle, Archive, ExternalLink, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import clsx from 'clsx';
-import OpenyLogo from '@/components/branding/OpenyLogo';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import type {
   DocsInvoice,
   InvoiceBranchGroup,
@@ -19,19 +19,12 @@ import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
-import { buildInvoiceDocumentModel, INVOICE_ADDRESS, INVOICE_EMAIL, INVOICE_WEBSITE } from '@/lib/docs-invoice-document-model';
+import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { writeInvoiceWorksheet } from '@/lib/docs-invoice-excel';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
 
 const INVOICE_BLACK = OPENY_DOC_BLACK;
-const PAGE_BREAK_BRANCHES = ['jeddah', 'khobar'];
-
-function shouldBreakBeforeBranch(index: number, branchName: string) {
-  if (index <= 0) return false;
-  const normalized = branchName.trim().toLowerCase();
-  return PAGE_BREAK_BRANCHES.some(branch => normalized.includes(branch));
-}
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -186,121 +179,6 @@ async function getResponseErrorMessage(response: Response, fallback: string) {
     // ignore JSON parse errors
   }
   return fallback;
-}
-
-function InvoicePreview({ model }: { model: ReturnType<typeof buildInvoiceDocumentModel> }) {
-  return (
-    <div id="invoice-preview" style={{ background: '#fff', color: INVOICE_BLACK, width: '210mm', minHeight: '297mm', padding: '12mm', boxSizing: 'border-box', fontSize: 12, fontFamily: 'var(--font-arabic), Inter, system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <OpenyLogo forceVariant="light" width={146} height={40} />
-          <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5, color: '#555' }}>
-            {INVOICE_ADDRESS} | {INVOICE_EMAIL} | {INVOICE_WEBSITE}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 31, fontWeight: 900, letterSpacing: 2, color: '#111', marginBottom: 8 }}>INVOICE</div>
-          <div style={{ fontSize: 11, color: '#555' }}><span style={{ fontWeight: 700, color: '#111' }}>REF:</span> {model.invoiceNumber || '—'}</div>
-          <div style={{ fontSize: 11, marginTop: 2, color: '#555' }}><span style={{ fontWeight: 700, color: '#111' }}>DATE:</span> {model.invoiceDate || '—'}</div>
-        </div>
-      </div>
-
-      <div style={{ height: 2, background: '#111', margin: '14px 0 20px 0' }} />
-
-      <div style={{ marginBottom: 16 }}>
-        <span style={{ display: 'inline-block', background: INVOICE_BLACK, color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: 1.5, padding: '6px 10px' }}>
-          BILLED TO
-        </span>
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginTop: 10 }}>
-          <div style={{ width: 4, background: '#111', flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#111' }}>{model.clientName || '—'}</div>
-            <div style={{ fontSize: 12, color: '#6B7280' }}>Campaign Month: {model.campaignMonth || '—'}</div>
-          </div>
-        </div>
-      </div>
-
-      {model.branchTables.map((branchTable, branchIndex) => (
-        <div key={branchTable.id} style={{ marginBottom: 16 }}>
-          {shouldBreakBeforeBranch(branchIndex, branchTable.branchName) ? <div className="html2pdf__page-break" /> : null}
-          <div style={{ background: INVOICE_BLACK, color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 10px' }}>
-            {branchTable.branchName || 'Branch'}
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-            <thead>
-              <tr style={{ background: INVOICE_BLACK, color: '#fff' }}>
-                <th style={previewHeaderCell}>BRANCH</th>
-                <th style={previewHeaderCell}>PLATFORM</th>
-                <th style={previewHeaderCell}>AD NAME</th>
-                <th style={previewHeaderCell}>DATE</th>
-                <th style={previewHeaderCell}>RESULTS</th>
-                <th style={{ ...previewHeaderCell, textAlign: 'right' }}>COST ({model.currency})</th>
-              </tr>
-            </thead>
-            <tbody>
-              {branchTable.rows.length === 0 ? (
-                <tr>
-                  <td style={previewCell}>{branchTable.branchName}</td>
-                  <td style={previewCell}>—</td>
-                  <td style={previewCell}>—</td>
-                  <td style={previewCell}>—</td>
-                  <td style={previewCell}>—</td>
-                  <td style={{ ...previewCell, textAlign: 'right' }}>{fmt(0, model.currency)}</td>
-                </tr>
-              ) : branchTable.rows.map((row, index) => (
-                <tr key={`${branchTable.id}-${index}`}>
-                  <td style={{ ...previewCell, fontWeight: 600, borderTopColor: row.showBranch ? INVOICE_BLACK : 'transparent' }}>
-                    {row.showBranch ? row.branch || '—' : ''}
-                  </td>
-                  <td style={{ ...previewCell, borderTopColor: row.showPlatform ? INVOICE_BLACK : 'transparent' }}>
-                    {row.showPlatform ? row.platform || '—' : ''}
-                  </td>
-                  <td style={previewCell}>{row.ad_name || '—'}</td>
-                  <td style={{ ...previewCell, whiteSpace: 'nowrap' }}>{row.date || '—'}</td>
-                  <td style={previewCell}>{row.results || '—'}</td>
-                  <td style={{ ...previewCell, textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(row.cost, model.currency)}</td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={5} style={{ ...previewCell, background: '#E5E7EB', textAlign: 'right', fontWeight: 700 }}>
-                  Subtotal ({branchTable.branchName || 'Branch'})
-                </td>
-                <td style={{ ...previewCell, background: '#E5E7EB', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {fmt(branchTable.subtotal, model.currency)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      ))}
-
-      <div className="avoid-break" style={{ pageBreakInside: 'avoid', display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-        <table style={{ width: 300, borderCollapse: 'collapse' }}>
-          <tbody>
-            <tr>
-               <td style={totalsLabel}>Final Budget (Ad Spend)</td>
-              <td style={{ ...totalsValue, whiteSpace: 'nowrap' }}>{fmt(model.totals.finalBudget, model.currency)}</td>
-            </tr>
-            <tr>
-              <td style={totalsLabel}>Our Fees</td>
-              <td style={{ ...totalsValue, whiteSpace: 'nowrap' }}>{fmt(model.totals.ourFees, model.currency)}</td>
-            </tr>
-            <tr>
-              <td style={{ ...totalsLabel, fontWeight: 900, background: INVOICE_BLACK, color: '#fff', textAlign: 'center', fontSize: 12 }}>GRAND TOTAL</td>
-              <td style={{ ...totalsValue, fontWeight: 900, background: INVOICE_BLACK, color: '#fff', textAlign: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>{fmt(model.totals.grandTotal, model.currency)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {model.notes.trim() && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>NOTES</div>
-          <div style={{ fontSize: 11 }}>{model.notes}</div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function BackupModal({ module, onClose, onRestore }: {
@@ -1200,38 +1078,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
-
-const previewHeaderCell: CSSProperties = {
-  border: `1px solid ${INVOICE_BLACK}`,
-  borderRight: '1px solid #fff',
-  padding: 12,
-  textAlign: 'left',
-  fontSize: 10,
-  letterSpacing: 1.2,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-};
-
-const previewCell: CSSProperties = {
-  border: `1px solid ${INVOICE_BLACK}`,
-  padding: 6,
-  fontSize: 11,
-  verticalAlign: 'top',
-};
-
-const totalsLabel: CSSProperties = {
-  border: `1px solid ${INVOICE_BLACK}`,
-  padding: '8px 10px',
-  fontWeight: 700,
-  textAlign: 'left',
-};
-
-const totalsValue: CSSProperties = {
-  border: `1px solid ${INVOICE_BLACK}`,
-  padding: '8px 10px',
-  fontWeight: 700,
-  textAlign: 'right',
-};
 
 const inputCls = [
   'w-full px-3 py-1.5 text-sm rounded-lg border outline-none',
