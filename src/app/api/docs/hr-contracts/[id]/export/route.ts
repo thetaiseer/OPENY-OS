@@ -6,7 +6,7 @@ import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  const auth = await requireRole(req, ['manager', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;

@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/api-auth';
 interface Params { id: string }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  const auth = await requireRole(req, ['manager', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
