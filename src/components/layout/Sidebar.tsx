@@ -58,18 +58,23 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/30 z-30 lg:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
         <aside
           className={clsx(
             'fixed top-0 left-0 h-full w-64 lg:w-[88px] xl:w-64 z-40 flex flex-col',
-            'border-r transition-transform duration-200 backdrop-blur-xl',
+            'border-r transition-transform duration-200',
             'lg:translate-x-0 lg:static lg:z-auto',
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           )}
-          style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+          style={{
+            background: 'var(--sidebar-bg)',
+            borderColor: 'var(--sidebar-border)',
+            backdropFilter: 'var(--blur-panel)',
+            WebkitBackdropFilter: 'var(--blur-panel)',
+          }}
       >
         {/* Logo */}
         <div
@@ -85,11 +90,20 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             >
               <OpenyLogo width={96} height={28} />
             </Link>
-            <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
-            <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>{isDocsWorkspace ? 'DOCS' : 'OS'}</span>
+            <span className="text-sm font-bold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
+            <span
+              className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-md hidden xl:inline"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              {isDocsWorkspace ? 'DOCS' : 'OS'}
+            </span>
           </div>
           {onClose && (
-            <button onClick={onClose} className="lg:hidden p-1 rounded hover:opacity-70">
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 rounded-lg transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <X size={18} />
             </button>
           )}
@@ -107,14 +121,37 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-label={displayLabel}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all',
                   'lg:justify-center xl:justify-start',
                   active
-                    ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
+                    ? 'text-[var(--accent)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text)]',
                 )}
+                style={active ? {
+                  background: 'var(--accent-soft)',
+                  boxShadow: 'var(--shadow-xs)',
+                } : {}}
+                onMouseEnter={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+                }}
+                onMouseLeave={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.background = '';
+                }}
               >
-                <Icon size={18} strokeWidth={1.8} />
+                {/* Icon badge */}
+                <span
+                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all"
+                  style={active ? {
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    boxShadow: 'var(--glow-accent-sm)',
+                  } : {
+                    background: 'var(--surface-2)',
+                    color: 'var(--text-tertiary)',
+                  }}
+                >
+                  <Icon size={16} strokeWidth={2} />
+                </span>
                 <span className="lg:hidden xl:inline">{displayLabel}</span>
               </Link>
             );
@@ -128,24 +165,39 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] lg:justify-center xl:justify-start"
+            style={{}}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '')}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {theme === 'dark' ? <Sun size={18} strokeWidth={1.8} /> : <Moon size={18} strokeWidth={1.8} />}
+            <span
+              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-tertiary)' }}
+            >
+              {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+            </span>
             <span className="lg:hidden xl:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
 
           <AccountMenu placement="sidebar">
-            <div className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
+            <div
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition-colors cursor-pointer lg:justify-center xl:justify-start"
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-                style={{ background: 'var(--accent)' }}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
+                  boxShadow: 'var(--glow-accent-sm)',
+                }}
               >
                 {user.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0 lg:hidden xl:block">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
                   {user.name}
                 </p>
                 <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>

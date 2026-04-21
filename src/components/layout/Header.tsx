@@ -49,13 +49,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
     >
       <div
         className="h-14 rounded-2xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
-        style={{ background: 'var(--header-bg)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)', backdropFilter: 'blur(10px)' }}
+        style={{
+          background: 'var(--header-bg)',
+          borderColor: 'var(--border-glass)',
+          boxShadow: 'var(--shadow-card)',
+          backdropFilter: 'var(--blur-glass)',
+          WebkitBackdropFilter: 'var(--blur-glass)',
+        }}
       >
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors shrink-0"
+          className="lg:hidden p-2 rounded-xl transition-colors shrink-0"
+          style={{ color: 'var(--text-secondary)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
+          <Menu size={20} />
         </button>
         <Link
           href={dashboardHref}
@@ -63,10 +72,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
           className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
         >
           <OpenyLogo width={82} height={24} />
-          <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
+          <span
+            className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-md"
+            style={{
+              background: 'var(--accent-soft)',
+              color: 'var(--accent)',
+            }}
+          >
+            {workspaceLabel}
+          </span>
         </Link>
 
-        {/* Global search — replaces the dead input */}
+        {/* Global search */}
         <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm lg:max-w-md">
           <GlobalSearch />
         </div>
@@ -76,20 +93,26 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <WorkspaceSwitcher />
 
+          {/* Lang toggle */}
           <button
             onClick={toggleLang}
-            className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
+            className="p-2 rounded-xl transition-colors hidden sm:flex"
             style={{ color: 'var(--text-secondary)' }}
             title="Toggle language"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <Globe size={18} />
           </button>
 
+          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+            className="p-2 rounded-xl transition-colors"
             style={{ color: 'var(--text-secondary)' }}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -99,11 +122,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* AI Command Center button */}
           <button
             onClick={() => openAi()}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
             style={{
-              background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
+              background: aiOpen
+                ? 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)'
+                : 'var(--accent-soft)',
               color: aiOpen ? '#fff' : 'var(--accent)',
-              border: `1px solid ${aiOpen ? 'var(--accent)' : 'transparent'}`,
+              border: `1px solid ${aiOpen ? 'transparent' : 'var(--border)'}`,
+              boxShadow: aiOpen ? 'var(--glow-accent-sm)' : 'none',
             }}
             title="AI Command Center (⌘J)"
           >
@@ -113,8 +139,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           <AccountMenu placement="header">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ background: 'var(--accent)' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ml-1 cursor-pointer hover:opacity-80 transition-all"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
+                boxShadow: 'var(--glow-accent-sm)',
+              }}
             >
               {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
             </div>
