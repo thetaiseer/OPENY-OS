@@ -2,12 +2,12 @@ import Link from 'next/link';
 import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
 
 const items = [
-  { href: '/docs/documents/invoice', icon: FileText, title: 'Invoice' },
-  { href: '/docs/documents/quotation', icon: ClipboardList, title: 'Quotation' },
-  { href: '/docs/documents/client-contract', icon: FileSignature, title: 'Client Contract' },
-  { href: '/docs/documents/hr-contract', icon: BookOpen, title: 'HR Contract' },
-  { href: '/docs/documents/employees', icon: Users, title: 'Employees' },
-  { href: '/docs/documents/accounting', icon: BarChart2, title: 'Accounting' },
+  { href: '/docs/invoice', icon: FileText, title: 'Invoice' },
+  { href: '/docs/quotation', icon: ClipboardList, title: 'Quotation' },
+  { href: '/docs/client-contract', icon: FileSignature, title: 'Client Contract' },
+  { href: '/docs/hr-contract', icon: BookOpen, title: 'HR Contract' },
+  { href: '/docs/employees', icon: Users, title: 'Employees' },
+  { href: '/docs/accounting', icon: BarChart2, title: 'Accounting' },
 ];
 
 export default function DocsDocumentsPage() {

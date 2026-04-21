@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
+import DocsSidebar from '@/components/layout/DocsSidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
@@ -32,6 +34,8 @@ const SESSION_CHECK_INTERVAL = 3 * 60 * 1000;
 const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000;
 
 function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -51,7 +55,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         });
         if (res.status === 401) {
           await supabaseClient.auth.signOut();
-          window.location.replace('/');
+          router.replace('/');
         }
       } catch { /* ignore network errors / abort */ } finally {
         clearTimeout(tid);
@@ -129,11 +133,17 @@ function AppShell({ children }: { children: React.ReactNode }) {
       unsubscribeTableListeners.forEach(unsub => unsub());
       window.removeEventListener('keydown', handleAiShortcut);
     };
-  }, [openAi]);
+  }, [openAi, router]);
+
+  const isDocsWorkspace = pathname.startsWith('/docs');
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {isDocsWorkspace ? (
+        <DocsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      ) : (
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      )}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto app-shell-main">{children}</main>
