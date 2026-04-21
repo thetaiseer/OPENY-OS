@@ -53,8 +53,8 @@ function downloadCSV(csv: string, filename: string): void {
 
 function SummaryCard({ label, value, icon, color, sub }: { label: string; value: string | number; icon: React.ReactNode; color: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border p-5 flex items-start gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${color}18`, color }}>
+    <div className="rounded-3xl border p-6 flex items-start gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `linear-gradient(140deg, ${color}26 0%, rgba(255,255,255,0.44) 100%)`, color, boxShadow: `0 8px 18px ${color}40` }}>
         {icon}
       </div>
       <div>
@@ -70,10 +70,10 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+      className="px-4 py-2 rounded-full text-sm font-medium transition-colors"
       style={active
-        ? { background: 'var(--accent)', color: '#fff' }
-        : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+        ? { background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)', color: '#fff', boxShadow: 'var(--glow-accent-sm)' }
+        : { background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-glass)' }}
     >
       {children}
     </button>

@@ -21,13 +21,13 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const c = colorMap[color];
   return (
     <div
-      className="rounded-2xl p-5 border relative overflow-hidden"
+      className="rounded-3xl p-6 border relative overflow-hidden"
       style={{
-        background: 'var(--surface-glass)',
+        background: 'var(--gradient-card-glass)',
         backdropFilter: 'var(--blur-glass)',
         WebkitBackdropFilter: 'var(--blur-glass)',
         borderColor: 'var(--border-glass)',
-        boxShadow: 'var(--shadow-card)',
+        boxShadow: 'var(--shadow-card), var(--highlight-inset)',
       }}
     >
       {/* Subtle background glow blob */}
@@ -41,11 +41,11 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
 
       <div className="relative flex items-start justify-between mb-4">
         <div
-          className="w-11 h-11 rounded-2xl flex items-center justify-center"
+          className="w-12 h-12 rounded-full flex items-center justify-center"
           style={{
             background: c.iconBg,
             color: c.iconColor,
-            boxShadow: `0 4px 12px ${c.glow}`,
+            boxShadow: `0 10px 20px ${c.glow}, 0 0 18px ${c.glow}`,
           }}
         >
           {icon}

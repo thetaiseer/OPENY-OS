@@ -66,15 +66,18 @@ export default function DocsHomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
           <Link
             key={href}
             href={href}
-            className="group rounded-2xl p-5 border transition-all hover:shadow-md hover:-translate-y-0.5"
+            className="group rounded-3xl p-6 border transition-all hover:-translate-y-1"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: bg }}>
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-5"
+              style={{ background: `linear-gradient(145deg, ${bg} 0%, rgba(255,255,255,0.38) 100%)`, boxShadow: `0 8px 18px ${bg}` }}
+            >
               <Icon size={22} style={{ color }} strokeWidth={1.8} />
             </div>
             <h2
