@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Workbook } from 'exceljs';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
-import { ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
+import { ACCOUNTING_COLLECTORS, getAccountingCollectorByType } from '@/lib/docs-types';
 
 function num(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const netResult = totalRevenue - totalExpenses;
   const eachShare = netResult / 2;
-  const p1 = ACCOUNTING_COLLECTORS[0];
-  const p2 = ACCOUNTING_COLLECTORS[1];
+  const p1 = ACCOUNTING_COLLECTORS[0] ?? 'Taiseer Mahmoud';
+  const p2 = ACCOUNTING_COLLECTORS[1] ?? 'Ahmed Mansour';
   const p1Total = entries
-    .filter((e) => (e.collector ?? (e.collection_type === 'local' ? p1 : p2)) === p1)
+    .filter((e) => (e.collector ?? getAccountingCollectorByType(e.collection_type)) === p1)
     .reduce((s, e) => s + e.amount, 0);
   const settlementDiff = p1Total - eachShare;
   const settlementFrom = settlementDiff > 0 ? p1 : p2;
@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
   sheet.getCell('E1').alignment = { vertical: 'middle', horizontal: 'right' };
   sheet.addRow([]);
 
-  sheet.mergeCells(`A${sheet.rowCount + 1}:H${sheet.rowCount + 1}`);
   const revenueTitle = sheet.addRow(['REVENUE ENTRIES']);
+  sheet.mergeCells(`A${revenueTitle.number}:H${revenueTitle.number}`);
   revenueTitle.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   revenueTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 
@@ -87,8 +87,8 @@ export async function GET(req: NextRequest) {
       e.service ?? '—',
       num(e.amount),
       e.currency,
-      e.collection_type === 'local' ? p1 : p2,
-      e.collector ?? (e.collection_type === 'local' ? p1 : p2),
+      getAccountingCollectorByType(e.collection_type),
+      e.collector ?? getAccountingCollectorByType(e.collection_type),
       e.entry_date,
       e.notes ?? '',
     ]);
@@ -100,8 +100,8 @@ export async function GET(req: NextRequest) {
   }
 
   sheet.addRow([]);
-  sheet.mergeCells(`A${sheet.rowCount + 1}:H${sheet.rowCount + 1}`);
   const expensesTitle = sheet.addRow(['EXPENSES']);
+  sheet.mergeCells(`A${expensesTitle.number}:H${expensesTitle.number}`);
   expensesTitle.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   expensesTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 

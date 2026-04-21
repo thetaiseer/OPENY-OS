@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Download, Search, Archive } from 'lucide-react';
 import clsx from 'clsx';
 import type { DocsAccountingEntry, DocsAccountingExpense } from '@/lib/docs-types';
-import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS } from '@/lib/docs-types';
+import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS, getAccountingCollectorByType } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
@@ -16,10 +16,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function thisMonth() { return new Date().toISOString().slice(0, 7); }
 function monthKey(m: string) { return m.replace('-', ''); }
 function collectorFromType(type: 'local' | 'overseas') {
-  return type === 'local' ? ACCOUNTING_COLLECTORS[0] : ACCOUNTING_COLLECTORS[1];
-}
-function paymentTypeLabel(type: 'local' | 'overseas') {
-  return collectorFromType(type);
+  return getAccountingCollectorByType(type);
 }
 
 function fmt(n: number, cur = 'SAR') {
@@ -362,7 +359,7 @@ export default function AccountingPage() {
                         <td className="px-4 py-3 text-right font-semibold" style={{ color: '#059669' }}>{fmt(e.amount, e.currency)}</td>
                         <td className="px-4 py-3">
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: e.collection_type === 'local' ? 'rgba(37,99,235,0.1)' : 'rgba(124,58,237,0.1)', color: e.collection_type === 'local' ? '#2563eb' : '#7c3aed' }}>
-                            {paymentTypeLabel(e.collection_type)}
+                            {collectorFromType(e.collection_type)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{e.collector ?? '—'}</td>
