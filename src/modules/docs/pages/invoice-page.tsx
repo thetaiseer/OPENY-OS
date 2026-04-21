@@ -50,10 +50,11 @@ function branch(name = 'Branch'): InvoiceBranchGroup {
 }
 
 function nextInvoiceNumber(invoices: DocsInvoice[]) {
-  const nums = invoices
+  const maxNumber = invoices
     .map((invoice) => parseInt(invoice.invoice_number.replace(/\D/g, '') || '0', 10))
-    .filter(Boolean);
-  return `INV-${String((nums.length ? Math.max(...nums) : 0) + 1).padStart(4, '0')}`;
+    .filter(Boolean)
+    .reduce((max, value) => (value > max ? value : max), 0);
+  return `INV-${String(maxNumber + 1).padStart(4, '0')}`;
 }
 
 function blank(invoices: DocsInvoice[]): FormState {

@@ -18,26 +18,26 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
 const osNavItems = [
-  { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard'     },
-  { href: '/os/clients',        base: '/os/clients',       icon: Users2,          key: 'clients'        },
-  { href: '/os/tasks',          base: '/os/tasks',         icon: CheckSquare,     key: 'tasks'          },
-  { href: '/os/content',        base: '/os/content',       icon: FileText,        key: 'content'        },
-  { href: '/os/calendar',       base: '/os/calendar',      icon: CalendarDays,    key: 'calendar'       },
-  { href: '/os/assets',         base: '/os/assets',        icon: FolderOpen,      key: 'assets'         },
-  { href: '/os/reports',        base: '/os/reports',       icon: BarChart2,       key: 'reports'        },
-  { href: '/os/team',           base: '/os/team',          icon: Users,           key: 'team'           },
-  { href: '/os/activity',       base: '/os/activity',      icon: Activity,        key: 'activity'       },
-  { href: '/os/security',       base: '/os/security',      icon: Shield,          key: 'security'       },
+  { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard', label: 'Dashboard' },
+  { href: '/os/clients',        base: '/os/clients',       icon: Users2,          key: 'clients', label: 'Clients' },
+  { href: '/os/tasks',          base: '/os/tasks',         icon: CheckSquare,     key: 'tasks', label: 'Tasks' },
+  { href: '/os/content',        base: '/os/content',       icon: FileText,        key: 'content', label: 'Content' },
+  { href: '/os/calendar',       base: '/os/calendar',      icon: CalendarDays,    key: 'calendar', label: 'Calendar' },
+  { href: '/os/assets',         base: '/os/assets',        icon: FolderOpen,      key: 'assets', label: 'Assets' },
+  { href: '/os/reports',        base: '/os/reports',       icon: BarChart2,       key: 'reports', label: 'Reports' },
+  { href: '/os/team',           base: '/os/team',          icon: Users,           key: 'team', label: 'Team' },
+  { href: '/os/activity',       base: '/os/activity',      icon: Activity,        key: 'activity', label: 'Activity' },
+  { href: '/os/security',       base: '/os/security',      icon: Shield,          key: 'security', label: 'Security' },
 ];
 
 const docsNavItems = [
-  { href: '/docs',              base: '/docs',             icon: LayoutDashboard, key: 'dashboard'       },
-  { href: '/docs/invoice',      base: '/docs/invoice',     icon: FileText,        key: 'Invoice'         },
-  { href: '/docs/quotation',    base: '/docs/quotation',   icon: ClipboardList,   key: 'Quotation'       },
-  { href: '/docs/client-contract', base: '/docs/client-contract', icon: FileSignature, key: 'Client Contract' },
-  { href: '/docs/hr-contract',  base: '/docs/hr-contract', icon: BookOpen,        key: 'HR Contract'     },
-  { href: '/docs/employees',    base: '/docs/employees',   icon: Users,           key: 'Employees'       },
-  { href: '/docs/accounting',   base: '/docs/accounting',  icon: BarChart2,       key: 'Accounting'      },
+  { href: '/docs',              base: '/docs',             icon: LayoutDashboard, key: 'dashboard', label: 'Dashboard' },
+  { href: '/docs/invoice',      base: '/docs/invoice',     icon: FileText,        key: 'invoice', label: 'Invoice' },
+  { href: '/docs/quotation',    base: '/docs/quotation',   icon: ClipboardList,   key: 'quotation', label: 'Quotation' },
+  { href: '/docs/client-contract', base: '/docs/client-contract', icon: FileSignature, key: 'client-contract', label: 'Client Contract' },
+  { href: '/docs/hr-contract',  base: '/docs/hr-contract', icon: BookOpen,        key: 'hr-contract', label: 'HR Contract' },
+  { href: '/docs/employees',    base: '/docs/employees',   icon: Users,           key: 'employees', label: 'Employees' },
+  { href: '/docs/accounting',   base: '/docs/accounting',  icon: BarChart2,       key: 'accounting', label: 'Accounting' },
 ];
 
 interface SidebarProps { open?: boolean; onClose?: () => void; }
@@ -97,9 +97,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, base, icon: Icon, key }) => {
+          {navItems.map(({ href, base, icon: Icon, key, label }) => {
             const active = pathname === href || (base !== '/docs' && base !== '/os/dashboard' && pathname.startsWith(base));
-            const displayLabel = !isDocsWorkspace && key ? t(key) : key;
+            const displayLabel = isDocsWorkspace ? label : t(key);
             return (
               <Link
                 key={href}
