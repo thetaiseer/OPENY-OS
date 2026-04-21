@@ -90,5 +90,4 @@ export function switchWorkspace(
   targetWorkspaceKey: WorkspaceKey,
 ): void {
   router.push(getWorkspaceHomeHref(targetWorkspaceKey));
-  router.refresh();
 }
