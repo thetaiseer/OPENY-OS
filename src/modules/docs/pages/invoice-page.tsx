@@ -88,7 +88,7 @@ function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
     client_profile_id: invoice.client_profile_id ?? null,
-    invoice_template: invoice.invoice_template === 'Pro icon KSA Template' ? 'Pro icon KSA Template' : 'Manual',
+    invoice_template: invoice.invoice_template ?? 'Manual',
     invoice_number: invoice.invoice_number,
     client_name: invoice.client_name,
     campaign_month: invoice.campaign_month ?? monthNow(),

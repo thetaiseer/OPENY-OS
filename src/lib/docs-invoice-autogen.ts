@@ -18,6 +18,7 @@ interface InvoiceTemplateSpec {
   name: InvoiceTemplateName;
   clientName: string;
   branches: readonly string[];
+  branchWeights: readonly number[];
   platforms: readonly PlatformTemplateSpec[];
   defaultFinalBudget: number;
   defaultFees: number;
@@ -28,6 +29,7 @@ export const INVOICE_TEMPLATES: Record<InvoiceTemplateName, InvoiceTemplateSpec>
     name: 'Manual',
     clientName: '',
     branches: [],
+    branchWeights: [],
     platforms: [],
     defaultFinalBudget: 0,
     defaultFees: 0,
@@ -36,6 +38,7 @@ export const INVOICE_TEMPLATES: Record<InvoiceTemplateName, InvoiceTemplateSpec>
     name: 'Pro icon KSA Template',
     clientName: 'Pro icon KSA',
     branches: ['Riyadh', 'Jeddah', 'Khobar'],
+    branchWeights: [0.4, 0.33, 0.27],
     platforms: [
       { name: 'Instagram', rows: 6, weight: 0.5, resultSuffix: 'Messages', cpaRange: [20, 28] },
       { name: 'Snapchat', rows: 4, weight: 0.3, resultSuffix: 'Visits', cpaRange: [4, 8] },
@@ -205,7 +208,10 @@ function generateProIconKsaTemplate(
   ].join('|');
   const rng = createSeededRandom(seed);
 
-  const branchBudgets = splitBudgetWithWeights(finalBudget, [0.4, 0.33, 0.27], rng, 0.07);
+  const branchWeights = template.branchWeights.length === template.branches.length
+    ? template.branchWeights
+    : Array.from({ length: template.branches.length }, () => 1);
+  const branchBudgets = splitBudgetWithWeights(finalBudget, [...branchWeights], rng, 0.07);
 
   const branchGroups: InvoiceBranchGroup[] = template.branches.map((branchName, branchIndex) => {
     const branchBudget = branchBudgets[branchIndex] ?? 0;
@@ -220,6 +226,8 @@ function generateProIconKsaTemplate(
       const platformBudget = platformBudgets[platformIndex] ?? 0;
       const rowBudgets = splitBudgetWithWeights(
         platformBudget,
+        // Descending per-row weights intentionally front-load spend on early rows,
+        // creating realistic pacing while preserving exact platform totals.
         Array.from({ length: platform.rows }, (_, i) => platform.rows - i),
         rng,
         0.1,
@@ -228,7 +236,7 @@ function generateProIconKsaTemplate(
       const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => ({
         id: uid(),
         ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
-        date: formatRowDate(rowDays[rowIndex] ?? 1, formattedMonth, params.invoiceDate),
+        date: formatRowDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
         results: buildResults(platform, cost, rowIndex, platform.rows, rng),
         cost,
       }));
