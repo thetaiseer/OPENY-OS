@@ -53,10 +53,23 @@ interface PlatformsSelect {
   tiktok: boolean;
 }
 
+interface Html2PdfInstance {
+  set: (options: unknown) => {
+    from: (element: HTMLElement) => {
+      save: () => Promise<void>;
+    };
+  };
+}
+
 const DRAFT_KEY = 'openy_docs_invoice_draft_v1';
 const HISTORY_KEY = 'openy_docs_invoice_history_v1';
 const UID_KEY = 'openy_docs_firebase_uid_v1';
 const A4_WIDTH = 794;
+const MIN_SPLIT_VARIANCE = 0.05;
+const SPLIT_VARIANCE_RANGE = 0.05;
+const SPLIT_DIRECTION_THRESHOLD = 0.5;
+const CPA_VARIANCE_RATIO = 0.1;
+const COMPANY_LINES = ['OPENY Digital Solutions', 'Riyadh, KSA', '+966 000 000 000'];
 
 const months: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
@@ -65,6 +78,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const campaignMonthNow = () => new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).replace(' ', '-');
 const money = (n: number, c: string) => new Intl.NumberFormat('en-US', { style: 'currency', currency: c, minimumFractionDigits: 2 }).format(n || 0);
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const invoiceNumber = () => `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 90 + 10)}`;
 
 function splitBudget(total: number, parts: number): number[] {
   if (parts <= 0) return [];
@@ -72,7 +86,7 @@ function splitBudget(total: number, parts: number): number[] {
   let splits: number[] = [], remaining = total;
   for (let i = 0; i < parts - 1; i++) {
     let avg = remaining / (parts - i);
-    let variance = avg * (Math.random() * 0.05 + 0.05) * (Math.random() > 0.5 ? 1 : -1);
+    let variance = avg * (Math.random() * SPLIT_VARIANCE_RANGE + MIN_SPLIT_VARIANCE) * (Math.random() > SPLIT_DIRECTION_THRESHOLD ? 1 : -1);
     let current = Math.round(avg + variance);
     splits.push(current);
     remaining -= current;
@@ -86,7 +100,7 @@ const platform = (name = 'Instagram'): Platform => ({ id: uid(), name, rows: [ro
 const branch = (name = 'Main Branch'): Branch => ({ id: uid(), name, platforms: [platform()], isExpanded: true });
 
 const initialInvoice = (): InvoiceState => ({
-  invoiceNumber: `INV-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+  invoiceNumber: invoiceNumber(),
   invoiceDate: today(),
   currency: 'EGP',
   status: 'Unpaid',
@@ -136,7 +150,7 @@ function generateProIcon(total: number, month: string, count: number, selected: 
           const day = Math.min(15, Math.max(1, baseDay + (Math.floor(Math.random() * 3) - 1)));
           const date = new Date(y, m, day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
           const linear = p.min + ((p.max - p.min) * (rowsCount === 1 ? 0 : (i / (rowsCount - 1))));
-          const finalCpa = Math.max(1, linear + (linear * ((Math.random() * 0.2) - 0.1)));
+          const finalCpa = Math.max(1, linear + (linear * ((Math.random() * (CPA_VARIANCE_RATIO * 2)) - CPA_VARIANCE_RATIO)));
           return { id: uid(), adName: `${p.name} Campaign ${i + 1}`, date, results: `${Math.floor(cost / finalCpa)} Messages`, cost };
         }),
       };
@@ -289,7 +303,7 @@ export default function InvoicePage() {
     try {
       await new Promise((r) => setTimeout(r, 300));
       const mod = await import('html2pdf.js');
-      const html2pdf = ((mod as unknown as { default?: unknown }).default ?? mod) as () => { set: (v: unknown) => { from: (e: HTMLElement) => { save: () => Promise<void> } } };
+      const html2pdf = ((mod as unknown as { default?: unknown }).default ?? mod) as () => Html2PdfInstance;
       await html2pdf().set({
         margin: 12,
         filename: `${invoice.invoiceNumber}.pdf`,
@@ -368,7 +382,7 @@ export default function InvoicePage() {
                       <Input type="number" value={String(campaignCount)} onChange={(e) => setCampaignCount(Math.max(1, n(e.target.value)))} placeholder="Campaign Count" />
                     </div>
                     <div className="flex flex-wrap gap-3 text-sm font-medium">
-                      {(['instagram', 'Instagram (50%)'], ['snapchat', 'Snapchat (30%)'], ['tiktok', 'TikTok (20%)'] as const).map(([k, label]) => (
+                      {([['instagram', 'Instagram (50%)'], ['snapchat', 'Snapchat (30%)'], ['tiktok', 'TikTok (20%)']] as const).map(([k, label]) => (
                         <label key={k} className="inline-flex items-center gap-2"><input type="checkbox" checked={platforms[k]} onChange={(e) => setPlatforms((p) => ({ ...p, [k]: e.target.checked }))} />{label}</label>
                       ))}
                     </div>
@@ -492,7 +506,7 @@ function PreviewHeader({ invoice }: { invoice: InvoiceState }) {
   return (
     <>
       <div className="flex items-start justify-between gap-4 pb-3 border-b border-black">
-        <div><div className="flex items-center gap-2"><div className="h-9 w-9 bg-black text-white grid place-items-center font-black">O</div><span className="font-black text-xl">OPENY</span></div><p style={{ fontSize: 11 }} className="mt-2">OPENY Digital Solutions<br />Riyadh, KSA<br />+966 000 000 000</p></div>
+        <div><div className="flex items-center gap-2"><div className="h-9 w-9 bg-black text-white grid place-items-center font-black">O</div><span className="font-black text-xl">OPENY</span></div><p style={{ fontSize: 11 }} className="mt-2">{COMPANY_LINES.map((line) => <span key={line}>{line}<br /></span>)}</p></div>
         <div className="text-right"><div style={{ fontSize: 31, fontWeight: 900 }}>INVOICE</div><p style={{ fontSize: 11 }} className="mt-2">Ref: {invoice.invoiceNumber}</p><p style={{ fontSize: 11 }}>Date: {invoice.invoiceDate}</p></div>
       </div>
       <div className="mt-4"><span className="inline-block bg-black text-white px-2 py-1 text-[10px] font-bold">BILLED TO</span><h2 className="mt-2" style={{ fontSize: 18, fontWeight: 900 }}>{invoice.clientName || 'Client Name'}</h2><p style={{ fontSize: 12 }}>{invoice.campaignMonth}</p></div>
