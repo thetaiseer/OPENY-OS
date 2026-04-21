@@ -38,7 +38,7 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
   const [checking, setChecking] = useState(true);
 
   const workspaceLabel = workspace === 'docs' ? 'OPENY DOCS' : 'OPENY OS';
-  const defaultNext = workspace === 'docs' ? '/docs/dashboard' : '/os/dashboard';
+  const defaultNext = workspace === 'docs' ? '/docs' : '/os/dashboard';
 
   const checkAndRoute = useCallback(async () => {
     const next = searchParams.get('next') ?? defaultNext;

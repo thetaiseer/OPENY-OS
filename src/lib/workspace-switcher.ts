@@ -10,7 +10,7 @@ export interface WorkspaceMembershipInfo {
   workspaceName: string;
   role: WorkspaceRole | null;
   hasMembership: boolean;
-  homeHref: '/os/dashboard' | '/docs/dashboard';
+  homeHref: '/os/dashboard' | '/docs';
 }
 
 const WORKSPACE_DEFS: Array<{ key: WorkspaceKey; label: 'OPENY OS' | 'OPENY DOCS' }> = [
