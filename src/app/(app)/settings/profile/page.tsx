@@ -197,7 +197,13 @@ export default function SettingsProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="app-page-shell space-y-6">
+      <div className="app-page-header">
+        <div>
+          <h1 className="app-page-title">Settings</h1>
+          <p className="app-page-subtitle">Profile, appearance, access, and session preferences.</p>
+        </div>
+      </div>
       {/* Profile */}
       <div className="rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Profile</h2>

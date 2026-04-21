@@ -262,16 +262,18 @@ export default function SecurityPage() {
   const hasRiskFlags    = activeSessions.some(s => s.risk_flag);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="app-page-shell max-w-2xl mx-auto space-y-8">
       {/* Page header */}
-      <div>
-        <div className="flex items-center gap-3">
+      <div className="app-page-header">
+        <div>
+          <div className="flex items-center gap-3">
           <Shield size={24} style={{ color: 'var(--accent)' }} />
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Security</h1>
+            <h1 className="app-page-title">Security</h1>
+          </div>
+          <p className="app-page-subtitle">
+            Manage your active sessions and review login history.
+          </p>
         </div>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Manage your active sessions and review login history.
-        </p>
       </div>
 
       {/* Risk alert */}

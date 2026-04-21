@@ -5,9 +5,11 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
   BarChart2, Users, Settings, X, CalendarDays, Shield, FileText, Activity,
+  Moon, Sun,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 import AccountMenu from './AccountMenu';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
@@ -37,6 +39,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     : 'Go to OPENY OS dashboard';
   const { t } = useLang();
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <>
@@ -46,14 +49,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           onClick={onClose}
         />
       )}
-      <aside
-        className={clsx(
-          'fixed top-0 left-0 h-full w-64 xl:w-64 lg:w-[88px] z-40 flex flex-col',
-          'border-r transition-transform duration-200',
-          'lg:translate-x-0 lg:static lg:z-auto',
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+        <aside
+          className={clsx(
+            'fixed top-0 left-0 h-full w-72 lg:w-[84px] xl:w-72 z-40 flex flex-col',
+            'border-r transition-transform duration-200 backdrop-blur-xl',
+            'lg:translate-x-0 lg:static lg:z-auto',
+            open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          )}
+          style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
       >
         {/* Logo */}
         <div
@@ -93,7 +96,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-label={displayLabel}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
                   'lg:justify-center xl:justify-start',
                   active
                     ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
@@ -107,10 +110,29 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           })}
         </nav>
 
-        {/* User */}
-        <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="px-3 pt-2 pb-4 border-t space-y-1.5" style={{ borderColor: 'var(--border)' }}>
+          <Link
+            href="/os/settings"
+            onClick={onClose}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
+            aria-label={t('settings')}
+          >
+            <Settings size={18} strokeWidth={1.8} />
+            <span className="lg:hidden xl:inline">{t('settings')}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={18} strokeWidth={1.8} /> : <Moon size={18} strokeWidth={1.8} />}
+            <span className="lg:hidden xl:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+
           <AccountMenu placement="sidebar">
-            <div className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
                 style={{ background: 'var(--accent)' }}

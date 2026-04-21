@@ -292,14 +292,16 @@ export default function DashboardPage() {
   }, [assetRows]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+    <div className="app-page-shell max-w-6xl mx-auto space-y-8">
+      <div className="app-page-header">
+        <div>
+          <h1 className="app-page-title">
           {t('welcomeBack')}, {firstName} 👋
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          </h1>
+          <p className="app-page-subtitle">
           Here&apos;s what&apos;s happening today
-        </p>
+          </p>
+        </div>
       </div>
 
       {/* ── Stat cards ── */}

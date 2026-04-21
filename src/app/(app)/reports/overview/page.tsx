@@ -105,11 +105,11 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="app-page-shell max-w-6xl mx-auto space-y-8">
+      <div className="app-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Reports & Analytics</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Live data across clients, team, and publishing performance</p>
+          <h1 className="app-page-title">Reports & Analytics</h1>
+          <p className="app-page-subtitle">Live data across clients, team, and publishing performance</p>
         </div>
         <button
           onClick={() => void refetch()}

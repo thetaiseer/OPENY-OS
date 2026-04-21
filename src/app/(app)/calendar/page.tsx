@@ -208,12 +208,12 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="app-page-shell max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="app-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Calendar</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="app-page-title">Calendar</h1>
+          <p className="app-page-subtitle">
             View tasks, content, assets, and publishing schedules by date
           </p>
         </div>
