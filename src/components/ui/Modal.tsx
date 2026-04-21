@@ -24,12 +24,12 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(0,0,0,0.4)' }}
+      style={{ background: 'rgba(3,10,24,0.48)', backdropFilter: 'blur(3px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`w-full ${widthMap[size]} rounded-t-2xl sm:rounded-2xl border shadow-xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        className={`w-full ${widthMap[size]} rounded-t-3xl sm:rounded-2xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-md)' }}
       >
         <div
           className="flex items-center justify-between px-4 sm:px-6 py-4 border-b"

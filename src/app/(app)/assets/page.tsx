@@ -836,13 +836,13 @@ function AssetsPage() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      <div className="app-page-shell max-w-6xl mx-auto space-y-6" ref={dropZoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="app-page-header">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('assets')}</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="app-page-title">{t('assets')}</h1>
+            <p className="app-page-subtitle">
               Manage uploaded files · Drag &amp; drop or click Upload
             </p>
           </div>

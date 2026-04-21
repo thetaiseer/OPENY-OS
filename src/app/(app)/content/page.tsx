@@ -226,12 +226,12 @@ function ContentPage() {
   }, {});
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="app-page-shell max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="app-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Content Items</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="app-page-title">Content Items</h1>
+          <p className="app-page-subtitle">
             Manage your content pipeline from draft to published
           </p>
         </div>

@@ -45,77 +45,81 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="h-16 px-3 sm:px-4 lg:px-6 flex items-center gap-2 sm:gap-3 border-b sticky top-0 z-20"
-      style={{ background: 'var(--header-bg)', borderColor: 'var(--border)' }}
+      className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 py-2"
     >
-      <button
-        onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors shrink-0"
+      <div
+        className="h-14 rounded-2xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
+        style={{ background: 'var(--header-bg)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)', backdropFilter: 'blur(10px)' }}
       >
-        <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
-      </button>
-      <Link
-        href={dashboardHref}
-        aria-label={dashboardAriaLabel}
-        className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
-      >
-        <OpenyLogo width={82} height={24} />
-        <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
-      </Link>
-
-      {/* Global search — replaces the dead input */}
-      <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm">
-        <GlobalSearch />
-      </div>
-
-      <div className="flex-1" />
-
-      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-        <WorkspaceSwitcher />
-
         <button
-          onClick={toggleLang}
-          className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
-          style={{ color: 'var(--text-secondary)' }}
-          title="Toggle language"
+          onClick={onMenuClick}
+          className="lg:hidden p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors shrink-0"
         >
-          <Globe size={18} />
+          <Menu size={20} style={{ color: 'var(--text-secondary)' }} />
         </button>
-
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        <Link
+          href={dashboardHref}
+          aria-label={dashboardAriaLabel}
+          className="lg:hidden inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-85"
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+          <OpenyLogo width={82} height={24} />
+          <span className="text-[10px] font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>{workspaceLabel}</span>
+        </Link>
 
-        <NotificationDropdown />
+        {/* Global search — replaces the dead input */}
+        <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm lg:max-w-md">
+          <GlobalSearch />
+        </div>
 
-        {/* AI Command Center button */}
-        <button
-          onClick={() => openAi()}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
-          style={{
-            background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
-            color: aiOpen ? '#fff' : 'var(--accent)',
-            border: `1px solid ${aiOpen ? 'var(--accent)' : 'transparent'}`,
-          }}
-          title="AI Command Center (⌘J)"
-        >
-          <Sparkles size={13} />
-          <span className="hidden sm:inline">AI</span>
-        </button>
+        <div className="flex-1" />
 
-        <AccountMenu placement="header">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer hover:opacity-80 transition-opacity"
-            style={{ background: 'var(--accent)' }}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <WorkspaceSwitcher />
+
+          <button
+            onClick={toggleLang}
+            className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors hidden sm:flex"
+            style={{ color: 'var(--text-secondary)' }}
+            title="Toggle language"
           >
-            {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
-          </div>
-        </AccountMenu>
+            <Globe size={18} />
+          </button>
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          <NotificationDropdown />
+
+          {/* AI Command Center button */}
+          <button
+            onClick={() => openAi()}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
+            style={{
+              background: aiOpen ? 'var(--accent)' : 'var(--accent-soft)',
+              color: aiOpen ? '#fff' : 'var(--accent)',
+              border: `1px solid ${aiOpen ? 'var(--accent)' : 'transparent'}`,
+            }}
+            title="AI Command Center (⌘J)"
+          >
+            <Sparkles size={13} />
+            <span className="hidden sm:inline">AI</span>
+          </button>
+
+          <AccountMenu placement="header">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ background: 'var(--accent)' }}
+            >
+              {user ? (user.name || user.email).charAt(0).toUpperCase() : 'U'}
+            </div>
+          </AccountMenu>
+        </div>
       </div>
     </header>
   );

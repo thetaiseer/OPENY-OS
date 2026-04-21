@@ -261,11 +261,11 @@ function ClientsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="app-page-shell max-w-7xl mx-auto space-y-6">
+      <div className="app-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t('clients')}</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Manage all your clients</p>
+          <h1 className="app-page-title">{t('clients')}</h1>
+          <p className="app-page-subtitle">Manage all your clients</p>
         </div>
         {canManageClients && (
           <button
