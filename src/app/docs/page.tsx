@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function DocsRootPage() {
-  redirect('/docs/documents/invoice');
+  redirect('/docs/dashboard');
 }

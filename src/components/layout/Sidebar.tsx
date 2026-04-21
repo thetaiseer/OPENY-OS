@@ -11,6 +11,7 @@ import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import AccountMenu from './AccountMenu';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
@@ -111,6 +112,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="px-3 pt-2 pb-4 border-t space-y-1.5" style={{ borderColor: 'var(--border)' }}>
+          <div className="lg:flex lg:justify-center xl:block mb-1.5">
+            <WorkspaceSwitcher />
+          </div>
           <Link
             href="/os/settings"
             onClick={onClose}

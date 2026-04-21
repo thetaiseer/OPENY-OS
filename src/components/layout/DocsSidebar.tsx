@@ -3,11 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
-import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2, X } from 'lucide-react';
+import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2, X, Settings, Moon, Sun, LayoutDashboard } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
+import AccountMenu from './AccountMenu';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
+import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 
 const docsNav = [
+  { href: '/docs/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/docs/documents/invoice', label: 'Invoice', icon: FileText },
   { href: '/docs/documents/quotation', label: 'Quotation', icon: ClipboardList },
   { href: '/docs/documents/client-contract', label: 'Client Contract', icon: FileSignature },
@@ -27,6 +32,8 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
   const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <>
@@ -66,7 +73,7 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
         </div>
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {docsNav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/');
+            const active = pathname === href || (href !== '/docs/dashboard' && pathname.startsWith(href + '/'));
             return (
               <Link
                 key={href}
@@ -87,6 +94,50 @@ export default function DocsSidebar({ open, onClose }: DocsSidebarProps) {
             );
           })}
         </nav>
+
+        <div className="px-3 pt-2 pb-4 border-t space-y-1.5" style={{ borderColor: 'var(--border)' }}>
+          <div className="lg:flex lg:justify-center xl:block mb-1.5">
+            <WorkspaceSwitcher />
+          </div>
+          <Link
+            href="/docs/settings"
+            onClick={onClose}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
+            aria-label="Settings"
+          >
+            <Settings size={18} strokeWidth={1.8} />
+            <span className="lg:hidden xl:inline">Settings</span>
+          </Link>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={18} strokeWidth={1.8} /> : <Moon size={18} strokeWidth={1.8} />}
+            <span className="lg:hidden xl:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+
+          <AccountMenu placement="sidebar">
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--surface-2)] transition-colors cursor-pointer lg:justify-center xl:justify-start">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
+                style={{ background: 'var(--accent)' }}
+              >
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0 lg:hidden xl:block">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                  {user.name}
+                </p>
+                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                  {user.role}
+                </p>
+              </div>
+            </div>
+          </AccountMenu>
+        </div>
       </aside>
     </>
   );
