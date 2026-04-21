@@ -96,12 +96,12 @@ const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', borde
 
 const statusTone: Record<string, { bg: string; text: string; border: string }> = {
   todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--border)' },
-  in_progress: { bg: 'rgba(59,130,246,0.12)', text: '#2563eb', border: 'rgba(59,130,246,0.25)' },
+  in_progress: { bg: 'var(--color-info-bg)', text: 'var(--color-info)', border: 'var(--color-info-border)' },
   in_review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
   review: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
-  done: { bg: 'rgba(16,185,129,0.12)', text: '#059669', border: 'rgba(16,185,129,0.25)' },
+  done: { bg: 'var(--color-success-bg)', text: 'var(--color-success)', border: 'var(--color-success-border)' },
   delivered: { bg: 'var(--surface-2)', text: 'var(--text)', border: 'var(--border)' },
-  overdue: { bg: 'rgba(239,68,68,0.12)', text: '#dc2626', border: 'rgba(239,68,68,0.25)' },
+  overdue: { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)', border: 'var(--color-danger-border)' },
   default: { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border)' },
 };
 
@@ -407,7 +407,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{assignee?.full_name ?? 'Unassigned'}</span>
         </div>
         {task.due_date ? (
-          <span className={`text-xs inline-flex items-center gap-1 ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? '#dc2626' : soon ? '#d97706' : 'var(--text-secondary)' }}>
+          <span className={`text-xs inline-flex items-center gap-1 ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? 'var(--color-danger)' : soon ? 'var(--color-warning)' : 'var(--text-secondary)' }}>
             {overdue ? <AlertCircle size={12} /> : <Calendar size={12} />}
             {fmtDate(task.due_date)}
           </span>
@@ -634,7 +634,7 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({ task, team, t 
         <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
       </div>
       {task.due_date && (
-        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border self-start" style={{ background: overdue ? 'rgba(239,68,68,0.12)' : 'var(--surface-2)', borderColor: overdue ? 'rgba(239,68,68,0.25)' : 'var(--border)', color: overdue ? '#dc2626' : 'var(--text-secondary)' }}>
+        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border self-start" style={{ background: overdue ? 'var(--color-danger-bg)' : 'var(--surface-2)', borderColor: overdue ? 'var(--color-danger-border)' : 'var(--border)', color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>
           <Calendar size={11} />
           {fmtDate(task.due_date)}
         </div>
@@ -708,7 +708,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
             {statusLabel(overdue ? 'overdue' : task.status, t)}
           </span>
           {task.due_date && (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border" style={{ background: overdue ? 'rgba(239,68,68,0.12)' : 'var(--surface-2)', borderColor: overdue ? 'rgba(239,68,68,0.25)' : 'var(--border)', color: overdue ? '#dc2626' : 'var(--text-secondary)' }}>
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border" style={{ background: overdue ? 'var(--color-danger-bg)' : 'var(--surface-2)', borderColor: overdue ? 'var(--color-danger-border)' : 'var(--border)', color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>
               <Calendar size={10} />
               {fmtDate(task.due_date)}
             </span>
@@ -990,7 +990,7 @@ function DeleteConfirmModal({ task, open, onClose, onConfirm, error, t }: { task
         <p className="text-sm" style={{ color: 'var(--text)' }}>{t('confirmDeleteTask')}</p>
         {task && <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>&ldquo;{task.title}&rdquo;</p>}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -1513,7 +1513,7 @@ function TasksPage() {
       {fetchError && (
         <div
           className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
@@ -1762,7 +1762,7 @@ function TasksPage() {
                       {statusLabel(overdue ? 'overdue' : task.status, t)}
                     </span>
                     <Badge variant={priorityVariant(task.priority)}>{task.priority === 'high' ? `${t('high')} ↑` : t(task.priority)}</Badge>
-                    <p className={`text-sm ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? '#dc2626' : 'var(--text-secondary)' }}>{task.due_date ? fmtDate(task.due_date) : '-'}</p>
+                    <p className={`text-sm ${overdue ? 'font-semibold' : ''}`} style={{ color: overdue ? 'var(--color-danger)' : 'var(--text-secondary)' }}>{task.due_date ? fmtDate(task.due_date) : '-'}</p>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setViewTask(task)} className="btn-ghost p-1.5" aria-label={`View ${task.title}`}><Eye size={14} /></button>
                       <button onClick={() => openEdit(task)} className="btn-ghost p-1.5" aria-label={`Edit ${task.title}`}><Pencil size={14} /></button>
@@ -1807,7 +1807,7 @@ function TasksPage() {
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError(null); }} title={t('newTask')} size="lg">
         <form onSubmit={handleCreate}>
           {createError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{createError}</span>
             </div>
@@ -1820,7 +1820,7 @@ function TasksPage() {
       <Modal open={!!editTask} onClose={() => { setEditTask(null); setEditError(null); }} title={t('editTask')} size="lg">
         <form onSubmit={handleEdit}>
           {editError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }}>
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{editError}</span>
             </div>
