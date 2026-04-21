@@ -15,6 +15,12 @@ type Tab = 'ledger' | 'summary';
 function today() { return new Date().toISOString().slice(0, 10); }
 function thisMonth() { return new Date().toISOString().slice(0, 7); }
 function monthKey(m: string) { return m.replace('-', ''); }
+function collectorFromType(type: 'local' | 'overseas') {
+  return type === 'local' ? ACCOUNTING_COLLECTORS[0] : ACCOUNTING_COLLECTORS[1];
+}
+function paymentTypeLabel(type: 'local' | 'overseas') {
+  return collectorFromType(type);
+}
 
 function fmt(n: number, cur = 'SAR') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, minimumFractionDigits: 2 }).format(n);
@@ -69,6 +75,7 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          collector: collectorFromType(form.collection_type),
           month_key: mk,
           client_profile_id: selectedProfile && !isVirtualDocsProfileId(selectedProfile.id) ? selectedProfile.id : null,
         }),
@@ -97,8 +104,11 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }:
             <div>{lbl('Currency')}<select className={inp} value={form.currency} onChange={e => setF('currency', e.target.value)}>{DOCS_CURRENCIES.map(c => <option key={c}>{c}</option>)}</select></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>{lbl('Collection Type')}<select className={inp} value={form.collection_type} onChange={e => setF('collection_type', e.target.value as 'local' | 'overseas')}><option value="local">Local</option><option value="overseas">Overseas</option></select></div>
-            <div>{lbl('Collected By')}<select className={inp} value={form.collector} onChange={e => setF('collector', e.target.value)}>{ACCOUNTING_COLLECTORS.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div>{lbl('Payment Type')}<select className={inp} value={form.collection_type} onChange={e => {
+              const type = e.target.value as 'local' | 'overseas';
+              setForm(f => ({ ...f, collection_type: type, collector: collectorFromType(type) }));
+            }}><option value="local">{ACCOUNTING_COLLECTORS[0]}</option><option value="overseas">{ACCOUNTING_COLLECTORS[1]}</option></select></div>
+            <div>{lbl('Collector')}<input className={inp} value={collectorFromType(form.collection_type)} readOnly /></div>
           </div>
           <div>{lbl('Entry Date')}<input type="date" className={inp} value={form.entry_date} onChange={e => setF('entry_date', e.target.value)} /></div>
           <div>{lbl('Notes')}<textarea className={inp} rows={2} value={form.notes} onChange={e => setF('notes', e.target.value)} /></div>
@@ -337,7 +347,7 @@ export default function AccountingPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: 'var(--surface)', borderBottom: `1px solid var(--border)` }}>
-                      {['Client', 'Service', 'Amount', 'Type', 'Collector', 'Date', ''].map(h => (
+                      {['Client', 'Service', 'Amount', 'Payment Type', 'Collector', 'Date', ''].map(h => (
                         <th key={h} className={clsx('px-4 py-3 text-xs font-semibold', h === 'Amount' ? 'text-right' : 'text-left')} style={{ color: 'var(--text-secondary)' }}>{h}</th>
                       ))}
                     </tr>
@@ -352,7 +362,7 @@ export default function AccountingPage() {
                         <td className="px-4 py-3 text-right font-semibold" style={{ color: '#059669' }}>{fmt(e.amount, e.currency)}</td>
                         <td className="px-4 py-3">
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: e.collection_type === 'local' ? 'rgba(37,99,235,0.1)' : 'rgba(124,58,237,0.1)', color: e.collection_type === 'local' ? '#2563eb' : '#7c3aed' }}>
-                            {e.collection_type}
+                            {paymentTypeLabel(e.collection_type)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{e.collector ?? '—'}</td>
