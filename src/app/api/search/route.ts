@@ -17,6 +17,39 @@ export const dynamic = 'force-dynamic';
 
 const MAX_PER_GROUP = 5;
 
+// ── Local result row shapes ────────────────────────────────────────────────────
+
+interface InvoiceRow {
+  id: string;
+  invoice_number: string;
+  client_name: string;
+  status: string;
+  invoice_date: string | null;
+}
+
+interface QuotationRow {
+  id: string;
+  quote_number: string;
+  client_name: string;
+  status: string;
+  quote_date: string | null;
+}
+
+interface EmployeeRow {
+  id: string;
+  full_name: string;
+  job_title: string | null;
+  status: string;
+  employee_id: string;
+}
+
+/** Safely extract `.name` from an opaque Supabase joined relation. */
+function joinedName(relation: unknown): string | undefined {
+  if (!relation || typeof relation !== 'object') return undefined;
+  const obj = relation as Record<string, unknown>;
+  return typeof obj['name'] === 'string' ? obj['name'] : undefined;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await getApiUser(request);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -131,14 +164,11 @@ export async function GET(request: NextRequest) {
   if (tasks.data?.length) {
     for (const t of tasks.data.slice(0, MAX_PER_GROUP)) {
       const client = Array.isArray(t.client) ? t.client[0] : t.client;
-      const clientName = client && typeof client === 'object' && 'name' in client
-        ? String(client.name)
-        : undefined;
       results.push({
         id: t.id,
         type: 'task',
         title: t.title,
-        subtitle: clientName,
+        subtitle: joinedName(client),
         badge: t.status,
         href: `/os/tasks`,
       });
@@ -161,14 +191,11 @@ export async function GET(request: NextRequest) {
   if (content.data?.length) {
     for (const ci of content.data.slice(0, MAX_PER_GROUP)) {
       const client = Array.isArray(ci.client) ? ci.client[0] : ci.client;
-      const clientName = client && typeof client === 'object' && 'name' in client
-        ? String(client.name)
-        : undefined;
       results.push({
         id: ci.id,
         type: 'content',
         title: ci.title,
-        subtitle: clientName,
+        subtitle: joinedName(client),
         badge: ci.status,
         href: `/os/content`,
       });
@@ -190,7 +217,7 @@ export async function GET(request: NextRequest) {
 
   // ── Map DOCS results ───────────────────────────────────────────────────────
   if (invoices.data?.length) {
-    for (const inv of (invoices.data as Array<{ id: string; invoice_number: string; client_name: string; status: string; invoice_date: string | null }>).slice(0, MAX_PER_GROUP)) {
+    for (const inv of (invoices.data as InvoiceRow[]).slice(0, MAX_PER_GROUP)) {
       results.push({
         id: inv.id,
         type: 'invoice',
@@ -203,7 +230,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (quotations.data?.length) {
-    for (const qt of (quotations.data as Array<{ id: string; quote_number: string; client_name: string; status: string; quote_date: string | null }>).slice(0, MAX_PER_GROUP)) {
+    for (const qt of (quotations.data as QuotationRow[]).slice(0, MAX_PER_GROUP)) {
       results.push({
         id: qt.id,
         type: 'quotation',
@@ -216,7 +243,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (employees.data?.length) {
-    for (const emp of (employees.data as Array<{ id: string; full_name: string; job_title: string | null; status: string; employee_id: string }>).slice(0, MAX_PER_GROUP)) {
+    for (const emp of (employees.data as EmployeeRow[]).slice(0, MAX_PER_GROUP)) {
       results.push({
         id: emp.id,
         type: 'employee',

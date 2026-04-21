@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Users2, CheckSquare, FolderOpen, FileText, Users,
-  X, Clock, ArrowRight, ClipboardList, Briefcase,
+  X, Clock, ArrowRight, ClipboardList, Briefcase, ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -38,7 +38,7 @@ const TYPE_META: Record<ResultType, { label: string; icon: LucideIcon }> = {
   asset:     { label: 'Asset',     icon: FolderOpen },
   content:   { label: 'Content',   icon: FileText },
   team:      { label: 'Team',      icon: Users },
-  invoice:   { label: 'Invoice',   icon: FileText },
+  invoice:   { label: 'Invoice',   icon: ScrollText },
   quotation: { label: 'Quotation', icon: ClipboardList },
   employee:  { label: 'Employee',  icon: Briefcase },
 };
