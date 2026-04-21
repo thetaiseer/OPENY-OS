@@ -15,12 +15,12 @@ export function DocsPageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="docs-page-header">
+    <div className="app-page-header">
       <div>
-        <h1 className="docs-page-title">{title}</h1>
-        {subtitle ? <p className="docs-page-subtitle">{subtitle}</p> : null}
+        <h1 className="app-page-title">{title}</h1>
+        {subtitle ? <p className="app-page-subtitle">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="docs-page-actions">{actions}</div> : null}
+      {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
     </div>
   );
 }

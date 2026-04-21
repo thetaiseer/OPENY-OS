@@ -4,14 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Users2, CheckSquare, FolderOpen, FileText, Users,
-  X, Clock, ArrowRight,
+  X, Clock, ArrowRight, ClipboardList, Briefcase, ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ResultType = 'client' | 'task' | 'asset' | 'content' | 'team';
+type ResultType = 'client' | 'task' | 'asset' | 'content' | 'team' | 'invoice' | 'quotation' | 'employee';
 
 interface SearchResult {
   id: string;
@@ -33,14 +33,17 @@ const RECENT_KEY = 'openy_recent_searches';
 const MAX_RECENT = 8;
 
 const TYPE_META: Record<ResultType, { label: string; icon: LucideIcon }> = {
-  client:  { label: 'Client',  icon: Users2 },
-  task:    { label: 'Task',    icon: CheckSquare },
-  asset:   { label: 'Asset',   icon: FolderOpen },
-  content: { label: 'Content', icon: FileText },
-  team:    { label: 'Team',    icon: Users },
+  client:    { label: 'Client',    icon: Users2 },
+  task:      { label: 'Task',      icon: CheckSquare },
+  asset:     { label: 'Asset',     icon: FolderOpen },
+  content:   { label: 'Content',   icon: FileText },
+  team:      { label: 'Team',      icon: Users },
+  invoice:   { label: 'Invoice',   icon: ScrollText },
+  quotation: { label: 'Quotation', icon: ClipboardList },
+  employee:  { label: 'Employee',  icon: Briefcase },
 };
 
-const TYPE_ORDER: ResultType[] = ['client', 'task', 'content', 'asset', 'team'];
+const TYPE_ORDER: ResultType[] = ['client', 'task', 'content', 'asset', 'team', 'invoice', 'quotation', 'employee'];
 
 // ─── LocalStorage helpers ─────────────────────────────────────────────────────
 
@@ -65,11 +68,14 @@ function clearRecentSearches() {
 
 function typeBadgeStyle(type: ResultType): React.CSSProperties {
   const map: Record<ResultType, { bg: string; color: string }> = {
-    client:  { bg: 'rgba(99,102,241,0.12)', color: '#6366f1' },
-    task:    { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
-    asset:   { bg: 'rgba(234,179,8,0.12)',  color: '#ca8a04' },
-    content: { bg: 'rgba(168,85,247,0.12)', color: '#a855f7' },
-    team:    { bg: 'rgba(34,197,94,0.12)',  color: '#16a34a' },
+    client:    { bg: 'rgba(99,102,241,0.12)',  color: '#6366f1' },
+    task:      { bg: 'rgba(59,130,246,0.12)',  color: '#3b82f6' },
+    asset:     { bg: 'rgba(234,179,8,0.12)',   color: '#ca8a04' },
+    content:   { bg: 'rgba(168,85,247,0.12)',  color: '#a855f7' },
+    team:      { bg: 'rgba(34,197,94,0.12)',   color: '#16a34a' },
+    invoice:   { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
+    quotation: { bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed' },
+    employee:  { bg: 'rgba(217,119,6,0.12)',   color: '#d97706' },
   };
   return { background: map[type].bg, color: map[type].color };
 }

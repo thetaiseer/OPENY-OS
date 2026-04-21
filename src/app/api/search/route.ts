@@ -1,18 +1,54 @@
 /**
  * GET /api/search?q=<query>&limit=<n>
  *
- * Global search across clients, tasks, assets, content_items, team_members.
+ * Global search across clients, tasks, assets, content_items, team_members
+ * (OPENY OS) and invoices, quotations, employees (OPENY DOCS) based on the
+ * caller's workspace memberships.
  * Returns grouped results for the command palette and global search UI.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { isGlobalOwnerEmail } from '@/lib/workspace-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAX_PER_GROUP = 5;
+
+// ── Local result row shapes ────────────────────────────────────────────────────
+
+interface InvoiceRow {
+  id: string;
+  invoice_number: string;
+  client_name: string;
+  status: string;
+  invoice_date: string | null;
+}
+
+interface QuotationRow {
+  id: string;
+  quote_number: string;
+  client_name: string;
+  status: string;
+  quote_date: string | null;
+}
+
+interface EmployeeRow {
+  id: string;
+  full_name: string;
+  job_title: string | null;
+  status: string;
+  employee_id: string;
+}
+
+/** Safely extract `.name` from an opaque Supabase joined relation. */
+function joinedName(relation: unknown): string | undefined {
+  if (!relation || typeof relation !== 'object') return undefined;
+  const obj = relation as Record<string, unknown>;
+  return typeof obj['name'] === 'string' ? obj['name'] : undefined;
+}
 
 export async function GET(request: NextRequest) {
   const auth = await getApiUser(request);
@@ -29,22 +65,43 @@ export async function GET(request: NextRequest) {
   const db = getServiceClient();
   const pattern = `%${q}%`;
 
+  // Determine if the caller has docs workspace access.
+  const hasDocsAccess = isGlobalOwnerEmail(auth.profile.email)
+    ? true
+    : await (async () => {
+        const { data } = await db
+          .from('workspace_memberships')
+          .select('id')
+          .eq('user_id', auth.profile.id)
+          .eq('workspace_key', 'docs')
+          .eq('is_active', true)
+          .maybeSingle();
+        return Boolean(data);
+      })();
+
+  interface SearchResult {
+    id: string;
+    type: 'client' | 'task' | 'asset' | 'content' | 'team' | 'invoice' | 'quotation' | 'employee';
+    title: string;
+    subtitle?: string;
+    badge?: string;
+    href: string;
+  }
+
+  // ── OS entity queries ──────────────────────────────────────────────────────
   const [clients, tasks, assets, content, team] = await Promise.all([
-    // Clients
     db
       .from('clients')
       .select('id, name, email, status, slug')
       .or(`name.ilike.${pattern},email.ilike.${pattern}`)
       .limit(limit),
 
-    // Tasks
     db
       .from('tasks')
       .select('id, title, status, priority, due_date, client:clients(id,name)')
       .or(`title.ilike.${pattern},description.ilike.${pattern}`)
       .limit(limit),
 
-    // Assets
     db
       .from('assets')
       .select('id, name, content_type, client_name, file_type')
@@ -52,14 +109,12 @@ export async function GET(request: NextRequest) {
       .is('is_deleted', false)
       .limit(limit),
 
-    // Content items
     db
       .from('content_items')
       .select('id, title, status, client:clients(id,name)')
       .or(`title.ilike.${pattern},description.ilike.${pattern}`)
       .limit(limit),
 
-    // Team members
     db
       .from('team_members')
       .select('id, full_name, email, role, status')
@@ -67,17 +122,32 @@ export async function GET(request: NextRequest) {
       .limit(limit),
   ]);
 
-  interface SearchResult {
-    id: string;
-    type: 'client' | 'task' | 'asset' | 'content' | 'team';
-    title: string;
-    subtitle?: string;
-    badge?: string;
-    href: string;
-  }
+  // ── DOCS entity queries (only when user has docs access) ───────────────────
+  const [invoices, quotations, employees] = hasDocsAccess
+    ? await Promise.all([
+        db
+          .from('docs_invoices')
+          .select('id, invoice_number, client_name, status, invoice_date')
+          .or(`invoice_number.ilike.${pattern},client_name.ilike.${pattern}`)
+          .limit(limit),
+
+        db
+          .from('docs_quotations')
+          .select('id, quote_number, client_name, status, quote_date')
+          .or(`quote_number.ilike.${pattern},client_name.ilike.${pattern}`)
+          .limit(limit),
+
+        db
+          .from('docs_employees')
+          .select('id, full_name, job_title, status, employee_id')
+          .or(`full_name.ilike.${pattern},job_title.ilike.${pattern},employee_id.ilike.${pattern}`)
+          .limit(limit),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const results: SearchResult[] = [];
 
+  // ── Map OS results ─────────────────────────────────────────────────────────
   if (clients.data?.length) {
     for (const c of clients.data.slice(0, MAX_PER_GROUP)) {
       results.push({
@@ -98,7 +168,7 @@ export async function GET(request: NextRequest) {
         id: t.id,
         type: 'task',
         title: t.title,
-        subtitle: client?.name,
+        subtitle: joinedName(client),
         badge: t.status,
         href: `/os/tasks`,
       });
@@ -125,7 +195,7 @@ export async function GET(request: NextRequest) {
         id: ci.id,
         type: 'content',
         title: ci.title,
-        subtitle: client?.name,
+        subtitle: joinedName(client),
         badge: ci.status,
         href: `/os/content`,
       });
@@ -145,5 +215,46 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── Map DOCS results ───────────────────────────────────────────────────────
+  if (invoices.data?.length) {
+    for (const inv of (invoices.data as InvoiceRow[]).slice(0, MAX_PER_GROUP)) {
+      results.push({
+        id: inv.id,
+        type: 'invoice',
+        title: `Invoice ${inv.invoice_number}`,
+        subtitle: inv.client_name || undefined,
+        badge: inv.status,
+        href: `/docs/invoice`,
+      });
+    }
+  }
+
+  if (quotations.data?.length) {
+    for (const qt of (quotations.data as QuotationRow[]).slice(0, MAX_PER_GROUP)) {
+      results.push({
+        id: qt.id,
+        type: 'quotation',
+        title: `Quotation ${qt.quote_number}`,
+        subtitle: qt.client_name || undefined,
+        badge: qt.status,
+        href: `/docs/quotation`,
+      });
+    }
+  }
+
+  if (employees.data?.length) {
+    for (const emp of (employees.data as EmployeeRow[]).slice(0, MAX_PER_GROUP)) {
+      results.push({
+        id: emp.id,
+        type: 'employee',
+        title: emp.full_name,
+        subtitle: emp.job_title || undefined,
+        badge: emp.status,
+        href: `/docs/employees`,
+      });
+    }
+  }
+
   return NextResponse.json({ results, query: q });
 }
+

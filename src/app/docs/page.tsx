@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2,
 } from 'lucide-react';
-import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const MODULES = [
   {
@@ -57,18 +56,17 @@ const MODULES = [
 
 export default function DocsHomePage() {
   return (
-    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <OpenyLogo width={120} height={34} />
-          <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>DOCS</span>
+    <div className="app-page-shell max-w-5xl mx-auto">
+      <div className="app-page-header">
+        <div>
+          <h1 className="app-page-title">DOCS</h1>
+          <p className="app-page-subtitle">
+            Internal business documents — invoices, contracts, employees &amp; accounting.
+          </p>
         </div>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Internal business document platform — invoices, contracts, employees & accounting.
-        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
           <Link
             key={href}
