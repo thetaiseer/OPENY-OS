@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import QuotationPage from '@/modules/docs/pages/quotation-page';
 
 export default function DocsQuotationPage() {
-  redirect('/quotation');
+  return <QuotationPage />;
 }

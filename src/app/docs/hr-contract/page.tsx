@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import HrContractPage from '@/modules/docs/pages/hr-contract-page';
 
 export default function DocsHrContractPage() {
-  redirect('/hr-contract');
+  return <HrContractPage />;
 }

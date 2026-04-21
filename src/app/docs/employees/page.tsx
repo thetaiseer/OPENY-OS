@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import EmployeesPage from '@/modules/docs/pages/employees-page';
 
 export default function DocsEmployeesPage() {
-  redirect('/employees');
+  return <EmployeesPage />;
 }
