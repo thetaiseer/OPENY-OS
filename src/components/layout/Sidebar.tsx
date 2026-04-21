@@ -125,18 +125,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   'lg:justify-center xl:justify-start',
                   active
                     ? 'text-[var(--accent)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text)]',
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
                 style={active ? {
                   background: 'var(--accent-soft)',
                   boxShadow: 'var(--shadow-xs)',
                 } : {}}
-                onMouseEnter={e => {
-                  if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-                }}
-                onMouseLeave={e => {
-                  if (!active) (e.currentTarget as HTMLElement).style.background = '';
-                }}
               >
                 {/* Icon badge */}
                 <span
@@ -165,10 +159,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] lg:justify-center xl:justify-start"
-            style={{}}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = '')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
@@ -183,9 +174,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           <AccountMenu placement="sidebar">
             <div
-              className="flex items-center gap-3 rounded-xl px-3 py-2 transition-colors cursor-pointer lg:justify-center xl:justify-start"
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition-colors cursor-pointer hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
             >
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"

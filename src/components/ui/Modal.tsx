@@ -49,10 +49,8 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl transition-colors"
+            className="p-1.5 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <X size={18} />
           </button>

@@ -59,10 +59,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
       >
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-xl transition-colors shrink-0"
+          className="lg:hidden p-2 rounded-xl transition-colors shrink-0 hover:bg-[var(--surface-2)]"
           style={{ color: 'var(--text-secondary)' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <Menu size={20} />
         </button>
@@ -96,11 +94,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Lang toggle */}
           <button
             onClick={toggleLang}
-            className="p-2 rounded-xl transition-colors hidden sm:flex"
+            className="p-2 rounded-xl transition-colors hidden sm:flex hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
             title="Toggle language"
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <Globe size={18} />
           </button>
@@ -108,11 +104,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl transition-colors"
+            className="p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
