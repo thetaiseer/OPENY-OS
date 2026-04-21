@@ -491,6 +491,43 @@ export default function AccountingPage() {
               </div>
             </div>
 
+            {/* Settlement direction — who transfers to whom */}
+            {totalRevenue > 0 && Object.keys(byCollector).length >= 2 && (() => {
+              const [p1, p2] = ACCOUNTING_COLLECTORS;
+              const p1Total = (byCollector[p1]?.local ?? 0) + (byCollector[p1]?.overseas ?? 0);
+              const eachShare = netResult / 2;
+              const diff = p1Total - eachShare;
+              const absAmt = Math.abs(diff);
+              if (absAmt < 0.005) return null;
+              const fromName = diff > 0 ? p1 : p2;
+              const toName   = diff > 0 ? p2 : p1;
+              return (
+                <div className="rounded-2xl p-4 border flex items-start gap-3" style={{
+                  background: diff > 0
+                    ? 'linear-gradient(135deg,rgba(37,99,235,0.06),rgba(124,58,237,0.06))'
+                    : 'linear-gradient(135deg,rgba(5,150,105,0.06),rgba(15,118,110,0.06))',
+                  borderColor: diff > 0 ? '#2563eb' : '#059669',
+                  borderWidth: 1.5,
+                }}>
+                  <svg fill="none" stroke={diff > 0 ? '#2563eb' : '#059669'} viewBox="0 0 24 24" style={{ width: 28, height: 28, flexShrink: 0 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={diff > 0 ? 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' : 'M16 17H4m0 0l4-4m-4 4l4 4M8 7h12m0 0l-4-4m4 4l-4 4'} />
+                  </svg>
+                  <div>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Settlement Result — نتيجة التسوية</div>
+                    <div className="text-sm font-bold" style={{ color: diff > 0 ? '#2563eb' : '#059669' }}>
+                      {fromName} transfers&nbsp;
+                      <span className="text-base" style={{ color: '#dc2626' }}>{fmt(absAmt)}</span>
+                      &nbsp;→ to {toName}
+                    </div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                      Each partner&apos;s equal share: {fmt(eachShare)} &nbsp;·&nbsp;
+                      {p1} collected: {fmt(p1Total)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Expense breakdown */}
             {expenses.length > 0 && (
               <div>
