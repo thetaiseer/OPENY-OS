@@ -52,7 +52,7 @@ function branch(name = 'Branch'): InvoiceBranchGroup {
 function nextInvoiceNumber(invoices: DocsInvoice[]) {
   const maxNumber = invoices
     .map((invoice) => parseInt(invoice.invoice_number.replace(/\D/g, '') || '0', 10))
-    .filter(Boolean)
+    .filter((value) => Number.isFinite(value))
     .reduce((max, value) => (value > max ? value : max), 0);
   return `INV-${String(maxNumber + 1).padStart(4, '0')}`;
 }
@@ -163,10 +163,6 @@ export default function InvoicePage() {
         our_fees: Number(form.our_fees || 0),
         notes: form.notes,
         branch_groups: form.branch_groups,
-        platforms: [],
-        deliverables: [],
-        custom_client: null,
-        custom_project: null,
       };
 
       const url = form.id ? `/api/docs/invoices/${form.id}` : '/api/docs/invoices';
