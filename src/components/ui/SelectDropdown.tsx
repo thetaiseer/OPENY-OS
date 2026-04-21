@@ -157,11 +157,14 @@ export default function SelectDropdown({
     ? createPortal(
         <div
           ref={dropdownRef}
-          className="rounded-2xl border shadow-2xl overflow-hidden"
+          className="rounded-3xl border shadow-2xl overflow-hidden"
           style={{
             ...portalStyle,
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
+            background: 'var(--surface-floating)',
+            borderColor: 'var(--border-glass)',
+            backdropFilter: 'var(--blur-panel)',
+            WebkitBackdropFilter: 'var(--blur-panel)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
           <div className="py-1.5 max-h-60 overflow-y-auto">
@@ -200,11 +203,12 @@ export default function SelectDropdown({
         type="button"
         disabled={disabled}
         onClick={e => { e.stopPropagation(); if (!disabled) setOpen(o => !o); }}
-        className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
+        className={`flex items-center gap-2 px-3 h-10 rounded-full text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
         style={{
-          background:  'var(--surface-2)',
+          background:  'var(--surface-shell)',
           color:       hasValue ? 'var(--text)' : 'var(--text-secondary)',
           border:      `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
+          boxShadow:   'var(--shadow-xs)',
           whiteSpace:  'nowrap',
         }}
         title={label}

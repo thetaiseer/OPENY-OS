@@ -138,7 +138,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto app-shell-main">{children}</main>
+        <main className="flex-1 overflow-y-auto app-shell-main" style={{ background: 'linear-gradient(180deg, color-mix(in srgb, var(--surface-shell) 52%, transparent) 0%, transparent 40%)' }}>{children}</main>
       </div>
 
       <GlobalQuickActionsFab />

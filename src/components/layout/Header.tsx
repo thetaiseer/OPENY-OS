@@ -48,11 +48,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
       className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 py-2"
     >
       <div
-        className="h-14 rounded-2xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
+        className="h-14 rounded-3xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
         style={{
-          background: 'var(--header-bg)',
+          background: 'var(--surface-shell)',
           borderColor: 'var(--border-glass)',
-          boxShadow: 'var(--shadow-card)',
+          boxShadow: 'var(--shadow-card), var(--highlight-inset)',
           backdropFilter: 'var(--blur-glass)',
           WebkitBackdropFilter: 'var(--blur-glass)',
         }}
@@ -71,7 +71,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         >
           <OpenyLogo width={82} height={24} />
           <span
-            className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-md"
+            className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded-full"
             style={{
               background: 'var(--accent-soft)',
               color: 'var(--accent)',

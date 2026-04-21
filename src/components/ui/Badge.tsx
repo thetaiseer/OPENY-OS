@@ -15,7 +15,7 @@ export default function Badge({ children, variant = 'default' }: BadgeProps) {
   return (
     <span
       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border"
-      style={{ background: style.bg, color: style.color, borderColor: style.border }}
+      style={{ background: style.bg, color: style.color, borderColor: style.border, boxShadow: 'var(--highlight-inset)' }}
     >
       {children}
     </span>
