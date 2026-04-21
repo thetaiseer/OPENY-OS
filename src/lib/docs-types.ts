@@ -318,3 +318,8 @@ export const DOCS_MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'
 // Taiseer: local/Egypt; Ahmed: overseas/international
 
 export const ACCOUNTING_COLLECTORS = ['Taiseer Mahmoud', 'Ahmed Mansour'];
+
+export function getAccountingCollectorByType(type: DocsCollectionType | string) {
+  const [localCollector = 'Taiseer Mahmoud', overseasCollector = 'Ahmed Mansour'] = ACCOUNTING_COLLECTORS;
+  return type === 'local' ? localCollector : overseasCollector;
+}
