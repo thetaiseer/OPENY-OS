@@ -22,7 +22,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const dashboardHref = getWorkspaceDashboardHref(pathname);
   const workspaceLabel = getWorkspaceFromPathname(pathname) === 'docs' ? 'DOCS' : 'OS';
-  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+  const dashboardAriaLabel = dashboardHref === '/docs'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
   const { theme, toggleTheme } = useTheme();

@@ -17,8 +17,8 @@ export function resolveWorkspaceKey(value: string): WorkspaceKey | null {
   return null;
 }
 
-export function getWorkspaceHomeHref(workspaceKey: WorkspaceKey): '/os/dashboard' | '/docs/dashboard' {
-  return workspaceKey === 'docs' ? '/docs/dashboard' : '/os/dashboard';
+export function getWorkspaceHomeHref(workspaceKey: WorkspaceKey): '/os/dashboard' | '/docs' {
+  return workspaceKey === 'docs' ? '/docs' : '/os/dashboard';
 }
 
 export async function checkWorkspaceAccess(

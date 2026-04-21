@@ -8,8 +8,8 @@ export function getWorkspaceFromPathname(pathname: string): 'docs' | 'os' {
 /**
  * Returns the correct dashboard route for the active workspace.
  */
-export function getWorkspaceDashboardHref(pathname: string): '/docs/dashboard' | '/os/dashboard' {
+export function getWorkspaceDashboardHref(pathname: string): '/docs' | '/os/dashboard' {
   return getWorkspaceFromPathname(pathname) === 'docs'
-    ? '/docs/dashboard'
+    ? '/docs'
     : '/os/dashboard';
 }

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users2, CheckSquare, FolderOpen,
-  BarChart2, Users, Settings, X, CalendarDays, Shield, FileText, Activity,
+  BarChart2, Users, X, CalendarDays, Shield, FileText, Activity,
+  ClipboardList, FileSignature, BookOpen,
   Moon, Sun,
 } from 'lucide-react';
 import { useLang } from '@/lib/lang-context';
@@ -16,7 +17,7 @@ import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
 
-const navItems = [
+const osNavItems = [
   { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard'     },
   { href: '/os/clients',        base: '/os/clients',       icon: Users2,          key: 'clients'        },
   { href: '/os/tasks',          base: '/os/tasks',         icon: CheckSquare,     key: 'tasks'          },
@@ -27,15 +28,26 @@ const navItems = [
   { href: '/os/team',           base: '/os/team',          icon: Users,           key: 'team'           },
   { href: '/os/activity',       base: '/os/activity',      icon: Activity,        key: 'activity'       },
   { href: '/os/security',       base: '/os/security',      icon: Shield,          key: 'security'       },
-  { href: '/os/settings',       base: '/os/settings',      icon: Settings,        key: 'settings'       },
+];
+
+const docsNavItems = [
+  { href: '/docs',              base: '/docs',             icon: LayoutDashboard, key: 'dashboard'       },
+  { href: '/docs/invoice',      base: '/docs/invoice',     icon: FileText,        key: 'Invoice'         },
+  { href: '/docs/quotation',    base: '/docs/quotation',   icon: ClipboardList,   key: 'Quotation'       },
+  { href: '/docs/client-contract', base: '/docs/client-contract', icon: FileSignature, key: 'Client Contract' },
+  { href: '/docs/hr-contract',  base: '/docs/hr-contract', icon: BookOpen,        key: 'HR Contract'     },
+  { href: '/docs/employees',    base: '/docs/employees',   icon: Users,           key: 'Employees'       },
+  { href: '/docs/accounting',   base: '/docs/accounting',  icon: BarChart2,       key: 'Accounting'      },
 ];
 
 interface SidebarProps { open?: boolean; onClose?: () => void; }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const isDocsWorkspace = pathname.startsWith('/docs');
+  const navItems = isDocsWorkspace ? docsNavItems : osNavItems;
   const dashboardHref = getWorkspaceDashboardHref(pathname);
-  const dashboardAriaLabel = dashboardHref === '/docs/dashboard'
+  const dashboardAriaLabel = dashboardHref === '/docs'
     ? 'Go to OPENY DOCS dashboard'
     : 'Go to OPENY OS dashboard';
   const { t } = useLang();
@@ -74,7 +86,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <OpenyLogo width={96} height={28} />
             </Link>
             <span className="text-sm font-semibold tracking-wide hidden lg:inline xl:hidden" style={{ color: 'var(--text)' }}>OY</span>
-            <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>OS</span>
+            <span className="text-xs font-semibold tracking-wide hidden xl:inline" style={{ color: 'var(--text-secondary)' }}>{isDocsWorkspace ? 'DOCS' : 'OS'}</span>
           </div>
           {onClose && (
             <button onClick={onClose} className="lg:hidden p-1 rounded hover:opacity-70">
@@ -86,10 +98,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {navItems.map(({ href, base, icon: Icon, key }) => {
-            const active =
-              pathname === href ||
-              (base !== '/os/dashboard' && pathname.startsWith(base));
-            const displayLabel = key ? t(key) : href;
+            const active = pathname === href || (base !== '/docs' && base !== '/os/dashboard' && pathname.startsWith(base));
+            const displayLabel = !isDocsWorkspace && key ? t(key) : key;
             return (
               <Link
                 key={href}
@@ -115,15 +125,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="lg:flex lg:justify-center xl:block mb-1.5">
             <WorkspaceSwitcher />
           </div>
-          <Link
-            href="/os/settings"
-            onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] lg:justify-center xl:justify-start"
-            aria-label={t('settings')}
-          >
-            <Settings size={18} strokeWidth={1.8} />
-            <span className="lg:hidden xl:inline">{t('settings')}</span>
-          </Link>
           <button
             type="button"
             onClick={toggleTheme}
