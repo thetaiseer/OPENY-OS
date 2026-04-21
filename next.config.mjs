@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const LEGACY_DOCS_MODULE_ROUTES = ['/invoice', '/quotation', '/client-contract', '/hr-contract', '/employees', '/accounting'];
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -16,14 +18,10 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      { source: '/invoice', destination: '/docs-legacy/index.html' },
-      { source: '/quotation', destination: '/docs-legacy/index.html' },
-      { source: '/client-contract', destination: '/docs-legacy/index.html' },
-      { source: '/hr-contract', destination: '/docs-legacy/index.html' },
-      { source: '/employees', destination: '/docs-legacy/index.html' },
-      { source: '/accounting', destination: '/docs-legacy/index.html' },
-    ];
+    return LEGACY_DOCS_MODULE_ROUTES.map((source) => ({
+      source,
+      destination: '/docs-legacy/index.html',
+    }));
   },
 };
 export default nextConfig;
