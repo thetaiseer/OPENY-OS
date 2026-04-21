@@ -51,7 +51,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       )}
         <aside
           className={clsx(
-            'fixed top-0 left-0 h-full w-72 lg:w-[84px] xl:w-72 z-40 flex flex-col',
+            'fixed top-0 left-0 h-full w-64 lg:w-[88px] xl:w-64 z-40 flex flex-col',
             'border-r transition-transform duration-200 backdrop-blur-xl',
             'lg:translate-x-0 lg:static lg:z-auto',
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',

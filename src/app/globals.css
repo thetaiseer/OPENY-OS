@@ -201,7 +201,7 @@ textarea:focus {
 }
 
 table thead {
-  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface));
 }
 
 table tbody tr:hover {
@@ -247,6 +247,12 @@ table tbody tr:hover {
 }
 
 .animate-openy-fade-in { animation: openy-fade-in 0.2s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    background: var(--bg);
+  }
+}
 
 @media (min-width: 640px) {
   :root {

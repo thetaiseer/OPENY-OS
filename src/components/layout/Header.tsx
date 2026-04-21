@@ -67,7 +67,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </Link>
 
         {/* Global search — replaces the dead input */}
-        <div className="flex-1 min-w-0 max-w-[62vw] md:max-w-md lg:max-w-lg">
+        <div className="flex-1 min-w-0 max-w-[52vw] sm:max-w-sm lg:max-w-md">
           <GlobalSearch />
         </div>
 
