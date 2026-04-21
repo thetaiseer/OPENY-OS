@@ -232,38 +232,6 @@ table tbody tr:hover {
   background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
 }
 
-.openy-page-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.openy-page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.openy-page-header-title {
-  font-size: clamp(1.35rem, 2vw, 1.9rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.openy-page-header-description {
-  margin-top: 0.35rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.openy-page-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
 
 @keyframes openy-fade-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -400,30 +368,7 @@ select option {
   color: var(--text-secondary);
 }
 
-.docs-app .docs-page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1.25rem 1.25rem 0;
-}
-
-.docs-app .docs-page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.docs-app .docs-page-subtitle {
-  margin-top: 0.35rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.docs-app .docs-page-actions {
-  display: flex;
-  gap: 0.5rem;
-}
+/* Page header inside docs pages reuses the canonical .app-page-header / .app-page-title classes. */
 
 .docs-app .docs-tabs {
   display: flex;

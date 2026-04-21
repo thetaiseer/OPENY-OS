@@ -754,3 +754,24 @@ export interface WorkspaceEvent {
   payload: Record<string, unknown>;
   created_at: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED DOCUMENT BASE — common fields across all OPENY DOCS entities
+// Docs-specific types in docs-types.ts extend or satisfy this interface.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Fields shared by every OPENY DOCS document entity. */
+export interface BaseDocument {
+  id: string;
+  /** FK to docs_client_profiles — the client this document belongs to. */
+  client_profile_id?: string | null;
+  /** ISO 8601 document creation date-time. */
+  created_at: string;
+  /** ISO 8601 last modification date-time. */
+  updated_at: string;
+  /** UUID of the team member who created the document. */
+  created_by: string | null;
+  /** Pre-signed or permanent URL for the exported PDF, if generated. */
+  export_pdf_url?: string | null;
+}
+

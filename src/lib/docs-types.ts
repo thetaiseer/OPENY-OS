@@ -2,6 +2,8 @@
 // OPENY DOCS — TypeScript types for all document modules
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { BaseDocument } from '@/lib/types';
+
 // ── Invoice ───────────────────────────────────────────────────────────────────
 
 export type DocsCurrency = 'SAR' | 'USD' | 'EUR' | 'AED' | 'EGP' | 'KWD' | 'QAR';
@@ -53,9 +55,8 @@ export interface InvoiceBranchGroup {
   platform_groups: InvoicePlatformGroup[];
 }
 
-export interface DocsInvoice {
-  id:               string;
-  client_profile_id?: string | null;
+export interface DocsInvoice extends BaseDocument {
+  export_pdf_url:   string | null;
   invoice_number:   string;
   client_name:      string;
   campaign_month:   string | null;
@@ -72,13 +73,9 @@ export interface DocsInvoice {
   custom_client:    string | null;
   custom_project:   string | null;
   notes:            string | null;
-  export_pdf_url:   string | null;
   export_excel_url: string | null;
   is_duplicate:     boolean;
   original_id:      string | null;
-  created_by:       string | null;
-  created_at:       string;
-  updated_at:       string;
 }
 
 // ── Quotation ─────────────────────────────────────────────────────────────────
@@ -91,9 +88,8 @@ export interface QuotationDeliverable {
   total:       number;
 }
 
-export interface DocsQuotation {
-  id:                    string;
-  client_profile_id?: string | null;
+export interface DocsQuotation extends BaseDocument {
+  export_pdf_url:        string | null;
   quote_number:          string;
   quote_date:            string | null;
   currency:              DocsCurrency;
@@ -108,13 +104,9 @@ export interface DocsQuotation {
   custom_payment_method: string | null;
   additional_notes:      string | null;
   status:                DocsStatus;
-  export_pdf_url:        string | null;
   export_excel_url:      string | null;
   is_duplicate:          boolean;
   original_id:           string | null;
-  created_by:            string | null;
-  created_at:            string;
-  updated_at:            string;
 }
 
 // ── Client Contract ───────────────────────────────────────────────────────────
@@ -125,9 +117,8 @@ export interface ContractClause {
   content: string;
 }
 
-export interface DocsClientContract {
-  id:                    string;
-  client_profile_id?: string | null;
+export interface DocsClientContract extends BaseDocument {
+  export_pdf_url:        string | null;
   contract_number:       string;
   contract_date:         string | null;
   duration_months:       number;
@@ -158,20 +149,15 @@ export interface DocsClientContract {
   sig_party2:            string | null;
   sig_date:              string | null;
   sig_place:             string | null;
-  export_pdf_url:        string | null;
   export_doc_url:        string | null;
   is_duplicate:          boolean;
   original_id:           string | null;
-  created_by:            string | null;
-  created_at:            string;
-  updated_at:            string;
 }
 
 // ── HR Contract ───────────────────────────────────────────────────────────────
 
-export interface DocsHrContract {
-  id:                      string;
-  client_profile_id?: string | null;
+export interface DocsHrContract extends BaseDocument {
+  export_pdf_url:          string | null;
   contract_number:         string;
   contract_date:           string | null;
   duration:                string | null;
@@ -210,20 +196,14 @@ export interface DocsHrContract {
   sig_employee_name:       string | null;
   sig_date:                string | null;
   sig_place:               string | null;
-  export_pdf_url:          string | null;
   export_doc_url:          string | null;
   is_duplicate:            boolean;
   original_id:             string | null;
-  created_by:              string | null;
-  created_at:              string;
-  updated_at:              string;
 }
 
 // ── Employees ─────────────────────────────────────────────────────────────────
 
-export interface DocsEmployee {
-  id:                string;
-  client_profile_id?: string | null;
+export interface DocsEmployee extends BaseDocument {
   employee_id:       string;
   full_name:         string;
   date_of_birth:     string | null;
@@ -236,9 +216,6 @@ export interface DocsEmployee {
   daily_hours:       number;
   contract_duration: string | null;
   salary:            number;
-  created_by:        string | null;
-  created_at:        string;
-  updated_at:        string;
   salary_adjustments?: DocsSalaryAdjustment[];
 }
 
@@ -256,9 +233,7 @@ export interface DocsSalaryAdjustment {
 
 // ── Accounting ────────────────────────────────────────────────────────────────
 
-export interface DocsAccountingEntry {
-  id:              string;
-  client_profile_id?: string | null;
+export interface DocsAccountingEntry extends BaseDocument {
   client_name:     string;
   service:         string | null;
   amount:          number;
@@ -268,9 +243,6 @@ export interface DocsAccountingEntry {
   entry_date:      string;
   month_key:       string;
   notes:           string | null;
-  created_by:      string | null;
-  created_at:      string;
-  updated_at:      string;
 }
 
 export interface DocsAccountingExpense {

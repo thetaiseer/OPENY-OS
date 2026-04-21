@@ -17,13 +17,13 @@ import { AuthProvider } from '@/lib/auth-context';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: 'OPENY OS',
-  description: 'Modern SaaS workspace for social media agencies',
+  title: 'OPENY',
+  description: 'One unified SaaS platform — OPENY OS for operations and OPENY DOCS for business documents.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'OPENY OS',
+    title: 'OPENY',
   },
 };
 
