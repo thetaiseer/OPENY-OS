@@ -27,6 +27,7 @@ import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -311,6 +312,7 @@ function AssetsPage() {
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
   const { startBatch, isUploading, latestAsset } = useUpload();
+  const { registerQuickActionHandler } = useQuickActions();
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [assets, setAssets]           = useState<Asset[]>([]);
@@ -347,6 +349,7 @@ function AssetsPage() {
   const [uploadMonth, setUploadMonth]               = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [uploadClientName, setUploadClientName]     = useState<string>('');
   const [uploadClientId, setUploadClientId]         = useState<string>('');
+  const [quickActionUploadOpen, setQuickActionUploadOpen] = useState(false);
 
   const deferredAssets      = useDeferredValue(assets);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -430,14 +433,19 @@ function AssetsPage() {
 
   useEffect(() => {
     if (searchParams.get('quickAction') !== 'add-asset') return;
-    if (canUpload) {
-      fileRef.current?.click();
-    }
+    if (canUpload) setQuickActionUploadOpen(true);
     const params = new URLSearchParams(searchParams.toString());
     params.delete('quickAction');
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [canUpload, pathname, router, searchParams, fileRef]);
+  }, [canUpload, pathname, router, searchParams, setQuickActionUploadOpen]);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-asset', () => {
+      if (!canUpload) return;
+      setQuickActionUploadOpen(true);
+    });
+  }, [canUpload, registerQuickActionHandler, setQuickActionUploadOpen]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 
@@ -671,6 +679,7 @@ function AssetsPage() {
     const items = [...pendingItems];
     if (!items.length) return;
     setPendingItems([]);
+    setQuickActionUploadOpen(false);
     if (andSchedule) setScheduleAfterUpload(true);
     const uploadedBy = user?.name || user?.email || null;
     const uploadedByEmail = user?.email || null;
@@ -1093,7 +1102,7 @@ function AssetsPage() {
       </div>
 
       {/* ── Upload modal ─────────────────────────────────────────────────────── */}
-      {pendingItems.length > 0 && (
+      {(pendingItems.length > 0 || quickActionUploadOpen) && (
         <UploadModal
           files={pendingItems}
           mainCategory={uploadMainCategory}
@@ -1109,7 +1118,8 @@ function AssetsPage() {
           onNewClientCreated={handleNewClientCreated}
           onConfirm={() => startUploadBatch(false)}
           onConfirmAndSchedule={() => startUploadBatch(true)}
-          onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); }}
+          onCancel={() => { revokeItemUrls(pendingItems); setPendingItems([]); setQuickActionUploadOpen(false); }}
+          onAddFiles={(files) => openPendingBatch(Array.from(files))}
           onUploadNameChange={handleUploadNameChange}
           onRemoveFile={id => setPendingItems(prev => {
             const removed = prev.find(i => i.id === id);

@@ -38,6 +38,7 @@ import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
+import { useQuickActions } from '@/lib/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -983,6 +984,7 @@ function TasksPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { registerQuickActionHandler } = useQuickActions();
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
@@ -1089,6 +1091,12 @@ function TasksPage() {
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }, [pathname, router, searchParams, setCreateOpen]);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-task', () => {
+      setCreateOpen(true);
+    });
+  }, [registerQuickActionHandler, setCreateOpen]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
