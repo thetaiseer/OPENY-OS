@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect, Suspense } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   FileText, Plus, Search, Filter, Pencil, Trash2, ChevronRight,
@@ -123,9 +122,6 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 function ContentPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { registerQuickActionHandler } = useQuickActions();
   const { role } = useAuth();
   const canDeleteContent = role === 'admin' || role === 'owner';
@@ -183,15 +179,6 @@ function ContentPage() {
       },
     );
   }, [clientFilter, queryClient, statusFilter]);
-
-  useEffect(() => {
-    if (searchParams.get('quickAction') !== 'add-content') return;
-    setNewOpen(true);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('quickAction');
-    const next = params.toString();
-    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams, setNewOpen]);
 
   useEffect(() => {
     return registerQuickActionHandler('add-content', () => {

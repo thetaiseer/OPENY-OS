@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, Suspense } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Plus, Search, Users2, AlertCircle,
   FolderOpen, Image as ImageIcon, CheckSquare, FileText, Activity, Globe,
@@ -54,8 +54,6 @@ function ClientsPage() {
   const { role } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
   const canManageClients = role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
@@ -142,15 +140,6 @@ function ClientsPage() {
       c.email?.toLowerCase().includes(q),
     );
   }, [clients, search]);
-
-  useEffect(() => {
-    if (searchParams.get('quickAction') !== 'add-client') return;
-    setModalOpen(true);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('quickAction');
-    const next = params.toString();
-    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams, setModalOpen]);
 
   useEffect(() => {
     return registerQuickActionHandler('add-client', () => {

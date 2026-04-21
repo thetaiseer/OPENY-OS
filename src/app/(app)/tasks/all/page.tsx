@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -981,9 +980,6 @@ const INVALIDATION_DELAY_MS = 120;
 
 
 function TasksPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { registerQuickActionHandler } = useQuickActions();
   const { t } = useLang();
   const { role } = useAuth();
@@ -1082,15 +1078,6 @@ function TasksPage() {
   useEffect(() => {
     window.localStorage.setItem('tasks-all-view', view);
   }, [view]);
-
-  useEffect(() => {
-    if (searchParams.get('quickAction') !== 'add-task') return;
-    setCreateOpen(true);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('quickAction');
-    const next = params.toString();
-    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams, setCreateOpen]);
 
   useEffect(() => {
     return registerQuickActionHandler('add-task', () => {
