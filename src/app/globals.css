@@ -11,17 +11,17 @@
 
 :root {
   /* ── Core Palette ── */
-  --bg: #f0f4fc;
-  --surface: rgba(255, 255, 255, 0.88);
+  --bg: #e7edf7;
+  --surface: rgba(255, 255, 255, 0.72);
   --surface-2: rgba(243, 247, 255, 0.82);
   --surface-3: rgba(229, 237, 255, 0.70);
   --surface-glass: rgba(255, 255, 255, 0.72);
   --surface-elevated: rgba(255, 255, 255, 0.95);
   --surface-shell: rgba(248, 252, 255, 0.78);
-  --surface-panel: rgba(255, 255, 255, 0.84);
-  --surface-floating: rgba(255, 255, 255, 0.92);
+  --surface-panel: rgba(255, 255, 255, 0.78);
+  --surface-floating: rgba(255, 255, 255, 0.86);
   --surface-active-chip: rgba(58, 95, 224, 0.16);
-  --gradient-card-glass: linear-gradient(160deg, color-mix(in srgb, var(--surface-glass) 92%, var(--accent) 8%) 0%, var(--surface-glass) 55%, color-mix(in srgb, var(--surface-glass) 95%, var(--accent-3) 5%) 100%);
+  --gradient-card-glass: linear-gradient(155deg, rgba(255, 255, 255, 0.75) 0%, rgba(252, 255, 255, 0.66) 52%, rgba(239, 246, 255, 0.62) 100%);
   --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
   --overlay-base-dark: #050b17;
 
@@ -34,7 +34,7 @@
   /* ── Borders ── */
   --border: rgba(180, 200, 240, 0.55);
   --border-strong: rgba(160, 185, 230, 0.75);
-  --border-glass: rgba(255, 255, 255, 0.5);
+  --border-glass: rgba(255, 255, 255, 0.34);
 
   /* ── Accent — Periwinkle / Royal Blue ── */
   --accent: #3a5fe0;
@@ -74,17 +74,17 @@
   --header-bg: rgba(248, 251, 255, 0.82);
 
   /* ── Spacing ── */
-  --shell-gap: 1rem;
-  --shell-pad-x: 1rem;
-  --shell-pad-y: 1rem;
+  --shell-gap: 1.5rem;
+  --shell-pad-x: 1.15rem;
+  --shell-pad-y: 1.15rem;
 
   /* ── Radius Scale ── */
   --radius-pill: 9999px;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.5rem;
+  --radius-lg: 1.1rem;
+  --radius-xl: 1.35rem;
+  --radius-2xl: 1.6rem;
   --radius-3xl: 1.75rem;
 
   /* ── Typography Scale ── */
@@ -101,18 +101,18 @@
   --shadow-sm: 0 4px 16px rgba(20, 40, 100, 0.07), 0 1px 4px rgba(20, 40, 100, 0.04);
   --shadow-md: 0 10px 36px rgba(15, 30, 80, 0.10), 0 2px 8px rgba(15, 30, 80, 0.05);
   --shadow-lg: 0 20px 56px rgba(10, 24, 64, 0.13), 0 4px 16px rgba(10, 24, 64, 0.07);
-  --shadow-card: 0 4px 24px rgba(20, 50, 120, 0.07), 0 1px 3px rgba(20, 50, 120, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04), 0 0 26px rgba(120, 140, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   --shadow-focus: 0 0 0 3px rgba(58, 95, 224, 0.22), 0 0 0 1px rgba(58, 95, 224, 0.50);
   --glow-accent: 0 0 20px rgba(58, 95, 224, 0.25);
   --glow-accent-sm: 0 0 10px rgba(58, 95, 224, 0.18);
 
   /* ── Blur ── */
-  --blur-glass: blur(14px) saturate(1.6);
-  --blur-panel: blur(20px) saturate(1.5);
+  --blur-glass: blur(22px) saturate(1.65);
+  --blur-panel: blur(28px) saturate(1.65);
   --blur-overlay: blur(8px) saturate(1.4);
 
   /* ── Inner Highlight ── */
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 18px 30px rgba(255, 255, 255, 0.08);
 
   /* ── Typography ── */
   --font-arabic: 'Cairo';
@@ -121,16 +121,16 @@
 /* ── Dark Mode Tokens ── */
 .dark {
   --bg: #07101e;
-  --surface: rgba(12, 22, 40, 0.90);
+  --surface: rgba(16, 30, 54, 0.72);
   --surface-2: rgba(16, 28, 50, 0.85);
   --surface-3: rgba(20, 34, 60, 0.80);
   --surface-glass: rgba(14, 25, 48, 0.78);
   --surface-elevated: rgba(18, 32, 58, 0.96);
   --surface-shell: rgba(9, 18, 36, 0.78);
-  --surface-panel: rgba(14, 26, 50, 0.86);
+  --surface-panel: rgba(17, 32, 60, 0.78);
   --surface-floating: rgba(17, 32, 60, 0.94);
   --surface-active-chip: rgba(97, 127, 255, 0.24);
-  --gradient-card-glass: linear-gradient(160deg, color-mix(in srgb, var(--surface-glass) 93%, var(--accent) 7%) 0%, var(--surface-glass) 58%, color-mix(in srgb, var(--surface-glass) 95%, var(--accent-3) 5%) 100%);
+  --gradient-card-glass: linear-gradient(155deg, rgba(24, 42, 76, 0.78) 0%, rgba(18, 34, 64, 0.72) 55%, rgba(20, 37, 68, 0.7) 100%);
   --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
   --overlay-base-dark: #050b17;
 
@@ -141,7 +141,7 @@
 
   --border: rgba(40, 70, 130, 0.55);
   --border-strong: rgba(55, 90, 160, 0.70);
-  --border-glass: rgba(60, 100, 180, 0.30);
+  --border-glass: rgba(115, 148, 220, 0.35);
 
   --accent: #617fff;
   --accent-hover: #7490ff;
@@ -179,12 +179,12 @@
   --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.40), 0 1px 4px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 10px 36px rgba(0, 0, 0, 0.50), 0 2px 8px rgba(0, 0, 0, 0.30);
   --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.60), 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.38), 0 1px 3px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-card: 0 10px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 30px rgba(120, 140, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --shadow-focus: 0 0 0 3px rgba(97, 127, 255, 0.28), 0 0 0 1px rgba(97, 127, 255, 0.55);
   --glow-accent: 0 0 24px rgba(97, 127, 255, 0.32);
   --glow-accent-sm: 0 0 12px rgba(97, 127, 255, 0.22);
 
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 18px 28px rgba(255, 255, 255, 0.04);
 }
 
 /* ============================================================
@@ -195,10 +195,9 @@
 
 body {
   background:
-    radial-gradient(ellipse 80% 50% at 0% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in srgb, var(--accent-3) 6%, transparent), transparent 50%),
-    radial-gradient(ellipse 50% 60% at 50% 100%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 55%),
-    var(--bg);
+    radial-gradient(54rem 42rem at 92% 4%, rgba(126, 142, 255, 0.22), transparent 58%),
+    radial-gradient(56rem 46rem at 4% 96%, rgba(86, 170, 255, 0.16), transparent 62%),
+    linear-gradient(142deg, #d6e4ff 0%, #e5defb 46%, #edf1f8 100%);
   color: var(--text);
   font-family: var(--font-arabic), Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -225,7 +224,7 @@ input, select, textarea, button { font: inherit; }
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 2.2rem;
 }
 
 .app-page-header {
@@ -263,6 +262,16 @@ input, select, textarea, button { font: inherit; }
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-card), var(--highlight-inset);
+  position: relative;
+  overflow: hidden;
+}
+
+.openy-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 30%, transparent 56%);
 }
 
 /* Elevated variant — for modals, dropdowns, popovers */
@@ -286,7 +295,11 @@ input, select, textarea, button { font: inherit; }
 /* Apply glass card shadow to common Tailwind combos */
 [class*='rounded-2xl'][class*='border'],
 [class*='rounded-xl'][class*='border'] {
-  box-shadow: var(--shadow-sm);
+  background: var(--gradient-card-glass) !important;
+  border-color: var(--border-glass) !important;
+  backdrop-filter: var(--blur-glass) !important;
+  -webkit-backdrop-filter: var(--blur-glass) !important;
+  box-shadow: var(--shadow-card), var(--highlight-inset) !important;
 }
 
 /* ============================================================
@@ -308,7 +321,7 @@ input, select, textarea, button { font: inherit; }
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   white-space: nowrap;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-pill);
 }
 
 /* Base / secondary */
@@ -318,7 +331,7 @@ input, select, textarea, button { font: inherit; }
   background: var(--surface-glass);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-glass);
   box-shadow: var(--shadow-xs);
 }
 
@@ -352,6 +365,13 @@ input, select, textarea, button { font: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   box-shadow: var(--highlight-inset);
+}
+
+button[class*='rounded-lg'],
+button[class*='rounded-xl'],
+a[class*='rounded-lg'],
+a[class*='rounded-xl'] {
+  border-radius: var(--radius-pill);
 }
 
 /* Hover states */

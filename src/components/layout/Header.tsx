@@ -45,23 +45,23 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 py-2"
+      className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 py-3"
     >
       <div
-        className="h-14 rounded-3xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
+        className="h-16 rounded-3xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
         style={{
-          background: 'var(--surface-shell)',
+          background: 'var(--gradient-card-glass)',
           borderColor: 'var(--border-glass)',
           boxShadow: 'var(--shadow-card), var(--highlight-inset)',
-          backdropFilter: 'var(--blur-glass)',
-          WebkitBackdropFilter: 'var(--blur-glass)',
+          backdropFilter: 'var(--blur-panel)',
+          WebkitBackdropFilter: 'var(--blur-panel)',
         }}
       >
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-xl transition-colors shrink-0 hover:bg-[var(--surface-2)]"
-          style={{ color: 'var(--text-secondary)' }}
-        >
+            className="lg:hidden p-2 rounded-full transition-colors shrink-0 hover:bg-[var(--surface-2)]"
+            style={{ color: 'var(--text-secondary)' }}
+          >
           <Menu size={20} />
         </button>
         <Link
@@ -94,7 +94,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Lang toggle */}
           <button
             onClick={toggleLang}
-            className="p-2 rounded-xl transition-colors hidden sm:flex hover:bg-[var(--surface-2)]"
+            className="p-2 rounded-full transition-colors hidden sm:flex hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
             title="Toggle language"
           >
@@ -104,7 +104,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
+            className="p-2 rounded-full transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
@@ -116,7 +116,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* AI Command Center button */}
           <button
             onClick={() => openAi()}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
             style={{
               background: aiOpen
                 ? 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)'

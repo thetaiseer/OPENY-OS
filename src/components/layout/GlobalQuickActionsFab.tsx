@@ -94,12 +94,18 @@ export default function GlobalQuickActionsFab() {
         id={menuId}
         role="menu"
         aria-label="Quick actions"
-        className={`w-48 rounded-2xl border p-2 shadow-2xl transition-all duration-200 origin-bottom-right ${
+        className={`w-52 rounded-3xl border p-2 shadow-2xl transition-all duration-200 origin-bottom-right ${
           open
             ? 'translate-y-0 scale-100 opacity-100 pointer-events-auto'
             : 'translate-y-2 scale-95 opacity-0 pointer-events-none'
         }`}
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        style={{
+          background: 'var(--gradient-card-glass)',
+          borderColor: 'var(--border-glass)',
+          backdropFilter: 'var(--blur-panel)',
+          WebkitBackdropFilter: 'var(--blur-panel)',
+          boxShadow: 'var(--shadow-card)',
+        }}
       >
         {orderedActions.map(action => (
           <li key={action.id} role="none">
@@ -110,12 +116,12 @@ export default function GlobalQuickActionsFab() {
                 setOpen(false);
                 triggerQuickAction(action.id);
               }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              className="flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               style={{ color: 'var(--text)' }}
               aria-label={action.label}
             >
-              <span className="shrink-0" style={{ color: 'var(--accent)' }}>{action.icon}</span>
-              <span>{action.label}</span>
+                <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ color: 'var(--accent)', background: 'var(--accent-soft)', boxShadow: 'var(--glow-accent-sm)' }}>{action.icon}</span>
+                <span>{action.label}</span>
             </button>
           </li>
         ))}
@@ -130,7 +136,10 @@ export default function GlobalQuickActionsFab() {
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
         className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-200 hover:scale-[1.05] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
-        style={{ background: 'var(--accent)' }}
+        style={{
+          background: 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 64%, var(--accent-3) 36%) 100%)',
+          boxShadow: '0 16px 30px rgba(58,95,224,0.35), 0 0 24px rgba(120,140,255,0.4)',
+        }}
       >
         <span
           className="transition-transform duration-200"

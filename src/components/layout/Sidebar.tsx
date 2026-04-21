@@ -70,10 +70,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           )}
           style={{
-            background: 'var(--surface-shell)',
+            background: 'color-mix(in srgb, var(--gradient-card-glass) 85%, rgba(150,165,210,0.15) 15%)',
             borderColor: 'var(--sidebar-border)',
             backdropFilter: 'var(--blur-panel)',
             WebkitBackdropFilter: 'var(--blur-panel)',
+            boxShadow: 'var(--shadow-card)',
           }}
       >
         {/* Logo */}
@@ -110,7 +111,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 py-5 px-3.5 space-y-1.5 overflow-y-auto">
           {navItems.map(({ href, base, icon: Icon, key, label }) => {
             const active = pathname === href || (base !== '/docs' && base !== '/os/dashboard' && pathname.startsWith(base));
             const displayLabel = isDocsWorkspace ? label : t(key);
@@ -121,26 +122,27 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-label={displayLabel}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-semibold transition-all',
                   'lg:justify-center xl:justify-start',
                   active
                     ? 'text-[var(--accent)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                 )}
                 style={active ? {
-                  background: 'var(--surface-active-chip)',
-                  boxShadow: 'var(--shadow-xs), var(--highlight-inset)',
+                  background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 76%, var(--accent-3) 24%) 0%, color-mix(in srgb, var(--accent-3) 80%, var(--accent) 20%) 100%)',
+                  color: '#fff',
+                  boxShadow: 'var(--shadow-sm), var(--glow-accent-sm)',
                 } : {}}
               >
                 {/* Icon badge */}
                 <span
-                  className="w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 transition-all"
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all"
                   style={active ? {
-                    background: 'var(--accent)',
+                    background: 'rgba(255,255,255,0.22)',
                     color: '#fff',
                     boxShadow: 'var(--glow-accent-sm)',
                   } : {
-                    background: 'var(--surface-2)',
+                    background: 'color-mix(in srgb, var(--surface-2) 82%, var(--accent-soft) 18%)',
                     color: 'var(--text-tertiary)',
                   }}
                 >
