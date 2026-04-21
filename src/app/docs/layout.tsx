@@ -1,5 +1,5 @@
-import AppLayout from '@/app/(app)/layout';
+import AppShellLayout from '@/components/layout/AppShellLayout';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
-  return <AppLayout>{children}</AppLayout>;
+  return <AppShellLayout>{children}</AppShellLayout>;
 }
