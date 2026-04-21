@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import InvoicePage from '@/modules/docs/pages/invoice-page';
 
 export default function DocsInvoicePage() {
-  redirect('/invoice');
+  return <InvoicePage />;
 }

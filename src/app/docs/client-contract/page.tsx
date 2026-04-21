@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import ClientContractPage from '@/modules/docs/pages/client-contract-page';
 
 export default function DocsClientContractPage() {
-  redirect('/client-contract');
+  return <ClientContractPage />;
 }
