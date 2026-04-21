@@ -28,7 +28,7 @@ export default function ClientProfileSelector({
       <div className="flex items-center justify-between gap-2">
         <label className="block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</label>
         <Link href="/os/clients" className="text-[11px] hover:underline" style={{ color: 'var(--accent)' }}>
-          Manage clients & templates
+          Manage OS clients
         </Link>
       </div>
       <DocsSelect value={selectedClientId} onChange={onSelectClientId} options={options} />
