@@ -656,8 +656,7 @@ export default function TeamPage() {
   const handleCopyLink = async (member: TeamMember) => {
     const inv = inviteByMember(member.id);
     if (!inv) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-      ?? (typeof document !== 'undefined' ? document.baseURI : 'http://localhost:3000');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? document.baseURI;
     const link = new URL(`/invite?token=${inv.token}`, baseUrl).toString();
     try {
       await navigator.clipboard.writeText(link);

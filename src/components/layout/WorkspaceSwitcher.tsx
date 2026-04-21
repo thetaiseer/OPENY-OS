@@ -50,10 +50,10 @@ export default function WorkspaceSwitcher() {
     };
   }, [supabase, user.id]);
 
-  const access = memberships.reduce<Record<'os' | 'docs', boolean>>((acc, membership) => {
-    acc[membership.key] = isGlobalOwner || membership.hasMembership;
-    return acc;
-  }, { os: isGlobalOwner, docs: isGlobalOwner });
+  const access: Record<'os' | 'docs', boolean> = { os: isGlobalOwner, docs: isGlobalOwner };
+  memberships.forEach((membership) => {
+    access[membership.key] = isGlobalOwner || membership.hasMembership;
+  });
 
   if (loading || !ready) return null;
 
