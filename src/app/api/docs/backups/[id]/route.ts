@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
+  const auth = await requireRole(req, ['team_member', 'manager', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
