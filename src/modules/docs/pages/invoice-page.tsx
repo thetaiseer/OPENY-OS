@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Trash2, Save, Download, Printer, AlertCircle, Check,
+  Plus, Trash2, Save, Download, Printer, AlertCircle, Check, Zap,
 } from 'lucide-react';
 import clsx from 'clsx';
 import type {
@@ -18,10 +18,15 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
+import { autoGenerateProIconKSA } from '@/lib/docs-invoice-autogen';
+import type { AutoGenRowCounts } from '@/lib/docs-invoice-autogen';
+
+type ClientType = 'Manual' | 'Pro icon KSA';
 
 interface FormState {
   id?: string;
   client_profile_id: string | null;
+  client_type: ClientType;
   invoice_number: string;
   client_name: string;
   campaign_month: string;
@@ -31,6 +36,12 @@ interface FormState {
   our_fees: number;
   notes: string;
   branch_groups: InvoiceBranchGroup[];
+}
+
+interface AutoGenState {
+  totalBudget: number;
+  fees: number;
+  rowCounts: AutoGenRowCounts;
 }
 
 const uid = () => (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 11));
@@ -60,6 +71,7 @@ function nextInvoiceNumber(invoices: DocsInvoice[]) {
 function blank(invoices: DocsInvoice[]): FormState {
   return {
     client_profile_id: null,
+    client_type: 'Manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
     campaign_month: monthNow(),
@@ -76,6 +88,7 @@ function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
     client_profile_id: invoice.client_profile_id ?? null,
+    client_type: 'Manual',
     invoice_number: invoice.invoice_number,
     client_name: invoice.client_name,
     campaign_month: invoice.campaign_month ?? monthNow(),
@@ -96,6 +109,14 @@ export default function InvoicePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Auto-generation state for "Pro icon KSA" client type
+  const [autoGen, setAutoGen] = useState<AutoGenState>({
+    totalBudget: 50000,
+    fees: 500,
+    rowCounts: { instagram: 6, snapchat: 4, tiktok: 2 },
+  });
+  const [autoGenOpen, setAutoGenOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +158,30 @@ export default function InvoicePage() {
 
   function patchBranchGroups(updater: (groups: InvoiceBranchGroup[]) => InvoiceBranchGroup[]) {
     setForm((prev) => ({ ...prev, branch_groups: updater(prev.branch_groups) }));
+  }
+
+  /** Runs the "Pro icon KSA" top-down auto-generation and replaces branch_groups. */
+  function runAutoGenerate() {
+    const generated = autoGenerateProIconKSA({
+      totalBudget: autoGen.totalBudget,
+      fees: autoGen.fees,
+      campaignMonth: form.campaign_month,
+      rowCounts: autoGen.rowCounts,
+    });
+    setForm((prev) => ({
+      ...prev,
+      our_fees: autoGen.fees,
+      branch_groups: generated,
+    }));
+    setAutoGenOpen(false);
+  }
+
+  /** Updates a single platform's row count in auto-gen state. */
+  function updateRowCount(platform: keyof AutoGenRowCounts, value: number) {
+    setAutoGen((s) => ({
+      ...s,
+      rowCounts: { ...s.rowCounts, [platform]: Math.max(1, value) },
+    }));
   }
 
   function createNew() {
@@ -292,6 +337,117 @@ export default function InvoicePage() {
               </div>
             </div>
 
+            {/* ── Client Type ──────────────────────────────────────────── */}
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Client Type</label>
+              <select
+                className={inputClass}
+                value={form.client_type}
+                onChange={(e) => {
+                  const val = e.target.value as ClientType;
+                  setField('client_type', val);
+                  setAutoGenOpen(val === 'Pro icon KSA');
+                }}
+              >
+                <option value="Manual">Manual</option>
+                <option value="Pro icon KSA">Pro icon KSA</option>
+              </select>
+            </div>
+
+            {/* ── Pro icon KSA Auto-Generate Panel ─────────────────────── */}
+            {form.client_type === 'Pro icon KSA' && (
+              <div className="rounded-xl border p-3 space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                    <Zap size={12} className="inline mr-1 text-yellow-500" />
+                    Auto-Generate Budget Distribution
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAutoGenOpen((v) => !v)}
+                    className="text-[11px]"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {autoGenOpen ? 'Hide' : 'Configure'}
+                  </button>
+                </div>
+
+                {autoGenOpen && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={autoGen.totalBudget}
+                          onChange={(e) => setAutoGen((s) => ({ ...s, totalBudget: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Fees (deducted)</label>
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={autoGen.fees}
+                          onChange={(e) => setAutoGen((s) => ({ ...s, fees: Number(e.target.value) }))}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                      Net Ad Spend: <strong style={{ color: 'var(--text)' }}>
+                        {(autoGen.totalBudget - autoGen.fees).toLocaleString()}
+                      </strong>
+                      {' '}· splits into Riyadh, Jeddah, Khobar
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>IG Rows</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className={inputClass}
+                          value={autoGen.rowCounts.instagram}
+                          onChange={(e) => updateRowCount('instagram', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Snap Rows</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className={inputClass}
+                          value={autoGen.rowCounts.snapchat}
+                          onChange={(e) => updateRowCount('snapchat', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>TikTok Rows</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          className={inputClass}
+                          value={autoGen.rowCounts.tiktok}
+                          onChange={(e) => updateRowCount('tiktok', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={runAutoGenerate}
+                      className="w-full py-2 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      <Zap size={13} /> Generate (3 Branches × 3 Platforms)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <ClientProfileSelector
               profiles={profiles}
               selectedClientId={form.client_profile_id ?? ''}
@@ -328,6 +484,10 @@ export default function InvoicePage() {
               <div key={bg.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                 <div className="flex items-center gap-2">
                   <input className={inputClass} value={bg.branch_name} onChange={(e) => patchBranchGroups((groups) => groups.map((item, i) => (i === bi ? { ...item, branch_name: e.target.value } : item)))} />
+                  {/* Branch subtotal badge (bottom-up aggregation) */}
+                  <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}>
+                    {(model.branchTables[bi]?.subtotal ?? 0).toLocaleString()} {form.currency}
+                  </span>
                   <button type="button" onClick={() => patchBranchGroups((groups) => groups.filter((_, i) => i !== bi))} className="px-2 py-1 rounded-md text-xs text-white" style={{ background: '#dc2626' }}>
                     <Trash2 size={12} />
                   </button>
@@ -366,6 +526,23 @@ export default function InvoicePage() {
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* ── Totals Summary (Bottom-Up Aggregation) ─────────────────── */}
+          <div className="rounded-2xl border p-4 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Totals Summary</h3>
+            <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Final Budget (Ad Spend)</span>
+              <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Our Fees</span>
+              <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.ourFees.toLocaleString()} {form.currency}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm py-2 rounded-lg px-2" style={{ background: 'var(--text)', color: 'var(--surface)' }}>
+              <span className="font-bold">GRAND TOTAL</span>
+              <span className="font-black">{model.totals.grandTotal.toLocaleString()} {form.currency}</span>
+            </div>
           </div>
         </section>
 
