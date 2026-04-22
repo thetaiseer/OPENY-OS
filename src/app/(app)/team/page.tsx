@@ -341,6 +341,10 @@ export default function TeamPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canManage = myRole === 'owner' || myRole === 'admin';
+  const tr = (key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   // ── React Query: fetch and cache team members and invitations ─────────────
   const { data: teamData, isLoading: loading } = useQuery({
@@ -371,8 +375,8 @@ export default function TeamPage() {
     },
   });
 
-  const members     = teamData?.members     ?? [];
-  const invitations = teamData?.invitations ?? [];
+  const members = useMemo(() => teamData?.members ?? [], [teamData?.members]);
+  const invitations = useMemo(() => teamData?.invitations ?? [], [teamData?.invitations]);
   const workspaceAccessByEmail = teamData?.workspaceAccess ?? {};
 
   const [saving, setSaving]             = useState(false);
@@ -416,7 +420,7 @@ export default function TeamPage() {
     const seen = new Set<string>();
     const rows: TeamInvitation[] = [];
     for (const invitation of invitations) {
-      const key = invitation.team_member_id || invitation.email.toLowerCase();
+      const key = invitation.team_member_id || (invitation.email ?? '').toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
       rows.push(invitation);
@@ -501,15 +505,18 @@ export default function TeamPage() {
           };
           if (!prev) {
             return {
-              members: [],
+              members: [data.member],
               invitations: [optimisticInvitation],
               workspaceAccess: {},
             };
           }
+          const nextMembers = [data.member, ...prev.members.filter(m => m.id !== data.member.id)]
+            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
           const nextInvitations = [optimisticInvitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return {
             ...prev,
+            members: nextMembers,
             invitations: nextInvitations,
           };
         },
@@ -648,11 +655,11 @@ export default function TeamPage() {
   const ownerMembers = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
   const ownerMembersForDisplay = ownerMembers.length > 0
     ? ownerMembers
-    : (myRole === 'owner' && user.id
+    : (myRole === 'owner' && user.id && user.email
       ? [{
           id: user.id,
-          full_name: user.name || 'Workspace Owner',
-          email: user.email ?? '',
+          full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
+          email: user.email,
           role: 'owner',
           status: 'active',
           created_at: new Date().toISOString(),
@@ -660,7 +667,7 @@ export default function TeamPage() {
       : []);
   const activeMembers = members
     .filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'))
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
 
   const hasAnyTeamData = ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvitations.length > 0;
 
@@ -694,8 +701,8 @@ export default function TeamPage() {
       ) : !hasAnyTeamData ? (
         <EmptyState
           icon={Users}
-          title="No team members yet"
-          description="Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access."
+          title={tr('noTeamMembers', 'No team members yet')}
+          description={tr('noTeamMembersDesc', 'Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access.')}
           action={
             canManage ? (
               <button
@@ -727,7 +734,7 @@ export default function TeamPage() {
           <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <SectionHeader icon={<CheckCircle size={14} />} label="Active Team Members" count={activeMembers.length} />
             {activeMembers.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No active members yet.</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tr('noActiveMembers', 'No active members yet.')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeMembers.map(m => (
@@ -748,7 +755,7 @@ export default function TeamPage() {
           <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <SectionHeader icon={<Clock size={14} />} label="Pending Invitations" count={pendingInvitations.length} />
             {pendingInvitations.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tr('noPendingInvitations', 'No pending invitations.')}</p>
             ) : (
               <div className="space-y-3">
                 {pendingInvitations.map(invitation => (
@@ -1034,9 +1041,6 @@ function MemberCard({
   canManage: boolean;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
-  onResend?: (m: TeamMember) => void;
-  onRevoke?: (m: TeamMember) => void;
-  onCopyLink?: (m: TeamMember) => void;
 }) {
   const isInvited = member.status === 'invited' || member.status === 'pending';
 
@@ -1128,33 +1132,6 @@ function MemberCard({
       </div>
 
       {/* Invite actions row */}
-      {canManage && isInvited && onResend && onRevoke && onCopyLink && (
-        <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-          <button
-            onClick={() => onResend(member)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Resend invitation"
-          >
-            <RotateCcw size={12} />Resend
-          </button>
-          <button
-            onClick={() => onCopyLink(member)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Copy invite link"
-          >
-            <Link2 size={12} />Copy Link
-          </button>
-          <button
-            onClick={() => onRevoke(member)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-400 ml-auto"
-            title="Revoke invitation"
-          >
-            <XCircle size={12} />Revoke
-          </button>
-        </div>
-      )}
     </div>
   );
 }

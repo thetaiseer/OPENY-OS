@@ -52,8 +52,8 @@ export interface TeamInvitation {
   accepted_at?: string | null;
   created_at: string;
   updated_at: string;
-  workspace_access?: unknown;
-  workspace_roles?: unknown;
+  workspace_access?: Array<'os' | 'docs' | string> | null;
+  workspace_roles?: Record<string, string> | null;
   team_member?: {
     full_name?: string | null;
     job_title?: string | null;
