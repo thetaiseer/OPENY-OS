@@ -194,14 +194,22 @@ async function upsertWorkspaceMembersAsActive(
   db: ReturnType<typeof getServiceClient>,
   members: WorkspaceMemberInsertRow[],
 ): Promise<string | null> {
+  type WorkspaceMemberUpsertRow = {
+    workspace_id: string;
+    user_id: string;
+    role: string;
+    status?: string;
+    updated_at?: string;
+  };
+
   const activePayload = members.map(member => ({
     ...member,
     status: MEMBER_STATUS.ACTIVE,
     updated_at: new Date().toISOString(),
-  }));
+  })) satisfies WorkspaceMemberUpsertRow[];
 
   const tryUpsert = async (
-    rows: Array<WorkspaceMemberInsertRow | (WorkspaceMemberInsertRow & { status?: string; updated_at?: string })>,
+    rows: WorkspaceMemberUpsertRow[],
   ) => db
     .from('workspace_members')
     .upsert(rows, { onConflict: 'workspace_id,user_id' });

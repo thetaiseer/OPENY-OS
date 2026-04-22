@@ -766,15 +766,15 @@ export default function TeamPage() {
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
       const invitationRows = (!invitesRes.error ? (invitesRes.data ?? []) : []) as TeamInvitation[];
-      const pendingMemberInvitations = (pendingMembersRes.error ? [] : (pendingMembersRes.data ?? []))
-        .map((member) => {
+      const pendingMemberInvitations: TeamInvitation[] = [];
+      for (const member of (pendingMembersRes.error ? [] : (pendingMembersRes.data ?? []))) {
           const memberEmail = (member.email ?? '').trim().toLowerCase();
-          if (!member.id || !memberEmail) return null;
+          if (!member.id || !memberEmail) continue;
           const normalizedStatus = (member.status ?? '').toLowerCase();
           const pendingStatus = normalizedStatus === 'invited' || normalizedStatus === 'pending'
             ? normalizedStatus
             : 'pending';
-          return {
+          pendingMemberInvitations.push({
             id: `pending-member-${member.id}`,
             team_member_id: member.id,
             email: memberEmail,
@@ -793,9 +793,8 @@ export default function TeamPage() {
               role: member.role ?? null,
               status: member.status ?? 'pending',
             },
-          } satisfies TeamInvitation;
-        })
-        .filter((invitation): invitation is TeamInvitation => Boolean(invitation));
+          } satisfies TeamInvitation);
+      }
 
       const mergedInvitations = new Map<string, TeamInvitation>();
       for (const invitation of invitationRows) {
