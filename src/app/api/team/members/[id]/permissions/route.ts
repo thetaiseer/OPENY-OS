@@ -160,7 +160,7 @@ export async function PATCH(
 
   // Activity log — fire and forget
   void processEvent({
-    event_type:  EVENT.ROLE_CHANGED,
+    event_type:  EVENT.PERMISSION_CHANGED,
     actor_id:    auth.profile.id,
     entity_type: 'team_member',
     entity_id:   id,

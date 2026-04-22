@@ -769,8 +769,13 @@ export default function TeamPage() {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_permissions' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
-        // Close panel to force permission refresh
-        setPanelMember(prev => (prev ? { ...prev } : null));
+        // Refresh panel by briefly resetting to null and restoring the same member
+        setPanelMember(prev => {
+          if (!prev) return null;
+          const snapshot = prev;
+          setTimeout(() => setPanelMember(snapshot), 0);
+          return null;
+        });
       })
       .subscribe();
 
@@ -1432,9 +1437,14 @@ function MemberCard({
     <div
       className="rounded-xl border p-5 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-md"
       onClick={() => !isInvited && onView?.(member)}
-      role={!isInvited && onView ? 'button' : undefined}
-      tabIndex={!isInvited && onView ? 0 : undefined}
-      onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !isInvited && onView) onView(member); }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!isInvited && onView) onView(member);
+        }
+      }}
       style={{
         background:   'var(--surface)',
         borderColor:  isInvited ? 'var(--accent)' : 'var(--border)',
