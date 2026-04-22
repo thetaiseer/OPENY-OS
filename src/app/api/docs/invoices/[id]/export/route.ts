@@ -77,11 +77,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       visibility: 'private',
     });
 
-    await db
+    const { error: updateError } = await db
       .schema('public')
       .from('docs_invoices')
       .update({ export_excel_url: upload.publicUrl })
       .eq('id', id);
+    if (updateError) {
+      throw new Error(`Failed to update invoice export URL: ${updateError.message}`);
+    }
 
     return NextResponse.redirect(upload.publicUrl, 302);
   } catch (exportError) {

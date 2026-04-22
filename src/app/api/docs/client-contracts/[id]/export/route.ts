@@ -124,10 +124,13 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
     visibility: 'private',
   });
 
-  await db
+  const { error: updateError } = await db
     .from('docs_client_contracts')
     .update({ export_doc_url: upload.publicUrl })
     .eq('id', id);
+  if (updateError) {
+    throw new Error(`Failed to update client contract export URL: ${updateError.message}`);
+  }
 
   return NextResponse.redirect(upload.publicUrl, 302);
 }

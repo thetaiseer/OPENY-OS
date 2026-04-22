@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
       visibility: 'public',
     });
   } catch (error) {
+    let rollbackSucceeded = false;
     if (inserted?.id) {
       const { error: rollbackError } = await supabase.from('assets').delete().eq('id', inserted.id);
       if (rollbackError) {
@@ -243,11 +244,18 @@ export async function POST(req: NextRequest) {
           assetId: inserted.id,
           rollbackError: rollbackError.message,
         });
+      } else {
+        rollbackSucceeded = true;
       }
     } else {
       console.error('[upload/complete] metadata failed and no inserted asset id was available for rollback');
     }
-    console.error('[upload/complete] rolled back asset insert after metadata persistence failure', error);
+    console.error(
+      rollbackSucceeded
+        ? '[upload/complete] rolled back asset insert after metadata persistence failure'
+        : '[upload/complete] metadata persistence failure without confirmed rollback',
+      error,
+    );
     return NextResponse.json(
       {
         success: false,

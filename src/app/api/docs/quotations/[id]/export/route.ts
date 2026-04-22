@@ -80,10 +80,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     visibility: 'private',
   });
 
-  await db
+  const { error: updateError } = await db
     .from('docs_quotations')
     .update({ export_excel_url: upload.publicUrl })
     .eq('id', id);
+  if (updateError) {
+    throw new Error(`Failed to update quotation export URL: ${updateError.message}`);
+  }
 
   return NextResponse.redirect(upload.publicUrl, 302);
 }
