@@ -57,6 +57,23 @@ export interface GenerateInvoiceFromTemplateParams {
   fees?: number;
 }
 
+export interface SmartInvoicePlatformInput {
+  name: 'Instagram' | 'Snapchat' | 'TikTok';
+  enabled: boolean;
+  campaignCount: number;
+  allocationPct: number;
+}
+
+export interface GenerateSmartInvoiceParams {
+  campaignMonth: string;
+  invoiceDate?: string;
+  finalBudget: number;
+  fees?: number;
+  clientName?: string;
+  platforms: SmartInvoicePlatformInput[];
+  seedSalt?: string;
+}
+
 export interface GeneratedInvoiceTemplate {
   templateName: InvoiceTemplateName;
   clientName: string;
@@ -161,17 +178,70 @@ function splitBudgetWithWeights(
   return rounded;
 }
 
+function splitBudgetByPercent(total: number, percentages: number[]) {
+  if (percentages.length === 0) return [];
+  if (total <= 0) return percentages.map(() => 0);
+  const safe = percentages.map((pct) => (Number.isFinite(pct) && pct > 0 ? pct : 0));
+  const sum = safe.reduce((s, v) => s + v, 0);
+  if (sum <= 0) return safe.map(() => 0);
+  const raw = safe.map((pct) => (pct / sum) * total);
+  const rounded = raw.map((n) => Math.floor(n));
+  let remainder = total - rounded.reduce((s, v) => s + v, 0);
+  const fracOrder = raw
+    .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+    .sort((a, b) => b.frac - a.frac);
+  let idx = 0;
+  while (remainder > 0 && fracOrder.length > 0) {
+    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    remainder -= 1;
+    idx += 1;
+  }
+  return rounded;
+}
+
+function splitIntegerByWeights(total: number, weights: number[]) {
+  if (weights.length === 0) return [];
+  if (total <= 0) return weights.map(() => 0);
+  const safe = weights.map((w) => (Number.isFinite(w) && w > 0 ? w : 0));
+  const sum = safe.reduce((s, v) => s + v, 0);
+  if (sum <= 0) {
+    const even = Math.floor(total / weights.length);
+    const out = Array.from({ length: weights.length }, () => even);
+    let rem = total - (even * weights.length);
+    let i = 0;
+    while (rem > 0) {
+      out[i % out.length] += 1;
+      rem -= 1;
+      i += 1;
+    }
+    return out;
+  }
+  const raw = safe.map((w) => (w / sum) * total);
+  const rounded = raw.map((n) => Math.floor(n));
+  let remainder = total - rounded.reduce((s, v) => s + v, 0);
+  const fracOrder = raw
+    .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+    .sort((a, b) => b.frac - a.frac);
+  let idx = 0;
+  while (remainder > 0 && fracOrder.length > 0) {
+    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    remainder -= 1;
+    idx += 1;
+  }
+  return rounded;
+}
+
 function generateRowDays(rowCount: number, rng: () => number) {
   if (rowCount <= 0) return [];
   if (rowCount === 1) return [1];
-  const step = 14 / (rowCount - 1);
+  const step = 27 / (rowCount - 1);
   const days = Array.from({ length: rowCount }, (_, i) => {
     const base = Math.round(1 + (i * step));
-    const jitter = Math.floor(rng() * 3) - 1;
-    return clamp(base + jitter, 1, 15);
+    const jitter = Math.floor(rng() * 5) - 2;
+    return clamp(base + jitter, 1, 28);
   }).sort((a, b) => a - b);
   for (let i = 1; i < days.length; i += 1) {
-    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, 15);
+    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, 28);
   }
   return days;
 }
@@ -277,5 +347,104 @@ export function generateInvoiceFromTemplate(
     fees: 0,
     grandTotal: 0,
     branchGroups: [],
+  };
+}
+
+export function generateSmartInvoice(params: GenerateSmartInvoiceParams): GeneratedInvoiceTemplate {
+  const template = INVOICE_TEMPLATES['Pro icon KSA Template'];
+  const finalBudget = Math.max(0, Math.round(params.finalBudget || 0));
+  const fees = Math.max(0, Math.round(params.fees || 0));
+  const formattedMonth = formatCampaignMonth(params.campaignMonth, params.invoiceDate);
+  const normalizedPlatforms = params.platforms
+    .filter((platform) => platform.enabled && platform.campaignCount > 0 && platform.allocationPct > 0)
+    .map((platform) => ({
+      ...platform,
+      campaignCount: Math.max(1, Math.round(platform.campaignCount)),
+      allocationPct: Math.max(0, platform.allocationPct),
+    }));
+
+  const seed = [
+    'smart',
+    formattedMonth,
+    params.invoiceDate ?? '',
+    String(finalBudget),
+    String(fees),
+    JSON.stringify(normalizedPlatforms),
+    params.seedSalt ?? '',
+  ].join('|');
+  const rng = createSeededRandom(seed);
+
+  const platformSpecs = template.platforms.reduce<Record<string, PlatformTemplateSpec>>((acc, item) => {
+    acc[item.name] = item;
+    return acc;
+  }, {});
+
+  const platformBudgets = splitBudgetByPercent(
+    finalBudget,
+    normalizedPlatforms.map((platform) => platform.allocationPct),
+  );
+  const branchWeights = template.branchWeights.length === template.branches.length
+    ? [...template.branchWeights]
+    : Array.from({ length: template.branches.length }, () => 1);
+
+  const branchMap = new Map<string, InvoicePlatformGroup[]>(
+    template.branches.map((branch) => [branch, []]),
+  );
+
+  normalizedPlatforms.forEach((platform, platformIndex) => {
+    const spec = platformSpecs[platform.name] ?? {
+      name: platform.name,
+      rows: platform.campaignCount,
+      weight: 1,
+      resultSuffix: platform.name === 'Instagram' ? 'Messages' : 'Visits',
+      cpaRange: platform.name === 'Instagram' ? [20, 25] : [4, 9],
+    };
+    const platformBudget = platformBudgets[platformIndex] ?? 0;
+    const countsByBranch = splitIntegerByWeights(platform.campaignCount, branchWeights);
+    const budgetByBranch = splitBudgetWithWeights(platformBudget, countsByBranch, rng, 0.05);
+
+    template.branches.forEach((branchName, branchIndex) => {
+      const rowsCount = countsByBranch[branchIndex] ?? 0;
+      if (rowsCount <= 0) return;
+      const rowBudgets = splitBudgetWithWeights(
+        budgetByBranch[branchIndex] ?? 0,
+        Array.from({ length: rowsCount }, (_, idx) => rowsCount - idx),
+        rng,
+        0.1,
+      );
+      const rowDays = generateRowDays(rowsCount, rng);
+      const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => ({
+        id: uid(),
+        ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
+        date: formatRowDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
+        results: buildResults(spec, cost, rowIndex, rowsCount, rng),
+        cost,
+      }));
+
+      const branchPlatforms = branchMap.get(branchName) ?? [];
+      branchPlatforms.push({
+        id: uid(),
+        platform_name: platform.name,
+        campaign_rows: rows,
+      });
+      branchMap.set(branchName, branchPlatforms);
+    });
+  });
+
+  const branchGroups: InvoiceBranchGroup[] = template.branches
+    .map((branchName) => ({
+      id: uid(),
+      branch_name: branchName,
+      platform_groups: branchMap.get(branchName) ?? [],
+    }))
+    .filter((branch) => branch.platform_groups.length > 0);
+
+  return {
+    templateName: 'Pro icon KSA Template',
+    clientName: params.clientName ?? template.clientName,
+    finalBudget,
+    fees,
+    grandTotal: finalBudget + fees,
+    branchGroups,
   };
 }
