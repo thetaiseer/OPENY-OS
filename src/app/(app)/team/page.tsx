@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Pencil, Trash2, Mail, Briefcase,
   Send, RotateCcw, XCircle, Clock, CheckCircle, Crown,
-  X, Shield, ChevronDown, ChevronUp, Activity,
+  X, Shield, ChevronDown, ChevronUp, Activity, Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -112,6 +112,43 @@ function formatAccessRole(role: string | null | undefined): string {
     .split('_')
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function parseInviteWorkspaceAccess(raw: TeamInvitation['workspace_access']): Array<'os' | 'docs'> {
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+      ? (() => {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })()
+      : [];
+  return [...new Set(values
+    .map(value => normalizeWorkspaceKey(value))
+    .filter((value): value is 'os' | 'docs' => value === 'os' || value === 'docs'))];
+}
+
+function parseInviteWorkspaceRoles(raw: TeamInvitation['workspace_roles']): Record<string, string> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, string>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>): string {
+  if (access.length === 2) return 'OPENY OS + OPENY DOCS';
+  if (access[0] === 'docs') return 'OPENY DOCS';
+  return 'OPENY OS';
 }
 
 function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
@@ -731,78 +768,30 @@ export default function TeamPage() {
   const { data: teamData, isLoading: loading } = useQuery({
     queryKey: ['team-data'],
     queryFn: async () => {
-      const pendingMembersWithUserIdResPromise = supabase
-        .from('team_members')
-        .select('id, user_id, full_name, email, role, status, created_at, updated_at')
-        .or('status.eq.pending,user_id.is.null')
-        .order('created_at', { ascending: false });
-
-      const [membersRes, invitesRes, workspaceAccessRes, pendingMembersWithUserIdRes] = await Promise.all([
+      const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
         fetch('/api/team/members', { credentials: 'include' }),
-        supabase
-          .from('team_invitations')
-          .select('id, team_member_id, email, role, token, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)')
-          .order('created_at', { ascending: false }),
+        fetch('/api/team/invitations', { credentials: 'include' }),
         fetch('/api/team/workspace-access', { credentials: 'include' }),
-        pendingMembersWithUserIdResPromise,
       ]);
-      const pendingMembersRes = pendingMembersWithUserIdRes.error
-        ? await supabase
-            .from('team_members')
-            .select('id, profile_id, full_name, email, role, status, created_at, updated_at')
-            .or('status.eq.pending,profile_id.is.null')
-            .order('created_at', { ascending: false })
-        : pendingMembersWithUserIdRes;
       if (!membersRes.ok) {
         const message = await membersRes.text().catch(() => 'failed to fetch team members');
         console.error('[team] members fetch error:', message);
       }
-      if (invitesRes.error) console.error('[team] invitations fetch error:', invitesRes.error.message);
-      if (pendingMembersRes.error) console.error('[team] pending members fetch error:', pendingMembersRes.error.message);
+      if (!invitesRes.ok) {
+        const message = await invitesRes.text().catch(() => 'failed to fetch invitations');
+        console.error('[team] invitations fetch error:', message);
+      }
       const membersJson = membersRes.ok ? await membersRes.json() : { members: [] as TeamMember[] };
+      const invitesJson = invitesRes.ok ? await invitesRes.json() : { invitations: [] as TeamInvitation[] };
       const workspaceAccessJson = workspaceAccessRes.ok
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
-      const invitationRows = (!invitesRes.error ? (invitesRes.data ?? []) : []) as TeamInvitation[];
-      const pendingMemberInvitations: TeamInvitation[] = [];
-      for (const member of (pendingMembersRes.error ? [] : (pendingMembersRes.data ?? []))) {
-          const memberEmail = (member.email ?? '').trim().toLowerCase();
-          if (!member.id || !memberEmail) continue;
-          const normalizedStatus = (member.status ?? '').toLowerCase();
-          const pendingStatus = normalizedStatus === 'invited' || normalizedStatus === 'pending'
-            ? normalizedStatus
-            : 'pending';
-          pendingMemberInvitations.push({
-            id: `pending-member-${member.id}`,
-            team_member_id: member.id,
-            email: memberEmail,
-            role: member.role ?? undefined,
-            token: '',
-            status: pendingStatus,
-            invited_by: null,
-            expires_at: member.created_at ?? new Date().toISOString(),
-            accepted_at: null,
-            created_at: member.created_at ?? new Date().toISOString(),
-            updated_at: member.updated_at ?? member.created_at ?? new Date().toISOString(),
-            workspace_access: null,
-            workspace_roles: null,
-            team_member: {
-              full_name: member.full_name ?? memberEmail,
-              role: member.role ?? null,
-              status: member.status ?? 'pending',
-            },
-          } satisfies TeamInvitation);
-      }
+      const invitationRows = (invitesJson.invitations ?? []) as TeamInvitation[];
 
       const mergedInvitations = new Map<string, TeamInvitation>();
       for (const invitation of invitationRows) {
         const key = invitation.team_member_id || (invitation.email ?? '').toLowerCase();
         if (!key) continue;
-        mergedInvitations.set(key, invitation);
-      }
-      for (const invitation of pendingMemberInvitations) {
-        const key = invitation.team_member_id || invitation.email.toLowerCase();
-        if (!key || mergedInvitations.has(key)) continue;
         mergedInvitations.set(key, invitation);
       }
       return {
@@ -1105,6 +1094,21 @@ export default function TeamPage() {
     }
   };
 
+  const handleCopyInviteLink = async (invitation: TeamInvitation) => {
+    if (!invitation.token) {
+      toast('Invite link is unavailable for this invitation.', 'error');
+      return;
+    }
+
+    const inviteUrl = `${window.location.origin}/invite?token=${encodeURIComponent(invitation.token)}`;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      toast('Invite link copied', 'success');
+    } catch {
+      toast('Failed to copy invite link', 'error');
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   const ownerMembers = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
   const ownerMembersForDisplay = ownerMembers.length > 0
@@ -1219,6 +1223,7 @@ export default function TeamPage() {
                     invitation={invitation}
                     canManage={canManage}
                     onResend={handleResend}
+                    onCopyLink={handleCopyInviteLink}
                     onCancel={handleCancelInvite}
                   />
                 ))}
@@ -1433,11 +1438,13 @@ function PendingInvitationRow({
   invitation,
   canManage,
   onResend,
+  onCopyLink,
   onCancel,
 }: {
   invitation: TeamInvitation;
   canManage: boolean;
   onResend: (invitation: TeamInvitation) => void;
+  onCopyLink: (invitation: TeamInvitation) => void;
   onCancel: (invitation: TeamInvitation) => void;
 }) {
   const member = Array.isArray(invitation.team_member) ? invitation.team_member[0] : invitation.team_member;
@@ -1452,6 +1459,9 @@ function PendingInvitationRow({
   const status = CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase()) ? 'cancelled' : invitation.status;
   const canCancel = ACTIVE_INVITE_STATUSES.has((invitation.status ?? '').toLowerCase());
   const canResend = canCancel || invitation.status === 'expired';
+  const workspaceAccess = parseInviteWorkspaceAccess(invitation.workspace_access);
+  const workspaceRoles = parseInviteWorkspaceRoles(invitation.workspace_roles);
+  const workspaceSummary = formatWorkspaceAccessSummary(workspaceAccess);
 
   return (
     <div
@@ -1464,6 +1474,28 @@ function PendingInvitationRow({
           <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{displayEmail}</p>
           <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
             {roleLabel} · Invited {new Date(invitation.created_at).toLocaleDateString()}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {workspaceAccess.map(workspace => (
+              <span
+                key={`${invitation.id}-${workspace}`}
+                className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium"
+                style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+              >
+                {getWorkspaceLabel(workspace)} · {formatWorkspaceRole(workspaceRoles[workspace])}
+              </span>
+            ))}
+            {workspaceAccess.length === 0 && (
+              <span
+                className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium"
+                style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
+              >
+                OPENY OS · Member
+              </span>
+            )}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            Workspace Access: {workspaceSummary}
           </p>
           {invitation.expires_at && (
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -1485,6 +1517,14 @@ function PendingInvitationRow({
               <RotateCcw size={12} />Resend
             </button>
           )}
+          <button
+            onClick={() => onCopyLink(invitation)}
+            disabled={!invitation.token}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Copy size={12} />Copy Invite Link
+          </button>
           {canCancel && (
             <button
               onClick={() => onCancel(invitation)}

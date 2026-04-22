@@ -28,6 +28,22 @@ export type ResolvedInvitation = {
   team_member?: { full_name?: string | null } | Array<{ full_name?: string | null }> | null;
 };
 
+type InvitationBaseRow = {
+  id: string;
+  token: string;
+  email: string;
+  status: string;
+  expires_at: string;
+  team_member_id: string;
+};
+
+type InvitationDetailRow = {
+  role?: string | null;
+  access_role?: string | null;
+  workspace_access?: unknown;
+  workspace_roles?: unknown;
+};
+
 export function normalizeInvitationToken(raw: string | null | undefined): string {
   if (!raw) return '';
   try {
@@ -45,22 +61,72 @@ export function maskInvitationToken(token: string): string {
 
 export async function getInvitationByToken(token: string): Promise<ResolvedInvitation | null> {
   const db = getServiceClient();
-  const { data, error } = await db
+  const { data: baseRow, error: baseError } = await db
     .from('team_invitations')
-    .select('id, token, email, role, status, expires_at, team_member_id, workspace_access, workspace_roles, team_member:team_members(full_name)')
+    .select('id, token, email, status, expires_at, team_member_id')
     .eq('token', token)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  console.log('TOKEN DEBUG:', { token, data, error });
+  console.log('TOKEN DEBUG:', { token, data: baseRow, error: baseError });
 
-  if (error) {
-    console.error('[invitations] DB query error while fetching invitation by token:', error.message);
+  if (baseError) {
+    console.error('[invitations] DB query error while fetching invitation by token:', baseError.message);
     return null;
   }
 
-  if (!data) return null;
-  return data as ResolvedInvitation;
+  if (!baseRow) return null;
+
+  const detailSelectVariants = [
+    'role, workspace_access, workspace_roles',
+    'role',
+    'access_role, workspace_access, workspace_roles',
+    'access_role',
+  ];
+
+  let detail: InvitationDetailRow = {};
+  for (const selectClause of detailSelectVariants) {
+    const { data, error } = await db
+      .from('team_invitations')
+      .select(selectClause)
+      .eq('id', baseRow.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      detail = data as InvitationDetailRow;
+      break;
+    }
+  }
+
+  const memberSelectVariants = [
+    'full_name',
+    'name',
+  ];
+
+  let teamMember: { full_name?: string | null } | null = null;
+  for (const selectClause of memberSelectVariants) {
+    const { data, error } = await db
+      .from('team_members')
+      .select(selectClause)
+      .eq('id', baseRow.team_member_id)
+      .maybeSingle();
+
+    if (!error && data) {
+      const nameValue = (data as { full_name?: string | null; name?: string | null }).full_name
+        ?? (data as { full_name?: string | null; name?: string | null }).name
+        ?? null;
+      teamMember = { full_name: nameValue };
+      break;
+    }
+  }
+
+  return {
+    ...(baseRow as InvitationBaseRow),
+    role: detail.role ?? detail.access_role ?? null,
+    workspace_access: detail.workspace_access ?? null,
+    workspace_roles: detail.workspace_roles ?? null,
+    team_member: teamMember,
+  } satisfies ResolvedInvitation;
 }
 
 export function validateInvitationState(
@@ -466,14 +532,83 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     }
   }
 
-  const { error: invitationDeleteError } = await db
-    .from('team_invitations')
-    .delete()
-    .eq('id', validInvitation.id);
+  const acceptedAt = new Date().toISOString();
+  let invitationWriteError: { message: string } | null = null;
 
-  if (invitationDeleteError) {
-    console.error('[invitations/accept] Failed to delete accepted invitation token:', invitationDeleteError.message);
-    return { ok: false as const, status: 500, body: { error: invitationDeleteError.message } };
+  const acceptedWrite = await db
+    .from('team_invitations')
+    .update({
+      status: INVITATION_STATUS.ACCEPTED,
+      accepted_at: acceptedAt,
+      updated_at: acceptedAt,
+    })
+    .eq('id', validInvitation.id);
+  invitationWriteError = acceptedWrite.error;
+
+  if (invitationWriteError && invitationWriteError.message.toLowerCase().includes('accepted_at')) {
+    const fallbackAcceptedWrite = await db
+      .from('team_invitations')
+      .update({
+        status: INVITATION_STATUS.ACCEPTED,
+        updated_at: acceptedAt,
+      })
+      .eq('id', validInvitation.id);
+    invitationWriteError = fallbackAcceptedWrite.error;
+  }
+
+  if (invitationWriteError) {
+    console.error('[invitations/accept] Failed to mark invitation as accepted:', invitationWriteError.message);
+    return { ok: false as const, status: 500, body: { error: invitationWriteError.message } };
+  }
+
+  const nowIso = new Date().toISOString();
+  const memberUpdateVariants: Array<Record<string, unknown>> = [
+    {
+      status: MEMBER_STATUS.ACTIVE,
+      profile_id: resolvedAuthUserId,
+      full_name: profileName,
+      email: invitationEmail,
+      updated_at: nowIso,
+    },
+    {
+      status: MEMBER_STATUS.ACTIVE,
+      profile_id: resolvedAuthUserId,
+      email: invitationEmail,
+      updated_at: nowIso,
+    },
+    {
+      status: MEMBER_STATUS.ACTIVE,
+      full_name: profileName,
+      email: invitationEmail,
+      updated_at: nowIso,
+    },
+    {
+      status: MEMBER_STATUS.ACTIVE,
+      email: invitationEmail,
+      updated_at: nowIso,
+    },
+    {
+      status: MEMBER_STATUS.ACTIVE,
+      updated_at: nowIso,
+    },
+  ];
+
+  let memberUpdateError: { message: string } | null = null;
+  for (const payload of memberUpdateVariants) {
+    const { error } = await db
+      .from('team_members')
+      .update(payload)
+      .eq('id', validInvitation.team_member_id);
+    if (!error) {
+      memberUpdateError = null;
+      break;
+    }
+    memberUpdateError = error;
+  }
+
+  if (memberUpdateError) {
+    console.error('[invitations/accept] Failed to activate team member record:', memberUpdateError.message);
+    return { ok: false as const, status: 500, body: { error: memberUpdateError.message } };
   }
 
   void (async () => {
