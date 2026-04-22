@@ -13,7 +13,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsInvoice, InvoiceBranchGroup } from '@/lib/docs-types';
+import type { DocsInvoice, InvoiceBranchGroup, InvoiceCampaignRow, InvoicePlatformGroup } from '@/lib/docs-types';
 import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
@@ -21,11 +21,18 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
-import { generateSmartInvoice } from '@/lib/docs-invoice-autogen';
+import {
+  generateInvoiceFromTemplate,
+  generateSmartInvoice,
+  INVOICE_TEMPLATE_OPTIONS,
+  INVOICE_TEMPLATES,
+} from '@/lib/docs-invoice-autogen';
+import type { InvoiceTemplateName } from '@/lib/docs-invoice-autogen';
 
 interface FormState {
   id?: string;
   client_profile_id: string | null;
+  invoice_template: InvoiceTemplateName;
   invoice_number: string;
   client_name: string;
   campaign_month: string;
@@ -50,8 +57,8 @@ const monthNow = () => {
   return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const DEFAULT_TOTAL_BUDGET = 49500;
-const DEFAULT_FEES = 500;
+const DEFAULT_TOTAL_BUDGET = INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFinalBudget;
+const DEFAULT_FEES = INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFees;
 
 const DEFAULT_PLATFORM_CONFIGS: PlatformConfig[] = [
   { key: 'instagram', name: 'Instagram', enabled: true, campaignCount: 6, allocationPct: 50 },
@@ -59,12 +66,84 @@ const DEFAULT_PLATFORM_CONFIGS: PlatformConfig[] = [
   { key: 'tiktok', name: 'TikTok', enabled: true, campaignCount: 2, allocationPct: 20 },
 ];
 
+const uid = (): string =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2, 11));
+
+function isTemplateName(value: string | null | undefined): value is InvoiceTemplateName {
+  return !!value && INVOICE_TEMPLATE_OPTIONS.includes(value as InvoiceTemplateName);
+}
+
+function asTemplateName(value: string | null | undefined): InvoiceTemplateName {
+  return isTemplateName(value) ? value : 'Manual';
+}
+
+function createEmptyRow(): InvoiceCampaignRow {
+  return { id: uid(), ad_name: '', date: '', results: '', cost: 0 };
+}
+
+function createEmptyPlatform(name = 'Instagram'): InvoicePlatformGroup {
+  return {
+    id: uid(),
+    platform_name: name,
+    campaign_rows: [createEmptyRow()],
+  };
+}
+
+function createEmptyBranch(name = 'Main Branch'): InvoiceBranchGroup {
+  return {
+    id: uid(),
+    branch_name: name,
+    platform_groups: [createEmptyPlatform()],
+  };
+}
+
+function createManualDefaultBranchGroups(): InvoiceBranchGroup[] {
+  return [createEmptyBranch()];
+}
+
 function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[] = []) {
   return Math.round(branchGroups.reduce((branchSum, branch) => (
     branchSum + branch.platform_groups.reduce((platformSum, platform) => (
       platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
     ), 0)
   ), 0));
+}
+
+function normalizeBranchGroupsForEditor(branchGroups: InvoiceBranchGroup[] = [], ensureAtLeastOne = false) {
+  const normalized = branchGroups.map((branch, branchIndex) => ({
+    id: branch.id || `branch-${branchIndex + 1}-${uid()}`,
+    branch_name: branch.branch_name || `Branch ${branchIndex + 1}`,
+    platform_groups: (branch.platform_groups ?? []).map((platform, platformIndex) => ({
+      id: platform.id || `platform-${branchIndex + 1}-${platformIndex + 1}-${uid()}`,
+      platform_name: platform.platform_name || 'Platform',
+      campaign_rows: (platform.campaign_rows ?? []).map((row, rowIndex) => ({
+        id: row.id || `row-${branchIndex + 1}-${platformIndex + 1}-${rowIndex + 1}-${uid()}`,
+        ad_name: row.ad_name || '',
+        date: row.date || '',
+        results: row.results || '',
+        cost: Math.max(0, Number(row.cost) || 0),
+      })),
+    })),
+  }));
+
+  if (!ensureAtLeastOne) return normalized;
+  if (normalized.length === 0) return createManualDefaultBranchGroups();
+
+  return normalized.map((branch) => {
+    if (branch.platform_groups.length === 0) {
+      return { ...branch, platform_groups: [createEmptyPlatform()] };
+    }
+    return {
+      ...branch,
+      platform_groups: branch.platform_groups.map((platform) => (
+        platform.campaign_rows.length === 0
+          ? { ...platform, campaign_rows: [createEmptyRow()] }
+          : platform
+      )),
+    };
+  });
 }
 
 function nextInvoiceNumber(invoices: DocsInvoice[]) {
@@ -156,6 +235,7 @@ function derivePlatformConfigs(branchGroups: InvoiceBranchGroup[] = [], finalBud
 function blank(invoices: DocsInvoice[]): FormState {
   return {
     client_profile_id: null,
+    invoice_template: 'Manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
     campaign_month: monthNow(),
@@ -171,6 +251,7 @@ function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
     client_profile_id: invoice.client_profile_id ?? null,
+    invoice_template: asTemplateName(invoice.invoice_template ?? null),
     invoice_number: invoice.invoice_number,
     client_name: invoice.client_name,
     campaign_month: invoice.campaign_month ?? monthNow(),
@@ -186,6 +267,7 @@ export default function InvoicePage() {
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [form, setForm] = useState<FormState>(() => blank([]));
+  const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(createManualDefaultBranchGroups);
   const [totalBudget, setTotalBudget] = useState<number>(DEFAULT_TOTAL_BUDGET);
   const [platformConfigs, setPlatformConfigs] = useState<PlatformConfig[]>(DEFAULT_PLATFORM_CONFIGS);
   const [generationSeed, setGenerationSeed] = useState(0);
@@ -198,6 +280,7 @@ export default function InvoicePage() {
   const loadFromInvoice = useCallback((invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
     if (!invoice) {
       setForm(blank(availableInvoices));
+      setBranchGroups(createManualDefaultBranchGroups());
       setTotalBudget(DEFAULT_TOTAL_BUDGET);
       setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
       setGenerationSeed(0);
@@ -205,10 +288,20 @@ export default function InvoicePage() {
     }
 
     const nextForm = toForm(invoice);
-    const inferredBudget = Math.max(0, Math.round(Number(invoice.final_budget ?? sumBranchGroupsCost(invoice.branch_groups ?? []))));
+    const normalizedGroups = normalizeBranchGroupsForEditor(
+      invoice.branch_groups ?? [],
+      nextForm.invoice_template === 'Manual',
+    );
+    const inferredBudget = Math.max(0, Math.round(Number(invoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
+
     setForm(nextForm);
+    setBranchGroups(normalizedGroups.length ? normalizedGroups : createManualDefaultBranchGroups());
     setTotalBudget(inferredBudget || DEFAULT_TOTAL_BUDGET);
-    setPlatformConfigs(derivePlatformConfigs(invoice.branch_groups ?? [], inferredBudget || DEFAULT_TOTAL_BUDGET));
+    setPlatformConfigs(
+      nextForm.invoice_template === 'Pro icon KSA Template'
+        ? derivePlatformConfigs(normalizedGroups, inferredBudget || DEFAULT_TOTAL_BUDGET)
+        : DEFAULT_PLATFORM_CONFIGS,
+    );
     setGenerationSeed(0);
   }, []);
 
@@ -241,25 +334,10 @@ export default function InvoicePage() {
     [profiles, form.client_profile_id],
   );
 
-  const generated = useMemo(() => generateSmartInvoice({
-    campaignMonth: form.campaign_month,
-    invoiceDate: form.invoice_date,
-    finalBudget: totalBudget,
-    fees: form.our_fees,
-    clientName: form.client_name,
-    platforms: platformConfigs.map((platform) => ({
-      name: platform.name,
-      enabled: platform.enabled,
-      campaignCount: platform.campaignCount,
-      allocationPct: platform.allocationPct,
-    })),
-    seedSalt: String(generationSeed),
-  }), [form.campaign_month, form.invoice_date, form.our_fees, form.client_name, totalBudget, platformConfigs, generationSeed]);
-
   const model = useMemo(() => buildInvoiceDocumentModel({
     ...form,
-    branch_groups: generated.branchGroups,
-  }), [form, generated.branchGroups]);
+    branch_groups: branchGroups,
+  }), [form, branchGroups]);
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -271,10 +349,71 @@ export default function InvoicePage() {
     loadFromInvoice(null, invoices);
   }
 
-  function resetGenerator() {
-    setTotalBudget(DEFAULT_TOTAL_BUDGET);
-    setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
-    setGenerationSeed((prev) => prev + 1);
+  function applyTemplate(templateName: InvoiceTemplateName) {
+    if (templateName === 'Manual') {
+      setForm((prev) => ({ ...prev, invoice_template: 'Manual' }));
+      setBranchGroups(createManualDefaultBranchGroups());
+      setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
+      setGenerationSeed(0);
+      return;
+    }
+
+    const generated = generateInvoiceFromTemplate({
+      templateName,
+      campaignMonth: form.campaign_month,
+      invoiceDate: form.invoice_date,
+      finalBudget: totalBudget,
+      fees: form.our_fees,
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      invoice_template: templateName,
+      client_name: generated.clientName || prev.client_name,
+      our_fees: generated.fees,
+    }));
+    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
+    setTotalBudget(generated.finalBudget || totalBudget);
+    setPlatformConfigs(
+      templateName === 'Pro icon KSA Template'
+        ? derivePlatformConfigs(generated.branchGroups, generated.finalBudget || totalBudget)
+        : DEFAULT_PLATFORM_CONFIGS,
+    );
+    setGenerationSeed(0);
+  }
+
+  function regenerateKsa(seedOffset = 1, reset = false) {
+    const nextSeed = generationSeed + seedOffset;
+    const nextPlatforms = reset ? DEFAULT_PLATFORM_CONFIGS : platformConfigs;
+    const nextBudget = reset ? DEFAULT_TOTAL_BUDGET : totalBudget;
+
+    const generated = generateSmartInvoice({
+      campaignMonth: form.campaign_month,
+      invoiceDate: form.invoice_date,
+      finalBudget: nextBudget,
+      fees: form.our_fees,
+      clientName: form.client_name || INVOICE_TEMPLATES['Pro icon KSA Template'].clientName,
+      platforms: nextPlatforms.map((platform) => ({
+        name: platform.name,
+        enabled: platform.enabled,
+        campaignCount: platform.campaignCount,
+        allocationPct: platform.allocationPct,
+      })),
+      seedSalt: String(nextSeed),
+    });
+
+    if (reset) {
+      setTotalBudget(DEFAULT_TOTAL_BUDGET);
+      setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
+    }
+
+    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
+    setForm((prev) => ({
+      ...prev,
+      invoice_template: 'Pro icon KSA Template',
+      client_name: prev.client_name || generated.clientName,
+    }));
+    setGenerationSeed(nextSeed);
   }
 
   function togglePlatform(index: number, enabled: boolean) {
@@ -334,6 +473,104 @@ export default function InvoicePage() {
     });
   }
 
+  function updateBranchName(branchIndex: number, value: string) {
+    setBranchGroups((prev) => prev.map((branch, i) => (
+      i === branchIndex ? { ...branch, branch_name: value } : branch
+    )));
+  }
+
+  function addBranch() {
+    setBranchGroups((prev) => [...prev, createEmptyBranch(`Branch ${prev.length + 1}`)]);
+  }
+
+  function removeBranch(branchIndex: number) {
+    setBranchGroups((prev) => prev.filter((_, i) => i !== branchIndex));
+  }
+
+  function updatePlatformName(branchIndex: number, platformIndex: number, value: string) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => {
+      if (bIdx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => (
+          pIdx === platformIndex ? { ...platform, platform_name: value } : platform
+        )),
+      };
+    }));
+  }
+
+  function addPlatform(branchIndex: number) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => (
+      bIdx === branchIndex
+        ? { ...branch, platform_groups: [...branch.platform_groups, createEmptyPlatform()] }
+        : branch
+    )));
+  }
+
+  function removePlatform(branchIndex: number, platformIndex: number) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => (
+      bIdx === branchIndex
+        ? { ...branch, platform_groups: branch.platform_groups.filter((_, pIdx) => pIdx !== platformIndex) }
+        : branch
+    )));
+  }
+
+  function updateRowField(
+    branchIndex: number,
+    platformIndex: number,
+    rowIndex: number,
+    field: keyof InvoiceCampaignRow,
+    value: string | number,
+  ) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => {
+      if (bIdx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => {
+          if (pIdx !== platformIndex) return platform;
+          return {
+            ...platform,
+            campaign_rows: platform.campaign_rows.map((row, rIdx) => {
+              if (rIdx !== rowIndex) return row;
+              if (field === 'cost') {
+                return { ...row, cost: Math.max(0, Number(value) || 0) };
+              }
+              return { ...row, [field]: String(value) };
+            }),
+          };
+        }),
+      };
+    }));
+  }
+
+  function addRow(branchIndex: number, platformIndex: number) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => {
+      if (bIdx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => (
+          pIdx === platformIndex
+            ? { ...platform, campaign_rows: [...platform.campaign_rows, createEmptyRow()] }
+            : platform
+        )),
+      };
+    }));
+  }
+
+  function removeRow(branchIndex: number, platformIndex: number, rowIndex: number) {
+    setBranchGroups((prev) => prev.map((branch, bIdx) => {
+      if (bIdx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platform_groups: branch.platform_groups.map((platform, pIdx) => (
+          pIdx === platformIndex
+            ? { ...platform, campaign_rows: platform.campaign_rows.filter((_, rIdx) => rIdx !== rowIndex) }
+            : platform
+        )),
+      };
+    }));
+  }
+
   async function saveInvoice() {
     if (!form.invoice_number.trim()) { setError('Invoice number is required.'); return; }
     if (!form.client_name.trim()) { setError('Client name is required.'); return; }
@@ -344,7 +581,7 @@ export default function InvoicePage() {
     try {
       const payload = {
         client_profile_id: form.client_profile_id,
-        invoice_template: 'Pro icon KSA Template',
+        invoice_template: form.invoice_template,
         invoice_number: form.invoice_number,
         client_name: form.client_name,
         campaign_month: form.campaign_month,
@@ -353,7 +590,7 @@ export default function InvoicePage() {
         status: form.status,
         our_fees: Math.max(0, Number(form.our_fees || 0)),
         notes: form.notes,
-        branch_groups: generated.branchGroups,
+        branch_groups: normalizeBranchGroupsForEditor(branchGroups),
       };
 
       const url = form.id ? `/api/docs/invoices/${form.id}` : '/api/docs/invoices';
@@ -378,9 +615,15 @@ export default function InvoicePage() {
         return next.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
       });
 
-      const persistedBudget = Math.max(0, Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(savedInvoice.branch_groups ?? []))));
+      const normalizedGroups = normalizeBranchGroupsForEditor(savedInvoice.branch_groups ?? []);
+      const persistedBudget = Math.max(0, Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
+      setBranchGroups(normalizedGroups.length ? normalizedGroups : createManualDefaultBranchGroups());
       setTotalBudget(persistedBudget || totalBudget);
-      setPlatformConfigs(derivePlatformConfigs(savedInvoice.branch_groups ?? [], persistedBudget || totalBudget));
+      setPlatformConfigs(
+        savedInvoice.invoice_template === 'Pro icon KSA Template'
+          ? derivePlatformConfigs(normalizedGroups, persistedBudget || totalBudget)
+          : DEFAULT_PLATFORM_CONFIGS,
+      );
 
       setSuccess('Invoice saved successfully.');
       setTimeout(() => setSuccess(''), 2200);
@@ -446,14 +689,24 @@ export default function InvoicePage() {
               </div>
             </div>
 
+            <div>
+              <label htmlFor="invoice-template" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Mode / Template</label>
+              <select
+                id="invoice-template"
+                className={inputClass}
+                value={form.invoice_template}
+                onChange={(e) => applyTemplate(asTemplateName(e.target.value))}
+              >
+                {INVOICE_TEMPLATE_OPTIONS.map((templateName) => (
+                  <option key={templateName} value={templateName}>{templateName === 'Manual' ? 'Standard Manual Invoice' : templateName}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Number</label>
                 <input className={inputClass} value={form.invoice_number} onChange={(e) => setField('invoice_number', e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="invoice-total-budget" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
-                <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Currency</label>
@@ -495,88 +748,239 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Platform Configuration</h2>
+          {form.invoice_template === 'Pro icon KSA Template' ? (
+            <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Pro icon KSA Generator</h2>
 
-            <div className="rounded-xl border p-2 flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Total Allocation</span>
-              <span className={clsx('font-bold', totalAllocation === 100 ? 'text-emerald-600' : 'text-amber-600')}>
-                {totalAllocation}%
-              </span>
+              <div>
+                <label htmlFor="invoice-total-budget" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
+                <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+              </div>
+
+              <div className="rounded-xl border p-2 flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Total Allocation</span>
+                <span className={clsx('font-bold', totalAllocation === 100 ? 'text-emerald-600' : 'text-amber-600')}>
+                  {totalAllocation}%
+                </span>
+              </div>
+
+              {platformConfigs.map((platform, index) => {
+                const platformBudget = Math.round((totalBudget * platform.allocationPct) / 100);
+                return (
+                  <div key={platform.key} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                        <input
+                          type="checkbox"
+                          checked={platform.enabled}
+                          onChange={(e) => togglePlatform(index, e.target.checked)}
+                        />
+                        {platform.name}
+                      </label>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                        {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-[170px_1fr_80px] gap-3 items-center">
+                      <div>
+                        <label htmlFor={`campaign-count-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
+                        <input
+                          id={`campaign-count-${platform.key}`}
+                          type="number"
+                          min={1}
+                          disabled={!platform.enabled}
+                          className={inputClass}
+                          value={platform.campaignCount}
+                          onChange={(e) => updateCampaignCount(index, Number(e.target.value))}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor={`allocation-range-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Budget Allocation %</label>
+                        <input
+                          id={`allocation-range-${platform.key}`}
+                          type="range"
+                          min={0}
+                          max={100}
+                          disabled={!platform.enabled}
+                          className="w-full"
+                          value={platform.allocationPct}
+                          aria-label={`Budget allocation percentage for ${platform.name}`}
+                          aria-valuetext={`${platform.allocationPct}%`}
+                          onChange={(e) => updateAllocation(index, Number(e.target.value))}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor={`allocation-input-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
+                        <input
+                          id={`allocation-input-${platform.key}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          disabled={!platform.enabled}
+                          className={inputClass}
+                          value={platform.allocationPct}
+                          aria-label={`Allocation percentage for ${platform.name}`}
+                          onChange={(e) => updateAllocation(index, Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => regenerateKsa(1, false)}
+                  className="px-3 py-2 rounded-lg text-xs font-semibold text-white"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  <Wand2 size={13} className="inline mr-1" /> Generate Rows
+                </button>
+                <button
+                  type="button"
+                  onClick={() => regenerateKsa(1, true)}
+                  className="px-3 py-2 rounded-lg text-xs font-semibold border"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <RotateCcw size={13} className="inline mr-1" /> Reset Generator
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Invoice Structure Editor</h2>
+              <button
+                type="button"
+                onClick={addBranch}
+                className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                <Plus size={12} className="inline mr-1" /> Add Branch
+              </button>
             </div>
 
-            {platformConfigs.map((platform, index) => {
-              const platformBudget = Math.round((totalBudget * platform.allocationPct) / 100);
-              return (
-                <div key={platform.key} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                      <input
-                        type="checkbox"
-                        checked={platform.enabled}
-                        onChange={(e) => togglePlatform(index, e.target.checked)}
-                      />
-                      {platform.name}
-                    </label>
-                    <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                      {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
-                    </span>
-                  </div>
+            {branchGroups.length === 0 ? (
+              <div className="text-xs rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                No rows yet. Add a branch to start building your invoice.
+              </div>
+            ) : null}
 
-                  <div className="grid grid-cols-[170px_1fr_80px] gap-3 items-center">
-                    <div>
-                      <label htmlFor={`campaign-count-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
-                      <input
-                        id={`campaign-count-${platform.key}`}
-                        type="number"
-                        min={1}
-                        disabled={!platform.enabled}
-                        className={inputClass}
-                        value={platform.campaignCount}
-                        onChange={(e) => updateCampaignCount(index, Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor={`allocation-range-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Budget Allocation %</label>
-                      <input
-                        id={`allocation-range-${platform.key}`}
-                        type="range"
-                        min={0}
-                        max={100}
-                        disabled={!platform.enabled}
-                        className="w-full"
-                        value={platform.allocationPct}
-                        aria-label={`Budget allocation percentage for ${platform.name}`}
-                        aria-valuetext={`${platform.allocationPct}%`}
-                        onChange={(e) => updateAllocation(index, Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor={`allocation-input-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
-                      <input
-                        id={`allocation-input-${platform.key}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        disabled={!platform.enabled}
-                        className={inputClass}
-                        value={platform.allocationPct}
-                        aria-label={`Allocation percentage for ${platform.name}`}
-                        onChange={(e) => updateAllocation(index, Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+            {branchGroups.map((branch, branchIndex) => (
+              <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                <div className="flex items-center gap-2">
+                  <input
+                    className={inputClass}
+                    value={branch.branch_name}
+                    onChange={(e) => updateBranchName(branchIndex, e.target.value)}
+                    placeholder="Branch name"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeBranch(branchIndex)}
+                    className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                    style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-              );
-            })}
+
+                {branch.platform_groups.map((platform, platformIndex) => (
+                  <div key={platform.id} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        className={inputClass}
+                        value={platform.platform_name}
+                        onChange={(e) => updatePlatformName(branchIndex, platformIndex, e.target.value)}
+                        placeholder="Platform name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addRow(branchIndex, platformIndex)}
+                        className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        title="Add row"
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removePlatform(branchIndex, platformIndex)}
+                        className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                        style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                        title="Remove platform"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    {platform.campaign_rows.length === 0 ? (
+                      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>No rows. Add one row.</div>
+                    ) : null}
+
+                    {platform.campaign_rows.map((row, rowIndex) => (
+                      <div key={row.id} className="grid grid-cols-[1.2fr_120px_1fr_120px_32px] gap-2 items-center">
+                        <input
+                          className={inputClass}
+                          value={row.ad_name}
+                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'ad_name', e.target.value)}
+                          placeholder="Ad name"
+                        />
+                        <input
+                          type="date"
+                          className={inputClass}
+                          value={row.date}
+                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'date', e.target.value)}
+                        />
+                        <input
+                          className={inputClass}
+                          value={row.results}
+                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'results', e.target.value)}
+                          placeholder="Results"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          className={inputClass}
+                          value={row.cost}
+                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'cost', e.target.value)}
+                          placeholder="Cost"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeRow(branchIndex, platformIndex, rowIndex)}
+                          className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                          style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                          title="Remove row"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => addPlatform(branchIndex)}
+                  className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <Plus size={12} className="inline mr-1" /> Add Platform
+                </button>
+              </div>
+            ))}
           </div>
 
           <div className="rounded-2xl border p-4 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Budget Summary</h2>
             <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Generated Final Budget</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
               <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
             </div>
             <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -598,24 +1002,6 @@ export default function InvoicePage() {
 
           <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Controls</h2>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setGenerationSeed((prev) => prev + 1)}
-                className="px-3 py-2 rounded-lg text-xs font-semibold text-white"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Wand2 size={13} className="inline mr-1" /> Generate
-              </button>
-              <button
-                type="button"
-                onClick={resetGenerator}
-                className="px-3 py-2 rounded-lg text-xs font-semibold border"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-              >
-                <RotateCcw size={13} className="inline mr-1" /> Reset
-              </button>
-            </div>
 
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Saved Invoices</label>
