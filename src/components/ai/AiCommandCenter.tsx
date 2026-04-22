@@ -50,6 +50,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useAi, type AiMode, type AppSection } from '@/lib/ai-context';
+import AppModal from '@/components/ui/AppModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -532,22 +533,14 @@ export default function AiCommandCenter() {
   const SectionIcon = meta.icon;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
-        onClick={close}
-      />
-
-      {/* Panel */}
-      <div
-        className="fixed top-0 right-0 h-full z-50 flex flex-col shadow-2xl"
-        style={{
-          width: 'min(560px, 100vw)',
-          background: 'var(--surface)',
-          borderLeft: '1px solid var(--border)',
-        }}
-      >
+    <AppModal
+      open
+      onClose={close}
+      hideHeader
+      size="xl"
+      panelClassName="max-w-[min(560px,calc(100vw-2rem))] overflow-hidden"
+      bodyClassName="p-0 !overflow-hidden flex flex-col"
+    >
         {/* ── Header ── */}
         <div
           className="px-5 py-4 border-b flex items-center gap-3 shrink-0"
@@ -812,7 +805,6 @@ export default function AiCommandCenter() {
             Enter to send · Shift+Enter for new line · Cmd+J to toggle
           </p>
         </form>
-      </div>
-    </>
+    </AppModal>
   );
 }

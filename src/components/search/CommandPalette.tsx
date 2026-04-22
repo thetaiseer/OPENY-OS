@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
+import AppModal from '@/components/ui/AppModal';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -253,18 +254,15 @@ export default function CommandPalette({
   if (!open) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className="fixed z-[510] top-[15vh] left-1/2 -translate-x-1/2 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
+    <AppModal
+      open
+      onClose={onClose}
+      hideHeader
+      size="lg"
+      zIndexClassName="z-[500]"
+      panelClassName="max-w-xl overflow-hidden"
+      bodyClassName="p-0 overflow-hidden"
+    >
         {/* Search input */}
         <div
           className="flex items-center gap-3 px-4 border-b"
@@ -383,7 +381,6 @@ export default function CommandPalette({
           <span><kbd className="font-mono bg-[var(--surface-2)] px-1.5 py-0.5 rounded text-[10px]">Esc</kbd> Close</span>
           <span className="ml-auto opacity-60">⌘K to toggle</span>
         </div>
-      </div>
-    </>
+    </AppModal>
   );
 }

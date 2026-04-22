@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Download, ExternalLink, FileText, FileImage, FileVideo, File, Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import AppModal from '@/components/ui/AppModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -300,20 +301,6 @@ interface FilePreviewModalProps {
 }
 
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!file) return;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [file, handleKeyDown]);
-
   if (!file) return null;
 
   const { name, url, downloadUrl, openUrl, mimeType, size } = file;
@@ -325,16 +312,15 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
   const text = isText(name, mimeType);
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
-      onClick={onClose}
+    <AppModal
+      open
+      onClose={onClose}
+      hideHeader
+      size="xl"
+      zIndexClassName="z-[100]"
+      panelClassName="max-w-4xl overflow-hidden border border-white/10 bg-[rgba(15,15,25,0.96)]"
+      bodyClassName="p-0"
     >
-      <div
-        className="relative w-full max-w-4xl flex flex-col rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: 'rgba(15,15,25,0.96)', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '95vh' }}
-        onClick={e => e.stopPropagation()}
-      >
         {/* ── Header ── */}
         <div
           className="flex items-center gap-3 px-5 py-3 shrink-0"
@@ -367,7 +353,6 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
                 rel="noopener noreferrer"
                 title="Open in new tab"
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-                onClick={e => e.stopPropagation()}
               >
                 <ExternalLink size={15} />
               </a>
@@ -378,7 +363,6 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
               title="Download"
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-white transition-colors"
               style={{ background: 'rgba(99,102,241,0.7)' }}
-              onClick={e => e.stopPropagation()}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.9)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.7)')}
             >
@@ -403,7 +387,6 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
           {text && !img && !vid && !pdf && <TextPreview src={url} name={name} />}
           {!img && !vid && !pdf && !text && <FallbackPreview name={name} mime={mimeType} />}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
