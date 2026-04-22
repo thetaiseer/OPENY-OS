@@ -16,7 +16,7 @@ import AppModal from '@/components/ui/AppModal';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation, MemberPermissions, ModuleAccess, OsModule, DocsModule, ActivityLogEntry } from '@/lib/types';
-import { getWorkspaceLabel, WORKSPACE_ROLES } from '@/lib/workspace-access';
+import { getWorkspaceLabel, normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';

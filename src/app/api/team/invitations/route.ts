@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (!error) {
-      rows = (data ?? []) as InvitationRow[];
+      rows = (data ?? []) as unknown as InvitationRow[];
       break;
     }
     lastErrorMessage = error.message;
