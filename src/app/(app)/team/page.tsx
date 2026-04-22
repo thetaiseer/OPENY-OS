@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Pencil, Trash2, Mail, Briefcase,
-  Send, RotateCcw, XCircle, Link2, Clock, CheckCircle, Crown,
+  Send, RotateCcw, XCircle, Clock, CheckCircle, Crown,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -26,9 +26,7 @@ const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team_member', 'viewer'
 
 const ACCESS_ROLE_OPTIONS = [
   { value: 'admin',       label: 'Admin — full access' },
-  { value: 'manager',     label: 'Manager — manage tasks & team' },
-  { value: 'team_member', label: 'Team Member — standard access' },
-  { value: 'viewer',      label: 'Viewer — read-only access' },
+  { value: 'team_member', label: 'Member — standard access' },
 ];
 
 const WORKSPACE_ROLE_OPTIONS = [
@@ -36,6 +34,9 @@ const WORKSPACE_ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
   { value: 'viewer', label: 'Viewer' },
 ];
+
+const ACTIVE_INVITE_STATUSES = new Set(['pending', 'invited']);
+const CANCELLATION_STATUSES = new Set(['revoked', 'cancelled']);
 
 // ── Marketing roles list (job titles) ────────────────────────────────────────
 // Stored in team_members.job_title — separate from the access role.
@@ -81,54 +82,16 @@ function formatWorkspaceRole(role: string | undefined): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
-// ── Group label mapping ───────────────────────────────────────────────────────
-// Maps a job_title → friendly section name. Falls back to role-based section.
-const JOB_TITLE_TO_GROUP: Record<string, string> = {
-  'Content Creator':            'Content Creators',
-  'Copywriter':                 'Content Creators',
-  'Email Marketing Specialist': 'Content Creators',
-  'Photographer':               'Content Creators',
-  'Graphic Designer':           'Graphic Designers',
-  'UX/UI Designer':             'Graphic Designers',
-  'Video Editor':               'Video Editors',
-  'Social Media Manager':       'Managers',
-  'Marketing Manager':          'Managers',
-  'Account Manager':            'Managers',
-  'Project Manager':            'Managers',
-  'Brand Strategist':           'Managers',
-  'Influencer Manager':         'Managers',
-  'PR Specialist':              'Managers',
-  'SEO Specialist':             'Developers',
-  'Paid Ads Specialist':        'Developers',
-  'Analytics Specialist':       'Developers',
-};
-
-const ROLE_TO_GROUP: Record<string, string> = {
-  admin:       'Admins',
-  manager:     'Managers',
-  team_member: 'Team Members',
-  viewer:      'Viewers',
-  client:      'Clients',
-};
-
-// Preferred display order for sections
-const SECTION_ORDER = [
-  'Admins',
-  'Managers',
-  'Graphic Designers',
-  'Video Editors',
-  'Content Creators',
-  'Developers',
-  'Team Members',
-  'Viewers',
-  'Clients',
-];
-
-function getGroupLabel(member: TeamMember): string {
-  const jt = member.job_title?.trim();
-  if (jt && JOB_TITLE_TO_GROUP[jt]) return JOB_TITLE_TO_GROUP[jt];
-  if (jt) return jt; // keep non-standard job title as its own section label
-  return ROLE_TO_GROUP[member.role ?? ''] ?? 'Other Members';
+function formatAccessRole(role: string | null | undefined): string {
+  const normalized = (role ?? '').toLowerCase();
+  if (normalized === 'team_member') return 'Member';
+  if (normalized === 'owner') return 'Owner';
+  if (normalized === 'admin') return 'Admin';
+  if (!normalized) return 'Member';
+  return normalized
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
@@ -142,29 +105,6 @@ function hasInviteInsertResult(data: unknown): data is { member: TeamMember; inv
     && payload.invitation?.team_member_id
     && payload.invitation?.email,
   );
-}
-
-/** Group an array of members into ordered sections by role/job title. */
-function groupMembers(members: TeamMember[]): { label: string; members: TeamMember[] }[] {
-  const map = new Map<string, TeamMember[]>();
-  for (const m of members) {
-    const label = getGroupLabel(m);
-    if (!map.has(label)) map.set(label, []);
-    map.get(label)!.push(m);
-  }
-
-  // Sort sections: known order first, then alphabetical for the rest
-  const sections = Array.from(map.entries()).map(([label, mems]) => ({ label, members: mems }));
-  sections.sort((a, b) => {
-    const ai = SECTION_ORDER.indexOf(a.label);
-    const bi = SECTION_ORDER.indexOf(b.label);
-    if (ai !== -1 && bi !== -1) return ai - bi;
-    if (ai !== -1) return -1;
-    if (bi !== -1) return 1;
-    return a.label.localeCompare(b.label);
-  });
-
-  return sections;
 }
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
@@ -380,7 +320,8 @@ function InviteBadge({ status }: { status: string }) {
     invited:  { label: 'Invited',   color: '#d97706', bg: '#fffbeb' },
     accepted: { label: 'Active',    color: '#16a34a', bg: '#f0fdf4' },
     expired:  { label: 'Expired',   color: '#9ca3af', bg: '#f9fafb' },
-    revoked:  { label: 'Revoked',   color: '#dc2626', bg: '#fef2f2' },
+    revoked:  { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
+    cancelled:{ label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
   };
   const c = cfg[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6' };
   return (
@@ -396,7 +337,7 @@ function InviteBadge({ status }: { status: string }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function TeamPage() {
   const { t } = useLang();
-  const { role: myRole } = useAuth();
+  const { role: myRole, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canManage = myRole === 'owner' || myRole === 'admin';
@@ -407,7 +348,10 @@ export default function TeamPage() {
     queryFn: async () => {
       const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
         fetch('/api/team/members', { credentials: 'include' }),
-        supabase.from('team_invitations').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('team_invitations')
+          .select('id, team_member_id, email, role, token, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)')
+          .order('created_at', { ascending: false }),
         fetch('/api/team/workspace-access', { credentials: 'include' }),
       ]);
       if (!membersRes.ok) {
@@ -443,10 +387,52 @@ export default function TeamPage() {
   const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
   const [editForm, setEditForm]         = useState({ ...blankForm });
 
-  // Latest invitation per member (for status display)
-  const inviteByMember = useCallback((memberId: string): TeamInvitation | undefined => {
-    return invitations.find(i => i.team_member_id === memberId);
+  useEffect(() => {
+    const channel = supabase
+      .channel('team-page-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['team-data'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_invitations' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['team-data'] });
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const invitationByMember = useMemo(() => {
+    const map = new Map<string, TeamInvitation>();
+    for (const invitation of invitations) {
+      if (!invitation.team_member_id || map.has(invitation.team_member_id)) continue;
+      map.set(invitation.team_member_id, invitation);
+    }
+    return map;
   }, [invitations]);
+
+  const uniqueInvitations = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: TeamInvitation[] = [];
+    for (const invitation of invitations) {
+      const key = invitation.team_member_id || invitation.email.toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      rows.push(invitation);
+    }
+    return rows;
+  }, [invitations]);
+
+  const pendingInvitations = useMemo(
+    () => uniqueInvitations.filter(invite => ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase())),
+    [uniqueInvitations],
+  );
+
+  const invitationHistory = useMemo(
+    () => uniqueInvitations.filter(invite => !ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase())),
+    [uniqueInvitations],
+  );
 
   // ── Invite ────────────────────────────────────────────────────────────────
   const handleInvite = async (e: React.FormEvent) => {
@@ -504,20 +490,26 @@ export default function TeamPage() {
               }
             | undefined,
         ) => {
+          const optimisticInvitation: TeamInvitation = {
+            ...data.invitation,
+            team_member: {
+              full_name: inviteForm.full_name,
+              job_title: inviteForm.job_title || null,
+              role: inviteForm.access_role,
+              status: 'invited',
+            },
+          };
           if (!prev) {
             return {
-              members: [data.member],
-              invitations: [data.invitation],
+              members: [],
+              invitations: [optimisticInvitation],
               workspaceAccess: {},
             };
           }
-          const nextMembers = [data.member, ...prev.members.filter(m => m.id !== data.member.id)]
-            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
-          const nextInvitations = [data.invitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
+          const nextInvitations = [optimisticInvitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return {
             ...prev,
-            members: nextMembers,
             invitations: nextInvitations,
           };
         },
@@ -618,59 +610,59 @@ export default function TeamPage() {
   };
 
   // ── Resend invite ─────────────────────────────────────────────────────────
-  const handleResend = async (member: TeamMember) => {
+  const handleResend = async (invitation: TeamInvitation) => {
     try {
       const res = await fetch('/api/team/invite/resend', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ team_member_id: member.id }),
+        body:    JSON.stringify({ team_member_id: invitation.team_member_id }),
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error ?? 'Failed to resend invitation.', 'error'); return; }
-      toast(`Invitation resent to ${member.email}`, 'success');
+      toast(`Invitation resent to ${invitation.email}`, 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
     }
   };
 
-  // ── Revoke invite ─────────────────────────────────────────────────────────
-  const handleRevoke = async (member: TeamMember) => {
-    if (!confirm(`Revoke invitation for ${member.full_name}? This will remove them from the team list.`)) return;
+  // ── Cancel invite ─────────────────────────────────────────────────────────
+  const handleCancelInvite = async (invitation: TeamInvitation) => {
+    if (!confirm(`Cancel invitation for ${invitation.email}?`)) return;
     try {
       const res = await fetch('/api/team/invite/revoke', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ team_member_id: member.id }),
+        body:    JSON.stringify({ team_member_id: invitation.team_member_id }),
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error ?? 'Failed to revoke invitation.', 'error'); return; }
-      toast('Invitation revoked', 'info');
+      toast('Invitation cancelled', 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
     }
   };
 
-  // ── Copy invite link ──────────────────────────────────────────────────────
-  const handleCopyLink = async (member: TeamMember) => {
-    const inv = inviteByMember(member.id);
-    if (!inv) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? document.baseURI;
-    const link = new URL(`/invite?token=${inv.token}`, baseUrl).toString();
-    try {
-      await navigator.clipboard.writeText(link);
-      toast('Invite link copied to clipboard!', 'success');
-    } catch {
-      prompt('Copy this invite link:', link);
-    }
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
-  const ownerMembers   = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
-  const activeMembers  = members.filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'));
-  const invitedMembers = members.filter(m => m.status === 'invited' || m.status === 'pending');
-  const groupedActive  = groupMembers(activeMembers);
+  const ownerMembers = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
+  const ownerMembersForDisplay = ownerMembers.length > 0
+    ? ownerMembers
+    : (myRole === 'owner' && user.id
+      ? [{
+          id: user.id,
+          full_name: user.name || 'Workspace Owner',
+          email: user.email ?? '',
+          role: 'owner',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        } satisfies TeamMember]
+      : []);
+  const activeMembers = members
+    .filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  const hasAnyTeamData = ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvitations.length > 0;
 
   return (
     <div className="app-page-shell max-w-6xl mx-auto space-y-8">
@@ -679,7 +671,7 @@ export default function TeamPage() {
         <div>
           <h1 className="app-page-title">{t('team')}</h1>
           <p className="app-page-subtitle">
-            {activeMembers.length + ownerMembers.length} active · {invitedMembers.length} pending
+            {activeMembers.length + ownerMembersForDisplay.length} active · {pendingInvitations.length} pending
           </p>
         </div>
         {canManage && (
@@ -699,11 +691,11 @@ export default function TeamPage() {
             <div key={i} className="h-28 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
           ))}
         </div>
-      ) : members.length === 0 ? (
+      ) : !hasAnyTeamData ? (
         <EmptyState
           icon={Users}
-          title={t('noTeamMembers')}
-          description={t('noTeamMembersDesc')}
+          title="No team members yet"
+          description="Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access."
           action={
             canManage ? (
               <button
@@ -718,66 +710,83 @@ export default function TeamPage() {
         />
       ) : (
         <>
-          {/* ── 1. Workspace Owner ─────────────────────────────────────────── */}
-          {ownerMembers.length > 0 && (
-            <section>
-              <SectionHeader icon={<Crown size={14} />} label="Workspace Owner" count={ownerMembers.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ownerMembers.map(m => (
-                  <OwnerCard
-                    key={m.id}
-                    member={m}
-                    canManage={canManage}
-                    onEdit={openEdit}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <SectionHeader icon={<Crown size={14} />} label="Owner" count={ownerMembersForDisplay.length} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ownerMembersForDisplay.map(m => (
+                <OwnerCard
+                  key={m.id}
+                  member={m}
+                  canManage={canManage}
+                  onEdit={openEdit}
+                />
+              ))}
+            </div>
+          </section>
 
-          {/* ── 2. Active members grouped by role / job title ──────────────── */}
-          {groupedActive.map(({ label, members: sectionMembers }) => (
-            <section key={label}>
-              <SectionHeader icon={<CheckCircle size={14} />} label={label} count={sectionMembers.length} />
+          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <SectionHeader icon={<CheckCircle size={14} />} label="Active Team Members" count={activeMembers.length} />
+            {activeMembers.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No active members yet.</p>
+            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sectionMembers.map(m => (
+                {activeMembers.map(m => (
                   <MemberCard
                     key={m.id}
                     member={m}
                     workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
-                    invitation={inviteByMember(m.id)}
+                    invitation={invitationByMember.get(m.id)}
                     canManage={canManage}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
-                    onResend={handleResend}
-                    onRevoke={handleRevoke}
-                    onCopyLink={handleCopyLink}
                   />
                 ))}
               </div>
-            </section>
-          ))}
-          {invitedMembers.length > 0 && (
-            <section>
-              <SectionHeader icon={<Clock size={14} />} label="Pending Invitations" count={invitedMembers.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {invitedMembers.map(m => (
-                  <MemberCard
-                    key={m.id}
-                    member={m}
-                    workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
-                    invitation={inviteByMember(m.id)}
+            )}
+          </section>
+
+          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <SectionHeader icon={<Clock size={14} />} label="Pending Invitations" count={pendingInvitations.length} />
+            {pendingInvitations.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingInvitations.map(invitation => (
+                  <PendingInvitationRow
+                    key={invitation.id}
+                    invitation={invitation}
                     canManage={canManage}
-                    onEdit={openEdit}
-                    onDelete={setDeleteMember}
                     onResend={handleResend}
-                    onRevoke={handleRevoke}
-                    onCopyLink={handleCopyLink}
+                    onCancel={handleCancelInvite}
                   />
                 ))}
               </div>
-            </section>
-          )}
+            )}
+            {invitationHistory.length > 0 && (
+              <div className="mt-5 pt-4 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                  Invite History
+                </p>
+                <div className="space-y-2">
+                  {invitationHistory.map(invitation => (
+                    <div
+                      key={invitation.id}
+                      className="rounded-xl border px-3 py-2 flex items-center justify-between gap-3"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm truncate" style={{ color: 'var(--text)' }}>{invitation.email}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {invitation.role ? `${formatAccessRole(invitation.role)} · ` : ''}Created {new Date(invitation.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <InviteBadge status={CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase()) ? 'cancelled' : invitation.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         </>
       )}
 
@@ -945,6 +954,68 @@ function OwnerCard({
   );
 }
 
+function PendingInvitationRow({
+  invitation,
+  canManage,
+  onResend,
+  onCancel,
+}: {
+  invitation: TeamInvitation;
+  canManage: boolean;
+  onResend: (invitation: TeamInvitation) => void;
+  onCancel: (invitation: TeamInvitation) => void;
+}) {
+  const teamMember = Array.isArray(invitation.team_member) ? invitation.team_member[0] : invitation.team_member;
+  const roleLabel = formatAccessRole(invitation.role ?? teamMember?.role ?? 'team_member');
+  const status = CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase()) ? 'cancelled' : invitation.status;
+  const canCancel = ACTIVE_INVITE_STATUSES.has((invitation.status ?? '').toLowerCase());
+  const canResend = canCancel || invitation.status === 'expired';
+
+  return (
+    <div
+      className="rounded-xl border p-4 flex flex-col gap-3"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{invitation.email}</p>
+          <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
+            {roleLabel} · Invited {new Date(invitation.created_at).toLocaleDateString()}
+          </p>
+          {invitation.expires_at && (
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Expires {new Date(invitation.expires_at).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+        <InviteBadge status={status} />
+      </div>
+
+      {canManage && (
+        <div className="flex items-center gap-2">
+          {canResend && (
+            <button
+              onClick={() => onResend(invitation)}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface)] transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <RotateCcw size={12} />Resend
+            </button>
+          )}
+          {canCancel && (
+            <button
+              onClick={() => onCancel(invitation)}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
+            >
+              <XCircle size={12} />Cancel Invitation
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Member card component (at module scope) ───────────────────────────────────
 function MemberCard({
   member,
@@ -963,9 +1034,9 @@ function MemberCard({
   canManage: boolean;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
-  onResend: (m: TeamMember) => void;
-  onRevoke: (m: TeamMember) => void;
-  onCopyLink: (m: TeamMember) => void;
+  onResend?: (m: TeamMember) => void;
+  onRevoke?: (m: TeamMember) => void;
+  onCopyLink?: (m: TeamMember) => void;
 }) {
   const isInvited = member.status === 'invited' || member.status === 'pending';
 
@@ -988,7 +1059,16 @@ function MemberCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
-            {isInvited && <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />}
+            {isInvited ? (
+              <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ color: '#16a34a', background: '#f0fdf4' }}
+              >
+                Active
+              </span>
+            )}
           </div>
           {resolveDisplayJobTitle(member) && (
             <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1000,7 +1080,7 @@ function MemberCard({
               className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
-              {member.role}
+              {formatAccessRole(member.role)}
             </span>
           )}
           {member.email && (
@@ -1048,7 +1128,7 @@ function MemberCard({
       </div>
 
       {/* Invite actions row */}
-      {canManage && isInvited && (
+      {canManage && isInvited && onResend && onRevoke && onCopyLink && (
         <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={() => onResend(member)}

@@ -52,6 +52,19 @@ export interface TeamInvitation {
   accepted_at?: string | null;
   created_at: string;
   updated_at: string;
+  workspace_access?: unknown;
+  workspace_roles?: unknown;
+  team_member?: {
+    full_name?: string | null;
+    job_title?: string | null;
+    role?: string | null;
+    status?: string | null;
+  } | Array<{
+    full_name?: string | null;
+    job_title?: string | null;
+    role?: string | null;
+    status?: string | null;
+  }> | null;
 }
 
 export type TaskStatus =
@@ -774,4 +787,3 @@ export interface BaseDocument {
   /** Pre-signed or permanent URL for the exported PDF, if generated. */
   export_pdf_url?: string | null;
 }
-
