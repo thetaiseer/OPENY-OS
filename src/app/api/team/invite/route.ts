@@ -365,5 +365,5 @@ export async function POST(request: NextRequest) {
     }
   })();
 
-  return NextResponse.json({ member, invitation: { ...invitation, token: undefined } }, { status: 201 });
+  return NextResponse.json({ member, invitation }, { status: 201 });
 }
