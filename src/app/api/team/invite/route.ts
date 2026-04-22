@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
   // Validate access_role strictly.
   // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-  const VALID_ACCESS_ROLES = ['admin', 'manager', 'team_member', 'viewer'];
+  const VALID_ACCESS_ROLES = ['admin', 'team_member'];
   if (!VALID_ACCESS_ROLES.includes(access_role)) {
     return NextResponse.json(
       { error: `Invalid access role "${access_role}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}` },
