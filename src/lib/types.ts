@@ -40,6 +40,52 @@ export interface TeamMember {
 
 export type InviteStatus = 'pending' | 'invited' | 'accepted' | 'expired' | 'revoked';
 
+// ── Permission system ─────────────────────────────────────────────────────────
+
+/** Three access levels for each module */
+export type ModuleAccess = 'full' | 'read' | 'none';
+
+/** Top-level roles within OPENY Platform */
+export type PlatformRole = 'owner' | 'admin' | 'member';
+
+/** Modules available in OPENY OS */
+export type OsModule =
+  | 'dashboard'
+  | 'clients'
+  | 'tasks'
+  | 'content'
+  | 'calendar'
+  | 'assets'
+  | 'reports'
+  | 'team'
+  | 'activity'
+  | 'security';
+
+/** Modules available in OPENY DOCS */
+export type DocsModule =
+  | 'invoice'
+  | 'quotation'
+  | 'contracts'
+  | 'accounting';
+
+/** Canonical member permission record stored in member_permissions table */
+export interface MemberPermissionRow {
+  id: string;
+  team_member_id: string;
+  workspace: 'os' | 'docs';
+  module: string;
+  access_level: ModuleAccess;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Full permission profile for a member: role + workspace + module access */
+export interface MemberPermissions {
+  role: PlatformRole;
+  os: Record<OsModule, ModuleAccess>;
+  docs: Record<DocsModule, ModuleAccess>;
+}
+
 export interface TeamInvitation {
   id: string;
   team_member_id: string;

@@ -30,6 +30,13 @@ import {
   mapWorkspaceRoleToUserRole,
   type WorkspaceRole,
 } from './workspace-access';
+import {
+  normalizePlatformRole,
+  fetchMemberPermissions,
+  hasModuleAccess,
+  resolveEffectivePermissions,
+} from './permissions';
+import type { ModuleAccess, OsModule, DocsModule } from './types';
 
 const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -212,4 +219,75 @@ export async function requireRole(
   }
 
   return auth;
+}
+
+// ── Module-level permission guard ─────────────────────────────────────────────
+
+export type { ModuleAccess, OsModule, DocsModule };
+
+/**
+ * Validates that the caller has at least the required access level for a
+ * specific workspace module.
+ *
+ * Owner and admin bypass all module restrictions.
+ * Members are checked against their stored permission overrides.
+ *
+ * Returns the profile + resolved permissions on success, or a 401/403
+ * NextResponse on failure.
+ *
+ * Usage:
+ *   const result = await requireModulePermission(req, 'os', 'clients', 'full');
+ *   if (result instanceof NextResponse) return result;
+ *   const { profile, permissions } = result;
+ */
+export async function requireModulePermission(
+  request: NextRequest,
+  workspace: 'os' | 'docs',
+  module: OsModule | DocsModule | string,
+  required: ModuleAccess,
+): Promise<{ profile: UserProfile; permissions: import('./types').MemberPermissions } | NextResponse> {
+  const auth = await getApiUser(request);
+
+  if (!auth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Owner and admin always pass module checks.
+  const platformRole = normalizePlatformRole(auth.profile.role);
+  if (platformRole === 'owner' || platformRole === 'admin') {
+    const permissions = resolveEffectivePermissions(platformRole, []);
+    return { profile: auth.profile, permissions };
+  }
+
+  // Resolve team_member_id for this user to load stored overrides.
+  const db = getServiceClient();
+  const { data: memberRow } = await db
+    .from('team_members')
+    .select('id, role, platform_role')
+    .eq('email', auth.profile.email)
+    .maybeSingle();
+
+  const teamMemberId = memberRow?.id ?? '';
+  const memberPlatformRole = normalizePlatformRole(memberRow?.platform_role ?? memberRow?.role ?? auth.profile.role);
+  const permissions = await fetchMemberPermissions(db, teamMemberId, memberPlatformRole);
+
+  if (!hasModuleAccess(permissions, workspace, module, required)) {
+    console.warn(
+      '[api-auth] requireModulePermission denied — user:', auth.profile.email,
+      '| workspace:', workspace,
+      '| module:', module,
+      '| required:', required,
+    );
+    return NextResponse.json(
+      {
+        error: `Forbidden — you do not have ${required} access to ${workspace}.${module}`,
+        workspace,
+        module,
+        required,
+      },
+      { status: 403 },
+    );
+  }
+
+  return { profile: auth.profile, permissions };
 }

@@ -295,6 +295,20 @@ const EVENT_RULES: Record<string, EventRule> = {
     action_url: () => '/os/team',
     send_email: false,
   },
+  'permission.changed': {
+    priority: 'medium', category: 'team',
+    title: () => 'Permissions Updated',
+    message: p => `${p.memberName ?? 'A member'} permissions were updated by ${p.actorName ?? 'an admin'}`,
+    action_url: () => '/os/team',
+    send_email: false,
+  },
+  'invite.cancelled': {
+    priority: 'low', category: 'team',
+    title: () => 'Invitation Cancelled',
+    message: p => `Invitation for ${p.inviteeName ?? 'a member'} was cancelled`,
+    action_url: () => '/os/team',
+    send_email: false,
+  },
 
   // ── Security / System ────────────────────────────────────────────────────
   'login.new_device': {
