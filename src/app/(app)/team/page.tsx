@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Pencil, Trash2, Mail, Briefcase,
   Send, RotateCcw, XCircle, Clock, CheckCircle, Crown,
+  X, Shield, ChevronDown, ChevronUp, Activity,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/lib/lang-context';
@@ -13,8 +14,9 @@ import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import type { TeamMember, TeamInvitation } from '@/lib/types';
+import type { TeamMember, TeamInvitation, MemberPermissions, ModuleAccess, OsModule, DocsModule, ActivityLogEntry } from '@/lib/types';
 import { getWorkspaceLabel, WORKSPACE_ROLES } from '@/lib/workspace-access';
+import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 
 const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
 const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
@@ -34,6 +36,23 @@ const WORKSPACE_ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
   { value: 'viewer', label: 'Viewer' },
 ];
+
+const MODULE_ACCESS_OPTIONS: { value: ModuleAccess; label: string }[] = [
+  { value: 'full', label: 'Full access' },
+  { value: 'read', label: 'Read only' },
+  { value: 'none', label: 'No access' },
+];
+
+const OS_MODULE_LABELS: Record<OsModule, string> = {
+  dashboard: 'Dashboard', clients: 'Clients', tasks: 'Tasks',
+  content: 'Content', calendar: 'Calendar', assets: 'Assets',
+  reports: 'Reports', team: 'Team', activity: 'Activity', security: 'Security',
+};
+
+const DOCS_MODULE_LABELS: Record<DocsModule, string> = {
+  invoice: 'Invoice', quotation: 'Quotation',
+  contracts: 'Contracts', accounting: 'Accounting',
+};
 
 const ACTIVE_INVITE_STATUSES = new Set(['pending', 'invited']);
 const CANCELLATION_STATUSES = new Set(['revoked', 'cancelled']);
@@ -170,6 +189,9 @@ const blankForm = {
   os_role: 'member',
   docs_role: 'member',
 };
+
+type ModulePermMap = Record<string, ModuleAccess>;
+
 const blankInviteForm = {
   full_name: '',
   email: '',
@@ -179,6 +201,9 @@ const blankInviteForm = {
   docs_access: false,
   os_role: 'member',
   docs_role: 'member',
+  show_advanced_permissions: false,
+  os_permissions: {} as ModulePermMap,
+  docs_permissions: {} as ModulePermMap,
 };
 
 // ── MemberForm is defined at module scope so React never remounts it ─────────
@@ -306,6 +331,66 @@ function InviteForm({
           Their actual role on the team (e.g. Graphic Designer).
         </p>
       </div>
+
+      {/* ── Advanced module permissions (optional) ──────────────────────── */}
+      <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+        <button
+          type="button"
+          onClick={() => setF(x => ({ ...x, show_advanced_permissions: !x.show_advanced_permissions }))}
+          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+        >
+          <span className="flex items-center gap-2">
+            <Shield size={14} style={{ color: 'var(--accent)' }} />
+            Advanced Module Permissions
+          </span>
+          {f.show_advanced_permissions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {f.show_advanced_permissions && (
+          <div className="px-3 py-3 space-y-3" style={{ background: 'var(--surface)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Override default access for specific modules. Leave blank to use role defaults.
+            </p>
+            {f.os_access && (
+              <div>
+                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>OPENY OS Modules</p>
+                <div className="space-y-1.5">
+                  {OS_MODULES.map(mod => (
+                    <div key={mod} className="flex items-center justify-between gap-2">
+                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
+                      <SelectDropdown
+                        value={f.os_permissions[mod] ?? ''}
+                        onChange={v => setF(x => ({ ...x, os_permissions: { ...x.os_permissions, [mod]: v as ModuleAccess || undefined } }))}
+                        options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
+                        placeholder="Default"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {f.docs_access && (
+              <div>
+                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>OPENY DOCS Modules</p>
+                <div className="space-y-1.5">
+                  {DOCS_MODULES.map(mod => (
+                    <div key={mod} className="flex items-center justify-between gap-2">
+                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
+                      <SelectDropdown
+                        value={f.docs_permissions[mod] ?? ''}
+                        onChange={v => setF(x => ({ ...x, docs_permissions: { ...x.docs_permissions, [mod]: v as ModuleAccess || undefined } }))}
+                        options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
+                        placeholder="Default"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         An invitation email will be sent automatically. The link expires in 7 days.
       </p>
@@ -331,6 +416,285 @@ function InviteBadge({ status }: { status: string }) {
     >
       {c.label}
     </span>
+  );
+}
+
+// ── AccessBadge — colored module access level badge ───────────────────────────
+function AccessBadge({ level }: { level: ModuleAccess }) {
+  const cfg: Record<ModuleAccess, { color: string; bg: string; label: string }> = {
+    full: { color: '#16a34a', bg: '#f0fdf4', label: 'Full' },
+    read: { color: '#2563eb', bg: '#eff6ff', label: 'Read' },
+    none: { color: '#9ca3af', bg: '#f3f4f6', label: 'None' },
+  };
+  const c = cfg[level];
+  return (
+    <span
+      className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium"
+      style={{ color: c.color, background: c.bg }}
+    >
+      {c.label}
+    </span>
+  );
+}
+
+// ── MemberSidePanel ───────────────────────────────────────────────────────────
+function MemberSidePanel({
+  member,
+  workspaceAccess,
+  canManage,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  member: TeamMember;
+  workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: (m: TeamMember) => void;
+  onDelete: (m: TeamMember) => void;
+}) {
+  const [permissions, setPermissions] = useState<MemberPermissions | null>(null);
+  const [permLoading, setPermLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<ActivityLogEntry[]>([]);
+  const [actLoading, setActLoading] = useState(true);
+
+  const isOwner = member.role === 'owner';
+
+  useEffect(() => {
+    async function load() {
+      setPermLoading(true);
+      try {
+        const res = await fetch(`/api/team/members/${member.id}/permissions`);
+        if (res.ok) {
+          const data = await res.json() as { permissions?: MemberPermissions };
+          setPermissions(data.permissions ?? null);
+        }
+      } catch { /* ignore */ } finally {
+        setPermLoading(false);
+      }
+    }
+    void load();
+  }, [member.id]);
+
+  useEffect(() => {
+    async function load() {
+      setActLoading(true);
+      try {
+        const params = new URLSearchParams({ limit: '5', entity_type: 'team_member' });
+        const res = await fetch(`/api/activity-timeline?${params}`);
+        if (res.ok) {
+          const data = await res.json() as { activities?: ActivityLogEntry[] };
+          // Filter for activities related to this member (by entity_id or actor_id)
+          const all = data.activities ?? [];
+          const relevant = all.filter(a => a.entity_id === member.id || a.actor_id === member.profile_id);
+          setRecentActivity(relevant.slice(0, 5));
+        }
+      } catch { /* ignore */ } finally {
+        setActLoading(false);
+      }
+    }
+    void load();
+  }, [member.id, member.profile_id]);
+
+  function formatDate(d: string) {
+    const diff = Date.now() - new Date(d).getTime();
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        className="fixed top-0 right-0 h-full z-50 w-[420px] max-w-full shadow-2xl overflow-y-auto flex flex-col"
+        style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Member Profile</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Identity */}
+        <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-4">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 relative"
+              style={{ background: isOwner ? 'var(--accent)' : '#6366f1' }}
+            >
+              {member.full_name.charAt(0).toUpperCase()}
+              {isOwner && (
+                <span
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  <Crown size={10} />
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{member.full_name}</p>
+              {member.email && (
+                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  <Mail size={11} />{member.email}
+                </p>
+              )}
+              {resolveDisplayJobTitle(member) && (
+                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  <Briefcase size={11} />{resolveDisplayJobTitle(member)}
+                </p>
+              )}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  {isOwner && <Crown size={9} />}
+                  {formatAccessRole(member.role)}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{ color: '#16a34a', background: '#f0fdf4' }}
+                >
+                  Active
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Workspace Access */}
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
+            Workspace Access
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {workspaceAccess?.os?.enabled && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                {getWorkspaceLabel('os')} · {workspaceAccess.os.role}
+              </span>
+            )}
+            {workspaceAccess?.docs?.enabled && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                {getWorkspaceLabel('docs')} · {workspaceAccess.docs.role}
+              </span>
+            )}
+            {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>No workspace access configured</span>
+            )}
+          </div>
+        </div>
+
+        {/* Module Permissions */}
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-secondary)' }}>
+            <Shield size={12} className="inline mr-1" />Module Permissions
+          </p>
+          {permLoading ? (
+            <div className="space-y-1.5">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-5 rounded animate-pulse" style={{ background: 'var(--surface-2)' }} />
+              ))}
+            </div>
+          ) : permissions ? (
+            <div className="space-y-3">
+              {workspaceAccess?.os?.enabled && (
+                <div>
+                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>OS</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {OS_MODULES.map(mod => (
+                      <div key={mod} className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
+                        <AccessBadge level={permissions.os[mod]} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {workspaceAccess?.docs?.enabled && (
+                <div>
+                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>DOCS</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {DOCS_MODULES.map(mod => (
+                      <div key={mod} className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
+                        <AccessBadge level={permissions.docs[mod]} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Permissions unavailable</p>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-secondary)' }}>
+            <Activity size={12} className="inline mr-1" />Recent Activity
+          </p>
+          {actLoading ? (
+            <div className="space-y-1.5">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-5 rounded animate-pulse" style={{ background: 'var(--surface-2)' }} />
+              ))}
+            </div>
+          ) : recentActivity.length === 0 ? (
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No recent activity found.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentActivity.map(entry => (
+                <div key={entry.id} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: 'var(--accent)' }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{entry.title ?? entry.description}</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{formatDate(entry.created_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {canManage && !isOwner && (
+          <div className="px-5 py-4 mt-auto space-y-2">
+            <button
+              onClick={() => { onClose(); onEdit(member); }}
+              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              <Pencil size={14} />Edit Profile & Role
+            </button>
+            <button
+              onClick={() => { onClose(); onDelete(member); }}
+              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition-colors text-red-500 hover:bg-red-50"
+              style={{ border: '1px solid #fca5a5' }}
+            >
+              <Trash2 size={14} />Remove Member
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -387,6 +751,9 @@ export default function TeamPage() {
   const [editMember, setEditMember]     = useState<TeamMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
 
+  // Member profile side panel
+  const [panelMember, setPanelMember]   = useState<TeamMember | null>(null);
+
   // Forms — all at the top level, never re-created during render
   const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
   const [editForm, setEditForm]         = useState({ ...blankForm });
@@ -399,6 +766,11 @@ export default function TeamPage() {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_invitations' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'member_permissions' }, () => {
+        void queryClient.invalidateQueries({ queryKey: ['team-data'] });
+        // Close panel to force permission refresh
+        setPanelMember(prev => (prev ? { ...prev } : null));
       })
       .subscribe();
 
@@ -746,6 +1118,7 @@ export default function TeamPage() {
                     canManage={canManage}
                     onEdit={openEdit}
                     onDelete={setDeleteMember}
+                    onView={setPanelMember}
                   />
                 ))}
               </div>
@@ -865,6 +1238,18 @@ export default function TeamPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── Member Profile Side Panel ─────────────────────────────────────── */}
+      {panelMember && (
+        <MemberSidePanel
+          member={panelMember}
+          workspaceAccess={workspaceAccessByEmail[(panelMember.email ?? '').toLowerCase()]}
+          canManage={canManage}
+          onClose={() => setPanelMember(null)}
+          onEdit={m => { setPanelMember(null); openEdit(m); }}
+          onDelete={m => { setPanelMember(null); setDeleteMember(m); }}
+        />
+      )}
     </div>
   );
 }
@@ -1031,6 +1416,7 @@ function MemberCard({
   canManage,
   onEdit,
   onDelete,
+  onView,
 }: {
   member: TeamMember;
   workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
@@ -1038,12 +1424,17 @@ function MemberCard({
   canManage: boolean;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
+  onView?: (m: TeamMember) => void;
 }) {
   const isInvited = member.status === 'invited' || member.status === 'pending';
 
   return (
     <div
-      className="rounded-xl border p-5 flex flex-col gap-3"
+      className="rounded-xl border p-5 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-md"
+      onClick={() => !isInvited && onView?.(member)}
+      role={!isInvited && onView ? 'button' : undefined}
+      tabIndex={!isInvited && onView ? 0 : undefined}
+      onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !isInvited && onView) onView(member); }}
       style={{
         background:   'var(--surface)',
         borderColor:  isInvited ? 'var(--accent)' : 'var(--border)',

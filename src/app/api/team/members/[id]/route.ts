@@ -1,8 +1,11 @@
 /**
  * /api/team/members/[id]
  *
+ * PATCH  — Update a team member's profile fields (name, email, role, job_title).
  * DELETE — Remove a team member.
  *          Hard rule: the owner (role === 'owner') can NEVER be deleted.
+ *
+ * Both routes emit activity events for audit logging.
  *
  * Auth: owner or admin only.
  */
@@ -10,6 +13,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { processEvent } from '@/lib/event-engine';
+import { EVENT } from '@/lib/workspace-events';
 
 const VALID_ROLES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
 type ValidRole = (typeof VALID_ROLES)[number];
@@ -103,6 +108,22 @@ export async function PATCH(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
+  // Emit activity event for role changes
+  if (payload.role && payload.role !== member.role) {
+    void processEvent({
+      event_type:  EVENT.ROLE_CHANGED,
+      actor_id:    auth.profile.id,
+      entity_type: 'team_member',
+      entity_id:   id,
+      payload: {
+        memberName: payload.full_name ?? String(member.id),
+        oldRole:    member.role,
+        newRole:    payload.role,
+        actorName:  auth.profile.name,
+      },
+    });
+  }
+
   return NextResponse.json({ success: true });
 }
 
@@ -153,6 +174,18 @@ export async function DELETE(
     console.error('[team/members/delete] Delete error:', deleteError.message);
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
+
+  // Emit activity event for audit log
+  void processEvent({
+    event_type:  EVENT.MEMBER_REMOVED,
+    actor_id:    auth.profile.id,
+    entity_type: 'team_member',
+    entity_id:   id,
+    payload: {
+      memberName: member.full_name,
+      actorName:  auth.profile.name,
+    },
+  });
 
   return NextResponse.json({ success: true });
 }

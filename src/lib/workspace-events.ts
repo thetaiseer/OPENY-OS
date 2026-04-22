@@ -108,9 +108,11 @@ export const EVENT = {
   INVITE_SENT:             'invite.sent',
   INVITE_ACCEPTED:         'invite.accepted',
   INVITE_EXPIRED:          'invite.expired',
+  INVITE_CANCELLED:        'invite.cancelled',
   MEMBER_JOINED:           'member.joined',
   MEMBER_REMOVED:          'member.removed',
   ROLE_CHANGED:            'role.changed',
+  PERMISSION_CHANGED:      'permission.changed',
 
   // ── Security / System ────────────────────────────────────────────────────
   LOGIN_NEW_DEVICE:        'login.new_device',
