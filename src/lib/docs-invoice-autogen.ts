@@ -4,13 +4,18 @@ import type {
   InvoicePlatformGroup,
 } from '@/lib/docs-types';
 
-export type InvoiceTemplateName = 'Manual' | 'Pro icon KSA Template';
+export type InvoiceTemplateName =
+  | 'Manual'
+  | 'Pro icon KSA Template'
+  | 'Pro icon UAE Template'
+  | 'Pro icon Global Template'
+  | 'SAMA Travel Template';
 
 interface PlatformTemplateSpec {
   name: 'Instagram' | 'Snapchat' | 'TikTok';
   rows: number;
   weight: number;
-  resultSuffix: 'Messages' | 'Visits';
+  resultSuffix: string;
   cpaRange: [number, number];
 }
 
@@ -47,7 +52,54 @@ export const INVOICE_TEMPLATES: Record<InvoiceTemplateName, InvoiceTemplateSpec>
     defaultFinalBudget: 49500,
     defaultFees: 500,
   },
+  'Pro icon UAE Template': {
+    name: 'Pro icon UAE Template',
+    clientName: 'Pro icon UAE',
+    branches: ['Dubai', 'Abu Dhabi'],
+    branchWeights: [0.62, 0.38],
+    platforms: [
+      { name: 'Instagram', rows: 5, weight: 0.5, resultSuffix: 'Messages', cpaRange: [18, 25] },
+      { name: 'Snapchat', rows: 3, weight: 0.3, resultSuffix: 'Visits', cpaRange: [4, 7] },
+      { name: 'TikTok', rows: 2, weight: 0.2, resultSuffix: 'Visits', cpaRange: [5, 9] },
+    ],
+    defaultFinalBudget: 42000,
+    defaultFees: 500,
+  },
+  'Pro icon Global Template': {
+    name: 'Pro icon Global Template',
+    clientName: 'Pro icon Global',
+    branches: ['Global'],
+    branchWeights: [1],
+    platforms: [
+      { name: 'Instagram', rows: 4, weight: 0.45, resultSuffix: 'Leads', cpaRange: [22, 30] },
+      { name: 'Snapchat', rows: 3, weight: 0.3, resultSuffix: 'Visits', cpaRange: [5, 8] },
+      { name: 'TikTok', rows: 3, weight: 0.25, resultSuffix: 'Visits', cpaRange: [6, 10] },
+    ],
+    defaultFinalBudget: 56000,
+    defaultFees: 750,
+  },
+  'SAMA Travel Template': {
+    name: 'SAMA Travel Template',
+    clientName: 'SAMA Travel',
+    branches: ['Riyadh', 'Jeddah'],
+    branchWeights: [0.55, 0.45],
+    platforms: [
+      { name: 'Instagram', rows: 4, weight: 0.45, resultSuffix: 'Inquiries', cpaRange: [18, 26] },
+      { name: 'Snapchat', rows: 3, weight: 0.35, resultSuffix: 'Visits', cpaRange: [4, 7] },
+      { name: 'TikTok', rows: 2, weight: 0.2, resultSuffix: 'Visits', cpaRange: [5, 9] },
+    ],
+    defaultFinalBudget: 36000,
+    defaultFees: 500,
+  },
 };
+
+export const INVOICE_TEMPLATE_OPTIONS: InvoiceTemplateName[] = [
+  'Manual',
+  'Pro icon KSA Template',
+  'Pro icon UAE Template',
+  'Pro icon Global Template',
+  'SAMA Travel Template',
+];
 
 export interface GenerateInvoiceFromTemplateParams {
   templateName: InvoiceTemplateName;
@@ -341,11 +393,79 @@ function generateProIconKsaTemplate(
   };
 }
 
+function generatePresetTemplate(
+  templateName: Exclude<InvoiceTemplateName, 'Manual' | 'Pro icon KSA Template'>,
+  params: Omit<GenerateInvoiceFromTemplateParams, 'templateName'>,
+): GeneratedInvoiceTemplate {
+  const template = INVOICE_TEMPLATES[templateName];
+  const formattedMonth = formatCampaignMonth(params.campaignMonth, params.invoiceDate);
+  const finalBudget = Math.max(0, Math.round(params.finalBudget ?? template.defaultFinalBudget));
+  const fees = Math.max(0, Math.round(params.fees ?? template.defaultFees));
+  const branchWeights = template.branchWeights.length === template.branches.length
+    ? [...template.branchWeights]
+    : Array.from({ length: template.branches.length }, () => 1);
+  const branchBudgets = splitBudgetByPercent(finalBudget, branchWeights.map((weight) => weight * 100));
+
+  const branchGroups: InvoiceBranchGroup[] = template.branches.map((branchName, branchIndex) => {
+    const branchBudget = branchBudgets[branchIndex] ?? 0;
+    const platformBudgets = splitBudgetByPercent(
+      branchBudget,
+      template.platforms.map((platform) => platform.weight * 100),
+    );
+    const platformGroups: InvoicePlatformGroup[] = template.platforms.map((platform, platformIndex) => {
+      const platformBudget = platformBudgets[platformIndex] ?? 0;
+      const rowBudgets = splitBudgetByPercent(
+        platformBudget,
+        Array.from({ length: platform.rows }, () => 1),
+      );
+      const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => {
+        const day = clamp(Math.round(((rowIndex + 1) * MAX_SPREAD_DAY) / (platform.rows + 1)), 1, MAX_SPREAD_DAY);
+        const estimatedResults = Math.max(1, Math.round(cost / Math.max(1, platform.cpaRange[0])));
+        return {
+          id: uid(),
+          ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
+          date: formatRowDate(day, params.campaignMonth, params.invoiceDate),
+          results: `${estimatedResults} ${platform.resultSuffix}`,
+          cost,
+        };
+      });
+      return {
+        id: uid(),
+        platform_name: platform.name,
+        campaign_rows: rows,
+      };
+    });
+    return {
+      id: uid(),
+      branch_name: branchName,
+      platform_groups: platformGroups,
+    };
+  });
+
+  return {
+    templateName,
+    clientName: template.clientName,
+    finalBudget,
+    fees,
+    grandTotal: finalBudget + fees,
+    branchGroups,
+  };
+}
+
 export function generateInvoiceFromTemplate(
   params: GenerateInvoiceFromTemplateParams,
 ): GeneratedInvoiceTemplate {
   if (params.templateName === 'Pro icon KSA Template') {
     return generateProIconKsaTemplate(params);
+  }
+  if (params.templateName === 'Pro icon UAE Template') {
+    return generatePresetTemplate('Pro icon UAE Template', params);
+  }
+  if (params.templateName === 'Pro icon Global Template') {
+    return generatePresetTemplate('Pro icon Global Template', params);
+  }
+  if (params.templateName === 'SAMA Travel Template') {
+    return generatePresetTemplate('SAMA Travel Template', params);
   }
   return {
     templateName: 'Manual',
