@@ -37,6 +37,8 @@ export interface UsePermissionsResult {
 export function usePermissions(): UsePermissionsResult {
   const { role, user } = useAuth();
   const platformRole = normalizePlatformRole(role);
+  // Extract stable primitive to use in effect dependency
+  const userId = user.id;
 
   const [permissions, setPermissions] = useState<MemberPermissions | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export function usePermissions(): UsePermissionsResult {
 
     void loadPermissions();
     return () => { cancelled = true; };
-  }, [platformRole, user.id]);  // re-run when role or auth user changes
+  }, [platformRole, userId]);  // re-run when role or auth user changes
 
   const can = useCallback(
     (workspace: 'os' | 'docs', module: OsModule | DocsModule | string, required: ModuleAccess = 'read'): boolean => {

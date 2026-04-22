@@ -49,6 +49,9 @@ CREATE TRIGGER trg_member_permissions_updated_at
 ALTER TABLE public.member_permissions ENABLE ROW LEVEL SECURITY;
 
 -- Admins/owners can read all permissions.
+-- NOTE: 'manager' is included here to match the existing role column during
+-- the migration period.  Once all rows are backfilled to platform_role,
+-- the policy can be tightened to ('owner', 'admin') only.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='member_permissions' AND policyname='member_permissions_admin_read') THEN
     CREATE POLICY "member_permissions_admin_read"
@@ -105,6 +108,9 @@ ALTER TABLE public.team_members
     CHECK (platform_role IN ('owner', 'admin', 'member'));
 
 -- Backfill: map existing role values to platform_role.
+-- 'manager' maps to 'admin' in the canonical platform_role column.
+-- The legacy 'role' column and its RLS policies still recognise 'manager'
+-- during the transition period.
 UPDATE public.team_members
 SET platform_role = CASE
   WHEN lower(role) = 'owner'       THEN 'owner'

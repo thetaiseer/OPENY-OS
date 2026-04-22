@@ -34,6 +34,7 @@ import {
   normalizePlatformRole,
   fetchMemberPermissions,
   hasModuleAccess,
+  resolveEffectivePermissions,
 } from './permissions';
 import type { ModuleAccess, OsModule, DocsModule } from './types';
 
@@ -254,7 +255,7 @@ export async function requireModulePermission(
   // Owner and admin always pass module checks.
   const platformRole = normalizePlatformRole(auth.profile.role);
   if (platformRole === 'owner' || platformRole === 'admin') {
-    const permissions = await fetchMemberPermissions(null, '', platformRole);
+    const permissions = resolveEffectivePermissions(platformRole, []);
     return { profile: auth.profile, permissions };
   }
 

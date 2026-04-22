@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
   const category    = searchParams.get('category');
   const entityType  = searchParams.get('entity_type');
   const clientId    = searchParams.get('client_id');
+  const actorId     = searchParams.get('actor_id');
   const from        = searchParams.get('from');
   const to          = searchParams.get('to');
   const q           = searchParams.get('q')?.trim() ?? '';
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
     if (category)   query = query.eq('category', category);
     if (entityType) query = query.eq('entity_type', entityType);
     if (clientId)   query = query.eq('client_id', clientId);
+    if (actorId)    query = query.eq('actor_id', actorId);
     if (from)       query = query.gte('created_at', from);
     if (to)         query = query.lte('created_at', to);
     if (q) {

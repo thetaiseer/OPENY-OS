@@ -360,7 +360,12 @@ function InviteForm({
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
                       <SelectDropdown
                         value={f.os_permissions[mod] ?? ''}
-                        onChange={v => setF(x => ({ ...x, os_permissions: { ...x.os_permissions, [mod]: v ? (v as ModuleAccess) : undefined } }))}
+                        onChange={v => setF(x => {
+                          const perms = { ...x.os_permissions };
+                          if (v) perms[mod] = v as ModuleAccess;
+                          else delete perms[mod];
+                          return { ...x, os_permissions: perms };
+                        })}
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -378,7 +383,12 @@ function InviteForm({
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
                       <SelectDropdown
                         value={f.docs_permissions[mod] ?? ''}
-                        onChange={v => setF(x => ({ ...x, docs_permissions: { ...x.docs_permissions, [mod]: v ? (v as ModuleAccess) : undefined } }))}
+                        onChange={v => setF(x => {
+                          const perms = { ...x.docs_permissions };
+                          if (v) perms[mod] = v as ModuleAccess;
+                          else delete perms[mod];
+                          return { ...x, docs_permissions: perms };
+                        })}
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -482,13 +492,20 @@ function MemberSidePanel({
     async function load() {
       setActLoading(true);
       try {
-        const params = new URLSearchParams({ limit: '5', entity_type: 'team_member' });
-        const res = await fetch(`/api/activity-timeline?${params}`);
+        // Fetch activities filtered by the member's profile_id (actor) or their team_member id (entity)
+        const params = new URLSearchParams({ limit: '20', category: 'team' });
+        if (member.profile_id) {
+          params.set('actor_id', member.profile_id);
+        }
+        const res = await fetch(`/api/activity-timeline?${params.toString()}`);
         if (res.ok) {
           const data = await res.json() as { activities?: ActivityLogEntry[] };
-          // Filter for activities related to this member (by entity_id or actor_id)
           const all = data.activities ?? [];
-          const relevant = all.filter(a => a.entity_id === member.id || a.actor_id === member.profile_id);
+          // Client-filter to ensure only this member's events appear
+          const relevant = all.filter(
+            a => a.entity_id === member.id
+              || a.actor_id === member.profile_id
+          );
           setRecentActivity(relevant.slice(0, 5));
         }
       } catch { /* ignore */ } finally {
