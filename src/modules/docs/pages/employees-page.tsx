@@ -218,17 +218,13 @@ export default function EmployeesPage() {
   }
 
   function exportPayrollCSV() {
-    const active = employees.filter(e => e.status === 'active');
-    const rows = [
-      ['Employee ID', 'Full Name', 'Job Title', 'Employment Type', 'Salary (SAR)', 'Daily Hours', 'Month'],
-      ...active.map(e => [e.employee_id, e.full_name, e.job_title ?? '', e.employment_type, String(e.salary), String(e.daily_hours), payrollMonth]),
-    ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const payrollCodeBase = selectedProfile?.client_slug || selectedProfile?.client_name || 'payroll';
-    a.download = `${sanitizeDocCode(payrollCodeBase, 'payroll')}-${payrollMonth}.csv`;
-    a.click();
+    const documentCode = sanitizeDocCode(payrollCodeBase, 'payroll');
+    window.open(
+      `/api/docs/employees/payroll-export?month=${encodeURIComponent(payrollMonth)}&document_code=${encodeURIComponent(documentCode)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
 
   const visible = employees.filter(e => {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 interface Params { id: string }
 
@@ -49,10 +51,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   if (q.additional_notes) rows.push([], ['Notes'], [q.additional_notes]);
 
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  return new NextResponse(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${q.quote_number}.csv"`,
-    },
+  const filename = `${q.quote_number}.csv`;
+  const storageKey = buildStoragePath({
+    module: 'docs',
+    section: 'exports',
+    documentType: 'quotations',
+    entityId: id,
+    filename,
   });
+  const payload = Buffer.from(csv, 'utf8');
+  const upload = await uploadFile({
+    key: storageKey,
+    body: payload,
+    contentType: 'text/csv; charset=utf-8',
+  });
+
+  await saveStoredFileMetadata({
+    module: 'docs',
+    section: 'exports',
+    entityId: id,
+    originalName: filename,
+    storedName: filename,
+    mimeType: 'text/csv; charset=utf-8',
+    sizeBytes: payload.byteLength,
+    r2Key: storageKey,
+    fileUrl: upload.publicUrl,
+    uploadedBy: auth.profile.id,
+    visibility: 'private',
+  });
+
+  const { error: updateError } = await db
+    .from('docs_quotations')
+    .update({ export_excel_url: upload.publicUrl })
+    .eq('id', id);
+  if (updateError) {
+    throw new Error(
+      `Failed to update quotation export URL after file upload. The export file exists in storage and metadata may already be recorded: ${updateError.message}`,
+    );
+  }
+
+  return NextResponse.redirect(upload.publicUrl, 302);
 }

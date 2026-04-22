@@ -14,12 +14,11 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'stream';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
-import { getR2Config } from '@/lib/r2';
+import { getFileObject, getStorageConfigStatus } from '@/lib/storage';
 
 // Use Node.js runtime — required for Node stream APIs and archiver.
 export const runtime = 'nodejs';
@@ -28,6 +27,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const MAX_ASSETS = 500;
+const OPENY_OS_KEY_PREFIX_SEGMENTS = 4; // openy-assets/os/{section}/{entityId}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +62,10 @@ function buildZipPath(
     // Drop "clients" and the slug (first two segments).
     if (parts.length > 2 && parts[0] === 'clients') {
       const rel = parts.slice(2).join('/');
+      return `${root}/${rel}`;
+    }
+    if (parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS && parts[0] === 'openy-assets' && parts[1] === 'os') {
+      const rel = parts.slice(OPENY_OS_KEY_PREFIX_SEGMENTS).join('/');
       return `${root}/${rel}`;
     }
   }
@@ -135,7 +139,10 @@ export async function GET(req: NextRequest) {
   const r2Assets = allAssets.filter(
     a =>
       a.storage_provider === 'r2' ||
-      (a.storage_key && (a.storage_key as string).startsWith('clients/')),
+      (a.storage_key && (
+        (a.storage_key as string).startsWith('openy-assets/os/') ||
+        (a.storage_key as string).startsWith('clients/')
+      )),
   );
 
   if (r2Assets.length === 0) {
@@ -146,22 +153,10 @@ export async function GET(req: NextRequest) {
   }
 
   // ── R2 client ─────────────────────────────────────────────────────────────
-  let r2Config;
-  try {
-    r2Config = getR2Config();
-  } catch (err) {
-    console.error('[assets/download-zip] R2 config error', err);
+  const { configured } = getStorageConfigStatus();
+  if (!configured) {
     return NextResponse.json({ error: 'Storage not configured' }, { status: 503 });
   }
-
-  const s3 = new S3Client({
-    region:   'auto',
-    endpoint: `https://${r2Config.accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId:     r2Config.accessKeyId,
-      secretAccessKey: r2Config.secretAccessKey,
-    },
-  });
 
   // ── Stream ZIP ────────────────────────────────────────────────────────────
   const passThrough = new PassThrough();
@@ -188,16 +183,14 @@ export async function GET(req: NextRequest) {
       const zipPath = buildZipPath(asset);
 
       try {
-        const { Body } = await s3.send(
-          new GetObjectCommand({ Bucket: r2Config.bucketName, Key: key }),
-        );
-        if (!Body) {
+        const { body } = await getFileObject(key);
+        if (!body) {
           console.warn(`[assets/download-zip] empty body for key: ${key}`);
           filesSkipped++;
           continue;
         }
 
-        archive.append(Body as Readable, { name: zipPath });
+        archive.append(body as Readable, { name: zipPath });
         filesAdded++;
       } catch (err: unknown) {
         const code = (err as { name?: string })?.name ?? '';

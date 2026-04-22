@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { objectExistsInR2, checkR2Config } from '@/lib/r2';
+import { fileExists, getStorageConfigStatus } from '@/lib/storage';
 
 type AssetRow = { id: string; name: string; file_path: string | null };
 
 // Check which R2 object keys are missing (HeadObject 404), 20 at a time
 async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
-  const { configured } = checkR2Config();
+  const { configured } = getStorageConfigStatus();
   if (!configured) return [];
 
   const orphanedIds: string[] = [];
@@ -19,7 +19,7 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
       batch.map(async asset => {
         if (!asset.file_path) return;
         try {
-          const exists = await objectExistsInR2(asset.file_path);
+          const exists = await fileExists(asset.file_path);
           if (!exists) orphanedIds.push(asset.id);
         } catch {
           // Skip transient / auth errors to avoid false positives
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const { configured, missingVars } = checkR2Config();
+  const { configured, missingVars } = getStorageConfigStatus();
   if (!configured) {
     return NextResponse.json(
       { error: `R2 storage not configured. Missing: ${missingVars.join(', ')}` },
@@ -75,7 +75,7 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireRole(req, ['admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const { configured, missingVars } = checkR2Config();
+  const { configured, missingVars } = getStorageConfigStatus();
   if (!configured) {
     return NextResponse.json(
       { error: `R2 storage not configured. Missing: ${missingVars.join(', ')}` },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { createMultipartUpload, R2ConfigError } from '@/lib/r2';
+import { createMultipartUploadSession, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
 
   const storageKey = buildStorageKey({
     clientName,
+    clientId,
     mainCategory,
     subCategory: subCategory || 'general',
     monthKey,
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
 
-  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  const bucketName = getStorageBucketName();
   console.log('[upload/multipart-init] upload started', {
     provider: 'r2',
     bucketName,
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
 
   // ── Initiate multipart upload ──────────────────────────────────────────────
   try {
-    const result = await createMultipartUpload(storageKey, fileType);
+    const result = await createMultipartUploadSession(storageKey, fileType);
 
     console.log('[upload/multipart-init] initiated:', {
       provider: 'r2',

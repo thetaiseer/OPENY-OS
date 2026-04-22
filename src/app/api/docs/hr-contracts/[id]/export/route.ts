@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 interface Params { id: string }
 
@@ -106,10 +108,44 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
 <p style="text-align:center;margin-top:8px;font-size:11px;color:#64748b">${c.sig_place ?? ''} ${c.sig_date ?? ''}</p>
 </body></html>`;
 
-  return new NextResponse(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${c.contract_number}.html"`,
-    },
+  const filename = `${c.contract_number}.html`;
+  const storageKey = buildStoragePath({
+    module: 'docs',
+    section: 'exports',
+    documentType: 'hr-contracts',
+    entityId: id,
+    filename,
   });
+  const payload = Buffer.from(html, 'utf8');
+  const upload = await uploadFile({
+    key: storageKey,
+    body: payload,
+    contentType: 'text/html; charset=utf-8',
+  });
+
+  await saveStoredFileMetadata({
+    module: 'docs',
+    section: 'exports',
+    entityId: id,
+    originalName: filename,
+    storedName: filename,
+    mimeType: 'text/html; charset=utf-8',
+    sizeBytes: payload.byteLength,
+    r2Key: storageKey,
+    fileUrl: upload.publicUrl,
+    uploadedBy: auth.profile.id,
+    visibility: 'private',
+  });
+
+  const { error: updateError } = await db
+    .from('docs_hr_contracts')
+    .update({ export_doc_url: upload.publicUrl })
+    .eq('id', id);
+  if (updateError) {
+    throw new Error(
+      `Failed to update HR contract export URL after file upload. The export file exists in storage and metadata may already be recorded: ${updateError.message}`,
+    );
+  }
+
+  return NextResponse.redirect(upload.publicUrl, 302);
 }

@@ -3,6 +3,8 @@ import { Workbook } from 'exceljs';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { ACCOUNTING_COLLECTORS, getAccountingCollectorByType } from '@/lib/docs-types';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 function num(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -142,10 +144,34 @@ export async function GET(req: NextRequest) {
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  return new NextResponse(Buffer.from(buffer), {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${sanitizeDocCode(documentCode, `accounting-${month_key}`)}.xlsx"`,
-    },
+  const filename = `${sanitizeDocCode(documentCode, `accounting-${month_key}`)}.xlsx`;
+  const storageKey = buildStoragePath({
+    module: 'docs',
+    section: 'exports',
+    documentType: 'accounting',
+    entityId: month_key,
+    filename,
   });
+  const payload = Buffer.from(buffer);
+  const upload = await uploadFile({
+    key: storageKey,
+    body: payload,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+  await saveStoredFileMetadata({
+    module: 'docs',
+    section: 'exports',
+    entityId: month_key,
+    originalName: filename,
+    storedName: filename,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    sizeBytes: payload.byteLength,
+    r2Key: storageKey,
+    fileUrl: upload.publicUrl,
+    uploadedBy: auth.profile.id,
+    visibility: 'private',
+  });
+
+  return NextResponse.redirect(upload.publicUrl, 302);
 }

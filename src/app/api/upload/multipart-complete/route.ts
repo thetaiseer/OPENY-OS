@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { completeMultipartUpload, R2ConfigError, type CompletedPart } from '@/lib/r2';
+import { completeMultipartUploadSession, R2ConfigError, type MultipartCompletedPart } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'parts must be a non-empty array' }, { status: 400 });
   }
 
-  const parts: CompletedPart[] = [];
+  const parts: MultipartCompletedPart[] = [];
   for (const p of rawParts as Record<string, unknown>[]) {
     const pn   = Number(p.partNumber);
     const etag = (p.etag as string | undefined)?.trim() ?? '';
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await completeMultipartUpload(storageKey, uploadId, parts);
+    const result = await completeMultipartUploadSession(storageKey, uploadId, parts);
 
     console.log('[upload/multipart-complete] completed:', {
       userId:    auth.profile.id,

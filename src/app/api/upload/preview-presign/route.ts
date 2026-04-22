@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
+import { uploadFile, getFileUrl, R2ConfigError } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const buffer = Buffer.from(await fileField.arrayBuffer());
-    await uploadToR2(previewStorageKey, buffer, 'image/jpeg');
+    await uploadFile({ key: previewStorageKey, body: buffer, contentType: 'image/jpeg' });
 
-    const previewUrl = buildR2Url(previewStorageKey);
+    const previewUrl = getFileUrl(previewStorageKey);
 
     return NextResponse.json({ previewStorageKey, previewUrl });
   } catch (err: unknown) {

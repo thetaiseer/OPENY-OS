@@ -1,6 +1,7 @@
 /**
  * Shared asset utility helpers used by both the assets page and client detail page.
  */
+import { buildStoragePath } from '@/lib/storage/path-builder';
 
 /**
  * Convert an uppercase snake-case content type (e.g. "SOCIAL_POSTS") into a
@@ -96,20 +97,24 @@ export function clientToSlug(name: string): string {
  */
 export function buildStorageKey(params: {
   clientName:   string;
+  clientId?:    string | null;
   mainCategory: string;
   subCategory:  string;
   monthKey:     string; // "YYYY-MM"
   fileName:     string;
   timestamp?:   number;
 }): string {
-  const { clientName, mainCategory, subCategory, monthKey, fileName, timestamp } = params;
-  const clientSlug = clientToSlug(clientName);
-  const [year, mm] = monthKey.split('-');
-  const monthName  = new Date(Date.UTC(parseInt(year, 10), parseInt(mm, 10) - 1, 1))
-    .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
-    .toLowerCase();
-  const monthSegment = `${mm}-${monthName}`;
+  const { clientName, clientId, mainCategory, subCategory, monthKey, fileName, timestamp } = params;
   const ts = timestamp ?? Date.now();
-  const subSeg = subCategory || 'general';
-  return `clients/${clientSlug}/${mainCategory}/${year}/${monthSegment}/${subSeg}/${ts}-${fileName}`;
+  const safeFileName = `${ts}-${fileName}`;
+  const entityId = clientId || clientToSlug(clientName);
+
+  return buildStoragePath({
+    module: 'os',
+    section: 'assets',
+    entityId,
+    monthKey,
+    subPath: [mainCategory, subCategory || 'general'],
+    filename: safeFileName,
+  });
 }

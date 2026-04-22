@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { abortMultipartUpload, R2ConfigError } from '@/lib/r2';
+import { abortMultipartUploadSession, R2ConfigError } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!uploadId)   return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
 
   try {
-    await abortMultipartUpload(storageKey, uploadId);
+    await abortMultipartUploadSession(storageKey, uploadId);
 
     console.log('[upload/multipart-abort] aborted:', {
       userId: auth.profile.id,
