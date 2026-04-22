@@ -463,7 +463,7 @@ export default function QuotationPage() {
   return (
     <DocsWorkspaceShell
       toolbar={(
-        <div className="space-y-3">
+        <div className="docs-workspace-quickbar">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DocsDocTypeTabs active="quotation" />
             <div className="flex items-center gap-2">
@@ -478,7 +478,7 @@ export default function QuotationPage() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+          <div className="docs-workspace-quickbar-grid">
             <div><label>Quote Number</label><input className={inputCls} value={form.quote_number} onChange={e => setField('quote_number', e.target.value)} /></div>
             <div><label>Date</label><input type="date" className={inputCls} value={form.quote_date} onChange={e => setField('quote_date', e.target.value)} /></div>
             <div><label>Client</label><input className={inputCls} value={form.client_name} onChange={e => setField('client_name', e.target.value)} /></div>
@@ -578,8 +578,8 @@ export default function QuotationPage() {
         </div>
       )}
       preview={(
-        <div className="rounded-2xl border p-4 overflow-auto xl:sticky xl:top-[6.7rem] xl:h-[calc(100vh-150px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-          <div className="mx-auto bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+        <div className="docs-preview-shell">
+          <div className="docs-preview-canvas" style={{ width: 794 }}>
             <QuotationPreview form={form} />
           </div>
         </div>

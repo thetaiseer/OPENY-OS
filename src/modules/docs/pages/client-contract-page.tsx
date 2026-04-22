@@ -419,7 +419,7 @@ export default function ClientContractPage() {
   return (
     <DocsWorkspaceShell
       toolbar={(
-        <div className="space-y-3">
+        <div className="docs-workspace-quickbar">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DocsDocTypeTabs active="client-contract" />
             <div className="flex items-center gap-2">
@@ -440,7 +440,7 @@ export default function ClientContractPage() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+          <div className="docs-workspace-quickbar-grid">
             <div><label>Contract Number</label><input className={inputCls} value={form.contract_number} onChange={e => setField('contract_number', e.target.value)} /></div>
             <div><label>Date</label><input type="date" className={inputCls} value={form.contract_date} onChange={e => setField('contract_date', e.target.value)} /></div>
             <div><label>Client</label><input className={inputCls} value={form.party2_client_name} onChange={e => setField('party2_client_name', e.target.value)} /></div>
@@ -552,8 +552,8 @@ export default function ClientContractPage() {
         </div>
       )}
       preview={(
-        <div className="rounded-2xl border p-4 overflow-auto xl:sticky xl:top-[6.7rem] xl:h-[calc(100vh-150px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-          <div className="mx-auto bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+        <div className="docs-preview-shell">
+          <div className="docs-preview-canvas" style={{ width: 794 }}>
             <ContractPreview form={form} />
           </div>
         </div>

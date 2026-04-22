@@ -12,6 +12,7 @@ import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
+import { DocsDocTypeTabs, DocsEditorCard, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
@@ -247,18 +248,34 @@ export default function EmployeesPage() {
   const statusColor = (s: string) => s === 'active' ? { bg: 'rgba(22,163,74,0.1)', color: '#16a34a' } : s === 'inactive' ? { bg: 'rgba(234,179,8,0.1)', color: '#ca8a04' } : { bg: 'rgba(239,68,68,0.08)', color: '#ef4444' };
 
   return (
-    <div className="docs-app flex flex-col h-full overflow-hidden">
-      {/* Tabs */}
-      <div className="flex border-b shrink-0 px-6" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        {([['overview','Overview'],['employees','Employees'],['payroll','Payroll']] as [Tab, string][]).map(([t, l]) => (
-          <button key={t} onClick={() => setTab(t)} className={clsx('py-3 px-4 text-sm font-medium border-b-2 transition-colors', tab === t ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]')}>{l}</button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
+    <>
+      <DocsWorkspaceShell
+        toolbar={(
+          <div className="docs-workspace-quickbar">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <DocsDocTypeTabs active="employees" />
+              <div className="flex items-center gap-2">
+                <DocsDateField value={payrollMonth} onChange={setPayrollMonth} mode="month" placeholder="Payroll month" />
+                <button onClick={exportPayrollCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white" style={{ background: '#0f172a' }}>
+                  <Download size={13} /> Export CSV
+                </button>
+              </div>
+            </div>
+            <div className="docs-workspace-quickbar-grid">
+              <div><label>Search</label><input className="docs-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Employee, ID, title…" /></div>
+              <div><label>Status</label><select className="docs-input" value={statusF} onChange={e => setStatusF(e.target.value as StatusF)}><option value="all">All Statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select></div>
+              <div><label>Employment Type</label><select className="docs-input" value={typeF} onChange={e => setTypeF(e.target.value as TypeF)}><option value="all">All Types</option>{DOCS_EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+              <div><label>Client Context</label><ClientProfileSelector profiles={profiles} selectedClientId={selectedClientId} onSelectClientId={setSelectedClientId} /></div>
+              <div><label>Workspace</label><div className="flex gap-1.5">{([['overview','Overview'],['employees','Employees'],['payroll','Payroll']] as [Tab, string][]).map(([t, l]) => (<button key={t} type="button" onClick={() => setTab(t)} className={clsx('docs-tab', tab === t && 'docs-tab-active')}>{l}</button>))}</div></div>
+            </div>
+          </div>
+        )}
+        editor={(
+          <div className="overflow-y-auto pr-1">
+            <div className="space-y-5">
         {/* ── Overview ─────────────────────────────────────────────────────── */}
         {tab === 'overview' && (
-          <div className="p-6 space-y-6">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 ['Total Employees', String(employees.length), '#d97706'],
@@ -266,7 +283,7 @@ export default function EmployeesPage() {
                 ['Full-Time', String(fullTimeCount), '#2563eb'],
                 ['Monthly Payroll', `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
               ].map(([l,v,c]) => (
-                <div key={l} className="rounded-2xl p-5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div key={l} className="rounded-2xl p-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                   <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{l}</div>
                   <div className="text-xl font-bold" style={{ color: c }}>{v}</div>
                 </div>
@@ -307,7 +324,7 @@ export default function EmployeesPage() {
 
         {/* ── Employees list ────────────────────────────────────────────────── */}
         {tab === 'employees' && (
-          <div className="p-6">
+          <DocsEditorCard title="Employee Registry">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
@@ -363,12 +380,13 @@ export default function EmployeesPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </DocsEditorCard>
         )}
 
         {/* ── Payroll ───────────────────────────────────────────────────────── */}
         {tab === 'payroll' && (
-          <div className="p-6 space-y-5">
+          <DocsEditorCard title="Payroll Sheet">
+            <div className="space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Payroll Sheet</h2>
@@ -443,13 +461,51 @@ export default function EmployeesPage() {
                 </tfoot>
               </table>
             </div>
+            </div>
+          </DocsEditorCard>
+        )}
+            </div>
           </div>
         )}
-      </div>
+        preview={(
+          <aside className="docs-preview-shell">
+            <div className="docs-preview-canvas p-7 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: '#e5e7eb' }}>
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.16em] text-slate-500">LIVE PREVIEW</p>
+                  <h2 className="text-xl font-bold text-slate-900">Employees Studio Snapshot</h2>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{payrollMonth}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}><p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Total</p><p className="text-lg font-bold text-slate-900">{employees.length}</p></div>
+                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}><p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Active</p><p className="text-lg font-bold text-emerald-600">{activeCount}</p></div>
+                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}><p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Monthly Payroll</p><p className="text-lg font-bold text-violet-700">SAR {fmt(totalPayroll)}</p></div>
+                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}><p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Contracts</p><p className="text-lg font-bold text-amber-600">{contractCount}</p></div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Top Payroll Employees</h3>
+                <div className="space-y-2">
+                  {employees.filter(e => e.status === 'active').sort((a, b) => b.salary - a.salary).slice(0, 7).map((employee) => (
+                    <div key={employee.id} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: '#e5e7eb' }}>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{employee.full_name}</p>
+                        <p className="text-xs text-slate-500">{employee.job_title || '—'} · {employee.employee_id}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800">SAR {fmt(employee.salary)}</p>
+                    </div>
+                  ))}
+                  {employees.length === 0 ? <p className="text-sm text-slate-500">No employees yet.</p> : null}
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+      />
 
       {addModal && <EmployeeModal employees={employees} onClose={() => setAddModal(false)} onDone={load} />}
       {editModal && <EmployeeModal employees={employees} initial={editModal} onClose={() => setEditModal(null)} onDone={load} />}
       {salaryModal && <SalaryModal employee={salaryModal} onClose={() => setSalaryModal(null)} onDone={load} />}
-    </div>
+    </>
   );
 }
