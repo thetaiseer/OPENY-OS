@@ -11,6 +11,7 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
+import AppModal from '@/components/ui/AppModal';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
@@ -70,39 +71,39 @@ function SalaryModal({ employee, onClose, onDone }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Update Salary — {employee.full_name}</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
-        {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>{error}</div>}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Current Salary</label>
-            <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>SAR {fmt(employee.salary)}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>New Salary</label>
-            <input type="number" min={0} className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={newSalary} onChange={e => setNewSalary(Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Effective Date</label>
-            <input type="date" className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={effDate} onChange={e => setEffDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes</label>
-            <textarea className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" rows={2} style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={note} onChange={e => setNote(e.target.value)} />
-          </div>
-        </div>
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white" style={{ background: 'var(--accent)' }}>
+    <AppModal
+      open
+      onClose={onClose}
+      title={`Update Salary — ${employee.full_name}`}
+      size="sm"
+      bodyClassName="space-y-3"
+      footer={(
+        <>
+          <button onClick={onClose} className="openy-modal-btn-secondary flex-1">Cancel</button>
+          <button onClick={submit} disabled={saving} className="openy-modal-btn-primary flex-1">
             {saving ? 'Saving…' : 'Update Salary'}
           </button>
+        </>
+      )}
+    >
+        {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>{error}</div>}
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Current Salary</label>
+          <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>SAR {fmt(employee.salary)}</div>
         </div>
-      </div>
-    </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>New Salary</label>
+          <input type="number" min={0} className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={newSalary} onChange={e => setNewSalary(Number(e.target.value))} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Effective Date</label>
+          <input type="date" className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={effDate} onChange={e => setEffDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes</label>
+          <textarea className="w-full px-3 py-1.5 text-sm rounded-lg border outline-none" rows={2} style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }} value={note} onChange={e => setNote(e.target.value)} />
+        </div>
+    </AppModal>
   );
 }
 
@@ -146,12 +147,21 @@ function EmployeeModal({ initial, onClose, onDone, employees }: {
   const lbl = (l: string) => <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{l}</label>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-auto py-6">
-      <div className="rounded-2xl shadow-xl p-6 w-full max-w-2xl m-auto" style={{ background: 'var(--surface)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{initial ? 'Edit Employee' : 'Add Employee'}</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
+    <AppModal
+      open
+      onClose={onClose}
+      title={initial ? 'Edit Employee' : 'Add Employee'}
+      size="lg"
+      bodyClassName="space-y-4"
+      footer={(
+        <>
+          <button onClick={onClose} className="openy-modal-btn-secondary flex-1">Cancel</button>
+          <button onClick={submit} disabled={saving} className="openy-modal-btn-primary flex-1 disabled:opacity-60">
+            {saving ? 'Saving…' : initial ? 'Update' : 'Add Employee'}
+          </button>
+        </>
+      )}
+    >
         {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>{error}</div>}
         <div className="grid grid-cols-2 gap-3">
           <div>{lbl('Employee ID')}<input className={inp} value={form.employee_id} onChange={e => setF('employee_id', e.target.value)} /></div>
@@ -167,14 +177,7 @@ function EmployeeModal({ initial, onClose, onDone, employees }: {
           <div>{lbl('Contract Duration')}<input className={inp} value={form.contract_duration} onChange={e => setF('contract_duration', e.target.value)} /></div>
           <div className="col-span-2">{lbl('Address')}<input className={inp} value={form.address} onChange={e => setF('address', e.target.value)} /></div>
         </div>
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
-            {saving ? 'Saving…' : initial ? 'Update' : 'Add Employee'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 
