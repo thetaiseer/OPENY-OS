@@ -1024,6 +1024,8 @@ select option { white-space: normal; }
   --modal-border: var(--border-glass);
   --modal-surface: var(--surface-elevated);
   --modal-shadow: var(--shadow-lg), var(--highlight-inset);
+  --modal-color-info: var(--accent);
+  --modal-color-danger: #c0344a;
   --modal-header-padding: 1rem 1.25rem;
   --modal-body-padding: 1.125rem 1.25rem;
   --modal-footer-padding: 0.95rem 1.25rem;

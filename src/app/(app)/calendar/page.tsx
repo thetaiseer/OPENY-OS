@@ -619,7 +619,6 @@ export default function CalendarPage() {
               onClick={() => void handleMarkPublished(selectedSchedule)}
               disabled={markingPublished}
               className="openy-modal-btn-primary w-full disabled:opacity-60"
-              style={{ background: '#0891b2' }}
             >
               {markingPublished ? 'Marking…' : '✓ Mark as Published'}
             </button>

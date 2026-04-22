@@ -286,7 +286,7 @@ export default function UploadModal({
                 className="openy-modal-btn-secondary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
               >
-                Upload &amp; Schedule
+                Upload & Schedule
               </button>
             )}
             <button

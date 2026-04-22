@@ -553,7 +553,6 @@ export default function NewTaskModal({
       subtitle="Fill in the details below to create a connected task"
       size="lg"
       icon={<Check size={14} />}
-      bodyClassName="p-0"
       footer={(
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -592,8 +591,8 @@ export default function NewTaskModal({
         </div>
       )}
     >
-        <form id="new-task-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5 space-y-5">
+        <form id="new-task-modal-form" onSubmit={handleSubmit} className="openy-modal-stack">
+          <div className="space-y-5">
 
             {/* ── Task Category ── */}
             <CategoryPicker />

@@ -87,11 +87,6 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSave(); }
-    if (e.key === 'Escape') onCancel();
-  };
-
   return (
     <AppModal
       open
@@ -111,8 +106,8 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
             Cancel
           </button>
           <button
-            type="button"
-            onClick={() => void handleSave()}
+            type="submit"
+            form="create-client-modal-form"
             disabled={saving || !name.trim()}
             className="openy-modal-btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
           >
@@ -125,7 +120,14 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
         </>
       )}
     >
-      <div className="openy-modal-stack" onKeyDown={handleKeyDown}>
+      <form
+        id="create-client-modal-form"
+        className="openy-modal-stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSave();
+        }}
+      >
           {/* Error */}
           {error && (
             <div
@@ -212,7 +214,7 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
               }}
             />
           </div>
-        </div>
+      </form>
     </AppModal>
   );
 }

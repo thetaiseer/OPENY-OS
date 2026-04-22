@@ -43,7 +43,7 @@ export default function ConfirmModal({
             onClick={onConfirm}
             disabled={loading}
             className="openy-modal-btn-primary disabled:opacity-50"
-            style={danger ? { background: 'var(--color-danger)' } : undefined}
+            style={danger ? { background: 'var(--modal-color-danger)' } : undefined}
           >
             {loading ? 'Please wait…' : confirmLabel}
           </button>
