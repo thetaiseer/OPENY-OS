@@ -16,6 +16,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
+import { OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 
 const MONTH_NAMES = [
   'January', 'February', 'March',    'April',
@@ -102,11 +103,12 @@ export default function MonthYearPicker({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
-        className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        className={`flex items-center gap-2 px-3 h-10 rounded-full text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
         style={{
-          background:   'var(--surface-2)',
+          background:   'var(--surface-shell)',
           color:        value ? 'var(--text)' : 'var(--text-secondary)',
           border:       `1px solid ${open ? 'var(--accent)' : 'var(--border)'}`,
+          boxShadow:    'var(--shadow-xs)',
           whiteSpace:   'nowrap',
         }}
       >
@@ -130,10 +132,9 @@ export default function MonthYearPicker({
       {open && (
         <div
           ref={popoverRef}
-          className="absolute top-full left-0 mt-2 z-50 rounded-2xl border shadow-2xl overflow-hidden"
+          className={`absolute top-full left-0 mt-2 z-50 overflow-hidden ${OPENY_MENU_PANEL_CLASS}`}
           style={{
-            background:   'var(--surface)',
-            borderColor:  'var(--border)',
+            padding:      '0.35rem',
             minWidth:     260,
           }}
         >

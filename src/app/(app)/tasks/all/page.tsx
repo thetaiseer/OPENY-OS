@@ -36,6 +36,10 @@ import Badge from '@/components/ui/Badge';
 import StatCard from '@/components/ui/StatCard';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import {
+  OPENY_MENU_ITEM_COMPACT_CLASS,
+  OPENY_MENU_PANEL_COMPACT_CLASS,
+} from '@/components/ui/menu-system';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
 import { useQuickActions } from '@/lib/quick-actions-context';
@@ -479,13 +483,12 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             <ChevronDown size={10} />
           </button>
           {statusOpen && (
-            <div className="absolute top-full left-0 mt-1 z-10 rounded-xl border shadow-lg overflow-hidden min-w-[130px]"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className={`absolute top-full left-0 mt-1 z-10 overflow-hidden min-w-[130px] ${OPENY_MENU_PANEL_COMPACT_CLASS}`}>
               {['todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'].map(s => (
                 <button
                   key={s}
                   onClick={() => { onStatusChange(task, s); setStatusOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--surface-2)] transition-colors"
+                  className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-xs text-left`}
                   style={{ color: 'var(--text)' }}
                 >
                   {statusLabel(s, t)}

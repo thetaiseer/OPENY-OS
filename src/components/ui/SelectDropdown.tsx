@@ -23,6 +23,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, X, Check } from 'lucide-react';
+import {
+  OPENY_MENU_ITEM_CLASS,
+  OPENY_MENU_PANEL_CLASS,
+} from '@/components/ui/menu-system';
 
 const SELECT_DROPDOWN_MIN_WIDTH_PX = 180;
 const SELECT_DROPDOWN_VIEWPORT_PADDING_PX = 8;
@@ -157,17 +161,13 @@ export default function SelectDropdown({
     ? createPortal(
         <div
           ref={dropdownRef}
-          className="rounded-3xl border shadow-2xl overflow-hidden"
+          className={`${OPENY_MENU_PANEL_CLASS} overflow-hidden`}
           style={{
             ...portalStyle,
-            background: 'var(--surface-floating)',
-            borderColor: 'var(--border-glass)',
-            backdropFilter: 'var(--blur-panel)',
-            WebkitBackdropFilter: 'var(--blur-panel)',
-            boxShadow: 'var(--shadow-lg)',
+            padding: '0.35rem',
           }}
         >
-          <div className="py-1.5 max-h-60 overflow-y-auto">
+          <div className="py-0.5 max-h-60 overflow-y-auto">
             {options.map(option => {
               const isSelected = option.value === value;
               return (
@@ -175,10 +175,8 @@ export default function SelectDropdown({
                   key={option.value}
                   type="button"
                   onClick={() => handleSelect(option.value)}
-                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-2)] gap-2"
+                  className={`${OPENY_MENU_ITEM_CLASS} justify-between text-left ${isSelected ? 'openy-menu-item-selected' : ''}`}
                   style={{
-                    background: isSelected ? 'var(--accent-soft, rgba(109,40,217,0.08))' : 'transparent',
-                    color:      isSelected ? 'var(--accent)' : 'var(--text)',
                     fontWeight: isSelected ? 600 : 400,
                   }}
                 >

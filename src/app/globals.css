@@ -320,7 +320,68 @@ input, select, textarea, button { font: inherit; }
   box-shadow: var(--shadow-sm);
 }
 
-/* Apply glass card shadow to common Tailwind combos */
+/* ============================================================
+   MENU / DROPDOWN SYSTEM
+   ============================================================ */
+
+.openy-menu-panel {
+  background: var(--gradient-card-glass);
+  border-color: var(--border-glass);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+}
+
+.openy-menu-animate {
+  animation: openy-menu-in var(--motion-duration-ui) var(--motion-ease-standard);
+  transform-origin: top right;
+}
+
+.openy-menu-item {
+  color: var(--text);
+}
+
+.openy-menu-item:hover,
+.openy-menu-item[aria-selected='true'] {
+  background: var(--surface-2);
+}
+
+.openy-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.openy-menu-item-danger {
+  color: var(--color-danger);
+}
+
+.openy-menu-item-danger:hover {
+  background: color-mix(in srgb, var(--color-danger-bg) 70%, var(--surface-2) 30%);
+}
+
+.openy-menu-item-selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.openy-menu-icon-chip {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow-accent-sm);
+}
+
+@keyframes openy-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
 
 /* ============================================================
    BUTTON SYSTEM

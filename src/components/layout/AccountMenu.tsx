@@ -4,6 +4,10 @@ import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { User as UserIcon, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import {
+  OPENY_MENU_ITEM_CLASS,
+  OPENY_MENU_PANEL_CLASS,
+} from '@/components/ui/menu-system';
 
 interface AccountMenuProps {
   /**
@@ -76,11 +80,11 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
       {open && (
         <div
           role="menu"
-          className={`absolute ${dropdownPositionClass} z-50 min-w-[230px] rounded-xl border shadow-lg overflow-hidden`}
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className={`absolute ${dropdownPositionClass} ${OPENY_MENU_PANEL_CLASS} z-50 min-w-[230px] overflow-hidden`}
+          style={{ padding: '0.45rem' }}
         >
           {/* User info header */}
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="px-3 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
             {loading ? (
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full animate-pulse" style={{ background: 'var(--surface-2)' }} />
@@ -116,12 +120,12 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
           </div>
 
           {/* Menu items */}
-          <div className="py-1">
+          <div className="py-1 space-y-0.5">
             <Link
               href="/account"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className={OPENY_MENU_ITEM_CLASS}
               style={{ color: 'var(--text)' }}
             >
               <UserIcon size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
@@ -131,7 +135,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
               href="/change-password"
               onClick={() => setOpen(false)}
               role="menuitem"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className={OPENY_MENU_ITEM_CLASS}
               style={{ color: 'var(--text)' }}
             >
               <KeyRound size={15} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />
@@ -149,13 +153,12 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
             </div>
           )}
 
-          <div className="border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="border-t pt-1 mt-1" style={{ borderColor: 'var(--border)' }}>
             <button
               role="menuitem"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[rgba(239,68,68,0.08)] disabled:opacity-50"
-              style={{ color: '#ef4444' }}
+              className={`${OPENY_MENU_ITEM_CLASS} openy-menu-item-danger disabled:opacity-50`}
             >
               <LogOut size={15} className="shrink-0" />
               {signingOut ? 'Signing out…' : 'Sign out'}

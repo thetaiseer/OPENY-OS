@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,14 +243,10 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       {isOpen && (
         <div
           ref={dropRef}
-          className="absolute top-full mt-2 left-0 right-0 rounded-3xl shadow-2xl border overflow-hidden z-[300]"
+          className={`absolute top-full mt-2 left-0 right-0 overflow-hidden z-[300] ${OPENY_MENU_PANEL_CLASS}`}
           style={{
-            background: 'var(--surface-floating)',
-            borderColor: 'var(--border-glass)',
             minWidth: 320,
-            backdropFilter: 'var(--blur-panel)',
-            WebkitBackdropFilter: 'var(--blur-panel)',
-            boxShadow: 'var(--shadow-lg)',
+            padding: '0.4rem',
           }}
         >
           {/* Loading */}
@@ -279,7 +276,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
                 <button
                   key={s}
                   onClick={() => setQuery(s)}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-[var(--surface-2)] transition-colors"
+                  className="openy-menu-item w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors"
                 >
                   <Clock size={13} style={{ color: 'var(--text-secondary)' }} />
                   <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{s}</span>
@@ -318,7 +315,8 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
                           onMouseEnter={() => setActiveIdx(globalIdx)}
                           className={clsx(
                             'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                            active ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--surface-2)]',
+                            active ? 'openy-menu-item-selected' : 'openy-menu-item',
+                            'rounded-2xl',
                           )}
                         >
                           <div className="flex-1 min-w-0">

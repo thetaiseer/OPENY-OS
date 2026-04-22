@@ -12,6 +12,11 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuickActions, type QuickActionId } from '@/lib/quick-actions-context';
 import { motionTransition } from '@/lib/motion';
+import {
+  OPENY_MENU_ICON_CHIP_CLASS,
+  OPENY_MENU_ITEM_CLASS,
+  OPENY_MENU_PANEL_CLASS,
+} from '@/components/ui/menu-system';
 
 interface QuickAction {
   id: QuickActionId;
@@ -98,13 +103,9 @@ export default function GlobalQuickActionsFab() {
             id={menuId}
             role="menu"
             aria-label="Quick actions"
-            className="w-52 rounded-3xl border p-2 shadow-2xl origin-bottom-right"
+            className={`${OPENY_MENU_PANEL_CLASS} w-52 origin-bottom-right`}
             style={{
-              background: 'var(--gradient-card-glass)',
-              borderColor: 'var(--border-glass)',
-              backdropFilter: 'var(--blur-panel)',
-              WebkitBackdropFilter: 'var(--blur-panel)',
-              boxShadow: 'var(--shadow-card)',
+              transformOrigin: 'bottom right',
             }}
             initial={{ opacity: 0, scale: 0.95, y: 10, filter: 'blur(6px)' }}
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
@@ -120,16 +121,13 @@ export default function GlobalQuickActionsFab() {
                     setOpen(false);
                     triggerQuickAction(action.id);
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  className={OPENY_MENU_ITEM_CLASS}
                   style={{ color: 'var(--text)' }}
                   aria-label={action.label}
                 >
                   <span
-                    className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-transform"
+                    className={`${OPENY_MENU_ICON_CHIP_CLASS} transition-transform`}
                     style={{
-                      color: 'var(--accent)',
-                      background: 'var(--accent-soft)',
-                      boxShadow: 'var(--glow-accent-sm)',
                       transitionDuration: 'var(--motion-duration-ui)',
                       transitionTimingFunction: 'var(--motion-ease-standard)',
                     }}
