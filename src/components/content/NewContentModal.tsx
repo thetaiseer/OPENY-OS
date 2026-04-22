@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { XCircle } from 'lucide-react';
+import { PenSquare } from 'lucide-react';
 import { useToast } from '@/lib/toast-context';
 import type { Client, ContentItem } from '@/lib/types';
+import AppModal from '@/components/ui/AppModal';
 
 interface NewContentModalProps {
   open: boolean;
@@ -54,13 +55,24 @@ export default function NewContentModal({ open, onClose, clients, onCreated }: N
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-      <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>New Content Item</h2>
-          <button onClick={onClose} className="p-1 rounded hover:opacity-70"><XCircle size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <AppModal
+      open
+      onClose={onClose}
+      title="New Content Item"
+      icon={<PenSquare size={15} />}
+      size="md"
+      footer={(
+        <>
+          <button type="button" onClick={onClose} className="openy-modal-btn-secondary">
+            Cancel
+          </button>
+          <button type="submit" form="new-content-item-form" disabled={saving} className="openy-modal-btn-primary disabled:opacity-50">
+            {saving ? 'Creating…' : 'Create'}
+          </button>
+        </>
+      )}
+    >
+      <form id="new-content-item-form" onSubmit={handleSubmit} className="openy-modal-stack">
           <div>
             <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>Title *</label>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. May Campaign — Instagram Reel" required
@@ -101,14 +113,7 @@ export default function NewContentModal({ open, onClose, clients, onCreated }: N
               {PURPOSES.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50" style={{ background: 'var(--accent)' }}>
-              {saving ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </AppModal>
   );
 }

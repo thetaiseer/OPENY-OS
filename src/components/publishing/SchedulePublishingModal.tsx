@@ -23,6 +23,7 @@ import {
   CheckCircle, AlertCircle, Loader2, Send,
 } from 'lucide-react';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import AppModal from '@/components/ui/AppModal';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -257,49 +258,36 @@ export default function SchedulePublishingModal({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl border shadow-2xl flex flex-col"
-        style={{
-          background:  'var(--surface)',
-          borderColor: 'var(--border)',
-          maxHeight:   '92vh',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0"
-              style={{ background: 'rgba(99,102,241,0.12)' }}
-            >
-              <Send size={15} style={{ color: 'var(--accent)' }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>
-                Schedule Publishing
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                {asset.name}
-              </p>
-            </div>
-          </div>
+    <AppModal
+      open
+      onClose={onClose}
+      title="Schedule Publishing"
+      subtitle={asset.name}
+      icon={<Send size={15} />}
+      size="md"
+      bodyClassName="space-y-5"
+      footer={!success ? (
+        <>
           <button
+            type="button"
             onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70 shrink-0 ml-2"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            className="openy-modal-btn-secondary flex-1"
           >
-            <X size={15} />
+            Cancel
           </button>
-        </div>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit || saving}
+            className="openy-modal-btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {saving
+              ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+              : <><Send size={14} /> Schedule Publishing</>}
+          </button>
+        </>
+      ) : undefined}
+    >
 
         {/* Success state */}
         {success && (
@@ -545,34 +533,6 @@ export default function SchedulePublishingModal({
           </div>
         )}
 
-        {/* Footer */}
-        {!success && (
-          <div
-            className="flex items-center gap-3 px-5 py-4 border-t shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSubmit()}
-              disabled={!canSubmit || saving}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ background: 'var(--accent)' }}
-            >
-              {saving
-                ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-                : <><Send size={14} /> Schedule Publishing</>}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    </AppModal>
   );
 }

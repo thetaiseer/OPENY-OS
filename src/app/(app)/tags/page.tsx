@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Tag, Trash2, Pencil, X, Check, Circle } from 'lucide-react';
+import { Plus, Tag, Trash2, Pencil, Check, Circle } from 'lucide-react';
 import type { Tag as TagType } from '@/lib/types';
+import FormModal from '@/components/ui/FormModal';
 
 const TAG_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
@@ -147,15 +148,32 @@ export default function TagsPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-md rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>{editTag ? 'Edit Tag' : 'New Tag'}</h2>
-              <button onClick={() => setModalOpen(false)} style={{ color: 'var(--text-secondary)' }}>
-                <X size={18} />
+        <FormModal
+          open
+          onClose={() => setModalOpen(false)}
+          title={editTag ? 'Edit Tag' : 'New Tag'}
+          icon={<Tag size={15} />}
+          size="sm"
+          onSubmit={e => void handleSave(e)}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
+                Cancel
               </button>
-            </div>
-            <form onSubmit={e => void handleSave(e)} className="space-y-4">
+              <button
+                type="submit"
+                disabled={saving}
+                className="openy-modal-btn-primary disabled:opacity-60"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          )}
+        >
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Name *</label>
                 <input
@@ -209,28 +227,7 @@ export default function TagsPage() {
               </div>
 
               {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </FormModal>
       )}
     </div>
   );

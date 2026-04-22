@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Play, Square, Plus, Clock, Trash2, X, Check } from 'lucide-react';
+import { Play, Square, Plus, Clock, Trash2, Check } from 'lucide-react';
 import type { TimeEntry, Task, Client } from '@/lib/types';
+import FormModal from '@/components/ui/FormModal';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -248,13 +249,32 @@ export default function TimeTrackingPage() {
 
       {/* Manual log modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-md rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>Log Time Manually</h2>
-              <button onClick={() => setModalOpen(false)} style={{ color: 'var(--text-secondary)' }}><X size={18} /></button>
-            </div>
-            <form onSubmit={e => void handleManualEntry(e)} className="space-y-3">
+        <FormModal
+          open
+          onClose={() => setModalOpen(false)}
+          title="Log Time Manually"
+          icon={<Clock size={15} />}
+          size="sm"
+          onSubmit={e => void handleManualEntry(e)}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Saving…' : <><Check size={14} /> Log Time</>}
+              </button>
+            </>
+          )}
+        >
               <div>
                 <label className="text-sm font-medium block mb-1" style={{ color: 'var(--text)' }}>Description</label>
                 <input
@@ -324,27 +344,7 @@ export default function TimeTrackingPage() {
                 <span className="text-sm" style={{ color: 'var(--text)' }}>Billable time</span>
               </label>
               {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? 'Saving…' : <><Check size={14} /> Log Time</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </FormModal>
       )}
     </div>
   );

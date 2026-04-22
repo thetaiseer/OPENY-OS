@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Pin, PinOff, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Plus, Search, FileText, Pin, PinOff, Trash2, Pencil, Check } from 'lucide-react';
 import type { Note } from '@/lib/types';
+import FormModal from '@/components/ui/FormModal';
 
 function formatRelative(iso: string): string {
   try {
@@ -210,17 +211,32 @@ export default function NotesPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-lg rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
-                {editNote ? 'Edit Note' : 'New Note'}
-              </h2>
-              <button onClick={() => setModalOpen(false)} style={{ color: 'var(--text-secondary)' }}>
-                <X size={18} />
+        <FormModal
+          open
+          onClose={() => setModalOpen(false)}
+          title={editNote ? 'Edit Note' : 'New Note'}
+          icon={<FileText size={15} />}
+          size="md"
+          onSubmit={e => void handleSave(e)}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
+                Cancel
               </button>
-            </div>
-            <form onSubmit={e => void handleSave(e)} className="space-y-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Saving…' : <><Check size={14} /> Save</>}
+              </button>
+            </>
+          )}
+        >
               <div className="space-y-1">
                 <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Title</label>
                 <input
@@ -247,27 +263,7 @@ export default function NotesPage() {
               {saveErr && (
                 <p className="text-xs text-red-500">{saveErr}</p>
               )}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? 'Saving…' : <><Check size={14} /> Save</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </FormModal>
       )}
     </div>
   );
