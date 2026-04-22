@@ -46,8 +46,8 @@ interface PlatformConfig {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const monthNow = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const currentDate = new Date();
+  return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 };
 
 const DEFAULT_TOTAL_BUDGET = 49500;
@@ -77,17 +77,17 @@ function nextInvoiceNumber(invoices: DocsInvoice[]) {
 
 function distributePercentages(rawValues: number[]) {
   if (rawValues.length === 0) return [];
-  const safe = rawValues.map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
+  const safe = rawValues.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const sum = safe.reduce((s, v) => s + v, 0);
   if (sum <= 0) {
     const even = Math.floor(100 / rawValues.length);
     const values = Array.from({ length: rawValues.length }, () => even);
     let rem = 100 - (even * rawValues.length);
-    let i = 0;
+    let index = 0;
     while (rem > 0) {
-      values[i % values.length] += 1;
+      values[index % values.length] += 1;
       rem -= 1;
-      i += 1;
+      index += 1;
     }
     return values;
   }
@@ -99,7 +99,9 @@ function distributePercentages(rawValues: number[]) {
     .sort((a, b) => b.frac - a.frac);
   let cursor = 0;
   while (remainder > 0 && order.length > 0) {
-    floored[order[cursor % order.length]!.index] += 1;
+    const entry = order[cursor % order.length];
+    if (!entry) break;
+    floored[entry.index] += 1;
     remainder -= 1;
     cursor += 1;
   }
@@ -114,8 +116,10 @@ function normalizePlatformConfigs(platforms: PlatformConfig[]) {
   const normalized = distributePercentages(enabledIndexes.map(({ item }) => item.allocationPct));
   const next = platforms.map((platform) => ({ ...platform, allocationPct: platform.enabled ? platform.allocationPct : 0 }));
   enabledIndexes.forEach(({ index }, i) => {
-    next[index]!.allocationPct = normalized[i] ?? 0;
-    next[index]!.campaignCount = Math.max(1, Math.round(next[index]!.campaignCount || 1));
+    const platform = next[index];
+    if (!platform) return;
+    platform.allocationPct = normalized[i] ?? 0;
+    platform.campaignCount = Math.max(1, Math.round(platform.campaignCount || 1));
   });
   return next;
 }
@@ -156,7 +160,7 @@ function blank(invoices: DocsInvoice[]): FormState {
     client_name: '',
     campaign_month: monthNow(),
     invoice_date: today(),
-    currency: 'EGP',
+    currency: 'SAR',
     status: 'unpaid',
     our_fees: DEFAULT_FEES,
     notes: '',
@@ -317,9 +321,13 @@ export default function InvoicePage() {
       );
 
       const next = prev.map((platform) => ({ ...platform }));
-      next[index]!.allocationPct = clamped;
+      const selectedPlatform = next[index];
+      if (!selectedPlatform) return prev;
+      selectedPlatform.allocationPct = clamped;
       otherIndexes.forEach((idx, i) => {
-        next[idx]!.allocationPct = otherAllocations[i] ?? 0;
+        const otherPlatform = next[idx];
+        if (!otherPlatform) return;
+        otherPlatform.allocationPct = otherAllocations[i] ?? 0;
       });
 
       return normalizePlatformConfigs(next);
@@ -444,8 +452,8 @@ export default function InvoicePage() {
                 <input className={inputClass} value={form.invoice_number} onChange={(e) => setField('invoice_number', e.target.value)} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
-                <input type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+                <label htmlFor="invoice-total-budget" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
+                <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Currency</label>
@@ -461,12 +469,12 @@ export default function InvoicePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Month</label>
-                <input type="month" className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
+                <label htmlFor="invoice-campaign-month" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Month</label>
+                <input id="invoice-campaign-month" type="month" className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Date</label>
-                <input type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
+                <label htmlFor="invoice-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Date</label>
+                <input id="invoice-date" type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
               </div>
             </div>
 
@@ -517,8 +525,9 @@ export default function InvoicePage() {
 
                   <div className="grid grid-cols-[170px_1fr_80px] gap-3 items-center">
                     <div>
-                      <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
+                      <label htmlFor={`campaign-count-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
                       <input
+                        id={`campaign-count-${platform.key}`}
                         type="number"
                         min={1}
                         disabled={!platform.enabled}
@@ -529,27 +538,32 @@ export default function InvoicePage() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Budget Allocation %</label>
+                      <label htmlFor={`allocation-range-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Budget Allocation %</label>
                       <input
+                        id={`allocation-range-${platform.key}`}
                         type="range"
                         min={0}
                         max={100}
                         disabled={!platform.enabled}
                         className="w-full"
                         value={platform.allocationPct}
+                        aria-label={`Budget allocation percentage for ${platform.name}`}
+                        aria-valuetext={`${platform.allocationPct}%`}
                         onChange={(e) => updateAllocation(index, Number(e.target.value))}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>%</label>
+                      <label htmlFor={`allocation-input-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
                       <input
+                        id={`allocation-input-${platform.key}`}
                         type="number"
                         min={0}
                         max={100}
                         disabled={!platform.enabled}
                         className={inputClass}
                         value={platform.allocationPct}
+                        aria-label={`Allocation percentage for ${platform.name}`}
                         onChange={(e) => updateAllocation(index, Number(e.target.value))}
                       />
                     </div>
@@ -566,8 +580,9 @@ export default function InvoicePage() {
               <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
             </div>
             <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Our Fees</span>
+              <label htmlFor="invoice-our-fees" style={{ color: 'var(--text-secondary)' }}>Our Fees</label>
               <input
+                id="invoice-our-fees"
                 type="number"
                 min={0}
                 className="w-36 px-2 py-1 text-xs rounded-md border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] text-right"
@@ -624,8 +639,8 @@ export default function InvoicePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes</label>
-              <textarea className={inputClass} rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+              <label htmlFor="invoice-notes" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes</label>
+              <textarea id="invoice-notes" className={inputClass} rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
             </div>
           </div>
         </section>

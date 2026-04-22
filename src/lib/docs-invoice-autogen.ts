@@ -74,6 +74,9 @@ export interface GenerateSmartInvoiceParams {
   seedSalt?: string;
 }
 
+const MAX_SPREAD_DAY = 28;
+const DAY_SPAN = MAX_SPREAD_DAY - 1;
+
 export interface GeneratedInvoiceTemplate {
   templateName: InvoiceTemplateName;
   clientName: string;
@@ -181,20 +184,22 @@ function splitBudgetWithWeights(
 function splitBudgetByPercent(total: number, percentages: number[]) {
   if (percentages.length === 0) return [];
   if (total <= 0) return percentages.map(() => 0);
-  const safe = percentages.map((pct) => (Number.isFinite(pct) && pct > 0 ? pct : 0));
+  const safe = percentages.map((percentage) => (Number.isFinite(percentage) && percentage > 0 ? percentage : 0));
   const sum = safe.reduce((s, v) => s + v, 0);
   if (sum <= 0) return safe.map(() => 0);
-  const raw = safe.map((pct) => (pct / sum) * total);
-  const rounded = raw.map((n) => Math.floor(n));
+  const raw = safe.map((percentage) => (percentage / sum) * total);
+  const rounded = raw.map((value) => Math.floor(value));
   let remainder = total - rounded.reduce((s, v) => s + v, 0);
   const fracOrder = raw
-    .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+    .map((value, index) => ({ index, frac: value - Math.floor(value) }))
     .sort((a, b) => b.frac - a.frac);
-  let idx = 0;
+  let cursor = 0;
   while (remainder > 0 && fracOrder.length > 0) {
-    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    const entry = fracOrder[cursor % fracOrder.length];
+    if (!entry) break;
+    rounded[entry.index] += 1;
     remainder -= 1;
-    idx += 1;
+    cursor += 1;
   }
   return rounded;
 }
@@ -202,7 +207,7 @@ function splitBudgetByPercent(total: number, percentages: number[]) {
 function splitIntegerByWeights(total: number, weights: number[]) {
   if (weights.length === 0) return [];
   if (total <= 0) return weights.map(() => 0);
-  const safe = weights.map((w) => (Number.isFinite(w) && w > 0 ? w : 0));
+  const safe = weights.map((weight) => (Number.isFinite(weight) && weight > 0 ? weight : 0));
   const sum = safe.reduce((s, v) => s + v, 0);
   if (sum <= 0) {
     const even = Math.floor(total / weights.length);
@@ -217,16 +222,18 @@ function splitIntegerByWeights(total: number, weights: number[]) {
     return out;
   }
   const raw = safe.map((w) => (w / sum) * total);
-  const rounded = raw.map((n) => Math.floor(n));
+  const rounded = raw.map((value) => Math.floor(value));
   let remainder = total - rounded.reduce((s, v) => s + v, 0);
   const fracOrder = raw
-    .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+    .map((value, index) => ({ index, frac: value - Math.floor(value) }))
     .sort((a, b) => b.frac - a.frac);
-  let idx = 0;
+  let cursor = 0;
   while (remainder > 0 && fracOrder.length > 0) {
-    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    const entry = fracOrder[cursor % fracOrder.length];
+    if (!entry) break;
+    rounded[entry.index] += 1;
     remainder -= 1;
-    idx += 1;
+    cursor += 1;
   }
   return rounded;
 }
@@ -234,14 +241,14 @@ function splitIntegerByWeights(total: number, weights: number[]) {
 function generateRowDays(rowCount: number, rng: () => number) {
   if (rowCount <= 0) return [];
   if (rowCount === 1) return [1];
-  const step = 27 / (rowCount - 1);
+  const step = DAY_SPAN / (rowCount - 1);
   const days = Array.from({ length: rowCount }, (_, i) => {
     const base = Math.round(1 + (i * step));
     const jitter = Math.floor(rng() * 5) - 2;
-    return clamp(base + jitter, 1, 28);
+    return clamp(base + jitter, 1, MAX_SPREAD_DAY);
   }).sort((a, b) => a - b);
   for (let i = 1; i < days.length; i += 1) {
-    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, 28);
+    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, MAX_SPREAD_DAY);
   }
   return days;
 }
