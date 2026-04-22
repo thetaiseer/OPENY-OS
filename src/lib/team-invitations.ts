@@ -52,6 +52,7 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  console.log('TOKEN DEBUG:', { token, data, error });
 
   if (error) {
     console.error('[invitations] DB query error while fetching invitation by token:', error.message);
@@ -182,6 +183,64 @@ function toLegacyWorkspaceMemberRole(role: WorkspaceMemberInsertRow['role']): 'a
 function shouldRetryWorkspaceMemberInsertWithLegacyRoles(message: string): boolean {
   const lower = message.toLowerCase();
   return lower.includes('workspace_members_role_check') || lower.includes('violates check constraint');
+}
+
+function shouldRetryWorkspaceMemberInsertWithoutStatus(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes('status') && (lower.includes('column') || lower.includes('schema cache'));
+}
+
+async function upsertWorkspaceMembersAsActive(
+  db: ReturnType<typeof getServiceClient>,
+  members: WorkspaceMemberInsertRow[],
+): Promise<string | null> {
+  type WorkspaceMemberUpsertRow = {
+    workspace_id: string;
+    user_id: string;
+    role: string;
+    status?: string;
+    updated_at?: string;
+  };
+
+  const activePayload = members.map(member => ({
+    ...member,
+    status: MEMBER_STATUS.ACTIVE,
+    updated_at: new Date().toISOString(),
+  })) satisfies WorkspaceMemberUpsertRow[];
+
+  const tryUpsert = async (
+    rows: WorkspaceMemberUpsertRow[],
+  ) => db
+    .from('workspace_members')
+    .upsert(rows, { onConflict: 'workspace_id,user_id' });
+
+  let { error } = await tryUpsert(activePayload);
+  if (!error) return null;
+
+  if (shouldRetryWorkspaceMemberInsertWithoutStatus(error.message)) {
+    ({ error } = await tryUpsert(members));
+    if (!error) return null;
+  }
+
+  if (shouldRetryWorkspaceMemberInsertWithLegacyRoles(error.message)) {
+    const legacyActivePayload = activePayload.map(member => ({
+      ...member,
+      role: toLegacyWorkspaceMemberRole(member.role),
+    }));
+    ({ error } = await tryUpsert(legacyActivePayload));
+    if (!error) return null;
+
+    if (shouldRetryWorkspaceMemberInsertWithoutStatus(error.message)) {
+      const legacyMembers = members.map(member => ({
+        ...member,
+        role: toLegacyWorkspaceMemberRole(member.role),
+      }));
+      ({ error } = await tryUpsert(legacyMembers));
+      if (!error) return null;
+    }
+  }
+
+  return error.message;
 }
 
 async function getRequestUserId(request: NextRequest): Promise<string | null> {
@@ -321,20 +380,6 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     return { ok: false as const, status: 500, body: { error: profileError.message } };
   }
 
-  const { error: memberError } = await db
-    .from('team_members')
-    .update({
-      profile_id: resolvedAuthUserId,
-      status: MEMBER_STATUS.ACTIVE,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', validInvitation.team_member_id);
-
-  if (memberError) {
-    console.error('[invitations/accept] Failed to update team_members row:', memberError.message);
-    return { ok: false as const, status: 500, body: { error: memberError.message } };
-  }
-
   const grants = resolveWorkspaceGrants(validInvitation);
   const workspaceKeys = [...new Set(grants.map(grant => grant.workspace))];
   const { data: workspaceRows, error: workspaceRowsError } = await db
@@ -382,26 +427,10 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     };
   }
 
-  const { error: workspaceMemberInsertError } = await db
-    .from('workspace_members')
-    .upsert(membersToInsert, { onConflict: 'workspace_id,user_id' });
-
-  if (workspaceMemberInsertError && shouldRetryWorkspaceMemberInsertWithLegacyRoles(workspaceMemberInsertError.message)) {
-    const legacyMembersToInsert = membersToInsert.map(member => ({
-      workspace_id: member.workspace_id,
-      user_id: member.user_id,
-      role: toLegacyWorkspaceMemberRole(member.role),
-    }));
-    const { error: legacyInsertError } = await db
-      .from('workspace_members')
-      .upsert(legacyMembersToInsert, { onConflict: 'workspace_id,user_id' });
-    if (legacyInsertError) {
-      console.error('[invitations/accept] Failed to insert workspace_members rows (legacy retry):', legacyInsertError.message);
-      return { ok: false as const, status: 500, body: { error: legacyInsertError.message } };
-    }
-  } else if (workspaceMemberInsertError) {
-    console.error('[invitations/accept] Failed to insert workspace_members rows:', workspaceMemberInsertError.message);
-    return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError.message } };
+  const workspaceMemberInsertError = await upsertWorkspaceMembersAsActive(db, membersToInsert);
+  if (workspaceMemberInsertError) {
+    console.error('[invitations/accept] Failed to insert workspace_members rows:', workspaceMemberInsertError);
+    return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError } };
   }
 
   console.log('[invitations/accept] workspace_members inserted:', {
@@ -437,19 +466,14 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     }
   }
 
-  const { error: invitationUpdateError } = await db
+  const { error: invitationDeleteError } = await db
     .from('team_invitations')
-    .update({
-      status: INVITATION_STATUS.ACCEPTED,
-      accepted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', validInvitation.id)
-    .in('status', [...ACTIVE_INVITATION_STATUSES]);
+    .delete()
+    .eq('id', validInvitation.id);
 
-  if (invitationUpdateError) {
-    console.error('[invitations/accept] Failed to update invitation status:', invitationUpdateError.message);
-    return { ok: false as const, status: 500, body: { error: invitationUpdateError.message } };
+  if (invitationDeleteError) {
+    console.error('[invitations/accept] Failed to delete accepted invitation token:', invitationDeleteError.message);
+    return { ok: false as const, status: 500, body: { error: invitationDeleteError.message } };
   }
 
   void (async () => {
