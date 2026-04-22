@@ -16,6 +16,10 @@
 
 import { useState } from 'react';
 import { Sparkles, Loader2, ChevronDown } from 'lucide-react';
+import {
+  OPENY_MENU_ITEM_COMPACT_CLASS,
+  OPENY_MENU_PANEL_COMPACT_CLASS,
+} from '@/components/ui/menu-system';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -192,15 +196,14 @@ export default function AiImproveButton({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
             <div
-              className="absolute top-full right-0 mt-1 z-50 rounded-xl border overflow-hidden shadow-xl min-w-36"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+              className={`absolute top-full right-0 mt-1 z-50 overflow-hidden min-w-36 ${OPENY_MENU_PANEL_COMPACT_CLASS}`}
             >
               {(Object.entries(ACTION_LABELS) as [Exclude<ImproveAction, 'name'>, string][]).map(([action, label]) => (
                 <button
                   key={action}
                   type="button"
                   onClick={() => handleAction(action)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-left transition-colors hover:opacity-80"
+                  className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-xs font-medium text-left`}
                   style={{ color: 'var(--text)' }}
                 >
                   <Sparkles size={11} style={{ color: 'var(--accent)' }} />

@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import type { Notification } from '@/lib/types';
+import { OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 
 const TYPE_ICON = {
   info:    Info,
@@ -159,16 +160,15 @@ export default function NotificationDropdown() {
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 rounded-2xl shadow-xl border overflow-hidden z-[200]"
+          className={`absolute right-0 top-full mt-2 overflow-hidden z-[200] ${OPENY_MENU_PANEL_CLASS}`}
           style={{
             width: 360,
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
+            padding: '0.45rem',
           }}
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between px-4 py-3 border-b"
+            className="flex items-center justify-between px-3 py-2.5 border-b"
             style={{ borderColor: 'var(--border)' }}
           >
             <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -193,7 +193,7 @@ export default function NotificationDropdown() {
           </div>
 
           {/* List */}
-          <div className="overflow-y-auto" style={{ maxHeight: 400 }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 400 }}>
             {loading ? (
               <div className="space-y-2 p-3">
                 {[...Array(3)].map((_, i) => (
@@ -206,18 +206,18 @@ export default function NotificationDropdown() {
                 <p className="text-sm">No notifications yet</p>
               </div>
             ) : (
-              <div className="py-1">
+              <div className="py-1 space-y-0.5">
                 {notifications.map(n => {
                   const Icon  = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
                   const color = TYPE_COLOR[n.type as keyof typeof TYPE_COLOR] ?? '#3b82f6';
                   return (
                     <div
                       key={n.id}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-2)] transition-colors group"
+                      className="openy-menu-item flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors group"
                       style={{
                         borderLeft: n.read ? 'none' : '3px solid ' + color,
                         // Compensate left-padding so content stays aligned when the 3px indicator border is shown
-                        paddingLeft: n.read ? 16 : 13,
+                        paddingLeft: n.read ? 12 : 9,
                       }}
                     >
                       {/* Icon */}
@@ -288,7 +288,7 @@ export default function NotificationDropdown() {
 
           {/* Footer */}
           <div
-            className="border-t px-4 py-2.5"
+            className="border-t px-3 py-2.5"
             style={{ borderColor: 'var(--border)' }}
           >
             <Link
