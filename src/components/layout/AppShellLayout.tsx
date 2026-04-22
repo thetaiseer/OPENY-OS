@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/lib/upload-context';
@@ -15,6 +15,7 @@ import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette
 import { AiProvider, useAi } from '@/lib/ai-context';
 import { queryClient } from '@/app/providers';
 import { QuickActionsProvider } from '@/lib/quick-actions-context';
+import AppRouteTransition from '@/components/layout/AppRouteTransition';
 
 const AiCommandCenter = dynamic(
   () => import('@/components/ai/AiCommandCenter'),
@@ -34,11 +35,16 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000;
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const { isOpen: paletteOpen, close: closePalette } = useCommandPalette();
   const { open: openAi } = useAi();
+
+  useEffect(() => {
+    document.documentElement.classList.remove('workspace-switching');
+  }, [pathname]);
 
   useEffect(() => {
     const supabaseClient = createClient();
@@ -138,7 +144,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto app-shell-main" style={{ background: 'var(--gradient-main-overlay)' }}>{children}</main>
+        <main className="flex-1 overflow-y-auto app-shell-main" style={{ background: 'var(--gradient-main-overlay)' }}>
+          <AppRouteTransition>{children}</AppRouteTransition>
+        </main>
       </div>
 
       <GlobalQuickActionsFab />

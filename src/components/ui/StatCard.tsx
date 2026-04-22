@@ -21,7 +21,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const c = colorMap[color];
   return (
     <div
-      className="rounded-3xl p-6 border relative overflow-hidden"
+      className="openy-motion-card rounded-3xl p-6 border relative overflow-hidden"
       style={{
         background: 'var(--gradient-card-glass)',
         backdropFilter: 'var(--blur-glass)',

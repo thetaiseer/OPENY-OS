@@ -16,6 +16,8 @@ import WorkspaceSwitcher from './WorkspaceSwitcher';
 import clsx from 'clsx';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { getWorkspaceDashboardHref } from '@/lib/workspace-navigation';
+import { LayoutGroup, motion } from 'framer-motion';
+import { motionTransition } from '@/lib/motion';
 
 const osNavItems = [
   { href: '/os/dashboard',      base: '/os/dashboard',     icon: LayoutDashboard, key: 'dashboard', label: 'Dashboard' },
@@ -112,46 +114,61 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 py-5 px-3.5 space-y-1.5 overflow-y-auto">
-          {navItems.map(({ href, base, icon: Icon, key, label }) => {
-            const active = pathname === href || (base !== '/docs' && base !== '/os/dashboard' && pathname.startsWith(base));
-            const displayLabel = isDocsWorkspace ? label : t(key);
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                aria-label={displayLabel}
-                className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-semibold transition-all',
-                  'lg:justify-center xl:justify-start',
-                  active
-                    ? 'text-[var(--accent)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
-                )}
-                style={active ? {
-                  background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
-                  color: '#fff',
-                  boxShadow: 'var(--shadow-sm), var(--glow-accent-sm)',
-                } : {}}
-              >
-                {/* Icon badge */}
-                <span
-                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all"
-                  style={active ? {
-                    background: 'rgba(255,255,255,0.22)',
-                    color: '#fff',
-                    boxShadow: 'var(--glow-accent-sm)',
-                  } : {
-                    background: 'color-mix(in srgb, var(--surface-2) var(--sidebar-icon-chip-base), var(--accent-soft) var(--sidebar-icon-chip-tint))',
-                    color: 'var(--text-tertiary)',
+          <LayoutGroup id="sidebar-nav">
+            {navItems.map(({ href, base, icon: Icon, key, label }) => {
+              const active = pathname === href || (base !== '/docs' && base !== '/os/dashboard' && pathname.startsWith(base));
+              const displayLabel = isDocsWorkspace ? label : t(key);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onClose}
+                  aria-label={displayLabel}
+                  className={clsx(
+                    'group relative flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-semibold transition-all',
+                    'lg:justify-center xl:justify-start',
+                    active
+                      ? 'text-white'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
+                  )}
+                  style={{
+                    transitionDuration: 'var(--motion-duration-ui)',
+                    transitionTimingFunction: 'var(--motion-ease-standard)',
                   }}
                 >
-                  <Icon size={16} strokeWidth={2} />
-                </span>
-                <span className="lg:hidden xl:inline">{displayLabel}</span>
-              </Link>
-            );
-          })}
+                  {active && (
+                    <motion.span
+                      layoutId="sidebar-active-indicator"
+                      transition={motionTransition.ui}
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
+                        boxShadow: 'var(--shadow-sm), var(--glow-accent-sm)',
+                      }}
+                    />
+                  )}
+                  <span
+                    className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.05]"
+                    style={{
+                      transitionDuration: 'var(--motion-duration-ui)',
+                      transitionTimingFunction: 'var(--motion-ease-standard)',
+                      ...(active ? {
+                        background: 'rgba(255,255,255,0.22)',
+                        color: '#fff',
+                        boxShadow: 'var(--glow-accent-sm)',
+                      } : {
+                        background: 'color-mix(in srgb, var(--surface-2) var(--sidebar-icon-chip-base), var(--accent-soft) var(--sidebar-icon-chip-tint))',
+                        color: 'var(--text-tertiary)',
+                      }),
+                    }}
+                  >
+                    <Icon size={16} strokeWidth={2} />
+                  </span>
+                  <span className="relative z-10 lg:hidden xl:inline">{displayLabel}</span>
+                </Link>
+              );
+            })}
+          </LayoutGroup>
         </nav>
 
         <div className="px-3 pt-2 pb-4 border-t space-y-1.5" style={{ borderColor: 'var(--border)' }}>

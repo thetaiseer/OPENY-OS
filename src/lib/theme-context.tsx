@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { motionTiming } from '@/lib/motion';
 
 type Theme = 'light' | 'dark';
 interface ThemeContextType { theme: Theme; toggleTheme: () => void; }
@@ -20,6 +21,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.classList.add('theme-transition');
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, motionTiming.page * 1000);
       localStorage.setItem('theme', next);
       document.documentElement.classList.toggle('dark', next === 'dark');
       return next;
