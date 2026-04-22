@@ -48,14 +48,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
       className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 pt-3 pb-0"
     >
       <div
-  className="h-16 rounded-3xl px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
-  style={{
-    background: 'color-mix(in srgb, var(--bg) 92%, transparent)',
-    borderColor: 'transparent',
-    boxShadow: 'none',
-    backdropFilter: 'none',
-    WebkitBackdropFilter: 'none',
-  }}
+  className="h-16 rounded-3xl border px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
+style={{
+  background: 'var(--gradient-card-glass)',
+  borderColor: 'var(--border-glass)',
+  boxShadow: 'var(--shadow-card), var(--highlight-inset)',
+  backdropFilter: 'var(--blur-panel)',
+  WebkitBackdropFilter: 'var(--blur-panel)',
+}}
 >
         <button
           onClick={onMenuClick}
