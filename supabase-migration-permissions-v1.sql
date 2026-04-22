@@ -152,9 +152,12 @@ END $$;
 --    Marks pending/invited invitations as 'expired' when expires_at has passed.
 --    Requires pg_cron extension enabled in Supabase dashboard.
 --    Safe to run even if pg_cron is not enabled — wrapped in DO block.
+--    Idempotent: unschedules existing job before re-scheduling.
 
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- Remove any existing job with this name to keep the migration idempotent.
+    PERFORM cron.unschedule('expire-stale-invitations');
     PERFORM cron.schedule(
       'expire-stale-invitations',
       '0 * * * *',   -- every hour

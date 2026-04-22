@@ -1448,17 +1448,18 @@ function MemberCard({
   onView?: (m: TeamMember) => void;
 }) {
   const isInvited = member.status === 'invited' || member.status === 'pending';
+  const isInteractive = !isInvited && !!onView;
 
   return (
     <div
-      className="rounded-xl border p-5 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-md"
-      onClick={() => !isInvited && onView?.(member)}
-      role="button"
-      tabIndex={0}
+      className={`rounded-xl border p-5 flex flex-col gap-3 transition-shadow${isInteractive ? ' cursor-pointer hover:shadow-md' : ''}`}
+      onClick={() => isInteractive && onView?.(member)}
+      role={isInteractive ? 'button' : undefined}
+      tabIndex={isInteractive ? 0 : -1}
       onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
-          if (!isInvited && onView) onView(member);
+          onView?.(member);
         }
       }}
       style={{

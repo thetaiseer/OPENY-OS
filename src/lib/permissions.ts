@@ -141,13 +141,14 @@ export function hasModuleAccess(
 
 // ── Server-side fetch helper (for API routes) ─────────────────────────────────
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * Fetch stored module overrides for a team member from the DB.
  * Returns resolved MemberPermissions.
  */
 export async function fetchMemberPermissions(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any,
+  db: SupabaseClient,
   teamMemberId: string,
   role: PlatformRole,
 ): Promise<MemberPermissions> {
