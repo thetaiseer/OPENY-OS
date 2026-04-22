@@ -22,17 +22,26 @@ import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import {
-  generateInvoiceFromTemplate,
-  generateSmartInvoice,
+  applyInvoiceTemplate,
   INVOICE_TEMPLATE_OPTIONS,
-  INVOICE_TEMPLATES,
-} from '@/lib/docs-invoice-autogen';
-import type { InvoiceTemplateName } from '@/lib/docs-invoice-autogen';
+  normalizeInvoiceTemplateName,
+  type InvoiceTemplateKey,
+} from '@/lib/invoiceTemplates';
+import {
+  createDefaultProIconKsaBranchConfigs,
+  deriveProIconKsaBranchConfigs,
+  generateProIconKsaInvoice,
+  getProIconKsaPlatformPreviewBudget,
+  PRO_ICON_KSA_TEMPLATE_CONFIG,
+  PRO_ICON_KSA_TEMPLATE_KEY,
+  toPositiveInt,
+  type ProIconKsaBranchConfig,
+} from '@/lib/proIconKsaTemplate';
 
 interface FormState {
   id?: string;
   client_profile_id: string | null;
-  invoice_template: InvoiceTemplateName;
+  invoice_template: InvoiceTemplateKey;
   invoice_number: string;
   client_name: string;
   campaign_month: string;
@@ -43,40 +52,22 @@ interface FormState {
   notes: string;
 }
 
-interface PlatformConfig {
-  key: 'instagram' | 'snapchat' | 'tiktok';
-  name: 'Instagram' | 'Snapchat' | 'TikTok';
-  enabled: boolean;
-  campaignCount: number;
-  allocationPct: number;
-}
-
 const today = () => new Date().toISOString().slice(0, 10);
 const monthNow = () => {
   const currentDate = new Date();
   return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const DEFAULT_TOTAL_BUDGET = INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFinalBudget;
-const DEFAULT_FEES = INVOICE_TEMPLATES['Pro icon KSA Template'].defaultFees;
-
-const DEFAULT_PLATFORM_CONFIGS: PlatformConfig[] = [
-  { key: 'instagram', name: 'Instagram', enabled: true, campaignCount: 6, allocationPct: 50 },
-  { key: 'snapchat', name: 'Snapchat', enabled: true, campaignCount: 4, allocationPct: 30 },
-  { key: 'tiktok', name: 'TikTok', enabled: true, campaignCount: 2, allocationPct: 20 },
-];
+const DEFAULT_TOTAL_BUDGET = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultTotalBudget;
+const DEFAULT_FEES = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultFees;
 
 const uid = (): string =>
   (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2, 11));
 
-function isTemplateName(value: string | null | undefined): value is InvoiceTemplateName {
-  return !!value && INVOICE_TEMPLATE_OPTIONS.includes(value as InvoiceTemplateName);
-}
-
-function asTemplateName(value: string | null | undefined): InvoiceTemplateName {
-  return isTemplateName(value) ? value : 'Manual';
+function asTemplateName(value: string | null | undefined): InvoiceTemplateKey {
+  return normalizeInvoiceTemplateName(value);
 }
 
 function createEmptyRow(): InvoiceCampaignRow {
@@ -187,55 +178,40 @@ function distributePercentages(rawValues: number[]) {
   return floored;
 }
 
-function normalizePlatformConfigs(platforms: PlatformConfig[]) {
-  const enabledIndexes = platforms.map((item, index) => ({ item, index })).filter((entry) => entry.item.enabled);
-  if (enabledIndexes.length === 0) {
-    return platforms.map((platform) => ({ ...platform, allocationPct: 0 }));
-  }
-  const normalized = distributePercentages(enabledIndexes.map(({ item }) => item.allocationPct));
-  const next = platforms.map((platform) => ({ ...platform, allocationPct: platform.enabled ? platform.allocationPct : 0 }));
-  enabledIndexes.forEach(({ index }, i) => {
-    const platform = next[index];
-    if (!platform) return;
-    platform.allocationPct = normalized[i] ?? 0;
-    platform.campaignCount = Math.max(1, Math.round(platform.campaignCount || 1));
-  });
-  return next;
-}
-
-function derivePlatformConfigs(branchGroups: InvoiceBranchGroup[] = [], finalBudget: number) {
-  const base = DEFAULT_PLATFORM_CONFIGS.map((platform) => ({ ...platform, enabled: false, campaignCount: 1, allocationPct: 0 }));
-  const byPlatform = new Map<string, { count: number; cost: number }>();
-
-  branchGroups.forEach((branch) => {
-    branch.platform_groups.forEach((platform) => {
-      const key = platform.platform_name.trim().toLowerCase();
-      const existing = byPlatform.get(key) ?? { count: 0, cost: 0 };
-      existing.count += platform.campaign_rows.length;
-      existing.cost += platform.campaign_rows.reduce((sum, row) => sum + (Number(row.cost) || 0), 0);
-      byPlatform.set(key, existing);
+function normalizeKsaBranchConfigs(configs: ProIconKsaBranchConfig[]) {
+  const next = configs.map((branch) => ({
+    ...branch,
+    allocationPct: branch.enabled ? Math.max(0, Math.round(branch.allocationPct || 0)) : 0,
+    platforms: branch.platforms.map((platform) => ({
+      ...platform,
+      campaignCount: toPositiveInt(platform.campaignCount),
+      allocationPct: platform.enabled ? Math.max(0, Math.round(platform.allocationPct || 0)) : 0,
+    })),
+  }));
+  const enabledBranches = next.filter((branch) => branch.enabled);
+  const normalizedBranchPct = distributePercentages(
+    enabledBranches.map((branch) => branch.allocationPct),
+  );
+  let enabledBranchCursor = 0;
+  enabledBranches.forEach((branch) => {
+    branch.allocationPct = normalizedBranchPct[enabledBranchCursor] ?? 0;
+    enabledBranchCursor += 1;
+    const enabledPlatforms = branch.platforms.filter((platform) => platform.enabled);
+    if (enabledPlatforms.length === 0) return;
+    const normalizedPlatformPct = distributePercentages(
+      enabledPlatforms.map((platform) => platform.allocationPct),
+    );
+    enabledPlatforms.forEach((platform, index) => {
+      platform.allocationPct = normalizedPlatformPct[index] ?? 0;
     });
   });
-
-  const next = base.map((platform) => {
-    const stats = byPlatform.get(platform.name.toLowerCase());
-    if (!stats || stats.count <= 0) return platform;
-    return {
-      ...platform,
-      enabled: true,
-      campaignCount: Math.max(1, stats.count),
-      allocationPct: finalBudget > 0 ? Math.round((stats.cost / finalBudget) * 100) : 0,
-    };
-  });
-
-  const hasEnabled = next.some((platform) => platform.enabled);
-  return normalizePlatformConfigs(hasEnabled ? next : DEFAULT_PLATFORM_CONFIGS);
+  return next;
 }
 
 function blank(invoices: DocsInvoice[]): FormState {
   return {
     client_profile_id: null,
-    invoice_template: 'Manual',
+    invoice_template: 'manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
     campaign_month: monthNow(),
@@ -269,7 +245,7 @@ export default function InvoicePage() {
   const [form, setForm] = useState<FormState>(() => blank([]));
   const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(createManualDefaultBranchGroups);
   const [totalBudget, setTotalBudget] = useState<number>(DEFAULT_TOTAL_BUDGET);
-  const [platformConfigs, setPlatformConfigs] = useState<PlatformConfig[]>(DEFAULT_PLATFORM_CONFIGS);
+  const [ksaBranchConfigs, setKsaBranchConfigs] = useState<ProIconKsaBranchConfig[]>(createDefaultProIconKsaBranchConfigs);
   const [generationSeed, setGenerationSeed] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -282,7 +258,7 @@ export default function InvoicePage() {
       setForm(blank(availableInvoices));
       setBranchGroups(createManualDefaultBranchGroups());
       setTotalBudget(DEFAULT_TOTAL_BUDGET);
-      setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
+      setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
       setGenerationSeed(0);
       return;
     }
@@ -290,17 +266,21 @@ export default function InvoicePage() {
     const nextForm = toForm(invoice);
     const normalizedGroups = normalizeBranchGroupsForEditor(
       invoice.branch_groups ?? [],
-      nextForm.invoice_template === 'Manual',
+      nextForm.invoice_template === 'manual',
     );
     const inferredBudget = Math.max(0, Math.round(Number(invoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
 
     setForm(nextForm);
-    setBranchGroups(normalizedGroups.length ? normalizedGroups : createManualDefaultBranchGroups());
+    setBranchGroups(
+      normalizedGroups.length
+        ? normalizedGroups
+        : (nextForm.invoice_template === 'manual' ? createManualDefaultBranchGroups() : []),
+    );
     setTotalBudget(inferredBudget || DEFAULT_TOTAL_BUDGET);
-    setPlatformConfigs(
-      nextForm.invoice_template === 'Pro icon KSA Template'
-        ? derivePlatformConfigs(normalizedGroups, inferredBudget || DEFAULT_TOTAL_BUDGET)
-        : DEFAULT_PLATFORM_CONFIGS,
+    setKsaBranchConfigs(
+      nextForm.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY
+        ? deriveProIconKsaBranchConfigs(normalizedGroups, inferredBudget || DEFAULT_TOTAL_BUDGET)
+        : createDefaultProIconKsaBranchConfigs(),
     );
     setGenerationSeed(0);
   }, []);
@@ -349,20 +329,20 @@ export default function InvoicePage() {
     loadFromInvoice(null, invoices);
   }
 
-  function applyTemplate(templateName: InvoiceTemplateName) {
-    if (templateName === 'Manual') {
-      setForm((prev) => ({ ...prev, invoice_template: 'Manual' }));
+  function applyTemplate(templateName: InvoiceTemplateKey) {
+    if (templateName === 'manual') {
+      setForm((prev) => ({ ...prev, invoice_template: 'manual' }));
       setBranchGroups(createManualDefaultBranchGroups());
-      setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
+      setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
       setGenerationSeed(0);
       return;
     }
 
-    const generated = generateInvoiceFromTemplate({
-      templateName,
+    const generated = applyInvoiceTemplate({
+      templateKey: templateName,
       campaignMonth: form.campaign_month,
       invoiceDate: form.invoice_date,
-      finalBudget: totalBudget,
+      totalBudget,
       fees: form.our_fees,
     });
 
@@ -371,106 +351,129 @@ export default function InvoicePage() {
       invoice_template: templateName,
       client_name: generated.clientName || prev.client_name,
       our_fees: generated.fees,
+      currency: PRO_ICON_KSA_TEMPLATE_CONFIG.defaultCurrency,
     }));
     setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
-    setTotalBudget(generated.finalBudget || totalBudget);
-    setPlatformConfigs(
-      templateName === 'Pro icon KSA Template'
-        ? derivePlatformConfigs(generated.branchGroups, generated.finalBudget || totalBudget)
-        : DEFAULT_PLATFORM_CONFIGS,
+    setTotalBudget(generated.totalBudget || totalBudget);
+    setKsaBranchConfigs(
+      generated.defaultBranchConfigs
+        ? normalizeKsaBranchConfigs(generated.defaultBranchConfigs)
+        : createDefaultProIconKsaBranchConfigs(),
     );
     setGenerationSeed(0);
   }
 
   function regenerateKsa(seedOffset = 1, reset = false) {
     const nextSeed = generationSeed + seedOffset;
-    const nextPlatforms = reset ? DEFAULT_PLATFORM_CONFIGS : platformConfigs;
+    const nextBranches = reset ? createDefaultProIconKsaBranchConfigs() : ksaBranchConfigs;
     const nextBudget = reset ? DEFAULT_TOTAL_BUDGET : totalBudget;
 
-    const generated = generateSmartInvoice({
+    const generated = generateProIconKsaInvoice({
       campaignMonth: form.campaign_month,
       invoiceDate: form.invoice_date,
-      finalBudget: nextBudget,
+      totalBudget: nextBudget,
       fees: form.our_fees,
-      clientName: form.client_name || INVOICE_TEMPLATES['Pro icon KSA Template'].clientName,
-      platforms: nextPlatforms.map((platform) => ({
-        name: platform.name,
-        enabled: platform.enabled,
-        campaignCount: platform.campaignCount,
-        allocationPct: platform.allocationPct,
-      })),
+      clientName: form.client_name || PRO_ICON_KSA_TEMPLATE_CONFIG.clientName,
+      branchConfigs: normalizeKsaBranchConfigs(nextBranches),
       seedSalt: String(nextSeed),
     });
 
     if (reset) {
       setTotalBudget(DEFAULT_TOTAL_BUDGET);
-      setPlatformConfigs(DEFAULT_PLATFORM_CONFIGS);
+      setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
     }
 
     setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
     setForm((prev) => ({
       ...prev,
-      invoice_template: 'Pro icon KSA Template',
+      invoice_template: PRO_ICON_KSA_TEMPLATE_KEY,
       client_name: prev.client_name || generated.clientName,
     }));
     setGenerationSeed(nextSeed);
   }
 
-  function togglePlatform(index: number, enabled: boolean) {
-    setPlatformConfigs((prev) => {
-      const next = prev.map((platform, i) => (
-        i === index
-          ? {
-            ...platform,
-            enabled,
-            campaignCount: Math.max(1, platform.campaignCount || 1),
-            allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0,
-          }
-          : platform
-      ));
-      return normalizePlatformConfigs(next);
-    });
+  function toggleKsaBranch(branchIndex: number, enabled: boolean) {
+    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
+      idx === branchIndex ? { ...branch, enabled, allocationPct: enabled ? Math.max(1, branch.allocationPct || 1) : 0 } : branch
+    ))));
   }
 
-  function updateCampaignCount(index: number, value: number) {
-    setPlatformConfigs((prev) => prev.map((platform, i) => (
-      i === index ? { ...platform, campaignCount: Math.max(1, Math.round(value || 1)) } : platform
+  function updateKsaBranchAllocation(branchIndex: number, value: number) {
+    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
+      idx === branchIndex ? { ...branch, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) } : branch
+    ))));
+  }
+
+  function updateKsaPlatformName(branchIndex: number, platformIndex: number, value: string) {
+    setKsaBranchConfigs((prev) => prev.map((branch, idx) => {
+      if (idx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platforms: branch.platforms.map((platform, pIdx) => (
+          pIdx === platformIndex ? { ...platform, name: value } : platform
+        )),
+      };
+    }));
+  }
+
+  function addKsaPlatform(branchIndex: number) {
+    setKsaBranchConfigs((prev) => prev.map((branch, idx) => (
+      idx === branchIndex
+        ? {
+          ...branch,
+          platforms: [
+            ...branch.platforms,
+            { id: uid(), name: `Platform ${branch.platforms.length + 1}`, enabled: true, campaignCount: 1, allocationPct: 0 },
+          ],
+        }
+        : branch
     )));
   }
 
-  function updateAllocation(index: number, value: number) {
-    setPlatformConfigs((prev) => {
-      if (!prev[index]?.enabled) return prev;
-      const enabledIndexes = prev.map((item, idx) => ({ item, idx })).filter((entry) => entry.item.enabled);
-      if (enabledIndexes.length <= 1) {
-        return prev.map((platform, idx) => ({ ...platform, allocationPct: idx === index ? 100 : 0 }));
-      }
+  function removeKsaPlatform(branchIndex: number, platformIndex: number) {
+    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
+      idx === branchIndex
+        ? { ...branch, platforms: branch.platforms.filter((_, pIdx) => pIdx !== platformIndex) }
+        : branch
+    ))));
+  }
 
-      const clamped = Math.max(0, Math.min(100, Math.round(value)));
-      const otherIndexes = enabledIndexes.map((entry) => entry.idx).filter((idx) => idx !== index);
-      const currentOtherTotal = otherIndexes.reduce((sum, idx) => sum + (prev[idx]?.allocationPct ?? 0), 0);
-      const remaining = Math.max(0, 100 - clamped);
+  function toggleKsaPlatform(branchIndex: number, platformIndex: number, enabled: boolean) {
+    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => {
+      if (idx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platforms: branch.platforms.map((platform, pIdx) => (
+          pIdx === platformIndex
+            ? { ...platform, enabled, allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0 }
+            : platform
+        )),
+      };
+    })));
+  }
 
-      const otherAllocations = distributePercentages(
-        otherIndexes.map((idx) => {
-          const current = prev[idx]?.allocationPct ?? 0;
-          if (currentOtherTotal <= 0) return 1;
-          return (current / currentOtherTotal) * remaining;
-        }),
-      );
+  function updateKsaCampaignCount(branchIndex: number, platformIndex: number, value: number) {
+    setKsaBranchConfigs((prev) => prev.map((branch, idx) => {
+      if (idx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platforms: branch.platforms.map((platform, pIdx) => (
+          pIdx === platformIndex ? { ...platform, campaignCount: toPositiveInt(value) } : platform
+        )),
+      };
+    }));
+  }
 
-      const next = prev.map((platform) => ({ ...platform }));
-      const selectedPlatform = next[index];
-      if (!selectedPlatform) return prev;
-      selectedPlatform.allocationPct = clamped;
-      otherIndexes.forEach((idx, i) => {
-        const otherPlatform = next[idx];
-        if (!otherPlatform) return;
-        otherPlatform.allocationPct = otherAllocations[i] ?? 0;
-      });
-
-      return normalizePlatformConfigs(next);
-    });
+  function updateKsaPlatformAllocation(branchIndex: number, platformIndex: number, value: number) {
+    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => {
+      if (idx !== branchIndex) return branch;
+      return {
+        ...branch,
+        platforms: branch.platforms.map((platform, pIdx) => (
+          pIdx === platformIndex ? { ...platform, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) } : platform
+        )),
+      };
+    })));
   }
 
   function updateBranchName(branchIndex: number, value: string) {
@@ -617,12 +620,16 @@ export default function InvoicePage() {
 
       const normalizedGroups = normalizeBranchGroupsForEditor(savedInvoice.branch_groups ?? []);
       const persistedBudget = Math.max(0, Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
-      setBranchGroups(normalizedGroups.length ? normalizedGroups : createManualDefaultBranchGroups());
+      setBranchGroups(
+        normalizedGroups.length
+          ? normalizedGroups
+          : (asTemplateName(savedInvoice.invoice_template ?? null) === 'manual' ? createManualDefaultBranchGroups() : []),
+      );
       setTotalBudget(persistedBudget || totalBudget);
-      setPlatformConfigs(
-        savedInvoice.invoice_template === 'Pro icon KSA Template'
-          ? derivePlatformConfigs(normalizedGroups, persistedBudget || totalBudget)
-          : DEFAULT_PLATFORM_CONFIGS,
+      setKsaBranchConfigs(
+        asTemplateName(savedInvoice.invoice_template ?? null) === PRO_ICON_KSA_TEMPLATE_KEY
+          ? deriveProIconKsaBranchConfigs(normalizedGroups, persistedBudget || totalBudget)
+          : createDefaultProIconKsaBranchConfigs(),
       );
 
       setSuccess('Invoice saved successfully.');
@@ -649,9 +656,9 @@ export default function InvoicePage() {
     setTimeout(() => setSuccess(''), 1800);
   }
 
-  const totalAllocation = platformConfigs
-    .filter((platform) => platform.enabled)
-    .reduce((sum, platform) => sum + platform.allocationPct, 0);
+  const totalAllocation = ksaBranchConfigs
+    .filter((branch) => branch.enabled)
+    .reduce((sum, branch) => sum + branch.allocationPct, 0);
 
   const inputClass = 'w-full px-3 py-2 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
 
@@ -673,7 +680,7 @@ export default function InvoicePage() {
         <section className="space-y-4 overflow-y-auto pr-1">
           <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Document Setup</h2>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>1. Document Setup</h2>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={createNew} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
                   <Plus size={12} className="inline mr-1" /> New
@@ -697,8 +704,8 @@ export default function InvoicePage() {
                 value={form.invoice_template}
                 onChange={(e) => applyTemplate(asTemplateName(e.target.value))}
               >
-                {INVOICE_TEMPLATE_OPTIONS.map((templateName) => (
-                  <option key={templateName} value={templateName}>{templateName === 'Manual' ? 'Standard Manual Invoice' : templateName}</option>
+                {INVOICE_TEMPLATE_OPTIONS.map((template) => (
+                  <option key={template.key} value={template.key}>{template.label}</option>
                 ))}
               </select>
             </div>
@@ -748,9 +755,9 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          {form.invoice_template === 'Pro icon KSA Template' ? (
+          {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
             <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Pro icon KSA Generator</h2>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>2. Template Settings</h2>
 
               <div>
                 <label htmlFor="invoice-total-budget" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
@@ -758,75 +765,167 @@ export default function InvoicePage() {
               </div>
 
               <div className="rounded-xl border p-2 flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Total Allocation</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Branch Allocation Total</span>
                 <span className={clsx('font-bold', totalAllocation === 100 ? 'text-emerald-600' : 'text-amber-600')}>
                   {totalAllocation}%
                 </span>
               </div>
 
-              {platformConfigs.map((platform, index) => {
-                const platformBudget = Math.round((totalBudget * platform.allocationPct) / 100);
+              <div className="rounded-xl border p-3 text-xs space-y-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                <div className="flex items-center justify-between">
+                  <span style={{ color: 'var(--text-secondary)' }}>Deduction Rule</span>
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                    {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed' ? 'Fixed' : 'None'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span style={{ color: 'var(--text-secondary)' }}>Deduction Amount</span>
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                    {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
+                      ? `${PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount.toLocaleString()} ${form.currency}`
+                      : `0 ${form.currency}`}
+                  </span>
+                </div>
+              </div>
+
+              <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>3. Branches &amp; Platforms</h3>
+              {ksaBranchConfigs.map((branch, branchIndex) => {
+                const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
                 return (
-                  <div key={platform.key} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                  <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                     <div className="flex items-center justify-between gap-3">
                       <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
                         <input
                           type="checkbox"
-                          checked={platform.enabled}
-                          onChange={(e) => togglePlatform(index, e.target.checked)}
+                          checked={branch.enabled}
+                          onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)}
                         />
-                        {platform.name}
+                        {branch.name}
                       </label>
                       <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                        {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                        {branch.enabled ? `${branchBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-[170px_1fr_80px] gap-3 items-center">
+                    <div className="grid grid-cols-[1fr_130px] gap-2 items-end">
                       <div>
-                        <label htmlFor={`campaign-count-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
+                        <label htmlFor={`branch-allocation-range-${branch.id}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Branch Allocation %</label>
                         <input
-                          id={`campaign-count-${platform.key}`}
-                          type="number"
-                          min={1}
-                          disabled={!platform.enabled}
-                          className={inputClass}
-                          value={platform.campaignCount}
-                          onChange={(e) => updateCampaignCount(index, Number(e.target.value))}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor={`allocation-range-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Budget Allocation %</label>
-                        <input
-                          id={`allocation-range-${platform.key}`}
+                          id={`branch-allocation-range-${branch.id}`}
                           type="range"
                           min={0}
                           max={100}
-                          disabled={!platform.enabled}
+                          disabled={!branch.enabled}
                           className="w-full"
-                          value={platform.allocationPct}
-                          aria-label={`Budget allocation percentage for ${platform.name}`}
-                          aria-valuetext={`${platform.allocationPct}%`}
-                          onChange={(e) => updateAllocation(index, Number(e.target.value))}
+                          value={branch.allocationPct}
+                          aria-label={`Branch allocation percentage for ${branch.name}`}
+                          aria-valuetext={`${branch.allocationPct}%`}
+                          onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
                         />
                       </div>
-
                       <div>
-                        <label htmlFor={`allocation-input-${platform.key}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
+                        <label htmlFor={`branch-allocation-input-${branch.id}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
                         <input
-                          id={`allocation-input-${platform.key}`}
+                          id={`branch-allocation-input-${branch.id}`}
                           type="number"
                           min={0}
                           max={100}
-                          disabled={!platform.enabled}
+                          disabled={!branch.enabled}
                           className={inputClass}
-                          value={platform.allocationPct}
-                          aria-label={`Allocation percentage for ${platform.name}`}
-                          onChange={(e) => updateAllocation(index, Number(e.target.value))}
+                          value={branch.allocationPct}
+                          aria-label={`Allocation percentage for ${branch.name}`}
+                          onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
                         />
                       </div>
                     </div>
+
+                    {branch.platforms.map((platform, platformIndex) => {
+                      const platformBudget = getProIconKsaPlatformPreviewBudget(totalBudget, branch, platform);
+                      const localAllocationTotal = branch.platforms
+                        .filter((item) => item.enabled)
+                        .reduce((sum, item) => sum + item.allocationPct, 0);
+                      return (
+                        <div key={platform.id} className="rounded-lg border p-2 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                          <div className="grid grid-cols-[1fr_90px_28px] gap-2 items-center">
+                            <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                              <input
+                                type="checkbox"
+                                checked={platform.enabled}
+                                onChange={(e) => toggleKsaPlatform(branchIndex, platformIndex, e.target.checked)}
+                              />
+                              <input
+                                className={inputClass}
+                                value={platform.name}
+                                onChange={(e) => updateKsaPlatformName(branchIndex, platformIndex, e.target.value)}
+                                disabled={!platform.enabled}
+                                placeholder="Platform name"
+                              />
+                            </label>
+                            <span className="text-[11px] font-semibold text-right" style={{ color: 'var(--accent)' }}>
+                              {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeKsaPlatform(branchIndex, platformIndex)}
+                              className="rounded border text-[10px] h-7"
+                              style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                              title="Remove platform"
+                            >
+                              <Trash2 size={11} className="mx-auto" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-[130px_1fr_90px] gap-2 items-end">
+                            <div>
+                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
+                              <input
+                                type="number"
+                                min={1}
+                                disabled={!platform.enabled}
+                                className={inputClass}
+                                value={platform.campaignCount}
+                                onChange={(e) => updateKsaCampaignCount(branchIndex, platformIndex, Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Platform Allocation %</label>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                disabled={!platform.enabled}
+                                className="w-full"
+                                value={platform.allocationPct}
+                                onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                disabled={!platform.enabled}
+                                className={inputClass}
+                                value={platform.allocationPct}
+                                onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-[11px]" style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}>
+                            Branch platform allocation total: {localAllocationTotal}%
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => addKsaPlatform(branchIndex)}
+                      className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                    >
+                      <Plus size={12} className="inline mr-1" /> Add Platform
+                    </button>
                   </div>
                 );
               })}
@@ -838,7 +937,7 @@ export default function InvoicePage() {
                   className="px-3 py-2 rounded-lg text-xs font-semibold text-white"
                   style={{ background: 'var(--accent)' }}
                 >
-                  <Wand2 size={13} className="inline mr-1" /> Generate Rows
+                  <Wand2 size={13} className="inline mr-1" /> Generate Invoice Data
                 </button>
                 <button
                   type="button"
@@ -854,15 +953,17 @@ export default function InvoicePage() {
 
           <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Invoice Structure Editor</h2>
-              <button
-                type="button"
-                onClick={addBranch}
-                className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-              >
-                <Plus size={12} className="inline mr-1" /> Add Branch
-              </button>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>4. Generated Campaign Data</h2>
+              {form.invoice_template === 'manual' ? (
+                <button
+                  type="button"
+                  onClick={addBranch}
+                  className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <Plus size={12} className="inline mr-1" /> Add Branch
+                </button>
+              ) : null}
             </div>
 
             {branchGroups.length === 0 ? (
@@ -880,14 +981,16 @@ export default function InvoicePage() {
                     onChange={(e) => updateBranchName(branchIndex, e.target.value)}
                     placeholder="Branch name"
                   />
-                  <button
-                    type="button"
-                    onClick={() => removeBranch(branchIndex)}
-                    className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                    style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {form.invoice_template === 'manual' ? (
+                    <button
+                      type="button"
+                      onClick={() => removeBranch(branchIndex)}
+                      className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                      style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  ) : null}
                 </div>
 
                 {branch.platform_groups.map((platform, platformIndex) => (
@@ -908,15 +1011,17 @@ export default function InvoicePage() {
                       >
                         <Plus size={12} />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => removePlatform(branchIndex, platformIndex)}
-                        className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                        style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                        title="Remove platform"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {form.invoice_template === 'manual' ? (
+                        <button
+                          type="button"
+                          onClick={() => removePlatform(branchIndex, platformIndex)}
+                          className="px-2 py-2 rounded-lg border text-xs font-semibold"
+                          style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                          title="Remove platform"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      ) : null}
                     </div>
 
                     {platform.campaign_rows.length === 0 ? (
@@ -965,20 +1070,22 @@ export default function InvoicePage() {
                   </div>
                 ))}
 
-                <button
-                  type="button"
-                  onClick={() => addPlatform(branchIndex)}
-                  className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  <Plus size={12} className="inline mr-1" /> Add Platform
-                </button>
+                {form.invoice_template === 'manual' ? (
+                  <button
+                    type="button"
+                    onClick={() => addPlatform(branchIndex)}
+                    className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <Plus size={12} className="inline mr-1" /> Add Platform
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>
 
           <div className="rounded-2xl border p-4 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Budget Summary</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>5. Totals</h2>
             <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
               <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
@@ -1001,7 +1108,7 @@ export default function InvoicePage() {
           </div>
 
           <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Controls</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>6. Export Actions</h2>
 
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Saved Invoices</label>
