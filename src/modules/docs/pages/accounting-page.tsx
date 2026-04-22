@@ -9,6 +9,7 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
+import AppModal from '@/components/ui/AppModal';
 
 type Tab = 'ledger' | 'summary';
 
@@ -86,12 +87,19 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }:
   const lbl = (l: string) => <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{l}</label>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{initial ? 'Edit Entry' : 'Add Revenue Entry'}</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
+    <AppModal
+      open
+      onClose={onClose}
+      title={initial ? 'Edit Entry' : 'Add Revenue Entry'}
+      size="sm"
+      bodyClassName="space-y-3"
+      footer={(
+        <>
+          <button onClick={onClose} className="openy-modal-btn-secondary flex-1">Cancel</button>
+          <button onClick={submit} disabled={saving} className="openy-modal-btn-primary flex-1 disabled:opacity-60">{saving ? 'Saving…' : initial ? 'Update' : 'Add Entry'}</button>
+        </>
+      )}
+    >
         {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>{error}</div>}
         <div className="space-y-3">
           <div>{lbl('Client Name *')}<input className={inp} value={form.client_name} onChange={e => setF('client_name', e.target.value)} /></div>
@@ -110,12 +118,7 @@ function EntryModal({ initial, monthKey: mk, onClose, onDone, selectedProfile }:
           <div>{lbl('Entry Date')}<input type="date" className={inp} value={form.entry_date} onChange={e => setF('entry_date', e.target.value)} /></div>
           <div>{lbl('Notes')}<textarea className={inp} rows={2} value={form.notes} onChange={e => setF('notes', e.target.value)} /></div>
         </div>
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>{saving ? 'Saving…' : initial ? 'Update' : 'Add Entry'}</button>
-        </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 
@@ -154,12 +157,19 @@ function ExpenseModal({ initial, monthKey: mk, onClose, onDone }: {
   const lbl = (l: string) => <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{l}</label>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{initial ? 'Edit Expense' : 'Add Expense'}</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
+    <AppModal
+      open
+      onClose={onClose}
+      title={initial ? 'Edit Expense' : 'Add Expense'}
+      size="sm"
+      bodyClassName="space-y-3"
+      footer={(
+        <>
+          <button onClick={onClose} className="openy-modal-btn-secondary flex-1">Cancel</button>
+          <button onClick={submit} disabled={saving} className="openy-modal-btn-primary flex-1 disabled:opacity-60">{saving ? 'Saving…' : initial ? 'Update' : 'Add Expense'}</button>
+        </>
+      )}
+    >
         {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}>{error}</div>}
         <div className="space-y-3">
           <div>{lbl('Description *')}<input className={inp} value={form.description} onChange={e => setF('description', e.target.value)} /></div>
@@ -170,12 +180,7 @@ function ExpenseModal({ initial, monthKey: mk, onClose, onDone }: {
           <div>{lbl('Expense Date')}<input type="date" className={inp} value={form.expense_date} onChange={e => setF('expense_date', e.target.value)} /></div>
           <div>{lbl('Notes')}<textarea className={inp} rows={2} value={form.notes} onChange={e => setF('notes', e.target.value)} /></div>
         </div>
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-          <button onClick={submit} disabled={saving} className="flex-1 py-2 text-sm rounded-xl font-semibold text-white disabled:opacity-60" style={{ background: '#0f172a' }}>{saving ? 'Saving…' : initial ? 'Update' : 'Add Expense'}</button>
-        </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 

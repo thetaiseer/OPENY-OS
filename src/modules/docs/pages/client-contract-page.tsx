@@ -14,6 +14,7 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
+import AppModal from '@/components/ui/AppModal';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -172,12 +173,14 @@ function BackupModal({ module, onClose, onRestore }: {
     setBackups(b => b.filter(x => x.id !== id));
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-2xl shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Restore Backup</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-secondary)' }} /></button>
-        </div>
+    <AppModal
+      open
+      onClose={onClose}
+      title="Restore Backup"
+      size="sm"
+      bodyClassName="space-y-2"
+      footer={<button onClick={onClose} className="openy-modal-btn-secondary w-full">Close</button>}
+    >
         {loading && <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>Loading backups…</p>}
         {!loading && backups.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>No backups found</p>}
         <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -194,9 +197,7 @@ function BackupModal({ module, onClose, onRestore }: {
             </div>
           ))}
         </div>
-        <button onClick={onClose} className="mt-4 w-full py-2 text-sm rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Close</button>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 

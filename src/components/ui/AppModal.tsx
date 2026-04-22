@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { motionTransition } from '@/lib/motion';
@@ -47,29 +48,78 @@ export default function AppModal({
   bodyClassName = '',
   zIndexClassName = 'z-50',
 }: AppModalProps) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!open) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
     const previous = document.body.style.overflow;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     document.body.style.overflow = 'hidden';
 
+    const getFocusable = () => {
+      const root = panelRef.current;
+      if (!root) return [] as HTMLElement[];
+      return Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(el => !el.hasAttribute('disabled'));
+    };
+
+    requestAnimationFrame(() => {
+      const first = getFocusable()[0];
+      (first ?? closeButtonRef.current)?.focus();
+    });
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && closeOnEscape) onClose();
+      if (event.key === 'Escape' && closeOnEscape) {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusables = getFocusable();
+      if (!focusables.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const current = document.activeElement as HTMLElement | null;
+      if (event.shiftKey) {
+        if (!current || current === first || !panelRef.current?.contains(current)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (!current || current === last || !panelRef.current?.contains(current)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
 
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener('keydown', onKey);
+      previouslyFocused?.focus?.();
     };
-  }, [closeOnEscape, onClose, open]);
+  }, [closeOnEscape, mounted, onClose, open]);
 
   const shouldRenderHeader = !hideHeader && (title || subtitle || icon);
+  if (!mounted) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClassName} openy-modal-overlay flex items-end sm:items-center justify-center p-0 sm:p-4`}
+          className={`fixed inset-0 ${zIndexClassName} openy-modal-overlay flex items-center justify-center p-4`}
           onClick={(event) => {
             if (!closeOnBackdrop) return;
             if (event.target === event.currentTarget) onClose();
@@ -80,7 +130,10 @@ export default function AppModal({
           transition={motionTransition.modal}
         >
           <motion.div
-            className={`openy-modal-panel w-full ${widthMap[size]} rounded-t-3xl sm:rounded-[var(--modal-radius)] max-h-[92dvh] flex flex-col ${panelClassName}`}
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            className={`openy-modal-panel w-full ${widthMap[size]} rounded-[var(--modal-radius)] max-h-[92dvh] flex flex-col ${panelClassName}`}
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -102,7 +155,7 @@ export default function AppModal({
                     {subtitle && <p className="openy-modal-subtitle truncate">{subtitle}</p>}
                   </div>
                 </div>
-                <button type="button" onClick={onClose} className="openy-modal-close shrink-0" aria-label="Close modal">
+                <button ref={closeButtonRef} type="button" onClick={onClose} className="openy-modal-close shrink-0" aria-label="Close modal">
                   <X size={16} />
                 </button>
               </div>
@@ -121,5 +174,6 @@ export default function AppModal({
         </motion.div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }
