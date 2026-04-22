@@ -74,7 +74,7 @@ function buildZipPath(
       const rel = parts.slice(2).join('/');
       return `${root}/${rel}`;
     }
-    if (parts.length > 4 && parts[0] === 'openy-assets' && parts[1] === 'os') {
+    if (parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS && parts[0] === 'openy-assets' && parts[1] === 'os') {
       const rel = parts.slice(OPENY_OS_KEY_PREFIX_SEGMENTS).join('/');
       return `${root}/${rel}`;
     }

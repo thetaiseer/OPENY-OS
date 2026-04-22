@@ -83,7 +83,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       .update({ export_excel_url: upload.publicUrl })
       .eq('id', id);
     if (updateError) {
-      throw new Error(`Failed to update invoice export URL: ${updateError.message}`);
+      throw new Error(
+        `Failed to update invoice export URL after file upload. The export file exists in storage and metadata may already be recorded: ${updateError.message}`,
+      );
     }
 
     return NextResponse.redirect(upload.publicUrl, 302);
