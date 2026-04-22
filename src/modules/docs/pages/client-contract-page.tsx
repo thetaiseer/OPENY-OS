@@ -15,6 +15,7 @@ import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import AppModal from '@/components/ui/AppModal';
+import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -416,8 +417,39 @@ export default function ClientContractPage() {
   }
 
   return (
-    <div className="docs-app flex h-full overflow-hidden">
-      <div className="flex flex-col w-full lg:w-[480px] shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+    <DocsWorkspaceShell
+      toolbar={(
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <DocsDocTypeTabs active="client-contract" />
+            <div className="flex items-center gap-2">
+              <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>
+                <Save size={12} className="inline mr-1" /> {saving ? 'Saving…' : (editingId ? 'Update' : 'Save')}
+              </button>
+              <button onClick={exportPdf} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#0f172a' }}>
+                <Printer size={12} className="inline mr-1" /> PDF
+              </button>
+              <button onClick={() => {
+                if (!editingId) {
+                  alert('Please save the contract first to export it.');
+                  return;
+                }
+                window.open(`/api/docs/client-contracts/${editingId}/export`, '_blank', 'noopener,noreferrer');
+              }} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#475569' }}>
+                <Download size={12} className="inline mr-1" /> Word
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+            <div><label>Contract Number</label><input className={inputCls} value={form.contract_number} onChange={e => setField('contract_number', e.target.value)} /></div>
+            <div><label>Date</label><input type="date" className={inputCls} value={form.contract_date} onChange={e => setField('contract_date', e.target.value)} /></div>
+            <div><label>Client</label><input className={inputCls} value={form.party2_client_name} onChange={e => setField('party2_client_name', e.target.value)} /></div>
+            <div><label>History</label><select className={inputCls} value={editingId ?? ''} onChange={e => { const selected = contracts.find(c => c.id === e.target.value); if (selected) loadIntoForm(selected); else resetForm(); }}><option value="">New contract</option>{contracts.map(c => <option key={c.id} value={c.id}>{c.contract_number} · {c.party2_client_name}</option>)}</select></div>
+          </div>
+        </div>
+      )}
+      editor={(
+        <div className="flex flex-col border rounded-2xl overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(['editor', 'history'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={clsx('flex-1 py-3 text-sm font-medium capitalize border-b-2', activeTab === tab ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)]')}>{tab}</button>
@@ -517,24 +549,15 @@ export default function ClientContractPage() {
         ) : (
           <HistoryPanel contracts={contracts} loading={loading} onEdit={loadIntoForm} onDuplicate={duplicateContract} onDelete={deleteC} onReload={load} onBackup={handleBackup} onClearAll={handleClearAll} onRestoreData={handleRestoreData} />
         )}
-      </div>
-
-      <div className="hidden lg:flex flex-1 items-start justify-center p-6 overflow-auto" style={{ background: 'var(--surface-2)' }}>
-        <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
-          <button onClick={exportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
-          <button onClick={() => {
-            if (!editingId) {
-              alert('Please save the contract first to export it.');
-              return;
-            }
-            window.open(`/api/docs/client-contracts/${editingId}/export`, '_blank', 'noopener,noreferrer');
-          }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
-        <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
-          <ContractPreview form={form} />
+      )}
+      preview={(
+        <div className="rounded-2xl border p-4 overflow-auto xl:sticky xl:top-[6.7rem] xl:h-[calc(100vh-150px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <div className="mx-auto bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
+            <ContractPreview form={form} />
+          </div>
         </div>
-      </div>
-
-    </div>
+      )}
+    />
   );
 }

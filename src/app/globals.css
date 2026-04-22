@@ -841,6 +841,105 @@ select option { white-space: normal; }
   --docs-radius: var(--radius-lg);
 }
 
+.docs-app.docs-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: calc(100vh - 7.5rem);
+}
+
+.docs-workspace-toolbar {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 30;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  padding: 0.85rem 1rem;
+}
+
+.docs-workspace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-height: calc(100vh - 13rem);
+}
+
+@media (min-width: 1280px) {
+  .docs-workspace-body {
+    grid-template-columns: minmax(0, 45%) minmax(0, 55%);
+  }
+}
+
+.docs-workspace-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+}
+
+.docs-workspace-editor > * {
+  min-height: 0;
+}
+
+.docs-workspace-preview {
+  min-height: 0;
+}
+
+.docs-toolbar-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  padding: 0.25rem;
+}
+
+.docs-toolbar-tab {
+  border-radius: var(--radius-lg);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+  color: var(--text-secondary);
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.docs-toolbar-tab:hover {
+  color: var(--text);
+}
+
+.docs-toolbar-tab-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docs-editor-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-xs);
+  padding: 0.95rem;
+}
+
+.docs-editor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.docs-editor-card-header h3 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
 .docs-app .docs-input,
 .docs-app .docs-textarea,
 .docs-app input[type='text'],

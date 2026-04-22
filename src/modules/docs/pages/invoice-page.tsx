@@ -18,6 +18,7 @@ import { DOCS_CURRENCIES } from '@/lib/docs-types';
 import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
+import { DocsDocTypeTabs, DocsEditorCard, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
@@ -252,6 +253,8 @@ export default function InvoicePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editorPanel, setEditorPanel] = useState<'setup' | 'generator' | 'data' | 'totals'>('setup');
+  const [expandedBranchRows, setExpandedBranchRows] = useState<Record<string, boolean>>({});
 
   const loadFromInvoice = useCallback((invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
     if (!invoice) {
@@ -660,458 +663,77 @@ export default function InvoicePage() {
     .filter((branch) => branch.enabled)
     .reduce((sum, branch) => sum + branch.allocationPct, 0);
 
+  function toggleBranchDetails(branchId: string) {
+    setExpandedBranchRows((prev) => ({ ...prev, [branchId]: !prev[branchId] }));
+  }
+
   const inputClass = 'w-full px-3 py-2 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
 
   return (
-    <div className="docs-app p-6 space-y-4">
-      {error ? (
-        <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#dc2626', background: 'rgba(239,68,68,0.08)' }}>
-          <AlertCircle size={15} /> {error}
-        </div>
-      ) : null}
-
-      {success ? (
-        <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(16,185,129,0.35)', color: '#047857', background: 'rgba(16,185,129,0.08)' }}>
-          <Check size={15} /> {success}
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 xl:grid-cols-[44%_56%] gap-4 min-h-[calc(100vh-170px)]">
-        <section className="space-y-4 overflow-y-auto pr-1">
-          <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>1. Document Setup</h2>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={createNew} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                  <Plus size={12} className="inline mr-1" /> New
+    <DocsWorkspaceShell
+      toolbar={(
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <DocsDocTypeTabs active="invoice" />
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={createNew} className="px-3 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                <Plus size={12} className="inline mr-1" /> New
+              </button>
+              <button type="button" onClick={() => void saveInvoice()} disabled={saving || loading} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
+                <Save size={12} className="inline mr-1" /> {saving ? 'Saving…' : 'Save'}
+              </button>
+              {form.id ? (
+                <a href={`/api/docs/invoices/${form.id}/export`} className="px-3 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                  <Download size={12} className="inline mr-1" /> Excel
+                </a>
+              ) : null}
+              <button type="button" onClick={() => { void exportPreviewPdf('invoice-preview', form.invoice_number || 'invoice', 'invoice'); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#0f172a' }}>
+                <Printer size={12} className="inline mr-1" /> PDF
+              </button>
+              {form.id ? (
+                <button type="button" onClick={() => void deleteInvoice()} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#dc2626' }}>
+                  <Trash2 size={12} className="inline mr-1" /> Delete
                 </button>
-                <button type="button" onClick={() => void saveInvoice()} disabled={saving || loading} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
-                  <Save size={12} className="inline mr-1" /> {saving ? 'Saving…' : 'Save'}
-                </button>
-                {form.id ? (
-                  <button type="button" onClick={() => void deleteInvoice()} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#dc2626' }}>
-                    <Trash2 size={12} className="inline mr-1" /> Delete
-                  </button>
-                ) : null}
-              </div>
+              ) : null}
             </div>
-
+          </div>
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-5">
             <div>
-              <label htmlFor="invoice-template" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Mode / Template</label>
-              <select
-                id="invoice-template"
-                className={inputClass}
-                value={form.invoice_template}
-                onChange={(e) => applyTemplate(asTemplateName(e.target.value))}
-              >
+              <label htmlFor="invoice-template">Mode / Template</label>
+              <select id="invoice-template" className={inputClass} value={form.invoice_template} onChange={(e) => applyTemplate(asTemplateName(e.target.value))}>
                 {INVOICE_TEMPLATE_OPTIONS.map((template) => (
                   <option key={template.key} value={template.key}>{template.label}</option>
                 ))}
               </select>
             </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Number</label>
-                <input className={inputClass} value={form.invoice_number} onChange={(e) => setField('invoice_number', e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Currency</label>
-                <select className={inputClass} value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
-                  {DOCS_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Status</label>
-                <select className={inputClass} value={form.status} onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}>
-                  <option value="unpaid">Unpaid</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="invoice-campaign-month" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Month</label>
-                <input id="invoice-campaign-month" type="month" className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="invoice-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Invoice Date</label>
-                <input id="invoice-date" type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
-              </div>
-            </div>
-
-            <ClientProfileSelector
-              profiles={profiles}
-              selectedClientId={form.client_profile_id ?? ''}
-              onSelectClientId={(value) => {
-                setField('client_profile_id', value || null);
-                if (!value) return;
-                const profile = profiles.find((p) => p.client_id === value);
-                if (profile) setField('client_name', profile.client_name);
-              }}
-            />
-
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Client Name</label>
-              <input className={inputClass} value={form.client_name} onChange={(e) => setField('client_name', e.target.value)} placeholder={selectedProfile?.client_name || 'Client name'} />
-            </div>
-          </div>
-
-          {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
-            <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>2. Template Settings</h2>
-
-              <div>
-                <label htmlFor="invoice-total-budget" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Total Budget</label>
-                <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
-              </div>
-
-              <div className="rounded-xl border p-2 flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Branch Allocation Total</span>
-                <span className={clsx('font-bold', totalAllocation === 100 ? 'text-emerald-600' : 'text-amber-600')}>
-                  {totalAllocation}%
-                </span>
-              </div>
-
-              <div className="rounded-xl border p-3 text-xs space-y-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                <div className="flex items-center justify-between">
-                  <span style={{ color: 'var(--text-secondary)' }}>Deduction Rule</span>
-                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
-                    {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed' ? 'Fixed' : 'None'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span style={{ color: 'var(--text-secondary)' }}>Deduction Amount</span>
-                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
-                    {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
-                      ? `${PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount.toLocaleString()} ${form.currency}`
-                      : `0 ${form.currency}`}
-                  </span>
-                </div>
-              </div>
-
-              <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>3. Branches &amp; Platforms</h3>
-              {ksaBranchConfigs.map((branch, branchIndex) => {
-                const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
-                return (
-                  <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                    <div className="flex items-center justify-between gap-3">
-                      <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                        <input
-                          type="checkbox"
-                          checked={branch.enabled}
-                          onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)}
-                        />
-                        {branch.name}
-                      </label>
-                      <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                        {branch.enabled ? `${branchBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-[1fr_130px] gap-2 items-end">
-                      <div>
-                        <label htmlFor={`branch-allocation-range-${branch.id}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Branch Allocation %</label>
-                        <input
-                          id={`branch-allocation-range-${branch.id}`}
-                          type="range"
-                          min={0}
-                          max={100}
-                          disabled={!branch.enabled}
-                          className="w-full"
-                          value={branch.allocationPct}
-                          aria-label={`Branch allocation percentage for ${branch.name}`}
-                          aria-valuetext={`${branch.allocationPct}%`}
-                          onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor={`branch-allocation-input-${branch.id}`} className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
-                        <input
-                          id={`branch-allocation-input-${branch.id}`}
-                          type="number"
-                          min={0}
-                          max={100}
-                          disabled={!branch.enabled}
-                          className={inputClass}
-                          value={branch.allocationPct}
-                          aria-label={`Allocation percentage for ${branch.name}`}
-                          onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-
-                    {branch.platforms.map((platform, platformIndex) => {
-                      const platformBudget = getProIconKsaPlatformPreviewBudget(totalBudget, branch, platform);
-                      const localAllocationTotal = branch.platforms
-                        .filter((item) => item.enabled)
-                        .reduce((sum, item) => sum + item.allocationPct, 0);
-                      return (
-                        <div key={platform.id} className="rounded-lg border p-2 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                          <div className="grid grid-cols-[1fr_90px_28px] gap-2 items-center">
-                            <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                              <input
-                                type="checkbox"
-                                checked={platform.enabled}
-                                onChange={(e) => toggleKsaPlatform(branchIndex, platformIndex, e.target.checked)}
-                              />
-                              <input
-                                className={inputClass}
-                                value={platform.name}
-                                onChange={(e) => updateKsaPlatformName(branchIndex, platformIndex, e.target.value)}
-                                disabled={!platform.enabled}
-                                placeholder="Platform name"
-                              />
-                            </label>
-                            <span className="text-[11px] font-semibold text-right" style={{ color: 'var(--accent)' }}>
-                              {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeKsaPlatform(branchIndex, platformIndex)}
-                              className="rounded border text-[10px] h-7"
-                              style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                              title="Remove platform"
-                            >
-                              <Trash2 size={11} className="mx-auto" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-[130px_1fr_90px] gap-2 items-end">
-                            <div>
-                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Campaign Count</label>
-                              <input
-                                type="number"
-                                min={1}
-                                disabled={!platform.enabled}
-                                className={inputClass}
-                                value={platform.campaignCount}
-                                onChange={(e) => updateKsaCampaignCount(branchIndex, platformIndex, Number(e.target.value))}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Platform Allocation %</label>
-                              <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                disabled={!platform.enabled}
-                                className="w-full"
-                                value={platform.allocationPct}
-                                onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Allocation %</label>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                disabled={!platform.enabled}
-                                className={inputClass}
-                                value={platform.allocationPct}
-                                onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))}
-                              />
-                            </div>
-                          </div>
-                          <div className="text-[11px]" style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}>
-                            Branch platform allocation total: {localAllocationTotal}%
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => addKsaPlatform(branchIndex)}
-                      className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                    >
-                      <Plus size={12} className="inline mr-1" /> Add Platform
-                    </button>
-                  </div>
-                );
-              })}
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => regenerateKsa(1, false)}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold text-white"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  <Wand2 size={13} className="inline mr-1" /> Generate Invoice Data
-                </button>
-                <button
-                  type="button"
-                  onClick={() => regenerateKsa(1, true)}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold border"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  <RotateCcw size={13} className="inline mr-1" /> Reset Generator
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>4. Generated Campaign Data</h2>
-              {form.invoice_template === 'manual' ? (
-                <button
-                  type="button"
-                  onClick={addBranch}
-                  className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  <Plus size={12} className="inline mr-1" /> Add Branch
-                </button>
-              ) : null}
-            </div>
-
-            {branchGroups.length === 0 ? (
-              <div className="text-xs rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                No rows yet. Add a branch to start building your invoice.
-              </div>
-            ) : null}
-
-            {branchGroups.map((branch, branchIndex) => (
-              <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                <div className="flex items-center gap-2">
-                  <input
-                    className={inputClass}
-                    value={branch.branch_name}
-                    onChange={(e) => updateBranchName(branchIndex, e.target.value)}
-                    placeholder="Branch name"
-                  />
-                  {form.invoice_template === 'manual' ? (
-                    <button
-                      type="button"
-                      onClick={() => removeBranch(branchIndex)}
-                      className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                      style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  ) : null}
-                </div>
-
-                {branch.platform_groups.map((platform, platformIndex) => (
-                  <div key={platform.id} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                    <div className="flex items-center gap-2">
-                      <input
-                        className={inputClass}
-                        value={platform.platform_name}
-                        onChange={(e) => updatePlatformName(branchIndex, platformIndex, e.target.value)}
-                        placeholder="Platform name"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => addRow(branchIndex, platformIndex)}
-                        className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        title="Add row"
-                      >
-                        <Plus size={12} />
-                      </button>
-                      {form.invoice_template === 'manual' ? (
-                        <button
-                          type="button"
-                          onClick={() => removePlatform(branchIndex, platformIndex)}
-                          className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                          style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                          title="Remove platform"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      ) : null}
-                    </div>
-
-                    {platform.campaign_rows.length === 0 ? (
-                      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>No rows. Add one row.</div>
-                    ) : null}
-
-                    {platform.campaign_rows.map((row, rowIndex) => (
-                      <div key={row.id} className="grid grid-cols-[1.2fr_120px_1fr_120px_32px] gap-2 items-center">
-                        <input
-                          className={inputClass}
-                          value={row.ad_name}
-                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'ad_name', e.target.value)}
-                          placeholder="Ad name"
-                        />
-                        <input
-                          type="date"
-                          className={inputClass}
-                          value={row.date}
-                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'date', e.target.value)}
-                        />
-                        <input
-                          className={inputClass}
-                          value={row.results}
-                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'results', e.target.value)}
-                          placeholder="Results"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          className={inputClass}
-                          value={row.cost}
-                          onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'cost', e.target.value)}
-                          placeholder="Cost"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeRow(branchIndex, platformIndex, rowIndex)}
-                          className="px-2 py-2 rounded-lg border text-xs font-semibold"
-                          style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                          title="Remove row"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              <label>Client</label>
+              <select
+                className={inputClass}
+                value={form.client_profile_id ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setField('client_profile_id', value || null);
+                  const profile = profiles.find((p) => p.client_id === value);
+                  if (profile) setField('client_name', profile.client_name);
+                }}
+              >
+                <option value="">Select client</option>
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.client_id}>{profile.client_name}</option>
                 ))}
-
-                {form.invoice_template === 'manual' ? (
-                  <button
-                    type="button"
-                    onClick={() => addPlatform(branchIndex)}
-                    className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                  >
-                    <Plus size={12} className="inline mr-1" /> Add Platform
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-2xl border p-4 space-y-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>5. Totals</h2>
-            <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
-              <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
+              </select>
             </div>
-            <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <label htmlFor="invoice-our-fees" style={{ color: 'var(--text-secondary)' }}>Our Fees</label>
-              <input
-                id="invoice-our-fees"
-                type="number"
-                min={0}
-                className="w-36 px-2 py-1 text-xs rounded-md border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] text-right"
-                value={form.our_fees}
-                onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
-              />
-            </div>
-            <div className="flex items-center justify-between text-sm py-2 rounded-lg px-2" style={{ background: 'var(--text)', color: 'var(--surface)' }}>
-              <span className="font-bold">GRAND TOTAL</span>
-              <span className="font-black">{model.totals.grandTotal.toLocaleString()} {form.currency}</span>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>6. Export Actions</h2>
-
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Saved Invoices</label>
+              <label htmlFor="invoice-campaign-month">Campaign Month</label>
+              <input id="invoice-campaign-month" type="month" className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="invoice-date">Invoice Date</label>
+              <input id="invoice-date" type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
+            </div>
+            <div>
+              <label>History</label>
               <select
                 className={inputClass}
                 value={form.id ?? ''}
@@ -1128,44 +750,332 @@ export default function InvoicePage() {
                   </option>
                 ))}
               </select>
-              {loading ? <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Loading invoices…</p> : null}
-            </div>
-
-            <div>
-              <label htmlFor="invoice-notes" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes</label>
-              <textarea id="invoice-notes" className={inputClass} rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
             </div>
           </div>
-        </section>
+        </div>
+      )}
+      editor={(
+        <div className="space-y-3 overflow-y-auto pr-1">
+          {error ? (
+            <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#dc2626', background: 'rgba(239,68,68,0.08)' }}>
+              <AlertCircle size={15} /> {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(16,185,129,0.35)', color: '#047857', background: 'rgba(16,185,129,0.08)' }}>
+              <Check size={15} /> {success}
+            </div>
+          ) : null}
 
-        <section className="rounded-2xl border p-3 overflow-auto xl:sticky xl:top-4 xl:h-[calc(100vh-170px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-          <div className="flex items-center justify-end gap-2 pb-3">
-            {form.id ? (
-              <a
-                href={`/api/docs/invoices/${form.id}/export`}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-              >
-                <Download size={12} className="inline mr-1" /> Excel
-              </a>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => { void exportPreviewPdf('invoice-preview', form.invoice_number || 'invoice', 'invoice'); }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-              style={{ background: 'var(--accent)' }}
+          <div className="docs-tabs">
+            {([
+              ['setup', 'Setup'],
+              ['generator', 'Generator'],
+              ['data', 'Campaign Data'],
+              ['totals', 'Totals'],
+            ] as const).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setEditorPanel(key)} className={clsx('docs-tab', editorPanel === key && 'docs-tab-active')}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {editorPanel === 'setup' ? (
+            <DocsEditorCard title="Document Setup">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label>Invoice Number</label>
+                  <input className={inputClass} value={form.invoice_number} onChange={(e) => setField('invoice_number', e.target.value)} />
+                </div>
+                <div>
+                  <label>Currency</label>
+                  <select className={inputClass} value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
+                    {DOCS_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label>Status</label>
+                  <select className={inputClass} value={form.status} onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Client Name</label>
+                  <input className={inputClass} value={form.client_name} onChange={(e) => setField('client_name', e.target.value)} placeholder={selectedProfile?.client_name || 'Client name'} />
+                </div>
+              </div>
+              <ClientProfileSelector
+                profiles={profiles}
+                selectedClientId={form.client_profile_id ?? ''}
+                onSelectClientId={(value) => {
+                  setField('client_profile_id', value || null);
+                  if (!value) return;
+                  const profile = profiles.find((p) => p.client_id === value);
+                  if (profile) setField('client_name', profile.client_name);
+                }}
+              />
+              <div>
+                <label htmlFor="invoice-notes">Notes</label>
+                <textarea id="invoice-notes" className={inputClass} rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+              </div>
+            </DocsEditorCard>
+          ) : null}
+
+          {editorPanel === 'generator' ? (
+            <DocsEditorCard title="Template Generator" actions={(
+              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Allocation total: {totalAllocation}%</div>
+            )}>
+              {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[1fr_180px] gap-2">
+                    <div>
+                      <label htmlFor="invoice-total-budget">Total Budget</label>
+                      <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+                    </div>
+                    <div className="rounded-xl border p-2 text-xs space-y-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                      <div className="flex items-center justify-between">
+                        <span style={{ color: 'var(--text-secondary)' }}>Deduction</span>
+                        <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                          {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
+                            ? `${PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount.toLocaleString()} ${form.currency}`
+                            : `0 ${form.currency}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {ksaBranchConfigs.map((branch, branchIndex) => {
+                    const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
+                    const localAllocationTotal = branch.platforms.filter((item) => item.enabled).reduce((sum, item) => sum + item.allocationPct, 0);
+                    return (
+                      <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                            <input type="checkbox" checked={branch.enabled} onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)} />
+                            {branch.name}
+                          </label>
+                          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                            {branch.enabled ? `${branchBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-[1fr_120px] gap-2 items-end">
+                          <div>
+                            <label htmlFor={`branch-allocation-range-${branch.id}`}>Branch Allocation %</label>
+                            <input
+                              id={`branch-allocation-range-${branch.id}`}
+                              type="range"
+                              min={0}
+                              max={100}
+                              disabled={!branch.enabled}
+                              className="w-full"
+                              value={branch.allocationPct}
+                              onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
+                            />
+                          </div>
+                          <input
+                            id={`branch-allocation-input-${branch.id}`}
+                            type="number"
+                            min={0}
+                            max={100}
+                            disabled={!branch.enabled}
+                            className={inputClass}
+                            value={branch.allocationPct}
+                            onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
+                          />
+                        </div>
+
+                        {branch.platforms.map((platform, platformIndex) => {
+                          const platformBudget = getProIconKsaPlatformPreviewBudget(totalBudget, branch, platform);
+                          return (
+                            <div key={platform.id} className="rounded-lg border p-2 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                              <div className="grid grid-cols-[1fr_90px_28px] gap-2 items-center">
+                                <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                                  <input type="checkbox" checked={platform.enabled} onChange={(e) => toggleKsaPlatform(branchIndex, platformIndex, e.target.checked)} />
+                                  <input className={inputClass} value={platform.name} onChange={(e) => updateKsaPlatformName(branchIndex, platformIndex, e.target.value)} disabled={!platform.enabled} placeholder="Platform name" />
+                                </label>
+                                <span className="text-[11px] font-semibold text-right" style={{ color: 'var(--accent)' }}>
+                                  {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                                </span>
+                                <button type="button" onClick={() => removeKsaPlatform(branchIndex, platformIndex)} className="rounded border text-[10px] h-7" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove platform">
+                                  <Trash2 size={11} className="mx-auto" />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-[120px_1fr_90px] gap-2 items-end">
+                                <div>
+                                  <label>Campaign Count</label>
+                                  <input type="number" min={1} disabled={!platform.enabled} className={inputClass} value={platform.campaignCount} onChange={(e) => updateKsaCampaignCount(branchIndex, platformIndex, Number(e.target.value))} />
+                                </div>
+                                <div>
+                                  <label>Platform Allocation %</label>
+                                  <input type="range" min={0} max={100} disabled={!platform.enabled} className="w-full" value={platform.allocationPct} onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))} />
+                                </div>
+                                <input type="number" min={0} max={100} disabled={!platform.enabled} className={inputClass} value={platform.allocationPct} onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))} />
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div className="text-[11px]" style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}>
+                          Platform allocation total: {localAllocationTotal}%
+                        </div>
+                        <button type="button" onClick={() => addKsaPlatform(branchIndex)} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                          <Plus size={12} className="inline mr-1" /> Add Platform
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => regenerateKsa(1, false)} className="px-3 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
+                      <Wand2 size={13} className="inline mr-1" /> Generate Invoice Data
+                    </button>
+                    <button type="button" onClick={() => regenerateKsa(1, true)} className="px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                      <RotateCcw size={13} className="inline mr-1" /> Reset Generator
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                  Manual mode does not require template generation. Use Campaign Data tab to manage branch/platform rows.
+                </div>
+              )}
+            </DocsEditorCard>
+          ) : null}
+
+          {editorPanel === 'data' ? (
+            <DocsEditorCard
+              title="Generated Campaign Data"
+              actions={form.invoice_template === 'manual' ? (
+                <button type="button" onClick={addBranch} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                  <Plus size={12} className="inline mr-1" /> Add Branch
+                </button>
+              ) : null}
             >
-              <Printer size={12} className="inline mr-1" /> PDF
-            </button>
-          </div>
+              {branchGroups.length === 0 ? (
+                <div className="text-xs rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                  No rows yet. Add a branch to start building your invoice.
+                </div>
+              ) : null}
 
+              <div className="space-y-3">
+                {branchGroups.map((branch, branchIndex) => {
+                  const branchTotal = branch.platform_groups.reduce((sum, platform) => (
+                    sum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
+                  ), 0);
+                  const expanded = expandedBranchRows[branch.id] ?? true;
+                  return (
+                    <div key={branch.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                        <input className={inputClass} value={branch.branch_name} onChange={(e) => updateBranchName(branchIndex, e.target.value)} placeholder="Branch name" />
+                        <div className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: 'var(--surface)', color: 'var(--accent)' }}>
+                          {branchTotal.toLocaleString()} {form.currency}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => toggleBranchDetails(branch.id)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                            {expanded ? 'Collapse' : 'Expand'}
+                          </button>
+                          {form.invoice_template === 'manual' ? (
+                            <button type="button" onClick={() => removeBranch(branchIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {expanded ? (
+                        <div className="space-y-2">
+                          {branch.platform_groups.map((platform, platformIndex) => {
+                            const platformTotal = platform.campaign_rows.reduce((sum, row) => sum + (Number(row.cost) || 0), 0);
+                            return (
+                              <div key={platform.id} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                                <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                                  <input className={inputClass} value={platform.platform_name} onChange={(e) => updatePlatformName(branchIndex, platformIndex, e.target.value)} placeholder="Platform name" />
+                                  <div className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                                    {platformTotal.toLocaleString()} {form.currency}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button type="button" onClick={() => addRow(branchIndex, platformIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }} title="Add row">
+                                      <Plus size={12} />
+                                    </button>
+                                    {form.invoice_template === 'manual' ? (
+                                      <button type="button" onClick={() => removePlatform(branchIndex, platformIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove platform">
+                                        <Trash2 size={12} />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                {platform.campaign_rows.length === 0 ? (
+                                  <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>No rows. Add one row.</div>
+                                ) : null}
+
+                                {platform.campaign_rows.map((row, rowIndex) => (
+                                  <div key={row.id} className="grid grid-cols-[1.2fr_115px_1fr_110px_30px] gap-2 items-center">
+                                    <input className={inputClass} value={row.ad_name} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'ad_name', e.target.value)} placeholder="Ad name" />
+                                    <input type="date" className={inputClass} value={row.date} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'date', e.target.value)} />
+                                    <input className={inputClass} value={row.results} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'results', e.target.value)} placeholder="Results" />
+                                    <input type="number" min={0} className={inputClass} value={row.cost} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'cost', e.target.value)} placeholder="Cost" />
+                                    <button type="button" onClick={() => removeRow(branchIndex, platformIndex, rowIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove row">
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+
+                          {form.invoice_template === 'manual' ? (
+                            <button type="button" onClick={() => addPlatform(branchIndex)} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                              <Plus size={12} className="inline mr-1" /> Add Platform
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </DocsEditorCard>
+          ) : null}
+
+          {editorPanel === 'totals' ? (
+            <DocsEditorCard title="Totals & Controls">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <label htmlFor="invoice-our-fees">Our Fees</label>
+                  <input
+                    id="invoice-our-fees"
+                    type="number"
+                    min={0}
+                    className="w-36 px-2 py-1 text-xs rounded-md border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] text-right"
+                    value={form.our_fees}
+                    onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm py-2 rounded-lg px-2" style={{ background: 'var(--text)', color: 'var(--surface)' }}>
+                  <span className="font-bold">GRAND TOTAL</span>
+                  <span className="font-black">{model.totals.grandTotal.toLocaleString()} {form.currency}</span>
+                </div>
+                {loading ? <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Loading invoices…</p> : null}
+              </div>
+            </DocsEditorCard>
+          ) : null}
+        </div>
+      )}
+      preview={(
+        <section className="rounded-2xl border p-3 overflow-auto xl:sticky xl:top-[6.7rem] xl:h-[calc(100vh-150px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
           <div className="overflow-x-auto">
-            <div style={{ minWidth: '820px' }}>
+            <div className="mx-auto bg-white shadow-2xl rounded-sm" style={{ width: 820, minHeight: 1123 }}>
               <InvoicePreview model={model} />
             </div>
           </div>
         </section>
-      </div>
-    </div>
+      )}
+    />
   );
 }
