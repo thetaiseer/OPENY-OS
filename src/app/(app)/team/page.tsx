@@ -12,6 +12,7 @@ import { useLang } from '@/lib/lang-context';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
+import AppModal from '@/components/ui/AppModal';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { TeamMember, TeamInvitation, MemberPermissions, ModuleAccess, OsModule, DocsModule, ActivityLogEntry } from '@/lib/types';
@@ -523,18 +524,15 @@ function MemberSidePanel({
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Panel */}
-      <div
-        className="fixed top-0 right-0 h-full z-50 w-[420px] max-w-full shadow-2xl overflow-y-auto flex flex-col"
-        style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}
-      >
+    <AppModal
+      open
+      onClose={onClose}
+      hideHeader
+      size="sm"
+      panelClassName="max-w-[420px]"
+      bodyClassName="p-0"
+    >
+      <div className="flex flex-col">
         {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-4 border-b"
@@ -713,7 +711,7 @@ function MemberSidePanel({
           </div>
         )}
       </div>
-    </>
+    </AppModal>
   );
 }
 
