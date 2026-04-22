@@ -45,7 +45,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 py-3"
+      className="sticky top-0 z-20 px-2 sm:px-3 lg:px-4 pt-3 pb-0"
     >
       <div
   className="h-16 rounded-3xl px-3 sm:px-4 lg:px-5 flex items-center gap-2 sm:gap-3"
