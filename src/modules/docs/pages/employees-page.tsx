@@ -218,13 +218,13 @@ export default function EmployeesPage() {
   }
 
   function exportPayrollCSV() {
-    const a = document.createElement('a');
     const payrollCodeBase = selectedProfile?.client_slug || selectedProfile?.client_name || 'payroll';
     const documentCode = sanitizeDocCode(payrollCodeBase, 'payroll');
-    a.href = `/api/docs/employees/payroll-export?month=${encodeURIComponent(payrollMonth)}&document_code=${encodeURIComponent(documentCode)}`;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    window.open(
+      `/api/docs/employees/payroll-export?month=${encodeURIComponent(payrollMonth)}&document_code=${encodeURIComponent(documentCode)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
 
   const visible = employees.filter(e => {

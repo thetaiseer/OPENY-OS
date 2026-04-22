@@ -1,4 +1,5 @@
 import { S3Client, CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
 import {
   getR2Config,
@@ -44,7 +45,15 @@ export function getFileUrl(key: string): string {
 }
 
 export async function getSignedFileUrl(key: string, _expiresInSeconds = 900): Promise<string> {
-  return buildR2Url(key);
+  const expiresInSeconds = Number.isFinite(_expiresInSeconds) && _expiresInSeconds > 0
+    ? Math.floor(_expiresInSeconds)
+    : 900;
+  const { client, config } = buildClient();
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: config.bucketName, Key: key }),
+    { expiresIn: expiresInSeconds },
+  );
 }
 
 export async function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {

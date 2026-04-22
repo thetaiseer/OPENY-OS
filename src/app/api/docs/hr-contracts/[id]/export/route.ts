@@ -123,11 +123,6 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
     contentType: 'text/html; charset=utf-8',
   });
 
-  await db
-    .from('docs_hr_contracts')
-    .update({ export_doc_url: upload.publicUrl })
-    .eq('id', id);
-
   await saveStoredFileMetadata({
     module: 'docs',
     section: 'hr-contracts',
@@ -141,6 +136,11 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
     uploadedBy: auth.profile.id,
     visibility: 'private',
   });
+
+  await db
+    .from('docs_hr_contracts')
+    .update({ export_doc_url: upload.publicUrl })
+    .eq('id', id);
 
   return NextResponse.redirect(upload.publicUrl, 302);
 }

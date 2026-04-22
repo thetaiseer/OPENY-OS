@@ -32,6 +32,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const PAGE_SIZE = 500;
+const OPENY_OS_KEY_PREFIX_SEGMENTS = 4; // openy-assets/os/{section}/{entityId}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function buildZipPath(
       return `${root}/${rel}`;
     }
     if (parts.length > 4 && parts[0] === 'openy-assets' && parts[1] === 'os') {
-      const rel = parts.slice(4).join('/');
+      const rel = parts.slice(OPENY_OS_KEY_PREFIX_SEGMENTS).join('/');
       return `${root}/${rel}`;
     }
   }

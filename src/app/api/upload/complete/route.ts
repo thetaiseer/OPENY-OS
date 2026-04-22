@@ -221,6 +221,33 @@ export async function POST(req: NextRequest) {
     assetId: inserted?.id ?? null,
   });
 
+  try {
+    await saveStoredFileMetadata({
+      module: 'os',
+      section: 'assets',
+      entityId: clientId,
+      originalName: displayName,
+      storedName: storageKey.split('/').pop() ?? displayName,
+      mimeType: fileType,
+      sizeBytes: Number(fileSize ?? 0),
+      r2Key: storageKey,
+      fileUrl: publicUrl,
+      uploadedBy: auth.profile.id,
+      visibility: 'public',
+    });
+  } catch (error) {
+    await supabase.from('assets').delete().eq('id', inserted?.id ?? '');
+    console.error('[upload/complete] rolled back asset insert after metadata persistence failure', error);
+    return NextResponse.json(
+      {
+        success: false,
+        stage: 'failed_db',
+        error: 'Failed to persist unified storage metadata.',
+      },
+      { status: 500 },
+    );
+  }
+
   // ── Activity log (fire-and-forget) ─────────────────────────────────────────
   void supabase.from('activities').insert({
     type:        'asset',
@@ -256,24 +283,6 @@ export async function POST(req: NextRequest) {
         console.warn('[upload/complete] notifyAssetUploaded failed:', err instanceof Error ? err.message : String(err));
       }
     })();
-  }
-
-  try {
-    await saveStoredFileMetadata({
-      module: 'os',
-      section: 'assets',
-      entityId: clientId,
-      originalName: displayName,
-      storedName: storageKey.split('/').pop() ?? displayName,
-      mimeType: fileType,
-      sizeBytes: Number(fileSize ?? 0),
-      r2Key: storageKey,
-      fileUrl: publicUrl,
-      uploadedBy: auth.profile.id,
-      visibility: 'public',
-    });
-  } catch (error) {
-    console.warn('[upload/complete] failed to persist stored_files metadata', error);
   }
 
   console.log('[upload/complete] upload success', {

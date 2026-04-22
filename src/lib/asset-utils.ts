@@ -1,7 +1,7 @@
 /**
  * Shared asset utility helpers used by both the assets page and client detail page.
  */
-import { buildStoragePath } from '@/lib/storage';
+import { buildStoragePath } from '@/lib/storage/path-builder';
 
 /**
  * Convert an uppercase snake-case content type (e.g. "SOCIAL_POSTS") into a

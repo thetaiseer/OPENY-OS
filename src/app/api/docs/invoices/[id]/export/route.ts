@@ -56,17 +56,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       filename,
     });
 
+    const payload = Buffer.from(buffer);
     const upload = await uploadFile({
       key: storageKey,
-      body: Buffer.from(buffer),
+      body: payload,
       contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
-
-    await db
-      .schema('public')
-      .from('docs_invoices')
-      .update({ export_excel_url: upload.publicUrl })
-      .eq('id', id);
 
     await saveStoredFileMetadata({
       module: 'docs',
@@ -75,12 +70,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       originalName: filename,
       storedName: filename,
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      sizeBytes: Buffer.byteLength(Buffer.from(buffer)),
+      sizeBytes: payload.length,
       r2Key: storageKey,
       fileUrl: upload.publicUrl,
       uploadedBy: auth.profile.id,
       visibility: 'private',
     });
+
+    await db
+      .schema('public')
+      .from('docs_invoices')
+      .update({ export_excel_url: upload.publicUrl })
+      .eq('id', id);
 
     return NextResponse.redirect(upload.publicUrl, 302);
   } catch (exportError) {

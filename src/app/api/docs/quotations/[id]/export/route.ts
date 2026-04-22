@@ -66,11 +66,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     contentType: 'text/csv; charset=utf-8',
   });
 
-  await db
-    .from('docs_quotations')
-    .update({ export_excel_url: upload.publicUrl })
-    .eq('id', id);
-
   await saveStoredFileMetadata({
     module: 'docs',
     section: 'quotations',
@@ -84,6 +79,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     uploadedBy: auth.profile.id,
     visibility: 'private',
   });
+
+  await db
+    .from('docs_quotations')
+    .update({ export_excel_url: upload.publicUrl })
+    .eq('id', id);
 
   return NextResponse.redirect(upload.publicUrl, 302);
 }

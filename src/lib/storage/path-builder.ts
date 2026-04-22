@@ -14,7 +14,7 @@ export interface BuildStoragePathInput {
 }
 
 function sanitizeSegment(value: string): string {
-  return value
+  const cleaned = value
     .trim()
     .replace(/\\/g, '/')
     .split('/')
@@ -22,7 +22,8 @@ function sanitizeSegment(value: string): string {
     .join('-')
     .replace(/[^a-zA-Z0-9._-]/g, '-')
     .replace(/-+/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '') || 'unknown';
+    .replace(/^[-.]+|[-.]+$/g, '');
+  return cleaned || `unknown-${Date.now().toString(36)}`;
 }
 
 function sanitizeFilename(value: string): string {
@@ -73,4 +74,3 @@ export function buildStoragePath(input: BuildStoragePathInput): string {
 
   return segments.join('/');
 }
-
