@@ -522,11 +522,11 @@ export default function ClientContractPage() {
         <div className="fixed right-6 bottom-6 flex flex-col gap-2 z-50">
           <button onClick={exportPdf} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#0f172a' }}><Printer size={15} /> PDF</button>
           <button onClick={() => {
-            if (!form.id) {
+            if (!editingId) {
               alert('Please save the contract first to export it.');
               return;
             }
-            window.open(`/api/docs/client-contracts/${form.id}/export`, '_blank', 'noopener,noreferrer');
+            window.open(`/api/docs/client-contracts/${editingId}/export`, '_blank', 'noopener,noreferrer');
           }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg" style={{ background: '#475569' }}><Download size={15} /> Word / DOC</button>
         </div>
         <div className="bg-white shadow-2xl rounded-sm" style={{ width: 794, minHeight: 1123 }}>
