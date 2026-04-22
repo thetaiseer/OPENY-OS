@@ -124,7 +124,18 @@ export default function GlobalQuickActionsFab() {
                   style={{ color: 'var(--text)' }}
                   aria-label={action.label}
                 >
-                  <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-200" style={{ color: 'var(--accent)', background: 'var(--accent-soft)', boxShadow: 'var(--glow-accent-sm)' }}>{action.icon}</span>
+                  <span
+                    className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-transform"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'var(--accent-soft)',
+                      boxShadow: 'var(--glow-accent-sm)',
+                      transitionDuration: 'var(--motion-duration-ui)',
+                      transitionTimingFunction: 'var(--motion-ease-standard)',
+                    }}
+                  >
+                    {action.icon}
+                  </span>
                   <span>{action.label}</span>
                 </button>
               </li>
@@ -141,18 +152,23 @@ export default function GlobalQuickActionsFab() {
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
-        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         style={{
           background: 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 64%, var(--accent-3) 36%) 100%)',
           boxShadow: '0 16px 30px rgba(58,95,224,0.35), 0 0 24px rgba(120,140,255,0.4)',
+          transitionDuration: 'var(--motion-duration-ui)',
+          transitionTimingFunction: 'var(--motion-ease-standard)',
         }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.97 }}
         transition={motionTransition.micro}
       >
         <motion.span
-          className="transition-transform duration-200"
-          style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}
+          className="transition-transform"
+          style={{
+            transitionDuration: 'var(--motion-duration-ui)',
+            transitionTimingFunction: 'var(--motion-ease-standard)',
+          }}
           animate={{ rotate: open ? 45 : 0 }}
           transition={motionTransition.ui}
         >

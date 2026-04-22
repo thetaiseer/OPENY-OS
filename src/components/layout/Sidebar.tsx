@@ -125,12 +125,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   onClick={onClose}
                   aria-label={displayLabel}
                   className={clsx(
-                    'group relative flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-semibold transition-all duration-200',
+                    'group relative flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-semibold transition-all',
                     'lg:justify-center xl:justify-start',
                     active
                       ? 'text-white'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]',
                   )}
+                  style={{
+                    transitionDuration: 'var(--motion-duration-ui)',
+                    transitionTimingFunction: 'var(--motion-ease-standard)',
+                  }}
                 >
                   {active && (
                     <motion.span
@@ -144,14 +148,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     />
                   )}
                   <span
-                    className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-[1.05]"
-                    style={active ? {
-                      background: 'rgba(255,255,255,0.22)',
-                      color: '#fff',
-                      boxShadow: 'var(--glow-accent-sm)',
-                    } : {
-                      background: 'color-mix(in srgb, var(--surface-2) var(--sidebar-icon-chip-base), var(--accent-soft) var(--sidebar-icon-chip-tint))',
-                      color: 'var(--text-tertiary)',
+                    className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.05]"
+                    style={{
+                      transitionDuration: 'var(--motion-duration-ui)',
+                      transitionTimingFunction: 'var(--motion-ease-standard)',
+                      ...(active ? {
+                        background: 'rgba(255,255,255,0.22)',
+                        color: '#fff',
+                        boxShadow: 'var(--glow-accent-sm)',
+                      } : {
+                        background: 'color-mix(in srgb, var(--surface-2) var(--sidebar-icon-chip-base), var(--accent-soft) var(--sidebar-icon-chip-tint))',
+                        color: 'var(--text-tertiary)',
+                      }),
                     }}
                   >
                     <Icon size={16} strokeWidth={2} />

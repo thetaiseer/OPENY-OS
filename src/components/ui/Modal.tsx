@@ -31,7 +31,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ ...motionTransition.ui, duration: 0.22 }}
+          transition={motionTransition.modal}
         >
           <motion.div
             className={`w-full ${widthMap[size]} rounded-t-3xl sm:rounded-3xl border max-h-[92dvh] sm:max-h-[90vh] flex flex-col`}
@@ -45,7 +45,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
             initial={{ opacity: 0, scale: 0.95, y: 10, filter: 'blur(6px)' }}
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.95, y: 10, filter: 'blur(6px)' }}
-            transition={{ ...motionTransition.ui, duration: 0.22 }}
+            transition={motionTransition.modal}
           >
             <div
               className="flex items-center justify-between px-4 sm:px-6 py-4 border-b"
