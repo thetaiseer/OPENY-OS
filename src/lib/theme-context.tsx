@@ -20,6 +20,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.classList.add('theme-transition');
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, 320);
       localStorage.setItem('theme', next);
       document.documentElement.classList.toggle('dark', next === 'dark');
       return next;

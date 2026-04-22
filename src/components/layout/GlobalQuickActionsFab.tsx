@@ -9,7 +9,9 @@ import {
   FileText,
   Upload,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useQuickActions, type QuickActionId } from '@/lib/quick-actions-context';
+import { motionTransition } from '@/lib/motion';
 
 interface QuickAction {
   id: QuickActionId;
@@ -90,64 +92,73 @@ export default function GlobalQuickActionsFab() {
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
     >
       {/* Quick-action menu — renders above FAB due to flex-col + bottom anchor */}
-      <ul
-        id={menuId}
-        role="menu"
-        aria-label="Quick actions"
-        className={`w-52 rounded-3xl border p-2 shadow-2xl transition-all duration-200 origin-bottom-right ${
-          open
-            ? 'translate-y-0 scale-100 opacity-100 pointer-events-auto'
-            : 'translate-y-2 scale-95 opacity-0 pointer-events-none'
-        }`}
-        style={{
-          background: 'var(--gradient-card-glass)',
-          borderColor: 'var(--border-glass)',
-          backdropFilter: 'var(--blur-panel)',
-          WebkitBackdropFilter: 'var(--blur-panel)',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        {orderedActions.map(action => (
-          <li key={action.id} role="none">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                triggerQuickAction(action.id);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-              style={{ color: 'var(--text)' }}
-              aria-label={action.label}
-            >
-                <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ color: 'var(--accent)', background: 'var(--accent-soft)', boxShadow: 'var(--glow-accent-sm)' }}>{action.icon}</span>
-                <span>{action.label}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            id={menuId}
+            role="menu"
+            aria-label="Quick actions"
+            className="w-52 rounded-3xl border p-2 shadow-2xl origin-bottom-right"
+            style={{
+              background: 'var(--gradient-card-glass)',
+              borderColor: 'var(--border-glass)',
+              backdropFilter: 'var(--blur-panel)',
+              WebkitBackdropFilter: 'var(--blur-panel)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            initial={{ opacity: 0, scale: 0.95, y: 10, filter: 'blur(6px)' }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 0.95, y: 8, filter: 'blur(6px)' }}
+            transition={motionTransition.ui}
+          >
+            {orderedActions.map(action => (
+              <li key={action.id} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    triggerQuickAction(action.id);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  style={{ color: 'var(--text)' }}
+                  aria-label={action.label}
+                >
+                  <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-200" style={{ color: 'var(--accent)', background: 'var(--accent-soft)', boxShadow: 'var(--glow-accent-sm)' }}>{action.icon}</span>
+                  <span>{action.label}</span>
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
 
       {/* FAB button — always sits at the very bottom of the wrapper */}
-      <button
+      <motion.button
         type="button"
         onClick={() => setOpen(prev => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
-        className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-200 hover:scale-[1.05] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         style={{
           background: 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 64%, var(--accent-3) 36%) 100%)',
           boxShadow: '0 16px 30px rgba(58,95,224,0.35), 0 0 24px rgba(120,140,255,0.4)',
         }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.97 }}
+        transition={motionTransition.micro}
       >
-        <span
+        <motion.span
           className="transition-transform duration-200"
           style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}
+          animate={{ rotate: open ? 45 : 0 }}
+          transition={motionTransition.ui}
         >
           <Plus size={22} />
-        </span>
-      </button>
+        </motion.span>
+      </motion.button>
     </div>
   );
 }

@@ -123,6 +123,13 @@
 
   /* ── Typography ── */
   --font-arabic: 'Cairo';
+
+  /* ── Motion ── */
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-duration-micro: 160ms;
+  --motion-duration-ui: 240ms;
+  --motion-duration-page: 320ms;
+  --motion-duration-theme: 300ms;
 }
 
 /* ── Dark Mode Tokens ── */
@@ -207,6 +214,10 @@
 
 * { box-sizing: border-box; }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background:
     radial-gradient(58vw 48vh at 92% 4%, var(--bg-glow-top-right), transparent 58%),
@@ -218,6 +229,9 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   text-rendering: optimizeLegibility;
+  transition:
+    background-color var(--motion-duration-theme) var(--motion-ease-standard),
+    color var(--motion-duration-theme) var(--motion-ease-standard);
 }
 
 img, svg { max-width: 100%; }
@@ -324,7 +338,12 @@ input, select, textarea, button { font: inherit; }
   gap: 0.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform var(--motion-duration-micro) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-micro) var(--motion-ease-standard),
+    background-color var(--motion-duration-micro) var(--motion-ease-standard),
+    color var(--motion-duration-micro) var(--motion-ease-standard),
+    opacity var(--motion-duration-micro) var(--motion-ease-standard);
   cursor: pointer;
   white-space: nowrap;
   border-radius: var(--radius-pill);
@@ -377,13 +396,13 @@ input, select, textarea, button { font: inherit; }
 /* Hover states */
 .btn:hover,
 .btn-secondary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.03);
   box-shadow: var(--shadow-sm);
   background: var(--surface-elevated);
 }
 
 .btn-primary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.03);
   box-shadow: var(--shadow-md), var(--glow-accent);
   opacity: 0.94;
 }
@@ -394,14 +413,14 @@ input, select, textarea, button { font: inherit; }
 }
 
 .btn-danger:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.03);
   opacity: 0.92;
   box-shadow: var(--shadow-md);
 }
 
 .btn-pill:hover {
   background: var(--surface-glass);
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.03);
   color: var(--text);
 }
 
@@ -446,7 +465,7 @@ input, select, textarea, button { font: inherit; }
 .btn-ghost:active,
 .btn-danger:active,
 .btn-pill:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.97);
 }
 
 /* Focus */
@@ -473,7 +492,10 @@ textarea {
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   color: var(--text);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition:
+    border-color 150ms var(--motion-ease-standard),
+    box-shadow 150ms var(--motion-ease-standard),
+    background-color 150ms var(--motion-ease-standard);
 }
 
 input:not([type='checkbox']):not([type='radio'])::placeholder,
@@ -533,11 +555,27 @@ table tbody tr:last-child td {
 }
 
 table tbody tr {
-  transition: background 0.15s ease;
+  transition:
+    background-color var(--motion-duration-ui) var(--motion-ease-standard),
+    opacity var(--motion-duration-ui) var(--motion-ease-standard),
+    transform var(--motion-duration-ui) var(--motion-ease-standard);
+  will-change: transform, opacity;
 }
 
 table tbody tr:hover {
   background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface));
+}
+
+table tbody tr[data-row-state='enter'] {
+  animation: openy-row-enter var(--motion-duration-ui) var(--motion-ease-standard) both;
+}
+
+table tbody tr[data-row-state='exit'] {
+  animation: openy-row-exit var(--motion-duration-ui) var(--motion-ease-standard) both;
+}
+
+table tbody tr[data-row-state='update'] {
+  animation: openy-row-flash var(--motion-duration-ui) var(--motion-ease-standard);
 }
 
 .openy-table-shell {
@@ -592,19 +630,117 @@ table tbody tr:hover {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes openy-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes openy-row-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes openy-row-exit {
+  from { opacity: 1; transform: scaleY(1); }
+  to { opacity: 0; transform: scaleY(0.92); }
+}
+
+@keyframes openy-row-flash {
+  0% { background: color-mix(in srgb, var(--accent-soft) 82%, transparent); }
+  100% { background: transparent; }
+}
+
+@keyframes openy-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes openy-fab-glow {
+  0%, 100% { box-shadow: 0 16px 30px rgba(58,95,224,0.35), 0 0 24px rgba(120,140,255,0.4); }
+  50% { box-shadow: 0 18px 34px rgba(58,95,224,0.4), 0 0 30px rgba(120,140,255,0.5); }
+}
+
 .animate-openy-fade-in   { animation: openy-fade-in   0.22s cubic-bezier(0.4, 0, 0.2, 1); }
 .animate-openy-scale-in  { animation: openy-scale-in  0.20s cubic-bezier(0.4, 0, 0.2, 1); }
 .animate-openy-slide-up  { animation: openy-slide-up  0.24s cubic-bezier(0.4, 0, 0.2, 1); }
+
+.openy-motion-card {
+  animation: openy-card-in var(--motion-duration-ui) var(--motion-ease-standard) both;
+  transition:
+    transform var(--motion-duration-ui) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-ui) var(--motion-ease-standard);
+  will-change: transform;
+}
+
+.openy-motion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg), var(--glow-accent-sm);
+}
+
+.grid > .openy-motion-card:nth-child(2),
+.docs-app .docs-card:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.grid > .openy-motion-card:nth-child(3),
+.docs-app .docs-card:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.openy-skeleton {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--surface-2) 84%, transparent) 20%, color-mix(in srgb, #fff 30%, var(--surface-2)) 50%, color-mix(in srgb, var(--surface-2) 84%, transparent) 80%);
+  background-size: 220% 100%;
+  animation: openy-shimmer 1.6s var(--motion-ease-standard) infinite;
+}
+
+.fab-motion {
+  animation: openy-fab-glow 2.4s var(--motion-ease-standard) infinite;
+}
+
+.workspace-switching .app-shell-main {
+  transition:
+    opacity var(--motion-duration-page) var(--motion-ease-standard),
+    transform var(--motion-duration-page) var(--motion-ease-standard),
+    filter var(--motion-duration-page) var(--motion-ease-standard);
+  opacity: 0.7;
+  transform: translateX(14px) scale(0.99);
+  filter: blur(4px);
+}
+
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color var(--motion-duration-theme) var(--motion-ease-standard),
+    color var(--motion-duration-theme) var(--motion-ease-standard),
+    border-color var(--motion-duration-theme) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-theme) var(--motion-ease-standard) !important;
+}
+
+.sticky {
+  transition:
+    background-color var(--motion-duration-ui) var(--motion-ease-standard),
+    border-color var(--motion-duration-ui) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-ui) var(--motion-ease-standard);
+}
 
 /* ============================================================
    RESPONSIVE SHELL PADDING
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   body { background: var(--bg); }
   .animate-openy-fade-in,
   .animate-openy-scale-in,
-  .animate-openy-slide-up { animation: none; }
+  .animate-openy-slide-up,
+  .openy-motion-card,
+  .openy-skeleton,
+  .fab-motion,
+  table tbody tr[data-row-state='enter'],
+  table tbody tr[data-row-state='exit'],
+  table tbody tr[data-row-state='update'] { animation: none; }
 }
 
 @media (min-width: 640px) {
@@ -699,6 +835,16 @@ select option { white-space: normal; }
   -webkit-backdrop-filter: var(--blur-glass);
   box-shadow: var(--shadow-card);
   padding: 1.25rem;
+  animation: openy-card-in var(--motion-duration-ui) var(--motion-ease-standard) both;
+  transition:
+    transform var(--motion-duration-ui) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-ui) var(--motion-ease-standard);
+  will-change: transform;
+}
+
+.docs-app .docs-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg), var(--glow-accent-sm);
 }
 
 .docs-app .docs-card-header {
@@ -739,13 +885,18 @@ select option { white-space: normal; }
   font-size: 0.8rem;
   color: var(--text-secondary);
   font-weight: 600;
-  transition: all 0.18s ease;
+  transition:
+    transform var(--motion-duration-micro) var(--motion-ease-standard),
+    background-color var(--motion-duration-micro) var(--motion-ease-standard),
+    color var(--motion-duration-micro) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-micro) var(--motion-ease-standard);
   cursor: pointer;
 }
 
 .docs-app .docs-tab:hover:not(.docs-tab-active) {
   background: var(--surface-2);
   color: var(--text);
+  transform: scale(1.03);
 }
 
 .docs-app .docs-tab-active {

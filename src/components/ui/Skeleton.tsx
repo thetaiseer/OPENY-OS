@@ -3,7 +3,7 @@
 export function SkeletonCard({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`rounded-2xl animate-pulse border ${className}`}
+      className={`openy-skeleton rounded-2xl border ${className}`}
       style={{
         background: 'var(--surface-glass)',
         borderColor: 'var(--border-glass)',
@@ -17,7 +17,7 @@ export function SkeletonCard({ className = '' }: { className?: string }) {
 export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) {
   return (
     <div
-      className={`rounded-lg animate-pulse ${width} ${height}`}
+      className={`openy-skeleton rounded-lg ${width} ${height}`}
       style={{ background: 'var(--surface-2)' }}
     />
   );
@@ -26,11 +26,11 @@ export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: str
 export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
   return (
     <div className="flex items-center gap-4 px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="w-9 h-9 rounded-2xl animate-pulse shrink-0" style={{ background: 'var(--surface-2)' }} />
+      <div className="openy-skeleton w-9 h-9 rounded-2xl shrink-0" style={{ background: 'var(--surface-2)' }} />
       {Array.from({ length: cols - 1 }).map((_, i) => (
         <div
           key={i}
-          className="flex-1 h-4 rounded-lg animate-pulse"
+          className="openy-skeleton flex-1 h-4 rounded-lg"
           style={{ background: 'var(--surface-2)', maxWidth: i === 0 ? 200 : 120 }}
         />
       ))}

@@ -82,6 +82,7 @@ export default function WorkspaceSwitcher() {
             disabled={!canAccess}
             onClick={() => {
               if (isCurrent || !canAccess) return;
+              document.documentElement.classList.add('workspace-switching');
               switchWorkspace(router, workspace.key);
             }}
             className="h-7 px-2.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
