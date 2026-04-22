@@ -1031,9 +1031,6 @@ function MemberCard({
   canManage,
   onEdit,
   onDelete,
-  onResend,
-  onRevoke,
-  onCopyLink,
 }: {
   member: TeamMember;
   workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
