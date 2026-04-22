@@ -112,27 +112,27 @@ export async function PATCH(
   const VALID_ACCESS: ModuleAccess[] = ['full', 'read', 'none'];
 
   if (body.os && typeof body.os === 'object' && !Array.isArray(body.os)) {
-    for (const module of OS_MODULES) {
-      const raw = (body.os as Record<string, unknown>)[module];
+    for (const mod of OS_MODULES) {
+      const raw = (body.os as Record<string, unknown>)[mod];
       if (raw !== undefined) {
         const access = String(raw) as ModuleAccess;
         if (!VALID_ACCESS.includes(access)) {
-          return NextResponse.json({ error: `Invalid access level "${raw}" for os.${module}` }, { status: 400 });
+          return NextResponse.json({ error: `Invalid access level "${raw}" for os.${mod}` }, { status: 400 });
         }
-        rows.push({ team_member_id: id, workspace: 'os', module: module as OsModule, access_level: access });
+        rows.push({ team_member_id: id, workspace: 'os', module: mod as OsModule, access_level: access });
       }
     }
   }
 
   if (body.docs && typeof body.docs === 'object' && !Array.isArray(body.docs)) {
-    for (const module of DOCS_MODULES) {
-      const raw = (body.docs as Record<string, unknown>)[module];
+    for (const mod of DOCS_MODULES) {
+      const raw = (body.docs as Record<string, unknown>)[mod];
       if (raw !== undefined) {
         const access = String(raw) as ModuleAccess;
         if (!VALID_ACCESS.includes(access)) {
-          return NextResponse.json({ error: `Invalid access level "${raw}" for docs.${module}` }, { status: 400 });
+          return NextResponse.json({ error: `Invalid access level "${raw}" for docs.${mod}` }, { status: 400 });
         }
-        rows.push({ team_member_id: id, workspace: 'docs', module: module as DocsModule, access_level: access });
+        rows.push({ team_member_id: id, workspace: 'docs', module: mod as DocsModule, access_level: access });
       }
     }
   }
