@@ -68,7 +68,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 
   await saveStoredFileMetadata({
     module: 'docs',
-    section: 'quotations',
+    section: 'exports',
     entityId: id,
     originalName: filename,
     storedName: filename,

@@ -1,7 +1,7 @@
 import { getServiceClient } from '@/lib/supabase/service-client';
 import type { StoredFileMetadataInput } from '@/lib/storage/types';
 
-export async function saveStoredFileMetadata(input: StoredFileMetadataInput): Promise<void> {
+export async function saveStoredFileMetadata(input: StoredFileMetadataInput): Promise<{ id: string } | null> {
   const db = getServiceClient();
 
   const payload = {
@@ -19,9 +19,11 @@ export async function saveStoredFileMetadata(input: StoredFileMetadataInput): Pr
     visibility: input.visibility ?? 'public',
   };
 
-  const { error } = await db
+  const { data, error } = await db
     .from('stored_files')
-    .insert(payload);
+    .insert(payload)
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     // Keep runtime backward compatible while migration rolls out.
@@ -30,9 +32,9 @@ export async function saveStoredFileMetadata(input: StoredFileMetadataInput): Pr
       /stored_files/i.test(error.message)
     ) {
       console.warn('[storage/metadata] stored_files table not available yet, skipping metadata insert');
-      return;
+      return null;
     }
     throw new Error(`[storage/metadata] failed to persist metadata: ${error.message}`);
   }
+  return data ?? null;
 }
-

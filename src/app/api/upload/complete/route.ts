@@ -236,7 +236,17 @@ export async function POST(req: NextRequest) {
       visibility: 'public',
     });
   } catch (error) {
-    await supabase.from('assets').delete().eq('id', inserted?.id ?? '');
+    if (inserted?.id) {
+      const { error: rollbackError } = await supabase.from('assets').delete().eq('id', inserted.id);
+      if (rollbackError) {
+        console.error('[upload/complete] failed to rollback asset after metadata failure', {
+          assetId: inserted.id,
+          rollbackError: rollbackError.message,
+        });
+      }
+    } else {
+      console.error('[upload/complete] metadata failed and no inserted asset id was available for rollback');
+    }
     console.error('[upload/complete] rolled back asset insert after metadata persistence failure', error);
     return NextResponse.json(
       {

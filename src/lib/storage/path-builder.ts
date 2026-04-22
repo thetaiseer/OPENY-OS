@@ -23,7 +23,9 @@ function sanitizeSegment(value: string): string {
     .replace(/[^a-zA-Z0-9._-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[-.]+|[-.]+$/g, '');
-  return cleaned || `unknown-${Date.now().toString(36)}`;
+  if (cleaned) return cleaned;
+  const entropy = Math.random().toString(36).slice(2, 8);
+  return `unknown-${Date.now().toString(36)}-${entropy}`;
 }
 
 function sanitizeFilename(value: string): string {

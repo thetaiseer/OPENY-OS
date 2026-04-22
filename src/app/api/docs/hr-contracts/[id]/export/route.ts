@@ -125,7 +125,7 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
 
   await saveStoredFileMetadata({
     module: 'docs',
-    section: 'hr-contracts',
+    section: 'exports',
     entityId: id,
     originalName: filename,
     storedName: filename,

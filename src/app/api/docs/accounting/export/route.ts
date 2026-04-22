@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
 
   await saveStoredFileMetadata({
     module: 'docs',
-    section: 'accounting',
+    section: 'exports',
     entityId: month_key,
     originalName: filename,
     storedName: filename,
