@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser, requireRole } from '@/lib/api-auth';
-import { deleteFromR2, R2NotFoundError, R2ConfigError } from '@/lib/r2';
+import { deleteFile, R2NotFoundError, R2ConfigError } from '@/lib/storage';
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(
@@ -98,7 +98,7 @@ export async function DELETE(
       });
     } else {
       try {
-        await deleteFromR2(filePath);
+         await deleteFile(filePath);
         console.log('[asset-delete] R2 delete succeeded', { assetId: asset.id, filePath });
       } catch (err: unknown) {
         if (err instanceof R2NotFoundError) {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -8,6 +11,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const month = searchParams.get('month') ?? new Date().toISOString().slice(0, 7);
+  const documentCode = (searchParams.get('document_code') ?? '').trim();
 
   const db = getServiceClient();
   const { data, error } = await db
@@ -41,10 +45,34 @@ export async function GET(req: NextRequest) {
   ];
 
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  return new NextResponse(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="payroll-${month}.csv"`,
-    },
+  const filename = `${sanitizeDocCode(documentCode, 'payroll')}-${month}.csv`;
+  const storageKey = buildStoragePath({
+    module: 'docs',
+    section: 'exports',
+    documentType: 'employees',
+    entityId: month,
+    filename,
   });
+  const payload = Buffer.from(csv, 'utf8');
+  const upload = await uploadFile({
+    key: storageKey,
+    body: payload,
+    contentType: 'text/csv; charset=utf-8',
+  });
+
+  await saveStoredFileMetadata({
+    module: 'docs',
+    section: 'employees',
+    entityId: month,
+    originalName: filename,
+    storedName: filename,
+    mimeType: 'text/csv; charset=utf-8',
+    sizeBytes: payload.byteLength,
+    r2Key: storageKey,
+    fileUrl: upload.publicUrl,
+    uploadedBy: auth.profile.id,
+    visibility: 'private',
+  });
+
+  return NextResponse.redirect(upload.publicUrl, 302);
 }

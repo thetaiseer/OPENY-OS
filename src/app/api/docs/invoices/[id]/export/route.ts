@@ -6,6 +6,8 @@ import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { writeInvoiceWorksheet } from '@/lib/docs-invoice-excel';
 import { hydrateInvoiceBranchGroups, mapInvoiceDbError } from '@/lib/docs-invoices-db';
 import { sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 interface Params { id: string }
 
@@ -46,12 +48,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     const buffer = await workbook.xlsx.writeBuffer();
     const filename = `${sanitizeDocCode(model.invoiceNumber, 'invoice')}.xlsx`;
 
-    return new NextResponse(Buffer.from(buffer), {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-      },
+    const storageKey = buildStoragePath({
+      module: 'docs',
+      section: 'exports',
+      documentType: 'invoices',
+      entityId: id,
+      filename,
     });
+
+    const upload = await uploadFile({
+      key: storageKey,
+      body: Buffer.from(buffer),
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    await db
+      .schema('public')
+      .from('docs_invoices')
+      .update({ export_excel_url: upload.publicUrl })
+      .eq('id', id);
+
+    await saveStoredFileMetadata({
+      module: 'docs',
+      section: 'invoices',
+      entityId: id,
+      originalName: filename,
+      storedName: filename,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sizeBytes: Buffer.byteLength(Buffer.from(buffer)),
+      r2Key: storageKey,
+      fileUrl: upload.publicUrl,
+      uploadedBy: auth.profile.id,
+      visibility: 'private',
+    });
+
+    return NextResponse.redirect(upload.publicUrl, 302);
   } catch (exportError) {
     console.error('[docs/invoices/:id/export][GET] Failed to generate xlsx export:', { id, exportError });
     return NextResponse.json(

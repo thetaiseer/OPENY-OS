@@ -1,6 +1,6 @@
 # OPENY OS
 
-A modern agency workspace built with **Next.js 15**, **React 18**, **TypeScript**, **Tailwind CSS**, **Supabase**, and **Google Drive** storage.
+A modern agency workspace built with **Next.js 15**, **React 18**, **TypeScript**, **Tailwind CSS**, **Supabase**, and **Cloudflare R2** storage.
 
 ## Real Architecture
 
@@ -8,12 +8,14 @@ A modern agency workspace built with **Next.js 15**, **React 18**, **TypeScript*
 |-------|-----------|
 | Database | [Supabase](https://supabase.com) (PostgreSQL) |
 | Auth | Supabase Auth (email + password) |
-| Storage | Google Drive via OAuth 2.0 (active provider) |
-| Sync | Google Drive → Supabase sync routes |
+| Storage | Cloudflare R2 (unified) |
+| Sync | API-driven storage + metadata persistence |
 | AI | OpenAI GPT-4o-mini / Google Gemini (fallback) |
 | Deployment | Vercel |
 
-The storage layer uses a provider abstraction (`src/lib/storage/`) so additional providers (OneDrive, S3, local) can be added later without changing any page or route.
+The storage layer is unified through `src/lib/storage/` and uses a single root prefix:
+
+`openy-assets/os/...` and `openy-assets/docs/...`
 
 ## Quick Setup
 
@@ -41,8 +43,7 @@ The storage layer uses a provider abstraction (`src/lib/storage/`) so additional
 See `.env.example` for the full list. Required groups:
 
 - **Supabase** — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- **Google Drive** — `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID`
-- **Storage Provider** — `STORAGE_PROVIDER=google-drive` (default; set to switch providers in the future)
+- **Cloudflare R2** — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
 
 ## Database Schema (Supabase)
 
@@ -76,21 +77,15 @@ The `assets` table stores provider-agnostic metadata:
 | `month_key` | `YYYY-MM` (folder routing) |
 | `content_type` | `SOCIAL_POSTS`, `VIDEOS`, etc. |
 
-## Storage Provider Architecture
+## Storage Architecture
 
 ```
 src/lib/storage/
-  index.ts                  — public exports
-  types.ts                  — StorageProvider interface + RemoteFileMeta
-  factory.ts                — getStorageProvider() (reads STORAGE_PROVIDER env)
-  google-drive-provider.ts  — GoogleDriveProvider implementation
+  index.ts        — public exports
+  path-builder.ts — deterministic path builder for `openy-assets/os|docs/...`
+  service.ts      — shared upload/delete/url/list/move/multipart operations
+  metadata.ts     — shared metadata persistence (`stored_files`)
 ```
-
-Routes call `getStorageProvider()` — they never import from `google-drive.ts` directly. Adding a new provider only requires:
-
-1. Implementing `StorageProvider` in a new `*-provider.ts` file.
-2. Adding a `case` in `factory.ts`.
-3. Setting `STORAGE_PROVIDER=<name>` in the environment.
 
 ## Stack
 

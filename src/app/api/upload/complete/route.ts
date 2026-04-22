@@ -3,7 +3,8 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
-import { buildR2Url, R2ConfigError } from '@/lib/r2';
+import { getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   const previewStorageKey   = (body.previewStorageKey   as string | undefined)?.trim() || null;
   const providedPublicUrl   = (body.publicUrl           as string | undefined)?.trim() || '';
   const storageProvider     = 'r2';
-  const bucketName          = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  const bucketName          = getStorageBucketName();
   const durationSeconds     = typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
     ? (body.durationSeconds as number)
     : null;
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
   let publicUrl = providedPublicUrl;
   if (!publicUrl) {
     try {
-      publicUrl = buildR2Url(storageKey);
+        publicUrl = getFileUrl(storageKey);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const isConfigErr = err instanceof R2ConfigError;
@@ -141,12 +142,12 @@ export async function POST(req: NextRequest) {
   let thumbnailUrl: string | null = null;
   let resolvedPreviewUrl: string | null = null;
   if (thumbnailStorageKey) {
-    try { thumbnailUrl = buildR2Url(thumbnailStorageKey); } catch { /* ignore */ }
+    try { thumbnailUrl = getFileUrl(thumbnailStorageKey); } catch { /* ignore */ }
   } else if (isImage) {
     thumbnailUrl = publicUrl;
   }
   if (previewStorageKey) {
-    try { resolvedPreviewUrl = buildR2Url(previewStorageKey); } catch { /* ignore */ }
+    try { resolvedPreviewUrl = getFileUrl(previewStorageKey); } catch { /* ignore */ }
   } else if (isImage) {
     resolvedPreviewUrl = publicUrl;
   }
@@ -255,6 +256,24 @@ export async function POST(req: NextRequest) {
         console.warn('[upload/complete] notifyAssetUploaded failed:', err instanceof Error ? err.message : String(err));
       }
     })();
+  }
+
+  try {
+    await saveStoredFileMetadata({
+      module: 'os',
+      section: 'assets',
+      entityId: clientId,
+      originalName: displayName,
+      storedName: storageKey.split('/').pop() ?? displayName,
+      mimeType: fileType,
+      sizeBytes: Number(fileSize ?? 0),
+      r2Key: storageKey,
+      fileUrl: publicUrl,
+      uploadedBy: auth.profile.id,
+      visibility: 'public',
+    });
+  } catch (error) {
+    console.warn('[upload/complete] failed to persist stored_files metadata', error);
   }
 
   console.log('[upload/complete] upload success', {

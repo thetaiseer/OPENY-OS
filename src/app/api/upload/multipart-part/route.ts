@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { uploadPartToR2, R2ConfigError } from '@/lib/r2';
+import { uploadMultipartPart, R2ConfigError } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await uploadPartToR2(storageKey, uploadId, partNumber, buffer);
+    const result = await uploadMultipartPart(storageKey, uploadId, partNumber, buffer);
 
     console.log('[upload/multipart-part] part uploaded to R2:', {
       userId:     auth.profile.id,

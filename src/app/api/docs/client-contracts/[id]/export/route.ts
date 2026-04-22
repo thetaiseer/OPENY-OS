@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
+import { buildStoragePath, uploadFile } from '@/lib/storage';
+import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
 interface Params { id: string }
 
@@ -93,10 +95,39 @@ ${clauses ? `<div class="section"><strong>${isAr ? 'البنود القانون�
 <p style="text-align:center;margin-top:8px;font-size:11px;color:#64748b">${c.sig_place ?? ''} ${c.sig_date ?? ''}</p>
 </body></html>`;
 
-  return new NextResponse(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${c.contract_number}.html"`,
-    },
+  const filename = `${c.contract_number}.html`;
+  const storageKey = buildStoragePath({
+    module: 'docs',
+    section: 'exports',
+    documentType: 'client-contracts',
+    entityId: id,
+    filename,
   });
+  const payload = Buffer.from(html, 'utf8');
+  const upload = await uploadFile({
+    key: storageKey,
+    body: payload,
+    contentType: 'text/html; charset=utf-8',
+  });
+
+  await db
+    .from('docs_client_contracts')
+    .update({ export_doc_url: upload.publicUrl })
+    .eq('id', id);
+
+  await saveStoredFileMetadata({
+    module: 'docs',
+    section: 'client-contracts',
+    entityId: id,
+    originalName: filename,
+    storedName: filename,
+    mimeType: 'text/html; charset=utf-8',
+    sizeBytes: payload.byteLength,
+    r2Key: storageKey,
+    fileUrl: upload.publicUrl,
+    uploadedBy: auth.profile.id,
+    visibility: 'private',
+  });
+
+  return NextResponse.redirect(upload.publicUrl, 302);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { uploadToR2, buildR2Url, R2ConfigError } from '@/lib/r2';
+import { uploadFile, getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
 
   const storageKey = buildStorageKey({
     clientName,
+    clientId,
     mainCategory,
     subCategory: subCategory || 'general',
     monthKey,
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
 
-  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  const bucketName = getStorageBucketName();
   console.log('[upload/presign] upload started', {
     provider: 'r2',
     bucketName,
@@ -143,9 +144,9 @@ export async function POST(req: NextRequest) {
     const buffer      = Buffer.from(await fileField.arrayBuffer());
     const contentType = fileType || (fileField as File).type || 'application/octet-stream';
 
-    await uploadToR2(storageKey, buffer, contentType);
+    await uploadFile({ key: storageKey, body: buffer, contentType });
 
-    const publicUrl = buildR2Url(storageKey);
+    const publicUrl = getFileUrl(storageKey);
 
     console.log('[upload/presign] uploaded to R2:', {
       provider: 'r2',
