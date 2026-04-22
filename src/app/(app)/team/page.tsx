@@ -360,7 +360,7 @@ function InviteForm({
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
                       <SelectDropdown
                         value={f.os_permissions[mod] ?? ''}
-                        onChange={v => setF(x => ({ ...x, os_permissions: { ...x.os_permissions, [mod]: v as ModuleAccess || undefined } }))}
+                        onChange={v => setF(x => ({ ...x, os_permissions: { ...x.os_permissions, [mod]: v ? (v as ModuleAccess) : undefined } }))}
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -378,7 +378,7 @@ function InviteForm({
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
                       <SelectDropdown
                         value={f.docs_permissions[mod] ?? ''}
-                        onChange={v => setF(x => ({ ...x, docs_permissions: { ...x.docs_permissions, [mod]: v as ModuleAccess || undefined } }))}
+                        onChange={v => setF(x => ({ ...x, docs_permissions: { ...x.docs_permissions, [mod]: v ? (v as ModuleAccess) : undefined } }))}
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -442,6 +442,7 @@ function MemberSidePanel({
   member,
   workspaceAccess,
   canManage,
+  refreshKey,
   onClose,
   onEdit,
   onDelete,
@@ -449,6 +450,7 @@ function MemberSidePanel({
   member: TeamMember;
   workspaceAccess?: Record<string, { enabled: boolean; role: string }>;
   canManage: boolean;
+  refreshKey?: number;
   onClose: () => void;
   onEdit: (m: TeamMember) => void;
   onDelete: (m: TeamMember) => void;
@@ -474,7 +476,7 @@ function MemberSidePanel({
       }
     }
     void load();
-  }, [member.id]);
+  }, [member.id, refreshKey]);
 
   useEffect(() => {
     async function load() {
@@ -753,6 +755,7 @@ export default function TeamPage() {
 
   // Member profile side panel
   const [panelMember, setPanelMember]   = useState<TeamMember | null>(null);
+  const [panelRefreshKey, setPanelRefreshKey] = useState(0);
 
   // Forms — all at the top level, never re-created during render
   const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
@@ -769,13 +772,8 @@ export default function TeamPage() {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_permissions' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
-        // Refresh panel by briefly resetting to null and restoring the same member
-        setPanelMember(prev => {
-          if (!prev) return null;
-          const snapshot = prev;
-          setTimeout(() => setPanelMember(snapshot), 0);
-          return null;
-        });
+        // Increment refresh key to force MemberSidePanel to re-fetch permissions
+        setPanelRefreshKey(k => k + 1);
       })
       .subscribe();
 
@@ -1250,6 +1248,7 @@ export default function TeamPage() {
           member={panelMember}
           workspaceAccess={workspaceAccessByEmail[(panelMember.email ?? '').toLowerCase()]}
           canManage={canManage}
+          refreshKey={panelRefreshKey}
           onClose={() => setPanelMember(null)}
           onEdit={m => { setPanelMember(null); openEdit(m); }}
           onDelete={m => { setPanelMember(null); setDeleteMember(m); }}

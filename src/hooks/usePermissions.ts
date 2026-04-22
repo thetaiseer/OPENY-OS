@@ -79,7 +79,7 @@ export function usePermissions(): UsePermissionsResult {
 
     void loadPermissions();
     return () => { cancelled = true; };
-  }, [platformRole, user.id]);
+  }, [platformRole, user.id]);  // re-run when role or auth user changes
 
   const can = useCallback(
     (workspace: 'os' | 'docs', module: OsModule | DocsModule | string, required: ModuleAccess = 'read'): boolean => {
