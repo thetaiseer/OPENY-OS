@@ -94,7 +94,7 @@ export default function GlobalQuickActionsFab() {
     <div
       ref={wrapperRef}
       className="fixed right-4 z-[48] flex flex-col items-end gap-3"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 40px)' }}
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
     >
       {/* Quick-action menu — renders above FAB due to flex-col + bottom anchor */}
       <AnimatePresence>
