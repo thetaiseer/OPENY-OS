@@ -672,7 +672,7 @@ export default function InvoicePage() {
   return (
     <DocsWorkspaceShell
       toolbar={(
-        <div className="space-y-3">
+        <div className="docs-workspace-quickbar">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <DocsDocTypeTabs active="invoice" />
             <div className="flex items-center gap-2">
@@ -697,7 +697,7 @@ export default function InvoicePage() {
               ) : null}
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-5">
+          <div className="docs-workspace-quickbar-grid">
             <div>
               <label htmlFor="invoice-template">Mode / Template</label>
               <select id="invoice-template" className={inputClass} value={form.invoice_template} onChange={(e) => applyTemplate(asTemplateName(e.target.value))}>
@@ -1068,9 +1068,9 @@ export default function InvoicePage() {
         </div>
       )}
       preview={(
-        <section className="rounded-2xl border p-3 overflow-auto xl:sticky xl:top-[6.7rem] xl:h-[calc(100vh-150px)]" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+        <section className="docs-preview-shell">
           <div className="overflow-x-auto">
-            <div className="mx-auto bg-white shadow-2xl rounded-sm" style={{ width: 820, minHeight: 1123 }}>
+            <div className="docs-preview-canvas" style={{ width: 820 }}>
               <InvoicePreview model={model} />
             </div>
           </div>

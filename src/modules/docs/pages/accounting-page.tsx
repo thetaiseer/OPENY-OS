@@ -10,6 +10,7 @@ import type { DocsClientProfile } from '@/lib/docs-client-profiles';
 import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
+import { DocsDocTypeTabs } from '@/components/docs/DocsWorkspace';
 
 type Tab = 'ledger' | 'summary';
 
@@ -274,13 +275,16 @@ export default function AccountingPage() {
   return (
     <div className="docs-app flex flex-col h-full overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-3">
-          {([['ledger','Ledger'],['summary','Summary']] as [Tab, string][]).map(([t, l]) => (
-            <button key={t} onClick={() => setTab(t)} className={clsx('py-1.5 px-3 text-sm font-medium rounded-lg transition-colors', tab === t ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]')}>{l}</button>
-          ))}
+      <div className="px-6 py-3 border-b shrink-0 space-y-2 sticky top-3 z-20 backdrop-blur-md" style={{ background: 'color-mix(in srgb, var(--surface-elevated) 88%, transparent)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <DocsDocTypeTabs active="accounting" />
+          <div className="flex items-center gap-2">
+            {([['ledger','Ledger'],['summary','Summary']] as [Tab, string][]).map(([t, l]) => (
+              <button key={t} onClick={() => setTab(t)} className={clsx('py-1.5 px-3 text-sm font-medium rounded-lg transition-colors', tab === t ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]')}>{l}</button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <DocsDateField value={month} onChange={setMonth} mode="month" placeholder="Accounting month" />
           <a
             href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
