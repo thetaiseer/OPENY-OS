@@ -20,6 +20,7 @@ import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import CreateClientModal from '@/components/upload/CreateClientModal';
+import AppModal from '@/components/ui/AppModal';
 import {
   MAIN_CATEGORIES,
   SUBCATEGORIES,
@@ -261,46 +262,46 @@ export default function UploadModal({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.65)' }}
-        onClick={onCancel}
-      >
-        <div
-          className="w-full max-w-lg rounded-2xl border shadow-2xl flex flex-col"
-          style={{
-            background:   'var(--surface)',
-            borderColor:  'var(--border)',
-            maxHeight:    '92vh',
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <div>
-              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-                {files.length === 0 ? 'Upload Files' : (files.length === 1 ? 'Upload File' : `Upload ${files.length} Files`)}
-              </h2>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Review details before uploading
-              </p>
-            </div>
+      <AppModal
+        open
+        onClose={onCancel}
+        title={files.length === 0 ? 'Upload Files' : (files.length === 1 ? 'Upload File' : `Upload ${files.length} Files`)}
+        subtitle="Review details before uploading"
+        size="md"
+        bodyClassName="space-y-5"
+        footer={(
+          <>
             <button
               type="button"
               onClick={onCancel}
-              className="flex items-center justify-center w-8 h-8 rounded-xl transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-              title="Cancel"
+              className="openy-modal-btn-secondary flex-1"
             >
-              <X size={16} />
+              Cancel
             </button>
-          </div>
-
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {onConfirmAndSchedule && (
+              <button
+                type="button"
+                onClick={onConfirmAndSchedule}
+                disabled={!canConfirm}
+                className="openy-modal-btn-secondary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
+              >
+                Upload & Schedule
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!canConfirm}
+              className="openy-modal-btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {files.length === 1
+                ? 'Upload File'
+                : `Upload ${files.length} Files`}
+            </button>
+          </>
+        )}
+      >
 
             {/* File list */}
             <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
@@ -418,50 +419,7 @@ export default function UploadModal({
                 />
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            className="flex items-center gap-3 px-6 py-4 border-t shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{
-                background: 'var(--surface-2)',
-                color:      'var(--text)',
-                border:     '1px solid var(--border)',
-              }}
-            >
-              Cancel
-            </button>
-            {onConfirmAndSchedule && (
-              <button
-                type="button"
-                onClick={onConfirmAndSchedule}
-                disabled={!canConfirm}
-                className="flex-1 h-10 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', border: '1.5px solid var(--accent)' }}
-              >
-                Upload &amp; Schedule
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={!canConfirm}
-              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'var(--accent)' }}
-            >
-              {files.length === 1
-                ? 'Upload File'
-                : `Upload ${files.length} Files`}
-            </button>
-          </div>
-        </div>
-      </div>
+      </AppModal>
 
       {/* Inline Create Client modal — renders above UploadModal (z-60) */}
       {showCreateClient && (
@@ -473,4 +431,3 @@ export default function UploadModal({
     </>
   );
 }
-

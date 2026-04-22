@@ -2,11 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, X, FileText, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, FolderOpen, AlertCircle, Send, FileText, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import AppModal from '@/components/ui/AppModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -605,26 +606,24 @@ export default function CalendarPage() {
 
       {/* Schedule detail sheet */}
       {selectedSchedule && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          style={{ background: 'rgba(0,0,0,0.65)' }}
-          onClick={() => setSelectedSchedule(null)}
+        <AppModal
+          open
+          onClose={() => setSelectedSchedule(null)}
+          title="Publishing Schedule"
+          subtitle={selectedSchedule.asset?.name ?? 'Unknown asset'}
+          icon={<Send size={15} />}
+          size="sm"
+          bodyClassName="space-y-4"
+          footer={selectedSchedule.status !== 'published' && selectedSchedule.status !== 'cancelled' ? (
+            <button
+              onClick={() => void handleMarkPublished(selectedSchedule)}
+              disabled={markingPublished}
+              className="openy-modal-btn-primary w-full disabled:opacity-60"
+            >
+              {markingPublished ? 'Marking…' : '✓ Mark as Published'}
+            </button>
+          ) : undefined}
         >
-          <div
-            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border shadow-2xl"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2">
-                <Send size={16} style={{ color: '#7c3aed' }} />
-                <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Publishing Schedule</span>
-              </div>
-              <button onClick={() => setSelectedSchedule(null)} className="opacity-60 hover:opacity-100 transition-opacity">
-                <X size={16} style={{ color: 'var(--text)' }} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
               {/* Asset name */}
               <div>
                 <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>ASSET</p>
@@ -700,20 +699,7 @@ export default function CalendarPage() {
                   <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-secondary)' }}>{selectedSchedule.notes}</p>
                 </div>
               )}
-              {/* Actions */}
-              {selectedSchedule.status !== 'published' && selectedSchedule.status !== 'cancelled' && (
-                <button
-                  onClick={() => void handleMarkPublished(selectedSchedule)}
-                  disabled={markingPublished}
-                  className="w-full h-10 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                  style={{ background: '#0891b2' }}
-                >
-                  {markingPublished ? 'Marking…' : '✓ Mark as Published'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        </AppModal>
       )}
     </div>
   );

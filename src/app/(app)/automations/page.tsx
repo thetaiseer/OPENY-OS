@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Zap, ToggleLeft, ToggleRight, Pencil, Trash2, X, Check } from 'lucide-react';
+import { Plus, Zap, ToggleLeft, ToggleRight, Pencil, Trash2, Check } from 'lucide-react';
 import type { AutomationRule } from '@/lib/types';
+import FormModal from '@/components/ui/FormModal';
 
 const TRIGGER_TYPES = [
   { value: 'task.created',        label: 'Task Created' },
@@ -184,13 +185,32 @@ export default function AutomationsPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-md rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>{editRule ? 'Edit Rule' : 'New Automation Rule'}</h2>
-              <button onClick={() => setModalOpen(false)} style={{ color: 'var(--text-secondary)' }}><X size={18} /></button>
-            </div>
-            <form onSubmit={e => void handleSave(e)} className="space-y-3">
+        <FormModal
+          open
+          onClose={() => setModalOpen(false)}
+          title={editRule ? 'Edit Rule' : 'New Automation Rule'}
+          icon={<Zap size={15} />}
+          size="sm"
+          onSubmit={e => void handleSave(e)}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Saving…' : <><Check size={14} /> Save</>}
+              </button>
+            </>
+          )}
+        >
               <div>
                 <label className="text-sm font-medium block mb-1" style={{ color: 'var(--text)' }}>Rule Name *</label>
                 <input
@@ -245,27 +265,7 @@ export default function AutomationsPage() {
               </div>
 
               {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? 'Saving…' : <><Check size={14} /> Save</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </FormModal>
       )}
     </div>
   );

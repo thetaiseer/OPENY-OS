@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import AppModal from '@/components/ui/AppModal';
 import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -545,35 +546,53 @@ export default function NewTaskModal({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.45)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-2xl rounded-2xl border shadow-2xl flex flex-col"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '92vh' }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
-          <div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>New Task</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              Fill in the details below to create a connected task
-            </p>
+    <AppModal
+      open
+      onClose={onClose}
+      title="New Task"
+      subtitle="Fill in the details below to create a connected task"
+      size="lg"
+      icon={<Check size={14} />}
+      footer={(
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {taskCategory && (
+              <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                {TASK_CATEGORIES.find(c => c.value === taskCategory)?.label}
+              </span>
+            )}
+            {selectedClient && (
+              <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                {selectedClient.name}
+              </span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="openy-modal-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="new-task-modal-form"
+              disabled={saving}
+              className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+            >
+              {saving ? (
+                <><Loader2 size={14} className="animate-spin" /> Creating…</>
+              ) : (
+                <><Check size={14} /> Create Task</>
+              )}
+            </button>
+          </div>
         </div>
-
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5 space-y-5">
+      )}
+    >
+        <form id="new-task-modal-form" onSubmit={handleSubmit} className="openy-modal-stack">
+          <div className="space-y-5">
 
             {/* ── Task Category ── */}
             <CategoryPicker />
@@ -874,49 +893,7 @@ export default function NewTaskModal({
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div
-            className="flex items-center justify-between px-6 py-4 border-t shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {taskCategory && (
-                <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                  {TASK_CATEGORIES.find(c => c.value === taskCategory)?.label}
-                </span>
-              )}
-              {selectedClient && (
-                <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                  {selectedClient.name}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-9 px-4 rounded-lg text-sm font-medium"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-9 px-5 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2 transition-opacity"
-                style={{ background: 'var(--accent)' }}
-              >
-                {saving ? (
-                  <><Loader2 size={14} className="animate-spin" /> Creating…</>
-                ) : (
-                  <><Check size={14} /> Create Task</>
-                )}
-              </button>
-            </div>
-          </div>
         </form>
-      </div>
-    </div>
+    </AppModal>
   );
 }

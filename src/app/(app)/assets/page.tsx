@@ -27,6 +27,7 @@ import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as is
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useQuickActions } from '@/lib/quick-actions-context';
+import AppModal from '@/components/ui/AppModal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1144,15 +1145,15 @@ function AssetsPage() {
 
       {/* ── Comments modal ────────────────────────────────────────────────── */}
       {commentsAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setCommentsAsset(null)}>
-          <div className="w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-xl" style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>{commentsAsset.name}</h3>
-              <button onClick={() => setCommentsAsset(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"><X size={16} /></button>
-            </div>
-            <CommentsPanel assetId={commentsAsset.id} />
-          </div>
-        </div>
+        <AppModal
+          open
+          onClose={() => setCommentsAsset(null)}
+          title={commentsAsset.name}
+          subtitle="Asset comments"
+          size="sm"
+        >
+          <CommentsPanel assetId={commentsAsset.id} />
+        </AppModal>
       )}
 
     </>

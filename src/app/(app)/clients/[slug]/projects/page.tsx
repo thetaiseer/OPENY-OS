@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, FolderOpen, Pencil, Trash2, X, Check, Calendar } from 'lucide-react';
+import { Plus, FolderOpen, Pencil, Trash2, Check, Calendar } from 'lucide-react';
 import { useClientWorkspace } from '../client-context';
 import type { Project } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
+import FormModal from '@/components/ui/FormModal';
 
 type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
 
@@ -222,15 +223,32 @@ export default function ClientProjectsPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-md rounded-2xl border p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
-                {editProject ? 'Edit Project' : 'New Project'}
-              </h2>
-              <button onClick={() => setModalOpen(false)} style={{ color: 'var(--text-secondary)' }}><X size={18} /></button>
-            </div>
-            <form onSubmit={e => void handleSave(e)} className="space-y-3">
+        <FormModal
+          open
+          onClose={() => setModalOpen(false)}
+          title={editProject ? 'Edit Project' : 'New Project'}
+          icon={<FolderOpen size={15} />}
+          size="sm"
+          onSubmit={e => void handleSave(e)}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Saving…' : <><Check size={14} /> Save</>}
+              </button>
+            </>
+          )}
+        >
               <div>
                 <label className="text-sm font-medium block mb-1" style={{ color: 'var(--text)' }}>Name *</label>
                 <input
@@ -299,28 +317,7 @@ export default function ClientProjectsPage() {
               </div>
 
               {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? 'Saving…' : <><Check size={14} /> Save</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </FormModal>
       )}
     </div>
   );

@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { X, Loader2, UserPlus } from 'lucide-react';
 import type { Client } from '@/lib/types';
+import AppModal from '@/components/ui/AppModal';
 
 export interface CreateClientModalProps {
   onCreated: (client: Client) => void;
@@ -86,51 +87,47 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSave(); }
-    if (e.key === 'Escape') onCancel();
-  };
-
   return (
-    /* Backdrop — sits on top of UploadModal (z-50) */
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border shadow-2xl flex flex-col"
-        style={{
-          background:  'var(--surface)',
-          borderColor: 'var(--border)',
-          maxHeight:   '90vh',
-        }}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-center gap-2">
-            <UserPlus size={16} style={{ color: 'var(--accent)' }} />
-            <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
-              Create New Client
-            </h3>
-          </div>
+    <AppModal
+      open
+      onClose={onCancel}
+      title="Create New Client"
+      icon={<UserPlus size={15} />}
+      size="sm"
+      zIndexClassName="z-[60]"
+      footer={(
+        <>
           <button
             type="button"
             onClick={onCancel}
-            className="flex items-center justify-center w-7 h-7 rounded-lg hover:opacity-70 transition-opacity"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            disabled={saving}
+            className="openy-modal-btn-secondary flex-1 disabled:opacity-40"
           >
-            <X size={14} />
+            Cancel
           </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
+          <button
+            type="submit"
+            form="create-client-modal-form"
+            disabled={saving || !name.trim()}
+            className="openy-modal-btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <><Loader2 size={14} className="animate-spin" /> Saving...</>
+            ) : (
+              'Create Client'
+            )}
+          </button>
+        </>
+      )}
+    >
+      <form
+        id="create-client-modal-form"
+        className="openy-modal-stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSave();
+        }}
+      >
           {/* Error */}
           {error && (
             <div
@@ -217,41 +214,7 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
               }}
             />
           </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          className="flex items-center gap-2.5 px-5 py-4 border-t shrink-0"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-            className="flex-1 h-9 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
-            style={{
-              background: 'var(--surface-2)',
-              color:      'var(--text)',
-              border:     '1px solid var(--border)',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving || !name.trim()}
-            className="flex-1 h-9 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ background: 'var(--accent)' }}
-          >
-            {saving ? (
-              <><Loader2 size={14} className="animate-spin" /> Saving...</>
-            ) : (
-              'Create Client'
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+      </form>
+    </AppModal>
   );
 }
