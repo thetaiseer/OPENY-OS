@@ -150,10 +150,10 @@ export default function GlobalQuickActionsFab() {
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
-        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         style={{
-          background: 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 64%, var(--accent-3) 36%) 100%)',
-          boxShadow: '0 16px 30px rgba(58,95,224,0.35), 0 0 24px rgba(120,140,255,0.4)',
+          background: 'linear-gradient(135deg, #1e3a5f 0%, #16304f 100%)',
+          boxShadow: '0 16px 30px rgba(30,58,95,0.45), 0 0 24px rgba(30,58,95,0.3)',
           transitionDuration: 'var(--motion-duration-ui)',
           transitionTimingFunction: 'var(--motion-ease-standard)',
         }}
