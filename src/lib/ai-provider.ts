@@ -110,11 +110,14 @@ async function callGemini({
     throw new Error(errMsg);
   }
 
-  const data = await res.json() as {
+  const data = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('Gemini returned an empty response — no text in candidates[0].content.parts[0]');
+  if (!text)
+    throw new Error(
+      'Gemini returned an empty response — no text in candidates[0].content.parts[0]',
+    );
   return text;
 }

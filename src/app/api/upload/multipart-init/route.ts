@@ -1,17 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { createMultipartUploadSession, getStorageBucketName, R2ConfigError } from '@/lib/storage';
-import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
+import {
+  buildStorageKey,
+  MAIN_CATEGORIES,
+  SUBCATEGORIES,
+  type MainCategorySlug,
+} from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([
-  'exe','bat','cmd','sh','bash','ps1','msi','vbs',
-  'php','py','rb','pl','cgi','app','com','scr','pif','reg','dll','so',
+  'exe',
+  'bat',
+  'cmd',
+  'sh',
+  'bash',
+  'ps1',
+  'msi',
+  'vbs',
+  'php',
+  'py',
+  'rb',
+  'pl',
+  'cgi',
+  'app',
+  'com',
+  'scr',
+  'pif',
+  'reg',
+  'dll',
+  'so',
 ]);
 
-const VALID_MAIN_CATEGORIES: string[] = MAIN_CATEGORIES.map(c => c.slug);
+const VALID_MAIN_CATEGORIES: string[] = MAIN_CATEGORIES.map((c) => c.slug);
 
 function getExtension(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
@@ -54,7 +77,10 @@ export async function POST(req: NextRequest) {
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Upload limit exceeded. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      },
     );
   }
 
@@ -65,22 +91,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const fileName     = (body.fileName     as string | undefined)?.trim() ?? '';
-  const fileType     = (body.fileType     as string | undefined)?.trim() ?? 'application/octet-stream';
-  const fileSize     = Number(body.fileSize ?? 0);
-  const clientName   = (body.clientName   as string | undefined)?.trim() ?? '';
-  const clientId     = (body.clientId     as string | undefined)?.trim() || null;
+  const fileName = (body.fileName as string | undefined)?.trim() ?? '';
+  const fileType = (body.fileType as string | undefined)?.trim() ?? 'application/octet-stream';
+  const fileSize = Number(body.fileSize ?? 0);
+  const clientName = (body.clientName as string | undefined)?.trim() ?? '';
+  const clientId = (body.clientId as string | undefined)?.trim() || null;
   const mainCategory = (body.mainCategory as string | undefined)?.trim() ?? '';
-  const subCategory  = (body.subCategory  as string | undefined)?.trim() ?? '';
-  const monthKey     = (body.monthKey     as string | undefined)?.trim() ?? '';
-  const customName   = (body.customFileName as string | undefined)?.trim() || null;
+  const subCategory = (body.subCategory as string | undefined)?.trim() ?? '';
+  const monthKey = (body.monthKey as string | undefined)?.trim() ?? '';
+  const customName = (body.customFileName as string | undefined)?.trim() || null;
 
   // ── Validation ────────────────────────────────────────────────────────────
-  const fail = (message: string, status = 400) =>
-    NextResponse.json({ error: message }, { status });
+  const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
-  if (!fileName)     return fail('fileName is required');
-  if (!clientName)   return fail('clientName is required');
+  if (!fileName) return fail('fileName is required');
+  if (!clientName) return fail('clientName is required');
   if (!mainCategory) return fail('mainCategory is required');
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return fail('monthKey must be YYYY-MM');
 
@@ -89,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (subCategory) {
-    const validSubs = (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? []).map(s => s.slug);
+    const validSubs = (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? []).map((s) => s.slug);
     if (validSubs.length > 0 && !validSubs.includes(subCategory)) {
       return fail(`Invalid subCategory "${subCategory}" for mainCategory "${mainCategory}"`);
     }
@@ -104,7 +129,7 @@ export async function POST(req: NextRequest) {
 
   // Build storage key and display name.
   const sanitizedFile = sanitizeFileName(fileName);
-  const timestamp     = Date.now();
+  const timestamp = Date.now();
 
   const storageKey = buildStorageKey({
     clientName,
@@ -112,17 +137,16 @@ export async function POST(req: NextRequest) {
     mainCategory,
     subCategory: subCategory || 'general',
     monthKey,
-    fileName:    sanitizedFile,
+    fileName: sanitizedFile,
     timestamp,
   });
 
   let displayName: string;
   if (customName) {
-    const base      = sanitizeFileName(customName);
-    const dotExt    = ext ? `.${ext}` : '';
-    displayName = (dotExt && base.toLowerCase().endsWith(dotExt.toLowerCase()))
-      ? base
-      : `${base}${dotExt}`;
+    const base = sanitizeFileName(customName);
+    const dotExt = ext ? `.${ext}` : '';
+    displayName =
+      dotExt && base.toLowerCase().endsWith(dotExt.toLowerCase()) ? base : `${base}${dotExt}`;
   } else {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
@@ -134,13 +158,13 @@ export async function POST(req: NextRequest) {
     const result = await createMultipartUploadSession(storageKey, fileType);
 
     return NextResponse.json({
-      uploadId:    result.uploadId,
-      storageKey:  result.storageKey,
-      publicUrl:   result.publicUrl,
+      uploadId: result.uploadId,
+      storageKey: result.storageKey,
+      publicUrl: result.publicUrl,
       displayName,
     });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/multipart-init] upload failure', {
       provider: 'r2',

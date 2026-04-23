@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import {
-  FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2,
-} from 'lucide-react';
+import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
 
 const MODULES = [
   {
@@ -56,7 +54,7 @@ const MODULES = [
 
 export default function DocsHomePage() {
   return (
-    <div className="app-page-shell max-w-5xl mx-auto">
+    <div className="app-page-shell mx-auto max-w-5xl">
       <div className="app-page-header">
         <div>
           <h1 className="app-page-title">DOCS</h1>
@@ -66,22 +64,25 @@ export default function DocsHomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
           <Link
             key={href}
             href={href}
-            className="group rounded-3xl p-6 border transition-all hover:-translate-y-1"
+            className="group rounded-3xl border p-6 transition-all hover:-translate-y-1"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mb-5"
-              style={{ background: `linear-gradient(145deg, ${bg} 0%, rgba(255,255,255,0.38) 100%)`, boxShadow: `0 8px 18px ${bg}` }}
+              className="mb-5 flex h-12 w-12 items-center justify-center rounded-full"
+              style={{
+                background: `linear-gradient(145deg, ${bg} 0%, rgba(255,255,255,0.38) 100%)`,
+                boxShadow: `0 8px 18px ${bg}`,
+              }}
             >
               <Icon size={22} style={{ color }} strokeWidth={1.8} />
             </div>
             <h2
-              className="text-base font-semibold mb-1.5 group-hover:text-[var(--accent)] transition-colors"
+              className="mb-1.5 text-base font-semibold transition-colors group-hover:text-[var(--accent)]"
               style={{ color: 'var(--text)' }}
             >
               {label}

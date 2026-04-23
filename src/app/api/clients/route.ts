@@ -38,7 +38,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ success: true, clients: data ?? [] });
 }
 
-
 export async function POST(request: NextRequest) {
   // 1. Auth & role check
   const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
@@ -68,7 +67,15 @@ export async function POST(request: NextRequest) {
 
   // 4. Build insert payload (only allow known fields)
   const insertPayload: Record<string, string> = { name };
-  const optionalFields = ['email', 'phone', 'website', 'industry', 'status', 'notes', 'default_currency'] as const;
+  const optionalFields = [
+    'email',
+    'phone',
+    'website',
+    'industry',
+    'status',
+    'notes',
+    'default_currency',
+  ] as const;
   for (const field of optionalFields) {
     const val = body[field];
     if (typeof val === 'string' && val.trim() !== '') {
@@ -83,14 +90,15 @@ export async function POST(request: NextRequest) {
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   const db = getServiceClient();
-  const { data, error } = await db
-    .from('clients')
-    .insert(insertPayload)
-    .select()
-    .single();
+  const { data, error } = await db.from('clients').insert(insertPayload).select().single();
 
   if (error) {
-    console.error('[POST /api/clients] db_insert error — code:', error.code, '| message:', error.message);
+    console.error(
+      '[POST /api/clients] db_insert error — code:',
+      error.code,
+      '| message:',
+      error.message,
+    );
     return NextResponse.json(
       { success: false, step: 'db_insert', error: error.message },
       { status: 500 },
@@ -115,7 +123,10 @@ export async function POST(request: NextRequest) {
           adminUserIds,
         });
       } catch (err) {
-        console.warn('[POST /api/clients] notifyClientCreated failed:', err instanceof Error ? err.message : String(err));
+        console.warn(
+          '[POST /api/clients] notifyClientCreated failed:',
+          err instanceof Error ? err.message : String(err),
+        );
       }
     })();
   }

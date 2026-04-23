@@ -7,8 +7,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-const VALID_ENTITY_TYPES = ['task', 'asset', 'content', 'client', 'project', 'note', 'template'] as const;
-const VALID_LINK_TYPES   = ['related', 'blocks', 'blocked_by', 'parent', 'child', 'duplicate'] as const;
+const VALID_ENTITY_TYPES = [
+  'task',
+  'asset',
+  'content',
+  'client',
+  'project',
+  'note',
+  'template',
+] as const;
+const VALID_LINK_TYPES = [
+  'related',
+  'blocks',
+  'blocked_by',
+  'parent',
+  'child',
+  'duplicate',
+] as const;
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -16,9 +31,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const sourceType = searchParams.get('source_type');
-  const sourceId   = searchParams.get('source_id');
+  const sourceId = searchParams.get('source_id');
   const targetType = searchParams.get('target_type');
-  const targetId   = searchParams.get('target_id');
+  const targetId = searchParams.get('target_id');
 
   const db = getServiceClient();
   let query = db
@@ -44,39 +59,49 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const sourceType = typeof body.source_type === 'string' ? body.source_type : '';
-  const sourceId   = typeof body.source_id   === 'string' ? body.source_id.trim() : '';
+  const sourceId = typeof body.source_id === 'string' ? body.source_id.trim() : '';
   const targetType = typeof body.target_type === 'string' ? body.target_type : '';
-  const targetId   = typeof body.target_id   === 'string' ? body.target_id.trim() : '';
-  const linkType   = typeof body.link_type   === 'string' ? body.link_type : 'related';
+  const targetId = typeof body.target_id === 'string' ? body.target_id.trim() : '';
+  const linkType = typeof body.link_type === 'string' ? body.link_type : 'related';
 
-  if (!(VALID_ENTITY_TYPES as readonly string[]).includes(sourceType) ||
-      !(VALID_ENTITY_TYPES as readonly string[]).includes(targetType)) {
+  if (
+    !(VALID_ENTITY_TYPES as readonly string[]).includes(sourceType) ||
+    !(VALID_ENTITY_TYPES as readonly string[]).includes(targetType)
+  ) {
     return NextResponse.json({ success: false, error: 'Invalid entity type' }, { status: 400 });
   }
   if (!(VALID_LINK_TYPES as readonly string[]).includes(linkType)) {
     return NextResponse.json({ success: false, error: 'Invalid link_type' }, { status: 400 });
   }
   if (!sourceId || !targetId) {
-    return NextResponse.json({ success: false, error: 'source_id and target_id are required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'source_id and target_id are required' },
+      { status: 400 },
+    );
   }
 
   const db = getServiceClient();
   const { data, error } = await db
     .from('entity_links')
-    .upsert({
-      source_type: sourceType,
-      source_id:   sourceId,
-      target_type: targetType,
-      target_id:   targetId,
-      link_type:   linkType,
-      metadata:    body.metadata ?? null,
-      created_by:  auth.profile.id,
-    }, { onConflict: 'source_type,source_id,target_type,target_id' })
+    .upsert(
+      {
+        source_type: sourceType,
+        source_id: sourceId,
+        target_type: targetType,
+        target_id: targetId,
+        link_type: linkType,
+        metadata: body.metadata ?? null,
+        created_by: auth.profile.id,
+      },
+      { onConflict: 'source_type,source_id,target_type,target_id' },
+    )
     .select()
     .single();
 

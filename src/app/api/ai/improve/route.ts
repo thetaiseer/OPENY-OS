@@ -3,12 +3,7 @@ import { requireRole } from '@/lib/api-auth';
 import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 import { checkRateLimit } from '@/lib/rate-limit';
 
-export type ImproveAction =
-  | 'improve'
-  | 'professional'
-  | 'shorten'
-  | 'expand'
-  | 'name';
+export type ImproveAction = 'improve' | 'professional' | 'shorten' | 'expand' | 'name';
 
 const ACTION_INSTRUCTION: Record<ImproveAction, string> = {
   /**
@@ -61,8 +56,14 @@ export async function POST(req: NextRequest) {
     const rl = checkRateLimit(`ai:user:${auth.profile.id}`, { limit: 30, windowMs: 60_000 });
     if (!rl.allowed) {
       return NextResponse.json(
-        { success: false, error: 'Too many AI requests. Please wait a moment before trying again.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          success: false,
+          error: 'Too many AI requests. Please wait a moment before trying again.',
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
@@ -70,7 +71,10 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ success: false, error: 'Request body must be valid JSON' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Request body must be valid JSON' },
+        { status: 400 },
+      );
     }
 
     const { text, action = 'improve' } = body;
@@ -81,7 +85,10 @@ export async function POST(req: NextRequest) {
 
     if (!ACTION_INSTRUCTION[action as ImproveAction]) {
       return NextResponse.json(
-        { success: false, error: `Invalid action. Must be one of: ${Object.keys(ACTION_INSTRUCTION).join(', ')}` },
+        {
+          success: false,
+          error: `Invalid action. Must be one of: ${Object.keys(ACTION_INSTRUCTION).join(', ')}`,
+        },
         { status: 400 },
       );
     }
@@ -111,7 +118,10 @@ export async function POST(req: NextRequest) {
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
         return NextResponse.json(
-          { success: false, error: 'AI writing features are not configured. Set GEMINI_API_KEY to enable them.' },
+          {
+            success: false,
+            error: 'AI writing features are not configured. Set GEMINI_API_KEY to enable them.',
+          },
           { status: 503 },
         );
       }

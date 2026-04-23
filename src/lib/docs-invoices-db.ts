@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { InvoiceBranchGroup, InvoiceCampaignRow, InvoicePlatformGroup } from '@/lib/docs-types';
+import type {
+  InvoiceBranchGroup,
+  InvoiceCampaignRow,
+  InvoicePlatformGroup,
+} from '@/lib/docs-types';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
 type InvoiceRowRecord = {
@@ -78,11 +82,18 @@ export function normalizeInvoiceBranchGroups(branchGroups: unknown): InvoiceBran
 }
 
 export function calculateInvoiceTotals(branchGroups: InvoiceBranchGroup[], ourFees: unknown) {
-  const finalBudget = round2(branchGroups.reduce((branchSum, branch) => (
-    branchSum + branch.platform_groups.reduce((platformSum, platform) => (
-      platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + n(row.cost), 0)
-    ), 0)
-  ), 0));
+  const finalBudget = round2(
+    branchGroups.reduce(
+      (branchSum, branch) =>
+        branchSum +
+        branch.platform_groups.reduce(
+          (platformSum, platform) =>
+            platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + n(row.cost), 0),
+          0,
+        ),
+      0,
+    ),
+  );
   const fees = round2(n(ourFees));
   return {
     final_budget: finalBudget,
@@ -95,11 +106,10 @@ export function calculateInvoiceTotals(branchGroups: InvoiceBranchGroup[], ourFe
 function isSchemaIssue(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false;
   const text = `${error.message ?? ''}`.toLowerCase();
-  const messageIndicatesMissingDocsTable = (
+  const messageIndicatesMissingDocsTable =
     /could not find table ['"]public\.docs_invoices['"]/.test(text) ||
     /relation ["']docs_invoices["'] does not exist/.test(text) ||
-    /relation ["']docs_invoice_(branches|platforms|rows)["'] does not exist/.test(text)
-  );
+    /relation ["']docs_invoice_(branches|platforms|rows)["'] does not exist/.test(text);
   return (
     error.code === PG_UNDEFINED_TABLE ||
     error.code === 'PGRST204' ||
@@ -123,7 +133,7 @@ export async function hydrateInvoiceBranchGroups(
 ) {
   if (!invoices.length) return invoices;
 
-  const invoiceIds = invoices.map(inv => inv.id);
+  const invoiceIds = invoices.map((inv) => inv.id);
   const { data: branches, error: branchesErr } = await db
     .schema('public')
     .from('docs_invoice_branches')
@@ -138,7 +148,7 @@ export async function hydrateInvoiceBranchGroups(
 
   if (!branches || branches.length === 0) return invoices;
 
-  const branchIds = branches.map(b => b.id);
+  const branchIds = branches.map((b) => b.id);
   const { data: platforms, error: platformsErr } = await db
     .schema('public')
     .from('docs_invoice_platforms')
@@ -151,15 +161,16 @@ export async function hydrateInvoiceBranchGroups(
     throw platformsErr;
   }
 
-  const platformIds = (platforms ?? []).map(p => p.id);
-  const { data: rows, error: rowsErr } = platformIds.length > 0
-    ? await db
-        .schema('public')
-        .from('docs_invoice_rows')
-        .select('id, platform_id, ad_name, date, results, cost, position')
-        .in('platform_id', platformIds)
-        .order('position', { ascending: true })
-    : { data: [], error: null };
+  const platformIds = (platforms ?? []).map((p) => p.id);
+  const { data: rows, error: rowsErr } =
+    platformIds.length > 0
+      ? await db
+          .schema('public')
+          .from('docs_invoice_rows')
+          .select('id, platform_id, ad_name, date, results, cost, position')
+          .in('platform_id', platformIds)
+          .order('position', { ascending: true })
+      : { data: [], error: null };
 
   if (rowsErr) {
     if (isSchemaIssue(rowsErr)) return invoices;
@@ -172,7 +183,9 @@ export async function hydrateInvoiceBranchGroups(
 
   const platformsByBranch = new Map<string, InvoicePlatformRecord[]>();
 
-  (platforms ?? []).forEach((platform) => groupPush(platformsByBranch, platform.branch_id, platform));
+  (platforms ?? []).forEach((platform) =>
+    groupPush(platformsByBranch, platform.branch_id, platform),
+  );
 
   const branchesByInvoice = new Map<string, InvoiceBranchRecord[]>();
 
@@ -230,7 +243,7 @@ export async function replaceInvoiceBranchGroups(
     throw fetchBranchesError;
   }
 
-  const branchIds = (existingBranches ?? []).map(branch => branch.id as string);
+  const branchIds = (existingBranches ?? []).map((branch) => branch.id as string);
   if (branchIds.length > 0) {
     const { data: existingPlatforms, error: fetchPlatformsError } = await db
       .schema('public')
@@ -243,7 +256,7 @@ export async function replaceInvoiceBranchGroups(
       throw fetchPlatformsError;
     }
 
-    const platformIds = (existingPlatforms ?? []).map(platform => platform.id as string);
+    const platformIds = (existingPlatforms ?? []).map((platform) => platform.id as string);
     if (platformIds.length > 0) {
       const { error: deleteRowsError } = await db
         .schema('public')

@@ -19,17 +19,16 @@ import { createNotification } from '@/lib/notification-service';
 import { sendEmail, deadlineAlertEmail, logEmailSent } from '@/lib/email';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered'];
-const MS_PER_DAY        = 86_400_000;
-const MS_PER_HOUR       = 3_600_000;
-const MS_PER_MINUTE     = 60_000;
-const STALE_TASK_DAYS   = 7;  // alert when task has no update for this many days
-
+const MS_PER_DAY = 86_400_000;
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_MINUTE = 60_000;
+const STALE_TASK_DAYS = 7; // alert when task has no update for this many days
 
 function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return true;
   const headerSecret = req.headers.get('x-cron-secret');
-  const querySecret  = new URL(req.url).searchParams.get('secret');
+  const querySecret = new URL(req.url).searchParams.get('secret');
   return headerSecret === secret || querySecret === secret;
 }
 
@@ -80,12 +79,19 @@ async function resolveAssignees(
  * Format: `{type}:{entityId}:{userId}:{windowSegment}`
  * where windowSegment changes per window size to allow re-notifications.
  */
-function buildReminderIkey(type: string, entityId: string, userId: string | null, window: 'day' | 'hour' | '15min') {
+function buildReminderIkey(
+  type: string,
+  entityId: string,
+  userId: string | null,
+  window: 'day' | 'hour' | '15min',
+) {
   const now = new Date();
   let windowStr: string;
-  if (window === 'day')   windowStr = now.toISOString().slice(0, 10);  // YYYY-MM-DD
-  else if (window === 'hour')  windowStr = now.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-  else                   windowStr = `${now.toISOString().slice(0, 13)}:${Math.floor(now.getMinutes() / 15) * 15}`;
+  if (window === 'day')
+    windowStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  else if (window === 'hour')
+    windowStr = now.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  else windowStr = `${now.toISOString().slice(0, 13)}:${Math.floor(now.getMinutes() / 15) * 15}`;
   return `${type}:${entityId}:${userId ?? 'all'}:${windowStr}`;
 }
 
@@ -94,25 +100,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   }
 
-  const db      = getServiceClient();
-  const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  const now     = new Date();
+  const db = getServiceClient();
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const now = new Date();
   const in24h = new Date(now.getTime() + MS_PER_DAY);
 
-  let dueSoonCount    = 0;
-  let overdueCount    = 0;
-  let publishCount    = 0;
-  let staleCount      = 0;
-  let errors          = 0;
+  let dueSoonCount = 0;
+  let overdueCount = 0;
+  let publishCount = 0;
+  let staleCount = 0;
+  let errors = 0;
 
   try {
     // ── 1. Tasks due within the next 24 hours ─────────────────────────────────
     const { data: dueSoon } = await db
       .from('tasks')
       .select('id, title, due_date, assignee_id, client_id, status')
-      .gt('due_date',  now.toISOString())
+      .gt('due_date', now.toISOString())
       .lte('due_date', in24h.toISOString())
-      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .not('status', 'in', `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(',')})`)
       .limit(100);
 
     const dueSoonIds = (dueSoon ?? [])
@@ -122,42 +128,59 @@ export async function GET(req: NextRequest) {
 
     for (const task of (dueSoon ?? []) as TaskRow[]) {
       try {
-        const daysLeft = Math.max(1, Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / MS_PER_DAY));
-        const userId   = task.assignee_id ?? null;
+        const daysLeft = Math.max(
+          1,
+          Math.ceil((new Date(task.due_date).getTime() - now.getTime()) / MS_PER_DAY),
+        );
+        const userId = task.assignee_id ?? null;
         await createNotification({
-          title:            'Task Due Soon',
-          message:          `"${task.title}" is due in ${daysLeft <= 0 ? 'less than a day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}`,
-          type:             'warning',
-          priority:         'medium',
-          category:         'tasks',
-          event_type:       'task_due_soon',
-          user_id:          userId,
-          client_id:        task.client_id ?? null,
-          task_id:          task.id,
-          entity_type:      'task',
-          entity_id:        task.id,
-          action_url:       '/os/tasks',
-          idempotency_key:  buildReminderIkey('task_due_soon', task.id, userId, 'day'),
+          title: 'Task Due Soon',
+          message: `"${task.title}" is due in ${daysLeft <= 0 ? 'less than a day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}`,
+          type: 'warning',
+          priority: 'medium',
+          category: 'tasks',
+          event_type: 'task_due_soon',
+          user_id: userId,
+          client_id: task.client_id ?? null,
+          task_id: task.id,
+          entity_type: 'task',
+          entity_id: task.id,
+          action_url: '/os/tasks',
+          idempotency_key: buildReminderIkey('task_due_soon', task.id, userId, 'day'),
         });
         dueSoonCount++;
 
         // Send email to assignee
-        const assignee = userId ? dueSoonAssignees.get(userId) ?? null : null;
+        const assignee = userId ? (dueSoonAssignees.get(userId) ?? null) : null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
-              to:      assignee.email,
+              to: assignee.email,
               subject: `⏰ Task due soon: ${task.title}`,
-              html:    deadlineAlertEmail({
+              html: deadlineAlertEmail({
                 recipientName: assignee.full_name ?? assignee.email,
-                taskTitle:     task.title,
+                taskTitle: task.title,
                 daysLeft,
                 appUrl,
               }),
             });
-            void logEmailSent({ to: assignee.email, subject: `Task due soon: ${task.title}`, eventType: 'task_due_soon', entityType: 'task', entityId: task.id });
+            void logEmailSent({
+              to: assignee.email,
+              subject: `Task due soon: ${task.title}`,
+              eventType: 'task_due_soon',
+              entityType: 'task',
+              entityId: task.id,
+            });
           } catch (emailErr) {
-            void logEmailSent({ to: assignee.email, subject: `Task due soon: ${task.title}`, eventType: 'task_due_soon', entityType: 'task', entityId: task.id, status: 'failed', error: String(emailErr) });
+            void logEmailSent({
+              to: assignee.email,
+              subject: `Task due soon: ${task.title}`,
+              eventType: 'task_due_soon',
+              entityType: 'task',
+              entityId: task.id,
+              status: 'failed',
+              error: String(emailErr),
+            });
           }
         }
       } catch (err) {
@@ -171,7 +194,7 @@ export async function GET(req: NextRequest) {
       .from('tasks')
       .select('id, title, due_date, assignee_id, client_id, status')
       .lt('due_date', now.toISOString())
-      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .not('status', 'in', `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(',')})`)
       .limit(100);
 
     const overdueIds = (overdue ?? [])
@@ -183,39 +206,53 @@ export async function GET(req: NextRequest) {
       try {
         const userId = task.assignee_id ?? null;
         await createNotification({
-          title:            'Task Overdue',
-          message:          `"${task.title}" is overdue`,
-          type:             'error',
-          priority:         'high',
-          category:         'tasks',
-          event_type:       'task_overdue',
-          user_id:          userId,
-          client_id:        task.client_id ?? null,
-          task_id:          task.id,
-          entity_type:      'task',
-          entity_id:        task.id,
-          action_url:       '/os/tasks',
-          idempotency_key:  buildReminderIkey('task_overdue', task.id, userId, 'day'),
+          title: 'Task Overdue',
+          message: `"${task.title}" is overdue`,
+          type: 'error',
+          priority: 'high',
+          category: 'tasks',
+          event_type: 'task_overdue',
+          user_id: userId,
+          client_id: task.client_id ?? null,
+          task_id: task.id,
+          entity_type: 'task',
+          entity_id: task.id,
+          action_url: '/os/tasks',
+          idempotency_key: buildReminderIkey('task_overdue', task.id, userId, 'day'),
         });
         overdueCount++;
 
         // Send overdue email to assignee
-        const assignee = userId ? overdueAssignees.get(userId) ?? null : null;
+        const assignee = userId ? (overdueAssignees.get(userId) ?? null) : null;
         if (assignee?.email && appUrl) {
           try {
             await sendEmail({
-              to:      assignee.email,
+              to: assignee.email,
               subject: `🚨 Task overdue: ${task.title}`,
-              html:    deadlineAlertEmail({
+              html: deadlineAlertEmail({
                 recipientName: assignee.full_name ?? assignee.email,
-                taskTitle:     task.title,
-                daysLeft:      0,
+                taskTitle: task.title,
+                daysLeft: 0,
                 appUrl,
               }),
             });
-            void logEmailSent({ to: assignee.email, subject: `Task overdue: ${task.title}`, eventType: 'task_overdue', entityType: 'task', entityId: task.id });
+            void logEmailSent({
+              to: assignee.email,
+              subject: `Task overdue: ${task.title}`,
+              eventType: 'task_overdue',
+              entityType: 'task',
+              entityId: task.id,
+            });
           } catch (emailErr) {
-            void logEmailSent({ to: assignee.email, subject: `Task overdue: ${task.title}`, eventType: 'task_overdue', entityType: 'task', entityId: task.id, status: 'failed', error: String(emailErr) });
+            void logEmailSent({
+              to: assignee.email,
+              subject: `Task overdue: ${task.title}`,
+              eventType: 'task_overdue',
+              entityType: 'task',
+              entityId: task.id,
+              status: 'failed',
+              error: String(emailErr),
+            });
           }
         }
       } catch (err) {
@@ -229,7 +266,9 @@ export async function GET(req: NextRequest) {
     // that have not been published yet.
     const { data: upcoming15m } = await db
       .from('publishing_schedules')
-      .select('id, scheduled_date, scheduled_time, timezone, client_id, client_name, assigned_to, status')
+      .select(
+        'id, scheduled_date, scheduled_time, timezone, client_id, client_name, assigned_to, status',
+      )
       .in('status', ['scheduled', 'queued'])
       .limit(50);
 
@@ -246,22 +285,27 @@ export async function GET(req: NextRequest) {
         if (!in15Window && !in1hWindow) continue;
 
         const windowLabel = in15Window ? '15 minutes' : '1 hour';
-        const windowKey   = in15Window ? '15min' : 'hour';
-        const userId      = sched.assigned_to ?? null;
+        const windowKey = in15Window ? '15min' : 'hour';
+        const userId = sched.assigned_to ?? null;
 
         await createNotification({
-          title:            '📅 Publish Window Approaching',
-          message:          `Content is scheduled to publish in ~${windowLabel}${sched.client_name ? ` — ${sched.client_name}` : ''}`,
-          type:             'warning',
-          priority:         'high',
-          category:         'content',
-          eventType:        'publish_window.approaching',
-          user_id:          userId,
-          client_id:        sched.client_id ?? null,
-          entity_type:      'publishing_schedule',
-          entity_id:        sched.id,
-          action_url:       '/os/calendar',
-          idempotency_key:  buildReminderIkey('publish_window', sched.id, userId, windowKey as 'hour' | '15min'),
+          title: '📅 Publish Window Approaching',
+          message: `Content is scheduled to publish in ~${windowLabel}${sched.client_name ? ` — ${sched.client_name}` : ''}`,
+          type: 'warning',
+          priority: 'high',
+          category: 'content',
+          eventType: 'publish_window.approaching',
+          user_id: userId,
+          client_id: sched.client_id ?? null,
+          entity_type: 'publishing_schedule',
+          entity_id: sched.id,
+          action_url: '/os/calendar',
+          idempotency_key: buildReminderIkey(
+            'publish_window',
+            sched.id,
+            userId,
+            windowKey as 'hour' | '15min',
+          ),
         });
         publishCount++;
 
@@ -287,9 +331,18 @@ export async function GET(req: NextRequest) {
                   appUrl,
                 }),
               });
-              void logEmailSent({ to: member.email, subject: subj, eventType: 'publish_window.approaching', entityType: 'publishing_schedule', entityId: sched.id });
+              void logEmailSent({
+                to: member.email,
+                subject: subj,
+                eventType: 'publish_window.approaching',
+                entityType: 'publishing_schedule',
+                entityId: sched.id,
+              });
             } catch (emailErr) {
-              console.warn('[reminders/cron] publish window email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
+              console.warn(
+                '[reminders/cron] publish window email failed:',
+                emailErr instanceof Error ? emailErr.message : String(emailErr),
+              );
             }
           }
         }
@@ -305,26 +358,26 @@ export async function GET(req: NextRequest) {
       .from('tasks')
       .select('id, title, assignee_id, client_id, status, updated_at')
       .lt('updated_at', staleThreshold)
-      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .not('status', 'in', `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(',')})`)
       .limit(50);
 
     for (const task of (staleTasks ?? []) as TaskRow[]) {
       try {
         const userId = task.assignee_id ?? null;
         await createNotification({
-          title:            'Task Has No Recent Updates',
-          message:          `"${task.title}" has not been updated in ${STALE_TASK_DAYS}+ days`,
-          type:             'warning',
-          priority:         'medium',
-          category:         'tasks',
-          eventType:        'task.stale',
-          user_id:          userId,
-          client_id:        task.client_id ?? null,
-          task_id:          task.id,
-          entity_type:      'task',
-          entity_id:        task.id,
-          action_url:       '/os/tasks',
-          idempotency_key:  buildReminderIkey('task_stale', task.id, userId, 'day'),
+          title: 'Task Has No Recent Updates',
+          message: `"${task.title}" has not been updated in ${STALE_TASK_DAYS}+ days`,
+          type: 'warning',
+          priority: 'medium',
+          category: 'tasks',
+          eventType: 'task.stale',
+          user_id: userId,
+          client_id: task.client_id ?? null,
+          task_id: task.id,
+          entity_type: 'task',
+          entity_id: task.id,
+          action_url: '/os/tasks',
+          idempotency_key: buildReminderIkey('task_stale', task.id, userId, 'day'),
         });
         staleCount++;
       } catch (err) {
@@ -332,13 +385,19 @@ export async function GET(req: NextRequest) {
         errors++;
       }
     }
-
   } catch (err) {
     console.error('[reminders/cron] unexpected error:', err);
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, dueSoonCount, overdueCount, publishCount, staleCount, errors });
+  return NextResponse.json({
+    success: true,
+    dueSoonCount,
+    overdueCount,
+    publishCount,
+    staleCount,
+    errors,
+  });
 }
 
 // ── Email template for publish-window reminder ────────────────────────────────

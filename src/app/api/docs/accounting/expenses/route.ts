@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const month_key = searchParams.get('month_key') ?? '';
-  const sort      = searchParams.get('sort')      ?? 'created_at';
-  const order     = searchParams.get('order')     === 'asc';
+  const sort = searchParams.get('sort') ?? 'created_at';
+  const order = searchParams.get('order') === 'asc';
 
   const db = getServiceClient();
   let q = db.from('docs_accounting_expenses').select('*').order(sort, { ascending: order });
@@ -26,12 +26,17 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const { description, month_key } = body as { description?: string; month_key?: string };
-  if (!description?.trim()) return NextResponse.json({ error: 'description is required' }, { status: 400 });
-  if (!month_key?.trim())   return NextResponse.json({ error: 'month_key is required' }, { status: 400 });
+  if (!description?.trim())
+    return NextResponse.json({ error: 'description is required' }, { status: 400 });
+  if (!month_key?.trim())
+    return NextResponse.json({ error: 'month_key is required' }, { status: 400 });
 
   const db = getServiceClient();
   const { data, error } = await db

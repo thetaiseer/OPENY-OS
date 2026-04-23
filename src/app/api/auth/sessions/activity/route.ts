@@ -3,7 +3,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-
 // POST /api/auth/sessions/activity — update last_seen_at for the current session
 export async function POST(request: NextRequest) {
   const auth = await getApiUser(request);

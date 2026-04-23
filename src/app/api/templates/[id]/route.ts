@@ -30,15 +30,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const allowed: Record<string, unknown> = {};
-  if (typeof body.name          === 'string') allowed.name          = body.name.trim();
-  if (typeof body.description   === 'string') allowed.description   = body.description.trim();
+  if (typeof body.name === 'string') allowed.name = body.name.trim();
+  if (typeof body.description === 'string') allowed.description = body.description.trim();
   if (typeof body.template_data === 'object') allowed.template_data = body.template_data;
-  if (typeof body.is_global     === 'boolean') allowed.is_global    = body.is_global;
+  if (typeof body.is_global === 'boolean') allowed.is_global = body.is_global;
   allowed.updated_at = new Date().toISOString();
 
   const db = getServiceClient();

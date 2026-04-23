@@ -13,9 +13,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  X, Plus, Upload, Loader2, Check, AlertCircle,
-  Calendar, Clock, Globe, User, Tag, Send,
-  Paperclip, FileText,
+  X,
+  Plus,
+  Upload,
+  Loader2,
+  Check,
+  AlertCircle,
+  Calendar,
+  Clock,
+  Globe,
+  User,
+  Tag,
+  Send,
+  Paperclip,
+  FileText,
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -25,49 +36,83 @@ import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/type
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TASK_CATEGORIES: { value: TaskCategory; label: string; description: string }[] = [
-  { value: 'internal_task',    label: 'Internal Task',     description: 'Team work, meetings, internal processes' },
-  { value: 'content_creation', label: 'Content Creation',  description: 'Writing, design, creative work for clients' },
-  { value: 'design_task',      label: 'Design Task',       description: 'Visual design, branding, graphics' },
-  { value: 'publishing_task',  label: 'Publishing Task',   description: 'Social media scheduling and publishing' },
-  { value: 'asset_upload_task',label: 'Asset Upload Task', description: 'File delivery and asset management' },
-  { value: 'follow_up_task',   label: 'Follow-up Task',    description: 'Client follow-up, reminders, check-ins' },
+  {
+    value: 'internal_task',
+    label: 'Internal Task',
+    description: 'Team work, meetings, internal processes',
+  },
+  {
+    value: 'content_creation',
+    label: 'Content Creation',
+    description: 'Writing, design, creative work for clients',
+  },
+  { value: 'design_task', label: 'Design Task', description: 'Visual design, branding, graphics' },
+  {
+    value: 'publishing_task',
+    label: 'Publishing Task',
+    description: 'Social media scheduling and publishing',
+  },
+  {
+    value: 'asset_upload_task',
+    label: 'Asset Upload Task',
+    description: 'File delivery and asset management',
+  },
+  {
+    value: 'follow_up_task',
+    label: 'Follow-up Task',
+    description: 'Client follow-up, reminders, check-ins',
+  },
 ];
 
 const CONTENT_PURPOSES = [
-  { value: 'awareness',       label: 'Awareness' },
-  { value: 'engagement',      label: 'Engagement' },
-  { value: 'promotion',       label: 'Promotion' },
-  { value: 'branding',        label: 'Branding' },
+  { value: 'awareness', label: 'Awareness' },
+  { value: 'engagement', label: 'Engagement' },
+  { value: 'promotion', label: 'Promotion' },
+  { value: 'branding', label: 'Branding' },
   { value: 'lead_generation', label: 'Lead Generation' },
-  { value: 'announcement',    label: 'Announcement' },
-  { value: 'offer_campaign',  label: 'Offer / Campaign' },
+  { value: 'announcement', label: 'Announcement' },
+  { value: 'offer_campaign', label: 'Offer / Campaign' },
 ];
 
 const POST_CONTENT_TYPES = [
-  { value: 'post',            label: 'Post' },
-  { value: 'reel',            label: 'Reel' },
-  { value: 'carousel',        label: 'Carousel' },
-  { value: 'story',           label: 'Story' },
-  { value: 'post_story',      label: 'Post + Story' },
-  { value: 'reel_story',      label: 'Reel + Story' },
-  { value: 'carousel_story',  label: 'Carousel + Story' },
+  { value: 'post', label: 'Post' },
+  { value: 'reel', label: 'Reel' },
+  { value: 'carousel', label: 'Carousel' },
+  { value: 'story', label: 'Story' },
+  { value: 'post_story', label: 'Post + Story' },
+  { value: 'reel_story', label: 'Reel + Story' },
+  { value: 'carousel_story', label: 'Carousel + Story' },
 ];
 
 const UPLOAD_MAIN_CATEGORIES = [
   { value: 'social-media', label: 'Social Media' },
-  { value: 'videos',       label: 'Videos'       },
-  { value: 'designs',      label: 'Designs'       },
-  { value: 'documents',    label: 'Documents'     },
-  { value: 'other',        label: 'Other'         },
+  { value: 'videos', label: 'Videos' },
+  { value: 'designs', label: 'Designs' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'other', label: 'Other' },
 ] as const;
 
-const UPLOAD_MAIN_CATEGORY_OPTIONS = UPLOAD_MAIN_CATEGORIES.map(c => ({ value: c.value, label: c.label }));
+const UPLOAD_MAIN_CATEGORY_OPTIONS = UPLOAD_MAIN_CATEGORIES.map((c) => ({
+  value: c.value,
+  label: c.label,
+}));
 
 const COMMON_TIMEZONES = [
-  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
-  'America/Los_Angeles', 'America/Sao_Paulo', 'Europe/London',
-  'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow', 'Asia/Dubai',
-  'Asia/Kolkata', 'Asia/Singapore', 'Asia/Tokyo', 'Australia/Sydney',
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -83,13 +128,22 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
+const inputCls =
+  'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const inputStyle = {
+  background: 'var(--surface-2)',
+  color: 'var(--text)',
+  border: '1px solid var(--border)',
+};
 
 // Determines which categories need content/publishing fields
 const NEEDS_CONTENT = new Set<TaskCategory>(['content_creation', 'publishing_task']);
 const NEEDS_PLATFORMS = new Set<TaskCategory>(['publishing_task']);
-const NEEDS_ASSET_UPLOAD = new Set<TaskCategory>(['asset_upload_task', 'publishing_task', 'content_creation']);
+const NEEDS_ASSET_UPLOAD = new Set<TaskCategory>([
+  'asset_upload_task',
+  'publishing_task',
+  'content_creation',
+]);
 const INTERNAL_ONLY = new Set<TaskCategory>(['internal_task']);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -115,53 +169,80 @@ interface NewTaskModalProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function NewTaskModal({
-  open, onClose, onCreated, clients, team, initialClientId = '',
+  open,
+  onClose,
+  onCreated,
+  clients,
+  team,
+  initialClientId = '',
 }: NewTaskModalProps) {
   // ── Core fields ──────────────────────────────────────────────────────────
-  const [title, setTitle]         = useState('');
-  const [description, setDesc]    = useState('');
-  const [clientId, setClientId]   = useState(initialClientId);
+  const [title, setTitle] = useState('');
+  const [description, setDesc] = useState('');
+  const [clientId, setClientId] = useState(initialClientId);
   const [assignedTo, setAssigned] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [priority, setPriority]   = useState('medium');
-  const [status, setStatus]       = useState('todo');
-  const [dueDate, setDueDate]     = useState(todayStr());
-  const [dueTime, setDueTime]     = useState('');
-  const [timezone, setTimezone]   = useState('UTC');
+  const [priority, setPriority] = useState('medium');
+  const [status, setStatus] = useState('todo');
+  const [dueDate, setDueDate] = useState(todayStr());
+  const [dueTime, setDueTime] = useState('');
+  const [timezone, setTimezone] = useState('UTC');
   const [taskCategory, setCategory] = useState<TaskCategory | ''>('');
-  const [tags, setTags]           = useState('');
+  const [tags, setTags] = useState('');
 
   // ── Content / publishing fields ───────────────────────────────────────────
   const [postContentType, setPostContentType] = useState('');
-  const [contentPurpose, setContentPurpose]   = useState('');
-  const [caption, setCaption]                 = useState('');
-  const [selectedPlatforms, setPlatforms]     = useState<string[]>([]);
-  const [selectedPostTypes, setPostTypes]     = useState<string[]>([]);
+  const [contentPurpose, setContentPurpose] = useState('');
+  const [caption, setCaption] = useState('');
+  const [selectedPlatforms, setPlatforms] = useState<string[]>([]);
+  const [selectedPostTypes, setPostTypes] = useState<string[]>([]);
 
   // ── File upload ───────────────────────────────────────────────────────────
   const [uploadState, setUpload] = useState<UploadState>({
-    file: null, mainCategory: 'social-media', uploading: false,
-    uploadedAssetId: null, error: null,
+    file: null,
+    mainCategory: 'social-media',
+    uploading: false,
+    uploadedAssetId: null,
+    error: null,
   });
   const [showUpload, setShowUpload] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Submission ────────────────────────────────────────────────────────────
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useState<Pick<Project, 'id' | 'name' | 'client_id'>[]>([]);
 
   // Reset when modal opens
   useEffect(() => {
     if (open) {
-      setTitle(''); setDesc(''); setClientId(initialClientId);
-      setAssigned(''); setProjectId(''); setPriority('medium'); setStatus('todo');
-      setDueDate(todayStr()); setDueTime(''); setTimezone('UTC');
-      setCategory(''); setTags('');
-      setPostContentType(''); setContentPurpose('');
-      setCaption(''); setPlatforms([]); setPostTypes([]);
-      setUpload({ file: null, mainCategory: 'social-media', uploading: false, uploadedAssetId: null, error: null });
-      setShowUpload(false); setSaving(false); setError(null);
+      setTitle('');
+      setDesc('');
+      setClientId(initialClientId);
+      setAssigned('');
+      setProjectId('');
+      setPriority('medium');
+      setStatus('todo');
+      setDueDate(todayStr());
+      setDueTime('');
+      setTimezone('UTC');
+      setCategory('');
+      setTags('');
+      setPostContentType('');
+      setContentPurpose('');
+      setCaption('');
+      setPlatforms([]);
+      setPostTypes([]);
+      setUpload({
+        file: null,
+        mainCategory: 'social-media',
+        uploading: false,
+        uploadedAssetId: null,
+        error: null,
+      });
+      setShowUpload(false);
+      setSaving(false);
+      setError(null);
     }
   }, [open, initialClientId]);
 
@@ -177,7 +258,9 @@ export default function NewTaskModal({
     void (async () => {
       try {
         const res = await fetch('/api/projects');
-        const json = await res.json() as { projects?: Pick<Project, 'id' | 'name' | 'client_id'>[] };
+        const json = (await res.json()) as {
+          projects?: Pick<Project, 'id' | 'name' | 'client_id'>[];
+        };
         setProjects(Array.isArray(json.projects) ? json.projects : []);
       } catch {
         setProjects([]);
@@ -192,7 +275,7 @@ export default function NewTaskModal({
     }
     if (!projectId) return;
     // Keep project/client consistency: when user changes client, clear project if it belongs to another client.
-    const selected = projects.find(p => p.id === projectId);
+    const selected = projects.find((p) => p.id === projectId);
     if (selected && selected.client_id !== clientId) {
       setProjectId('');
     }
@@ -203,16 +286,16 @@ export default function NewTaskModal({
   const isInternal = taskCategory === 'internal_task';
   const needsContent = taskCategory && NEEDS_CONTENT.has(taskCategory as TaskCategory);
   const needsPlatforms = taskCategory && NEEDS_PLATFORMS.has(taskCategory as TaskCategory);
-  const selectedClient = clients.find(c => c.id === clientId);
+  const selectedClient = clients.find((c) => c.id === clientId);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function togglePlatform(p: string) {
-    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+    setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   }
 
   function togglePostType(pt: string) {
-    setPostTypes(prev => prev.includes(pt) ? prev.filter(x => x !== pt) : [...prev, pt]);
+    setPostTypes((prev) => (prev.includes(pt) ? prev.filter((x) => x !== pt) : [...prev, pt]));
   }
 
   // ── File upload handler ───────────────────────────────────────────────────
@@ -221,76 +304,91 @@ export default function NewTaskModal({
   //   1. POST /api/upload/presign  (multipart/form-data) → storageKey + publicUrl
   //   2. POST /api/upload/complete → save metadata to DB → return asset id
 
-  interface PresignResponse  { storageKey: string; publicUrl: string; displayName: string }
-  interface CompleteResponse { success: boolean; stage?: string; asset?: { id?: string }; error?: string }
+  interface PresignResponse {
+    storageKey: string;
+    publicUrl: string;
+    displayName: string;
+  }
+  interface CompleteResponse {
+    success: boolean;
+    stage?: string;
+    asset?: { id?: string };
+    error?: string;
+  }
 
   async function handleFileUpload(): Promise<string | null> {
     if (!uploadState.file) return null;
     if (!selectedClient) {
-      setUpload(u => ({ ...u, error: 'Please select a client before uploading a file.' }));
+      setUpload((u) => ({ ...u, error: 'Please select a client before uploading a file.' }));
       return null;
     }
 
-    setUpload(u => ({ ...u, uploading: true, error: null }));
+    setUpload((u) => ({ ...u, uploading: true, error: null }));
 
-    const file      = uploadState.file;
-    const monthKey  = nowMonthKey();
+    const file = uploadState.file;
+    const monthKey = nowMonthKey();
 
     try {
       // Phase 1 — upload file bytes to server (server uploads to R2).
       const formData = new FormData();
-      formData.append('file',         file, file.name);
-      formData.append('fileName',     file.name);
-      formData.append('fileType',     file.type || 'application/octet-stream');
-      formData.append('fileSize',     String(file.size));
-      formData.append('clientName',   selectedClient.name);
+      formData.append('file', file, file.name);
+      formData.append('fileName', file.name);
+      formData.append('fileType', file.type || 'application/octet-stream');
+      formData.append('fileSize', String(file.size));
+      formData.append('clientName', selectedClient.name);
       formData.append('mainCategory', uploadState.mainCategory);
-      formData.append('monthKey',     monthKey);
+      formData.append('monthKey', monthKey);
       if (clientId) formData.append('clientId', clientId);
 
       const presignRes = await fetch('/api/upload/presign', {
         method: 'POST',
-        body:   formData,
+        body: formData,
       });
 
       if (!presignRes.ok) {
         let errMsg = `Failed to upload file (HTTP ${presignRes.status})`;
-        try { const j = await presignRes.json() as { error?: string }; if (j.error) errMsg = j.error; } catch { /* ignore */ }
-        setUpload(u => ({ ...u, uploading: false, error: errMsg }));
+        try {
+          const j = (await presignRes.json()) as { error?: string };
+          if (j.error) errMsg = j.error;
+        } catch {
+          /* ignore */
+        }
+        setUpload((u) => ({ ...u, uploading: false, error: errMsg }));
         return null;
       }
 
-      const presign = await presignRes.json() as PresignResponse;
+      const presign = (await presignRes.json()) as PresignResponse;
 
       // Phase 2 — save asset metadata to the database.
       const completeRes = await fetch('/api/upload/complete', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          storageKey:   presign.storageKey,
-          displayName:  presign.displayName,
-          clientName:   selectedClient.name,
+        body: JSON.stringify({
+          storageKey: presign.storageKey,
+          displayName: presign.displayName,
+          clientName: selectedClient.name,
           clientId,
-          fileType:     file.type || 'application/octet-stream',
-          fileSize:     file.size,
+          fileType: file.type || 'application/octet-stream',
+          fileSize: file.size,
           mainCategory: uploadState.mainCategory,
           monthKey,
         }),
       });
 
-      const complete = await completeRes.json() as CompleteResponse;
+      const complete = (await completeRes.json()) as CompleteResponse;
 
       if (complete.success && complete.asset?.id) {
-        setUpload(u => ({ ...u, uploading: false, uploadedAssetId: complete.asset!.id! }));
+        setUpload((u) => ({ ...u, uploading: false, uploadedAssetId: complete.asset!.id! }));
         return complete.asset.id;
       }
 
-      const errMsg = typeof complete.error === 'string' ? complete.error : 'Failed to save file in system';
-      setUpload(u => ({ ...u, uploading: false, error: errMsg }));
+      const errMsg =
+        typeof complete.error === 'string' ? complete.error : 'Failed to save file in system';
+      setUpload((u) => ({ ...u, uploading: false, error: errMsg }));
       return null;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload error';
-      setUpload(u => ({ ...u, uploading: false, error: msg }));
+      setUpload((u) => ({ ...u, uploading: false, error: msg }));
       return null;
     }
   }
@@ -299,10 +397,22 @@ export default function NewTaskModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) { setError('Task title is required'); return; }
-    if (!dueDate) { setError('Due date is required'); return; }
-    if (!isInternal && !clientId) { setError('Please select a client'); return; }
-    if (!isInternal && !assignedTo) { setError('Please assign this task to a team member'); return; }
+    if (!title.trim()) {
+      setError('Task title is required');
+      return;
+    }
+    if (!dueDate) {
+      setError('Due date is required');
+      return;
+    }
+    if (!isInternal && !clientId) {
+      setError('Please select a client');
+      return;
+    }
+    if (!isInternal && !assignedTo) {
+      setError('Please assign this task to a team member');
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -326,31 +436,34 @@ export default function NewTaskModal({
     };
 
     if (description.trim()) body.description = description.trim();
-    if (clientId)            body.client_id   = clientId;
-    if (assignedTo)          body.assigned_to = assignedTo;
-    if (dueTime)             body.due_time    = dueTime;
-    if (timezone)            body.timezone    = timezone;
-    if (taskCategory)        body.task_category = taskCategory;
-    if (projectId)           body.project_id = projectId;
-    if (contentPurpose)      body.content_purpose = contentPurpose;
-    if (caption.trim())      body.caption = caption.trim();
-    if (assetIdToLink)       body.asset_id = assetIdToLink;
-    if (selectedClient)      body.client_name = selectedClient.name;
+    if (clientId) body.client_id = clientId;
+    if (assignedTo) body.assigned_to = assignedTo;
+    if (dueTime) body.due_time = dueTime;
+    if (timezone) body.timezone = timezone;
+    if (taskCategory) body.task_category = taskCategory;
+    if (projectId) body.project_id = projectId;
+    if (contentPurpose) body.content_purpose = contentPurpose;
+    if (caption.trim()) body.caption = caption.trim();
+    if (assetIdToLink) body.asset_id = assetIdToLink;
+    if (selectedClient) body.client_name = selectedClient.name;
 
-    if (selectedPlatforms.length > 0) body.platforms  = selectedPlatforms;
+    if (selectedPlatforms.length > 0) body.platforms = selectedPlatforms;
     if (selectedPostTypes.length > 0) body.post_types = selectedPostTypes;
 
     if (tags.trim()) {
-      body.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
+      body.tags = tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
     }
 
     try {
-      const res  = await fetch('/api/tasks', {
+      const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json() as { success: boolean; task?: Task; error?: string };
+      const json = (await res.json()) as { success: boolean; task?: Task; error?: string };
 
       if (!res.ok || !json.success) {
         setError(json.error ?? 'Failed to create task');
@@ -371,9 +484,11 @@ export default function NewTaskModal({
   function CategoryPicker() {
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Task Category</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Task Category
+        </label>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {TASK_CATEGORIES.map(cat => {
+          {TASK_CATEGORIES.map((cat) => {
             const active = taskCategory === cat.value;
             return (
               <button
@@ -381,7 +496,7 @@ export default function NewTaskModal({
                 type="button"
                 onClick={() => setCategory(active ? '' : cat.value)}
                 title={cat.description}
-                className="text-left px-3 py-2 rounded-lg text-xs font-medium transition-all border"
+                className="rounded-lg border px-3 py-2 text-left text-xs font-medium transition-all"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--surface-2)',
                   color: active ? '#fff' : 'var(--text)',
@@ -402,18 +517,21 @@ export default function NewTaskModal({
   function PlatformPicker() {
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+        <label
+          className="flex items-center gap-1.5 text-sm font-medium"
+          style={{ color: 'var(--text)' }}
+        >
           <Send size={13} /> Target Platform(s)
         </label>
         <div className="flex flex-wrap gap-2">
-          {PLATFORMS.map(p => {
+          {PLATFORMS.map((p) => {
             const active = selectedPlatforms.includes(p.value);
             return (
               <button
                 key={p.value}
                 type="button"
                 onClick={() => togglePlatform(p.value)}
-                className="h-7 px-3 rounded-full text-xs font-medium transition-all border"
+                className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
                 style={{
                   background: active ? p.displayColor : 'var(--surface-2)',
                   color: active ? '#fff' : 'var(--text)',
@@ -434,16 +552,18 @@ export default function NewTaskModal({
   function PostTypePicker() {
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Post Type(s)</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Post Type(s)
+        </label>
         <div className="flex flex-wrap gap-2">
-          {POST_TYPES.map(pt => {
+          {POST_TYPES.map((pt) => {
             const active = selectedPostTypes.includes(pt.value);
             return (
               <button
                 key={pt.value}
                 type="button"
                 onClick={() => togglePostType(pt.value)}
-                className="h-7 px-3 rounded-full text-xs font-medium transition-all border"
+                className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--surface-2)',
                   color: active ? '#fff' : 'var(--text)',
@@ -463,15 +583,21 @@ export default function NewTaskModal({
 
   function UploadSection() {
     return (
-      <div className="space-y-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+      <div
+        className="space-y-3 rounded-xl border p-3"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+          <span
+            className="flex items-center gap-1.5 text-sm font-medium"
+            style={{ color: 'var(--text)' }}
+          >
             <Paperclip size={13} /> Attach File to Task
           </span>
           <button
             type="button"
             onClick={() => setShowUpload(false)}
-            className="p-1 rounded-lg hover:bg-[var(--surface)] transition-colors"
+            className="rounded-lg p-1 transition-colors hover:bg-[var(--surface)]"
             style={{ color: 'var(--text-secondary)' }}
           >
             <X size={14} />
@@ -479,8 +605,9 @@ export default function NewTaskModal({
         </div>
 
         {!selectedClient && (
-          <p className="text-xs text-amber-600 flex items-center gap-1">
-            <AlertCircle size={12} /> Select a client first — file will be stored in their R2 storage folder.
+          <p className="flex items-center gap-1 text-xs text-amber-600">
+            <AlertCircle size={12} /> Select a client first — file will be stored in their R2
+            storage folder.
           </p>
         )}
 
@@ -490,27 +617,30 @@ export default function NewTaskModal({
             ref={fileRef}
             type="file"
             className="hidden"
-            onChange={e => {
+            onChange={(e) => {
               const f = e.target.files?.[0] ?? null;
-              setUpload(u => ({ ...u, file: f, uploadedAssetId: null, error: null }));
+              setUpload((u) => ({ ...u, file: f, uploadedAssetId: null, error: null }));
             }}
           />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="h-8 px-3 rounded-lg text-xs font-medium border transition-colors hover:bg-[var(--surface)]"
+            className="h-8 rounded-lg border px-3 text-xs font-medium transition-colors hover:bg-[var(--surface)]"
             style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
           >
-            <Upload size={12} className="inline mr-1" />
+            <Upload size={12} className="mr-1 inline" />
             {uploadState.file ? 'Change File' : 'Choose File'}
           </button>
           {uploadState.file && (
-            <span className="text-xs truncate max-w-[180px]" style={{ color: 'var(--text-secondary)' }}>
+            <span
+              className="max-w-[180px] truncate text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               {uploadState.file.name}
             </span>
           )}
           {uploadState.uploadedAssetId && (
-            <span className="text-xs text-green-600 flex items-center gap-1">
+            <span className="flex items-center gap-1 text-xs text-green-600">
               <Check size={12} /> Uploaded
             </span>
           )}
@@ -518,11 +648,13 @@ export default function NewTaskModal({
 
         {/* Content type picker */}
         <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>File Category</label>
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            File Category
+          </label>
           <SelectDropdown
             fullWidth
             value={uploadState.mainCategory}
-            onChange={v => setUpload(u => ({ ...u, mainCategory: v }))}
+            onChange={(v) => setUpload((u) => ({ ...u, mainCategory: v }))}
             options={UPLOAD_MAIN_CATEGORY_OPTIONS}
           />
         </div>
@@ -530,13 +662,17 @@ export default function NewTaskModal({
         {/* Storage path info */}
         {selectedClient && (
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            📁 Will be saved to: <strong>Clients / {selectedClient.name} / {new Date().getFullYear()} / ...</strong>
+            📁 Will be saved to:{' '}
+            <strong>
+              Clients / {selectedClient.name} / {new Date().getFullYear()} / ...
+            </strong>
           </p>
         )}
 
         {uploadState.error && (
-          <p className="text-xs text-red-600 flex items-center gap-1">
-            <AlertCircle size={12} />{uploadState.error}
+          <p className="flex items-center gap-1 text-xs text-red-600">
+            <AlertCircle size={12} />
+            {uploadState.error}
           </p>
         )}
       </div>
@@ -553,129 +689,130 @@ export default function NewTaskModal({
       subtitle="Fill in the details below to create a connected task"
       size="lg"
       icon={<Check size={14} />}
-      footer={(
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      footer={
+        <div className="flex w-full items-center justify-between">
+          <div
+            className="flex items-center gap-2 text-xs"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             {taskCategory && (
-              <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                {TASK_CATEGORIES.find(c => c.value === taskCategory)?.label}
+              <span
+                className="rounded-full px-2 py-0.5"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+              >
+                {TASK_CATEGORIES.find((c) => c.value === taskCategory)?.label}
               </span>
             )}
             {selectedClient && (
-              <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <span
+                className="rounded-full px-2 py-0.5"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+              >
                 {selectedClient.name}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="openy-modal-btn-secondary"
-            >
+            <button type="button" onClick={onClose} className="openy-modal-btn-secondary">
               Cancel
             </button>
             <button
               type="submit"
               form="new-task-modal-form"
               disabled={saving}
-              className="openy-modal-btn-primary disabled:opacity-60 flex items-center gap-2"
+              className="openy-modal-btn-primary flex items-center gap-2 disabled:opacity-60"
             >
               {saving ? (
-                <><Loader2 size={14} className="animate-spin" /> Creating…</>
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Creating…
+                </>
               ) : (
-                <><Check size={14} /> Create Task</>
+                <>
+                  <Check size={14} /> Create Task
+                </>
               )}
             </button>
           </div>
         </div>
-      )}
+      }
     >
-        <form id="new-task-modal-form" onSubmit={handleSubmit} className="openy-modal-stack">
-          <div className="space-y-5">
+      <form id="new-task-modal-form" onSubmit={handleSubmit} className="openy-modal-stack">
+        <div className="space-y-5">
+          {/* ── Task Category ── */}
+          <CategoryPicker />
 
-            {/* ── Task Category ── */}
-            <CategoryPicker />
+          {/* ── Title ── */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Title *
+            </label>
+            <input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={inputCls}
+              style={inputStyle}
+              placeholder="What needs to be done?"
+            />
+          </div>
 
-            {/* ── Title ── */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Title *</label>
-              <input
-                required
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className={inputCls}
-                style={inputStyle}
-                placeholder="What needs to be done?"
-              />
-            </div>
+          {/* ── Description ── */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDesc(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              style={inputStyle}
+              placeholder="Provide additional context or instructions..."
+            />
+          </div>
 
-            {/* ── Description ── */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Description</label>
-              <textarea
-                value={description}
-                onChange={e => setDesc(e.target.value)}
-                rows={2}
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-                style={inputStyle}
-                placeholder="Provide additional context or instructions..."
-              />
-            </div>
-
-            {/* ── Client + Assignee ── */}
-            {!isInternal && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                    <User size={12} /> Client {isInternal ? '' : '*'}
-                  </label>
-                  <SelectDropdown
-                    fullWidth
-                    value={clientId}
-                    onChange={setClientId}
-                    placeholder="— Select client —"
-                    options={[
-                      { value: '', label: '— Select client —' },
-                      ...clients.map(c => ({ value: c.id, label: c.name })),
-                    ]}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Project</label>
-                  <SelectDropdown
-                    fullWidth
-                    value={projectId}
-                    onChange={setProjectId}
-                    placeholder="— None —"
-                    options={[
-                      { value: '', label: '— None —' },
-                      ...projects
-                        .filter(project => Boolean(clientId) && project.client_id === clientId)
-                        .map(project => ({ value: project.id, label: project.name })),
-                    ]}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Assignee *</label>
-                  <SelectDropdown
-                    fullWidth
-                    value={assignedTo}
-                    onChange={setAssigned}
-                    placeholder="— Unassigned —"
-                    options={[
-                      { value: '', label: '— Unassigned —' },
-                      ...team.map(m => ({ value: m.id, label: m.full_name })),
-                    ]}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* For internal tasks: only show assignee */}
-            {isInternal && (
+          {/* ── Client + Assignee ── */}
+          {!isInternal && (
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Assignee</label>
+                <label
+                  className="flex items-center gap-1 text-sm font-medium"
+                  style={{ color: 'var(--text)' }}
+                >
+                  <User size={12} /> Client {isInternal ? '' : '*'}
+                </label>
+                <SelectDropdown
+                  fullWidth
+                  value={clientId}
+                  onChange={setClientId}
+                  placeholder="— Select client —"
+                  options={[
+                    { value: '', label: '— Select client —' },
+                    ...clients.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  Project
+                </label>
+                <SelectDropdown
+                  fullWidth
+                  value={projectId}
+                  onChange={setProjectId}
+                  placeholder="— None —"
+                  options={[
+                    { value: '', label: '— None —' },
+                    ...projects
+                      .filter((project) => Boolean(clientId) && project.client_id === clientId)
+                      .map((project) => ({ value: project.id, label: project.name })),
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  Assignee *
+                </label>
                 <SelectDropdown
                   fullWidth
                   value={assignedTo}
@@ -683,217 +820,278 @@ export default function NewTaskModal({
                   placeholder="— Unassigned —"
                   options={[
                     { value: '', label: '— Unassigned —' },
-                    ...team.map(m => ({ value: m.id, label: m.full_name })),
-                  ]}
-                />
-              </div>
-            )}
-
-            {/* ── Priority + Status ── */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Priority</label>
-                <SelectDropdown
-                  fullWidth
-                  value={priority}
-                  onChange={setPriority}
-                  options={[
-                    { value: 'low',    label: 'Low' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'high',   label: 'High' },
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Status</label>
-                <SelectDropdown
-                  fullWidth
-                  value={status}
-                  onChange={setStatus}
-                  options={[
-                    { value: 'todo',           label: 'To Do' },
-                    { value: 'in_progress',    label: 'In Progress' },
-                    { value: 'in_review',      label: 'In Review' },
-                    { value: 'waiting_client', label: 'Waiting on Client' },
-                    ...(taskCategory === 'publishing_task' ? [{ value: 'scheduled', label: 'Scheduled' }] : []),
+                    ...team.map((m) => ({ value: m.id, label: m.full_name })),
                   ]}
                 />
               </div>
             </div>
+          )}
 
-            {/* ── Due Date + Time + Timezone ── */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                  <Calendar size={12} /> Due Date *
-                </label>
-                <input
-                  required
-                  type="date"
-                  value={dueDate}
-                  onChange={e => setDueDate(e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                  <Clock size={12} /> Due Time
-                </label>
-                <input
-                  type="time"
-                  value={dueTime}
-                  onChange={e => setDueTime(e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                  <Globe size={12} /> Timezone
-                </label>
-                <SelectDropdown
-                  fullWidth
-                  value={timezone}
-                  onChange={setTimezone}
-                  options={COMMON_TIMEZONES.map(tz => ({ value: tz, label: tz }))}
-                />
-              </div>
-            </div>
-
-            {/* ── Tags ── */}
+          {/* For internal tasks: only show assignee */}
+          {isInternal && (
             <div className="space-y-1">
-              <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                <Tag size={12} /> Tags
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                Assignee
               </label>
-              <input
-                value={tags}
-                onChange={e => setTags(e.target.value)}
-                className={inputCls}
-                style={inputStyle}
-                placeholder="design, urgent, social (comma-separated)"
+              <SelectDropdown
+                fullWidth
+                value={assignedTo}
+                onChange={setAssigned}
+                placeholder="— Unassigned —"
+                options={[
+                  { value: '', label: '— Unassigned —' },
+                  ...team.map((m) => ({ value: m.id, label: m.full_name })),
+                ]}
               />
             </div>
+          )}
 
-            {/* ── CONTENT SECTION (conditional) ── */}
-            {(needsContent || postContentType || contentPurpose) && (
-              <div className="space-y-4 p-4 rounded-xl border" style={{ borderColor: 'var(--accent)', borderStyle: 'dashed' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
-                  Content Details
-                </p>
+          {/* ── Priority + Status ── */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                Priority
+              </label>
+              <SelectDropdown
+                fullWidth
+                value={priority}
+                onChange={setPriority}
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'high', label: 'High' },
+                ]}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                Status
+              </label>
+              <SelectDropdown
+                fullWidth
+                value={status}
+                onChange={setStatus}
+                options={[
+                  { value: 'todo', label: 'To Do' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'in_review', label: 'In Review' },
+                  { value: 'waiting_client', label: 'Waiting on Client' },
+                  ...(taskCategory === 'publishing_task'
+                    ? [{ value: 'scheduled', label: 'Scheduled' }]
+                    : []),
+                ]}
+              />
+            </div>
+          </div>
 
-                {/* Content type */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Content Format</label>
-                  <div className="flex flex-wrap gap-2">
-                    {POST_CONTENT_TYPES.map(ct => {
-                      const active = postContentType === ct.value;
-                      return (
-                        <button
-                          key={ct.value}
-                          type="button"
-                          onClick={() => setPostContentType(active ? '' : ct.value)}
-                          className="h-7 px-3 rounded-full text-xs font-medium border transition-all"
-                          style={{
-                            background: active ? 'var(--accent)' : 'var(--surface-2)',
-                            color: active ? '#fff' : 'var(--text)',
-                            borderColor: active ? 'var(--accent)' : 'var(--border)',
-                          }}
-                        >
-                          {ct.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Content purpose */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Content Purpose</label>
-                  <SelectDropdown
-                    fullWidth
-                    value={contentPurpose}
-                    onChange={setContentPurpose}
-                    placeholder="— Select purpose —"
-                    options={[
-                      { value: '', label: '— Select purpose —' },
-                      ...CONTENT_PURPOSES.map(cp => ({ value: cp.value, label: cp.label })),
-                    ]}
-                  />
-                </div>
-
-                {/* Caption */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text)' }}>
-                    <FileText size={12} /> Caption / Content Notes
-                  </label>
-                  <textarea
-                    value={caption}
-                    onChange={e => setCaption(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--accent)]"
-                    style={inputStyle}
-                    placeholder="Draft caption, key messaging, hashtags..."
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* ── PLATFORMS SECTION (conditional) ── */}
-            {(needsPlatforms || selectedPlatforms.length > 0) && (
-              <div className="space-y-4 p-4 rounded-xl border" style={{ borderColor: '#7c3aed', borderStyle: 'dashed' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7c3aed' }}>
-                  Publishing Details
-                </p>
-                <PlatformPicker />
-                <PostTypePicker />
-              </div>
-            )}
-
-            {/* Show content fields toggle for relevant categories */}
-            {taskCategory && !INTERNAL_ONLY.has(taskCategory as TaskCategory) && !needsContent && (
-              <button
-                type="button"
-                onClick={() => setPostContentType('post')}
-                className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
+          {/* ── Due Date + Time + Timezone ── */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label
+                className="flex items-center gap-1 text-sm font-medium"
+                style={{ color: 'var(--text)' }}
               >
-                <Plus size={12} /> Add content / post details
-              </button>
-            )}
+                <Calendar size={12} /> Due Date *
+              </label>
+              <input
+                required
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                className="flex items-center gap-1 text-sm font-medium"
+                style={{ color: 'var(--text)' }}
+              >
+                <Clock size={12} /> Due Time
+              </label>
+              <input
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                className="flex items-center gap-1 text-sm font-medium"
+                style={{ color: 'var(--text)' }}
+              >
+                <Globe size={12} /> Timezone
+              </label>
+              <SelectDropdown
+                fullWidth
+                value={timezone}
+                onChange={setTimezone}
+                options={COMMON_TIMEZONES.map((tz) => ({ value: tz, label: tz }))}
+              />
+            </div>
+          </div>
 
-            {/* Show publishing fields toggle */}
-            {taskCategory && !needsPlatforms && !INTERNAL_ONLY.has(taskCategory as TaskCategory) && selectedPlatforms.length === 0 && (
+          {/* ── Tags ── */}
+          <div className="space-y-1">
+            <label
+              className="flex items-center gap-1 text-sm font-medium"
+              style={{ color: 'var(--text)' }}
+            >
+              <Tag size={12} /> Tags
+            </label>
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className={inputCls}
+              style={inputStyle}
+              placeholder="design, urgent, social (comma-separated)"
+            />
+          </div>
+
+          {/* ── CONTENT SECTION (conditional) ── */}
+          {(needsContent || postContentType || contentPurpose) && (
+            <div
+              className="space-y-4 rounded-xl border p-4"
+              style={{ borderColor: 'var(--accent)', borderStyle: 'dashed' }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--accent)' }}
+              >
+                Content Details
+              </p>
+
+              {/* Content type */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  Content Format
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {POST_CONTENT_TYPES.map((ct) => {
+                    const active = postContentType === ct.value;
+                    return (
+                      <button
+                        key={ct.value}
+                        type="button"
+                        onClick={() => setPostContentType(active ? '' : ct.value)}
+                        className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
+                        style={{
+                          background: active ? 'var(--accent)' : 'var(--surface-2)',
+                          color: active ? '#fff' : 'var(--text)',
+                          borderColor: active ? 'var(--accent)' : 'var(--border)',
+                        }}
+                      >
+                        {ct.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Content purpose */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  Content Purpose
+                </label>
+                <SelectDropdown
+                  fullWidth
+                  value={contentPurpose}
+                  onChange={setContentPurpose}
+                  placeholder="— Select purpose —"
+                  options={[
+                    { value: '', label: '— Select purpose —' },
+                    ...CONTENT_PURPOSES.map((cp) => ({ value: cp.value, label: cp.label })),
+                  ]}
+                />
+              </div>
+
+              {/* Caption */}
+              <div className="space-y-1">
+                <label
+                  className="flex items-center gap-1 text-sm font-medium"
+                  style={{ color: 'var(--text)' }}
+                >
+                  <FileText size={12} /> Caption / Content Notes
+                </label>
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  style={inputStyle}
+                  placeholder="Draft caption, key messaging, hashtags..."
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── PLATFORMS SECTION (conditional) ── */}
+          {(needsPlatforms || selectedPlatforms.length > 0) && (
+            <div
+              className="space-y-4 rounded-xl border p-4"
+              style={{ borderColor: '#7c3aed', borderStyle: 'dashed' }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: '#7c3aed' }}
+              >
+                Publishing Details
+              </p>
+              <PlatformPicker />
+              <PostTypePicker />
+            </div>
+          )}
+
+          {/* Show content fields toggle for relevant categories */}
+          {taskCategory && !INTERNAL_ONLY.has(taskCategory as TaskCategory) && !needsContent && (
+            <button
+              type="button"
+              onClick={() => setPostContentType('post')}
+              className="flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
+            >
+              <Plus size={12} /> Add content / post details
+            </button>
+          )}
+
+          {/* Show publishing fields toggle */}
+          {taskCategory &&
+            !needsPlatforms &&
+            !INTERNAL_ONLY.has(taskCategory as TaskCategory) &&
+            selectedPlatforms.length === 0 && (
               <button
                 type="button"
                 onClick={() => setPlatforms(['instagram'])}
-                className="text-xs text-[#7c3aed] hover:underline flex items-center gap-1"
+                className="flex items-center gap-1 text-xs text-[#7c3aed] hover:underline"
               >
                 <Send size={12} /> Add publishing / platform details
               </button>
             )}
 
-            {/* ── FILE UPLOAD SECTION ── */}
-            {showUpload ? (
-              <UploadSection />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowUpload(true)}
-                className="text-xs hover:underline flex items-center gap-1"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <Paperclip size={12} /> Attach a file (uploads to client&apos;s R2 storage)
-              </button>
-            )}
+          {/* ── FILE UPLOAD SECTION ── */}
+          {showUpload ? (
+            <UploadSection />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUpload(true)}
+              className="flex items-center gap-1 text-xs hover:underline"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Paperclip size={12} /> Attach a file (uploads to client&apos;s R2 storage)
+            </button>
+          )}
 
-            {/* ── Error ── */}
-            {error && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 bg-red-50">
-                <AlertCircle size={14} />{error}
-              </div>
-            )}
-          </div>
-        </form>
+          {/* ── Error ── */}
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              <AlertCircle size={14} />
+              {error}
+            </div>
+          )}
+        </div>
+      </form>
     </AppModal>
   );
 }

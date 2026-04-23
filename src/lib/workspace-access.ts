@@ -10,7 +10,14 @@ export const WORKSPACE_LABELS: Record<WorkspaceKey, 'OPENY OS' | 'OPENY DOCS'> =
 
 export const WORKSPACE_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
-const LEGACY_DOCS_PATHS = ['/invoice', '/quotation', '/client-contract', '/hr-contract', '/employees', '/accounting'] as const;
+const LEGACY_DOCS_PATHS = [
+  '/invoice',
+  '/quotation',
+  '/client-contract',
+  '/hr-contract',
+  '/employees',
+  '/accounting',
+] as const;
 
 export function normalizeWorkspaceKey(value: unknown): WorkspaceKey | null {
   if (typeof value !== 'string') return null;
@@ -30,8 +37,10 @@ export function isGlobalOwnerEmail(email?: string | null): boolean {
 export function getWorkspaceFromAppPath(pathname: string): WorkspaceKey | null {
   const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   if (normalizedPath === '/docs' || normalizedPath.startsWith('/docs/')) return 'docs';
-  if (normalizedPath === '/docs-legacy' || normalizedPath.startsWith('/docs-legacy/')) return 'docs';
-  if (LEGACY_DOCS_PATHS.includes(normalizedPath as typeof LEGACY_DOCS_PATHS[number])) return 'docs';
+  if (normalizedPath === '/docs-legacy' || normalizedPath.startsWith('/docs-legacy/'))
+    return 'docs';
+  if (LEGACY_DOCS_PATHS.includes(normalizedPath as (typeof LEGACY_DOCS_PATHS)[number]))
+    return 'docs';
   if (normalizedPath === '/os' || normalizedPath.startsWith('/os/')) return 'os';
   return null;
 }
@@ -42,7 +51,9 @@ export function getWorkspaceFromApiPath(pathname: string): WorkspaceKey | null {
   return 'os';
 }
 
-export function mapWorkspaceRoleToUserRole(role: WorkspaceRole | null): 'owner' | 'admin' | 'team_member' | 'viewer' {
+export function mapWorkspaceRoleToUserRole(
+  role: WorkspaceRole | null,
+): 'owner' | 'admin' | 'team_member' | 'viewer' {
   if (role === 'owner') return 'owner';
   if (role === 'admin') return 'admin';
   if (role === 'viewer') return 'viewer';

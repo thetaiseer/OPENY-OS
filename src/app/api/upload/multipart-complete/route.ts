@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
-import { completeMultipartUploadSession, R2ConfigError, type MultipartCompletedPart } from '@/lib/storage';
+import {
+  completeMultipartUploadSession,
+  R2ConfigError,
+  type MultipartCompletedPart,
+} from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +34,11 @@ export async function POST(req: NextRequest) {
   }
 
   const storageKey = (body.storageKey as string | undefined)?.trim() ?? '';
-  const uploadId   = (body.uploadId   as string | undefined)?.trim() ?? '';
-  const rawParts   = body.parts as unknown;
+  const uploadId = (body.uploadId as string | undefined)?.trim() ?? '';
+  const rawParts = body.parts as unknown;
 
   if (!storageKey) return NextResponse.json({ error: 'storageKey is required' }, { status: 400 });
-  if (!uploadId)   return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
+  if (!uploadId) return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
 
   if (!Array.isArray(rawParts) || rawParts.length === 0) {
     return NextResponse.json({ error: 'parts must be a non-empty array' }, { status: 400 });
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const parts: MultipartCompletedPart[] = [];
   for (const p of rawParts as Record<string, unknown>[]) {
-    const pn   = Number(p.partNumber);
+    const pn = Number(p.partNumber);
     const etag = (p.etag as string | undefined)?.trim() ?? '';
     if (!Number.isInteger(pn) || pn < 1 || pn > 10000) {
       return NextResponse.json({ error: `Invalid partNumber: ${pn}` }, { status: 400 });
@@ -58,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, publicUrl: result.publicUrl });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/multipart-complete] failed:', msg);
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });

@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser, requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { normalizeWorkspaceKey, WORKSPACE_ROLES, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
-import { upsertWorkspaceMembershipsWithFallback, type WorkspaceMembershipUpsertPayload } from '@/lib/workspace-membership-upsert';
+import {
+  normalizeWorkspaceKey,
+  WORKSPACE_ROLES,
+  type WorkspaceKey,
+  type WorkspaceRole,
+} from '@/lib/workspace-access';
+import {
+  upsertWorkspaceMembershipsWithFallback,
+  type WorkspaceMembershipUpsertPayload,
+} from '@/lib/workspace-membership-upsert';
 
 type AccessPayload = Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>;
 type WorkspaceRow = { id: string; slug: string | null; name: string | null };
@@ -33,7 +41,9 @@ function toWorkspaceMemberRole(role: WorkspaceRole): WorkspaceMemberRole {
   return 'member';
 }
 
-function toLegacyWorkspaceMemberRole(role: WorkspaceMemberRole): 'admin' | 'manager' | 'team_member' {
+function toLegacyWorkspaceMemberRole(
+  role: WorkspaceMemberRole,
+): 'admin' | 'manager' | 'team_member' {
   if (role === 'owner') return 'admin';
   if (role === 'admin') return 'admin';
   return 'team_member';
@@ -41,7 +51,9 @@ function toLegacyWorkspaceMemberRole(role: WorkspaceMemberRole): 'admin' | 'mana
 
 function shouldRetryWorkspaceMemberInsertWithLegacyRoles(message: string): boolean {
   const lower = message.toLowerCase();
-  return lower.includes('workspace_members_role_check') || lower.includes('violates check constraint');
+  return (
+    lower.includes('workspace_members_role_check') || lower.includes('violates check constraint')
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -52,7 +64,8 @@ export async function GET(request: NextRequest) {
   const { data: workspaceRows, error: workspaceRowsError } = await db
     .from('workspaces')
     .select('id, slug, name');
-  if (workspaceRowsError) return NextResponse.json({ error: workspaceRowsError.message }, { status: 500 });
+  if (workspaceRowsError)
+    return NextResponse.json({ error: workspaceRowsError.message }, { status: 500 });
   const workspaceKeyById = new Map<string, WorkspaceKey>();
   for (const workspace of (workspaceRows ?? []) as WorkspaceRow[]) {
     const key = resolveWorkspaceKeyFromRow(workspace);
@@ -81,8 +94,8 @@ export async function GET(request: NextRequest) {
   }
 
   const unresolvedEmails = (members ?? [])
-    .map(member => (member.email ?? '').toLowerCase())
-    .filter(email => email && !idByEmail.has(email));
+    .map((member) => (member.email ?? '').toLowerCase())
+    .filter((email) => email && !idByEmail.has(email));
 
   if (unresolvedEmails.length > 0) {
     const users = await db.auth.admin.listUsers();
@@ -96,15 +109,19 @@ export async function GET(request: NextRequest) {
 
   const userIdList = [...userIds];
   const workspaceIdList = [...workspaceKeyById.keys()];
-  const { data: memberships } = userIdList.length > 0 && workspaceIdList.length > 0
-    ? await db
-        .from('workspace_members')
-        .select('user_id, workspace_id, role')
-        .in('user_id', userIdList)
-        .in('workspace_id', workspaceIdList)
-    : { data: [] as Array<{ user_id: string; workspace_id: string; role: string }> };
+  const { data: memberships } =
+    userIdList.length > 0 && workspaceIdList.length > 0
+      ? await db
+          .from('workspace_members')
+          .select('user_id, workspace_id, role')
+          .in('user_id', userIdList)
+          .in('workspace_id', workspaceIdList)
+      : { data: [] as Array<{ user_id: string; workspace_id: string; role: string }> };
 
-  const byEmail: Record<string, Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>> = {};
+  const byEmail: Record<
+    string,
+    Partial<Record<WorkspaceKey, { enabled: boolean; role: string }>>
+  > = {};
   for (const member of members ?? []) {
     const email = (member.email ?? '').toLowerCase();
     if (!email) continue;
@@ -132,7 +149,10 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
-  const body = await request.json().catch(() => null) as { email?: string; access?: AccessPayload } | null;
+  const body = (await request.json().catch(() => null)) as {
+    email?: string;
+    access?: AccessPayload;
+  } | null;
   const email = (body?.email ?? '').trim().toLowerCase();
   const access = body?.access ?? {};
 
@@ -140,7 +160,7 @@ export async function PATCH(request: NextRequest) {
 
   const db = getServiceClient();
   const users = await db.auth.admin.listUsers();
-  const user = (users.data.users ?? []).find(u => u.email?.toLowerCase() === email);
+  const user = (users.data.users ?? []).find((u) => u.email?.toLowerCase() === email);
   if (!user) {
     return NextResponse.json({ error: 'User account not found for this email' }, { status: 404 });
   }
@@ -148,7 +168,8 @@ export async function PATCH(request: NextRequest) {
   const { data: workspaceRows, error: workspaceRowsError } = await db
     .from('workspaces')
     .select('id, slug, name');
-  if (workspaceRowsError) return NextResponse.json({ error: workspaceRowsError.message }, { status: 500 });
+  if (workspaceRowsError)
+    return NextResponse.json({ error: workspaceRowsError.message }, { status: 500 });
   const workspaceByKey = new Map<WorkspaceKey, WorkspaceRow>();
   for (const workspace of (workspaceRows ?? []) as WorkspaceRow[]) {
     const key = resolveWorkspaceKeyFromRow(workspace);
@@ -157,7 +178,11 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updates: WorkspaceMembershipUpsertPayload[] = [];
-  const workspaceMemberUpserts: Array<{ workspace_id: string; user_id: string; role: WorkspaceMemberRole }> = [];
+  const workspaceMemberUpserts: Array<{
+    workspace_id: string;
+    user_id: string;
+    role: WorkspaceMemberRole;
+  }> = [];
   const workspaceMemberDeletes: string[] = [];
   for (const [workspaceKeyRaw, config] of Object.entries(access)) {
     const workspace = normalizeWorkspaceKey(workspaceKeyRaw);
@@ -166,12 +191,18 @@ export async function PATCH(request: NextRequest) {
 
     const role = (config.role ?? 'member').toLowerCase();
     if (!WORKSPACE_ROLES.includes(role as (typeof WORKSPACE_ROLES)[number])) {
-      return NextResponse.json({ error: `Invalid role for ${workspace}: ${role}` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Invalid role for ${workspace}: ${role}` },
+        { status: 400 },
+      );
     }
 
     const targetWorkspace = workspaceByKey.get(workspace);
     if (!targetWorkspace?.id) {
-      return NextResponse.json({ error: `Workspace ${workspace} is not configured` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Workspace ${workspace} is not configured` },
+        { status: 400 },
+      );
     }
 
     updates.push({
@@ -196,8 +227,11 @@ export async function PATCH(request: NextRequest) {
       .from('workspace_members')
       .upsert(workspaceMemberUpserts, { onConflict: 'workspace_id,user_id' });
 
-    if (workspaceMemberError && shouldRetryWorkspaceMemberInsertWithLegacyRoles(workspaceMemberError.message)) {
-      const legacyRows = workspaceMemberUpserts.map(row => ({
+    if (
+      workspaceMemberError &&
+      shouldRetryWorkspaceMemberInsertWithLegacyRoles(workspaceMemberError.message)
+    ) {
+      const legacyRows = workspaceMemberUpserts.map((row) => ({
         workspace_id: row.workspace_id,
         user_id: row.user_id,
         role: toLegacyWorkspaceMemberRole(row.role),
@@ -222,10 +256,18 @@ export async function PATCH(request: NextRequest) {
     if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
 
-  const writeResult = await upsertWorkspaceMembershipsWithFallback(db, updates, 'team/workspace-access');
+  const writeResult = await upsertWorkspaceMembershipsWithFallback(
+    db,
+    updates,
+    'team/workspace-access',
+  );
   if (!writeResult.ok) {
     return NextResponse.json({ error: writeResult.error }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, updated: updates.length, fallback: writeResult.usedFallback });
+  return NextResponse.json({
+    success: true,
+    updated: updates.length,
+    fallback: writeResult.usedFallback,
+  });
 }

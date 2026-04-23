@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react';
-import type { InvoiceDocumentBranchTable, InvoiceDocumentRow } from '@/lib/docs-invoice-document-model';
+import type {
+  InvoiceDocumentBranchTable,
+  InvoiceDocumentRow,
+} from '@/lib/docs-invoice-document-model';
 import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
 import PlatformBlock from './PlatformBlock';
 

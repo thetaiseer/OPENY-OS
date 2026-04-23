@@ -13,10 +13,20 @@ import {
   Wand2,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { type DocsInvoice, type InvoiceBranchGroup, type InvoiceCampaignRow, type InvoicePlatformGroup, DOCS_CURRENCIES } from '@/lib/docs-types';
+import {
+  type DocsInvoice,
+  type InvoiceBranchGroup,
+  type InvoiceCampaignRow,
+  type InvoicePlatformGroup,
+  DOCS_CURRENCIES,
+} from '@/lib/docs-types';
 import { type DocsClientProfile, fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
-import { DocsDocTypeTabs, DocsEditorCard, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
+import {
+  DocsDocTypeTabs,
+  DocsEditorCard,
+  DocsWorkspaceShell,
+} from '@/components/docs/DocsWorkspace';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
@@ -61,9 +71,9 @@ const DEFAULT_TOTAL_BUDGET = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultTotalBudget;
 const DEFAULT_FEES = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultFees;
 
 const uid = (): string =>
-  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2, 11));
+    : Math.random().toString(36).slice(2, 11);
 
 function asTemplateName(value: string | null | undefined): InvoiceTemplateKey {
   return normalizeInvoiceTemplateName(value);
@@ -94,14 +104,25 @@ function createManualDefaultBranchGroups(): InvoiceBranchGroup[] {
 }
 
 function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[] = []) {
-  return Math.round(branchGroups.reduce((branchSum, branch) => (
-    branchSum + branch.platform_groups.reduce((platformSum, platform) => (
-      platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
-    ), 0)
-  ), 0));
+  return Math.round(
+    branchGroups.reduce(
+      (branchSum, branch) =>
+        branchSum +
+        branch.platform_groups.reduce(
+          (platformSum, platform) =>
+            platformSum +
+            platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0),
+          0,
+        ),
+      0,
+    ),
+  );
 }
 
-function normalizeBranchGroupsForEditor(branchGroups: InvoiceBranchGroup[] = [], ensureAtLeastOne = false) {
+function normalizeBranchGroupsForEditor(
+  branchGroups: InvoiceBranchGroup[] = [],
+  ensureAtLeastOne = false,
+) {
   const normalized = branchGroups.map((branch, branchIndex) => ({
     id: branch.id || `branch-${branchIndex + 1}-${uid()}`,
     branch_name: branch.branch_name || `Branch ${branchIndex + 1}`,
@@ -127,11 +148,11 @@ function normalizeBranchGroupsForEditor(branchGroups: InvoiceBranchGroup[] = [],
     }
     return {
       ...branch,
-      platform_groups: branch.platform_groups.map((platform) => (
+      platform_groups: branch.platform_groups.map((platform) =>
         platform.campaign_rows.length === 0
           ? { ...platform, campaign_rows: [createEmptyRow()] }
-          : platform
-      )),
+          : platform,
+      ),
     };
   });
 }
@@ -151,7 +172,7 @@ function distributePercentages(rawValues: number[]) {
   if (sum <= 0) {
     const even = Math.floor(100 / rawValues.length);
     const values = Array.from({ length: rawValues.length }, () => even);
-    let rem = 100 - (even * rawValues.length);
+    let rem = 100 - even * rawValues.length;
     let index = 0;
     while (rem > 0) {
       values[index % values.length] += 1;
@@ -242,49 +263,63 @@ export default function InvoicePage() {
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [form, setForm] = useState<FormState>(() => blank([]));
-  const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(createManualDefaultBranchGroups);
+  const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(
+    createManualDefaultBranchGroups,
+  );
   const [totalBudget, setTotalBudget] = useState<number>(DEFAULT_TOTAL_BUDGET);
-  const [ksaBranchConfigs, setKsaBranchConfigs] = useState<ProIconKsaBranchConfig[]>(createDefaultProIconKsaBranchConfigs);
+  const [ksaBranchConfigs, setKsaBranchConfigs] = useState<ProIconKsaBranchConfig[]>(
+    createDefaultProIconKsaBranchConfigs,
+  );
   const [generationSeed, setGenerationSeed] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [editorPanel, setEditorPanel] = useState<'setup' | 'generator' | 'data' | 'totals'>('setup');
+  const [editorPanel, setEditorPanel] = useState<'setup' | 'generator' | 'data' | 'totals'>(
+    'setup',
+  );
   const [expandedBranchRows, setExpandedBranchRows] = useState<Record<string, boolean>>({});
 
-  const loadFromInvoice = useCallback((invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
-    if (!invoice) {
-      setForm(blank(availableInvoices));
-      setBranchGroups(createManualDefaultBranchGroups());
-      setTotalBudget(DEFAULT_TOTAL_BUDGET);
-      setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
+  const loadFromInvoice = useCallback(
+    (invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
+      if (!invoice) {
+        setForm(blank(availableInvoices));
+        setBranchGroups(createManualDefaultBranchGroups());
+        setTotalBudget(DEFAULT_TOTAL_BUDGET);
+        setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
+        setGenerationSeed(0);
+        return;
+      }
+
+      const nextForm = toForm(invoice);
+      const normalizedGroups = normalizeBranchGroupsForEditor(
+        invoice.branch_groups ?? [],
+        nextForm.invoice_template === 'manual',
+      );
+      const inferredBudget = Math.max(
+        0,
+        Math.round(Number(invoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))),
+      );
+
+      setForm(nextForm);
+      setBranchGroups(
+        normalizedGroups.length
+          ? normalizedGroups
+          : nextForm.invoice_template === 'manual'
+            ? createManualDefaultBranchGroups()
+            : [],
+      );
+      setTotalBudget(inferredBudget || DEFAULT_TOTAL_BUDGET);
+      setKsaBranchConfigs(
+        nextForm.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY
+          ? deriveProIconKsaBranchConfigs(normalizedGroups, inferredBudget || DEFAULT_TOTAL_BUDGET)
+          : createDefaultProIconKsaBranchConfigs(),
+      );
       setGenerationSeed(0);
-      return;
-    }
-
-    const nextForm = toForm(invoice);
-    const normalizedGroups = normalizeBranchGroupsForEditor(
-      invoice.branch_groups ?? [],
-      nextForm.invoice_template === 'manual',
-    );
-    const inferredBudget = Math.max(0, Math.round(Number(invoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
-
-    setForm(nextForm);
-    setBranchGroups(
-      normalizedGroups.length
-        ? normalizedGroups
-        : (nextForm.invoice_template === 'manual' ? createManualDefaultBranchGroups() : []),
-    );
-    setTotalBudget(inferredBudget || DEFAULT_TOTAL_BUDGET);
-    setKsaBranchConfigs(
-      nextForm.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY
-        ? deriveProIconKsaBranchConfigs(normalizedGroups, inferredBudget || DEFAULT_TOTAL_BUDGET)
-        : createDefaultProIconKsaBranchConfigs(),
-    );
-    setGenerationSeed(0);
-  }, []);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -294,7 +329,7 @@ export default function InvoicePage() {
         fetch('/api/docs/invoices', { cache: 'no-store' }),
         fetchDocsClientProfiles(),
       ]);
-      const invJson = await invRes.json() as { invoices?: DocsInvoice[]; error?: string };
+      const invJson = (await invRes.json()) as { invoices?: DocsInvoice[]; error?: string };
       if (!invRes.ok) throw new Error(invJson.error ?? 'Unable to load invoices.');
 
       const loadedInvoices = invJson.invoices ?? [];
@@ -308,17 +343,23 @@ export default function InvoicePage() {
     }
   }, [loadFromInvoice]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.client_id === form.client_profile_id),
     [profiles, form.client_profile_id],
   );
 
-  const model = useMemo(() => buildInvoiceDocumentModel({
-    ...form,
-    branch_groups: branchGroups,
-  }), [form, branchGroups]);
+  const model = useMemo(
+    () =>
+      buildInvoiceDocumentModel({
+        ...form,
+        branch_groups: branchGroups,
+      }),
+    [form, branchGroups],
+  );
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -394,93 +435,141 @@ export default function InvoicePage() {
   }
 
   function toggleKsaBranch(branchIndex: number, enabled: boolean) {
-    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
-      idx === branchIndex ? { ...branch, enabled, allocationPct: enabled ? Math.max(1, branch.allocationPct || 1) : 0 } : branch
-    ))));
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch, idx) =>
+          idx === branchIndex
+            ? {
+                ...branch,
+                enabled,
+                allocationPct: enabled ? Math.max(1, branch.allocationPct || 1) : 0,
+              }
+            : branch,
+        ),
+      ),
+    );
   }
 
   function updateKsaBranchAllocation(branchIndex: number, value: number) {
-    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
-      idx === branchIndex ? { ...branch, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) } : branch
-    ))));
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch, idx) =>
+          idx === branchIndex
+            ? { ...branch, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) }
+            : branch,
+        ),
+      ),
+    );
   }
 
   function updateKsaPlatformName(branchIndex: number, platformIndex: number, value: string) {
-    setKsaBranchConfigs((prev) => prev.map((branch, idx) => {
-      if (idx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platforms: branch.platforms.map((platform, pIdx) => (
-          pIdx === platformIndex ? { ...platform, name: value } : platform
-        )),
-      };
-    }));
+    setKsaBranchConfigs((prev) =>
+      prev.map((branch, idx) => {
+        if (idx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platforms: branch.platforms.map((platform, pIdx) =>
+            pIdx === platformIndex ? { ...platform, name: value } : platform,
+          ),
+        };
+      }),
+    );
   }
 
   function addKsaPlatform(branchIndex: number) {
-    setKsaBranchConfigs((prev) => prev.map((branch, idx) => (
-      idx === branchIndex
-        ? {
-          ...branch,
-          platforms: [
-            ...branch.platforms,
-            { id: uid(), name: `Platform ${branch.platforms.length + 1}`, enabled: true, campaignCount: 1, allocationPct: 0 },
-          ],
-        }
-        : branch
-    )));
+    setKsaBranchConfigs((prev) =>
+      prev.map((branch, idx) =>
+        idx === branchIndex
+          ? {
+              ...branch,
+              platforms: [
+                ...branch.platforms,
+                {
+                  id: uid(),
+                  name: `Platform ${branch.platforms.length + 1}`,
+                  enabled: true,
+                  campaignCount: 1,
+                  allocationPct: 0,
+                },
+              ],
+            }
+          : branch,
+      ),
+    );
   }
 
   function removeKsaPlatform(branchIndex: number, platformIndex: number) {
-    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => (
-      idx === branchIndex
-        ? { ...branch, platforms: branch.platforms.filter((_, pIdx) => pIdx !== platformIndex) }
-        : branch
-    ))));
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch, idx) =>
+          idx === branchIndex
+            ? { ...branch, platforms: branch.platforms.filter((_, pIdx) => pIdx !== platformIndex) }
+            : branch,
+        ),
+      ),
+    );
   }
 
   function toggleKsaPlatform(branchIndex: number, platformIndex: number, enabled: boolean) {
-    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => {
-      if (idx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platforms: branch.platforms.map((platform, pIdx) => (
-          pIdx === platformIndex
-            ? { ...platform, enabled, allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0 }
-            : platform
-        )),
-      };
-    })));
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch, idx) => {
+          if (idx !== branchIndex) return branch;
+          return {
+            ...branch,
+            platforms: branch.platforms.map((platform, pIdx) =>
+              pIdx === platformIndex
+                ? {
+                    ...platform,
+                    enabled,
+                    allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0,
+                  }
+                : platform,
+            ),
+          };
+        }),
+      ),
+    );
   }
 
   function updateKsaCampaignCount(branchIndex: number, platformIndex: number, value: number) {
-    setKsaBranchConfigs((prev) => prev.map((branch, idx) => {
-      if (idx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platforms: branch.platforms.map((platform, pIdx) => (
-          pIdx === platformIndex ? { ...platform, campaignCount: toPositiveInt(value) } : platform
-        )),
-      };
-    }));
+    setKsaBranchConfigs((prev) =>
+      prev.map((branch, idx) => {
+        if (idx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platforms: branch.platforms.map((platform, pIdx) =>
+            pIdx === platformIndex
+              ? { ...platform, campaignCount: toPositiveInt(value) }
+              : platform,
+          ),
+        };
+      }),
+    );
   }
 
   function updateKsaPlatformAllocation(branchIndex: number, platformIndex: number, value: number) {
-    setKsaBranchConfigs((prev) => normalizeKsaBranchConfigs(prev.map((branch, idx) => {
-      if (idx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platforms: branch.platforms.map((platform, pIdx) => (
-          pIdx === platformIndex ? { ...platform, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) } : platform
-        )),
-      };
-    })));
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch, idx) => {
+          if (idx !== branchIndex) return branch;
+          return {
+            ...branch,
+            platforms: branch.platforms.map((platform, pIdx) =>
+              pIdx === platformIndex
+                ? { ...platform, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) }
+                : platform,
+            ),
+          };
+        }),
+      ),
+    );
   }
 
   function updateBranchName(branchIndex: number, value: string) {
-    setBranchGroups((prev) => prev.map((branch, i) => (
-      i === branchIndex ? { ...branch, branch_name: value } : branch
-    )));
+    setBranchGroups((prev) =>
+      prev.map((branch, i) => (i === branchIndex ? { ...branch, branch_name: value } : branch)),
+    );
   }
 
   function addBranch() {
@@ -492,31 +581,40 @@ export default function InvoicePage() {
   }
 
   function updatePlatformName(branchIndex: number, platformIndex: number, value: string) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => {
-      if (bIdx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platform_groups: branch.platform_groups.map((platform, pIdx) => (
-          pIdx === platformIndex ? { ...platform, platform_name: value } : platform
-        )),
-      };
-    }));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) => {
+        if (bIdx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platform_groups: branch.platform_groups.map((platform, pIdx) =>
+            pIdx === platformIndex ? { ...platform, platform_name: value } : platform,
+          ),
+        };
+      }),
+    );
   }
 
   function addPlatform(branchIndex: number) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => (
-      bIdx === branchIndex
-        ? { ...branch, platform_groups: [...branch.platform_groups, createEmptyPlatform()] }
-        : branch
-    )));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) =>
+        bIdx === branchIndex
+          ? { ...branch, platform_groups: [...branch.platform_groups, createEmptyPlatform()] }
+          : branch,
+      ),
+    );
   }
 
   function removePlatform(branchIndex: number, platformIndex: number) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => (
-      bIdx === branchIndex
-        ? { ...branch, platform_groups: branch.platform_groups.filter((_, pIdx) => pIdx !== platformIndex) }
-        : branch
-    )));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) =>
+        bIdx === branchIndex
+          ? {
+              ...branch,
+              platform_groups: branch.platform_groups.filter((_, pIdx) => pIdx !== platformIndex),
+            }
+          : branch,
+      ),
+    );
   }
 
   function updateRowField(
@@ -526,58 +624,73 @@ export default function InvoicePage() {
     field: keyof InvoiceCampaignRow,
     value: string | number,
   ) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => {
-      if (bIdx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platform_groups: branch.platform_groups.map((platform, pIdx) => {
-          if (pIdx !== platformIndex) return platform;
-          return {
-            ...platform,
-            campaign_rows: platform.campaign_rows.map((row, rIdx) => {
-              if (rIdx !== rowIndex) return row;
-              if (field === 'cost') {
-                return { ...row, cost: Math.max(0, Number(value) || 0) };
-              }
-              return { ...row, [field]: String(value) };
-            }),
-          };
-        }),
-      };
-    }));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) => {
+        if (bIdx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platform_groups: branch.platform_groups.map((platform, pIdx) => {
+            if (pIdx !== platformIndex) return platform;
+            return {
+              ...platform,
+              campaign_rows: platform.campaign_rows.map((row, rIdx) => {
+                if (rIdx !== rowIndex) return row;
+                if (field === 'cost') {
+                  return { ...row, cost: Math.max(0, Number(value) || 0) };
+                }
+                return { ...row, [field]: String(value) };
+              }),
+            };
+          }),
+        };
+      }),
+    );
   }
 
   function addRow(branchIndex: number, platformIndex: number) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => {
-      if (bIdx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platform_groups: branch.platform_groups.map((platform, pIdx) => (
-          pIdx === platformIndex
-            ? { ...platform, campaign_rows: [...platform.campaign_rows, createEmptyRow()] }
-            : platform
-        )),
-      };
-    }));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) => {
+        if (bIdx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platform_groups: branch.platform_groups.map((platform, pIdx) =>
+            pIdx === platformIndex
+              ? { ...platform, campaign_rows: [...platform.campaign_rows, createEmptyRow()] }
+              : platform,
+          ),
+        };
+      }),
+    );
   }
 
   function removeRow(branchIndex: number, platformIndex: number, rowIndex: number) {
-    setBranchGroups((prev) => prev.map((branch, bIdx) => {
-      if (bIdx !== branchIndex) return branch;
-      return {
-        ...branch,
-        platform_groups: branch.platform_groups.map((platform, pIdx) => (
-          pIdx === platformIndex
-            ? { ...platform, campaign_rows: platform.campaign_rows.filter((_, rIdx) => rIdx !== rowIndex) }
-            : platform
-        )),
-      };
-    }));
+    setBranchGroups((prev) =>
+      prev.map((branch, bIdx) => {
+        if (bIdx !== branchIndex) return branch;
+        return {
+          ...branch,
+          platform_groups: branch.platform_groups.map((platform, pIdx) =>
+            pIdx === platformIndex
+              ? {
+                  ...platform,
+                  campaign_rows: platform.campaign_rows.filter((_, rIdx) => rIdx !== rowIndex),
+                }
+              : platform,
+          ),
+        };
+      }),
+    );
   }
 
   async function saveInvoice() {
-    if (!form.invoice_number.trim()) { setError('Invoice number is required.'); return; }
-    if (!form.client_name.trim()) { setError('Client name is required.'); return; }
+    if (!form.invoice_number.trim()) {
+      setError('Invoice number is required.');
+      return;
+    }
+    if (!form.client_name.trim()) {
+      setError('Client name is required.');
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -605,7 +718,7 @@ export default function InvoicePage() {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json() as { invoice?: DocsInvoice; error?: string };
+      const json = (await res.json()) as { invoice?: DocsInvoice; error?: string };
       if (!res.ok || !json.invoice) throw new Error(json.error ?? 'Unable to save invoice.');
 
       const savedInvoice = json.invoice;
@@ -620,11 +733,16 @@ export default function InvoicePage() {
       });
 
       const normalizedGroups = normalizeBranchGroupsForEditor(savedInvoice.branch_groups ?? []);
-      const persistedBudget = Math.max(0, Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))));
+      const persistedBudget = Math.max(
+        0,
+        Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))),
+      );
       setBranchGroups(
         normalizedGroups.length
           ? normalizedGroups
-          : (asTemplateName(savedInvoice.invoice_template ?? null) === 'manual' ? createManualDefaultBranchGroups() : []),
+          : asTemplateName(savedInvoice.invoice_template ?? null) === 'manual'
+            ? createManualDefaultBranchGroups()
+            : [],
       );
       setTotalBudget(persistedBudget || totalBudget);
       setKsaBranchConfigs(
@@ -665,32 +783,64 @@ export default function InvoicePage() {
     setExpandedBranchRows((prev) => ({ ...prev, [branchId]: !prev[branchId] }));
   }
 
-  const inputClass = 'w-full px-3 py-2 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
+  const inputClass =
+    'w-full px-3 py-2 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
 
   return (
     <DocsWorkspaceShell
-      toolbar={(
+      toolbar={
         <div className="docs-workspace-quickbar">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <DocsDocTypeTabs active="invoice" />
             <div className="flex items-center gap-2">
-              <button type="button" onClick={createNew} className="px-3 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                <Plus size={12} className="inline mr-1" /> New
+              <button
+                type="button"
+                onClick={createNew}
+                className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                <Plus size={12} className="mr-1 inline" /> New
               </button>
-              <button type="button" onClick={() => void saveInvoice()} disabled={saving || loading} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
-                <Save size={12} className="inline mr-1" /> {saving ? 'Saving…' : 'Save'}
+              <button
+                type="button"
+                onClick={() => void saveInvoice()}
+                disabled={saving || loading}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                style={{ background: 'var(--accent)' }}
+              >
+                <Save size={12} className="mr-1 inline" /> {saving ? 'Saving…' : 'Save'}
               </button>
               {form.id ? (
-                <a href={`/api/docs/invoices/${form.id}/export`} className="px-3 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                  <Download size={12} className="inline mr-1" /> Excel
+                <a
+                  href={`/api/docs/invoices/${form.id}/export`}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <Download size={12} className="mr-1 inline" /> Excel
                 </a>
               ) : null}
-              <button type="button" onClick={() => { void exportPreviewPdf('invoice-preview', form.invoice_number || 'invoice', 'invoice'); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#0f172a' }}>
-                <Printer size={12} className="inline mr-1" /> PDF
+              <button
+                type="button"
+                onClick={() => {
+                  void exportPreviewPdf(
+                    'invoice-preview',
+                    form.invoice_number || 'invoice',
+                    'invoice',
+                  );
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                style={{ background: '#0f172a' }}
+              >
+                <Printer size={12} className="mr-1 inline" /> PDF
               </button>
               {form.id ? (
-                <button type="button" onClick={() => void deleteInvoice()} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#dc2626' }}>
-                  <Trash2 size={12} className="inline mr-1" /> Delete
+                <button
+                  type="button"
+                  onClick={() => void deleteInvoice()}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#dc2626' }}
+                >
+                  <Trash2 size={12} className="mr-1 inline" /> Delete
                 </button>
               ) : null}
             </div>
@@ -698,9 +848,16 @@ export default function InvoicePage() {
           <div className="docs-workspace-quickbar-grid">
             <div>
               <label htmlFor="invoice-template">Mode / Template</label>
-              <select id="invoice-template" className={inputClass} value={form.invoice_template} onChange={(e) => applyTemplate(asTemplateName(e.target.value))}>
+              <select
+                id="invoice-template"
+                className={inputClass}
+                value={form.invoice_template}
+                onChange={(e) => applyTemplate(asTemplateName(e.target.value))}
+              >
                 {INVOICE_TEMPLATE_OPTIONS.map((template) => (
-                  <option key={template.key} value={template.key}>{template.label}</option>
+                  <option key={template.key} value={template.key}>
+                    {template.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -718,17 +875,31 @@ export default function InvoicePage() {
               >
                 <option value="">Select client</option>
                 {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.client_id}>{profile.client_name}</option>
+                  <option key={profile.id} value={profile.client_id}>
+                    {profile.client_name}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label htmlFor="invoice-campaign-month">Campaign Month</label>
-              <input id="invoice-campaign-month" type="month" className={inputClass} value={form.campaign_month} onChange={(e) => setField('campaign_month', e.target.value)} />
+              <input
+                id="invoice-campaign-month"
+                type="month"
+                className={inputClass}
+                value={form.campaign_month}
+                onChange={(e) => setField('campaign_month', e.target.value)}
+              />
             </div>
             <div>
               <label htmlFor="invoice-date">Invoice Date</label>
-              <input id="invoice-date" type="date" className={inputClass} value={form.invoice_date} onChange={(e) => setField('invoice_date', e.target.value)} />
+              <input
+                id="invoice-date"
+                type="date"
+                className={inputClass}
+                value={form.invoice_date}
+                onChange={(e) => setField('invoice_date', e.target.value)}
+              />
             </div>
             <div>
               <label>History</label>
@@ -751,28 +922,49 @@ export default function InvoicePage() {
             </div>
           </div>
         </div>
-      )}
-      editor={(
+      }
+      editor={
         <div className="space-y-3 overflow-y-auto pr-1">
           {error ? (
-            <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#dc2626', background: 'rgba(239,68,68,0.08)' }}>
+            <div
+              className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
+              style={{
+                borderColor: 'rgba(239,68,68,0.35)',
+                color: '#dc2626',
+                background: 'rgba(239,68,68,0.08)',
+              }}
+            >
               <AlertCircle size={15} /> {error}
             </div>
           ) : null}
           {success ? (
-            <div className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'rgba(16,185,129,0.35)', color: '#047857', background: 'rgba(16,185,129,0.08)' }}>
+            <div
+              className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
+              style={{
+                borderColor: 'rgba(16,185,129,0.35)',
+                color: '#047857',
+                background: 'rgba(16,185,129,0.08)',
+              }}
+            >
               <Check size={15} /> {success}
             </div>
           ) : null}
 
           <div className="docs-tabs">
-            {([
-              ['setup', 'Setup'],
-              ['generator', 'Generator'],
-              ['data', 'Campaign Data'],
-              ['totals', 'Totals'],
-            ] as const).map(([key, label]) => (
-              <button key={key} type="button" onClick={() => setEditorPanel(key)} className={clsx('docs-tab', editorPanel === key && 'docs-tab-active')}>
+            {(
+              [
+                ['setup', 'Setup'],
+                ['generator', 'Generator'],
+                ['data', 'Campaign Data'],
+                ['totals', 'Totals'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setEditorPanel(key)}
+                className={clsx('docs-tab', editorPanel === key && 'docs-tab-active')}
+              >
                 {label}
               </button>
             ))}
@@ -783,24 +975,45 @@ export default function InvoicePage() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label>Invoice Number</label>
-                  <input className={inputClass} value={form.invoice_number} onChange={(e) => setField('invoice_number', e.target.value)} />
+                  <input
+                    className={inputClass}
+                    value={form.invoice_number}
+                    onChange={(e) => setField('invoice_number', e.target.value)}
+                  />
                 </div>
                 <div>
                   <label>Currency</label>
-                  <select className={inputClass} value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
-                    {DOCS_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                  <select
+                    className={inputClass}
+                    value={form.currency}
+                    onChange={(e) => setField('currency', e.target.value)}
+                  >
+                    {DOCS_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label>Status</label>
-                  <select className={inputClass} value={form.status} onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}>
+                  <select
+                    className={inputClass}
+                    value={form.status}
+                    onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}
+                  >
                     <option value="unpaid">Unpaid</option>
                     <option value="paid">Paid</option>
                   </select>
                 </div>
                 <div>
                   <label>Client Name</label>
-                  <input className={inputClass} value={form.client_name} onChange={(e) => setField('client_name', e.target.value)} placeholder={selectedProfile?.client_name || 'Client name'} />
+                  <input
+                    className={inputClass}
+                    value={form.client_name}
+                    onChange={(e) => setField('client_name', e.target.value)}
+                    placeholder={selectedProfile?.client_name || 'Client name'}
+                  />
                 </div>
               </div>
               <ClientProfileSelector
@@ -815,23 +1028,46 @@ export default function InvoicePage() {
               />
               <div>
                 <label htmlFor="invoice-notes">Notes</label>
-                <textarea id="invoice-notes" className={inputClass} rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+                <textarea
+                  id="invoice-notes"
+                  className={inputClass}
+                  rows={3}
+                  value={form.notes}
+                  onChange={(e) => setField('notes', e.target.value)}
+                />
               </div>
             </DocsEditorCard>
           ) : null}
 
           {editorPanel === 'generator' ? (
-            <DocsEditorCard title="Template Generator" actions={(
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Allocation total: {totalAllocation}%</div>
-            )}>
+            <DocsEditorCard
+              title="Template Generator"
+              actions={
+                <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  Allocation total: {totalAllocation}%
+                </div>
+              }
+            >
               {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-[1fr_180px] gap-2">
                     <div>
                       <label htmlFor="invoice-total-budget">Total Budget</label>
-                      <input id="invoice-total-budget" type="number" min={0} className={inputClass} value={totalBudget} onChange={(e) => setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+                      <input
+                        id="invoice-total-budget"
+                        type="number"
+                        min={0}
+                        className={inputClass}
+                        value={totalBudget}
+                        onChange={(e) =>
+                          setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))
+                        }
+                      />
                     </div>
-                    <div className="rounded-xl border p-2 text-xs space-y-1" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                    <div
+                      className="space-y-1 rounded-xl border p-2 text-xs"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                    >
                       <div className="flex items-center justify-between">
                         <span style={{ color: 'var(--text-secondary)' }}>Deduction</span>
                         <span className="font-semibold" style={{ color: 'var(--text)' }}>
@@ -845,21 +1081,41 @@ export default function InvoicePage() {
 
                   {ksaBranchConfigs.map((branch, branchIndex) => {
                     const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
-                    const localAllocationTotal = branch.platforms.filter((item) => item.enabled).reduce((sum, item) => sum + item.allocationPct, 0);
+                    const localAllocationTotal = branch.platforms
+                      .filter((item) => item.enabled)
+                      .reduce((sum, item) => sum + item.allocationPct, 0);
                     return (
-                      <div key={branch.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+                      <div
+                        key={branch.id}
+                        className="space-y-3 rounded-xl border p-3"
+                        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                      >
                         <div className="flex items-center justify-between gap-2">
-                          <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                            <input type="checkbox" checked={branch.enabled} onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)} />
+                          <label
+                            className="flex items-center gap-2 text-sm font-semibold"
+                            style={{ color: 'var(--text)' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={branch.enabled}
+                              onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)}
+                            />
                             {branch.name}
                           </label>
-                          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                            {branch.enabled ? `${branchBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                          <span
+                            className="text-sm font-semibold"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            {branch.enabled
+                              ? `${branchBudget.toLocaleString()} ${form.currency}`
+                              : 'Disabled'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-[1fr_120px] gap-2 items-end">
+                        <div className="grid grid-cols-[1fr_120px] items-end gap-2">
                           <div>
-                            <label htmlFor={`branch-allocation-range-${branch.id}`}>Branch Allocation %</label>
+                            <label htmlFor={`branch-allocation-range-${branch.id}`}>
+                              Branch Allocation %
+                            </label>
                             <input
                               id={`branch-allocation-range-${branch.id}`}
                               type="range"
@@ -868,7 +1124,9 @@ export default function InvoicePage() {
                               disabled={!branch.enabled}
                               className="w-full"
                               value={branch.allocationPct}
-                              onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
+                              onChange={(e) =>
+                                updateKsaBranchAllocation(branchIndex, Number(e.target.value))
+                              }
                             />
                           </div>
                           <input
@@ -879,63 +1137,172 @@ export default function InvoicePage() {
                             disabled={!branch.enabled}
                             className={inputClass}
                             value={branch.allocationPct}
-                            onChange={(e) => updateKsaBranchAllocation(branchIndex, Number(e.target.value))}
+                            onChange={(e) =>
+                              updateKsaBranchAllocation(branchIndex, Number(e.target.value))
+                            }
                           />
                         </div>
 
                         {branch.platforms.map((platform, platformIndex) => {
-                          const platformBudget = getProIconKsaPlatformPreviewBudget(totalBudget, branch, platform);
+                          const platformBudget = getProIconKsaPlatformPreviewBudget(
+                            totalBudget,
+                            branch,
+                            platform,
+                          );
                           return (
-                            <div key={platform.id} className="rounded-lg border p-2 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                              <div className="grid grid-cols-[1fr_90px_28px] gap-2 items-center">
-                                <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                                  <input type="checkbox" checked={platform.enabled} onChange={(e) => toggleKsaPlatform(branchIndex, platformIndex, e.target.checked)} />
-                                  <input className={inputClass} value={platform.name} onChange={(e) => updateKsaPlatformName(branchIndex, platformIndex, e.target.value)} disabled={!platform.enabled} placeholder="Platform name" />
+                            <div
+                              key={platform.id}
+                              className="space-y-2 rounded-lg border p-2"
+                              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                            >
+                              <div className="grid grid-cols-[1fr_90px_28px] items-center gap-2">
+                                <label
+                                  className="flex items-center gap-2 text-xs font-semibold"
+                                  style={{ color: 'var(--text)' }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={platform.enabled}
+                                    onChange={(e) =>
+                                      toggleKsaPlatform(
+                                        branchIndex,
+                                        platformIndex,
+                                        e.target.checked,
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    className={inputClass}
+                                    value={platform.name}
+                                    onChange={(e) =>
+                                      updateKsaPlatformName(
+                                        branchIndex,
+                                        platformIndex,
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={!platform.enabled}
+                                    placeholder="Platform name"
+                                  />
                                 </label>
-                                <span className="text-[11px] font-semibold text-right" style={{ color: 'var(--accent)' }}>
-                                  {platform.enabled ? `${platformBudget.toLocaleString()} ${form.currency}` : 'Disabled'}
+                                <span
+                                  className="text-right text-[11px] font-semibold"
+                                  style={{ color: 'var(--accent)' }}
+                                >
+                                  {platform.enabled
+                                    ? `${platformBudget.toLocaleString()} ${form.currency}`
+                                    : 'Disabled'}
                                 </span>
-                                <button type="button" onClick={() => removeKsaPlatform(branchIndex, platformIndex)} className="rounded border text-[10px] h-7" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove platform">
+                                <button
+                                  type="button"
+                                  onClick={() => removeKsaPlatform(branchIndex, platformIndex)}
+                                  className="h-7 rounded border text-[10px]"
+                                  style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                                  title="Remove platform"
+                                >
                                   <Trash2 size={11} className="mx-auto" />
                                 </button>
                               </div>
-                              <div className="grid grid-cols-[120px_1fr_90px] gap-2 items-end">
+                              <div className="grid grid-cols-[120px_1fr_90px] items-end gap-2">
                                 <div>
                                   <label>Campaign Count</label>
-                                  <input type="number" min={1} disabled={!platform.enabled} className={inputClass} value={platform.campaignCount} onChange={(e) => updateKsaCampaignCount(branchIndex, platformIndex, Number(e.target.value))} />
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    disabled={!platform.enabled}
+                                    className={inputClass}
+                                    value={platform.campaignCount}
+                                    onChange={(e) =>
+                                      updateKsaCampaignCount(
+                                        branchIndex,
+                                        platformIndex,
+                                        Number(e.target.value),
+                                      )
+                                    }
+                                  />
                                 </div>
                                 <div>
                                   <label>Platform Allocation %</label>
-                                  <input type="range" min={0} max={100} disabled={!platform.enabled} className="w-full" value={platform.allocationPct} onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))} />
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    disabled={!platform.enabled}
+                                    className="w-full"
+                                    value={platform.allocationPct}
+                                    onChange={(e) =>
+                                      updateKsaPlatformAllocation(
+                                        branchIndex,
+                                        platformIndex,
+                                        Number(e.target.value),
+                                      )
+                                    }
+                                  />
                                 </div>
-                                <input type="number" min={0} max={100} disabled={!platform.enabled} className={inputClass} value={platform.allocationPct} onChange={(e) => updateKsaPlatformAllocation(branchIndex, platformIndex, Number(e.target.value))} />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  disabled={!platform.enabled}
+                                  className={inputClass}
+                                  value={platform.allocationPct}
+                                  onChange={(e) =>
+                                    updateKsaPlatformAllocation(
+                                      branchIndex,
+                                      platformIndex,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
                               </div>
                             </div>
                           );
                         })}
 
-                        <div className="text-[11px]" style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}>
+                        <div
+                          className="text-[11px]"
+                          style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}
+                        >
                           Platform allocation total: {localAllocationTotal}%
                         </div>
-                        <button type="button" onClick={() => addKsaPlatform(branchIndex)} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                          <Plus size={12} className="inline mr-1" /> Add Platform
+                        <button
+                          type="button"
+                          onClick={() => addKsaPlatform(branchIndex)}
+                          className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        >
+                          <Plus size={12} className="mr-1 inline" /> Add Platform
                         </button>
                       </div>
                     );
                   })}
 
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => regenerateKsa(1, false)} className="px-3 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>
-                      <Wand2 size={13} className="inline mr-1" /> Generate Invoice Data
+                    <button
+                      type="button"
+                      onClick={() => regenerateKsa(1, false)}
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-white"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      <Wand2 size={13} className="mr-1 inline" /> Generate Invoice Data
                     </button>
-                    <button type="button" onClick={() => regenerateKsa(1, true)} className="px-3 py-2 rounded-lg text-xs font-semibold border" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                      <RotateCcw size={13} className="inline mr-1" /> Reset Generator
+                    <button
+                      type="button"
+                      onClick={() => regenerateKsa(1, true)}
+                      className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                    >
+                      <RotateCcw size={13} className="mr-1 inline" /> Reset Generator
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                  Manual mode does not require template generation. Use Campaign Data tab to manage branch/platform rows.
+                <div
+                  className="rounded-lg border px-3 py-2 text-xs"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  Manual mode does not require template generation. Use Campaign Data tab to manage
+                  branch/platform rows.
                 </div>
               )}
             </DocsEditorCard>
@@ -944,37 +1311,75 @@ export default function InvoicePage() {
           {editorPanel === 'data' ? (
             <DocsEditorCard
               title="Generated Campaign Data"
-              actions={form.invoice_template === 'manual' ? (
-                <button type="button" onClick={addBranch} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                  <Plus size={12} className="inline mr-1" /> Add Branch
-                </button>
-              ) : null}
+              actions={
+                form.invoice_template === 'manual' ? (
+                  <button
+                    type="button"
+                    onClick={addBranch}
+                    className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <Plus size={12} className="mr-1 inline" /> Add Branch
+                  </button>
+                ) : null
+              }
             >
               {branchGroups.length === 0 ? (
-                <div className="text-xs rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                <div
+                  className="rounded-lg border px-3 py-2 text-xs"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
                   No rows yet. Add a branch to start building your invoice.
                 </div>
               ) : null}
 
               <div className="space-y-3">
                 {branchGroups.map((branch, branchIndex) => {
-                  const branchTotal = branch.platform_groups.reduce((sum, platform) => (
-                    sum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
-                  ), 0);
+                  const branchTotal = branch.platform_groups.reduce(
+                    (sum, platform) =>
+                      sum +
+                      platform.campaign_rows.reduce(
+                        (rowSum, row) => rowSum + (Number(row.cost) || 0),
+                        0,
+                      ),
+                    0,
+                  );
                   const expanded = expandedBranchRows[branch.id] ?? true;
                   return (
-                    <div key={branch.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
-                        <input className={inputClass} value={branch.branch_name} onChange={(e) => updateBranchName(branchIndex, e.target.value)} placeholder="Branch name" />
-                        <div className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: 'var(--surface)', color: 'var(--accent)' }}>
+                    <div
+                      key={branch.id}
+                      className="space-y-2 rounded-xl border p-3"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                    >
+                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                        <input
+                          className={inputClass}
+                          value={branch.branch_name}
+                          onChange={(e) => updateBranchName(branchIndex, e.target.value)}
+                          placeholder="Branch name"
+                        />
+                        <div
+                          className="rounded-lg px-2 py-1 text-xs font-semibold"
+                          style={{ background: 'var(--surface)', color: 'var(--accent)' }}
+                        >
                           {branchTotal.toLocaleString()} {form.currency}
                         </div>
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => toggleBranchDetails(branch.id)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleBranchDetails(branch.id)}
+                            className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                          >
                             {expanded ? 'Collapse' : 'Expand'}
                           </button>
                           {form.invoice_template === 'manual' ? (
-                            <button type="button" onClick={() => removeBranch(branchIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}>
+                            <button
+                              type="button"
+                              onClick={() => removeBranch(branchIndex)}
+                              className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                              style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                            >
                               <Trash2 size={12} />
                             </button>
                           ) : null}
@@ -984,20 +1389,58 @@ export default function InvoicePage() {
                       {expanded ? (
                         <div className="space-y-2">
                           {branch.platform_groups.map((platform, platformIndex) => {
-                            const platformTotal = platform.campaign_rows.reduce((sum, row) => sum + (Number(row.cost) || 0), 0);
+                            const platformTotal = platform.campaign_rows.reduce(
+                              (sum, row) => sum + (Number(row.cost) || 0),
+                              0,
+                            );
                             return (
-                              <div key={platform.id} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                                <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
-                                  <input className={inputClass} value={platform.platform_name} onChange={(e) => updatePlatformName(branchIndex, platformIndex, e.target.value)} placeholder="Platform name" />
-                                  <div className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                              <div
+                                key={platform.id}
+                                className="space-y-2 rounded-lg border p-3"
+                                style={{
+                                  borderColor: 'var(--border)',
+                                  background: 'var(--surface)',
+                                }}
+                              >
+                                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                                  <input
+                                    className={inputClass}
+                                    value={platform.platform_name}
+                                    onChange={(e) =>
+                                      updatePlatformName(branchIndex, platformIndex, e.target.value)
+                                    }
+                                    placeholder="Platform name"
+                                  />
+                                  <div
+                                    className="rounded-lg px-2 py-1 text-xs font-semibold"
+                                    style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+                                  >
                                     {platformTotal.toLocaleString()} {form.currency}
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <button type="button" onClick={() => addRow(branchIndex, platformIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }} title="Add row">
+                                    <button
+                                      type="button"
+                                      onClick={() => addRow(branchIndex, platformIndex)}
+                                      className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                                      style={{
+                                        borderColor: 'var(--border)',
+                                        color: 'var(--text-secondary)',
+                                      }}
+                                      title="Add row"
+                                    >
                                       <Plus size={12} />
                                     </button>
                                     {form.invoice_template === 'manual' ? (
-                                      <button type="button" onClick={() => removePlatform(branchIndex, platformIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove platform">
+                                      <button
+                                        type="button"
+                                        onClick={() => removePlatform(branchIndex, platformIndex)}
+                                        className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                                        style={{
+                                          borderColor: 'rgba(239,68,68,0.3)',
+                                          color: '#dc2626',
+                                        }}
+                                        title="Remove platform"
+                                      >
                                         <Trash2 size={12} />
                                       </button>
                                     ) : null}
@@ -1005,16 +1448,89 @@ export default function InvoicePage() {
                                 </div>
 
                                 {platform.campaign_rows.length === 0 ? (
-                                  <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>No rows. Add one row.</div>
+                                  <div
+                                    className="text-[11px]"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                  >
+                                    No rows. Add one row.
+                                  </div>
                                 ) : null}
 
                                 {platform.campaign_rows.map((row, rowIndex) => (
-                                  <div key={row.id} className="grid grid-cols-[1.2fr_115px_1fr_110px_30px] gap-2 items-center">
-                                    <input className={inputClass} value={row.ad_name} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'ad_name', e.target.value)} placeholder="Ad name" />
-                                    <input type="date" className={inputClass} value={row.date} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'date', e.target.value)} />
-                                    <input className={inputClass} value={row.results} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'results', e.target.value)} placeholder="Results" />
-                                    <input type="number" min={0} className={inputClass} value={row.cost} onChange={(e) => updateRowField(branchIndex, platformIndex, rowIndex, 'cost', e.target.value)} placeholder="Cost" />
-                                    <button type="button" onClick={() => removeRow(branchIndex, platformIndex, rowIndex)} className="px-2 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }} title="Remove row">
+                                  <div
+                                    key={row.id}
+                                    className="grid grid-cols-[1.2fr_115px_1fr_110px_30px] items-center gap-2"
+                                  >
+                                    <input
+                                      className={inputClass}
+                                      value={row.ad_name}
+                                      onChange={(e) =>
+                                        updateRowField(
+                                          branchIndex,
+                                          platformIndex,
+                                          rowIndex,
+                                          'ad_name',
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="Ad name"
+                                    />
+                                    <input
+                                      type="date"
+                                      className={inputClass}
+                                      value={row.date}
+                                      onChange={(e) =>
+                                        updateRowField(
+                                          branchIndex,
+                                          platformIndex,
+                                          rowIndex,
+                                          'date',
+                                          e.target.value,
+                                        )
+                                      }
+                                    />
+                                    <input
+                                      className={inputClass}
+                                      value={row.results}
+                                      onChange={(e) =>
+                                        updateRowField(
+                                          branchIndex,
+                                          platformIndex,
+                                          rowIndex,
+                                          'results',
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="Results"
+                                    />
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      className={inputClass}
+                                      value={row.cost}
+                                      onChange={(e) =>
+                                        updateRowField(
+                                          branchIndex,
+                                          platformIndex,
+                                          rowIndex,
+                                          'cost',
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="Cost"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeRow(branchIndex, platformIndex, rowIndex)
+                                      }
+                                      className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                                      style={{
+                                        borderColor: 'rgba(239,68,68,0.3)',
+                                        color: '#dc2626',
+                                      }}
+                                      title="Remove row"
+                                    >
                                       <Trash2 size={12} />
                                     </button>
                                   </div>
@@ -1024,8 +1540,16 @@ export default function InvoicePage() {
                           })}
 
                           {form.invoice_template === 'manual' ? (
-                            <button type="button" onClick={() => addPlatform(branchIndex)} className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                              <Plus size={12} className="inline mr-1" /> Add Platform
+                            <button
+                              type="button"
+                              onClick={() => addPlatform(branchIndex)}
+                              className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                              style={{
+                                borderColor: 'var(--border)',
+                                color: 'var(--text-secondary)',
+                              }}
+                            >
+                              <Plus size={12} className="mr-1 inline" /> Add Platform
                             </button>
                           ) : null}
                         </div>
@@ -1040,32 +1564,49 @@ export default function InvoicePage() {
           {editorPanel === 'totals' ? (
             <DocsEditorCard title="Totals & Controls">
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div
+                  className="flex items-center justify-between border-b py-1.5 text-xs"
+                  style={{ borderColor: 'var(--border)' }}
+                >
                   <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
-                  <span className="font-semibold" style={{ color: 'var(--text)' }}>{model.totals.finalBudget.toLocaleString()} {form.currency}</span>
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                    {model.totals.finalBudget.toLocaleString()} {form.currency}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-xs py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div
+                  className="flex items-center justify-between border-b py-1.5 text-xs"
+                  style={{ borderColor: 'var(--border)' }}
+                >
                   <label htmlFor="invoice-our-fees">Our Fees</label>
                   <input
                     id="invoice-our-fees"
                     type="number"
                     min={0}
-                    className="w-36 px-2 py-1 text-xs rounded-md border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] text-right"
+                    className="w-36 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-right text-xs text-[var(--text)] outline-none"
                     value={form.our_fees}
                     onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
                   />
                 </div>
-                <div className="flex items-center justify-between text-sm py-2 rounded-lg px-2" style={{ background: 'var(--text)', color: 'var(--surface)' }}>
+                <div
+                  className="flex items-center justify-between rounded-lg px-2 py-2 text-sm"
+                  style={{ background: 'var(--text)', color: 'var(--surface)' }}
+                >
                   <span className="font-bold">GRAND TOTAL</span>
-                  <span className="font-black">{model.totals.grandTotal.toLocaleString()} {form.currency}</span>
+                  <span className="font-black">
+                    {model.totals.grandTotal.toLocaleString()} {form.currency}
+                  </span>
                 </div>
-                {loading ? <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Loading invoices…</p> : null}
+                {loading ? (
+                  <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    Loading invoices…
+                  </p>
+                ) : null}
               </div>
             </DocsEditorCard>
           ) : null}
         </div>
-      )}
-      preview={(
+      }
+      preview={
         <section className="docs-preview-shell">
           <div className="overflow-x-auto">
             <div className="docs-preview-canvas" style={{ width: 820 }}>
@@ -1073,7 +1614,7 @@ export default function InvoicePage() {
             </div>
           </div>
         </section>
-      )}
+      }
     />
   );
 }

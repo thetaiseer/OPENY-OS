@@ -6,14 +6,14 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function SettingsPasswordPage() {
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrent, setShowCurrent]         = useState(false);
-  const [showNew, setShowNew]                 = useState(false);
-  const [showConfirm, setShowConfirm]         = useState(false);
-  const [loading, setLoading]                 = useState(false);
-  const [success, setSuccess]                 = useState(false);
-  const [error, setError]                     = useState<string | null>(null);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +38,10 @@ export default function SettingsPasswordPage() {
       const supabase = createClient();
 
       // Re-authenticate with current password first
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError || !user?.email) throw new Error('Could not retrieve current user.');
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -66,10 +69,15 @@ export default function SettingsPasswordPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-2 mb-5">
+      <div
+        className="rounded-2xl border p-6"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="mb-5 flex items-center gap-2">
           <KeyRound size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>New Password</h2>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+            New Password
+          </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -78,7 +86,7 @@ export default function SettingsPasswordPage() {
             value={currentPassword}
             onChange={setCurrentPassword}
             show={showCurrent}
-            onToggle={() => setShowCurrent(v => !v)}
+            onToggle={() => setShowCurrent((v) => !v)}
             autoComplete="current-password"
             disabled={loading}
           />
@@ -87,7 +95,7 @@ export default function SettingsPasswordPage() {
             value={newPassword}
             onChange={setNewPassword}
             show={showNew}
-            onToggle={() => setShowNew(v => !v)}
+            onToggle={() => setShowNew((v) => !v)}
             autoComplete="new-password"
             disabled={loading}
             hint="Minimum 8 characters"
@@ -97,7 +105,7 @@ export default function SettingsPasswordPage() {
             value={confirmPassword}
             onChange={setConfirmPassword}
             show={showConfirm}
-            onToggle={() => setShowConfirm(v => !v)}
+            onToggle={() => setShowConfirm((v) => !v)}
             autoComplete="new-password"
             disabled={loading}
           />
@@ -106,9 +114,13 @@ export default function SettingsPasswordPage() {
           {error && (
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
-              style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+              style={{
+                background: 'rgba(239,68,68,0.08)',
+                color: '#ef4444',
+                border: '1px solid rgba(239,68,68,0.2)',
+              }}
             >
-              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -117,9 +129,13 @@ export default function SettingsPasswordPage() {
           {success && (
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
-              style={{ background: 'rgba(22,163,74,0.08)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.2)' }}
+              style={{
+                background: 'rgba(22,163,74,0.08)',
+                color: '#16a34a',
+                border: '1px solid rgba(22,163,74,0.2)',
+              }}
             >
-              <CheckCircle size={15} className="shrink-0 mt-0.5" />
+              <CheckCircle size={15} className="mt-0.5 shrink-0" />
               <span>Password updated successfully.</span>
             </div>
           )}
@@ -127,7 +143,7 @@ export default function SettingsPasswordPage() {
           <button
             type="submit"
             disabled={loading || !currentPassword || !newPassword || !confirmPassword}
-            className="w-full h-10 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+            className="h-10 w-full rounded-lg text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
             {loading ? 'Updating…' : 'Update Password'}
@@ -166,11 +182,11 @@ function PasswordField({
         <input
           type={show ? 'text' : 'password'}
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
           disabled={disabled}
           required
-          className="w-full h-10 pl-4 pr-10 rounded-lg text-sm outline-none transition-colors disabled:opacity-50"
+          className="h-10 w-full rounded-lg pl-4 pr-10 text-sm outline-none transition-colors disabled:opacity-50"
           style={{
             background: 'var(--surface-2)',
             color: 'var(--text)',
@@ -188,7 +204,9 @@ function PasswordField({
         </button>
       </div>
       {hint && (
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {hint}
+        </p>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 export const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
 
 const INVALID_ROUTE_TOKENS = new Set(['', 'undefined', 'null']);
-const CLIENT_ID_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CLIENT_ID_UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const sanitizeClientRouteToken = (value?: string | null): string | null => {
   const trimmed = value?.trim() ?? '';
@@ -11,7 +12,10 @@ export const sanitizeClientRouteToken = (value?: string | null): string | null =
 
 export const isClientUuid = (value: string): boolean => CLIENT_ID_UUID_REGEX.test(value);
 
-export const getClientRouteKey = (client: { id?: string | null; slug?: string | null }): string | null => {
+export const getClientRouteKey = (client: {
+  id?: string | null;
+  slug?: string | null;
+}): string | null => {
   const slug = sanitizeClientRouteToken(client.slug);
   if (slug) return encodeURIComponent(slug);
   const id = sanitizeClientRouteToken(client.id);

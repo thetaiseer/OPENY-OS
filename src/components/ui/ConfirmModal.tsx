@@ -33,7 +33,7 @@ export default function ConfirmModal({
       title={title}
       icon={<AlertTriangle size={15} />}
       size="sm"
-      footer={(
+      footer={
         <>
           <button type="button" onClick={onClose} className="openy-modal-btn-secondary">
             {cancelLabel}
@@ -48,7 +48,7 @@ export default function ConfirmModal({
             {loading ? 'Please wait…' : confirmLabel}
           </button>
         </>
-      )}
+      }
     >
       {description && (
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>

@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { buildClientSlug, VIRTUAL_PROFILE_PREFIX } from '@/lib/docs-client-profiles';
 
 function emptyObject(value: unknown) {
-  return (value && typeof value === 'object' && !Array.isArray(value)) ? value : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
 function emptyArray(value: unknown) {
@@ -26,18 +26,35 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = getServiceClient();
-  const [{ data: clients, error: clientsError }, { data: profiles, error: profilesError }] = await Promise.all([
-    db.from('clients').select('id,name,slug,status,default_currency').order('name', { ascending: true }),
-    db.from('docs_client_document_profiles').select('*').order('created_at', { ascending: false }),
-  ]);
+  const [{ data: clients, error: clientsError }, { data: profiles, error: profilesError }] =
+    await Promise.all([
+      db
+        .from('clients')
+        .select('id,name,slug,status,default_currency')
+        .order('name', { ascending: true }),
+      db
+        .from('docs_client_document_profiles')
+        .select('*')
+        .order('created_at', { ascending: false }),
+    ]);
 
-  if (clientsError) return NextResponse.json({ error: mapDbError(clientsError, 'Unable to load clients.') }, { status: 500 });
-  if (profilesError) return NextResponse.json({ error: mapDbError(profilesError, 'Unable to load client document profiles.') }, { status: 500 });
+  if (clientsError)
+    return NextResponse.json(
+      { error: mapDbError(clientsError, 'Unable to load clients.') },
+      { status: 500 },
+    );
+  if (profilesError)
+    return NextResponse.json(
+      { error: mapDbError(profilesError, 'Unable to load client document profiles.') },
+      { status: 500 },
+    );
 
-  const profileMap = new Map((profiles ?? []).map(p => [p.client_id as string, p as Record<string, unknown>]));
+  const profileMap = new Map(
+    (profiles ?? []).map((p) => [p.client_id as string, p as Record<string, unknown>]),
+  );
   const virtualTimestamp = new Date().toISOString();
   const result = (clients ?? [])
-    .filter(c => c.status !== 'inactive')
+    .filter((c) => c.status !== 'inactive')
     .map((client) => {
       const profile = profileMap.get(client.id);
       return {
@@ -46,9 +63,9 @@ export async function GET(req: NextRequest) {
         client_name: client.name,
         client_slug: client.slug ?? buildClientSlug(client.name),
         default_currency:
-          (profile?.default_currency as string | undefined)
-          ?? (client.default_currency as string | undefined)
-          ?? 'SAR',
+          (profile?.default_currency as string | undefined) ??
+          (client.default_currency as string | undefined) ??
+          'SAR',
         invoice_type: (profile?.invoice_type as string | undefined) ?? null,
         quotation_type: (profile?.quotation_type as string | undefined) ?? null,
         contract_type: (profile?.contract_type as string | undefined) ?? null,
@@ -56,11 +73,14 @@ export async function GET(req: NextRequest) {
         billing_address: (profile?.billing_address as string | undefined) ?? null,
         tax_info: (profile?.tax_info as string | undefined) ?? null,
         notes: (profile?.notes as string | undefined) ?? null,
-        invoice_layout_mode: (profile?.invoice_layout_mode as string | undefined) ?? 'branch_platform',
-        supports_branch_breakdown: (profile?.supports_branch_breakdown as boolean | undefined) ?? true,
+        invoice_layout_mode:
+          (profile?.invoice_layout_mode as string | undefined) ?? 'branch_platform',
+        supports_branch_breakdown:
+          (profile?.supports_branch_breakdown as boolean | undefined) ?? true,
         default_platforms: emptyArray(profile?.default_platforms),
         default_branch_names: emptyArray(profile?.default_branch_names),
-        service_description_default: (profile?.service_description_default as string | undefined) ?? null,
+        service_description_default:
+          (profile?.service_description_default as string | undefined) ?? null,
         default_fees_logic: emptyObject(profile?.default_fees_logic),
         default_totals_logic: emptyObject(profile?.default_totals_logic),
         invoice_template_config: emptyObject(profile?.invoice_template_config),
@@ -82,8 +102,11 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const client_id = typeof body.client_id === 'string' ? body.client_id : '';
   if (!client_id) return NextResponse.json({ error: 'client_id is required' }, { status: 400 });
@@ -119,7 +142,11 @@ export async function POST(req: NextRequest) {
       .from('clients')
       .update({ default_currency: payload.default_currency })
       .eq('id', payload.client_id);
-    if (clientUpdateError) return NextResponse.json({ error: mapDbError(clientUpdateError, 'Unable to update client currency.') }, { status: 500 });
+    if (clientUpdateError)
+      return NextResponse.json(
+        { error: mapDbError(clientUpdateError, 'Unable to update client currency.') },
+        { status: 500 },
+      );
   }
 
   const { data, error } = await db
@@ -127,7 +154,11 @@ export async function POST(req: NextRequest) {
     .upsert(payload, { onConflict: 'client_id' })
     .select('*')
     .single();
-  if (error) return NextResponse.json({ error: mapDbError(error, 'Unable to save client profile.') }, { status: 500 });
+  if (error)
+    return NextResponse.json(
+      { error: mapDbError(error, 'Unable to save client profile.') },
+      { status: 500 },
+    );
 
   return NextResponse.json({ profile: data }, { status: 201 });
 }

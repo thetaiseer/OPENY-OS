@@ -16,26 +16,39 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const month_key = searchParams.get('month_key') ?? new Date().toISOString().slice(0, 7).replace('-', '');
+  const month_key =
+    searchParams.get('month_key') ?? new Date().toISOString().slice(0, 7).replace('-', '');
   const documentCode = (searchParams.get('document_code') ?? '').trim();
 
   const db = getServiceClient();
   const [{ data: entriesData }, { data: expensesData }] = await Promise.all([
     db.from('docs_accounting_entries').select('*').eq('month_key', month_key).order('entry_date'),
-    db.from('docs_accounting_expenses').select('*').eq('month_key', month_key).order('expense_date'),
+    db
+      .from('docs_accounting_expenses')
+      .select('*')
+      .eq('month_key', month_key)
+      .order('expense_date'),
   ]);
 
   const entries = (entriesData ?? []) as Array<{
-    client_name: string; service: string | null; amount: number;
-    currency: string; collection_type: string; collector: string | null;
-    entry_date: string; notes: string | null;
+    client_name: string;
+    service: string | null;
+    amount: number;
+    currency: string;
+    collection_type: string;
+    collector: string | null;
+    entry_date: string;
+    notes: string | null;
   }>;
   const expenses = (expensesData ?? []) as Array<{
-    description: string; amount: number; currency: string;
-    expense_date: string; notes: string | null;
+    description: string;
+    amount: number;
+    currency: string;
+    expense_date: string;
+    notes: string | null;
   }>;
 
-  const totalRevenue  = entries.reduce((s, e) => s + e.amount, 0);
+  const totalRevenue = entries.reduce((s, e) => s + e.amount, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const netResult = totalRevenue - totalExpenses;
   const eachShare = netResult / 2;
@@ -74,13 +87,31 @@ export async function GET(req: NextRequest) {
   const revenueTitle = sheet.addRow(['REVENUE ENTRIES']);
   sheet.mergeCells(`A${revenueTitle.number}:H${revenueTitle.number}`);
   revenueTitle.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  revenueTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
+  revenueTitle.getCell(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF000000' },
+  };
 
-  const revenueHeader = sheet.addRow(['Client', 'Service', 'Amount', 'Currency', 'Payment Type', 'Collector', 'Date', 'Notes']);
+  const revenueHeader = sheet.addRow([
+    'Client',
+    'Service',
+    'Amount',
+    'Currency',
+    'Payment Type',
+    'Collector',
+    'Date',
+    'Notes',
+  ]);
   revenueHeader.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
-    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }, bottom: { style: 'thin' } };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' },
+      bottom: { style: 'thin' },
+    };
   });
 
   for (const e of entries) {
@@ -96,7 +127,12 @@ export async function GET(req: NextRequest) {
     ]);
     row.getCell(3).numFmt = '#,##0.00';
     row.eachCell((cell, i) => {
-      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }, bottom: { style: 'thin' } };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' },
+        bottom: { style: 'thin' },
+      };
       cell.alignment = { vertical: 'middle', horizontal: i === 3 ? 'right' : 'left' };
     });
   }
@@ -105,20 +141,52 @@ export async function GET(req: NextRequest) {
   const expensesTitle = sheet.addRow(['EXPENSES']);
   sheet.mergeCells(`A${expensesTitle.number}:H${expensesTitle.number}`);
   expensesTitle.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  expensesTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
+  expensesTitle.getCell(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF000000' },
+  };
 
-  const expensesHeader = sheet.addRow(['Description', '', 'Amount', 'Currency', 'Date', 'Notes', '', '']);
+  const expensesHeader = sheet.addRow([
+    'Description',
+    '',
+    'Amount',
+    'Currency',
+    'Date',
+    'Notes',
+    '',
+    '',
+  ]);
   expensesHeader.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } };
-    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }, bottom: { style: 'thin' } };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' },
+      bottom: { style: 'thin' },
+    };
   });
 
   for (const e of expenses) {
-    const row = sheet.addRow([e.description, '', num(e.amount), e.currency, e.expense_date, e.notes ?? '', '', '']);
+    const row = sheet.addRow([
+      e.description,
+      '',
+      num(e.amount),
+      e.currency,
+      e.expense_date,
+      e.notes ?? '',
+      '',
+      '',
+    ]);
     row.getCell(3).numFmt = '#,##0.00';
     row.eachCell((cell, i) => {
-      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }, bottom: { style: 'thin' } };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' },
+        bottom: { style: 'thin' },
+      };
       cell.alignment = { vertical: 'middle', horizontal: i === 3 ? 'right' : 'left' };
     });
   }

@@ -22,23 +22,24 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const category    = searchParams.get('category');
-  const entityType  = searchParams.get('entity_type');
-  const clientId    = searchParams.get('client_id');
-  const actorId     = searchParams.get('actor_id');
-  const from        = searchParams.get('from');
-  const to          = searchParams.get('to');
-  const q           = searchParams.get('q')?.trim() ?? '';
-  const page        = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
-  const limit       = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '30', 10) || 30, 1), 100);
-  const offset      = (page - 1) * limit;
+  const category = searchParams.get('category');
+  const entityType = searchParams.get('entity_type');
+  const clientId = searchParams.get('client_id');
+  const actorId = searchParams.get('actor_id');
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  const q = searchParams.get('q')?.trim() ?? '';
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '30', 10) || 30, 1), 100);
+  const offset = (page - 1) * limit;
 
   try {
     const db = getServiceClient();
 
     let query = db
       .from('activities')
-      .select(`
+      .select(
+        `
         id,
         type,
         category,
@@ -54,19 +55,21 @@ export async function GET(req: NextRequest) {
         metadata_json,
         workspace_id,
         created_at
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' },
+      )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (category)   query = query.eq('category', category);
+    if (category) query = query.eq('category', category);
     if (entityType) query = query.eq('entity_type', entityType);
-    if (clientId)   query = query.eq('client_id', clientId);
-    if (actorId)    query = query.eq('actor_id', actorId);
-    if (from)       query = query.gte('created_at', from);
-    if (to)         query = query.lte('created_at', to);
+    if (clientId) query = query.eq('client_id', clientId);
+    if (actorId) query = query.eq('actor_id', actorId);
+    if (from) query = query.gte('created_at', from);
+    if (to) query = query.lte('created_at', to);
     if (q) {
       // Sanitize special LIKE characters to prevent unexpected wildcard behavior
-      const sanitizedQ = q.replace(/[%_\\]/g, c => `\\${c}`);
+      const sanitizedQ = q.replace(/[%_\\]/g, (c) => `\\${c}`);
       query = query.or(`title.ilike.%${sanitizedQ}%,description.ilike.%${sanitizedQ}%`);
     }
 
@@ -78,12 +81,12 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      success:    true,
+      success: true,
       activities: data ?? [],
-      total:      count ?? 0,
+      total: count ?? 0,
       page,
-      pageSize:   limit,
-      hasMore:    (data ?? []).length === limit,
+      pageSize: limit,
+      hasMore: (data ?? []).length === limit,
     });
   } catch (err) {
     console.error('[GET /api/activity-timeline] unexpected:', err);

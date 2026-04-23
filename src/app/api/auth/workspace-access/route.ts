@@ -33,4 +33,3 @@ export async function GET(request: NextRequest) {
     role: membership?.role ?? null,
   });
 }
-

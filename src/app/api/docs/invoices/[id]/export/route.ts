@@ -9,7 +9,9 @@ import { sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { buildStoragePath, uploadFile } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
@@ -17,7 +19,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db
+    .schema('public')
+    .from('docs_invoices')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
   if (error) {
     console.error('[docs/invoices/:id/export][GET] Failed to load invoice:', { id, error });
     return NextResponse.json(
@@ -27,19 +34,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   }
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  let invoiceData: { id: string; branch_groups?: unknown } | Record<string, unknown> = data as { id: string; branch_groups?: unknown };
+  let invoiceData: { id: string; branch_groups?: unknown } | Record<string, unknown> = data as {
+    id: string;
+    branch_groups?: unknown;
+  };
   try {
-    const [hydrated] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
+    const [hydrated] = await hydrateInvoiceBranchGroups(db, [
+      data as { id: string; branch_groups?: unknown },
+    ]);
     if (hydrated) invoiceData = hydrated;
   } catch (nestedError) {
-    console.error('[docs/invoices/:id/export][GET] Failed to hydrate invoice branch groups:', { id, nestedError });
+    console.error('[docs/invoices/:id/export][GET] Failed to hydrate invoice branch groups:', {
+      id,
+      nestedError,
+    });
     return NextResponse.json(
-      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to export invoice details right now.') },
+      {
+        error: mapInvoiceDbError(
+          nestedError as { code?: string; message?: string },
+          'Unable to export invoice details right now.',
+        ),
+      },
       { status: 500 },
     );
   }
 
-  const model = buildInvoiceDocumentModel(invoiceData as Parameters<typeof buildInvoiceDocumentModel>[0]);
+  const model = buildInvoiceDocumentModel(
+    invoiceData as Parameters<typeof buildInvoiceDocumentModel>[0],
+  );
 
   try {
     const workbook = new Workbook();
@@ -90,7 +112,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 
     return NextResponse.redirect(upload.publicUrl, 302);
   } catch (exportError) {
-    console.error('[docs/invoices/:id/export][GET] Failed to generate xlsx export:', { id, exportError });
+    console.error('[docs/invoices/:id/export][GET] Failed to generate xlsx export:', {
+      id,
+      exportError,
+    });
     return NextResponse.json(
       { error: 'Unable to generate invoice Excel file right now.' },
       { status: 500 },

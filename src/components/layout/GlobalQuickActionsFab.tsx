@@ -2,13 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import {
-  Plus,
-  UserPlus,
-  CheckSquare,
-  FileText,
-  Upload,
-} from 'lucide-react';
+import { Plus, UserPlus, CheckSquare, FileText, Upload } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuickActions, type QuickActionId } from '@/context/quick-actions-context';
 import { motionTransition } from '@/lib/motion';
@@ -49,8 +43,8 @@ export default function GlobalQuickActionsFab() {
 
   const orderedActions = useMemo(() => {
     if (!priorityAction) return DEFAULT_ACTIONS;
-    const prioritized = DEFAULT_ACTIONS.find(action => action.id === priorityAction);
-    const rest = DEFAULT_ACTIONS.filter(action => action.id !== priorityAction);
+    const prioritized = DEFAULT_ACTIONS.find((action) => action.id === priorityAction);
+    const rest = DEFAULT_ACTIONS.filter((action) => action.id !== priorityAction);
     return prioritized ? [prioritized, ...rest] : DEFAULT_ACTIONS;
   }, [priorityAction]);
 
@@ -112,7 +106,7 @@ export default function GlobalQuickActionsFab() {
             exit={{ opacity: 0, scale: 0.95, y: 8, filter: 'blur(6px)' }}
             transition={motionTransition.ui}
           >
-            {orderedActions.map(action => (
+            {orderedActions.map((action) => (
               <li key={action.id} role="none">
                 <button
                   type="button"
@@ -145,7 +139,7 @@ export default function GlobalQuickActionsFab() {
       {/* FAB button — always sits at the very bottom of the wrapper */}
       <motion.button
         type="button"
-        onClick={() => setOpen(prev => !prev)}
+        onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}

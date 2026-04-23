@@ -13,11 +13,7 @@ const DOC_TYPE_LINKS = [
   { href: '/docs/accounting', label: 'Accounting', key: 'accounting' },
 ] as const;
 
-export function DocsDocTypeTabs({
-  active,
-}: {
-  active: (typeof DOC_TYPE_LINKS)[number]['key'];
-}) {
+export function DocsDocTypeTabs({ active }: { active: (typeof DOC_TYPE_LINKS)[number]['key'] }) {
   return (
     <div className="docs-toolbar-tabs" role="tablist" aria-label="Document type">
       {DOC_TYPE_LINKS.map((item) => (

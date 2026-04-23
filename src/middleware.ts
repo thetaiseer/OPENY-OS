@@ -1,8 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getWorkspaceFromAppPath, isGlobalOwnerEmail, type WorkspaceKey } from '@/lib/workspace-access';
+import {
+  getWorkspaceFromAppPath,
+  isGlobalOwnerEmail,
+  type WorkspaceKey,
+} from '@/lib/workspace-access';
 
-const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
@@ -30,9 +34,7 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value),
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options),
@@ -49,7 +51,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
-  const requiredWorkspaceFromPath = getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);
+  const requiredWorkspaceFromPath =
+    getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);
 
   // Routes that are always public — no auth required.
   // Note: /api/ routes are excluded from middleware because each API route

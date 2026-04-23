@@ -26,7 +26,15 @@ export default function GlobalError({
           )}
           <button
             onClick={reset}
-            style={{ background: '#2563eb', color: '#fff', padding: '8px 20px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14 }}
+            style={{
+              background: '#2563eb',
+              color: '#fff',
+              padding: '8px 20px',
+              borderRadius: 6,
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
           >
             Reload
           </button>

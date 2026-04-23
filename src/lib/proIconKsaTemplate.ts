@@ -1,4 +1,8 @@
-import type { InvoiceBranchGroup, InvoiceCampaignRow, InvoicePlatformGroup } from '@/lib/docs-types';
+import type {
+  InvoiceBranchGroup,
+  InvoiceCampaignRow,
+  InvoicePlatformGroup,
+} from '@/lib/docs-types';
 
 export const PRO_ICON_KSA_TEMPLATE_KEY = 'pro_icon_ksa' as const;
 export const PRO_ICON_KSA_TEMPLATE_LABEL = 'Pro icon KSA';
@@ -134,9 +138,9 @@ export const PRO_ICON_KSA_TEMPLATE_CONFIG: ProIconKsaTemplateConfig = {
 const MAX_SPREAD_DAY = 28;
 
 const uid = (): string =>
-  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2, 11));
+    : Math.random().toString(36).slice(2, 11);
 
 function n(v: unknown) {
   const parsed = Number(v);
@@ -154,7 +158,7 @@ function normalizePercentages(values: number[], total = 100) {
   if (sum <= 0) {
     const even = Math.floor(total / safe.length);
     const result = Array.from({ length: safe.length }, () => even);
-    let remainder = total - (even * safe.length);
+    let remainder = total - even * safe.length;
     let index = 0;
     while (remainder > 0) {
       result[index % result.length] += 1;
@@ -228,14 +232,23 @@ function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
   const mmmMatch = /^([a-z]{3})-(\d{4})$/i.exec(direct);
   if (mmmMatch) {
     const monthMap: Record<string, number> = {
-      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11,
     };
     return { month: monthMap[mmmMatch[1]!.toLowerCase()] ?? 0, year: Number(mmmMatch[2]) };
   }
-  const baseDate = (invoiceDate && !Number.isNaN(Date.parse(invoiceDate)))
-    ? new Date(invoiceDate)
-    : new Date();
+  const baseDate =
+    invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
   return { month: baseDate.getMonth(), year: baseDate.getFullYear() };
 }
 
@@ -260,7 +273,7 @@ function generateRowDays(rowCount: number, rng: () => number) {
   if (rowCount === 1) return [1];
   const step = (MAX_SPREAD_DAY - 1) / (rowCount - 1);
   const days = Array.from({ length: rowCount }, (_, index) => {
-    const base = Math.round(1 + (index * step));
+    const base = Math.round(1 + index * step);
     const jitter = Math.floor(rng() * 5) - 2;
     return clamp(base + jitter, 1, MAX_SPREAD_DAY);
   }).sort((a, b) => a - b);
@@ -273,7 +286,10 @@ function generateRowDays(rowCount: number, rng: () => number) {
 function splitBudgetWithVariance(total: number, rowCount: number, rng: () => number) {
   if (rowCount <= 0) return [];
   if (total <= 0) return Array.from({ length: rowCount }, () => 0);
-  const rowWeights = Array.from({ length: rowCount }, (_, index) => (rowCount - index) * (1 + ((rng() * 2 - 1) * 0.1)));
+  const rowWeights = Array.from(
+    { length: rowCount },
+    (_, index) => (rowCount - index) * (1 + (rng() * 2 - 1) * 0.1),
+  );
   const safeWeights = rowWeights.map((value) => Math.max(0.001, value));
   const sum = safeWeights.reduce((acc, current) => acc + current, 0);
   const raw = safeWeights.map((weight) => (weight / sum) * total);
@@ -310,7 +326,11 @@ function normalizeBranchConfigs(branches: ProIconKsaBranchConfig[]) {
     let enabledPlatformIndex = 0;
     const platforms = branch.platforms.map((platform) => {
       if (!platform.enabled) {
-        return { ...platform, allocationPct: 0, campaignCount: Math.max(1, platform.campaignCount || 1) };
+        return {
+          ...platform,
+          allocationPct: 0,
+          campaignCount: Math.max(1, platform.campaignCount || 1),
+        };
       }
       const nextAllocation = normalizedPlatformPct[enabledPlatformIndex] ?? 0;
       enabledPlatformIndex += 1;
@@ -345,25 +365,38 @@ function buildResultValue(
 ) {
   const rule = pickResultRule(platformName);
   const ratio = rowCount > 1 ? rowIndex / (rowCount - 1) : 0;
-  const targetCpa = rule.minCpa + ((rule.maxCpa - rule.minCpa) * ratio);
-  const jitter = 1 + ((rng() * 2 - 1) * rule.variancePct);
+  const targetCpa = rule.minCpa + (rule.maxCpa - rule.minCpa) * ratio;
+  const jitter = 1 + (rng() * 2 - 1) * rule.variancePct;
   const effectiveCpa = clamp(targetCpa * jitter, rule.minCpa, rule.maxCpa);
   const count = Math.max(1, Math.round(cost / Math.max(1, effectiveCpa)));
   return `${count} ${rule.resultLabel}`;
 }
 
 function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[]) {
-  return Math.round(branchGroups.reduce((branchSum, branch) => (
-    branchSum + branch.platform_groups.reduce((platformSum, platform) => (
-      platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
-    ), 0)
-  ), 0));
+  return Math.round(
+    branchGroups.reduce(
+      (branchSum, branch) =>
+        branchSum +
+        branch.platform_groups.reduce(
+          (platformSum, platform) =>
+            platformSum +
+            platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0),
+          0,
+        ),
+      0,
+    ),
+  );
 }
 
 function sumBranchCost(branch: InvoiceBranchGroup) {
-  return Math.round(branch.platform_groups.reduce((platformSum, platform) => (
-    platformSum + platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0)
-  ), 0));
+  return Math.round(
+    branch.platform_groups.reduce(
+      (platformSum, platform) =>
+        platformSum +
+        platform.campaign_rows.reduce((rowSum, row) => rowSum + (Number(row.cost) || 0), 0),
+      0,
+    ),
+  );
 }
 
 function sumPlatformCost(platform: InvoicePlatformGroup) {
@@ -390,14 +423,20 @@ export function deriveProIconKsaBranchConfigs(
   branchGroups: InvoiceBranchGroup[] = [],
   finalBudget = 0,
 ): ProIconKsaBranchConfig[] {
-  const fixedBranches = PRO_ICON_KSA_TEMPLATE_CONFIG.fixedBranches.map((name) => name.toLowerCase());
-  const groups = branchGroups.filter((branch) => fixedBranches.includes(branch.branch_name.trim().toLowerCase()));
+  const fixedBranches = PRO_ICON_KSA_TEMPLATE_CONFIG.fixedBranches.map((name) =>
+    name.toLowerCase(),
+  );
+  const groups = branchGroups.filter((branch) =>
+    fixedBranches.includes(branch.branch_name.trim().toLowerCase()),
+  );
   if (!groups.length) return createDefaultProIconKsaBranchConfigs();
 
   const total = finalBudget > 0 ? finalBudget : sumBranchGroupsCost(groups);
 
   const derived = PRO_ICON_KSA_TEMPLATE_CONFIG.fixedBranches.map((fixedName) => {
-    const group = groups.find((branch) => branch.branch_name.trim().toLowerCase() === fixedName.toLowerCase());
+    const group = groups.find(
+      (branch) => branch.branch_name.trim().toLowerCase() === fixedName.toLowerCase(),
+    );
     if (!group) {
       return {
         id: uid(),
@@ -415,10 +454,15 @@ export function deriveProIconKsaBranchConfigs(
     }
     const branchTotal = sumBranchCost(group);
     const defaultMap = new Map(
-      PRO_ICON_KSA_TEMPLATE_CONFIG.defaultPlatforms.map((platform) => [platform.key.toLowerCase(), platform]),
+      PRO_ICON_KSA_TEMPLATE_CONFIG.defaultPlatforms.map((platform) => [
+        platform.key.toLowerCase(),
+        platform,
+      ]),
     );
     const knownPlatformNames = new Set<string>([
-      ...PRO_ICON_KSA_TEMPLATE_CONFIG.defaultPlatforms.map((platform) => platform.key.toLowerCase()),
+      ...PRO_ICON_KSA_TEMPLATE_CONFIG.defaultPlatforms.map((platform) =>
+        platform.key.toLowerCase(),
+      ),
       ...group.platform_groups.map((platform) => platform.platform_name.trim().toLowerCase()),
     ]);
 
@@ -432,8 +476,14 @@ export function deriveProIconKsaBranchConfigs(
         id: uid(),
         name: existing?.platform_name || fallback?.key || nameLower,
         enabled: !!existing && existing.campaign_rows.length > 0,
-        campaignCount: Math.max(1, existing?.campaign_rows.length || fallback?.defaultCampaignCount || 1),
-        allocationPct: branchTotal > 0 ? Math.round((platformTotal / branchTotal) * 100) : (fallback?.defaultAllocationPct || 0),
+        campaignCount: Math.max(
+          1,
+          existing?.campaign_rows.length || fallback?.defaultCampaignCount || 1,
+        ),
+        allocationPct:
+          branchTotal > 0
+            ? Math.round((platformTotal / branchTotal) * 100)
+            : fallback?.defaultAllocationPct || 0,
       };
     });
 
@@ -453,15 +503,18 @@ export function generateProIconKsaInvoice(
   params: GenerateProIconKsaInvoiceParams,
 ): GeneratedProIconKsaInvoice {
   const totalBudget = Math.max(0, Math.round(params.totalBudget || 0));
-  const deductionAmount = PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
-    ? Math.max(0, Math.round(PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount))
-    : 0;
+  const deductionAmount =
+    PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
+      ? Math.max(0, Math.round(PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount))
+      : 0;
   const usableBudget = Math.max(0, totalBudget - deductionAmount);
   const fees = Math.max(0, Math.round(params.fees ?? 0));
   const normalized = normalizeBranchConfigs(params.branchConfigs);
-  const enabledBranches = normalized.filter((branch) => (
-    branch.enabled && branch.platforms.some((platform) => platform.enabled && platform.campaignCount > 0)
-  ));
+  const enabledBranches = normalized.filter(
+    (branch) =>
+      branch.enabled &&
+      branch.platforms.some((platform) => platform.enabled && platform.campaignCount > 0),
+  );
 
   const seed = [
     PRO_ICON_KSA_TEMPLATE_KEY,
@@ -489,25 +542,33 @@ export function generateProIconKsaInvoice(
       enabledPlatforms.map((platform) => platform.allocationPct),
     );
 
-    const platformGroups: InvoicePlatformGroup[] = enabledPlatforms.map((platformConfig, platformIndex) => {
-      const platformBudget = platformBudgets[platformIndex] ?? 0;
-      const rowCosts = splitBudgetWithVariance(platformBudget, platformConfig.campaignCount, rng);
-      const rowDays = generateRowDays(platformConfig.campaignCount, rng);
+    const platformGroups: InvoicePlatformGroup[] = enabledPlatforms.map(
+      (platformConfig, platformIndex) => {
+        const platformBudget = platformBudgets[platformIndex] ?? 0;
+        const rowCosts = splitBudgetWithVariance(platformBudget, platformConfig.campaignCount, rng);
+        const rowDays = generateRowDays(platformConfig.campaignCount, rng);
 
-      const rows: InvoiceCampaignRow[] = rowCosts.map((cost, rowIndex) => ({
-        id: uid(),
-        ad_name: `${branchConfig.name} ${formattedMonth} ${platformConfig.name} ${rowIndex + 1}`,
-        date: formatIsoDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
-        results: buildResultValue(platformConfig.name, cost, rowIndex, platformConfig.campaignCount, rng),
-        cost,
-      }));
+        const rows: InvoiceCampaignRow[] = rowCosts.map((cost, rowIndex) => ({
+          id: uid(),
+          ad_name: `${branchConfig.name} ${formattedMonth} ${platformConfig.name} ${rowIndex + 1}`,
+          date: formatIsoDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
+          results: buildResultValue(
+            platformConfig.name,
+            cost,
+            rowIndex,
+            platformConfig.campaignCount,
+            rng,
+          ),
+          cost,
+        }));
 
-      return {
-        id: uid(),
-        platform_name: platformConfig.name,
-        campaign_rows: rows,
-      };
-    });
+        return {
+          id: uid(),
+          platform_name: platformConfig.name,
+          campaign_rows: rows,
+        };
+      },
+    );
 
     return {
       id: uid(),

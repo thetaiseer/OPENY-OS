@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { getWorkspaceFromAppPath, normalizeWorkspaceKey, type WorkspaceKey } from '@/lib/workspace-access';
+import {
+  getWorkspaceFromAppPath,
+  normalizeWorkspaceKey,
+  type WorkspaceKey,
+} from '@/lib/workspace-access';
 
 type TeamMemberPayload = {
   id: string;
@@ -106,7 +110,9 @@ export async function GET(request: NextRequest) {
 
   const normalizedWorkspaceMembers = [...(workspaceMembers ?? [])];
   if (workspaceRow.owner_id) {
-    const ownerMembershipIndex = normalizedWorkspaceMembers.findIndex(member => member.user_id === workspaceRow.owner_id);
+    const ownerMembershipIndex = normalizedWorkspaceMembers.findIndex(
+      (member) => member.user_id === workspaceRow.owner_id,
+    );
     if (ownerMembershipIndex === -1) {
       normalizedWorkspaceMembers.push({
         id: `synthetic-owner-membership-${workspaceRow.owner_id}`,
@@ -118,54 +124,58 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const userIds = [...new Set(normalizedWorkspaceMembers.map(member => member.user_id).filter(Boolean))];
-  const { data: profileRows, error: profileError } = userIds.length > 0
-    ? await db
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', userIds)
-    : { data: [] as Array<{ id: string; name: string | null; email: string | null }>, error: null };
+  const userIds = [
+    ...new Set(normalizedWorkspaceMembers.map((member) => member.user_id).filter(Boolean)),
+  ];
+  const { data: profileRows, error: profileError } =
+    userIds.length > 0
+      ? await db.from('profiles').select('id, name, email').in('id', userIds)
+      : {
+          data: [] as Array<{ id: string; name: string | null; email: string | null }>,
+          error: null,
+        };
 
   if (profileError) {
     console.error('[team/members/get] Failed to fetch profiles:', profileError.message);
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  const { data: teamRows, error: teamRowsError } = userIds.length > 0
-    ? await db
-        .from('team_members')
-        .select('id, profile_id, email, full_name, job_title, status, created_at, updated_at')
-        .in('profile_id', userIds)
-    : { data: [] as Array<{
-        id: string;
-        profile_id: string | null;
-        email: string | null;
-        full_name: string | null;
-        job_title: string | null;
-        status: string | null;
-        created_at: string | null;
-        updated_at: string | null;
-      }>, error: null };
+  const { data: teamRows, error: teamRowsError } =
+    userIds.length > 0
+      ? await db
+          .from('team_members')
+          .select('id, profile_id, email, full_name, job_title, status, created_at, updated_at')
+          .in('profile_id', userIds)
+      : {
+          data: [] as Array<{
+            id: string;
+            profile_id: string | null;
+            email: string | null;
+            full_name: string | null;
+            job_title: string | null;
+            status: string | null;
+            created_at: string | null;
+            updated_at: string | null;
+          }>,
+          error: null,
+        };
 
   if (teamRowsError) {
     console.error('[team/members/get] Failed to fetch team_members:', teamRowsError.message);
     return NextResponse.json({ error: teamRowsError.message }, { status: 500 });
   }
 
-  const profileById = new Map((profileRows ?? []).map(profile => [profile.id, profile]));
+  const profileById = new Map((profileRows ?? []).map((profile) => [profile.id, profile]));
   const teamByProfileId = new Map(
     (teamRows ?? [])
-      .filter(row => Boolean(row.profile_id))
-      .map(row => [row.profile_id as string, row]),
+      .filter((row) => Boolean(row.profile_id))
+      .map((row) => [row.profile_id as string, row]),
   );
 
-  const members: TeamMemberPayload[] = normalizedWorkspaceMembers.map(member => {
+  const members: TeamMemberPayload[] = normalizedWorkspaceMembers.map((member) => {
     const team = teamByProfileId.get(member.user_id);
     const profile = profileById.get(member.user_id);
-    const fullName = team?.full_name
-      ?? profile?.name
-      ?? profile?.email
-      ?? member.user_id;
+    const fullName = team?.full_name ?? profile?.name ?? profile?.email ?? member.user_id;
     const email = team?.email ?? profile?.email ?? '';
     return {
       id: team?.id ?? member.user_id,

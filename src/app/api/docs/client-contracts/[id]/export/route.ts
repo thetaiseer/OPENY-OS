@@ -5,7 +5,9 @@ import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 import { buildStoragePath, uploadFile } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
@@ -14,38 +16,42 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   const { id } = await params;
   const logoUrl = new URL(OPENY_LOGO_LIGHT_URL, req.nextUrl.origin).toString();
   const db = getServiceClient();
-  const { data, error } = await db.from('docs_client_contracts').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db
+    .from('docs_client_contracts')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data)  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const c = data as Record<string, unknown> & {
-    contract_number:       string;
-    contract_date:         string | null;
-    duration_months:       number;
-    status:                string;
-    currency:              string;
-    language:              string;
-    party1_company_name:   string | null;
+    contract_number: string;
+    contract_date: string | null;
+    duration_months: number;
+    status: string;
+    currency: string;
+    language: string;
+    party1_company_name: string | null;
     party1_representative: string | null;
-    party2_client_name:    string | null;
+    party2_client_name: string | null;
     party2_contact_person: string | null;
-    services:              string[];
-    total_value:           number;
-    payment_method:        string | null;
-    payment_terms:         string | null;
-    notes:                 string | null;
-    legal_clauses:         Array<{ title: string; content: string }>;
-    sig_party1:            string | null;
-    sig_party2:            string | null;
-    sig_date:              string | null;
-    sig_place:             string | null;
+    services: string[];
+    total_value: number;
+    payment_method: string | null;
+    payment_terms: string | null;
+    notes: string | null;
+    legal_clauses: Array<{ title: string; content: string }>;
+    sig_party1: string | null;
+    sig_party2: string | null;
+    sig_date: string | null;
+    sig_place: string | null;
   };
 
   const isAr = c.language === 'ar';
   const clauses = (c.legal_clauses ?? [])
     .map((cl, i) => `<p><strong>${i + 1}. ${cl.title}</strong><br>${cl.content}</p>`)
     .join('');
-  const services = (c.services ?? []).map(s => `<li>${s}</li>`).join('');
+  const services = (c.services ?? []).map((s) => `<li>${s}</li>`).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="${isAr ? 'ar' : 'en'}" dir="${isAr ? 'rtl' : 'ltr'}">

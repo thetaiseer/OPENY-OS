@@ -51,11 +51,11 @@ export async function generatePdfPreview(file: File): Promise<PdfPreviewResult |
 
     // Scale so the rendered width does not exceed MAX_WIDTH.
     const viewport = page.getViewport({ scale: 1 });
-    const scale    = Math.min(1, MAX_WIDTH / viewport.width);
-    const scaled   = page.getViewport({ scale });
+    const scale = Math.min(1, MAX_WIDTH / viewport.width);
+    const scaled = page.getViewport({ scale });
 
-    const canvas  = document.createElement('canvas');
-    canvas.width  = Math.round(scaled.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(scaled.width);
     canvas.height = Math.round(scaled.height);
 
     const ctx = canvas.getContext('2d');
@@ -66,7 +66,10 @@ export async function generatePdfPreview(file: File): Promise<PdfPreviewResult |
     return new Promise<PdfPreviewResult | null>((resolve) => {
       canvas.toBlob(
         (blob) => {
-          if (!blob) { resolve(null); return; }
+          if (!blob) {
+            resolve(null);
+            return;
+          }
           resolve({ blobUrl: URL.createObjectURL(blob), blob });
         },
         'image/jpeg',

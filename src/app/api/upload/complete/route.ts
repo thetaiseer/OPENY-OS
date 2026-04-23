@@ -46,37 +46,52 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const storageKey          = (body.storageKey          as string | undefined)?.trim() ?? '';
-  const displayName         = (body.displayName         as string | undefined)?.trim() ?? '';
-  const clientName          = (body.clientName          as string | undefined)?.trim() ?? '';
-  const clientId            = (body.clientId            as string | undefined)?.trim() || null;
-  const fileType            = (body.fileType            as string | undefined)?.trim() ?? 'application/octet-stream';
-  const fileSize            = Number(body.fileSize ?? 0) || null;
-  const mainCategory        = (body.mainCategory        as string | undefined)?.trim() || null;
-  const subCategory         = (body.subCategory         as string | undefined)?.trim() || null;
-  const monthKey            = (body.monthKey            as string | undefined)?.trim() ?? '';
-  const uploadedBy          = (body.uploadedBy          as string | undefined)?.trim() || null;
+  const storageKey = (body.storageKey as string | undefined)?.trim() ?? '';
+  const displayName = (body.displayName as string | undefined)?.trim() ?? '';
+  const clientName = (body.clientName as string | undefined)?.trim() ?? '';
+  const clientId = (body.clientId as string | undefined)?.trim() || null;
+  const fileType = (body.fileType as string | undefined)?.trim() ?? 'application/octet-stream';
+  const fileSize = Number(body.fileSize ?? 0) || null;
+  const mainCategory = (body.mainCategory as string | undefined)?.trim() || null;
+  const subCategory = (body.subCategory as string | undefined)?.trim() || null;
+  const monthKey = (body.monthKey as string | undefined)?.trim() ?? '';
+  const uploadedBy = (body.uploadedBy as string | undefined)?.trim() || null;
   const thumbnailStorageKey = (body.thumbnailStorageKey as string | undefined)?.trim() || null;
-  const previewStorageKey   = (body.previewStorageKey   as string | undefined)?.trim() || null;
-  const providedPublicUrl   = (body.publicUrl           as string | undefined)?.trim() || '';
-  const storageProvider     = 'r2';
-  const bucketName          = getStorageBucketName();
-  const durationSeconds     = typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
-    ? (body.durationSeconds as number)
-    : null;
+  const previewStorageKey = (body.previewStorageKey as string | undefined)?.trim() || null;
+  const providedPublicUrl = (body.publicUrl as string | undefined)?.trim() || '';
+  const storageProvider = 'r2';
+  const bucketName = getStorageBucketName();
+  const durationSeconds =
+    typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
+      ? (body.durationSeconds as number)
+      : null;
 
-  if (!storageKey)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'storageKey is required' }, { status: 400 });
-  if (!displayName) return NextResponse.json({ success: false, stage: 'failed_db', error: 'displayName is required' }, { status: 400 });
-  if (!clientName)  return NextResponse.json({ success: false, stage: 'failed_db', error: 'clientName is required' }, { status: 400 });
+  if (!storageKey)
+    return NextResponse.json(
+      { success: false, stage: 'failed_db', error: 'storageKey is required' },
+      { status: 400 },
+    );
+  if (!displayName)
+    return NextResponse.json(
+      { success: false, stage: 'failed_db', error: 'displayName is required' },
+      { status: 400 },
+    );
+  if (!clientName)
+    return NextResponse.json(
+      { success: false, stage: 'failed_db', error: 'clientName is required' },
+      { status: 400 },
+    );
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
-    return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' },
+      { status: 400 },
+    );
   }
-
 
   let publicUrl = providedPublicUrl;
   if (!publicUrl) {
     try {
-        publicUrl = getFileUrl(storageKey);
+      publicUrl = getFileUrl(storageKey);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const isConfigErr = err instanceof R2ConfigError;
@@ -119,8 +134,9 @@ export async function POST(req: NextRequest) {
 
   // ── Parse month/year ───────────────────────────────────────────────────────
   const [year, monthNum] = monthKey.split('-');
-  const monthName = new Date(Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1))
-    .toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+  const monthName = new Date(
+    Date.UTC(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1),
+  ).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
   // ── Resolve thumbnail and preview URLs ────────────────────────────────────
   // thumbnail_url — the card thumbnail image:
@@ -135,51 +151,63 @@ export async function POST(req: NextRequest) {
   let thumbnailUrl: string | null = null;
   let resolvedPreviewUrl: string | null = null;
   if (thumbnailStorageKey) {
-    try { thumbnailUrl = getFileUrl(thumbnailStorageKey); } catch { /* ignore */ }
+    try {
+      thumbnailUrl = getFileUrl(thumbnailStorageKey);
+    } catch {
+      /* ignore */
+    }
   } else if (isImage) {
     thumbnailUrl = publicUrl;
   }
   if (previewStorageKey) {
-    try { resolvedPreviewUrl = getFileUrl(previewStorageKey); } catch { /* ignore */ }
+    try {
+      resolvedPreviewUrl = getFileUrl(previewStorageKey);
+    } catch {
+      /* ignore */
+    }
   } else if (isImage) {
     resolvedPreviewUrl = publicUrl;
   }
 
   // ── Insert metadata ────────────────────────────────────────────────────────
   const insertRow: Record<string, unknown> = {
-    name:             displayName,
-    file_name:        displayName,
-    file_path:        storageKey,
-    storage_path:     storageKey,
-    storage_key:      storageKey,
-    file_key:         storageKey,
-    file_url:         publicUrl,
-    public_url:       publicUrl,
-    view_url:         publicUrl,
-    download_url:     publicUrl,
-    file_type:        fileType,
-    mime_type:        fileType,
-    file_size:        fileSize,
-    bucket_name:      bucketName,
-    storage_bucket:   bucketName,
+    name: displayName,
+    file_name: displayName,
+    file_path: storageKey,
+    storage_path: storageKey,
+    storage_key: storageKey,
+    file_key: storageKey,
+    file_url: publicUrl,
+    public_url: publicUrl,
+    view_url: publicUrl,
+    download_url: publicUrl,
+    file_type: fileType,
+    mime_type: fileType,
+    file_size: fileSize,
+    bucket_name: bucketName,
+    storage_bucket: bucketName,
     storage_provider: storageProvider,
-    client_name:        clientName,
+    client_name: clientName,
     client_folder_name: clientName,
-    month_key:        monthKey,
-    main_category:    mainCategory,
-    sub_category:     subCategory,
-    preview_url:      resolvedPreviewUrl,
-    thumbnail_url:    thumbnailUrl,
-    web_view_link:    publicUrl,
+    month_key: monthKey,
+    main_category: mainCategory,
+    sub_category: subCategory,
+    preview_url: resolvedPreviewUrl,
+    thumbnail_url: thumbnailUrl,
+    web_view_link: publicUrl,
     ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
-    ...(clientId   ? { client_id:   clientId   } : {}),
+    ...(clientId ? { client_id: clientId } : {}),
     // Canonical uploader identity for DB relations/auditing (UUID from auth profile).
     ...(auth.profile.id ? { uploaded_by: auth.profile.id } : {}),
     // Optional display label from client UI; kept separate from the canonical UUID above.
     ...(uploadedBy ? { uploaded_by_name: uploadedBy } : {}),
   };
 
-  const { data: inserted, error: dbError, finalRow } = await insertWithColumnFallback(
+  const {
+    data: inserted,
+    error: dbError,
+    finalRow,
+  } = await insertWithColumnFallback(
     (row) => supabase.from('assets').insert(row).select().single(),
     insertRow,
     '[upload/complete]',
@@ -196,12 +224,12 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(
       {
-        success:    false,
-        stage:      'failed_db',
-        r2_key:     storageKey,
-        r2_bucket:  bucketName,
+        success: false,
+        stage: 'failed_db',
+        r2_key: storageKey,
+        r2_bucket: bucketName,
         r2_filename: displayName,
-        error:      dbError,
+        error: dbError,
         attempted_payload: finalRow,
       },
       { status: 200 },
@@ -234,7 +262,9 @@ export async function POST(req: NextRequest) {
         rollbackSucceeded = true;
       }
     } else {
-      console.error('[upload/complete] metadata failed and no inserted asset id was available for rollback');
+      console.error(
+        '[upload/complete] metadata failed and no inserted asset id was available for rollback',
+      );
     }
     console.error(
       rollbackSucceeded
@@ -253,15 +283,18 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Activity log (fire-and-forget) ─────────────────────────────────────────
-  void supabase.from('activities').insert({
-    type:        'asset',
-    description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
-    entity_type: 'asset',
-    entity_id:   inserted?.id as string | undefined ?? null,
-    ...(clientId ? { client_id: clientId } : {}),
-  }).then(({ error }) => {
-    if (error) console.warn('[upload/complete] activity log failed:', error.message);
-  });
+  void supabase
+    .from('activities')
+    .insert({
+      type: 'asset',
+      description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
+      entity_type: 'asset',
+      entity_id: (inserted?.id as string | undefined) ?? null,
+      ...(clientId ? { client_id: clientId } : {}),
+    })
+    .then(({ error }) => {
+      if (error) console.warn('[upload/complete] activity log failed:', error.message);
+    });
 
   // ── Notify (fire-and-forget) ───────────────────────────────────────────────
   if (inserted) {
@@ -277,25 +310,28 @@ export async function POST(req: NextRequest) {
           .filter((v): v is string => Boolean(v));
 
         await notifyAssetUploaded({
-          assetId:      inserted.id as string,
-          assetName:    displayName,
-          clientId:     clientId ?? null,
+          assetId: inserted.id as string,
+          assetName: displayName,
+          clientId: clientId ?? null,
           uploadedById: auth.profile.id,
           teamMemberUserIds,
         });
       } catch (err) {
-        console.warn('[upload/complete] notifyAssetUploaded failed:', err instanceof Error ? err.message : String(err));
+        console.warn(
+          '[upload/complete] notifyAssetUploaded failed:',
+          err instanceof Error ? err.message : String(err),
+        );
       }
     })();
   }
 
   return NextResponse.json(
     {
-      success:  true,
-      stage:    'completed',
+      success: true,
+      stage: 'completed',
       location: publicUrl,
-      asset:    inserted,
-      r2_key:   storageKey,
+      asset: inserted,
+      r2_key: storageKey,
       r2_bucket: bucketName,
     },
     { status: 201 },

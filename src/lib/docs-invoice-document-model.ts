@@ -60,7 +60,9 @@ export interface InvoiceDocumentModel {
   };
 }
 
-export function buildInvoiceDocumentModel(formState: InvoiceDocumentModelInput): InvoiceDocumentModel {
+export function buildInvoiceDocumentModel(
+  formState: InvoiceDocumentModelInput,
+): InvoiceDocumentModel {
   const branchGroups = Array.isArray(formState.branch_groups) ? formState.branch_groups : [];
 
   const branchTables: InvoiceDocumentBranchTable[] = branchGroups.map((branch) => {

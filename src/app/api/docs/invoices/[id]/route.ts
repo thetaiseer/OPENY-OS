@@ -9,7 +9,9 @@ import {
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
@@ -17,7 +19,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.schema('public').from('docs_invoices').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db
+    .schema('public')
+    .from('docs_invoices')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
   if (error) {
     console.error('[docs/invoices/:id][GET] Failed to load invoice:', { id, error });
     return NextResponse.json(
@@ -25,14 +32,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       { status: 500 },
     );
   }
-  if (!data)  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
-    const [invoice] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
+    const [invoice] = await hydrateInvoiceBranchGroups(db, [
+      data as { id: string; branch_groups?: unknown },
+    ]);
     return NextResponse.json({ invoice });
   } catch (nestedError) {
-    console.error('[docs/invoices/:id][GET] Failed to hydrate invoice branch groups:', { id, nestedError });
+    console.error('[docs/invoices/:id][GET] Failed to hydrate invoice branch groups:', {
+      id,
+      nestedError,
+    });
     return NextResponse.json(
-      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Unable to load invoice details right now.') },
+      {
+        error: mapInvoiceDbError(
+          nestedError as { code?: string; message?: string },
+          'Unable to load invoice details right now.',
+        ),
+      },
       { status: 500 },
     );
   }
@@ -44,8 +61,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
   const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
@@ -65,7 +85,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .single();
 
   if (error) {
-    console.error('[docs/invoices/:id][PATCH] Failed to upsert invoice root record:', { id, error, payload });
+    console.error('[docs/invoices/:id][PATCH] Failed to upsert invoice root record:', {
+      id,
+      error,
+      payload,
+    });
     return NextResponse.json(
       { error: mapInvoiceDbError(error, 'Unable to update invoice right now.') },
       { status: 500 },
@@ -73,7 +97,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
   try {
     await replaceInvoiceBranchGroups(db, id, branchGroups);
-    const [invoice] = await hydrateInvoiceBranchGroups(db, [data as { id: string; branch_groups?: unknown }]);
+    const [invoice] = await hydrateInvoiceBranchGroups(db, [
+      data as { id: string; branch_groups?: unknown },
+    ]);
     return NextResponse.json({ invoice });
   } catch (nestedError) {
     console.error('[docs/invoices/:id][PATCH] Failed to replace nested invoice rows:', {
@@ -82,7 +108,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       branchGroupsCount: branchGroups.length,
     });
     return NextResponse.json(
-      { error: mapInvoiceDbError(nestedError as { code?: string; message?: string }, 'Invoice updated, but line items could not be saved.') },
+      {
+        error: mapInvoiceDbError(
+          nestedError as { code?: string; message?: string },
+          'Invoice updated, but line items could not be saved.',
+        ),
+      },
       { status: 500 },
     );
   }

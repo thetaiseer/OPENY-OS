@@ -15,8 +15,8 @@ export const MAX_COLUMN_RETRIES = 10;
 
 /** Return type shared by both upload route files. */
 export interface InsertResult {
-  data:     Record<string, unknown> | null;
-  error:    { message: string; code: string; details?: string; hint?: string } | null;
+  data: Record<string, unknown> | null;
+  error: { message: string; code: string; details?: string; hint?: string } | null;
   /** The payload that was ultimately used for the final insert attempt. */
   finalRow: Record<string, unknown>;
 }
@@ -25,9 +25,7 @@ export interface InsertResult {
  * Extract the column name from a PostgreSQL 42703 "undefined_column" error.
  * The message typically reads: column "xyz" of relation "table" does not exist
  */
-export function extractMissingColumn(
-  err: { message?: string; details?: string },
-): string | null {
+export function extractMissingColumn(err: { message?: string; details?: string }): string | null {
   const text = `${err.message ?? ''} ${err.details ?? ''}`;
   // Postgres uses double-quotes: column "xyz" of relation ...
   // PostgREST / Supabase client may reformat to single-quotes: column 'xyz'
@@ -51,7 +49,7 @@ function isMissingColumnError(err: { code?: string } | null | undefined): boolea
  * Passing a factory function decouples the helper from Supabase's generic types.
  */
 type InsertAttemptFn = (row: Record<string, unknown>) => PromiseLike<{
-  data:  unknown;
+  data: unknown;
   error: { code: string; message: string; details?: string; hint?: string } | null;
 }>;
 
@@ -83,8 +81,8 @@ export async function insertWithColumnFallback(
     if (!col || !(col in currentRow)) break; // unrecognisable error — stop retrying
     console.warn(
       `${logPrefix} ⚠️  Column "${col}" does not exist in the assets table — ` +
-      'removing from insert payload and retrying. ' +
-      'Run supabase-migration-missing-columns.sql to add the missing column.',
+        'removing from insert payload and retrying. ' +
+        'Run supabase-migration-missing-columns.sql to add the missing column.',
     );
     // Strip the missing column using destructuring (avoids mutating a shared object)
     const { [col]: _dropped, ...stripped } = currentRow;
@@ -95,8 +93,8 @@ export async function insertWithColumnFallback(
   }
 
   return {
-    data:     result.data as Record<string, unknown> | null,
-    error:    result.error as InsertResult['error'],
+    data: result.data as Record<string, unknown> | null,
+    error: result.error as InsertResult['error'],
     finalRow: currentRow,
   };
 }

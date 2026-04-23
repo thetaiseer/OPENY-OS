@@ -10,7 +10,7 @@ import { buildStoragePath } from '@/lib/storage/path-builder';
 export function contentTypeLabel(ct: string): string {
   return ct
     .replace(/_/g, ' ')
-    .replace(/\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+    .replace(/\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
 /**
@@ -31,13 +31,13 @@ export function clientToFolderName(name: string): string {
  */
 export const MAIN_CATEGORIES = [
   { slug: 'social-media', label: 'Social Media' },
-  { slug: 'videos',       label: 'Videos'       },
-  { slug: 'designs',      label: 'Designs'       },
-  { slug: 'documents',    label: 'Documents'     },
-  { slug: 'other',        label: 'Other'         },
+  { slug: 'videos', label: 'Videos' },
+  { slug: 'designs', label: 'Designs' },
+  { slug: 'documents', label: 'Documents' },
+  { slug: 'other', label: 'Other' },
 ] as const;
 
-export type MainCategorySlug = typeof MAIN_CATEGORIES[number]['slug'];
+export type MainCategorySlug = (typeof MAIN_CATEGORIES)[number]['slug'];
 
 /**
  * Subcategories per main category.
@@ -45,47 +45,51 @@ export type MainCategorySlug = typeof MAIN_CATEGORIES[number]['slug'];
  */
 export const SUBCATEGORIES: Record<MainCategorySlug, { slug: string; label: string }[]> = {
   'social-media': [
-    { slug: 'posts',     label: 'Posts'     },
-    { slug: 'reels',     label: 'Reels'     },
-    { slug: 'stories',   label: 'Stories'   },
+    { slug: 'posts', label: 'Posts' },
+    { slug: 'reels', label: 'Reels' },
+    { slug: 'stories', label: 'Stories' },
     { slug: 'carousels', label: 'Carousels' },
-    { slug: 'covers',    label: 'Covers'    },
+    { slug: 'covers', label: 'Covers' },
   ],
-  'videos': [
-    { slug: 'raw',    label: 'Raw'    },
+  videos: [
+    { slug: 'raw', label: 'Raw' },
     { slug: 'edited', label: 'Edited' },
     { slug: 'shorts', label: 'Shorts' },
-    { slug: 'final',  label: 'Final'  },
+    { slug: 'final', label: 'Final' },
   ],
-  'designs': [
+  designs: [
     { slug: 'source-files', label: 'Source Files' },
-    { slug: 'exported',     label: 'Exported'     },
-    { slug: 'thumbnails',   label: 'Thumbnails'   },
-    { slug: 'branding',     label: 'Branding'     },
+    { slug: 'exported', label: 'Exported' },
+    { slug: 'thumbnails', label: 'Thumbnails' },
+    { slug: 'branding', label: 'Branding' },
   ],
-  'documents': [
+  documents: [
     { slug: 'contracts', label: 'Contracts' },
-    { slug: 'reports',   label: 'Reports'   },
-    { slug: 'plans',     label: 'Plans'     },
-    { slug: 'briefs',    label: 'Briefs'    },
+    { slug: 'reports', label: 'Reports' },
+    { slug: 'plans', label: 'Plans' },
+    { slug: 'briefs', label: 'Briefs' },
   ],
-  'other': [],
+  other: [],
 };
 
 /** Return the display label for a main category slug. */
 export function mainCategoryLabel(slug: string): string {
-  return MAIN_CATEGORIES.find(c => c.slug === slug)?.label ?? slug;
+  return MAIN_CATEGORIES.find((c) => c.slug === slug)?.label ?? slug;
 }
 
 /** Return the display label for a subcategory slug. */
 export function subCategoryLabel(mainSlug: string, subSlug: string): string {
   const subs = SUBCATEGORIES[mainSlug as MainCategorySlug] ?? [];
-  return subs.find(s => s.slug === subSlug)?.label ?? subSlug;
+  return subs.find((s) => s.slug === subSlug)?.label ?? subSlug;
 }
 
 /** Convert a client display name to a URL-safe slug for storage paths. */
 export function clientToSlug(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
 }
 
 /**
@@ -96,13 +100,13 @@ export function clientToSlug(name: string): string {
  *   clients/pro-icon/social-media/2026/04-april/posts/1712345678-logo.jpg
  */
 export function buildStorageKey(params: {
-  clientName:   string;
-  clientId?:    string | null;
+  clientName: string;
+  clientId?: string | null;
   mainCategory: string;
-  subCategory:  string;
-  monthKey:     string; // "YYYY-MM"
-  fileName:     string;
-  timestamp?:   number;
+  subCategory: string;
+  monthKey: string; // "YYYY-MM"
+  fileName: string;
+  timestamp?: number;
 }): string {
   const { clientName, clientId, mainCategory, subCategory, monthKey, fileName, timestamp } = params;
   const ts = timestamp ?? Date.now();

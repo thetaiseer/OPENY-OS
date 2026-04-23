@@ -1,6 +1,6 @@
 export default function TeamLoading() {
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-pulse">
+    <div className="mx-auto max-w-5xl animate-pulse space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
@@ -10,7 +10,7 @@ export default function TeamLoading() {
         <div className="h-9 w-36 rounded-lg" style={{ background: 'var(--surface)' }} />
       </div>
       {/* Member cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="h-40 rounded-2xl" style={{ background: 'var(--surface)' }} />
         ))}

@@ -29,7 +29,7 @@ function cleanup(windowMs: number): void {
   if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
   lastCleanup = now;
   for (const [key, entry] of store) {
-    entry.timestamps = entry.timestamps.filter(t => now - t < windowMs);
+    entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs);
     if (entry.timestamps.length === 0) store.delete(key);
   }
 }
@@ -69,7 +69,7 @@ export function checkRateLimit(key: string, opts: RateLimitOptions): RateLimitRe
   const entry = store.get(key) ?? { timestamps: [] };
 
   // Drop timestamps outside the sliding window
-  entry.timestamps = entry.timestamps.filter(t => now - t < windowMs);
+  entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs);
 
   const allowed = entry.timestamps.length < limit;
 
@@ -78,10 +78,7 @@ export function checkRateLimit(key: string, opts: RateLimitOptions): RateLimitRe
     store.set(key, entry);
   }
 
-  const resetAt =
-    entry.timestamps.length > 0
-      ? entry.timestamps[0] + windowMs
-      : now + windowMs;
+  const resetAt = entry.timestamps.length > 0 ? entry.timestamps[0] + windowMs : now + windowMs;
 
   return {
     allowed,
@@ -94,7 +91,9 @@ export function checkRateLimit(key: string, opts: RateLimitOptions): RateLimitRe
  * Extract the best available client IP from a Next.js request.
  * Vercel sets 'x-forwarded-for'; falls back to 'x-real-ip'.
  */
-export function getClientIp(request: { headers: { get: (name: string) => string | null } }): string {
+export function getClientIp(request: {
+  headers: { get: (name: string) => string | null };
+}): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) return forwarded.split(',')[0].trim();
   return request.headers.get('x-real-ip') ?? 'unknown';

@@ -16,7 +16,7 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
   for (let i = 0; i < assets.length; i += CONCURRENCY) {
     const batch = assets.slice(i, i + CONCURRENCY);
     await Promise.allSettled(
-      batch.map(async asset => {
+      batch.map(async (asset) => {
         if (!asset.file_path) return;
         try {
           const exists = await fileExists(asset.file_path);
@@ -60,8 +60,8 @@ export async function GET(req: NextRequest) {
   const list = (assets ?? []) as AssetRow[];
   const orphanedIds = await findOrphanedIds(list);
   const orphaned = list
-    .filter(a => orphanedIds.includes(a.id))
-    .map(a => ({ id: a.id, name: a.name, file_path: a.file_path }));
+    .filter((a) => orphanedIds.includes(a.id))
+    .map((a) => ({ id: a.id, name: a.name, file_path: a.file_path }));
 
   return NextResponse.json({ orphaned, total: list.length, orphanedCount: orphaned.length });
 }
@@ -96,14 +96,14 @@ export async function DELETE(req: NextRequest) {
   const orphanedIds = await findOrphanedIds(list);
 
   if (orphanedIds.length > 0) {
-    const { error: deleteError } = await supabase
-      .from('assets')
-      .delete()
-      .in('id', orphanedIds);
+    const { error: deleteError } = await supabase.from('assets').delete().in('id', orphanedIds);
 
     if (deleteError) {
       return NextResponse.json(
-        { error: `Failed to delete orphaned records: ${deleteError.message}`, attempted: orphanedIds },
+        {
+          error: `Failed to delete orphaned records: ${deleteError.message}`,
+          attempted: orphanedIds,
+        },
         { status: 500 },
       );
     }

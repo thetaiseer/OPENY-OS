@@ -3,8 +3,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, Users2, CheckSquare, FolderOpen, FileText, Users,
-  X, Clock, ArrowRight, ClipboardList, Briefcase, ScrollText,
+  Search,
+  Users2,
+  CheckSquare,
+  FolderOpen,
+  FileText,
+  Users,
+  X,
+  Clock,
+  ArrowRight,
+  ClipboardList,
+  Briefcase,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -12,7 +22,15 @@ import { OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ResultType = 'client' | 'task' | 'asset' | 'content' | 'team' | 'invoice' | 'quotation' | 'employee';
+type ResultType =
+  | 'client'
+  | 'task'
+  | 'asset'
+  | 'content'
+  | 'team'
+  | 'invoice'
+  | 'quotation'
+  | 'employee';
 
 interface SearchResult {
   id: string;
@@ -34,17 +52,26 @@ const RECENT_KEY = 'openy_recent_searches';
 const MAX_RECENT = 8;
 
 const TYPE_META: Record<ResultType, { label: string; icon: LucideIcon }> = {
-  client:    { label: 'Client',    icon: Users2 },
-  task:      { label: 'Task',      icon: CheckSquare },
-  asset:     { label: 'Asset',     icon: FolderOpen },
-  content:   { label: 'Content',   icon: FileText },
-  team:      { label: 'Team',      icon: Users },
-  invoice:   { label: 'Invoice',   icon: ScrollText },
+  client: { label: 'Client', icon: Users2 },
+  task: { label: 'Task', icon: CheckSquare },
+  asset: { label: 'Asset', icon: FolderOpen },
+  content: { label: 'Content', icon: FileText },
+  team: { label: 'Team', icon: Users },
+  invoice: { label: 'Invoice', icon: ScrollText },
   quotation: { label: 'Quotation', icon: ClipboardList },
-  employee:  { label: 'Employee',  icon: Briefcase },
+  employee: { label: 'Employee', icon: Briefcase },
 };
 
-const TYPE_ORDER: ResultType[] = ['client', 'task', 'content', 'asset', 'team', 'invoice', 'quotation', 'employee'];
+const TYPE_ORDER: ResultType[] = [
+  'client',
+  'task',
+  'content',
+  'asset',
+  'team',
+  'invoice',
+  'quotation',
+  'employee',
+];
 
 // ─── LocalStorage helpers ─────────────────────────────────────────────────────
 
@@ -57,7 +84,7 @@ function getRecentSearches(): string[] {
 }
 
 function addRecentSearch(q: string) {
-  const list = [q, ...getRecentSearches().filter(s => s !== q)].slice(0, MAX_RECENT);
+  const list = [q, ...getRecentSearches().filter((s) => s !== q)].slice(0, MAX_RECENT);
   localStorage.setItem(RECENT_KEY, JSON.stringify(list));
 }
 
@@ -69,14 +96,14 @@ function clearRecentSearches() {
 
 function typeBadgeStyle(type: ResultType): React.CSSProperties {
   const map: Record<ResultType, { bg: string; color: string }> = {
-    client:    { bg: 'rgba(99,102,241,0.12)',  color: '#6366f1' },
-    task:      { bg: 'rgba(59,130,246,0.12)',  color: '#3b82f6' },
-    asset:     { bg: 'rgba(234,179,8,0.12)',   color: '#ca8a04' },
-    content:   { bg: 'rgba(168,85,247,0.12)',  color: '#a855f7' },
-    team:      { bg: 'rgba(34,197,94,0.12)',   color: '#16a34a' },
-    invoice:   { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
-    quotation: { bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed' },
-    employee:  { bg: 'rgba(217,119,6,0.12)',   color: '#d97706' },
+    client: { bg: 'rgba(99,102,241,0.12)', color: '#6366f1' },
+    task: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+    asset: { bg: 'rgba(234,179,8,0.12)', color: '#ca8a04' },
+    content: { bg: 'rgba(168,85,247,0.12)', color: '#a855f7' },
+    team: { bg: 'rgba(34,197,94,0.12)', color: '#16a34a' },
+    invoice: { bg: 'rgba(37,99,235,0.12)', color: '#2563eb' },
+    quotation: { bg: 'rgba(124,58,237,0.12)', color: '#7c3aed' },
+    employee: { bg: 'rgba(217,119,6,0.12)', color: '#d97706' },
   };
   return { background: map[type].bg, color: map[type].color };
 }
@@ -145,8 +172,10 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (
-        dropRef.current && !dropRef.current.contains(e.target as Node) &&
-        inputRef.current && !inputRef.current.contains(e.target as Node)
+        dropRef.current &&
+        !dropRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
       ) {
         close();
       }
@@ -175,13 +204,16 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Escape') { close(); return; }
+    if (e.key === 'Escape') {
+      close();
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx(i => Math.min(i + 1, flatItems.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, flatItems.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIdx(i => Math.max(i - 1, -1));
+      setActiveIdx((i) => Math.max(i - 1, -1));
     } else if (e.key === 'Enter') {
       if (activeIdx >= 0 && flatItems[activeIdx]) {
         const item = flatItems[activeIdx];
@@ -195,7 +227,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
 
   // Group results by type, preserving TYPE_ORDER
   const grouped = TYPE_ORDER.reduce<Record<string, SearchResult[]>>((acc, t) => {
-    const items = results.filter(r => r.type === t);
+    const items = results.filter((r) => r.type === t);
     if (items.length) acc[t] = items;
     return acc;
   }, {});
@@ -207,18 +239,18 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       <div className="relative">
         <Search
           size={15}
-          className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
           style={{ color: 'var(--text-secondary)' }}
         />
         <input
           ref={inputRef}
           type="text"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search… (⌘K)"
-          className="w-full h-10 pl-9 pr-8 rounded-full text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
+          className="h-10 w-full rounded-full pl-9 pr-8 text-sm outline-none transition-colors focus:ring-2 focus:ring-[var(--accent)]"
           style={{
             background: 'var(--surface-shell)',
             color: 'var(--text)',
@@ -230,8 +262,11 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
         />
         {query && (
           <button
-            onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:opacity-70"
+            onClick={() => {
+              setQuery('');
+              inputRef.current?.focus();
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 hover:opacity-70"
             style={{ color: 'var(--text-secondary)' }}
           >
             <X size={13} />
@@ -243,7 +278,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
       {isOpen && (
         <div
           ref={dropRef}
-          className={`absolute top-full mt-2 left-0 right-0 overflow-hidden z-[300] ${OPENY_MENU_PANEL_CLASS}`}
+          className={`absolute left-0 right-0 top-full z-[300] mt-2 overflow-hidden ${OPENY_MENU_PANEL_CLASS}`}
           style={{
             minWidth: 320,
             padding: '0.4rem',
@@ -251,35 +286,45 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
         >
           {/* Loading */}
           {loading && (
-            <div className="px-4 py-3 flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Searching…</span>
+            <div className="flex items-center gap-2 px-4 py-3">
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Searching…
+              </span>
             </div>
           )}
 
           {/* Recent searches */}
           {!loading && showRecents && (
             <div>
-              <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+              <div className="flex items-center justify-between px-4 pb-1 pt-3">
+                <span
+                  className="text-[11px] font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Recent
                 </span>
                 <button
-                  onClick={() => { clearRecentSearches(); setRecentSearches([]); }}
-                  className="text-[11px] hover:opacity-70 transition-opacity"
+                  onClick={() => {
+                    clearRecentSearches();
+                    setRecentSearches([]);
+                  }}
+                  className="text-[11px] transition-opacity hover:opacity-70"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   Clear
                 </button>
               </div>
-              {recentSearches.map(s => (
+              {recentSearches.map((s) => (
                 <button
                   key={s}
                   onClick={() => setQuery(s)}
-                  className="openy-menu-item w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors"
+                  className="openy-menu-item flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors"
                 >
                   <Clock size={13} style={{ color: 'var(--text-secondary)' }} />
-                  <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{s}</span>
+                  <span className="truncate text-sm" style={{ color: 'var(--text)' }}>
+                    {s}
+                  </span>
                 </button>
               ))}
             </div>
@@ -288,24 +333,29 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           {/* No query, no recents */}
           {!loading && !query.trim() && recentSearches.length === 0 && (
             <div className="px-4 py-4 text-center">
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Type to search across clients, tasks, assets, and more…</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Type to search across clients, tasks, assets, and more…
+              </p>
             </div>
           )}
 
           {/* Results grouped by type */}
           {!loading && hasResults && (
-            <div className="py-1 max-h-96 overflow-y-auto">
+            <div className="max-h-96 overflow-y-auto py-1">
               {(Object.entries(grouped) as [ResultType, SearchResult[]][]).map(([type, items]) => {
                 const { label, icon: TypeIcon } = TYPE_META[type];
                 return (
                   <div key={type}>
-                    <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                    <div className="flex items-center gap-2 px-4 pb-1 pt-3">
                       <TypeIcon size={12} style={{ color: 'var(--text-secondary)' }} />
-                      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                      <span
+                        className="text-[11px] font-semibold uppercase tracking-wide"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
                         {label}
                       </span>
                     </div>
-                    {items.map(item => {
+                    {items.map((item) => {
                       const globalIdx = flatItems.indexOf(item);
                       const active = globalIdx === activeIdx;
                       return (
@@ -314,31 +364,40 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
                           onClick={() => navigate(item.href, item.title)}
                           onMouseEnter={() => setActiveIdx(globalIdx)}
                           className={clsx(
-                            'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                            'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
                             active ? 'openy-menu-item-selected' : 'openy-menu-item',
                             'rounded-2xl',
                           )}
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="truncate text-sm font-medium"
+                              style={{ color: 'var(--text)' }}
+                            >
                               {item.title}
                             </p>
                             {item.subtitle && (
-                              <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              <p
+                                className="mt-0.5 truncate text-xs"
+                                style={{ color: 'var(--text-secondary)' }}
+                              >
                                 {item.subtitle}
                               </p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex shrink-0 items-center gap-2">
                             {item.badge && (
                               <span
-                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase tracking-wide"
+                                className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                 style={typeBadgeStyle(type)}
                               >
                                 {item.badge.replace(/_/g, ' ')}
                               </span>
                             )}
-                            <ArrowRight size={12} style={{ color: 'var(--text-secondary)', opacity: active ? 1 : 0 }} />
+                            <ArrowRight
+                              size={12}
+                              style={{ color: 'var(--text-secondary)', opacity: active ? 1 : 0 }}
+                            />
                           </div>
                         </button>
                       );
@@ -352,20 +411,39 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps = {}) 
           {/* No results */}
           {!loading && query.trim() && !hasResults && (
             <div className="px-4 py-5 text-center">
-              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>No results for &ldquo;{query}&rdquo;</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Try a different search term</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                No results for &ldquo;{query}&rdquo;
+              </p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Try a different search term
+              </p>
             </div>
           )}
 
           {/* Footer hint */}
           {hasResults && (
             <div
-              className="px-4 py-2 border-t flex items-center gap-3 text-[11px]"
+              className="flex items-center gap-3 border-t px-4 py-2 text-[11px]"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
             >
-              <span><kbd className="font-mono bg-[var(--surface-2)] px-1 py-0.5 rounded text-[10px]">↑↓</kbd> Navigate</span>
-              <span><kbd className="font-mono bg-[var(--surface-2)] px-1 py-0.5 rounded text-[10px]">↵</kbd> Open</span>
-              <span><kbd className="font-mono bg-[var(--surface-2)] px-1 py-0.5 rounded text-[10px]">Esc</kbd> Close</span>
+              <span>
+                <kbd className="rounded bg-[var(--surface-2)] px-1 py-0.5 font-mono text-[10px]">
+                  ↑↓
+                </kbd>{' '}
+                Navigate
+              </span>
+              <span>
+                <kbd className="rounded bg-[var(--surface-2)] px-1 py-0.5 font-mono text-[10px]">
+                  ↵
+                </kbd>{' '}
+                Open
+              </span>
+              <span>
+                <kbd className="rounded bg-[var(--surface-2)] px-1 py-0.5 font-mono text-[10px]">
+                  Esc
+                </kbd>{' '}
+                Close
+              </span>
             </div>
           )}
         </div>

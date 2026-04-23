@@ -5,7 +5,9 @@ import { OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 import { buildStoragePath, uploadFile } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['manager', 'admin']);
@@ -16,40 +18,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   const db = getServiceClient();
   const { data, error } = await db.from('docs_hr_contracts').select('*').eq('id', id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data)  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const c = data as Record<string, unknown> & {
-    contract_number:        string;
-    contract_date:          string | null;
-    status:                 string;
-    currency:               string;
-    language:               string;
-    company_name:           string | null;
+    contract_number: string;
+    contract_date: string | null;
+    status: string;
+    currency: string;
+    language: string;
+    company_name: string | null;
     company_representative: string | null;
-    employee_full_name:     string;
-    job_title:              string | null;
-    department:             string | null;
-    employment_type:        string | null;
-    start_date:             string | null;
-    salary:                 number;
-    payment_method:         string | null;
-    payment_date:           string | null;
-    benefits:               string[];
-    daily_hours:            number;
-    work_days:              string | null;
-    annual_leave:           number;
-    legal_clauses:          Array<{ title: string; content: string }>;
-    sig_company_rep:        string | null;
-    sig_employee_name:      string | null;
-    sig_date:               string | null;
-    sig_place:              string | null;
+    employee_full_name: string;
+    job_title: string | null;
+    department: string | null;
+    employment_type: string | null;
+    start_date: string | null;
+    salary: number;
+    payment_method: string | null;
+    payment_date: string | null;
+    benefits: string[];
+    daily_hours: number;
+    work_days: string | null;
+    annual_leave: number;
+    legal_clauses: Array<{ title: string; content: string }>;
+    sig_company_rep: string | null;
+    sig_employee_name: string | null;
+    sig_date: string | null;
+    sig_place: string | null;
   };
 
   const isAr = c.language === 'ar';
   const clauses = (c.legal_clauses ?? [])
     .map((cl, i) => `<p><strong>${i + 1}. ${cl.title}</strong><br>${cl.content}</p>`)
     .join('');
-  const benefits = (c.benefits ?? []).map(b => `<li>${b}</li>`).join('');
+  const benefits = (c.benefits ?? []).map((b) => `<li>${b}</li>`).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="${isAr ? 'ar' : 'en'}" dir="${isAr ? 'rtl' : 'ltr'}">

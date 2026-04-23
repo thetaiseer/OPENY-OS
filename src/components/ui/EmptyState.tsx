@@ -10,7 +10,7 @@ interface EmptyStateProps {
 export default function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div
-      className="rounded-2xl border flex flex-col items-center justify-center py-16 px-6 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border px-6 py-16 text-center"
       style={{
         background: 'var(--surface-glass)',
         backdropFilter: 'var(--blur-glass)',
@@ -20,7 +20,7 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
       }}
     >
       <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+        className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
         style={{
           background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--surface-2) 100%)',
           boxShadow: 'var(--shadow-xs), inset 0 1px 0 rgba(255,255,255,0.5)',
@@ -29,8 +29,18 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
       >
         <Icon size={28} strokeWidth={1.8} />
       </div>
-      <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text)', letterSpacing: '-0.01em' }}>{title}</h3>
-      <p className="text-sm max-w-sm mb-6 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{description}</p>
+      <h3
+        className="mb-2 text-lg font-bold"
+        style={{ color: 'var(--text)', letterSpacing: '-0.01em' }}
+      >
+        {title}
+      </h3>
+      <p
+        className="mb-6 max-w-sm text-sm leading-relaxed"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        {description}
+      </p>
       {action}
     </div>
   );

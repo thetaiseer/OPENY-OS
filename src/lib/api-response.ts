@@ -24,10 +24,9 @@ export function err(
   status = 400,
   extras?: { step?: string },
 ): NextResponse<ApiError> {
-  return NextResponse.json(
-    { success: false, error: message, ...extras } satisfies ApiError,
-    { status },
-  );
+  return NextResponse.json({ success: false, error: message, ...extras } satisfies ApiError, {
+    status,
+  });
 }
 
 export const HTTP = {

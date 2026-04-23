@@ -112,7 +112,10 @@ export function contentStatusVariant(s: string): BadgeVariant {
 export function parseTags(tags: string | string[] | null | undefined): string[] {
   if (!tags) return [];
   if (Array.isArray(tags)) return tags.filter(Boolean);
-  return tags.split(',').map(s => s.trim()).filter(Boolean);
+  return tags
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function truncate(str: string, len: number): string {
@@ -125,7 +128,7 @@ export function initials(name: string): string {
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
-    .map(w => w[0].toUpperCase())
+    .map((w) => w[0].toUpperCase())
     .join('');
 }
 

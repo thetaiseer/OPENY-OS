@@ -13,7 +13,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { resolveEffectivePermissions, normalizePlatformRole, hasModuleAccess } from '@/lib/permissions';
+import {
+  resolveEffectivePermissions,
+  normalizePlatformRole,
+  hasModuleAccess,
+} from '@/lib/permissions';
 import type { MemberPermissions, ModuleAccess, OsModule, DocsModule } from '@/lib/types';
 
 export interface UsePermissionsResult {
@@ -27,7 +31,11 @@ export interface UsePermissionsResult {
    *
    * Owner/admin always return true; members check resolved access.
    */
-  can: (workspace: 'os' | 'docs', module: OsModule | DocsModule | string, required?: ModuleAccess) => boolean;
+  can: (
+    workspace: 'os' | 'docs',
+    module: OsModule | DocsModule | string,
+    required?: ModuleAccess,
+  ) => boolean;
   /** True if the user can navigate to / view a module (read or full) */
   canView: (workspace: 'os' | 'docs', module: OsModule | DocsModule | string) => boolean;
   /** True if the user can perform write actions in a module */
@@ -64,7 +72,7 @@ export function usePermissions(): UsePermissionsResult {
           }
           return;
         }
-        const data = await res.json() as { permissions?: MemberPermissions };
+        const data = (await res.json()) as { permissions?: MemberPermissions };
         if (!cancelled && data.permissions) {
           setPermissions(data.permissions);
         } else if (!cancelled) {
@@ -80,11 +88,17 @@ export function usePermissions(): UsePermissionsResult {
     }
 
     void loadPermissions();
-    return () => { cancelled = true; };
-  }, [platformRole, userId]);  // re-run when role or auth user changes
+    return () => {
+      cancelled = true;
+    };
+  }, [platformRole, userId]); // re-run when role or auth user changes
 
   const can = useCallback(
-    (workspace: 'os' | 'docs', module: OsModule | DocsModule | string, required: ModuleAccess = 'read'): boolean => {
+    (
+      workspace: 'os' | 'docs',
+      module: OsModule | DocsModule | string,
+      required: ModuleAccess = 'read',
+    ): boolean => {
       if (!permissions) return false;
       return hasModuleAccess(permissions, workspace, module, required);
     },

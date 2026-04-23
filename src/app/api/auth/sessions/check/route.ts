@@ -3,7 +3,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-
 // GET /api/auth/sessions/check — verify the current session is still active
 // Returns 200 { ok: true } if active, 401 if revoked or missing
 export async function GET(request: NextRequest) {

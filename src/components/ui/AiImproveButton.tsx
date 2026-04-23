@@ -26,10 +26,10 @@ import {
 export type ImproveAction = 'improve' | 'professional' | 'shorten' | 'expand' | 'name';
 
 const ACTION_LABELS: Record<Exclude<ImproveAction, 'name'>, string> = {
-  improve:      'Improve writing',
+  improve: 'Improve writing',
   professional: 'Make professional',
-  shorten:      'Shorten',
-  expand:       'Expand',
+  shorten: 'Shorten',
+  expand: 'Expand',
 };
 
 /** Count whitespace-separated words. */
@@ -43,11 +43,7 @@ function countWords(text: string): number {
  *  - 'auto' mode → send 'name' for short text (≤5 words), 'improve' otherwise
  *  - explicit action → send as-is
  */
-function resolveAction(
-  text: string,
-  mode: 'auto' | 'name',
-  action: ImproveAction,
-): ImproveAction {
+function resolveAction(text: string, mode: 'auto' | 'name', action: ImproveAction): ImproveAction {
   if (mode === 'name') return 'name';
   if (mode === 'auto' && action === 'improve' && countWords(text) <= 5) return 'name';
   return action;
@@ -56,22 +52,25 @@ function resolveAction(
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAiImprove() {
-  const [improving, setImproving]     = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [improving, setImproving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
 
-  const improve = async (text: string, action: ImproveAction = 'improve'): Promise<string | null> => {
+  const improve = async (
+    text: string,
+    action: ImproveAction = 'improve',
+  ): Promise<string | null> => {
     if (!text.trim()) return null;
     setImproving(true);
     setError(null);
     setUnavailable(false);
     try {
       const res = await fetch('/api/ai/improve', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text, action }),
+        body: JSON.stringify({ text, action }),
       });
-      const json = await res.json() as { success: boolean; improved?: string; error?: string };
+      const json = (await res.json()) as { success: boolean; improved?: string; error?: string };
       if (!json.success) {
         if (res.status === 503) {
           // AI not configured — mark as unavailable instead of showing error popup
@@ -138,7 +137,7 @@ export default function AiImproveButton({
         type="button"
         disabled
         title="AI writing is not configured (GEMINI_API_KEY is not set)"
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium opacity-30 cursor-not-allowed ${className}`}
+        className={`inline-flex cursor-not-allowed items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium opacity-30 ${className}`}
         style={{
           background: 'var(--accent-soft)',
           color: 'var(--accent)',
@@ -160,7 +159,7 @@ export default function AiImproveButton({
           disabled={disabled}
           onClick={() => handleAction('improve')}
           title="AI: Improve writing"
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-l-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-80 ${className}`}
+          className={`inline-flex items-center gap-1 rounded-l-lg px-2 py-1 text-xs font-medium transition-all hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
           style={{
             background: 'var(--accent-soft)',
             color: 'var(--accent)',
@@ -168,10 +167,7 @@ export default function AiImproveButton({
             borderRight: 'none',
           }}
         >
-          {improving
-            ? <Loader2 size={12} className="animate-spin" />
-            : <Sparkles size={12} />
-          }
+          {improving ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
           AI Improve
         </button>
 
@@ -179,8 +175,8 @@ export default function AiImproveButton({
         <button
           type="button"
           disabled={improving}
-          onClick={() => setMenuOpen(m => !m)}
-          className="inline-flex items-center justify-center px-1.5 py-1 rounded-r-lg transition-opacity hover:opacity-80 disabled:opacity-40"
+          onClick={() => setMenuOpen((m) => !m)}
+          className="inline-flex items-center justify-center rounded-r-lg px-1.5 py-1 transition-opacity hover:opacity-80 disabled:opacity-40"
           style={{
             background: 'var(--accent-soft)',
             color: 'var(--accent)',
@@ -196,20 +192,22 @@ export default function AiImproveButton({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
             <div
-              className={`absolute top-full right-0 mt-1 z-50 overflow-hidden min-w-36 ${OPENY_MENU_PANEL_COMPACT_CLASS}`}
+              className={`absolute right-0 top-full z-50 mt-1 min-w-36 overflow-hidden ${OPENY_MENU_PANEL_COMPACT_CLASS}`}
             >
-              {(Object.entries(ACTION_LABELS) as [Exclude<ImproveAction, 'name'>, string][]).map(([action, label]) => (
-                <button
-                  key={action}
-                  type="button"
-                  onClick={() => handleAction(action)}
-                  className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-xs font-medium text-left`}
-                  style={{ color: 'var(--text)' }}
-                >
-                  <Sparkles size={11} style={{ color: 'var(--accent)' }} />
-                  {label}
-                </button>
-              ))}
+              {(Object.entries(ACTION_LABELS) as [Exclude<ImproveAction, 'name'>, string][]).map(
+                ([action, label]) => (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={() => handleAction(action)}
+                    className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-left text-xs font-medium`}
+                    style={{ color: 'var(--text)' }}
+                  >
+                    <Sparkles size={11} style={{ color: 'var(--accent)' }} />
+                    {label}
+                  </button>
+                ),
+              )}
             </div>
           </>
         )}
@@ -217,7 +215,7 @@ export default function AiImproveButton({
         {/* Error tooltip */}
         {error && (
           <div
-            className="absolute top-full left-0 mt-1 z-50 rounded-lg px-3 py-2 text-xs max-w-64 shadow-lg"
+            className="absolute left-0 top-full z-50 mt-1 max-w-64 rounded-lg px-3 py-2 text-xs shadow-lg"
             style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}
             onClick={clearError}
             title="Click to dismiss"
@@ -237,23 +235,20 @@ export default function AiImproveButton({
         disabled={disabled}
         onClick={() => handleAction('improve')}
         title={disabled && !improving ? 'Enter text first' : 'AI: Improve writing'}
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-80 ${className}`}
+        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-all hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
         style={{
           background: 'var(--accent-soft)',
           color: 'var(--accent)',
           border: '1px solid transparent',
         }}
       >
-        {improving
-          ? <Loader2 size={12} className="animate-spin" />
-          : <Sparkles size={12} />
-        }
+        {improving ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
         {improving ? 'Improving…' : 'AI Improve'}
       </button>
 
       {error && (
         <div
-          className="absolute top-full left-0 mt-1 z-50 rounded-lg px-3 py-2 text-xs max-w-64 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1 max-w-64 rounded-lg px-3 py-2 text-xs shadow-lg"
           style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}
           onClick={clearError}
           title="Click to dismiss"

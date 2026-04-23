@@ -21,7 +21,7 @@ export function OpenyDocumentPage({
   return (
     <div
       id={id}
-      className="bg-white text-gray-900 w-full"
+      className="w-full bg-white text-gray-900"
       dir={dir}
       style={{
         fontFamily: fontFamily ?? 'var(--font-arabic), Inter, system-ui, sans-serif',
@@ -58,23 +58,47 @@ export function OpenyDocumentHeader({
 }) {
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 20,
+          gap: 24,
+        }}
+      >
         <div>
           <OpenyLogo forceVariant="light" width={146} height={40} alt="OPENY" />
           <div style={{ fontSize: 11, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
             {INVOICE_ADDRESS} | {INVOICE_EMAIL} | {INVOICE_WEBSITE}
-            {subtitle ? <><br />{subtitle}</> : null}
+            {subtitle ? (
+              <>
+                <br />
+                {subtitle}
+              </>
+            ) : null}
           </div>
         </div>
-        <div style={{ textAlign: centerTitle ? 'center' as const : 'right' as const }}>
-          <div style={{ fontSize: 31, fontWeight: 900, letterSpacing: 2, color: OPENY_DOC_BLACK, marginBottom: 8 }}>{title}</div>
+        <div style={{ textAlign: centerTitle ? ('center' as const) : ('right' as const) }}>
+          <div
+            style={{
+              fontSize: 31,
+              fontWeight: 900,
+              letterSpacing: 2,
+              color: OPENY_DOC_BLACK,
+              marginBottom: 8,
+            }}
+          >
+            {title}
+          </div>
           {number ? (
             <div style={{ fontSize: 11, color: '#555' }}>
               <span style={{ fontWeight: 700, color: OPENY_DOC_BLACK }}>{refLabel}</span> {number}
             </div>
           ) : null}
           <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>
-            <span style={{ fontWeight: 700, color: OPENY_DOC_BLACK }}>{dateLabel}</span> {date || '—'}
+            <span style={{ fontWeight: 700, color: OPENY_DOC_BLACK }}>{dateLabel}</span>{' '}
+            {date || '—'}
           </div>
         </div>
       </div>
@@ -94,7 +118,17 @@ export function OpenyClientBlock({
 }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <span style={{ display: 'inline-block', background: OPENY_DOC_BLACK, color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: 1.5, padding: '6px 10px' }}>
+      <span
+        style={{
+          display: 'inline-block',
+          background: OPENY_DOC_BLACK,
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: 1.5,
+          padding: '6px 10px',
+        }}
+      >
         {label}
       </span>
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginTop: 10 }}>
@@ -109,7 +143,20 @@ export function OpenyClientBlock({
 }
 
 export function OpenyDocumentSectionTitle({ children }: { children: ReactNode }) {
-  return <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 8, color: OPENY_DOC_BLACK, letterSpacing: 0.6, textTransform: 'uppercase' }}>{children}</div>;
+  return (
+    <div
+      style={{
+        fontWeight: 800,
+        fontSize: 12,
+        marginBottom: 8,
+        color: OPENY_DOC_BLACK,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 export const OpenySectionTitle = OpenyDocumentSectionTitle;
@@ -118,7 +165,10 @@ export function openyTableHeaderStyle(): CSSProperties {
   return { background: OPENY_DOC_BLACK, color: '#fff' };
 }
 
-export function openyThStyle(align: 'left' | 'center' | 'right' = 'left', extra?: CSSProperties): CSSProperties {
+export function openyThStyle(
+  align: 'left' | 'center' | 'right' = 'left',
+  extra?: CSSProperties,
+): CSSProperties {
   return {
     background: OPENY_DOC_BLACK,
     color: '#fff',
@@ -134,7 +184,11 @@ export function openyThStyle(align: 'left' | 'center' | 'right' = 'left', extra?
   };
 }
 
-export function openyTdStyle(align: 'left' | 'center' | 'right' = 'left', bold?: boolean, extra?: CSSProperties): CSSProperties {
+export function openyTdStyle(
+  align: 'left' | 'center' | 'right' = 'left',
+  bold?: boolean,
+  extra?: CSSProperties,
+): CSSProperties {
   return {
     background: '#fff',
     textAlign: align,

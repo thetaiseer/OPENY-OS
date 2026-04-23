@@ -48,8 +48,12 @@ export async function checkWorkspaceAccess(
 
 export function persistSelectedWorkspace(workspaceKey: WorkspaceKey): void {
   if (typeof window === 'undefined') return;
-  try { localStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, workspaceKey); } catch {}
-  try { sessionStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, workspaceKey); } catch {}
+  try {
+    localStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, workspaceKey);
+  } catch {}
+  try {
+    sessionStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, workspaceKey);
+  } catch {}
 }
 
 export function readSelectedWorkspace(): WorkspaceKey | null {

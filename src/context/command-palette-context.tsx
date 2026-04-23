@@ -19,9 +19,9 @@ const CommandPaletteContext = createContext<CommandPaletteContextValue>({
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const open   = useCallback(() => setIsOpen(true), []);
-  const close  = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen(v => !v), []);
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen((v) => !v), []);
 
   return (
     <CommandPaletteContext.Provider value={{ isOpen, open, close, toggle }}>

@@ -6,7 +6,11 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabase/client';
 import type { User } from '../lib/types';
 import { OWNER_EMAIL } from '../lib/constants/auth';
-import { mapWorkspaceRoleToUserRole, type WorkspaceKey, type WorkspaceRole } from '../lib/workspace-access';
+import {
+  mapWorkspaceRoleToUserRole,
+  type WorkspaceKey,
+  type WorkspaceRole,
+} from '../lib/workspace-access';
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 
@@ -25,7 +29,11 @@ export interface WorkspaceAccessState {
   isGlobalOwner: boolean;
 }
 
-interface CachedUserEntry { user: User; workspaceAccess: WorkspaceAccessState; ts: number }
+interface CachedUserEntry {
+  user: User;
+  workspaceAccess: WorkspaceAccessState;
+  ts: number;
+}
 
 function readUserCache(): { user: User; workspaceAccess: WorkspaceAccessState } | null {
   if (typeof window === 'undefined') return null;
@@ -35,7 +43,9 @@ function readUserCache(): { user: User; workspaceAccess: WorkspaceAccessState } 
     const entry = JSON.parse(raw) as CachedUserEntry;
     if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
     return { user: entry.user, workspaceAccess: entry.workspaceAccess };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function writeUserCache(user: User, workspaceAccess: WorkspaceAccessState): void {
@@ -43,12 +53,18 @@ function writeUserCache(user: User, workspaceAccess: WorkspaceAccessState): void
   try {
     const entry: CachedUserEntry = { user, workspaceAccess, ts: Date.now() };
     sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
-  } catch { /* ignore — storage quota or private-mode */ }
+  } catch {
+    /* ignore — storage quota or private-mode */
+  }
 }
 
 function clearUserCache(): void {
   if (typeof window === 'undefined') return;
-  try { sessionStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 const LOADING_USER: User = {
@@ -98,10 +114,10 @@ async function fetchUserStateFromTables(
   if (email.toLowerCase() === OWNER_EMAIL) {
     return {
       user: {
-        id:    supabaseUser.id,
-        name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+        id: supabaseUser.id,
+        name: supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
         email,
-        role:  'owner',
+        role: 'owner',
       },
       workspaceAccess: {
         os: true,
@@ -122,9 +138,9 @@ async function fetchUserStateFromTables(
         .select('id, full_name, email, role')
         .eq('email', email)
         .maybeSingle() as unknown as Promise<{
-          data: MemberRow;
-          error: { code: string; message: string } | null;
-        }>,
+        data: MemberRow;
+        error: { code: string; message: string } | null;
+      }>,
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('team-member-fetch-timeout')), 3_000),
       ),
@@ -159,29 +175,39 @@ async function fetchUserStateFromTables(
     const resolvedRole = (data.role as UserRole) || 'team_member';
     return {
       user: {
-        id:    supabaseUser.id,
-        name:  data.full_name || email.split('@')[0] || '',
+        id: supabaseUser.id,
+        name: data.full_name || email.split('@')[0] || '',
         email: data.email || email,
-        role:  resolvedRole,
+        role: resolvedRole,
       },
       workspaceAccess,
     };
   }
 
-  const docsOnlyRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.docs ?? 'viewer') as WorkspaceRole);
-  const osFallbackRole = mapWorkspaceRoleToUserRole((workspaceAccess.roles.os ?? 'member') as WorkspaceRole);
-  const fallbackRole = workspaceAccess.docs && !workspaceAccess.os
-    ? docsOnlyRole
-    : workspaceAccess.os
-      ? osFallbackRole
-      : 'viewer';
-  console.warn('[auth] No team_member row found for email:', email, '— defaulting role to', fallbackRole);
+  const docsOnlyRole = mapWorkspaceRoleToUserRole(
+    (workspaceAccess.roles.docs ?? 'viewer') as WorkspaceRole,
+  );
+  const osFallbackRole = mapWorkspaceRoleToUserRole(
+    (workspaceAccess.roles.os ?? 'member') as WorkspaceRole,
+  );
+  const fallbackRole =
+    workspaceAccess.docs && !workspaceAccess.os
+      ? docsOnlyRole
+      : workspaceAccess.os
+        ? osFallbackRole
+        : 'viewer';
+  console.warn(
+    '[auth] No team_member row found for email:',
+    email,
+    '— defaulting role to',
+    fallbackRole,
+  );
   return {
     user: {
-      id:    supabaseUser.id,
-      name:  supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+      id: supabaseUser.id,
+      name: supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
       email,
-      role:  fallbackRole,
+      role: fallbackRole,
     },
     workspaceAccess,
   };
@@ -198,9 +224,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // repeat page loads without waiting for the DB round-trip.
   // A single useState lazy initializer reads the cache once; subsequent
   // state calls reuse the already-computed value.
-  const [initCache] = useState<{ user: User; workspaceAccess: WorkspaceAccessState } | null>(readUserCache);
-  const [user, setUser]       = useState<User>(initCache?.user ?? LOADING_USER);
-  const [workspaceAccess, setWorkspaceAccess] = useState<WorkspaceAccessState>(initCache?.workspaceAccess ?? DEFAULT_WORKSPACE_ACCESS);
+  const [initCache] = useState<{ user: User; workspaceAccess: WorkspaceAccessState } | null>(
+    readUserCache,
+  );
+  const [user, setUser] = useState<User>(initCache?.user ?? LOADING_USER);
+  const [workspaceAccess, setWorkspaceAccess] = useState<WorkspaceAccessState>(
+    initCache?.workspaceAccess ?? DEFAULT_WORKSPACE_ACCESS,
+  );
   const [loading, setLoading] = useState<boolean>(initCache === null);
   // Keep a stable ref so the effect below can read the initial cache status
   // without closing over stale state.
@@ -232,31 +262,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }, 5_000)
       : null;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
-        if (safetyTimer) clearTimeout(safetyTimer);
-        if (session?.user) {
-          if (hadCache) {
-            // We rendered immediately from cache — re-validate in background
-            // without blocking the UI again.
-            loadUser(session.user).catch(err => {
-              console.warn('[auth] Background user refresh failed for user', session.user.id, ':', err);
-            });
-          } else {
-            await loadUser(session.user);
-            if (mounted) setLoading(false);
-          }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      if (safetyTimer) clearTimeout(safetyTimer);
+      if (session?.user) {
+        if (hadCache) {
+          // We rendered immediately from cache — re-validate in background
+          // without blocking the UI again.
+          loadUser(session.user).catch((err) => {
+            console.warn(
+              '[auth] Background user refresh failed for user',
+              session.user.id,
+              ':',
+              err,
+            );
+          });
         } else {
-          if (mounted) {
-            setUser(LOADING_USER);
-            setWorkspaceAccess(DEFAULT_WORKSPACE_ACCESS);
-            clearUserCache();
-            setLoading(false);
-          }
+          await loadUser(session.user);
+          if (mounted) setLoading(false);
         }
-      },
-    );
+      } else {
+        if (mounted) {
+          setUser(LOADING_USER);
+          setWorkspaceAccess(DEFAULT_WORKSPACE_ACCESS);
+          clearUserCache();
+          setLoading(false);
+        }
+      }
+    });
 
     return () => {
       mounted = false;
@@ -297,19 +332,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       try {
         Object.keys(localStorage)
-          .filter(k => k.startsWith('sb-'))
-          .forEach(k => localStorage.removeItem(k));
-      } catch { /* ignore — storage may be unavailable */ }
+          .filter((k) => k.startsWith('sb-'))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        /* ignore — storage may be unavailable */
+      }
       router.replace('/');
     }
   };
 
-  const role     = (user.role as UserRole) || 'team_member';
+  const role = (user.role as UserRole) || 'team_member';
   const clientId = null;
   const hasWorkspaceAccess = (workspace: WorkspaceKey) => workspaceAccess[workspace];
 
   return (
-    <AuthContext.Provider value={{ user, role, workspaceAccess, clientId, loading, signOut, hasWorkspaceAccess, setRole: () => {} }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        role,
+        workspaceAccess,
+        clientId,
+        loading,
+        signOut,
+        hasWorkspaceAccess,
+        setRole: () => {},
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

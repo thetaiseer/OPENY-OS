@@ -1,7 +1,12 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getWorkspaceFromPathname } from '@/lib/workspace-navigation';
-import { isGlobalOwnerEmail, normalizeWorkspaceKey, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
+import {
+  isGlobalOwnerEmail,
+  normalizeWorkspaceKey,
+  type WorkspaceKey,
+  type WorkspaceRole,
+} from '@/lib/workspace-access';
 import { getWorkspaceHomeHref } from '@/lib/auth-workspace';
 
 export interface WorkspaceMembershipInfo {
@@ -35,7 +40,10 @@ export async function getUserWorkspaceMemberships(
     supabase
       .from('workspaces')
       .select('slug, name')
-      .in('slug', WORKSPACE_DEFS.map(workspace => workspace.key)),
+      .in(
+        'slug',
+        WORKSPACE_DEFS.map((workspace) => workspace.key),
+      ),
   ]);
 
   const roleRank: Record<WorkspaceRole, number> = {
@@ -62,7 +70,7 @@ export async function getUserWorkspaceMemberships(
     workspaceNameByKey.set(key, row.name || (key === 'docs' ? 'OPENY DOCS' : 'OPENY OS'));
   }
 
-  return WORKSPACE_DEFS.map(workspace => {
+  return WORKSPACE_DEFS.map((workspace) => {
     const membership = membershipByKey.get(workspace.key);
     return {
       key: workspace.key,
@@ -80,14 +88,11 @@ export function canShowWorkspaceSwitcher(
   memberships: WorkspaceMembershipInfo[],
 ): boolean {
   if (isGlobalOwnerEmail(userEmail)) return true;
-  const membershipCount = memberships.filter(membership => membership.hasMembership).length;
+  const membershipCount = memberships.filter((membership) => membership.hasMembership).length;
   if (membershipCount > 1) return true;
-  return memberships.some(membership => membership.role === 'owner');
+  return memberships.some((membership) => membership.role === 'owner');
 }
 
-export function switchWorkspace(
-  router: AppRouterInstance,
-  targetWorkspaceKey: WorkspaceKey,
-): void {
+export function switchWorkspace(router: AppRouterInstance, targetWorkspaceKey: WorkspaceKey): void {
   router.push(getWorkspaceHomeHref(targetWorkspaceKey));
 }

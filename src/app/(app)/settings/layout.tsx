@@ -5,21 +5,25 @@ import { usePathname } from 'next/navigation';
 import { Settings, KeyRound } from 'lucide-react';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const pathname  = usePathname();
-  const isProfile  = pathname.startsWith('/settings/profile') || pathname === '/settings';
+  const pathname = usePathname();
+  const isProfile = pathname.startsWith('/settings/profile') || pathname === '/settings';
   const isPassword = pathname.startsWith('/settings/password');
 
   const tabs = [
-    { href: '/settings/profile',  label: 'Profile & Preferences', icon: Settings  },
-    { href: '/settings/password', label: 'Change Password',        icon: KeyRound },
+    { href: '/settings/profile', label: 'Profile & Preferences', icon: Settings },
+    { href: '/settings/password', label: 'Change Password', icon: KeyRound },
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Settings</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Manage your account and preferences</p>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+          Settings
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Manage your account and preferences
+        </p>
       </div>
 
       {/* Tab navigation */}
@@ -30,9 +34,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
+              className="-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
               style={{
-                color:       active ? 'var(--accent)' : 'var(--text-secondary)',
+                color: active ? 'var(--accent)' : 'var(--text-secondary)',
                 borderColor: active ? 'var(--accent)' : 'transparent',
               }}
             >

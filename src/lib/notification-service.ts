@@ -62,9 +62,25 @@ export interface CreateNotificationInput {
 function inferCategory(eventType: string | undefined | null): NotificationCategory {
   if (!eventType) return 'system';
   if (eventType.startsWith('task') || eventType.startsWith('comment')) return 'tasks';
-  if (eventType.startsWith('content') || eventType.startsWith('publishing') || eventType.startsWith('publish')) return 'content';
-  if (eventType.startsWith('asset') || eventType.startsWith('file') || eventType.startsWith('storage')) return 'assets';
-  if (eventType.startsWith('team') || eventType.startsWith('invite') || eventType.startsWith('member') || eventType.startsWith('role')) return 'team';
+  if (
+    eventType.startsWith('content') ||
+    eventType.startsWith('publishing') ||
+    eventType.startsWith('publish')
+  )
+    return 'content';
+  if (
+    eventType.startsWith('asset') ||
+    eventType.startsWith('file') ||
+    eventType.startsWith('storage')
+  )
+    return 'assets';
+  if (
+    eventType.startsWith('team') ||
+    eventType.startsWith('invite') ||
+    eventType.startsWith('member') ||
+    eventType.startsWith('role')
+  )
+    return 'team';
   return 'system';
 }
 
@@ -79,9 +95,13 @@ async function insertNotificationWithFallback(row: Record<string, unknown>): Pro
   const db = getServiceClient();
   const isOptionalColumnMissingError = (message: string) => {
     const msg = message.toLowerCase();
-    const mentionsOptionalCol = msg.includes('metadata') || msg.includes('actor_id')
-      || msg.includes('priority') || msg.includes('category') || msg.includes('is_archived')
-      || msg.includes('idempotency');
+    const mentionsOptionalCol =
+      msg.includes('metadata') ||
+      msg.includes('actor_id') ||
+      msg.includes('priority') ||
+      msg.includes('category') ||
+      msg.includes('is_archived') ||
+      msg.includes('idempotency');
     const isMissingColumnPattern = msg.includes('column') || msg.includes('could not find');
     return isMissingColumnPattern && mentionsOptionalCol;
   };
@@ -93,10 +113,26 @@ async function insertNotificationWithFallback(row: Record<string, unknown>): Pro
   // Try progressively-stripped rows until one succeeds
   const candidates: Record<string, unknown>[] = [
     row,
-    omitFields(row, ['priority', 'category', 'is_archived', 'idempotency_key', 'delivered_in_app', 'delivered_email']),
+    omitFields(row, [
+      'priority',
+      'category',
+      'is_archived',
+      'idempotency_key',
+      'delivered_in_app',
+      'delivered_email',
+    ]),
     omitFields(row, ['metadata']),
     omitFields(row, ['actor_id']),
-    omitFields(row, ['metadata', 'actor_id', 'priority', 'category', 'is_archived', 'idempotency_key', 'delivered_in_app', 'delivered_email']),
+    omitFields(row, [
+      'metadata',
+      'actor_id',
+      'priority',
+      'category',
+      'is_archived',
+      'idempotency_key',
+      'delivered_in_app',
+      'delivered_email',
+    ]),
   ];
 
   for (const candidate of candidates) {
@@ -115,28 +151,31 @@ export async function createNotification(input: CreateNotificationInput): Promis
   try {
     const rawEventType = input.eventType ?? input.event_type ?? null;
     await insertNotificationWithFallback({
-      title:            input.title,
-      message:          input.message,
-      type:             input.type ?? 'info',
-      read:             false,
-      is_archived:      false,
-      priority:         input.priority ?? inferPriority(input.type),
-      category:         input.category ?? inferCategory(rawEventType),
-      event_type:       rawEventType,
-      user_id:          input.userId ?? input.user_id ?? null,
-      actor_id:         input.actorId ?? input.actor_id ?? null,
-      metadata:         input.metadata ?? {},
-      client_id:        input.client_id ?? null,
-      task_id:          input.task_id ?? null,
-      entity_type:      input.entity_type ?? null,
-      entity_id:        input.entity_id ?? null,
-      action_url:       input.actionUrl ?? input.action_url ?? null,
-      idempotency_key:  input.idempotency_key ?? null,
+      title: input.title,
+      message: input.message,
+      type: input.type ?? 'info',
+      read: false,
+      is_archived: false,
+      priority: input.priority ?? inferPriority(input.type),
+      category: input.category ?? inferCategory(rawEventType),
+      event_type: rawEventType,
+      user_id: input.userId ?? input.user_id ?? null,
+      actor_id: input.actorId ?? input.actor_id ?? null,
+      metadata: input.metadata ?? {},
+      client_id: input.client_id ?? null,
+      task_id: input.task_id ?? null,
+      entity_type: input.entity_type ?? null,
+      entity_id: input.entity_id ?? null,
+      action_url: input.actionUrl ?? input.action_url ?? null,
+      idempotency_key: input.idempotency_key ?? null,
       delivered_in_app: true,
-      delivered_email:  false,
+      delivered_email: false,
     });
   } catch (err) {
-    console.warn('[notification-service] unexpected error:', err instanceof Error ? err.message : String(err));
+    console.warn(
+      '[notification-service] unexpected error:',
+      err instanceof Error ? err.message : String(err),
+    );
   }
 }
 
@@ -145,7 +184,7 @@ async function createNotificationsForUsers(
   input: Omit<CreateNotificationInput, 'userId' | 'user_id'>,
 ): Promise<void> {
   const unique = [...new Set(userIds.filter((v): v is string => Boolean(v)))];
-  await Promise.allSettled(unique.map(userId => createNotification({ ...input, userId })));
+  await Promise.allSettled(unique.map((userId) => createNotification({ ...input, userId })));
 }
 
 /** Fire a "task created + assigned" notification bundle. */
@@ -162,38 +201,42 @@ export async function notifyTaskCreated(opts: {
 
   // Notify the assignee (if different from creator)
   if (opts.assignedToId && opts.assignedToId !== opts.createdById) {
-    promises.push(createNotification({
-      title:            'New Task Assigned',
-      message:          `You have been assigned: "${opts.taskTitle}"${opts.clientName ? ` for ${opts.clientName}` : ''}`,
-      type:             'info',
-      priority:         'medium',
-      category:         'tasks',
-      event_type:       'task_assigned',
-      user_id:          opts.assignedToId,
-      client_id:        opts.clientId,
-      task_id:          opts.taskId,
-      entity_type:      'task',
-      entity_id:        opts.taskId,
-      action_url:       url,
-      idempotency_key:  `task.assigned:${opts.taskId}:${opts.assignedToId}`,
-    }));
+    promises.push(
+      createNotification({
+        title: 'New Task Assigned',
+        message: `You have been assigned: "${opts.taskTitle}"${opts.clientName ? ` for ${opts.clientName}` : ''}`,
+        type: 'info',
+        priority: 'medium',
+        category: 'tasks',
+        event_type: 'task_assigned',
+        user_id: opts.assignedToId,
+        client_id: opts.clientId,
+        task_id: opts.taskId,
+        entity_type: 'task',
+        entity_id: opts.taskId,
+        action_url: url,
+        idempotency_key: `task.assigned:${opts.taskId}:${opts.assignedToId}`,
+      }),
+    );
   }
 
   // General team notification (no specific user)
-  promises.push(createNotification({
-    title:       'Task Created',
-    message:     `Task "${opts.taskTitle}" was created${opts.clientName ? ` for ${opts.clientName}` : ''}`,
-    type:        'success',
-    priority:    'low',
-    category:    'tasks',
-    event_type:  'task_created',
-    user_id:     null,
-    client_id:   opts.clientId,
-    task_id:     opts.taskId,
-    entity_type: 'task',
-    entity_id:   opts.taskId,
-    action_url:  url,
-  }));
+  promises.push(
+    createNotification({
+      title: 'Task Created',
+      message: `Task "${opts.taskTitle}" was created${opts.clientName ? ` for ${opts.clientName}` : ''}`,
+      type: 'success',
+      priority: 'low',
+      category: 'tasks',
+      event_type: 'task_created',
+      user_id: null,
+      client_id: opts.clientId,
+      task_id: opts.taskId,
+      entity_type: 'task',
+      entity_id: opts.taskId,
+      action_url: url,
+    }),
+  );
 
   await Promise.allSettled(promises);
 }
@@ -207,18 +250,18 @@ export async function notifyTaskUpdated(opts: {
   assignedToId?: string | null;
 }): Promise<void> {
   await createNotification({
-    title:       'Task Updated',
-    message:     `"${opts.taskTitle}" — ${opts.updatedField} changed to ${opts.newValue}`,
-    type:        'info',
-    priority:    'low',
-    category:    'tasks',
-    event_type:  'task_updated',
-    user_id:     opts.assignedToId ?? null,
-    client_id:   opts.clientId,
-    task_id:     opts.taskId,
+    title: 'Task Updated',
+    message: `"${opts.taskTitle}" — ${opts.updatedField} changed to ${opts.newValue}`,
+    type: 'info',
+    priority: 'low',
+    category: 'tasks',
+    event_type: 'task_updated',
+    user_id: opts.assignedToId ?? null,
+    client_id: opts.clientId,
+    task_id: opts.taskId,
     entity_type: 'task',
-    entity_id:   opts.taskId,
-    action_url:  `/os/tasks`,
+    entity_id: opts.taskId,
+    action_url: `/os/tasks`,
   });
 }
 
@@ -232,17 +275,17 @@ export async function notifyPublishingScheduled(opts: {
 }): Promise<void> {
   const platformText = opts.platforms?.length ? ` on ${opts.platforms.join(', ')}` : '';
   await createNotification({
-    title:       'Publishing Scheduled',
-    message:     `Content scheduled for ${opts.scheduledDate}${platformText}${opts.clientName ? ` — ${opts.clientName}` : ''}`,
-    type:        'success',
-    priority:    'medium',
-    category:    'content',
-    event_type:  'publishing_scheduled',
-    client_id:   opts.clientId,
-    task_id:     opts.taskId ?? null,
+    title: 'Publishing Scheduled',
+    message: `Content scheduled for ${opts.scheduledDate}${platformText}${opts.clientName ? ` — ${opts.clientName}` : ''}`,
+    type: 'success',
+    priority: 'medium',
+    category: 'content',
+    event_type: 'publishing_scheduled',
+    client_id: opts.clientId,
+    task_id: opts.taskId ?? null,
     entity_type: 'publishing_schedule',
-    entity_id:   opts.scheduleId,
-    action_url:  `/os/calendar`,
+    entity_id: opts.scheduleId,
+    action_url: `/os/calendar`,
   });
 }
 
@@ -258,19 +301,19 @@ export async function notifyAssetUploaded(opts: {
     ? opts.teamMemberUserIds
     : [opts.uploadedById ?? null];
   await createNotificationsForUsers(recipients, {
-    title:       'Asset Uploaded',
-    message:     `File "${opts.assetName}" uploaded successfully`,
-    type:        'success',
-    priority:    'medium',
-    category:    'assets',
-    eventType:   'file.uploaded',
-    actorId:     opts.uploadedById ?? null,
-    metadata:    { assetId: opts.assetId, assetName: opts.assetName },
-    client_id:   opts.clientId,
-    task_id:     opts.taskId,
+    title: 'Asset Uploaded',
+    message: `File "${opts.assetName}" uploaded successfully`,
+    type: 'success',
+    priority: 'medium',
+    category: 'assets',
+    eventType: 'file.uploaded',
+    actorId: opts.uploadedById ?? null,
+    metadata: { assetId: opts.assetId, assetName: opts.assetName },
+    client_id: opts.clientId,
+    task_id: opts.taskId,
     entity_type: 'asset',
-    entity_id:   opts.assetId,
-    actionUrl:   `/os/assets`,
+    entity_id: opts.assetId,
+    actionUrl: `/os/assets`,
   });
 }
 
@@ -282,17 +325,17 @@ export async function notifyInvitation(opts: {
   inviteeUserId?: string | null;
 }): Promise<void> {
   await createNotification({
-    title:       'Team Invitation Sent',
-    message:     `${opts.inviteeName} was invited to join as ${opts.role}${opts.inviterName ? ` by ${opts.inviterName}` : ''}`,
-    type:        'info',
-    priority:    'medium',
-    category:    'team',
-    eventType:   'invite.sent',
-    userId:      opts.inviteeUserId ?? null,
-    metadata:    { teamMemberId: opts.teamMemberId, role: opts.role },
-    entity_id:   opts.teamMemberId,
+    title: 'Team Invitation Sent',
+    message: `${opts.inviteeName} was invited to join as ${opts.role}${opts.inviterName ? ` by ${opts.inviterName}` : ''}`,
+    type: 'info',
+    priority: 'medium',
+    category: 'team',
+    eventType: 'invite.sent',
+    userId: opts.inviteeUserId ?? null,
+    metadata: { teamMemberId: opts.teamMemberId, role: opts.role },
+    entity_id: opts.teamMemberId,
     entity_type: 'team_member',
-    actionUrl:   `/os/team`,
+    actionUrl: `/os/team`,
     idempotency_key: opts.inviteeUserId
       ? `invite.sent:${opts.teamMemberId}:${opts.inviteeUserId}`
       : null,
@@ -308,21 +351,21 @@ export async function notifyTaskCompleted(opts: {
 }): Promise<void> {
   if (!opts.ownerId) return;
   await createNotification({
-    userId:           opts.ownerId,
-    title:            'Task Completed',
-    message:          `"${opts.taskTitle}" has been completed.`,
-    type:             'success',
-    priority:         'low',
-    category:         'tasks',
-    eventType:        'task.completed',
-    actorId:          opts.actorId ?? null,
-    metadata:         { taskId: opts.taskId },
-    client_id:        opts.clientId ?? null,
-    task_id:          opts.taskId,
-    entity_type:      'task',
-    entity_id:        opts.taskId,
-    actionUrl:        '/os/tasks',
-    idempotency_key:  `task.completed:${opts.taskId}:${opts.ownerId}`,
+    userId: opts.ownerId,
+    title: 'Task Completed',
+    message: `"${opts.taskTitle}" has been completed.`,
+    type: 'success',
+    priority: 'low',
+    category: 'tasks',
+    eventType: 'task.completed',
+    actorId: opts.actorId ?? null,
+    metadata: { taskId: opts.taskId },
+    client_id: opts.clientId ?? null,
+    task_id: opts.taskId,
+    entity_type: 'task',
+    entity_id: opts.taskId,
+    actionUrl: '/os/tasks',
+    idempotency_key: `task.completed:${opts.taskId}:${opts.ownerId}`,
   });
 }
 
@@ -333,18 +376,18 @@ export async function notifyClientCreated(opts: {
   adminUserIds: string[];
 }): Promise<void> {
   await createNotificationsForUsers(opts.adminUserIds, {
-    title:       'New Client Created',
-    message:     `"${opts.clientName}" was added to the system.`,
-    type:        'info',
-    priority:    'low',
-    category:    'system',
-    eventType:   'client.created',
-    actorId:     opts.actorId ?? null,
-    metadata:    { clientId: opts.clientId, clientName: opts.clientName },
-    client_id:   opts.clientId,
+    title: 'New Client Created',
+    message: `"${opts.clientName}" was added to the system.`,
+    type: 'info',
+    priority: 'low',
+    category: 'system',
+    eventType: 'client.created',
+    actorId: opts.actorId ?? null,
+    metadata: { clientId: opts.clientId, clientName: opts.clientName },
+    client_id: opts.clientId,
     entity_type: 'client',
-    entity_id:   opts.clientId,
-    actionUrl:   `/os/clients`,
+    entity_id: opts.clientId,
+    actionUrl: `/os/clients`,
   });
 }
 
@@ -354,17 +397,17 @@ export async function notifyMemberJoined(opts: {
   adminUserIds: string[];
 }): Promise<void> {
   await createNotificationsForUsers(opts.adminUserIds, {
-    title:       'New Team Member Joined',
-    message:     `${opts.joinedName?.trim() || 'A team member'} has joined the workspace.`,
-    type:        'success',
-    priority:    'medium',
-    category:    'team',
-    eventType:   'member.joined',
-    actorId:     opts.joinedUserId,
-    metadata:    { joinedUserId: opts.joinedUserId, joinedName: opts.joinedName ?? null },
+    title: 'New Team Member Joined',
+    message: `${opts.joinedName?.trim() || 'A team member'} has joined the workspace.`,
+    type: 'success',
+    priority: 'medium',
+    category: 'team',
+    eventType: 'member.joined',
+    actorId: opts.joinedUserId,
+    metadata: { joinedUserId: opts.joinedUserId, joinedName: opts.joinedName ?? null },
     entity_type: 'team_member',
-    entity_id:   opts.joinedUserId,
-    actionUrl:   `/os/team`,
+    entity_id: opts.joinedUserId,
+    actionUrl: `/os/team`,
   });
 }
 
@@ -378,17 +421,21 @@ export async function notifyCommentAdded(opts: {
   watcherUserIds: string[];
 }): Promise<void> {
   await createNotificationsForUsers(opts.watcherUserIds, {
-    title:       'New Comment',
-    message:     `${opts.actorName?.trim() || 'Someone'} commented: "${opts.content.slice(0, COMMENT_PREVIEW_LENGTH)}"`,
-    type:        'info',
-    priority:    'medium',
-    category:    'tasks',
-    eventType:   'comment.added',
-    actorId:     opts.actorId,
-    metadata:    { commentId: opts.commentId, taskId: opts.taskId ?? null, assetId: opts.assetId ?? null },
-    task_id:     opts.taskId ?? null,
+    title: 'New Comment',
+    message: `${opts.actorName?.trim() || 'Someone'} commented: "${opts.content.slice(0, COMMENT_PREVIEW_LENGTH)}"`,
+    type: 'info',
+    priority: 'medium',
+    category: 'tasks',
+    eventType: 'comment.added',
+    actorId: opts.actorId,
+    metadata: {
+      commentId: opts.commentId,
+      taskId: opts.taskId ?? null,
+      assetId: opts.assetId ?? null,
+    },
+    task_id: opts.taskId ?? null,
     entity_type: opts.taskId ? 'task' : opts.assetId ? 'asset' : 'comment',
-    entity_id:   opts.taskId ?? opts.assetId ?? opts.commentId,
-    actionUrl:   opts.taskId ? '/os/tasks' : '/os/assets',
+    entity_id: opts.taskId ?? opts.assetId ?? opts.commentId,
+    actionUrl: opts.taskId ? '/os/tasks' : '/os/assets',
   });
 }

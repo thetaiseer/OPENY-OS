@@ -33,12 +33,19 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many AI requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
     let body: Record<string, unknown> = {};
-    try { body = await req.json(); } catch { /* ignore */ }
+    try {
+      body = await req.json();
+    } catch {
+      /* ignore */
+    }
 
     const clientId = (body.clientContext as Record<string, string> | undefined)?.id ?? null;
     const sb = getServiceClient();
@@ -56,82 +63,97 @@ export async function POST(req: NextRequest) {
       contentNoSchedule,
     ] = await Promise.all([
       // Tasks without assignee
-      (clientId
-        ? sb.from('tasks').select('id', { count: 'exact', head: true })
+      clientId
+        ? sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .is('assignee_id', null)
             .not('status', 'in', '("completed","cancelled","published")')
             .eq('client_id', clientId)
-        : sb.from('tasks').select('id', { count: 'exact', head: true })
+        : sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .is('assignee_id', null)
-            .not('status', 'in', '("completed","cancelled","published")')
-      ),
+            .not('status', 'in', '("completed","cancelled","published")'),
 
       // Tasks without due date
-      (clientId
-        ? sb.from('tasks').select('id', { count: 'exact', head: true })
+      clientId
+        ? sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .is('due_date', null)
             .not('status', 'in', '("completed","cancelled","published")')
             .eq('client_id', clientId)
-        : sb.from('tasks').select('id', { count: 'exact', head: true })
+        : sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .is('due_date', null)
-            .not('status', 'in', '("completed","cancelled","published")')
-      ),
+            .not('status', 'in', '("completed","cancelled","published")'),
 
       // Tasks without client link
-      (clientId
+      clientId
         ? Promise.resolve({ count: 0 })
-        : sb.from('tasks').select('id', { count: 'exact', head: true })
+        : sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .is('client_id', null)
-            .not('status', 'in', '("completed","cancelled","published")')
-      ),
+            .not('status', 'in', '("completed","cancelled","published")'),
 
       // Overdue tasks
-      (clientId
-        ? sb.from('tasks').select('id', { count: 'exact', head: true })
+      clientId
+        ? sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .lt('due_date', today)
             .not('status', 'in', '("completed","cancelled","published")')
             .eq('client_id', clientId)
-        : sb.from('tasks').select('id', { count: 'exact', head: true })
+        : sb
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
             .lt('due_date', today)
-            .not('status', 'in', '("completed","cancelled","published")')
-      ),
+            .not('status', 'in', '("completed","cancelled","published")'),
 
       // Assets without client (only workspace-level check)
-      (!clientId
+      !clientId
         ? sb.from('assets').select('id', { count: 'exact', head: true }).is('client_id', null)
-        : Promise.resolve({ count: 0 })
-      ),
+        : Promise.resolve({ count: 0 }),
 
       // Content items without platform set (post_type is null or empty)
-      (clientId
-        ? sb.from('content_items').select('id', { count: 'exact', head: true })
+      clientId
+        ? sb
+            .from('content_items')
+            .select('id', { count: 'exact', head: true })
             .is('post_type', null)
             .not('status', 'in', '("published","cancelled")')
             .eq('client_id', clientId)
-        : sb.from('content_items').select('id', { count: 'exact', head: true })
+        : sb
+            .from('content_items')
+            .select('id', { count: 'exact', head: true })
             .is('post_type', null)
-            .not('status', 'in', '("published","cancelled")')
-      ),
+            .not('status', 'in', '("published","cancelled")'),
 
       // Content items without publishing schedule
-      (clientId
-        ? sb.from('content_items').select('id', { count: 'exact', head: true })
+      clientId
+        ? sb
+            .from('content_items')
+            .select('id', { count: 'exact', head: true })
             .eq('status', 'draft')
             .eq('client_id', clientId)
-        : sb.from('content_items').select('id', { count: 'exact', head: true })
-            .eq('status', 'draft')
-      ),
+        : sb
+            .from('content_items')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'draft'),
     ]);
 
     // ── Build issues list ─────────────────────────────────────────────────────
 
     const counts = {
       tasksWithoutAssignee: noAssignee.count ?? 0,
-      tasksWithoutDueDate:  noDueDate.count ?? 0,
-      tasksWithoutClient:   noClient.count ?? 0,
-      overdueTasks:         overdueTasks.count ?? 0,
-      assetsWithoutClient:  unclassifiedAssets.count ?? 0,
-      contentNoPlatform:    contentNoPlatform.count ?? 0,
+      tasksWithoutDueDate: noDueDate.count ?? 0,
+      tasksWithoutClient: noClient.count ?? 0,
+      overdueTasks: overdueTasks.count ?? 0,
+      assetsWithoutClient: unclassifiedAssets.count ?? 0,
+      contentNoPlatform: contentNoPlatform.count ?? 0,
       contentDraftUnscheduled: contentNoSchedule.count ?? 0,
     };
 
@@ -150,7 +172,9 @@ export async function POST(req: NextRequest) {
     if (counts.contentNoPlatform > 0)
       issues.push(`${counts.contentNoPlatform} content item(s) have no platform type set`);
     if (counts.contentDraftUnscheduled > 0)
-      issues.push(`${counts.contentDraftUnscheduled} content item(s) are still in draft without a schedule`);
+      issues.push(
+        `${counts.contentDraftUnscheduled} content item(s) are still in draft without a schedule`,
+      );
 
     const totalIssues = issues.length;
 
@@ -185,7 +209,6 @@ export async function POST(req: NextRequest) {
         data: { counts },
         actions_taken: [`Quality check complete — found ${totalIssues} issue(s)`],
       });
-
     } catch (aiErr) {
       if (aiErr instanceof AiUnconfiguredError) {
         const fallback =
@@ -207,7 +230,6 @@ export async function POST(req: NextRequest) {
       }
       throw aiErr;
     }
-
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[ai/quality-check] error:', msg);

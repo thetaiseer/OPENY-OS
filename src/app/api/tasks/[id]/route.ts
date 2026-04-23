@@ -23,39 +23,61 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyTaskCompleted } from '@/lib/notification-service';
 
-
 const VALID_STATUSES = [
-  'todo', 'in_progress', 'in_review', 'review', 'waiting_client',
-  'approved', 'scheduled', 'published', 'done', 'completed',
-  'delivered', 'overdue', 'cancelled',
+  'todo',
+  'in_progress',
+  'in_review',
+  'review',
+  'waiting_client',
+  'approved',
+  'scheduled',
+  'published',
+  'done',
+  'completed',
+  'delivered',
+  'overdue',
+  'cancelled',
 ] as const;
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
 
 const VALID_TASK_CATEGORIES = [
-  'internal_task', 'content_creation', 'design_task',
-  'publishing_task', 'asset_upload_task', 'follow_up_task',
+  'internal_task',
+  'content_creation',
+  'design_task',
+  'publishing_task',
+  'asset_upload_task',
+  'follow_up_task',
 ] as const;
 
 const VALID_CONTENT_PURPOSES = [
-  'awareness', 'engagement', 'promotion', 'branding',
-  'lead_generation', 'announcement', 'offer_campaign',
+  'awareness',
+  'engagement',
+  'promotion',
+  'branding',
+  'lead_generation',
+  'announcement',
+  'offer_campaign',
 ] as const;
 
 const VALID_PLATFORMS = [
-  'instagram', 'facebook', 'tiktok', 'linkedin',
-  'twitter', 'snapchat', 'youtube_shorts',
+  'instagram',
+  'facebook',
+  'tiktok',
+  'linkedin',
+  'twitter',
+  'snapchat',
+  'youtube_shorts',
 ] as const;
 
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<Params> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
 
   // Auth
@@ -92,10 +114,16 @@ export async function PATCH(
   if (typeof body.description === 'string') {
     updatePayload.description = body.description.trim() || null;
   }
-  if (typeof body.status === 'string' && (VALID_STATUSES as readonly string[]).includes(body.status)) {
+  if (
+    typeof body.status === 'string' &&
+    (VALID_STATUSES as readonly string[]).includes(body.status)
+  ) {
     updatePayload.status = body.status;
   }
-  if (typeof body.priority === 'string' && (VALID_PRIORITIES as readonly string[]).includes(body.priority)) {
+  if (
+    typeof body.priority === 'string' &&
+    (VALID_PRIORITIES as readonly string[]).includes(body.priority)
+  ) {
     updatePayload.priority = body.priority;
   }
   if (typeof body.due_date === 'string') {
@@ -121,11 +149,15 @@ export async function PATCH(
   }
   if (typeof body.task_category === 'string') {
     const cat = body.task_category.trim();
-    updatePayload.task_category = (VALID_TASK_CATEGORIES as readonly string[]).includes(cat) ? cat : null;
+    updatePayload.task_category = (VALID_TASK_CATEGORIES as readonly string[]).includes(cat)
+      ? cat
+      : null;
   }
   if (typeof body.content_purpose === 'string') {
     const cp = body.content_purpose.trim();
-    updatePayload.content_purpose = (VALID_CONTENT_PURPOSES as readonly string[]).includes(cp) ? cp : null;
+    updatePayload.content_purpose = (VALID_CONTENT_PURPOSES as readonly string[]).includes(cp)
+      ? cp
+      : null;
   }
   if (typeof body.caption === 'string') {
     updatePayload.caption = body.caption.trim() || null;
@@ -135,12 +167,14 @@ export async function PATCH(
   }
   if (Array.isArray(body.platforms)) {
     updatePayload.platforms = (body.platforms as unknown[]).filter(
-      (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
+      (p): p is string =>
+        typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
     );
   }
   if (Array.isArray(body.post_types)) {
     updatePayload.post_types = (body.post_types as unknown[]).filter(
-      (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+      (pt): pt is string =>
+        typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
     );
   }
   if (typeof body.publishing_schedule_id === 'string') {
@@ -150,10 +184,10 @@ export async function PATCH(
     updatePayload.asset_id = body.asset_id.trim() || null;
   }
   if (Array.isArray(body.mentions)) {
-    updatePayload.mentions = (body.mentions as unknown[]).filter(m => typeof m === 'string');
+    updatePayload.mentions = (body.mentions as unknown[]).filter((m) => typeof m === 'string');
   }
   if (Array.isArray(body.tags)) {
-    updatePayload.tags = (body.tags as unknown[]).filter(t => typeof t === 'string');
+    updatePayload.tags = (body.tags as unknown[]).filter((t) => typeof t === 'string');
   }
   // v2 fields
   if (typeof body.notes === 'string') {
@@ -182,7 +216,9 @@ export async function PATCH(
     .eq('id', id)
     .maybeSingle();
 
-  const wasCompleted = ['done', 'completed'].includes(String(existingTask?.status ?? '').toLowerCase());
+  const wasCompleted = ['done', 'completed'].includes(
+    String(existingTask?.status ?? '').toLowerCase(),
+  );
   const { data, error } = await db
     .from('tasks')
     .update(updatePayload)
@@ -191,7 +227,12 @@ export async function PATCH(
     .single();
 
   if (error) {
-    console.error('[PATCH /api/tasks/[id]] db_update error — code:', error.code, '| message:', error.message);
+    console.error(
+      '[PATCH /api/tasks/[id]] db_update error — code:',
+      error.code,
+      '| message:',
+      error.message,
+    );
     return NextResponse.json(
       { success: false, step: 'db_update', error: error.message },
       { status: 500 },
@@ -214,10 +255,7 @@ export async function PATCH(
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<Params> },
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
 
   // Auth
@@ -235,7 +273,12 @@ export async function DELETE(
   const { error } = await db.from('tasks').delete().eq('id', id);
 
   if (error) {
-    console.error('[DELETE /api/tasks/[id]] db_delete error — code:', error.code, '| message:', error.message);
+    console.error(
+      '[DELETE /api/tasks/[id]] db_delete error — code:',
+      error.code,
+      '| message:',
+      error.message,
+    );
     return NextResponse.json(
       { success: false, step: 'db_delete', error: error.message },
       { status: 500 },
@@ -243,14 +286,21 @@ export async function DELETE(
   }
 
   // Activity log (fire-and-forget)
-  void Promise.resolve(db.from('activities').insert({
-    type:        'task',
-    description: `Task deleted (id: ${id})`,
-  })).then(({ error: actErr }) => {
-    if (actErr) console.warn('[DELETE /api/tasks/[id]] activity log failed:', actErr.message);
-  }).catch((err: unknown) => {
-    console.warn('[DELETE /api/tasks/[id]] activity log network error:', err instanceof Error ? err.message : String(err));
-  });
+  void Promise.resolve(
+    db.from('activities').insert({
+      type: 'task',
+      description: `Task deleted (id: ${id})`,
+    }),
+  )
+    .then(({ error: actErr }) => {
+      if (actErr) console.warn('[DELETE /api/tasks/[id]] activity log failed:', actErr.message);
+    })
+    .catch((err: unknown) => {
+      console.warn(
+        '[DELETE /api/tasks/[id]] activity log network error:',
+        err instanceof Error ? err.message : String(err),
+      );
+    });
 
   return NextResponse.json({ success: true });
 }

@@ -4,7 +4,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { motionTiming } from '@/lib/motion';
 
 type Theme = 'light' | 'dark';
-interface ThemeContextType { theme: Theme; toggleTheme: () => void; }
+interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
+}
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -19,7 +22,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = () => {
-    setTheme(prev => {
+    setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
       document.documentElement.classList.add('theme-transition');
       window.setTimeout(() => {

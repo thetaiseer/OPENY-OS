@@ -22,9 +22,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-
-const VALID_EVENT_TYPES  = ['task', 'publishing', 'deadline', 'meeting', 'reminder', 'other'] as const;
-const VALID_STATUSES     = ['active', 'cancelled', 'completed'] as const;
+const VALID_EVENT_TYPES = [
+  'task',
+  'publishing',
+  'deadline',
+  'meeting',
+  'reminder',
+  'other',
+] as const;
+const VALID_STATUSES = ['active', 'cancelled', 'completed'] as const;
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -33,12 +39,12 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const clientId             = searchParams.get('client_id');
-  const eventType            = searchParams.get('event_type');
-  const status               = searchParams.get('status');
-  const dateFrom             = searchParams.get('date_from');
-  const dateTo               = searchParams.get('date_to');
-  const taskId               = searchParams.get('task_id');
+  const clientId = searchParams.get('client_id');
+  const eventType = searchParams.get('event_type');
+  const status = searchParams.get('status');
+  const dateFrom = searchParams.get('date_from');
+  const dateTo = searchParams.get('date_to');
+  const taskId = searchParams.get('task_id');
   const publishingScheduleId = searchParams.get('publishing_schedule_id');
 
   try {
@@ -46,19 +52,21 @@ export async function GET(req: NextRequest) {
 
     let query = db
       .from('calendar_events')
-      .select(`
+      .select(
+        `
         *,
         client:clients(id, name),
         task:tasks(id, title, status, priority)
-      `)
+      `,
+      )
       .order('starts_at', { ascending: true });
 
-    if (clientId)             query = query.eq('client_id', clientId);
-    if (eventType)            query = query.eq('event_type', eventType);
-    if (status)               query = query.eq('status', status);
-    if (dateFrom)             query = query.gte('starts_at', dateFrom);
-    if (dateTo)               query = query.lte('starts_at', dateTo);
-    if (taskId)               query = query.eq('task_id', taskId);
+    if (clientId) query = query.eq('client_id', clientId);
+    if (eventType) query = query.eq('event_type', eventType);
+    if (status) query = query.eq('status', status);
+    if (dateFrom) query = query.gte('starts_at', dateFrom);
+    if (dateTo) query = query.lte('starts_at', dateTo);
+    if (taskId) query = query.eq('task_id', taskId);
     if (publishingScheduleId) query = query.eq('publishing_schedule_id', publishingScheduleId);
 
     const { data, error } = await query;
@@ -88,8 +96,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const title     = typeof body.title     === 'string' ? body.title.trim()     : '';
-  const startsAt  = typeof body.starts_at === 'string' ? body.starts_at.trim() : '';
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  const startsAt = typeof body.starts_at === 'string' ? body.starts_at.trim() : '';
 
   if (!title) {
     return NextResponse.json({ success: false, error: 'title is required' }, { status: 400 });
@@ -99,27 +107,30 @@ export async function POST(req: NextRequest) {
   }
 
   const rawEventType = typeof body.event_type === 'string' ? body.event_type : 'task';
-  const eventType    = (VALID_EVENT_TYPES as readonly string[]).includes(rawEventType) ? rawEventType : 'task';
+  const eventType = (VALID_EVENT_TYPES as readonly string[]).includes(rawEventType)
+    ? rawEventType
+    : 'task';
 
   const rawStatus = typeof body.status === 'string' ? body.status : 'active';
-  const status    = (VALID_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : 'active';
+  const status = (VALID_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : 'active';
 
-  const clientId             = typeof body.client_id              === 'string' ? body.client_id.trim()              : '';
-  const taskId               = typeof body.task_id                === 'string' ? body.task_id.trim()                : '';
-  const publishingScheduleId = typeof body.publishing_schedule_id === 'string' ? body.publishing_schedule_id.trim() : '';
-  const endsAt               = typeof body.ends_at                === 'string' ? body.ends_at.trim()                : '';
-  const notes                = typeof body.notes                  === 'string' ? body.notes.trim()                  : '';
+  const clientId = typeof body.client_id === 'string' ? body.client_id.trim() : '';
+  const taskId = typeof body.task_id === 'string' ? body.task_id.trim() : '';
+  const publishingScheduleId =
+    typeof body.publishing_schedule_id === 'string' ? body.publishing_schedule_id.trim() : '';
+  const endsAt = typeof body.ends_at === 'string' ? body.ends_at.trim() : '';
+  const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
 
   const insertPayload: Record<string, unknown> = {
     title,
-    starts_at:             startsAt,
-    event_type:            eventType,
+    starts_at: startsAt,
+    event_type: eventType,
     status,
-    client_id:             clientId             || null,
-    task_id:               taskId               || null,
+    client_id: clientId || null,
+    task_id: taskId || null,
     publishing_schedule_id: publishingScheduleId || null,
-    ends_at:               endsAt               || null,
-    notes:                 notes                || null,
+    ends_at: endsAt || null,
+    notes: notes || null,
   };
 
   try {

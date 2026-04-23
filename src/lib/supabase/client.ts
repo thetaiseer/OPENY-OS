@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
@@ -20,11 +20,12 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
       get(_target, prop) {
         // Return nested proxies so call-chains like supabase.from('x').select() don't throw.
         if (typeof prop === 'string') {
-          return (..._args: unknown[]) => new Proxy({} as object, {
-            get(_t2, _p2) {
-              return (..._a: unknown[]) => Promise.resolve({ data: null, error: null });
-            },
-          });
+          return (..._args: unknown[]) =>
+            new Proxy({} as object, {
+              get(_t2, _p2) {
+                return (..._a: unknown[]) => Promise.resolve({ data: null, error: null });
+              },
+            });
         }
         return undefined;
       },

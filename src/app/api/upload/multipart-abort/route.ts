@@ -30,17 +30,17 @@ export async function POST(req: NextRequest) {
   }
 
   const storageKey = (body.storageKey as string | undefined)?.trim() ?? '';
-  const uploadId   = (body.uploadId   as string | undefined)?.trim() ?? '';
+  const uploadId = (body.uploadId as string | undefined)?.trim() ?? '';
 
   if (!storageKey) return NextResponse.json({ error: 'storageKey is required' }, { status: 400 });
-  if (!uploadId)   return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
+  if (!uploadId) return NextResponse.json({ error: 'uploadId is required' }, { status: 400 });
 
   try {
     await abortMultipartUploadSession(storageKey, uploadId);
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/multipart-abort] failed:', msg);
     // A failed abort is not fatal for the caller; log and return the error.

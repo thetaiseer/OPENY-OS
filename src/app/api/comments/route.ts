@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireRole(request, ['admin', 'manager', 'team_member', 'client']);
   if (auth instanceof NextResponse) return auth;
 
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const content = typeof body?.content === 'string' ? body.content.trim() : '';
   const taskId = typeof body?.task_id === 'string' ? body.task_id : null;
   const assetId = typeof body?.asset_id === 'string' ? body.asset_id : null;
@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'content is required' }, { status: 400 });
   }
   if (!taskId && !assetId) {
-    return NextResponse.json({ success: false, error: 'task_id or asset_id is required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'task_id or asset_id is required' },
+      { status: 400 },
+    );
   }
 
   const db = getServiceClient();
@@ -41,7 +44,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error || !inserted) {
-    return NextResponse.json({ success: false, error: error?.message ?? 'Failed to create comment' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error?.message ?? 'Failed to create comment' },
+      { status: 500 },
+    );
   }
 
   void (async () => {
@@ -79,7 +85,10 @@ export async function POST(request: NextRequest) {
         watcherUserIds: [...watcherIds],
       });
     } catch (err) {
-      console.warn('[POST /api/comments] notifyCommentAdded failed:', err instanceof Error ? err.message : String(err));
+      console.warn(
+        '[POST /api/comments] notifyCommentAdded failed:',
+        err instanceof Error ? err.message : String(err),
+      );
     }
   })();
 

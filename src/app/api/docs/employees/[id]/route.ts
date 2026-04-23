@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['viewer', 'team_member', 'manager', 'admin']);
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     .eq('id', id)
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data)  return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ employee: data });
 }
 
@@ -26,8 +28,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const db = getServiceClient();
   const { data: existing } = await db
@@ -48,13 +53,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (existing && typeof body.salary === 'number' && body.salary !== existing.salary) {
     const diff = (body.salary as number) - existing.salary;
     await db.from('docs_salary_adjustments').insert({
-      employee_id:    id,
-      new_salary:     body.salary,
-      change_amount:  Math.abs(diff),
-      change_type:    diff > 0 ? 'increase' : 'decrease',
+      employee_id: id,
+      new_salary: body.salary,
+      change_amount: Math.abs(diff),
+      change_type: diff > 0 ? 'increase' : 'decrease',
       effective_date: new Date().toISOString().slice(0, 10),
-      notes:          'Salary updated via employee edit',
-      created_by:     auth.profile.id,
+      notes: 'Salary updated via employee edit',
+      created_by: auth.profile.id,
     });
   }
 

@@ -10,7 +10,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST() {
   return NextResponse.json(
-    { success: false, error: 'Google Drive sync has been removed. Storage has migrated to Cloudflare R2.' },
+    {
+      success: false,
+      error: 'Google Drive sync has been removed. Storage has migrated to Cloudflare R2.',
+    },
     { status: 410 },
   );
 }

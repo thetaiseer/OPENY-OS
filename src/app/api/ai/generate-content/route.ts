@@ -17,12 +17,17 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many AI requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch {
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
     }
 
@@ -41,11 +46,14 @@ export async function POST(req: NextRequest) {
       '- Add relevant emojis throughout.',
       '- Add a block of relevant hashtags at the end (10-15 hashtags).',
       '- Return ONLY the post text, no preamble or explanation.',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     try {
       const content = await callAI({
-        system: 'You are a professional social media copywriter who writes complete, polished, ready-to-publish posts. Never shorten or truncate your output. Always write the full post.',
+        system:
+          'You are a professional social media copywriter who writes complete, polished, ready-to-publish posts. Never shorten or truncate your output. Always write the full post.',
         user: prompt,
         maxTokens: 2048,
         temperature: 0.8,
@@ -53,7 +61,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, content });
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
-        return NextResponse.json({ success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' }, { status: 503 });
+        return NextResponse.json(
+          { success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' },
+          { status: 503 },
+        );
       }
       const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       return NextResponse.json({ success: false, error: msg }, { status: 502 });

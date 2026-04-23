@@ -25,23 +25,34 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many AI requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch {
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
     }
 
     const { tasks, context } = body;
     if (!Array.isArray(tasks) || tasks.length === 0) {
-      return NextResponse.json({ success: false, error: 'tasks array is required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'tasks array is required' },
+        { status: 400 },
+      );
     }
 
-    const taskList = (tasks as TaskInput[]).map((t, i) =>
-      `${i + 1}. "${t.title}" — priority: ${t.priority}, due: ${t.due_date ?? 'no deadline'}, status: ${t.status}`
-    ).join('\n');
+    const taskList = (tasks as TaskInput[])
+      .map(
+        (t, i) =>
+          `${i + 1}. "${t.title}" — priority: ${t.priority}, due: ${t.due_date ?? 'no deadline'}, status: ${t.status}`,
+      )
+      .join('\n');
 
     const prompt = [
       'You are a project scheduling assistant.',
@@ -50,7 +61,9 @@ export async function POST(req: NextRequest) {
       taskList,
       'Return a JSON array of objects: [{"id":"...","suggestedOrder":1,"reason":"..."}]',
       'No extra text.',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     try {
       const raw = await callAI({
@@ -64,13 +77,19 @@ export async function POST(req: NextRequest) {
       try {
         schedule = JSON.parse(raw) as typeof schedule;
       } catch {
-        return NextResponse.json({ success: false, error: 'AI returned invalid schedule format' }, { status: 502 });
+        return NextResponse.json(
+          { success: false, error: 'AI returned invalid schedule format' },
+          { status: 502 },
+        );
       }
 
       return NextResponse.json({ success: true, schedule });
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
-        return NextResponse.json({ success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' }, { status: 503 });
+        return NextResponse.json(
+          { success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' },
+          { status: 503 },
+        );
       }
       const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       return NextResponse.json({ success: false, error: msg }, { status: 502 });

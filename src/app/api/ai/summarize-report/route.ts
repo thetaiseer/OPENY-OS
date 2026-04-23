@@ -17,25 +17,35 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many AI requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch {
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
     }
 
     const { reportData } = body;
     if (!reportData) {
-      return NextResponse.json({ success: false, error: 'reportData is required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'reportData is required' },
+        { status: 400 },
+      );
     }
 
-    const dataText = typeof reportData === 'string' ? reportData : JSON.stringify(reportData, null, 2);
+    const dataText =
+      typeof reportData === 'string' ? reportData : JSON.stringify(reportData, null, 2);
 
     try {
       const summary = await callAI({
-        system: 'You are a business analyst. Summarize the provided report data in 3-5 clear sentences highlighting key insights, trends, and any notable issues. Be concise and actionable.',
+        system:
+          'You are a business analyst. Summarize the provided report data in 3-5 clear sentences highlighting key insights, trends, and any notable issues. Be concise and actionable.',
         user: dataText.slice(0, 8000), // Limit input
         maxTokens: 400,
         temperature: 0.5,
@@ -43,7 +53,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, summary });
     } catch (aiErr: unknown) {
       if (aiErr instanceof AiUnconfiguredError) {
-        return NextResponse.json({ success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' }, { status: 503 });
+        return NextResponse.json(
+          { success: false, error: 'AI features not configured. Set GEMINI_API_KEY.' },
+          { status: 503 },
+        );
       }
       const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       return NextResponse.json({ success: false, error: msg }, { status: 502 });

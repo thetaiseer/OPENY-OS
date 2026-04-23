@@ -2,10 +2,22 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  Eye, Download, Link, Trash2,
-  File, FileText, FileImage, FileVideo, FileAudio,
-  MessageSquare, Send, Calendar,
-  Pencil, Check, X, Play,
+  Eye,
+  Download,
+  Link,
+  Trash2,
+  File,
+  FileText,
+  FileImage,
+  FileVideo,
+  FileAudio,
+  MessageSquare,
+  Send,
+  Calendar,
+  Pencil,
+  Check,
+  X,
+  Play,
 } from 'lucide-react';
 import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
 import type { Asset } from '@/lib/types';
@@ -13,7 +25,9 @@ import type { Asset } from '@/lib/types';
 // ── File-type helpers ─────────────────────────────────────────────────────────
 
 export function isImage(name: string, type?: string | null): boolean {
-  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false);
+  return (
+    /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/i.test(name) || (type?.startsWith('image/') ?? false)
+  );
 }
 export function isPdf(name: string, type?: string | null): boolean {
   return /\.pdf$/i.test(name) || type === 'application/pdf';
@@ -35,11 +49,18 @@ export function formatFileSize(bytes?: number | null): string {
 
 export function formatFileDate(iso?: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function getFileTypeLabel(name: string, type?: string | null): string {
-  if (type) { const sub = type.split('/')[1]?.toUpperCase(); if (sub) return sub; }
+  if (type) {
+    const sub = type.split('/')[1]?.toUpperCase();
+    if (sub) return sub;
+  }
   return name.split('.').pop()?.toUpperCase() ?? 'FILE';
 }
 
@@ -47,18 +68,26 @@ export function getFileTypeLabel(name: string, type?: string | null): string {
 export function formatDuration(seconds: number | null | undefined): string | null {
   if (seconds == null || !isFinite(seconds) || seconds < 0) return null;
   const total = Math.round(seconds);
-  const h     = Math.floor(total / 3600);
-  const m     = Math.floor((total % 3600) / 60);
-  const s     = total % 60;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: string | null; size?: number }) {
+export function FileTypeIcon({
+  name,
+  type,
+  size = 40,
+}: {
+  name: string;
+  type?: string | null;
+  size?: number;
+}) {
   if (isImage(name, type)) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
-  if (isPdf(name, type))   return <FileText  size={size} style={{ color: '#ef4444' }} />;
+  if (isPdf(name, type)) return <FileText size={size} style={{ color: '#ef4444' }} />;
   if (isVideo(name, type)) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
   if (isAudio(name, type)) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
@@ -67,13 +96,26 @@ export function FileTypeIcon({ name, type, size = 40 }: { name: string; type?: s
 /** Hidden fallback shown when a preview image fails to load. */
 function ThumbFallback({ name, type }: { name: string; type?: string | null }) {
   return (
-    <div className="flex hidden w-full h-full items-center justify-center">
+    <div className="flex hidden h-full w-full items-center justify-center">
       <FileTypeIcon name={name} type={type} size={36} />
     </div>
   );
 }
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 function monthLabel(mm: string): string {
   const idx = parseInt(mm, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx > 11) return mm;
@@ -121,50 +163,70 @@ export function AssetCard({
   onSchedule,
 }: AssetCardProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName]   = useState(asset.name);
-  const [renaming, setRenaming]   = useState(false);
+  const [editName, setEditName] = useState(asset.name);
+  const [renaming, setRenaming] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setEditName(asset.name); }, [asset.name]);
+  useEffect(() => {
+    setEditName(asset.name);
+  }, [asset.name]);
 
-  const startEdit  = () => { setEditName(asset.name); setIsEditing(true); setTimeout(() => inputRef.current?.select(), 0); };
-  const cancelEdit = () => { setIsEditing(false); setEditName(asset.name); };
+  const startEdit = () => {
+    setEditName(asset.name);
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditName(asset.name);
+  };
   const commitEdit = async () => {
     const trimmed = editName.trim();
-    if (!trimmed || trimmed === asset.name || !onRename) { cancelEdit(); return; }
+    if (!trimmed || trimmed === asset.name || !onRename) {
+      cancelEdit();
+      return;
+    }
     setRenaming(true);
-    try { await onRename(trimmed); setIsEditing(false); } finally { setRenaming(false); }
+    try {
+      await onRename(trimmed);
+      setIsEditing(false);
+    } finally {
+      setRenaming(false);
+    }
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); void commitEdit(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void commitEdit();
+    }
     if (e.key === 'Escape') cancelEdit();
   };
 
   const effectiveMime = asset.file_type ?? asset.mime_type ?? undefined;
-  const img     = isImage(asset.name, effectiveMime);
-  const vid     = isVideo(asset.name, effectiveMime);
-  const pdf     = isPdf(asset.name, effectiveMime);
+  const img = isImage(asset.name, effectiveMime);
+  const vid = isVideo(asset.name, effectiveMime);
+  const pdf = isPdf(asset.name, effectiveMime);
   const downloadUrl = asset.download_url ?? asset.file_url;
   // For images: use thumbnail_url → preview_url → file_url.
   // For videos: use thumbnail_url only (a proper image thumbnail uploaded separately).
   // For PDFs: use preview_url (first-page render) if available.
-  const imgThumbSrc = img ? (asset.thumbnail_url || asset.preview_url || asset.file_url || '') : '';
-  const vidThumbSrc = vid ? (asset.thumbnail_url || '') : '';
-  const pdfThumbSrc = pdf ? (asset.preview_url || asset.thumbnail_url || '') : '';
+  const imgThumbSrc = img ? asset.thumbnail_url || asset.preview_url || asset.file_url || '' : '';
+  const vidThumbSrc = vid ? asset.thumbnail_url || '' : '';
+  const pdfThumbSrc = pdf ? asset.preview_url || asset.thumbnail_url || '' : '';
   const showImageThumb = img && !!imgThumbSrc;
   const showVideoThumb = vid && !!vidThumbSrc;
-  const showPdfThumb   = pdf && !!pdfThumbSrc;
+  const showPdfThumb = pdf && !!pdfThumbSrc;
 
   const durationLabel = vid ? formatDuration(asset.duration_seconds) : null;
 
   return (
     <div
-      className="group rounded-2xl border overflow-hidden flex flex-col"
+      className="group flex flex-col overflow-hidden rounded-2xl border"
       style={{
-        background:   'var(--surface)',
-        borderColor:  selected ? 'var(--accent)' : 'var(--border)',
-        boxShadow:    selected ? '0 0 0 2px var(--accent)' : undefined,
-        cursor:       selectable ? 'pointer' : undefined,
+        background: 'var(--surface)',
+        borderColor: selected ? 'var(--accent)' : 'var(--border)',
+        boxShadow: selected ? '0 0 0 2px var(--accent)' : undefined,
+        cursor: selectable ? 'pointer' : undefined,
       }}
       onClick={selectable ? onToggleSelect : undefined}
     >
@@ -180,13 +242,21 @@ export function AssetCard({
             role="checkbox"
             aria-checked={selected}
             tabIndex={0}
-            className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border-2 transition-colors"
+            className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded border-2 transition-colors"
             style={{
-              background:  selected ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
+              background: selected ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
               borderColor: selected ? 'var(--accent)' : 'rgba(0,0,0,0.2)',
             }}
-            onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}
-            onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggleSelect?.(); } }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                onToggleSelect?.();
+              }
+            }}
           >
             {selected && <Check size={11} className="text-white" />}
           </div>
@@ -197,9 +267,9 @@ export function AssetCard({
             <img
               src={imgThumbSrc}
               alt={asset.name}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               loading="lazy"
-              onError={e => {
+              onError={(e) => {
                 e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
                 fb?.classList.remove('hidden');
@@ -213,9 +283,9 @@ export function AssetCard({
             <img
               src={vidThumbSrc}
               alt={asset.name}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               loading="lazy"
-              onError={e => {
+              onError={(e) => {
                 e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
                 fb?.classList.remove('hidden');
@@ -223,25 +293,29 @@ export function AssetCard({
             />
             {/* Play icon overlay */}
             <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
               aria-hidden="true"
             >
               <div
-                className="flex items-center justify-center w-10 h-10 rounded-full"
+                className="flex h-10 w-10 items-center justify-center rounded-full"
                 style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
               >
-                <Play size={18} className="text-white ml-0.5" />
+                <Play size={18} className="ml-0.5 text-white" />
               </div>
             </div>
             {/* Duration badge */}
             {durationLabel && (
               <div
-                className="absolute bottom-1.5 right-1.5 pointer-events-none"
+                className="pointer-events-none absolute bottom-1.5 right-1.5"
                 aria-label={`Duration: ${durationLabel}`}
               >
                 <span
-                  className="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded"
-                  style={{ background: 'rgba(0,0,0,0.65)', color: '#fff', backdropFilter: 'blur(2px)' }}
+                  className="rounded px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                  style={{
+                    background: 'rgba(0,0,0,0.65)',
+                    color: '#fff',
+                    backdropFilter: 'blur(2px)',
+                  }}
                 >
                   {durationLabel}
                 </span>
@@ -255,9 +329,9 @@ export function AssetCard({
             <img
               src={pdfThumbSrc}
               alt={asset.name}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               loading="lazy"
-              onError={e => {
+              onError={(e) => {
                 e.currentTarget.classList.add('hidden');
                 const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
                 fb?.classList.remove('hidden');
@@ -266,49 +340,78 @@ export function AssetCard({
             <ThumbFallback name={asset.name} type={effectiveMime} />
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center">
             <FileTypeIcon name={asset.name} type={effectiveMime} size={36} />
           </div>
         )}
         <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: 'rgba(0,0,0,0.35)', pointerEvents: selectable ? 'none' : 'auto', cursor: 'pointer' }}
+          className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+          style={{
+            background: 'rgba(0,0,0,0.35)',
+            pointerEvents: selectable ? 'none' : 'auto',
+            cursor: 'pointer',
+          }}
           onClick={selectable ? undefined : onView}
         >
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
             <Eye size={18} className="text-white" />
           </div>
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-3 flex-1 flex flex-col gap-0.5 min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-3">
         {isEditing ? (
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
               ref={inputRef}
               value={editName}
-              onChange={e => setEditName(e.target.value)}
+              onChange={(e) => setEditName(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={renaming}
-              className="flex-1 text-sm font-medium rounded px-1 py-0.5 min-w-0 outline-none border"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', borderColor: 'var(--accent)' }}
+              className="min-w-0 flex-1 rounded border px-1 py-0.5 text-sm font-medium outline-none"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                borderColor: 'var(--accent)',
+              }}
             />
-            <button onClick={() => void commitEdit()} disabled={renaming} title="Save" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: '#16a34a' }}>
+            <button
+              onClick={() => void commitEdit()}
+              disabled={renaming}
+              title="Save"
+              className="flex h-6 w-6 items-center justify-center rounded hover:opacity-70"
+              style={{ color: '#16a34a' }}
+            >
               <Check size={13} />
             </button>
-            <button onClick={cancelEdit} disabled={renaming} title="Cancel" className="flex items-center justify-center h-6 w-6 rounded hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <button
+              onClick={cancelEdit}
+              disabled={renaming}
+              title="Cancel"
+              className="flex h-6 w-6 items-center justify-center rounded hover:opacity-70"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <X size={13} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1 group/name min-w-0">
-            <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text)' }} title={asset.name}>{asset.name}</p>
+          <div className="group/name flex min-w-0 items-center gap-1">
+            <p
+              className="flex-1 truncate text-sm font-medium"
+              style={{ color: 'var(--text)' }}
+              title={asset.name}
+            >
+              {asset.name}
+            </p>
             {canRename && onRename && (
               <button
-                onClick={e => { e.stopPropagation(); startEdit(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEdit();
+                }}
                 title="Rename"
-                className="opacity-0 group-hover/name:opacity-100 flex items-center justify-center h-5 w-5 rounded hover:opacity-70 shrink-0"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:opacity-70 group-hover/name:opacity-100"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <Pencil size={11} />
@@ -317,22 +420,33 @@ export function AssetCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <span
+            className="rounded px-1.5 py-0.5 text-xs font-medium"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+          >
             {getFileTypeLabel(asset.name, effectiveMime)}
           </span>
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatFileSize(asset.file_size)}</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {formatFileSize(asset.file_size)}
+          </span>
         </div>
 
         {(asset.main_category || asset.sub_category) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
             {asset.main_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
+              <span
+                className="rounded px-1.5 py-0.5 text-xs font-medium"
+                style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+              >
                 {mainCategoryLabel(asset.main_category)}
               </span>
             )}
             {asset.sub_category && (
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+              <span
+                className="rounded px-1.5 py-0.5 text-xs"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              >
                 {subCategoryLabel(asset.main_category ?? '', asset.sub_category)}
               </span>
             )}
@@ -340,9 +454,12 @@ export function AssetCard({
         )}
 
         {(asset.client_name || asset.month_key) && (
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
             {asset.client_name && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}>
+              <span
+                className="rounded px-1.5 py-0.5 text-xs font-medium"
+                style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+              >
                 {asset.client_name}
               </span>
             )}
@@ -354,40 +471,52 @@ export function AssetCard({
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
           {scheduleCount != null && scheduleCount > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
-              <Send size={10} />{scheduleCount} scheduled
+            <span
+              className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-medium"
+              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
+            >
+              <Send size={10} />
+              {scheduleCount} scheduled
             </span>
           )}
           {nextScheduleDate && (
-            <span className="text-xs flex items-center gap-0.5" style={{ color: '#7c3aed' }}>
-              <Calendar size={10} />{new Date(nextScheduleDate).toLocaleDateString()}
+            <span className="flex items-center gap-0.5 text-xs" style={{ color: '#7c3aed' }}>
+              <Calendar size={10} />
+              {new Date(nextScheduleDate).toLocaleDateString()}
             </span>
           )}
         </div>
-        <span className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{formatFileDate(asset.created_at)}</span>
+        <span className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {formatFileDate(asset.created_at)}
+        </span>
       </div>
 
       {/* Actions */}
-      <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
+      <div
+        className="flex flex-wrap items-center gap-1.5 px-3 pb-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onView}
           title="View"
-          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70"
+          className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium hover:opacity-70"
           style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
         >
-          <Eye size={13} /><span>View</span>
+          <Eye size={13} />
+          <span>View</span>
         </button>
 
         {onSchedule && (
           <button
             onClick={onSchedule}
             title="Schedule"
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium hover:opacity-70"
+            className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium hover:opacity-70"
             style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
           >
-            <Send size={13} /><span>Schedule</span>
+            <Send size={13} />
+            <span>Schedule</span>
           </button>
         )}
 
@@ -395,7 +524,7 @@ export function AssetCard({
           href={downloadUrl}
           download={asset.name}
           title="Download"
-          className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
+          className="flex h-8 w-8 items-center justify-center rounded-lg hover:opacity-70"
           style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
         >
           <Download size={14} />
@@ -404,7 +533,7 @@ export function AssetCard({
         <button
           onClick={onCopyLink}
           title="Copy link"
-          className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
+          className="flex h-8 w-8 items-center justify-center rounded-lg hover:opacity-70"
           style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
         >
           <Link size={14} />
@@ -414,7 +543,7 @@ export function AssetCard({
           <button
             onClick={onComments}
             title="Comments"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:opacity-70"
             style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
           >
             <MessageSquare size={14} />
@@ -425,7 +554,7 @@ export function AssetCard({
           <button
             onClick={onDelete}
             title="Delete"
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:opacity-70"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:opacity-70"
             style={{ background: 'var(--surface-2)', color: '#ef4444' }}
           >
             <Trash2 size={14} />
@@ -475,8 +604,8 @@ export function AssetsGrid({
   onSchedule,
 }: AssetsGridProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      {assets.map(asset => (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {assets.map((asset) => (
         <AssetCard
           key={asset.id}
           asset={asset}

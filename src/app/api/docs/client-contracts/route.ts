@@ -8,22 +8,22 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const status   = searchParams.get('status')      ?? '';
-  const language = searchParams.get('language')    ?? '';
-  const search   = searchParams.get('search')      ?? '';
-  const sort     = searchParams.get('sort')        ?? 'created_at';
-  const order    = searchParams.get('order')       === 'asc';
-  const dateFrom = searchParams.get('date_from')   ?? '';
-  const dateTo   = searchParams.get('date_to')     ?? '';
+  const status = searchParams.get('status') ?? '';
+  const language = searchParams.get('language') ?? '';
+  const search = searchParams.get('search') ?? '';
+  const sort = searchParams.get('sort') ?? 'created_at';
+  const order = searchParams.get('order') === 'asc';
+  const dateFrom = searchParams.get('date_from') ?? '';
+  const dateTo = searchParams.get('date_to') ?? '';
 
   const db = getServiceClient();
   let q = db.from('docs_client_contracts').select('*').order(sort, { ascending: order });
 
-  if (status)   q = q.eq('status', status);
+  if (status) q = q.eq('status', status);
   if (language) q = q.eq('language', language);
   if (dateFrom) q = q.gte('contract_date', dateFrom);
-  if (dateTo)   q = q.lte('contract_date', dateTo);
-  if (search)   q = q.or(`contract_number.ilike.%${search}%,party2_client_name.ilike.%${search}%`);
+  if (dateTo) q = q.lte('contract_date', dateTo);
+  if (search) q = q.or(`contract_number.ilike.%${search}%,party2_client_name.ilike.%${search}%`);
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,11 +35,15 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const { contract_number } = body as { contract_number?: string };
-  if (!contract_number?.trim()) return NextResponse.json({ error: 'contract_number is required' }, { status: 400 });
+  if (!contract_number?.trim())
+    return NextResponse.json({ error: 'contract_number is required' }, { status: 400 });
 
   const db = getServiceClient();
   const { data, error } = await db

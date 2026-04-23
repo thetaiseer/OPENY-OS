@@ -29,28 +29,51 @@ import { requireRole } from '@/lib/api-auth';
 import { notifyTaskCreated } from '@/lib/notification-service';
 import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 
-
 const VALID_STATUSES = [
-  'todo', 'in_progress', 'in_review', 'review', 'waiting_client',
-  'approved', 'scheduled', 'published', 'done', 'completed',
-  'delivered', 'overdue', 'cancelled',
+  'todo',
+  'in_progress',
+  'in_review',
+  'review',
+  'waiting_client',
+  'approved',
+  'scheduled',
+  'published',
+  'done',
+  'completed',
+  'delivered',
+  'overdue',
+  'cancelled',
 ] as const;
 
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
 
 const VALID_TASK_CATEGORIES = [
-  'internal_task', 'content_creation', 'design_task',
-  'publishing_task', 'asset_upload_task', 'follow_up_task',
+  'internal_task',
+  'content_creation',
+  'design_task',
+  'publishing_task',
+  'asset_upload_task',
+  'follow_up_task',
 ] as const;
 
 const VALID_CONTENT_PURPOSES = [
-  'awareness', 'engagement', 'promotion', 'branding',
-  'lead_generation', 'announcement', 'offer_campaign',
+  'awareness',
+  'engagement',
+  'promotion',
+  'branding',
+  'lead_generation',
+  'announcement',
+  'offer_campaign',
 ] as const;
 
 const VALID_PLATFORMS = [
-  'instagram', 'facebook', 'tiktok', 'linkedin',
-  'twitter', 'snapchat', 'youtube_shorts',
+  'instagram',
+  'facebook',
+  'tiktok',
+  'linkedin',
+  'twitter',
+  'snapchat',
+  'youtube_shorts',
 ] as const;
 
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
@@ -110,11 +133,13 @@ export async function POST(request: NextRequest) {
   }
 
   // 4. Build insert payload (only allow known fields)
-  const rawStatus   = typeof body.status   === 'string' ? body.status   : 'todo';
+  const rawStatus = typeof body.status === 'string' ? body.status : 'todo';
   const rawPriority = typeof body.priority === 'string' ? body.priority : 'medium';
 
-  const status   = (VALID_STATUSES   as readonly string[]).includes(rawStatus)   ? rawStatus   : 'todo';
-  const priority = (VALID_PRIORITIES as readonly string[]).includes(rawPriority) ? rawPriority : 'medium';
+  const status = (VALID_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : 'todo';
+  const priority = (VALID_PRIORITIES as readonly string[]).includes(rawPriority)
+    ? rawPriority
+    : 'medium';
 
   const insertPayload: Record<string, unknown> = {
     title,
@@ -123,7 +148,7 @@ export async function POST(request: NextRequest) {
     due_date: dueDate,
   };
 
-  if (clientId)   insertPayload.client_id   = clientId;
+  if (clientId) insertPayload.client_id = clientId;
   if (assignedTo) insertPayload.assigned_to = assignedTo;
 
   const description = typeof body.description === 'string' ? body.description.trim() : '';
@@ -145,7 +170,8 @@ export async function POST(request: NextRequest) {
   const clientName = typeof body.client_name === 'string' ? body.client_name.trim() : '';
   if (clientName) insertPayload.client_name = clientName;
 
-  const contentPurpose = typeof body.content_purpose === 'string' ? body.content_purpose.trim() : '';
+  const contentPurpose =
+    typeof body.content_purpose === 'string' ? body.content_purpose.trim() : '';
   if (contentPurpose && (VALID_CONTENT_PURPOSES as readonly string[]).includes(contentPurpose)) {
     insertPayload.content_purpose = contentPurpose;
   }
@@ -157,26 +183,29 @@ export async function POST(request: NextRequest) {
   if (createdBy) insertPayload.created_by = createdBy;
 
   if (Array.isArray(body.mentions)) {
-    insertPayload.mentions = (body.mentions as unknown[]).filter(m => typeof m === 'string');
+    insertPayload.mentions = (body.mentions as unknown[]).filter((m) => typeof m === 'string');
   }
 
   if (Array.isArray(body.tags)) {
-    insertPayload.tags = (body.tags as unknown[]).filter(t => typeof t === 'string');
+    insertPayload.tags = (body.tags as unknown[]).filter((t) => typeof t === 'string');
   }
 
   if (Array.isArray(body.platforms)) {
     insertPayload.platforms = (body.platforms as unknown[]).filter(
-      (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
+      (p): p is string =>
+        typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
     );
   }
 
   if (Array.isArray(body.post_types)) {
     insertPayload.post_types = (body.post_types as unknown[]).filter(
-      (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+      (pt): pt is string =>
+        typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
     );
   }
 
-  const publishingScheduleId = typeof body.publishing_schedule_id === 'string' ? body.publishing_schedule_id.trim() : '';
+  const publishingScheduleId =
+    typeof body.publishing_schedule_id === 'string' ? body.publishing_schedule_id.trim() : '';
   if (publishingScheduleId) insertPayload.publishing_schedule_id = publishingScheduleId;
 
   const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
@@ -222,7 +251,12 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error('[POST /api/tasks] db_insert error — code:', error.code, '| message:', error.message);
+    console.error(
+      '[POST /api/tasks] db_insert error — code:',
+      error.code,
+      '| message:',
+      error.message,
+    );
     return NextResponse.json(
       { success: false, step: 'db_insert', error: error.message },
       { status: 500 },
@@ -231,7 +265,10 @@ export async function POST(request: NextRequest) {
 
   // If an asset was provided, link the asset back to this task (fire-and-forget)
   if (assetId && data?.id) {
-    void db.from('assets').update({ task_id: data.id }).eq('id', assetId)
+    void db
+      .from('assets')
+      .update({ task_id: data.id })
+      .eq('id', assetId)
       .then(({ error: aErr }) => {
         if (aErr) console.warn('[POST /api/tasks] asset link failed:', aErr.message);
       });
@@ -239,18 +276,21 @@ export async function POST(request: NextRequest) {
 
   // Insert task_asset_links for all provided asset IDs
   if (assetIds.length > 0 && data?.id) {
-    const linkRows = assetIds.map(aid => ({
-      task_id:   data.id,
-      asset_id:  aid,
+    const linkRows = assetIds.map((aid) => ({
+      task_id: data.id,
+      asset_id: aid,
       linked_by: auth.profile.id ?? null,
     }));
-    void db.from('task_asset_links')
+    void db
+      .from('task_asset_links')
       .upsert(linkRows, { onConflict: 'task_id,asset_id' })
       .then(({ error: linkErr }) => {
-        if (linkErr) console.warn('[POST /api/tasks] task_asset_links insert failed:', linkErr.message);
+        if (linkErr)
+          console.warn('[POST /api/tasks] task_asset_links insert failed:', linkErr.message);
       });
     // Also update assets.status → 'linked' and assets.task_id (best-effort)
-    void db.from('assets')
+    void db
+      .from('assets')
       .update({ task_id: data.id, status: 'linked' })
       .in('id', assetIds)
       .then(({ error: aErr }) => {
@@ -259,33 +299,44 @@ export async function POST(request: NextRequest) {
   }
 
   // Activity log (fire-and-forget — never blocks response)
-  void Promise.resolve(db.from('activities').insert({
-    type:        'task',
-    description: `Task "${title}" created`,
-    client_id:   clientId || null,
-    entity_type: 'task',
-    entity_id:   data?.id ?? null,
-    user_uuid:   auth.profile.id ?? null,
-  })).then(({ error: actErr }) => {
-    if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
-  }).catch((err: unknown) => {
-    console.warn('[POST /api/tasks] activity log network error:', err instanceof Error ? err.message : String(err));
-  });
+  void Promise.resolve(
+    db.from('activities').insert({
+      type: 'task',
+      description: `Task "${title}" created`,
+      client_id: clientId || null,
+      entity_type: 'task',
+      entity_id: data?.id ?? null,
+      user_uuid: auth.profile.id ?? null,
+    }),
+  )
+    .then(({ error: actErr }) => {
+      if (actErr) console.warn('[POST /api/tasks] activity log failed:', actErr.message);
+    })
+    .catch((err: unknown) => {
+      console.warn(
+        '[POST /api/tasks] activity log network error:',
+        err instanceof Error ? err.message : String(err),
+      );
+    });
 
   // Auto-create calendar event for tasks with a due date (fire-and-forget)
   if (data?.id && dueDate) {
     const calStartsAt = dueTime ? `${dueDate}T${dueTime}` : `${dueDate}T09:00:00`;
-    void db.from('calendar_events').insert({
-      title:      title,
-      event_type: 'task',
-      starts_at:  calStartsAt,
-      client_id:  clientId || null,
-      task_id:    data.id,
-      status:     'active',
-      notes:      description || null,
-    }).then(({ error: calErr }) => {
-      if (calErr) console.warn('[POST /api/tasks] calendar event auto-create failed:', calErr.message);
-    });
+    void db
+      .from('calendar_events')
+      .insert({
+        title: title,
+        event_type: 'task',
+        starts_at: calStartsAt,
+        client_id: clientId || null,
+        task_id: data.id,
+        status: 'active',
+        notes: description || null,
+      })
+      .then(({ error: calErr }) => {
+        if (calErr)
+          console.warn('[POST /api/tasks] calendar event auto-create failed:', calErr.message);
+      });
   }
 
   // Auto-create publishing schedule for publishing_task category
@@ -293,18 +344,18 @@ export async function POST(request: NextRequest) {
     void (async () => {
       try {
         const schedPayload: Record<string, unknown> = {
-          asset_id:       assetId || null,
-          client_id:      clientId || null,
-          client_name:    data.client_name || clientName || null,
+          asset_id: assetId || null,
+          client_id: clientId || null,
+          client_name: data.client_name || clientName || null,
           scheduled_date: dueDate,
           scheduled_time: dueTime || '09:00:00',
-          timezone:       insertPayload.timezone || 'UTC',
-          platforms:      insertPayload.platforms || [],
-          post_types:     insertPayload.post_types || [],
-          caption:        caption || null,
-          status:         'scheduled',
-          task_id:        data.id,
-          created_by:     createdBy || null,
+          timezone: insertPayload.timezone || 'UTC',
+          platforms: insertPayload.platforms || [],
+          post_types: insertPayload.post_types || [],
+          caption: caption || null,
+          status: 'scheduled',
+          task_id: data.id,
+          created_by: createdBy || null,
         };
         const { data: sched, error: schedErr } = await db
           .from('publishing_schedules')
@@ -312,12 +363,18 @@ export async function POST(request: NextRequest) {
           .select()
           .single();
         if (schedErr) {
-          console.warn('[POST /api/tasks] publishing schedule auto-create failed:', schedErr.message);
+          console.warn(
+            '[POST /api/tasks] publishing schedule auto-create failed:',
+            schedErr.message,
+          );
         } else if (sched?.id) {
           await db.from('tasks').update({ publishing_schedule_id: sched.id }).eq('id', data.id);
         }
       } catch (e) {
-        console.warn('[POST /api/tasks] publishing schedule error:', e instanceof Error ? e.message : String(e));
+        console.warn(
+          '[POST /api/tasks] publishing schedule error:',
+          e instanceof Error ? e.message : String(e),
+        );
       }
     })();
   }
@@ -325,12 +382,12 @@ export async function POST(request: NextRequest) {
   // Fire notifications (side effect — never blocks)
   if (data?.id) {
     void notifyTaskCreated({
-      taskId:       data.id,
-      taskTitle:    title,
-      clientId:     clientId || null,
+      taskId: data.id,
+      taskTitle: title,
+      clientId: clientId || null,
       assignedToId: assignedTo || null,
-      createdById:  createdBy || null,
-      clientName:   data.client_name || clientName || null,
+      createdById: createdBy || null,
+      clientName: data.client_name || clientName || null,
     });
   }
 
@@ -351,19 +408,36 @@ export async function POST(request: NextRequest) {
             subject: `New Task: ${title}`,
             html: taskAssignedEmail({
               recipientName: member.full_name ?? member.email,
-              taskTitle:     title,
-              clientName:    data.client_name || clientName || undefined,
-              dueDate:       dueDate || undefined,
+              taskTitle: title,
+              clientName: data.client_name || clientName || undefined,
+              dueDate: dueDate || undefined,
               appUrl,
             }),
           });
-          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, eventType: 'task_assigned', entityType: 'task', entityId: data.id });
+          void logEmailSent({
+            to: assigneeEmail,
+            subject: `New Task: ${title}`,
+            eventType: 'task_assigned',
+            entityType: 'task',
+            entityId: data.id,
+          });
         }
       } catch (emailErr) {
-        console.warn('[POST /api/tasks] email failed:', emailErr instanceof Error ? emailErr.message : String(emailErr));
+        console.warn(
+          '[POST /api/tasks] email failed:',
+          emailErr instanceof Error ? emailErr.message : String(emailErr),
+        );
         // Only log failed email if we have a valid email address to log against
         if (assigneeEmail) {
-          void logEmailSent({ to: assigneeEmail, subject: `New Task: ${title}`, status: 'failed', error: String(emailErr), eventType: 'task_assigned', entityType: 'task', entityId: data?.id });
+          void logEmailSent({
+            to: assigneeEmail,
+            subject: `New Task: ${title}`,
+            status: 'failed',
+            error: String(emailErr),
+            eventType: 'task_assigned',
+            entityType: 'task',
+            entityId: data?.id,
+          });
         }
       }
     })();

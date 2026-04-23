@@ -65,11 +65,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
     [triggerQuickAction, registerQuickActionHandler, fallbackAction, clearFallbackAction],
   );
 
-  return (
-    <QuickActionsContext.Provider value={value}>
-      {children}
-    </QuickActionsContext.Provider>
-  );
+  return <QuickActionsContext.Provider value={value}>{children}</QuickActionsContext.Provider>;
 }
 
 export function useQuickActions() {

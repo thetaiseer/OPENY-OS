@@ -25,7 +25,7 @@ function getFileBaseName(name: string) {
 }
 
 function filesToItems(files: File[]): UploadFileItem[] {
-  return files.map(file => ({
+  return files.map((file) => ({
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     file,
     previewUrl: URL.createObjectURL(file),
@@ -45,7 +45,9 @@ export default function GlobalQuickActionModalHost() {
   const { fallbackAction, clearFallbackAction } = useQuickActions();
 
   const [assetFiles, setAssetFiles] = useState<UploadFileItem[]>([]);
-  const [uploadMainCategory, setUploadMainCategory] = useState<string>(MAIN_CATEGORIES[0]?.slug ?? 'other');
+  const [uploadMainCategory, setUploadMainCategory] = useState<string>(
+    MAIN_CATEGORIES[0]?.slug ?? 'other',
+  );
   const [uploadSubCategory, setUploadSubCategory] = useState('');
   const [uploadMonth, setUploadMonth] = useState(nowMonthKey());
   const [uploadClientName, setUploadClientName] = useState('');
@@ -82,13 +84,14 @@ export default function GlobalQuickActionModalHost() {
   }, [fallbackAction]);
 
   const quickTaskClients = useMemo<Client[]>(
-    () => clients.map(client => ({
-      ...client,
-      email: client.email ?? '',
-      status: (client.status ?? 'active') as Client['status'],
-      created_at: client.created_at ?? '',
-      updated_at: client.updated_at ?? '',
-    })),
+    () =>
+      clients.map((client) => ({
+        ...client,
+        email: client.email ?? '',
+        status: (client.status ?? 'active') as Client['status'],
+        created_at: client.created_at ?? '',
+        updated_at: client.updated_at ?? '',
+      })),
     [clients],
   );
 
@@ -99,36 +102,44 @@ export default function GlobalQuickActionModalHost() {
 
   const handleAssetAddFiles = (selected: FileList) => {
     const next = filesToItems(Array.from(selected));
-    setAssetFiles(prev => [...prev, ...next]);
+    setAssetFiles((prev) => [...prev, ...next]);
   };
 
   const handleAssetCancel = () => {
-    assetFiles.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+    assetFiles.forEach((item) => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
     setAssetFiles([]);
     clearFallbackAction();
   };
 
   const handleAssetConfirm = () => {
     if (!assetFiles.length) return;
-    startBatch(assetFiles.map(i => ({
-      id: i.id,
-      file: i.file,
-      previewUrl: i.previewUrl,
-      uploadName: i.uploadName,
-      thumbnailBlob: i.thumbnailBlob,
-      durationSeconds: i.durationSeconds,
-      previewBlob: i.previewBlob,
-    })), {
-      clientName: uploadClientName,
-      clientId: uploadClientId,
-      contentType: '',
-      mainCategory: uploadMainCategory,
-      subCategory: uploadSubCategory,
-      monthKey: uploadMonth,
-      uploadedBy: user?.name || user?.email || null,
-      uploadedByEmail: user?.email || null,
-    });
-    toast(`${assetFiles.length} file${assetFiles.length === 1 ? '' : 's'} queued for upload`, 'success');
+    startBatch(
+      assetFiles.map((i) => ({
+        id: i.id,
+        file: i.file,
+        previewUrl: i.previewUrl,
+        uploadName: i.uploadName,
+        thumbnailBlob: i.thumbnailBlob,
+        durationSeconds: i.durationSeconds,
+        previewBlob: i.previewBlob,
+      })),
+      {
+        clientName: uploadClientName,
+        clientId: uploadClientId,
+        contentType: '',
+        mainCategory: uploadMainCategory,
+        subCategory: uploadSubCategory,
+        monthKey: uploadMonth,
+        uploadedBy: user?.name || user?.email || null,
+        uploadedByEmail: user?.email || null,
+      },
+    );
+    toast(
+      `${assetFiles.length} file${assetFiles.length === 1 ? '' : 's'} queued for upload`,
+      'success',
+    );
     handleAssetCancel();
     handleGlobalCreated();
   };
@@ -182,13 +193,20 @@ export default function GlobalQuickActionModalHost() {
           onMainCategoryChange={setUploadMainCategory}
           onSubCategoryChange={setUploadSubCategory}
           onMonthChange={setUploadMonth}
-          onClientChange={(name, id) => { setUploadClientName(name); setUploadClientId(id); }}
-          onUploadNameChange={(id, name) => setAssetFiles(prev => prev.map(i => (i.id === id ? { ...i, uploadName: name } : i)))}
-          onRemoveFile={id => setAssetFiles(prev => {
-            const removed = prev.find(i => i.id === id);
-            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
-            return prev.filter(i => i.id !== id);
-          })}
+          onClientChange={(name, id) => {
+            setUploadClientName(name);
+            setUploadClientId(id);
+          }}
+          onUploadNameChange={(id, name) =>
+            setAssetFiles((prev) => prev.map((i) => (i.id === id ? { ...i, uploadName: name } : i)))
+          }
+          onRemoveFile={(id) =>
+            setAssetFiles((prev) => {
+              const removed = prev.find((i) => i.id === id);
+              if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+              return prev.filter((i) => i.id !== id);
+            })
+          }
           onAddFiles={(files) => {
             if (files.length) handleAssetAddFiles(files);
           }}

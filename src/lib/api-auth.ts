@@ -38,8 +38,8 @@ import {
 } from './permissions';
 import type { ModuleAccess, OsModule, DocsModule } from './types';
 
-const supabaseUrl            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // ── Profile cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache that avoids a redundant Supabase round-trip on
@@ -47,11 +47,11 @@ const supabaseAnonKey        = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // only the secondary team_members lookup is cached.
 // TTL: 60 s — role changes take effect within one minute.
 
-const PROFILE_CACHE_TTL_MS  = 60_000;
+const PROFILE_CACHE_TTL_MS = 60_000;
 const MAX_PROFILE_CACHE_SIZE = 500;
 
 interface CachedProfile {
-  profile:   UserProfile;
+  profile: UserProfile;
   expiresAt: number;
 }
 
@@ -82,9 +82,7 @@ export interface UserProfile {
  *
  * Returns null if the caller is not authenticated.
  */
-export async function getApiUser(
-  request: NextRequest,
-): Promise<{ profile: UserProfile } | null> {
+export async function getApiUser(request: NextRequest): Promise<{ profile: UserProfile } | null> {
   const requiredWorkspace = getWorkspaceFromApiPath(request.nextUrl.pathname);
 
   // 1. Build a server-side Supabase client that reads session cookies from the request.
@@ -116,10 +114,10 @@ export async function getApiUser(
   // ── Owner shortcut ────────────────────────────────────────────────────────
   if (isGlobalOwnerEmail(email)) {
     const ownerProfile: UserProfile = {
-      id:    user.id,
-      name:  user.user_metadata?.name ?? email.split('@')[0] ?? '',
+      id: user.id,
+      name: user.user_metadata?.name ?? email.split('@')[0] ?? '',
       email,
-      role:  'owner',
+      role: 'owner',
     };
     setCachedProfile(user.id, ownerProfile);
     return { profile: ownerProfile };
@@ -140,7 +138,12 @@ export async function getApiUser(
 
     membershipRole = (membership?.role as WorkspaceRole | undefined) ?? null;
     if (!membershipRole) {
-      console.warn('[api-auth] workspace membership denied — email:', email, '| workspace:', requiredWorkspace);
+      console.warn(
+        '[api-auth] workspace membership denied — email:',
+        email,
+        '| workspace:',
+        requiredWorkspace,
+      );
       return null;
     }
   }
@@ -154,18 +157,23 @@ export async function getApiUser(
     .maybeSingle();
 
   const fallbackWorkspaceRole = mapWorkspaceRoleToUserRole(membershipRole);
-  const teamRole = member ? ((member.role as UserRole) || 'team_member') : fallbackWorkspaceRole;
+  const teamRole = member ? (member.role as UserRole) || 'team_member' : fallbackWorkspaceRole;
   const resolvedRole = requiredWorkspace === 'docs' ? fallbackWorkspaceRole : teamRole;
 
   const resolved: UserProfile = {
-    id:    user.id,
-    name:  member?.full_name ?? user.user_metadata?.name ?? email.split('@')[0] ?? '',
+    id: user.id,
+    name: member?.full_name ?? user.user_metadata?.name ?? email.split('@')[0] ?? '',
     email,
-    role:  resolvedRole,
+    role: resolvedRole,
   };
 
   if (!member) {
-    console.warn('[api-auth] No team_member row found for email:', email, '— using workspace role fallback:', fallbackWorkspaceRole);
+    console.warn(
+      '[api-auth] No team_member row found for email:',
+      email,
+      '— using workspace role fallback:',
+      fallbackWorkspaceRole,
+    );
   }
 
   setCachedProfile(resolved.id, resolved);
@@ -200,9 +208,12 @@ export async function requireRole(
 
   if (!allowedRoles.includes(auth.profile.role)) {
     console.warn(
-      '[api-auth] requireRole denied — user:', auth.profile.email,
-      '| role:', auth.profile.role,
-      '| required one of:', allowedRoles.join(', '),
+      '[api-auth] requireRole denied — user:',
+      auth.profile.email,
+      '| role:',
+      auth.profile.role,
+      '| required one of:',
+      allowedRoles.join(', '),
     );
     return NextResponse.json(
       {
@@ -239,7 +250,9 @@ export async function requireModulePermission(
   workspace: 'os' | 'docs',
   module: OsModule | DocsModule | string,
   required: ModuleAccess,
-): Promise<{ profile: UserProfile; permissions: import('./types').MemberPermissions } | NextResponse> {
+): Promise<
+  { profile: UserProfile; permissions: import('./types').MemberPermissions } | NextResponse
+> {
   const auth = await getApiUser(request);
 
   if (!auth) {
@@ -262,15 +275,21 @@ export async function requireModulePermission(
     .maybeSingle();
 
   const teamMemberId = memberRow?.id ?? '';
-  const memberPlatformRole = normalizePlatformRole(memberRow?.platform_role ?? memberRow?.role ?? auth.profile.role);
+  const memberPlatformRole = normalizePlatformRole(
+    memberRow?.platform_role ?? memberRow?.role ?? auth.profile.role,
+  );
   const permissions = await fetchMemberPermissions(db, teamMemberId, memberPlatformRole);
 
   if (!hasModuleAccess(permissions, workspace, module, required)) {
     console.warn(
-      '[api-auth] requireModulePermission denied — user:', auth.profile.email,
-      '| workspace:', workspace,
-      '| module:', module,
-      '| required:', required,
+      '[api-auth] requireModulePermission denied — user:',
+      auth.profile.email,
+      '| workspace:',
+      workspace,
+      '| module:',
+      module,
+      '| required:',
+      required,
     );
     return NextResponse.json(
       {

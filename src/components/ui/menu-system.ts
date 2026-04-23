@@ -1,5 +1,4 @@
-export const OPENY_MENU_PANEL_CLASS =
-  'openy-menu-panel openy-menu-animate rounded-3xl border p-2';
+export const OPENY_MENU_PANEL_CLASS = 'openy-menu-panel openy-menu-animate rounded-3xl border p-2';
 
 export const OPENY_MENU_PANEL_COMPACT_CLASS =
   'openy-menu-panel openy-menu-animate rounded-2xl border p-1.5';

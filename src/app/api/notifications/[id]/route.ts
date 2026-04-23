@@ -6,8 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   const { id } = await params;
@@ -15,7 +16,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown> = {};
-  try { body = await req.json(); } catch { /* ignore */ }
+  try {
+    body = await req.json();
+  } catch {
+    /* ignore */
+  }
 
   const db = getServiceClient();
   const updateData: Record<string, unknown> = {};
@@ -58,4 +63,3 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
-

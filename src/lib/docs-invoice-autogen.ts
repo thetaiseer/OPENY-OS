@@ -139,9 +139,9 @@ export interface GeneratedInvoiceTemplate {
 }
 
 const uid = (): string =>
-  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2, 11));
+    : Math.random().toString(36).slice(2, 11);
 
 function hashString(input: string) {
   let h = 1779033703 ^ input.length;
@@ -169,8 +169,18 @@ function clamp(n: number, min: number, max: number) {
 function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
   const direct = campaignMonth.trim();
   const monthMap: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    jan: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7,
+    sep: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11,
   };
   const mmmMatch = /^([a-z]{3})-(\d{4})$/i.exec(direct);
   if (mmmMatch) {
@@ -181,9 +191,8 @@ function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
   if (isoMonthMatch) {
     return { month: clamp(Number(isoMonthMatch[2]) - 1, 0, 11), year: Number(isoMonthMatch[1]) };
   }
-  const fromDate = (invoiceDate && !Number.isNaN(Date.parse(invoiceDate)))
-    ? new Date(invoiceDate)
-    : new Date();
+  const fromDate =
+    invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
   return { month: fromDate.getMonth(), year: fromDate.getFullYear() };
 }
 
@@ -214,7 +223,7 @@ function splitBudgetWithWeights(
   const sum = safeWeights.reduce((s, w) => s + w, 0);
   const noisy = safeWeights.map((w) => {
     const base = w / sum;
-    const v = 1 + ((rng() * 2 - 1) * variance);
+    const v = 1 + (rng() * 2 - 1) * variance;
     return Math.max(0.001, base * v);
   });
   const noisySum = noisy.reduce((s, w) => s + w, 0);
@@ -236,7 +245,9 @@ function splitBudgetWithWeights(
 function splitBudgetByPercent(total: number, percentages: number[]) {
   if (percentages.length === 0) return [];
   if (total <= 0) return percentages.map(() => 0);
-  const safe = percentages.map((percentage) => (Number.isFinite(percentage) && percentage > 0 ? percentage : 0));
+  const safe = percentages.map((percentage) =>
+    Number.isFinite(percentage) && percentage > 0 ? percentage : 0,
+  );
   const sum = safe.reduce((s, v) => s + v, 0);
   if (sum <= 0) return safe.map(() => 0);
   const raw = safe.map((percentage) => (percentage / sum) * total);
@@ -264,7 +275,7 @@ function splitIntegerByWeights(total: number, weights: number[]) {
   if (sum <= 0) {
     const even = Math.floor(total / weights.length);
     const out = Array.from({ length: weights.length }, () => even);
-    let rem = total - (even * weights.length);
+    let rem = total - even * weights.length;
     let i = 0;
     while (rem > 0) {
       out[i % out.length] += 1;
@@ -295,7 +306,7 @@ function generateRowDays(rowCount: number, rng: () => number) {
   if (rowCount === 1) return [1];
   const step = DAY_SPAN / (rowCount - 1);
   const days = Array.from({ length: rowCount }, (_, i) => {
-    const base = Math.round(1 + (i * step));
+    const base = Math.round(1 + i * step);
     const jitter = Math.floor(rng() * 5) - 2;
     return clamp(base + jitter, 1, MAX_SPREAD_DAY);
   }).sort((a, b) => a - b);
@@ -314,8 +325,8 @@ function buildResults(
 ) {
   const [minCpa, maxCpa] = platform.cpaRange;
   const ratio = rowCount > 1 ? rowIndex / (rowCount - 1) : 0;
-  const targetCpa = minCpa + ((maxCpa - minCpa) * ratio);
-  const variance = 1 + ((rng() * 2 - 1) * 0.1);
+  const targetCpa = minCpa + (maxCpa - minCpa) * ratio;
+  const variance = 1 + (rng() * 2 - 1) * 0.1;
   const finalCpa = clamp(targetCpa * variance, minCpa, maxCpa);
   const count = Math.max(1, Math.round(spend / finalCpa));
   return `${count} ${platform.resultSuffix}`;
@@ -337,9 +348,10 @@ function generateProIconKsaTemplate(
   ].join('|');
   const rng = createSeededRandom(seed);
 
-  const branchWeights = template.branchWeights.length === template.branches.length
-    ? template.branchWeights
-    : Array.from({ length: template.branches.length }, () => 1);
+  const branchWeights =
+    template.branchWeights.length === template.branches.length
+      ? template.branchWeights
+      : Array.from({ length: template.branches.length }, () => 1);
   const branchBudgets = splitBudgetWithWeights(finalBudget, [...branchWeights], rng, 0.07);
 
   const branchGroups: InvoiceBranchGroup[] = template.branches.map((branchName, branchIndex) => {
@@ -351,30 +363,32 @@ function generateProIconKsaTemplate(
       0.08,
     );
 
-    const platformGroups: InvoicePlatformGroup[] = template.platforms.map((platform, platformIndex) => {
-      const platformBudget = platformBudgets[platformIndex] ?? 0;
-      const rowBudgets = splitBudgetWithWeights(
-        platformBudget,
-        // Descending per-row weights intentionally front-load spend on early rows,
-        // creating realistic pacing while preserving exact platform totals.
-        Array.from({ length: platform.rows }, (_, i) => platform.rows - i),
-        rng,
-        0.1,
-      );
-      const rowDays = generateRowDays(platform.rows, rng);
-      const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => ({
-        id: uid(),
-        ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
-        date: formatRowDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
-        results: buildResults(platform, cost, rowIndex, platform.rows, rng),
-        cost,
-      }));
-      return {
-        id: uid(),
-        platform_name: platform.name,
-        campaign_rows: rows,
-      };
-    });
+    const platformGroups: InvoicePlatformGroup[] = template.platforms.map(
+      (platform, platformIndex) => {
+        const platformBudget = platformBudgets[platformIndex] ?? 0;
+        const rowBudgets = splitBudgetWithWeights(
+          platformBudget,
+          // Descending per-row weights intentionally front-load spend on early rows,
+          // creating realistic pacing while preserving exact platform totals.
+          Array.from({ length: platform.rows }, (_, i) => platform.rows - i),
+          rng,
+          0.1,
+        );
+        const rowDays = generateRowDays(platform.rows, rng);
+        const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => ({
+          id: uid(),
+          ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
+          date: formatRowDate(rowDays[rowIndex] ?? 1, params.campaignMonth, params.invoiceDate),
+          results: buildResults(platform, cost, rowIndex, platform.rows, rng),
+          cost,
+        }));
+        return {
+          id: uid(),
+          platform_name: platform.name,
+          campaign_rows: rows,
+        };
+      },
+    );
 
     return {
       id: uid(),
@@ -401,10 +415,14 @@ function generatePresetTemplate(
   const formattedMonth = formatCampaignMonth(params.campaignMonth, params.invoiceDate);
   const finalBudget = Math.max(0, Math.round(params.finalBudget ?? template.defaultFinalBudget));
   const fees = Math.max(0, Math.round(params.fees ?? template.defaultFees));
-  const branchWeights = template.branchWeights.length === template.branches.length
-    ? [...template.branchWeights]
-    : Array.from({ length: template.branches.length }, () => 1);
-  const branchBudgets = splitBudgetByPercent(finalBudget, branchWeights.map((weight) => weight * 100));
+  const branchWeights =
+    template.branchWeights.length === template.branches.length
+      ? [...template.branchWeights]
+      : Array.from({ length: template.branches.length }, () => 1);
+  const branchBudgets = splitBudgetByPercent(
+    finalBudget,
+    branchWeights.map((weight) => weight * 100),
+  );
 
   const branchGroups: InvoiceBranchGroup[] = template.branches.map((branchName, branchIndex) => {
     const branchBudget = branchBudgets[branchIndex] ?? 0;
@@ -412,29 +430,38 @@ function generatePresetTemplate(
       branchBudget,
       template.platforms.map((platform) => platform.weight * 100),
     );
-    const platformGroups: InvoicePlatformGroup[] = template.platforms.map((platform, platformIndex) => {
-      const platformBudget = platformBudgets[platformIndex] ?? 0;
-      const rowBudgets = splitBudgetByPercent(
-        platformBudget,
-        Array.from({ length: platform.rows }, () => 1),
-      );
-      const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => {
-        const day = clamp(Math.round(((rowIndex + 1) * MAX_SPREAD_DAY) / (platform.rows + 1)), 1, MAX_SPREAD_DAY);
-        const estimatedResults = Math.max(1, Math.round(cost / Math.max(1, platform.cpaRange[0])));
+    const platformGroups: InvoicePlatformGroup[] = template.platforms.map(
+      (platform, platformIndex) => {
+        const platformBudget = platformBudgets[platformIndex] ?? 0;
+        const rowBudgets = splitBudgetByPercent(
+          platformBudget,
+          Array.from({ length: platform.rows }, () => 1),
+        );
+        const rows: InvoiceCampaignRow[] = rowBudgets.map((cost, rowIndex) => {
+          const day = clamp(
+            Math.round(((rowIndex + 1) * MAX_SPREAD_DAY) / (platform.rows + 1)),
+            1,
+            MAX_SPREAD_DAY,
+          );
+          const estimatedResults = Math.max(
+            1,
+            Math.round(cost / Math.max(1, platform.cpaRange[0])),
+          );
+          return {
+            id: uid(),
+            ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
+            date: formatRowDate(day, params.campaignMonth, params.invoiceDate),
+            results: `${estimatedResults} ${platform.resultSuffix}`,
+            cost,
+          };
+        });
         return {
           id: uid(),
-          ad_name: `${branchName} ${formattedMonth} ${platform.name} ${rowIndex + 1}`,
-          date: formatRowDate(day, params.campaignMonth, params.invoiceDate),
-          results: `${estimatedResults} ${platform.resultSuffix}`,
-          cost,
+          platform_name: platform.name,
+          campaign_rows: rows,
         };
-      });
-      return {
-        id: uid(),
-        platform_name: platform.name,
-        campaign_rows: rows,
-      };
-    });
+      },
+    );
     return {
       id: uid(),
       branch_name: branchName,
@@ -483,7 +510,9 @@ export function generateSmartInvoice(params: GenerateSmartInvoiceParams): Genera
   const fees = Math.max(0, Math.round(params.fees || 0));
   const formattedMonth = formatCampaignMonth(params.campaignMonth, params.invoiceDate);
   const normalizedPlatforms = params.platforms
-    .filter((platform) => platform.enabled && platform.campaignCount > 0 && platform.allocationPct > 0)
+    .filter(
+      (platform) => platform.enabled && platform.campaignCount > 0 && platform.allocationPct > 0,
+    )
     .map((platform) => ({
       ...platform,
       campaignCount: Math.max(1, Math.round(platform.campaignCount)),
@@ -501,18 +530,22 @@ export function generateSmartInvoice(params: GenerateSmartInvoiceParams): Genera
   ].join('|');
   const rng = createSeededRandom(seed);
 
-  const platformSpecs = template.platforms.reduce<Record<string, PlatformTemplateSpec>>((acc, item) => {
-    acc[item.name] = item;
-    return acc;
-  }, {});
+  const platformSpecs = template.platforms.reduce<Record<string, PlatformTemplateSpec>>(
+    (acc, item) => {
+      acc[item.name] = item;
+      return acc;
+    },
+    {},
+  );
 
   const platformBudgets = splitBudgetByPercent(
     finalBudget,
     normalizedPlatforms.map((platform) => platform.allocationPct),
   );
-  const branchWeights = template.branchWeights.length === template.branches.length
-    ? [...template.branchWeights]
-    : Array.from({ length: template.branches.length }, () => 1);
+  const branchWeights =
+    template.branchWeights.length === template.branches.length
+      ? [...template.branchWeights]
+      : Array.from({ length: template.branches.length }, () => 1);
 
   const branchMap = new Map<string, InvoicePlatformGroup[]>(
     template.branches.map((branch) => [branch, []]),

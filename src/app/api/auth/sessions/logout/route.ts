@@ -3,7 +3,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-
 // POST /api/auth/sessions/logout — deactivate the current session on sign-out
 export async function POST(request: NextRequest) {
   const auth = await getApiUser(request);
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
   const { error } = await admin
     .from('user_sessions')
     .update({
-      is_active:  false,
+      is_active: false,
       revoked_at: new Date().toISOString(),
       revoked_by: 'self',
     })

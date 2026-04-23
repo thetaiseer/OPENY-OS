@@ -20,7 +20,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -28,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const taskId  = searchParams.get('task_id');
+  const taskId = searchParams.get('task_id');
   const assetId = searchParams.get('asset_id');
 
   if (!taskId && !assetId) {
@@ -43,13 +42,15 @@ export async function GET(req: NextRequest) {
 
     let query = db
       .from('task_asset_links')
-      .select(`
+      .select(
+        `
         task_id, asset_id, linked_at, linked_by,
         asset:assets(id, name, content_type, web_view_link, preview_url, mime_type, file_size)
-      `)
+      `,
+      )
       .order('linked_at', { ascending: false });
 
-    if (taskId)  query = query.eq('task_id', taskId);
+    if (taskId) query = query.eq('task_id', taskId);
     if (assetId) query = query.eq('asset_id', assetId);
 
     const { data, error } = await query;
@@ -106,9 +107,9 @@ export async function POST(req: NextRequest) {
   try {
     const db = getServiceClient();
 
-    const linkRows = assetIds.map(aid => ({
-      task_id:   taskId,
-      asset_id:  aid,
+    const linkRows = assetIds.map((aid) => ({
+      task_id: taskId,
+      asset_id: aid,
       linked_by: auth.profile.id ?? null,
     }));
 
@@ -123,7 +124,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Update assets.status to 'linked' and backfill task_id
-    void db.from('assets')
+    void db
+      .from('assets')
       .update({ task_id: taskId, status: 'linked' })
       .in('id', assetIds)
       .then(({ error: aErr }) => {
@@ -150,7 +152,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const taskId  = typeof body.task_id  === 'string' ? body.task_id.trim()  : '';
+  const taskId = typeof body.task_id === 'string' ? body.task_id.trim() : '';
   const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
 
   if (!taskId || !assetId) {
@@ -175,14 +177,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     // If this asset has no other task links, reset its status to 'ready'
-    void db.from('task_asset_links')
+    void db
+      .from('task_asset_links')
       .select('task_id', { count: 'exact', head: true })
       .eq('asset_id', assetId)
       .then(async ({ count }) => {
         if ((count ?? 0) === 0) {
-          await db.from('assets')
-            .update({ status: 'ready', task_id: null })
-            .eq('id', assetId);
+          await db.from('assets').update({ status: 'ready', task_id: null }).eq('id', assetId);
         }
       });
 

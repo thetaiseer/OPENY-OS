@@ -18,19 +18,22 @@ type InvitationRow = {
   updated_at?: string | null;
   workspace_access?: unknown;
   workspace_roles?: unknown;
-  team_member?: {
-    full_name?: string | null;
-    name?: string | null;
-    job_title?: string | null;
-    role?: string | null;
-    status?: string | null;
-  } | Array<{
-    full_name?: string | null;
-    name?: string | null;
-    job_title?: string | null;
-    role?: string | null;
-    status?: string | null;
-  }> | null;
+  team_member?:
+    | {
+        full_name?: string | null;
+        name?: string | null;
+        job_title?: string | null;
+        role?: string | null;
+        status?: string | null;
+      }
+    | Array<{
+        full_name?: string | null;
+        name?: string | null;
+        job_title?: string | null;
+        role?: string | null;
+        status?: string | null;
+      }>
+    | null;
 };
 
 const selectVariants = [

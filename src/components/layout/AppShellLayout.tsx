@@ -17,18 +17,12 @@ import { queryClient } from '@/app/providers';
 import { QuickActionsProvider } from '@/context/quick-actions-context';
 import AppRouteTransition from '@/components/layout/AppRouteTransition';
 
-const AiCommandCenter = dynamic(
-  () => import('@/components/ai/AiCommandCenter'),
-  { ssr: false },
-);
+const AiCommandCenter = dynamic(() => import('@/components/ai/AiCommandCenter'), { ssr: false });
 const NotificationRealtimeSync = dynamic(
   () => import('@/components/notifications/NotificationRealtimeSync'),
   { ssr: false },
 );
-const CommandPalette = dynamic(
-  () => import('@/components/search/CommandPalette'),
-  { ssr: false },
-);
+const CommandPalette = dynamic(() => import('@/components/search/CommandPalette'), { ssr: false });
 
 const SESSION_CHECK_INTERVAL = 3 * 60 * 1000;
 const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000;
@@ -61,7 +55,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
           await supabaseClient.auth.signOut();
           router.replace('/');
         }
-      } catch { /* ignore network errors / abort */ } finally {
+      } catch {
+        /* ignore network errors / abort */
+      } finally {
         clearTimeout(tid);
       }
     }
@@ -75,7 +71,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
           credentials: 'include',
           signal: controller.signal,
         });
-      } catch { /* ignore */ } finally {
+      } catch {
+        /* ignore */
+      } finally {
         clearTimeout(tid);
       }
     }
@@ -134,7 +132,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       if (checkTimer.current) clearInterval(checkTimer.current);
       if (activityTimer.current) clearInterval(activityTimer.current);
       unsubTasks();
-      unsubscribeTableListeners.forEach(unsub => unsub());
+      unsubscribeTableListeners.forEach((unsub) => unsub());
       window.removeEventListener('keydown', handleAiShortcut);
     };
   }, [openAi, router]);
@@ -142,9 +140,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'transparent' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto app-shell-main" style={{ background: 'var(--gradient-main-overlay)' }}>
+        <main
+          className="app-shell-main flex-1 overflow-y-auto"
+          style={{ background: 'var(--gradient-main-overlay)' }}
+        >
           <AppRouteTransition>{children}</AppRouteTransition>
         </main>
       </div>

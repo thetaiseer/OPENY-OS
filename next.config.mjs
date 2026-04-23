@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
-const LEGACY_DOCS_MODULE_ROUTES = ['/invoice', '/quotation', '/client-contract', '/hr-contract', '/employees', '/accounting'];
+const LEGACY_DOCS_MODULE_ROUTES = [
+  '/invoice',
+  '/quotation',
+  '/client-contract',
+  '/hr-contract',
+  '/employees',
+  '/accounting',
+];
 
 function buildRemotePatterns() {
   const patterns = [];
@@ -10,7 +17,9 @@ function buildRemotePatterns() {
     try {
       const { hostname, protocol } = new URL(r2Url);
       patterns.push({ protocol: protocol.replace(':', ''), hostname });
-    } catch { /* invalid URL — skip */ }
+    } catch {
+      /* invalid URL — skip */
+    }
   }
 
   // Supabase Storage CDN
@@ -21,7 +30,9 @@ function buildRemotePatterns() {
       // Supabase storage lives on the same project domain
       patterns.push({ protocol: 'https', hostname });
       patterns.push({ protocol: 'https', hostname: `*.${hostname}` });
-    } catch { /* invalid URL — skip */ }
+    } catch {
+      /* invalid URL — skip */
+    }
   }
 
   // Fallback: allow only known CDN patterns if env vars are missing at build time
