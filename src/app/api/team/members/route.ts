@@ -91,7 +91,6 @@ export async function GET(request: NextRequest) {
   }
 
   if (!workspaceRow?.id) {
-    console.log('[team/members/get] Team fetched:', { workspace: workspaceKey, workspaceId: null, count: 0 });
     return NextResponse.json({ members: [] as TeamMemberPayload[] });
   }
 
@@ -181,12 +180,6 @@ export async function GET(request: NextRequest) {
   });
 
   members.sort((a, b) => a.full_name.localeCompare(b.full_name));
-
-  console.log('[team/members/get] Team fetched:', {
-    workspace: workspaceKey,
-    workspaceId: workspaceRow.id,
-    count: members.length,
-  });
 
   return NextResponse.json({ members });
 }

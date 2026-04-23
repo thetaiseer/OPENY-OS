@@ -56,13 +56,9 @@ const VALID_PLATFORMS = [
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 export async function POST(request: NextRequest) {
-  console.log('[POST /api/tasks] request received');
-
   // 1. Auth & role check
   const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
-
-  console.log('[POST /api/tasks] caller:', auth.profile.email, '| role:', auth.profile.role);
 
   // 2. Parse request body
   let body: Record<string, unknown>;
@@ -75,8 +71,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  console.log('[POST /api/tasks] payload:', JSON.stringify(body));
 
   // 3. Validate required fields
   const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -220,8 +214,6 @@ export async function POST(request: NextRequest) {
   if (assetId && !assetIds.includes(assetId)) assetIds.push(assetId);
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
-  console.log('[POST /api/tasks] db insert payload:', JSON.stringify(insertPayload));
-
   const db = getServiceClient();
   const { data, error } = await db
     .from('tasks')
@@ -236,8 +228,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-
-  console.log('[POST /api/tasks] insert success — id:', data?.id);
 
   // If an asset was provided, link the asset back to this task (fire-and-forget)
   if (assetId && data?.id) {
@@ -295,7 +285,6 @@ export async function POST(request: NextRequest) {
       notes:      description || null,
     }).then(({ error: calErr }) => {
       if (calErr) console.warn('[POST /api/tasks] calendar event auto-create failed:', calErr.message);
-      else console.log('[POST /api/tasks] calendar event auto-created for task:', data.id);
     });
   }
 
@@ -326,7 +315,6 @@ export async function POST(request: NextRequest) {
           console.warn('[POST /api/tasks] publishing schedule auto-create failed:', schedErr.message);
         } else if (sched?.id) {
           await db.from('tasks').update({ publishing_schedule_id: sched.id }).eq('id', data.id);
-          console.log('[POST /api/tasks] publishing schedule auto-created:', sched.id);
         }
       } catch (e) {
         console.warn('[POST /api/tasks] publishing schedule error:', e instanceof Error ? e.message : String(e));

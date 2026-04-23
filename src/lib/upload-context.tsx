@@ -643,13 +643,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log('[upload] start:', {
-        name: item.file.name,
-        size: item.file.size,
-        multipart: item.file.size > MULTIPART_THRESHOLD,
-        provider: 'cloudflare-r2',
-        bucket: R2_BUCKET_LOG_NAME,
-      });
       if (item.file.size > MULTIPART_THRESHOLD) {
         await doMultipartUpload(item, fileMimeType, ctrl);
       } else {
@@ -698,13 +691,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-
-    console.log('[upload] single upload started', {
-      fileName: item.file.name,
-      fileSize: item.file.size,
-      provider: 'cloudflare-r2',
-      bucket: R2_BUCKET_LOG_NAME,
-    });
 
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
@@ -778,12 +764,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
     if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
-    console.log('[upload] single upload success', {
-      provider: 'cloudflare-r2',
-      bucket: R2_BUCKET_LOG_NAME,
-      storageKey: r2UploadJson.storageKey,
-    });
-
     update(item.id, {
       r2Key: r2UploadJson.storageKey,
       r2Bucket: null,
@@ -845,12 +825,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         progress: Math.round((uploadedBytes / totalBytes) * 95),
       });
 
-      console.log('[upload] multipart resumed:', {
-        key:       storageKey,
-        uploadId,
-        startFrom: startFromPart,
-        totalChunks,
-      });
     } else {
       completedParts = [];
       uploadedBytes  = 0;
@@ -864,9 +838,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         uploadedBytes: 0,
         completedParts: [],
       });
-
-      // Phase 1: initiate multipart upload.
-      console.log('[upload] multipart init:', { key: item.file.name, totalChunks });
 
       let initRes: Response;
       try {
@@ -929,7 +900,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       ({ uploadId, storageKey, publicUrl, displayName } = initData);
-      console.log('[upload] multipart uploadId:', uploadId, '| key:', storageKey);
 
       // Persist immediately so pause/resume and failed_db retry can reference these.
       update(item.id, {
@@ -953,7 +923,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             // completedParts already persisted to state after each chunk
             uploadedBytes,
           });
-          console.log('[upload] multipart paused:', { storageKey, uploadId, partsCompleted: completedParts.length });
           return;
         }
         // Real cancel — abort the multipart session server-side.
@@ -964,8 +933,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       const start = (partNumber - 1) * CHUNK_SIZE;
       const end   = Math.min(start + CHUNK_SIZE, totalBytes);
       const chunk = item.file.slice(start, end);
-
-      console.log(`[upload] chunk ${partNumber}/${totalChunks}: bytes ${start}–${end} (${chunk.size} bytes)`);
 
       // Per-chunk retry loop.
       let chunkResult: XhrResult;
@@ -1024,7 +991,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             pauseIntentRef.current.delete(item.id);
             // completedParts up to (but not including) current chunk are valid.
             setStage(item.id, 'paused', 'Paused', { uploadedBytes });
-            console.log('[upload] multipart paused mid-chunk:', { storageKey, uploadId, partsCompleted: completedParts.length });
             return;
           }
           void abortMultipartSession(storageKey, uploadId);
@@ -1068,7 +1034,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       completedParts.push({ partNumber, etag });
       // Persist completed parts to state immediately for pause/resume.
       update(item.id, { completedParts: [...completedParts], uploadedBytes });
-      console.log(`[upload] chunk ${partNumber}/${totalChunks} done. ETag:`, etag || '(none)');
     }
 
     // Phase 3: complete multipart upload.
@@ -1078,8 +1043,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       progress:      97,
       uploadedBytes: totalBytes,
     });
-
-    console.log('[upload] multipart complete: assembling', completedParts.length, 'parts');
 
     let completeRes: Response;
     try {
@@ -1118,8 +1081,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-
-    console.log('[upload] multipart complete succeeded for key:', storageKey);
 
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
       progress:      100,
@@ -1218,7 +1179,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    console.log('db insert success', completeJson.asset);
     dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
     setStage(item.id, 'completed', 'Completed', { progress: 100 });
   }
@@ -1232,7 +1192,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ storageKey, uploadId }),
       });
-      console.log('[upload] multipart aborted:', storageKey, uploadId);
     } catch (err) {
       console.warn('[upload] multipart-abort request failed:', err);
     }
@@ -1371,7 +1330,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         // uploadId, r2Key, r2FileName, publicUrl, completedParts, uploadedBytes preserved.
       },
     });
-    console.log('[upload] resuming item:', id);
   }, []);
 
   const removeItem = useCallback((id: string) => {

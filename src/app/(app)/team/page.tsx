@@ -872,10 +872,6 @@ export default function TeamPage() {
     [uniqueInvitations],
   );
 
-  useEffect(() => {
-    console.log('PENDING INVITES DATA:', pendingInvites);
-  }, [pendingInvites]);
-
   const invitationHistory = useMemo(
     () => uniqueInvitations.filter(invite => !ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase())),
     [uniqueInvitations],

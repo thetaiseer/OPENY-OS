@@ -107,7 +107,7 @@ export default function ClientContentPage() {
       const json = await res.json() as { success: boolean; item?: ContentItem; error?: string };
       if (!json.success) throw new Error(json.error ?? 'Failed to update status');
       if (json.item) {
-        setContent(prev => prev.map(c => c.id === id ? { ...c, status: json.item!.status } : c));
+        setContent(prev => prev.map(c => c.id === id ? { ...c, status: json.item?.status ?? c.status } : c));
       }
     } catch (err: unknown) {
       addToast(err instanceof Error ? err.message : 'Failed to update status', 'error');
@@ -160,7 +160,7 @@ export default function ClientContentPage() {
                   )}
                   {(item.platform_targets?.length ?? 0) > 0 && (
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      {item.platform_targets!.join(', ')}
+                      {item.platform_targets?.join(', ')}
                     </p>
                   )}
                 </div>

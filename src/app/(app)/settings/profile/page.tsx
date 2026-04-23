@@ -123,7 +123,7 @@ function R2StorageCard() {
                 <div className="mt-1 space-y-0.5">
                   <p className="text-xs" style={{ color: '#ef4444' }}>Missing environment variable(s):</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {status!.missingVars.map(v => (
+                    {(status?.missingVars ?? []).map(v => (
                       <code
                         key={v}
                         className="px-1 rounded text-xs"

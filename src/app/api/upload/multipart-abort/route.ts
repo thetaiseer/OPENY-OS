@@ -38,12 +38,6 @@ export async function POST(req: NextRequest) {
   try {
     await abortMultipartUploadSession(storageKey, uploadId);
 
-    console.log('[upload/multipart-abort] aborted:', {
-      userId: auth.profile.id,
-      storageKey,
-      uploadId,
-    });
-
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);

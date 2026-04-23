@@ -69,19 +69,8 @@ export async function DELETE(
       );
     }
 
-    console.log('[asset-delete] soft delete succeeded', {
-      assetId:   asset.id,
-      deletedBy: auth.profile.email,
-    });
     return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
   }
-
-  console.log('[asset-delete] starting delete', {
-    assetId:         asset.id,
-    storageProvider: asset.storage_provider,
-    filePath:        asset.file_path ?? null,
-    deletedBy:       auth.profile.email,
-  });
 
   // ── 2. Delete from remote storage ────────────────────────────────────────
   let warning: string | undefined;
@@ -99,7 +88,6 @@ export async function DELETE(
     } else {
       try {
          await deleteFile(filePath);
-        console.log('[asset-delete] R2 delete succeeded', { assetId: asset.id, filePath });
       } catch (err: unknown) {
         if (err instanceof R2NotFoundError) {
           warning = 'Asset record deleted. Remote R2 file was already missing.';
@@ -154,8 +142,6 @@ export async function DELETE(
             { status: 502 },
           );
         }
-      } else {
-        console.log('[asset-delete] Storage delete succeeded', { assetId: asset.id, filePath });
       }
     }
   } else {
@@ -175,8 +161,6 @@ export async function DELETE(
       { status: 500 },
     );
   }
-
-  console.log('[asset-delete] DB delete succeeded', { assetId: asset.id, deletedBy: auth.profile.email });
 
   const successMessage = warning ?? 'Asset deleted successfully.';
   return NextResponse.json({ success: true, message: successMessage, ...(warning ? { warning } : {}) });
@@ -234,8 +218,6 @@ export async function PATCH(
     return NextResponse.json({ success: true, message: 'Name unchanged.' });
   }
 
-  console.log('[asset-rename] renaming in DB only', { assetId: asset.id, from: asset.name, to: newName });
-
   // ── 2. Update DB record ────────────────────────────────────────────────────
   // R2 objects are identified by key (file_path) not name; only update the DB.
   const { error: dbError } = await supabase
@@ -251,6 +233,5 @@ export async function PATCH(
     );
   }
 
-  console.log('[asset-rename] completed', { assetId: asset.id, name: newName });
   return NextResponse.json({ success: true, message: 'Asset renamed successfully.', name: newName });
 }

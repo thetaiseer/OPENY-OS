@@ -51,14 +51,6 @@ export async function POST(req: NextRequest) {
   try {
     const result = await uploadMultipartPart(storageKey, uploadId, partNumber, buffer);
 
-    console.log('[upload/multipart-part] part uploaded to R2:', {
-      userId:     auth.profile.id,
-      storageKey,
-      uploadId,
-      partNumber,
-      bytes:      buffer.byteLength,
-    });
-
     return NextResponse.json({
       partNumber: result.partNumber,
       etag:       result.etag,

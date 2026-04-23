@@ -131,13 +131,6 @@ export async function POST(req: NextRequest) {
   }
 
   const bucketName = getStorageBucketName();
-  console.log('[upload/presign] upload started', {
-    provider: 'r2',
-    bucketName,
-    storageKey,
-    userId: auth.profile.id,
-    clientId,
-  });
 
   // ── Upload to R2 server-side ───────────────────────────────────────────────
   try {
@@ -147,16 +140,6 @@ export async function POST(req: NextRequest) {
     await uploadFile({ key: storageKey, body: buffer, contentType });
 
     const publicUrl = getFileUrl(storageKey);
-
-    console.log('[upload/presign] uploaded to R2:', {
-      provider: 'r2',
-      bucketName,
-      userId: auth.profile.id,
-      clientId,
-      storageKey,
-      contentType,
-      fileSize: buffer.byteLength,
-    });
 
     return NextResponse.json({ storageKey, publicUrl, displayName });
   } catch (err: unknown) {

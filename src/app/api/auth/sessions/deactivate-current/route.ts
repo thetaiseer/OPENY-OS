@@ -31,8 +31,6 @@ export async function POST(request: NextRequest) {
 
   if (error && error.code !== PG_UNDEFINED_TABLE) {
     console.warn('[sessions/deactivate-current] update error:', error.message);
-  } else if (!error) {
-    console.log('[sessions] ✓ Session deactivated on logout — id:', currentSid, '| user:', auth.profile.id);
   }
 
   const response = NextResponse.json({ ok: true });

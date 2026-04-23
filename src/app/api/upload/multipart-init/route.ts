@@ -128,28 +128,10 @@ export async function POST(req: NextRequest) {
   }
 
   const bucketName = getStorageBucketName();
-  console.log('[upload/multipart-init] upload started', {
-    provider: 'r2',
-    bucketName,
-    storageKey,
-    userId: auth.profile.id,
-    clientId,
-  });
 
   // ── Initiate multipart upload ──────────────────────────────────────────────
   try {
     const result = await createMultipartUploadSession(storageKey, fileType);
-
-    console.log('[upload/multipart-init] initiated:', {
-      provider: 'r2',
-      bucketName,
-      userId:     auth.profile.id,
-      clientId,
-      storageKey,
-      uploadId:   result.uploadId,
-      fileType,
-      fileSize,
-    });
 
     return NextResponse.json({
       uploadId:    result.uploadId,

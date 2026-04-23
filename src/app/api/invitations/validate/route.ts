@@ -3,7 +3,6 @@ import { getInvitationByToken, maskInvitationToken, normalizeInvitationToken, va
 
 export async function GET(request: NextRequest) {
   const token = normalizeInvitationToken(request.nextUrl.searchParams.get('token'));
-  console.log('[invitations/validate] Token received from URL:', maskInvitationToken(token));
 
   if (!token) {
     return NextResponse.json(
@@ -13,13 +12,6 @@ export async function GET(request: NextRequest) {
   }
 
   const invitation = await getInvitationByToken(token);
-  console.log('[invitations/validate] DB query result:', invitation ? {
-    id: invitation.id,
-    email: invitation.email,
-    status: invitation.status,
-    expires_at: invitation.expires_at,
-  } : null);
-
   const validation = validateInvitationState(invitation);
   if (!validation.valid) {
     if (validation.reason === 'expired') {

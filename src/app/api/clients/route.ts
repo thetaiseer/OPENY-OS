@@ -40,13 +40,9 @@ export async function GET(req: NextRequest) {
 
 
 export async function POST(request: NextRequest) {
-  console.log('[POST /api/clients] request received');
-
   // 1. Auth & role check
   const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
-
-  console.log('[POST /api/clients] caller:', auth.profile.email, '| role:', auth.profile.role);
 
   // 2. Parse request body
   let body: Record<string, unknown>;
@@ -59,8 +55,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  console.log('[POST /api/clients] payload:', JSON.stringify(body));
 
   // 3. Validate required fields
   const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -87,8 +81,6 @@ export async function POST(request: NextRequest) {
     insertPayload.status = 'active';
   }
 
-  console.log('[POST /api/clients] db insert payload:', JSON.stringify(insertPayload));
-
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   const db = getServiceClient();
   const { data, error } = await db
@@ -104,8 +96,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-
-  console.log('[POST /api/clients] insert success — id:', data?.id);
 
   if (data?.id) {
     void (async () => {

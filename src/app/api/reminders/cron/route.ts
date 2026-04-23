@@ -340,7 +340,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 
-  console.log(`[reminders/cron] done — dueSoon:${dueSoonCount} overdue:${overdueCount} publishWindow:${publishCount} stale:${staleCount} errors:${errors}`);
   return NextResponse.json({ success: true, dueSoonCount, overdueCount, publishCount, staleCount, errors });
 }
 

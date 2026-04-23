@@ -1202,9 +1202,6 @@ function TasksPage() {
         tags:        parseTags(createForm.tags),
       };
 
-      console.log('[task create] form submit started', { title: payload.title });
-      console.log('[task create] request payload:', JSON.stringify(payload));
-
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
           () => reject(new Error('Request timed out. Please try again.')),
@@ -1226,15 +1223,11 @@ function TasksPage() {
         throw new Error(`Server returned status ${res.status} with non-JSON body`);
       }
 
-      console.log('[task create] API response:', JSON.stringify(result));
-
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
         const msg  = result.error ?? 'Failed to create task';
         throw new Error(`${msg}${step}`);
       }
-
-      console.log('[task create] insert success, id:', result.task?.id);
 
       // — SUCCESS PATH —
       setCreateOpen(false);
@@ -1252,8 +1245,6 @@ function TasksPage() {
         );
       }
 
-      // Refresh list non-blocking via React Query cache invalidation
-      console.log('[task create] triggering list refetch');
       void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
     } catch (err: unknown) {
       console.error('[task create] error:', err);
@@ -1309,8 +1300,6 @@ function TasksPage() {
         tags:        parseTags(editForm.tags),
       };
 
-      console.log('[task edit] submit — id:', editTask.id, '| payload:', JSON.stringify(payload));
-
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
           () => reject(new Error('Request timed out. Please try again.')),
@@ -1332,15 +1321,11 @@ function TasksPage() {
         throw new Error(`Server returned status ${res.status} with non-JSON body`);
       }
 
-      console.log('[task edit] API response:', JSON.stringify(result));
-
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
         const msg  = result.error ?? 'Failed to update task';
         throw new Error(`${msg}${step}`);
       }
-
-      console.log('[task edit] update success — id:', result.task?.id);
 
       // Update local state immediately with the returned task so the list
       // reflects the change without waiting for a round-trip fetch.
@@ -1370,8 +1355,6 @@ function TasksPage() {
     if (!deleteTask) return;
     setDeleteError(null);
 
-    console.log('[task delete] submit — id:', deleteTask.id, '| title:', deleteTask.title);
-
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     try {
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
@@ -1393,15 +1376,11 @@ function TasksPage() {
         throw new Error(`Server returned status ${res.status} with non-JSON body`);
       }
 
-      console.log('[task delete] API response:', JSON.stringify(result));
-
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
         const msg  = result.error ?? 'Failed to delete task';
         throw new Error(`${msg}${step}`);
       }
-
-      console.log('[task delete] delete success — id:', deleteTask.id);
 
       // Remove from local state immediately
       const deletedTitle = deleteTask.title;
@@ -1443,8 +1422,6 @@ function TasksPage() {
     // Optimistically update local state first for instant UI feedback
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus as Task['status'] } : t));
 
-    console.log('[task status] change — id:', task.id, '| from:', task.status, '| to:', newStatus);
-
     // Helper to revert the optimistic update on any failure.
     const revertStatus = () =>
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
@@ -1461,7 +1438,6 @@ function TasksPage() {
         revertStatus();
         toast(`Failed to update status: ${result.error ?? 'Unknown error'}`, 'warning');
       } else {
-        console.log('[task status] update success — id:', task.id);
         invalidateTaskRelatedQueries();
       }
     } catch (err) {

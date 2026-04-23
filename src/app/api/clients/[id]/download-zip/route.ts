@@ -266,10 +266,6 @@ export async function GET(
       }
     }
 
-    console.log(
-      `[download-zip] client=${clientName} added=${filesAdded} skipped=${filesSkipped}`,
-    );
-
     archive.finalize().catch((err: unknown) => {
       console.error('[download-zip] finalize error', err);
       passThrough.destroy(err instanceof Error ? err : new Error(String(err)));

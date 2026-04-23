@@ -72,13 +72,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, stage: 'failed_db', error: 'monthKey must be in YYYY-MM format' }, { status: 400 });
   }
 
-  console.log('[upload/complete] upload started', {
-    provider: storageProvider,
-    bucketName,
-    storageKey,
-    userId: auth.profile.id,
-    clientId,
-  });
 
   let publicUrl = providedPublicUrl;
   if (!publicUrl) {
@@ -214,13 +207,6 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   }
-  console.log('[upload/complete] db save success', {
-    provider: storageProvider,
-    bucketName,
-    storageKey,
-    assetId: inserted?.id ?? null,
-  });
-
   try {
     await saveStoredFileMetadata({
       module: 'os',
@@ -302,14 +288,6 @@ export async function POST(req: NextRequest) {
       }
     })();
   }
-
-  console.log('[upload/complete] upload success', {
-    provider: storageProvider,
-    bucketName,
-    storageKey,
-    publicUrl,
-    displayName,
-  });
 
   return NextResponse.json(
     {

@@ -144,17 +144,6 @@ export async function POST(request: NextRequest) {
     ? ip.replace(/^(\d+\.\d+)\.\d+\.\d+$/, '$1.xxx.xxx').replace(/:[0-9a-f]{1,4}(:[0-9a-f]{0,4}){4,}$/i, ':…')
     : '(none)';
 
-  console.log(
-    '[sessions] Creating session — user:', auth.profile.id,
-    '| email:', auth.profile.email,
-    '| ip:', ipForLog,
-    '| browser:', browser,
-    '| os:', os,
-    '| deviceType:', deviceType,
-    '| country:', country ?? '(none)',
-    '| riskFlag:', riskFlag,
-  );
-
   const { data: session, error } = await admin
     .from('user_sessions')
     .insert({
@@ -181,14 +170,6 @@ export async function POST(request: NextRequest) {
     console.error('[sessions] ✗ Failed to create session for user:', auth.profile.id, '| error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  console.log(
-    '[sessions] ✓ Session created — id:', (session as Record<string, unknown>).id,
-    '| user:', auth.profile.email,
-    '| browser:', browser, '| os:', os,
-    '| country:', country ?? 'Unknown',
-    '| risk:', riskFlag,
-  );
 
   const response = NextResponse.json({ session, risk_flag: riskFlag });
   response.cookies.set('openy-sid', session.id as string, {

@@ -54,7 +54,6 @@ function InvitePage() {
 
   useEffect(() => {
     const run = async () => {
-      console.log('[invite/page] Token received from URL:', maskToken(token));
       if (!token) {
         setValidation({ status: 'invalid', message: 'Invalid or already used invitation' });
         return;
@@ -62,7 +61,6 @@ function InvitePage() {
 
       setValidation({ status: 'loading' });
       const encodedToken = encodeURIComponent(token);
-      console.log('[invite/page] Token sent to backend:', maskToken(token));
       const res = await fetch(`/api/invitations/validate?token=${encodedToken}`, { cache: 'no-store' });
       const payload = await res.json().catch(() => ({} as ValidateResponse));
 
@@ -101,7 +99,6 @@ function InvitePage() {
 
     setSubmitting(true);
     try {
-      console.log('[invite/page] Token sent to backend:', maskToken(token));
       const res = await fetch('/api/invitations/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -125,7 +125,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       const { data, error } = await supabase
         .from('clients')
         .update({ ...editForm, updated_at: new Date().toISOString() })
-        .eq('id', client!.id)
+        .eq('id', client?.id ?? '')
         .select()
         .single();
       if (error) throw error;

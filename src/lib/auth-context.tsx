@@ -93,11 +93,9 @@ async function fetchUserStateFromTables(
   supabaseUser: SupabaseUser,
 ): Promise<{ user: User; workspaceAccess: WorkspaceAccessState }> {
   const email = supabaseUser.email ?? '';
-  console.log('[auth] Fetching team_member for email:', email);
 
   // Force owner role for the workspace owner email without a DB round-trip.
   if (email.toLowerCase() === OWNER_EMAIL) {
-    console.log('[auth] Owner email detected — role forced to owner');
     return {
       user: {
         id:    supabaseUser.id,
@@ -132,8 +130,6 @@ async function fetchUserStateFromTables(
       ),
     ]);
     data = result.data;
-    const error = result.error;
-    console.log('[auth] team_members query — row:', data, '| error:', error ? `${error.code}: ${error.message}` : 'none');
   } catch (err) {
     const isTimeout = err instanceof Error && err.message === 'team-member-fetch-timeout';
     console.warn('[auth] team_members fetch', isTimeout ? 'timed out' : 'threw:', err);
@@ -161,7 +157,6 @@ async function fetchUserStateFromTables(
 
   if (data) {
     const resolvedRole = (data.role as UserRole) || 'team_member';
-    console.log('[auth] Resolved role from team_members:', resolvedRole);
     return {
       user: {
         id:    supabaseUser.id,
@@ -196,11 +191,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = useMemo(() => {
     const client = createClient();
-    if (typeof window !== 'undefined') {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)';
-      const masked = url.replace(/^(https:\/\/[^.]{4})[^.]+/, '$1…');
-      console.log('[auth] Supabase project URL:', masked);
-    }
     return client;
   }, []);
 
@@ -276,11 +266,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, loadUser]);
 
   const signOut = async () => {
-    console.log('[auth] Signing out…');
     clearUserCache();
 
     try {
-      console.log('[auth] Deactivating current session…');
       await fetch('/api/auth/sessions/deactivate-current', {
         method: 'POST',
         credentials: 'include',
@@ -298,8 +286,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       if (result.error) {
         console.error('[auth] Sign out error:', result.error.message);
-      } else {
-        console.log('[auth] Sign out successful');
       }
     } catch (err) {
       const isTimeout = err instanceof Error && err.message === 'sign-out-timeout';
@@ -314,7 +300,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .filter(k => k.startsWith('sb-'))
           .forEach(k => localStorage.removeItem(k));
       } catch { /* ignore — storage may be unavailable */ }
-      console.log('[auth] Redirecting to /');
       router.replace('/');
     }
   };

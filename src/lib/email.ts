@@ -15,10 +15,7 @@ const DEFAULT_FROM = process.env.EMAIL_FROM ?? 'OPENY OS <noreply@openy-os.com>'
 
 // ── Startup env check ─────────────────────────────────────────────────────────
 // Runs once when this module is first imported (server startup).
-if (process.env.RESEND_API_KEY) {
-  console.log('[email] RESEND_API_KEY loaded ✓');
-  console.log(`[email] Default sender: ${DEFAULT_FROM}`);
-} else {
+if (!process.env.RESEND_API_KEY) {
   console.warn('[email] RESEND_API_KEY is not set — transactional emails will be skipped');
 }
 
@@ -48,8 +45,6 @@ export async function sendEmail(msg: EmailMessage): Promise<void> {
     throw new Error(`Email send failed (${res.status}): ${JSON.stringify(body)}`);
   }
 
-  const recipientCount = Array.isArray(msg.to) ? msg.to.length : 1;
-  console.log(`[email] Sent successfully (${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}) | subject: "${msg.subject}"`);
 }
 
 // ── HTML templates ────────────────────────────────────────────────────────────

@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
 
   const currentSid = request.cookies.get('openy-sid')?.value;
   if (!currentSid) {
-    console.log('[sessions/logout] No openy-sid cookie — nothing to deactivate');
     return NextResponse.json({ ok: true });
   }
 
@@ -28,8 +27,6 @@ export async function POST(request: NextRequest) {
 
   if (error && error.code !== PG_UNDEFINED_TABLE) {
     console.warn('[sessions/logout] Failed to deactivate session:', error.message);
-  } else if (!error) {
-    console.log('[sessions/logout] Session deactivated:', currentSid, '| user:', auth.profile.email);
   }
 
   const response = NextResponse.json({ ok: true });

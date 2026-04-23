@@ -35,9 +35,7 @@ export interface AiCallOptions {
 {
   const geminiKey   = process.env.GEMINI_API_KEY;
   const geminiModel = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-  if (geminiKey) {
-    console.log(`[ai] GEMINI_API_KEY loaded ✓ (model: ${geminiModel})`);
-  } else {
+  if (!geminiKey) {
     console.warn('[ai] GEMINI_API_KEY is not set — AI features will return HTTP 503');
   }
 }

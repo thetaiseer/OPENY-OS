@@ -203,8 +203,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    console.log(`[assets/download-zip] added=${filesAdded} skipped=${filesSkipped}`);
-
     archive.finalize().catch((err: unknown) => {
       console.error('[assets/download-zip] finalize error', err);
       passThrough.destroy(err instanceof Error ? err : new Error(String(err)));

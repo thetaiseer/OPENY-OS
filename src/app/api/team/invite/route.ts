@@ -251,13 +251,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_members row:', { id: member.id, email, access_role, status: 'invited' });
-
   // ── 4. Generate secure single-use token ──────────────────────────────────
   const token     = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-  console.log('[team/invite] Generated token (prefix):', token.slice(0, 8) + '...', '— expires', expiresAt);
 
   const { invitation, errorMessage: inviteInsertError, attemptedErrors } = await insertInvitationWithFallback(db, {
     team_member_id: member.id,
@@ -285,17 +281,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  console.log('[team/invite] Created team_invitations row:', {
-    id: invitation.id,
-    email,
-    status: invitation.status,
-  });
-
   // ── 5. Send invite email ──────────────────────────────────────────────────
   const inviteUrl = `${INVITE_DOMAIN}/invite?token=${token}`;
-  console.log('[team/invite] Invitation URL:', inviteUrl);
-  console.log('[team/invite] Sending email via sender:', fromEmail);
-
   const html = teamInviteEmail({
     recipientName:  full_name,
     inviterName:    auth.profile.name,
@@ -314,7 +301,6 @@ export async function POST(request: NextRequest) {
       html,
       from:    fromEmail,
     });
-    console.log('[team/invite] Email sent successfully to:', email);
     await logEmailSent({
       to:         email,
       subject:    "You're invited to join OPENY OS",

@@ -9,11 +9,8 @@ import { createNotification } from '@/lib/notification-service';
 type Db = SupabaseClient<any>;
 
 
-// ── Logging helpers ───────────────────────────────────────────────────────────
-
-function logAction(intent: string, detail: string) {
-  console.log(`[ai/command] ACTION intent=${intent} — ${detail}`);
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function logAction(_intent: string, _detail: string) {}
 
 function logFailure(intent: string, err: unknown) {
   const msg = err instanceof Error ? err.message : String(err);

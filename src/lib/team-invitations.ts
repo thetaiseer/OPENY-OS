@@ -68,8 +68,6 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  console.log('TOKEN DEBUG:', { token, data: baseRow, error: baseError });
-
   if (baseError) {
     console.error('[invitations] DB query error while fetching invitation by token:', baseError.message);
     return null;
@@ -141,14 +139,6 @@ export function validateInvitationState(
   // Therefore expires_at === now is treated as expired.
   const isExpired = hasValidExpiry && expiresAtMs <= nowMs;
   const isPending = ACTIVE_INVITATION_STATUSES.includes(invitation.status as (typeof ACTIVE_INVITATION_STATUSES)[number]);
-
-  console.log('[invitations] Expiration check result:', {
-    invitationId: invitation.id,
-    status: invitation.status,
-    expires_at: invitation.expires_at,
-    isExpired,
-    isPending,
-  });
 
   if (!hasValidExpiry) return { valid: false, reason: 'not_found' };
   if (isExpired) return { valid: false, reason: 'expired' };
@@ -350,17 +340,9 @@ async function findAuthUserByEmail(email: string): Promise<{ id: string } | null
 
 export async function acceptInvitationToken(request: NextRequest, tokenRaw: string, password?: string, fullName?: string) {
   const token = normalizeInvitationToken(tokenRaw);
-  console.log('[invitations/accept] Token received from request:', maskInvitationToken(token));
   if (!token) return { ok: false as const, status: 400, body: { error: 'Invitation token is required' } };
 
   const invitation = await getInvitationByToken(token);
-  console.log('[invitations/accept] DB query result:', invitation ? {
-    id: invitation.id,
-    email: invitation.email,
-    status: invitation.status,
-    expires_at: invitation.expires_at,
-  } : null);
-
   const validation = validateInvitationState(invitation);
   if (!validation.valid) {
     return {
@@ -381,12 +363,6 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
 
   const requestUserId = await getRequestUserId(request);
   const existingUser = await findAuthUserByEmail(invitationEmail);
-  console.log('[invitations/accept] User lookup result:', {
-    invitationEmail,
-    requestUserId,
-    foundExistingUser: Boolean(existingUser?.id),
-  });
-
   let authUserId = existingUser?.id ?? null;
   let userCreated = false;
 
@@ -416,15 +392,12 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     }
     authUserId = created.user.id;
     userCreated = true;
-    console.log('[invitations/accept] Created auth user:', { userId: authUserId, email: invitationEmail });
   } else if (requestUserId && requestUserId !== authUserId) {
     return {
       ok: false as const,
       status: 403,
       body: { error: 'You are signed in as a different account. Sign out and use the invited email.' },
     };
-  } else {
-    console.log('[invitations/accept] Using existing auth user:', { userId: authUserId, email: invitationEmail });
   }
 
   if (!authUserId) {
@@ -498,12 +471,6 @@ export async function acceptInvitationToken(request: NextRequest, tokenRaw: stri
     console.error('[invitations/accept] Failed to insert workspace_members rows:', workspaceMemberInsertError);
     return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError } };
   }
-
-  console.log('[invitations/accept] workspace_members inserted:', {
-    count: membersToInsert.length,
-    userId: resolvedAuthUserId,
-    workspaces: membersToInsert.map(member => `${member.workspace_id}:${member.role}`),
-  });
 
   const membershipRowsByKey = new Map<WorkspaceKey, WorkspaceMembershipUpsertPayload>();
   for (const grant of grants) {

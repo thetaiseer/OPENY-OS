@@ -56,14 +56,6 @@ export async function POST(req: NextRequest) {
   try {
     const result = await completeMultipartUploadSession(storageKey, uploadId, parts);
 
-    console.log('[upload/multipart-complete] completed:', {
-      userId:    auth.profile.id,
-      storageKey,
-      uploadId,
-      partCount: parts.length,
-      publicUrl: result.publicUrl,
-    });
-
     return NextResponse.json({ success: true, publicUrl: result.publicUrl });
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : String(err);

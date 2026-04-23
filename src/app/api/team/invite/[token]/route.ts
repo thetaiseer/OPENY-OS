@@ -5,16 +5,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   void request;
   const { token: rawToken } = await context.params;
   const token = normalizeInvitationToken(rawToken);
-  console.log('[team/invite/[token]] Token received from URL:', maskInvitationToken(token));
-
   const invitation = await getInvitationByToken(token);
-  console.log('[team/invite/[token]] DB query result:', invitation ? {
-    id: invitation.id,
-    email: invitation.email,
-    status: invitation.status,
-    expires_at: invitation.expires_at,
-  } : null);
-
   const validation = validateInvitationState(invitation);
   if (!validation.valid) {
     if (validation.reason === 'expired') {

@@ -7,7 +7,6 @@ export async function POST(request: NextRequest) {
   const password = typeof body?.password === 'string' ? body.password : undefined;
   const fullName = typeof body?.full_name === 'string' ? body.full_name : undefined;
 
-  console.log('[invitations/accept] Token sent to backend:', maskInvitationToken(token));
   const result = await acceptInvitationToken(request, token, password, fullName);
   return NextResponse.json(result.body, { status: result.status });
 }

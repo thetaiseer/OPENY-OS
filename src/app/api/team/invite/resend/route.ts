@@ -88,9 +88,6 @@ export async function POST(request: NextRequest) {
 
   // Send email
   const inviteUrl = `${appUrl}/invite?token=${newToken}`;
-  console.log('[team/invite/resend] Generated token (prefix):', newToken.slice(0, 8) + '...', '— expires', newExpiresAt);
-  console.log('[team/invite/resend] Invitation URL:', inviteUrl);
-  console.log('[team/invite/resend] Sending email via sender:', fromEmail);
   const html = teamInviteEmail({
     recipientName: memberFullName,
     inviterName:   auth.profile.name,
@@ -107,7 +104,6 @@ export async function POST(request: NextRequest) {
       html,
       from:    fromEmail,
     });
-    console.log('[team/invite/resend] Email sent successfully to:', invitation.email);
     await logEmailSent({
       to:         invitation.email,
       subject:    "You're invited to join OPENY OS",

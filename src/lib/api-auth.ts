@@ -106,8 +106,6 @@ export async function getApiUser(
     error: authError,
   } = await supabase.auth.getUser();
 
-  console.log('[api-auth] getUser result — id:', user?.id ?? 'none', '| email:', user?.email ?? 'none', '| authError:', authError?.message ?? 'none');
-
   if (authError || !user) {
     console.warn('[api-auth] No authenticated user — returning null');
     return null;
@@ -155,8 +153,6 @@ export async function getApiUser(
     .eq('email', email)
     .maybeSingle();
 
-  console.log('[api-auth] team_members fetch — row:', member ? `email=${member.email} role=${member.role}` : 'null', '| error:', memberError ? `${memberError.code}: ${memberError.message}` : 'none');
-
   const fallbackWorkspaceRole = mapWorkspaceRoleToUserRole(membershipRole);
   const teamRole = member ? ((member.role as UserRole) || 'team_member') : fallbackWorkspaceRole;
   const resolvedRole = requiredWorkspace === 'docs' ? fallbackWorkspaceRole : teamRole;
@@ -171,8 +167,6 @@ export async function getApiUser(
   if (!member) {
     console.warn('[api-auth] No team_member row found for email:', email, '— using workspace role fallback:', fallbackWorkspaceRole);
   }
-
-  console.log('[api-auth] resolved profile — id:', resolved.id, '| email:', resolved.email, '| role:', resolved.role);
 
   setCachedProfile(resolved.id, resolved);
   return { profile: resolved };

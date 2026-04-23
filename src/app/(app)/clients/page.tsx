@@ -148,7 +148,6 @@ function ClientsPage() {
   }, [registerQuickActionHandler, setModalOpen]);
 
   const logActivity = (description: string, clientId?: string) => {
-    console.log('[client create] before activity log:', description);
     void supabase.from('activities').insert({
       type: 'client',
       description,
@@ -156,7 +155,6 @@ function ClientsPage() {
     }).then(
       ({ error }) => {
         if (error) console.warn('[logActivity]', error);
-        else console.log('[client create] after activity log: success');
       },
       (err: unknown) => {
         console.warn('[logActivity network]', err);
@@ -179,9 +177,6 @@ function ClientsPage() {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
     try {
-      console.log('[client create] form submit started', { name: form.name });
-      console.log('[client create] request payload:', JSON.stringify(form));
-
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
           () => reject(new Error('Request timed out. Please try again.')),
@@ -202,15 +197,11 @@ function ClientsPage() {
         throw new Error(`Server returned status ${res.status} with non-JSON body`);
       }
 
-      console.log('[client create] API response:', JSON.stringify(result));
-
       if (!result.success) {
         const step  = result.step  ? ` [${result.step}]` : '';
         const msg   = result.error ?? 'Failed to create client';
         throw new Error(`${msg}${step}`);
       }
-
-      console.log('[client create] insert success, id:', result.client?.id);
 
       // — SUCCESS PATH —
       // Close modal and reset form immediately; navigation is non-blocking.
@@ -243,8 +234,6 @@ function ClientsPage() {
       } else {
         toast(`Client "${form.name}" created successfully.`, 'success');
 
-        // Refresh list non-blocking via React Query cache invalidation
-        console.log('[client create] triggering list refetch');
         void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       }
     } catch (err: unknown) {

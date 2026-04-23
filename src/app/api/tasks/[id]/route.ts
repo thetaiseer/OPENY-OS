@@ -57,13 +57,10 @@ export async function PATCH(
   { params }: { params: Promise<Params> },
 ) {
   const { id } = await params;
-  console.log('[PATCH /api/tasks/[id]] request received — id:', id);
 
   // Auth
   const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
-
-  console.log('[PATCH /api/tasks/[id]] caller:', auth.profile.email, '| role:', auth.profile.role);
 
   if (!id) {
     return NextResponse.json(
@@ -83,8 +80,6 @@ export async function PATCH(
       { status: 400 },
     );
   }
-
-  console.log('[PATCH /api/tasks/[id]] payload:', JSON.stringify(body));
 
   // Build update payload — only known fields
   const updatePayload: Record<string, unknown> = {
@@ -203,8 +198,6 @@ export async function PATCH(
     );
   }
 
-  console.log('[PATCH /api/tasks/[id]] update success — id:', data?.id);
-
   const isCompleted = ['done', 'completed'].includes(String(data?.status ?? '').toLowerCase());
   if (data?.id && isCompleted && !wasCompleted) {
     void notifyTaskCompleted({
@@ -226,13 +219,10 @@ export async function DELETE(
   { params }: { params: Promise<Params> },
 ) {
   const { id } = await params;
-  console.log('[DELETE /api/tasks/[id]] request received — id:', id);
 
   // Auth
   const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
-
-  console.log('[DELETE /api/tasks/[id]] caller:', auth.profile.email, '| role:', auth.profile.role);
 
   if (!id) {
     return NextResponse.json(
@@ -251,8 +241,6 @@ export async function DELETE(
       { status: 500 },
     );
   }
-
-  console.log('[DELETE /api/tasks/[id]] delete success — id:', id);
 
   // Activity log (fire-and-forget)
   void Promise.resolve(db.from('activities').insert({
