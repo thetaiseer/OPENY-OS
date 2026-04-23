@@ -7,8 +7,8 @@ import {
   ArrowLeft, Building2, Mail, Phone, Globe, Pencil, Trash2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';

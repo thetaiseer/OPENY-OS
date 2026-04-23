@@ -21,8 +21,8 @@ import {
   Loader2, RotateCcw, RefreshCw, Trash2, X, File, FileImage,
   FileText, FileVideo, FileAudio, ChevronRight, Pause, Play,
 } from 'lucide-react';
-import { useUpload, type UploadItem, type UploadStatus } from '@/lib/upload-context';
-import { useToast } from '@/lib/toast-context';
+import { useUpload, type UploadItem, type UploadStatus } from '@/context/upload-context';
+import { useToast } from '@/context/toast-context';
 
 // ── Speed formatter ──────────────────────────────────────────────────────────
 

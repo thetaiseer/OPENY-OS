@@ -8,9 +8,9 @@ import {
   ClipboardList, FileSignature, BookOpen,
   Moon, Sun,
 } from 'lucide-react';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useTheme } from '@/lib/theme-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import AccountMenu from './AccountMenu';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import clsx from 'clsx';

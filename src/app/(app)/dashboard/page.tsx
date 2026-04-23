@@ -8,9 +8,9 @@ import {
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar, YAxis } from 'recharts';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
-import { useAuth } from '@/lib/auth-context';
-import { useLang } from '@/lib/lang-context';
-import { useDashboardStats } from '@/lib/queries';
+import { useAuth } from '@/context/auth-context';
+import { useLang } from '@/context/lang-context';
+import { useDashboardStats } from '@/hooks/queries';
 import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';

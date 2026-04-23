@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Lock, Moon, Sun } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { createClient } from '@/lib/supabase/client';
-import { useToast } from '@/lib/toast-context';
-import { useTheme } from '@/lib/theme-context';
+import { useToast } from '@/context/toast-context';
+import { useTheme } from '@/context/theme-context';
 import {
   persistSelectedWorkspace,
   readSelectedWorkspace,

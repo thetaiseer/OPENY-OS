@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import { resolveEffectivePermissions, normalizePlatformRole, hasModuleAccess } from '@/lib/permissions';
 import type { MemberPermissions, ModuleAccess, OsModule, DocsModule } from '@/lib/types';
 

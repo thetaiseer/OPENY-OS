@@ -7,9 +7,9 @@ import {
   Download, Square, CheckSquare, Users2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import SelectDropdown from '@/components/ui/SelectDropdown';
@@ -20,13 +20,13 @@ import {
   mainCategoryLabel,
   subCategoryLabel,
 } from '@/lib/asset-utils';
-import { useUpload } from '@/lib/upload-context';
+import { useUpload } from '@/context/upload-context';
 import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isImage as isImageFile, isVideo as isVideoFile, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 import AppModal from '@/components/ui/AppModal';
 
 // ─────────────────────────────────────────────────────────────────────────────

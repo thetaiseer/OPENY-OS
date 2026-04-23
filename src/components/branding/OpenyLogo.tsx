@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useTheme } from '@/lib/theme-context';
+import { useTheme } from '@/context/theme-context';
 import { OPENY_LOGO_DARK_URL, OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
 
 type OpenyLogoProps = {

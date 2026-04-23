@@ -1,7 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ToastProvider } from '@/lib/toast-context';
+import { ToastProvider } from '@/context/toast-context';
 import ToastContainer from '@/components/ui/ToastContainer';
 
 // Singleton QueryClient shared across all route trees (OS, Docs, workspace selector).

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import {
   getCurrentWorkspace,
   getUserWorkspaceMemberships,

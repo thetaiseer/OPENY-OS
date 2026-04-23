@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { CheckSquare, FolderOpen, FileText, Clock, AlertCircle } from 'lucide-react';
 import { useClientWorkspace } from '../client-context';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
+import { useLang } from '@/context/lang-context';
 import type { Task, Asset, ContentItem } from '@/lib/types';
 
 function fmtDate(d?: string) {

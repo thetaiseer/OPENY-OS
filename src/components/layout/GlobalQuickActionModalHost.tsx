@@ -8,11 +8,11 @@ import NewTaskModal from '@/components/tasks/NewTaskModal';
 import NewContentModal from '@/components/content/NewContentModal';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
 import { MAIN_CATEGORIES } from '@/lib/asset-utils';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import { createClient as createSupabase } from '@/lib/supabase/client';
-import { useUpload } from '@/lib/upload-context';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useUpload } from '@/context/upload-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 import type { Client, Task, TeamMember, ContentItem } from '@/lib/types';
 
 function nowMonthKey() {

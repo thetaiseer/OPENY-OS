@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Upload, Download } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
-import { useUpload, type InitialUploadItem } from '@/lib/upload-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
+import { useUpload, type InitialUploadItem } from '@/context/upload-context';
 import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';

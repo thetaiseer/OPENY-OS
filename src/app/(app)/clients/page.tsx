@@ -8,15 +8,15 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;

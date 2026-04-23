@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { User as UserIcon, KeyRound, LogOut } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import {
   OPENY_MENU_ITEM_CLASS,
   OPENY_MENU_PANEL_CLASS,

@@ -5,8 +5,8 @@ import {
   Plus, Calendar, User, Tag, AlertCircle, Trash2,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import { useClientWorkspace } from '../client-context';

@@ -13,7 +13,7 @@ import {
   Check, CheckCheck, ExternalLink, Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import type { Notification } from '@/lib/types';
 import { OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 

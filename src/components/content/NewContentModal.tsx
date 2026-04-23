@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PenSquare } from 'lucide-react';
-import { useToast } from '@/lib/toast-context';
+import { useToast } from '@/context/toast-context';
 import type { Client, ContentItem } from '@/lib/types';
 import AppModal from '@/components/ui/AppModal';
 

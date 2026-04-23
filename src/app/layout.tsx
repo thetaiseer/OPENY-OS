@@ -11,9 +11,9 @@ import '@fontsource/cairo/latin-500.css';
 import '@fontsource/cairo/latin-600.css';
 import '@fontsource/cairo/latin-700.css';
 import './globals.css';
-import { ThemeProvider } from '@/lib/theme-context';
-import { LangProvider } from '@/lib/lang-context';
-import { AuthProvider } from '@/lib/auth-context';
+import { ThemeProvider } from '@/context/theme-context';
+import { LangProvider } from '@/context/lang-context';
+import { AuthProvider } from '@/context/auth-context';
 import Providers from './providers';
 
 export const metadata: Metadata = {

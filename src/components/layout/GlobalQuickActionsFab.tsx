@@ -10,7 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useQuickActions, type QuickActionId } from '@/lib/quick-actions-context';
+import { useQuickActions, type QuickActionId } from '@/context/quick-actions-context';
 import { motionTransition } from '@/lib/motion';
 import {
   OPENY_MENU_ICON_CHIP_CLASS,

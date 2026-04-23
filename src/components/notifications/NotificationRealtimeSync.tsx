@@ -10,8 +10,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/lib/toast-context';
-import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/context/toast-context';
+import { useAuth } from '@/context/auth-context';
 import { subscribeToNotifications, type NotificationPayload } from '@/lib/realtime';
 
 export default function NotificationRealtimeSync() {

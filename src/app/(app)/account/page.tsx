@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import { User, Mail, ShieldCheck, Clock } from 'lucide-react';
 
 export default function AccountPage() {

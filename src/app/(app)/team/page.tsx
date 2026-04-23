@@ -8,9 +8,9 @@ import {
   X, Shield, ChevronDown, ChevronUp, Activity, Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import AppModal from '@/components/ui/AppModal';
 import Modal from '@/components/ui/Modal';

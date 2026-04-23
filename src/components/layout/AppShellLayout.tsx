@@ -5,16 +5,16 @@ import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
-import { UploadProvider } from '@/lib/upload-context';
+import { UploadProvider } from '@/context/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
 import GlobalQuickActionModalHost from '@/components/layout/GlobalQuickActionModalHost';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
-import { CommandPaletteProvider, useCommandPalette } from '@/lib/command-palette-context';
-import { AiProvider, useAi } from '@/lib/ai-context';
+import { CommandPaletteProvider, useCommandPalette } from '@/context/command-palette-context';
+import { AiProvider, useAi } from '@/context/ai-context';
 import { queryClient } from '@/app/providers';
-import { QuickActionsProvider } from '@/lib/quick-actions-context';
+import { QuickActionsProvider } from '@/context/quick-actions-context';
 import AppRouteTransition from '@/components/layout/AppRouteTransition';
 
 const AiCommandCenter = dynamic(

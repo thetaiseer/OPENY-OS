@@ -6,7 +6,7 @@ import {
   type ToastItem,
   TOAST_ENTER_ANIMATION_MS,
   TOAST_EXIT_ANIMATION_MS,
-} from '@/lib/toast-context';
+} from '@/context/toast-context';
 
 const STYLE: Record<ToastItem['type'], { bg: string; icon: React.ReactNode }> = {
   success: { bg: '#16a34a', icon: <CheckCircle  size={16} className="shrink-0" /> },

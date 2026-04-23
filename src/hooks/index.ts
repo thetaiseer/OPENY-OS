@@ -9,4 +9,4 @@ export {
   useAssets,
   useNotifications,
   useDashboardStats,
-} from '@/lib/queries/index';
+} from './queries';

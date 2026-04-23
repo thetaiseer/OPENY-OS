@@ -49,7 +49,7 @@ import {
   LayoutDashboard,
   Cpu,
 } from 'lucide-react';
-import { useAi, type AiMode, type AppSection } from '@/lib/ai-context';
+import { useAi, type AiMode, type AppSection } from '@/context/ai-context';
 import AppModal from '@/components/ui/AppModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

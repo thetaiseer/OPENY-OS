@@ -7,8 +7,8 @@ import {
   FileText, FolderOpen, Users, Shield, Layout,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
-import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useLang } from '@/context/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
 import type { Notification, NotificationCategory, NotificationPriority } from '@/lib/types';
 

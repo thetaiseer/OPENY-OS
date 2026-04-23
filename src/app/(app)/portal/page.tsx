@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, Eye, Download } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/client';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';

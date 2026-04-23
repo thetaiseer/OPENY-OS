@@ -7,7 +7,7 @@ import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import { useClientWorkspace } from '../client-context';
-import { useToast } from '@/lib/toast-context';
+import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus } from '@/lib/types';
 import { Plus, FileText, Calendar } from 'lucide-react';
 

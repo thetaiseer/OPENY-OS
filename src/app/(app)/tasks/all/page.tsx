@@ -27,9 +27,9 @@ import {
   LayoutGrid, List, Search, Send, ArrowUpDown, GripVertical, SlidersHorizontal,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/menu-system';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

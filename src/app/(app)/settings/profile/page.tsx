@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
-import { useTheme } from '@/lib/theme-context';
-import { useLang } from '@/lib/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
+import { useLang } from '@/context/lang-context';
 import {
   CheckCircle, AlertCircle, Loader2, LogOut,
   ShieldCheck, CloudLightning, HardDrive, RotateCcw,

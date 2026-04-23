@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/context/auth-context';
 import {
   Monitor, Smartphone, Tablet, Globe, Clock, Shield,
   ShieldAlert, LogOut, RefreshCw, Loader2, AlertTriangle,

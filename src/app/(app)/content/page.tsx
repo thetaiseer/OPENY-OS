@@ -6,11 +6,11 @@ import {
   FileText, Plus, Search, Trash2, ChevronRight,
   Instagram, Linkedin, Youtube, Globe,
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 import NewContentModal from '@/components/content/NewContentModal';
 
 // ── Status config ──────────────────────────────────────────────────────────────

@@ -8,15 +8,15 @@ import {
   Filter, X, Paperclip, Zap, Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import { useLang } from '@/lib/lang-context';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/lib/toast-context';
+import { useLang } from '@/context/lang-context';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PLATFORMS, POST_TYPES, getPlatformDisplayColor } from '@/components/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
-import { useQuickActions } from '@/lib/quick-actions-context';
+import { useQuickActions } from '@/context/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
