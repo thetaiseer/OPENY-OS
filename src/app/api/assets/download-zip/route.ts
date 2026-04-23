@@ -44,16 +44,14 @@ function sanitiseSegment(segment: string): string {
  *
  * The returned path always starts with {clientName}/.
  */
-function buildZipPath(
-  asset: {
-    name: string;
-    client_name?: string | null;
-    storage_key?: string | null;
-    main_category?: string | null;
-    sub_category?: string | null;
-    month_key?: string | null;
-  },
-): string {
+function buildZipPath(asset: {
+  name: string;
+  client_name?: string | null;
+  storage_key?: string | null;
+  main_category?: string | null;
+  sub_category?: string | null;
+  month_key?: string | null;
+}): string {
   const root = sanitiseSegment(asset.client_name ?? 'Unknown Client');
 
   // ── Option 1: derive from storage_key ────────────────────────────────────
@@ -64,18 +62,22 @@ function buildZipPath(
       const rel = parts.slice(2).join('/');
       return `${root}/${rel}`;
     }
-    if (parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS && parts[0] === 'openy-assets' && parts[1] === 'os') {
+    if (
+      parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS &&
+      parts[0] === 'openy-assets' &&
+      parts[1] === 'os'
+    ) {
       const rel = parts.slice(OPENY_OS_KEY_PREFIX_SEGMENTS).join('/');
       return `${root}/${rel}`;
     }
   }
 
   // ── Option 2: reconstruct from fields ────────────────────────────────────
-  const cat      = sanitiseSegment(asset.main_category ?? 'Other');
-  const subCat   = sanitiseSegment(asset.sub_category ?? 'General');
+  const cat = sanitiseSegment(asset.main_category ?? 'Other');
+  const subCat = sanitiseSegment(asset.sub_category ?? 'General');
   const fileName = sanitiseSegment(asset.name);
 
-  let year  = 'Unknown';
+  let year = 'Unknown';
   let month = 'Unknown';
   if (asset.month_key && /^\d{4}-\d{2}$/.test(asset.month_key)) {
     [year, month] = asset.month_key.split('-');
@@ -112,7 +114,7 @@ export async function GET(req: NextRequest) {
 
   const ids = idsParam
     .split(',')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, MAX_ASSETS);
 
@@ -124,7 +126,9 @@ export async function GET(req: NextRequest) {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from('assets')
-    .select('id,name,client_name,storage_key,storage_provider,file_path,main_category,sub_category,month_key')
+    .select(
+      'id,name,client_name,storage_key,storage_provider,file_path,main_category,sub_category,month_key',
+    )
     .in('id', ids)
     .neq('is_deleted', true);
 
@@ -137,12 +141,11 @@ export async function GET(req: NextRequest) {
 
   // Filter to R2-hosted assets only.
   const r2Assets = allAssets.filter(
-    a =>
+    (a) =>
       a.storage_provider === 'r2' ||
-      (a.storage_key && (
-        (a.storage_key as string).startsWith('openy-assets/os/') ||
-        (a.storage_key as string).startsWith('clients/')
-      )),
+      (a.storage_key &&
+        ((a.storage_key as string).startsWith('openy-assets/os/') ||
+          (a.storage_key as string).startsWith('clients/'))),
   );
 
   if (r2Assets.length === 0) {
@@ -160,7 +163,7 @@ export async function GET(req: NextRequest) {
 
   // ── Stream ZIP ────────────────────────────────────────────────────────────
   const passThrough = new PassThrough();
-  const archive     = archiver('zip', { zlib: { level: 6 } });
+  const archive = archiver('zip', { zlib: { level: 6 } });
 
   archive.on('error', (err) => {
     console.error('[assets/download-zip] archiver error', err);
@@ -207,17 +210,18 @@ export async function GET(req: NextRequest) {
   // Convert Node.js Readable → Web ReadableStream (Node.js ≥ 18).
   const webStream = Readable.toWeb(passThrough) as ReadableStream;
 
-  const archiveName = ids.length === 1 && r2Assets[0]
-    ? `${sanitiseSegment(r2Assets[0].name)}.zip`
-    : `assets-${ids.length}.zip`;
+  const archiveName =
+    ids.length === 1 && r2Assets[0]
+      ? `${sanitiseSegment(r2Assets[0].name)}.zip`
+      : `assets-${ids.length}.zip`;
 
   return new NextResponse(webStream, {
     status: 200,
     headers: {
-      'Content-Type':        'application/zip',
+      'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="${archiveName}"`,
-      'X-Accel-Buffering':   'no',
-      'Cache-Control':       'no-store',
+      'X-Accel-Buffering': 'no',
+      'Cache-Control': 'no-store',
     },
   });
 }

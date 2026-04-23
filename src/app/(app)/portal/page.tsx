@@ -24,7 +24,9 @@ export default function PortalPage() {
       const supabase = createClient();
       let q = supabase
         .from('assets')
-        .select('id, name, content_type, file_url, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at')
+        .select(
+          'id, name, content_type, file_url, view_url, web_view_link, download_url, preview_url, file_type, mime_type, file_size, client_id, created_at',
+        )
         .order('created_at', { ascending: false })
         .limit(100);
       if (clientId) q = q.eq('client_id', clientId);
@@ -39,75 +41,117 @@ export default function PortalPage() {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-          Welcome, {user.name} 👋
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Your client portal — view your assets
-        </p>
-      </div>
+      <div className="mx-auto max-w-5xl space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+            Welcome, {user.name} 👋
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Your client portal — view your assets
+          </p>
+        </div>
 
-      {/* Summary card */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border p-5 flex items-center gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
-            <FolderOpen size={18} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{total}</p>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Total Assets</p>
+        {/* Summary card */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div
+            className="flex items-center gap-4 rounded-2xl border p-5"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}
+            >
+              <FolderOpen size={18} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+                {total}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Total Assets
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Asset list */}
-      <div>
-        <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--text)' }}>Your Assets</h2>
-        {isLoading ? (
-          <SkeletonTable rows={5} cols={4} />
-        ) : !assets?.length ? (
-          <div className="rounded-2xl border p-12 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <FolderOpen size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-secondary)' }} />
-            <p className="text-base font-medium" style={{ color: 'var(--text)' }}>No assets yet</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Your team will upload assets here</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            {assets.map(a => (
-              <div key={a.id} className="flex items-center gap-4 px-6 py-4 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)' }}>
-                  <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
+        {/* Asset list */}
+        <div>
+          <h2 className="mb-4 text-base font-semibold" style={{ color: 'var(--text)' }}>
+            Your Assets
+          </h2>
+          {isLoading ? (
+            <SkeletonTable rows={5} cols={4} />
+          ) : !assets?.length ? (
+            <div
+              className="rounded-2xl border p-12 text-center"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <FolderOpen
+                size={32}
+                className="mx-auto mb-3 opacity-30"
+                style={{ color: 'var(--text-secondary)' }}
+              />
+              <p className="text-base font-medium" style={{ color: 'var(--text)' }}>
+                No assets yet
+              </p>
+              <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Your team will upload assets here
+              </p>
+            </div>
+          ) : (
+            <div
+              className="overflow-hidden rounded-2xl border"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              {assets.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-4 border-b px-6 py-4 last:border-b-0"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: 'var(--surface-2)' }}
+                  >
+                    <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {a.name}
+                    </p>
+                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {(a.web_view_link ?? a.view_url ?? a.file_url) && (
+                      <button
+                        onClick={() => setPreviewAsset(a)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+                        style={{ background: 'var(--surface-2)' }}
+                        title="View"
+                      >
+                        <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
+                      </button>
+                    )}
+                    {a.download_url && (
+                      <a
+                        href={a.download_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+                        style={{ background: 'var(--surface-2)' }}
+                        title="Download"
+                      >
+                        <Download size={14} style={{ color: 'var(--text-secondary)' }} />
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{a.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    {a.content_type} · {new Date(a.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {(a.web_view_link ?? a.view_url ?? a.file_url) && (
-                    <button
-                      onClick={() => setPreviewAsset(a)}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity"
-                      style={{ background: 'var(--surface-2)' }}
-                      title="View"
-                    >
-                      <Eye size={14} style={{ color: 'var(--text-secondary)' }} />
-                    </button>
-                  )}
-                  {a.download_url && (
-                    <a href={a.download_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-lg hover:opacity-70 transition-opacity" style={{ background: 'var(--surface-2)' }} title="Download">
-                      <Download size={14} style={{ color: 'var(--text-secondary)' }} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {previewAsset && (

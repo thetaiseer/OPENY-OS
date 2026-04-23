@@ -6,19 +6,19 @@
  */
 
 export const INVITATION_STATUS = {
-  PENDING:  'pending',
-  INVITED:  'invited',
+  PENDING: 'pending',
+  INVITED: 'invited',
   ACCEPTED: 'accepted',
-  REVOKED:  'revoked',
-  EXPIRED:  'expired',
+  REVOKED: 'revoked',
+  EXPIRED: 'expired',
 } as const;
 
 export type InvitationStatus = (typeof INVITATION_STATUS)[keyof typeof INVITATION_STATUS];
 
 export const MEMBER_STATUS = {
-  ACTIVE:    'active',
-  INVITED:   'invited',
-  INACTIVE:  'inactive',
+  ACTIVE: 'active',
+  INVITED: 'invited',
+  INACTIVE: 'inactive',
   SUSPENDED: 'suspended',
 } as const;
 

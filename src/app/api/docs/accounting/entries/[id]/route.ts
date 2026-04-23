@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -10,8 +12,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const db = getServiceClient();
   const { data, error } = await db

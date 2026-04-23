@@ -30,21 +30,27 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
-  if (!name) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
+  if (!name)
+    return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
 
   const db = getServiceClient();
   const { data, error } = await db
     .from('tags')
-    .upsert({
-      name,
-      color:       typeof body.color       === 'string' ? body.color.trim()       : '#6366f1',
-      description: typeof body.description === 'string' ? body.description.trim() : null,
-    }, { onConflict: 'workspace_id,name' })
+    .upsert(
+      {
+        name,
+        color: typeof body.color === 'string' ? body.color.trim() : '#6366f1',
+        description: typeof body.description === 'string' ? body.description.trim() : null,
+      },
+      { onConflict: 'workspace_id,name' },
+    )
     .select()
     .single();
 

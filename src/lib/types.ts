@@ -62,11 +62,7 @@ export type OsModule =
   | 'security';
 
 /** Modules available in OPENY DOCS */
-export type DocsModule =
-  | 'invoice'
-  | 'quotation'
-  | 'contracts'
-  | 'accounting';
+export type DocsModule = 'invoice' | 'quotation' | 'contracts' | 'accounting';
 
 /** Canonical member permission record stored in member_permissions table */
 export interface MemberPermissionRow {
@@ -100,17 +96,20 @@ export interface TeamInvitation {
   updated_at: string;
   workspace_access?: Array<'os' | 'docs' | string> | null;
   workspace_roles?: Record<string, string> | null;
-  team_member?: {
-    full_name?: string | null;
-    job_title?: string | null;
-    role?: string | null;
-    status?: string | null;
-  } | Array<{
-    full_name?: string | null;
-    job_title?: string | null;
-    role?: string | null;
-    status?: string | null;
-  }> | null;
+  team_member?:
+    | {
+        full_name?: string | null;
+        job_title?: string | null;
+        role?: string | null;
+        status?: string | null;
+      }
+    | Array<{
+        full_name?: string | null;
+        job_title?: string | null;
+        role?: string | null;
+        status?: string | null;
+      }>
+    | null;
 }
 
 export type TaskStatus =
@@ -315,7 +314,13 @@ export type TaskAssetLink = {
   asset?: Pick<Asset, 'id' | 'name' | 'content_type' | 'web_view_link' | 'preview_url'> | null;
 };
 
-export type CalendarEventType = 'task' | 'publishing' | 'deadline' | 'meeting' | 'reminder' | 'other';
+export type CalendarEventType =
+  | 'task'
+  | 'publishing'
+  | 'deadline'
+  | 'meeting'
+  | 'reminder'
+  | 'other';
 export type CalendarEventStatus = 'active' | 'cancelled' | 'completed';
 
 export interface CalendarEvent {
@@ -494,7 +499,10 @@ export interface PublishingSchedule {
   created_at: string;
   updated_at: string;
   /** Joined from assets table when fetching schedules */
-  asset?: Pick<Asset, 'id' | 'name' | 'content_type' | 'file_url' | 'preview_url' | 'client_name'> | null;
+  asset?: Pick<
+    Asset,
+    'id' | 'name' | 'content_type' | 'file_url' | 'preview_url' | 'client_name'
+  > | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -526,7 +534,7 @@ export interface Project {
 // ── Entity Links (relational graph) ──────────────────────────────────────────
 
 export type EntityType = 'task' | 'asset' | 'content' | 'client' | 'project' | 'note' | 'template';
-export type LinkType   = 'related' | 'blocks' | 'blocked_by' | 'parent' | 'child' | 'duplicate';
+export type LinkType = 'related' | 'blocks' | 'blocked_by' | 'parent' | 'child' | 'duplicate';
 
 export interface EntityLink {
   id: string;
@@ -797,7 +805,14 @@ export interface AutomationCondition {
 }
 
 export interface AutomationAction {
-  type: 'send_notification' | 'create_task' | 'update_field' | 'assign_member' | 'add_tag' | 'send_email' | 'log_activity';
+  type:
+    | 'send_notification'
+    | 'create_task'
+    | 'update_field'
+    | 'assign_member'
+    | 'add_tag'
+    | 'send_email'
+    | 'log_activity';
   config: Record<string, unknown>;
 }
 

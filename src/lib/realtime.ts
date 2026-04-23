@@ -20,14 +20,14 @@ export function subscribeToTasks(onChange: () => void): () => void {
 
   const channel: RealtimeChannel = supabase
     .channel('realtime:tasks')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'tasks' },
-      (_payload) => { onChange(); },
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (_payload) => {
+      onChange();
+    })
     .subscribe();
 
-  return () => { void supabase.removeChannel(channel); };
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }
 
 export interface TableSubscriptionConfig {
@@ -48,14 +48,14 @@ export function subscribeToTableChanges(
 
   const channel: RealtimeChannel = supabase
     .channel(channelName)
-    .on(
-      'postgres_changes',
-      { event, schema, table: config.table },
-      (_payload) => { onChange(); },
-    )
+    .on('postgres_changes', { event, schema, table: config.table }, (_payload) => {
+      onChange();
+    })
     .subscribe();
 
-  return () => { void supabase.removeChannel(channel); };
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }
 
 export interface NotificationPayload {
@@ -84,9 +84,13 @@ export function subscribeToNotifications(
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications' },
-      (event) => { onNew(event.new as NotificationPayload); },
+      (event) => {
+        onNew(event.new as NotificationPayload);
+      },
     )
     .subscribe();
 
-  return () => { void supabase.removeChannel(channel); };
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }

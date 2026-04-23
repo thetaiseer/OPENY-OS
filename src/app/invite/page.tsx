@@ -13,14 +13,14 @@ type ValidationState =
   | { status: 'loading' }
   | { status: 'invalid'; message: string }
   | {
-    status: 'valid';
-    invitation: {
-      email: string;
-      role: string | null;
-      full_name?: string;
-      expires_at: string;
+      status: 'valid';
+      invitation: {
+        email: string;
+        role: string | null;
+        full_name?: string;
+        expires_at: string;
+      };
     };
-  };
 
 type ValidateResponse = { error?: string; reason?: string; invitation?: { full_name?: string } };
 type AcceptResponse = { error?: string; email?: string; workspaces?: Array<'os' | 'docs'> };
@@ -28,7 +28,7 @@ type AcceptResponse = { error?: string; email?: string; workspaces?: Array<'os' 
 function formatRole(value: string | null | undefined): string {
   return (value ?? 'team_member')
     .replaceAll('_', ' ')
-    .replace(/\b\w/g, letter => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 const supabaseClient = createClient();
@@ -55,8 +55,10 @@ function InvitePage() {
 
       setValidation({ status: 'loading' });
       const encodedToken = encodeURIComponent(token);
-      const res = await fetch(`/api/invitations/validate?token=${encodedToken}`, { cache: 'no-store' });
-      const payload = await res.json().catch(() => ({} as ValidateResponse));
+      const res = await fetch(`/api/invitations/validate?token=${encodedToken}`, {
+        cache: 'no-store',
+      });
+      const payload = await res.json().catch(() => ({}) as ValidateResponse);
 
       if (!res.ok || !payload?.invitation) {
         if (payload?.reason === 'expired') {
@@ -102,7 +104,7 @@ function InvitePage() {
           full_name: fullName || undefined,
         }),
       });
-      const payload = await res.json().catch(() => ({} as AcceptResponse));
+      const payload = await res.json().catch(() => ({}) as AcceptResponse);
 
       if (!res.ok) {
         setSubmitError(payload.error ?? 'Failed to accept invitation.');
@@ -118,12 +120,16 @@ function InvitePage() {
 
       const acceptedWorkspaces = (payload.workspaces ?? [])
         .map((workspace: unknown) => normalizeWorkspaceKey(workspace))
-        .filter((workspace: unknown): workspace is 'os' | 'docs' => workspace === 'os' || workspace === 'docs');
-      const redirectTarget = acceptedWorkspaces.length > 1
-        ? '/?switch=1'
-        : acceptedWorkspaces.length === 1
-          ? `/?workspace=${acceptedWorkspaces[0]}`
-          : '/?workspace=os';
+        .filter(
+          (workspace: unknown): workspace is 'os' | 'docs' =>
+            workspace === 'os' || workspace === 'docs',
+        );
+      const redirectTarget =
+        acceptedWorkspaces.length > 1
+          ? '/?switch=1'
+          : acceptedWorkspaces.length === 1
+            ? `/?workspace=${acceptedWorkspaces[0]}`
+            : '/?workspace=os';
 
       setSubmitMessage('Invitation accepted successfully. Redirecting…');
       setTimeout(() => {
@@ -135,26 +141,39 @@ function InvitePage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg, #f9fafb)' }}>
-      <div className="w-full max-w-md rounded-2xl border shadow-xl overflow-hidden" style={{ background: '#ffffff', borderColor: '#e5e7eb' }}>
-        <div className="px-8 py-7 text-center" style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}>
-          <h1 className="text-2xl font-bold text-white tracking-tight">OPENY OS</h1>
+    <div
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{ background: 'var(--bg, #f9fafb)' }}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border shadow-xl"
+        style={{ background: '#ffffff', borderColor: '#e5e7eb' }}
+      >
+        <div
+          className="px-8 py-7 text-center"
+          style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+        >
+          <h1 className="text-2xl font-bold tracking-tight text-white">OPENY OS</h1>
           <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
             Team Invitation
           </p>
         </div>
 
-        <div className="px-8 py-8 space-y-4">
+        <div className="space-y-4 px-8 py-8">
           {validation.status === 'loading' ? (
-            <p className="text-sm text-center" style={{ color: '#6b7280' }}>Validating invitation…</p>
+            <p className="text-center text-sm" style={{ color: '#6b7280' }}>
+              Validating invitation…
+            </p>
           ) : null}
 
           {validation.status === 'invalid' ? (
             <div className="space-y-4 text-center">
-              <h2 className="text-xl font-bold" style={{ color: '#111827' }}>{validation.message}</h2>
+              <h2 className="text-xl font-bold" style={{ color: '#111827' }}>
+                {validation.message}
+              </h2>
               <Link
                 href="/"
-                className="inline-block h-10 px-6 rounded-lg text-sm font-semibold text-white leading-10"
+                className="inline-block h-10 rounded-lg px-6 text-sm font-semibold leading-10 text-white"
                 style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
                 Go to Login →
@@ -174,34 +193,40 @@ function InvitePage() {
                 type="text"
                 placeholder="Full name"
                 value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                className="w-full h-10 rounded-lg border px-3 text-sm"
+                onChange={(e) => setFullName(e.target.value)}
+                className="h-10 w-full rounded-lg border px-3 text-sm"
                 style={{ borderColor: '#d1d5db' }}
               />
               <input
                 type="password"
                 placeholder="Set password (required for new users)"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full h-10 rounded-lg border px-3 text-sm"
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-10 w-full rounded-lg border px-3 text-sm"
                 style={{ borderColor: '#d1d5db' }}
               />
               <input
                 type="password"
                 placeholder="Confirm password"
                 value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full h-10 rounded-lg border px-3 text-sm"
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-10 w-full rounded-lg border px-3 text-sm"
                 style={{ borderColor: '#d1d5db' }}
               />
 
               {submitError ? (
-                <p className="text-sm rounded-lg border px-3 py-2" style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}>
+                <p
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}
+                >
                   {submitError}
                 </p>
               ) : null}
               {submitMessage ? (
-                <p className="text-sm rounded-lg border px-3 py-2" style={{ color: '#166534', borderColor: '#bbf7d0', background: '#f0fdf4' }}>
+                <p
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{ color: '#166534', borderColor: '#bbf7d0', background: '#f0fdf4' }}
+                >
                   {submitMessage}
                 </p>
               ) : null}
@@ -209,7 +234,7 @@ function InvitePage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-10 rounded-lg text-sm font-semibold text-white"
+                className="h-10 w-full rounded-lg text-sm font-semibold text-white"
                 style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
                 {submitting ? 'Accepting…' : 'Accept Invitation'}

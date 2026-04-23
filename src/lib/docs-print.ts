@@ -9,7 +9,11 @@ function escapeHtml(input: string) {
     .replaceAll("'", '&#39;');
 }
 
-export function printPreviewDocument(previewId: string, documentCode: string, fallbackCode = 'document') {
+export function printPreviewDocument(
+  previewId: string,
+  documentCode: string,
+  fallbackCode = 'document',
+) {
   const preview = document.getElementById(previewId);
   if (!preview) return false;
 
@@ -51,7 +55,11 @@ export function printPreviewDocument(previewId: string, documentCode: string, fa
   return true;
 }
 
-export async function exportPreviewPdf(previewId: string, documentCode: string, fallbackCode = 'document') {
+export async function exportPreviewPdf(
+  previewId: string,
+  documentCode: string,
+  fallbackCode = 'document',
+) {
   const preview = document.getElementById(previewId);
   if (!preview) return false;
 

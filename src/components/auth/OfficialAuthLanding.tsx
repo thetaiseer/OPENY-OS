@@ -60,7 +60,7 @@ export default function OfficialAuthLanding() {
 
       const rows = (query.data ?? []) as WorkspaceMembershipRow[];
       const keys = rows
-        .map(row => normalizeWorkspaceKey(row.workspace_key))
+        .map((row) => normalizeWorkspaceKey(row.workspace_key))
         .filter((v): v is WorkspaceKey => Boolean(v));
 
       return [...new Set(keys)];
@@ -80,13 +80,18 @@ export default function OfficialAuthLanding() {
         if (assignedWorkspaces.length === 0) {
           setWorkspaceChoices([]);
           setAccessMessage(NO_WORKSPACE_MESSAGE);
-          toast(`${NO_WORKSPACE_MESSAGE} Contact your workspace admin to get access.`, 'error', 6000);
+          toast(
+            `${NO_WORKSPACE_MESSAGE} Contact your workspace admin to get access.`,
+            'error',
+            6000,
+          );
           await supabase.auth.signOut();
           return;
         }
 
         const requested = requestedWorkspace ?? preferredWorkspace;
-        const shouldShowWorkspaceSelection = assignedWorkspaces.length > 1 && (isSwitchMode || !requested);
+        const shouldShowWorkspaceSelection =
+          assignedWorkspaces.length > 1 && (isSwitchMode || !requested);
         if (shouldShowWorkspaceSelection) {
           setWorkspaceChoices(assignedWorkspaces);
           setAccessMessage(null);
@@ -107,20 +112,33 @@ export default function OfficialAuthLanding() {
         }
         redirectToWorkspace(router, targetWorkspace, nextPath);
       } catch (error) {
-        console.error('[OfficialAuthLanding] Failed to finalize workspace access after sign-in:', error);
+        console.error(
+          '[OfficialAuthLanding] Failed to finalize workspace access after sign-in:',
+          error,
+        );
         const message = 'Unable to load your workspace access right now. Please try again.';
         setAccessMessage(message);
         toast(message, 'error');
       }
     },
-    [isSwitchMode, loadAssignedWorkspaces, nextPath, requestedWorkspace, router, supabase.auth, toast],
+    [
+      isSwitchMode,
+      loadAssignedWorkspaces,
+      nextPath,
+      requestedWorkspace,
+      router,
+      supabase.auth,
+      toast,
+    ],
   );
 
   useEffect(() => {
     let mounted = true;
 
     const run = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!mounted) return;
 
       if (!session) {
@@ -141,7 +159,9 @@ export default function OfficialAuthLanding() {
     };
 
     void run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [finalizeAuth, isSwitchMode, nextPath, requestedWorkspace, router, supabase]);
 
   const submit = async (e: FormEvent) => {
@@ -157,15 +177,13 @@ export default function OfficialAuthLanding() {
       });
       if (error) throw error;
 
-      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(() => null);
-      await finalizeAuth(
-        data.user.id,
-        data.user.email,
-        readSelectedWorkspace(),
-        true,
+      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(
+        () => null,
       );
+      await finalizeAuth(data.user.id, data.user.email, readSelectedWorkspace(), true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Network or server error. Please try again.';
+      const message =
+        error instanceof Error ? error.message : 'Network or server error. Please try again.';
       setFormError(message);
       toast(message, 'error');
     } finally {
@@ -183,7 +201,13 @@ export default function OfficialAuthLanding() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}>
+      <div
+        className="flex min-h-screen items-center justify-center px-4"
+        style={{
+          background:
+            'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)',
+        }}
+      >
         <Loader2 size={26} className="animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     );
@@ -192,23 +216,36 @@ export default function OfficialAuthLanding() {
   return (
     <div
       className="min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-8"
-      style={{ background: 'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)' }}
+      style={{
+        background:
+          'radial-gradient(900px 420px at 50% -10%, rgba(59,130,246,0.22), transparent 68%), var(--bg)',
+      }}
     >
-      <div className="mx-auto w-full max-w-6xl min-h-[88vh] flex items-center">
+      <div className="mx-auto flex min-h-[88vh] w-full max-w-6xl items-center">
         <section
           className="w-full overflow-hidden rounded-[2rem] border shadow-[0_45px_90px_-52px_rgba(30,64,175,0.5)]"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <div className="flex items-center justify-between p-5 sm:p-6 lg:p-7 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="flex items-center justify-between border-b p-5 sm:p-6 lg:p-7"
+            style={{ borderColor: 'var(--border)' }}
+          >
             <div className="flex items-center gap-3">
               <OpenyLogo width={128} height={36} />
-              <span className="hidden sm:inline-flex text-[10px] uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+              <span
+                className="hidden rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] sm:inline-flex"
+                style={{
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--border)',
+                  background: 'var(--surface-2)',
+                }}
+              >
                 Official Authentication
               </span>
             </div>
             <button
               onClick={toggleTheme}
-              className="h-10 px-3 rounded-xl border inline-flex items-center justify-center gap-2 text-sm transition-colors hover:bg-[var(--surface-2)]"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm transition-colors hover:bg-[var(--surface-2)]"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -218,16 +255,26 @@ export default function OfficialAuthLanding() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            <div className="relative p-5 sm:p-7 lg:p-9 transition-all duration-500">
-              <div className="max-w-md mx-auto w-full">
-                <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-secondary)' }}>
+            <div className="relative p-5 transition-all duration-500 sm:p-7 lg:p-9">
+              <div className="mx-auto w-full max-w-md">
+                <p
+                  className="text-xs uppercase tracking-[0.2em]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Sign In
                 </p>
-                <h1 className="text-3xl font-semibold mt-2 tracking-tight" style={{ color: 'var(--text)' }}>
+                <h1
+                  className="mt-2 text-3xl font-semibold tracking-tight"
+                  style={{ color: 'var(--text)' }}
+                >
                   Access your workspace
                 </h1>
-                <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Sign in with your assigned account. Workspace access is loaded automatically based on your membership.
+                <p
+                  className="mt-2 text-sm leading-relaxed"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Sign in with your assigned account. Workspace access is loaded automatically based
+                  on your membership.
                 </p>
 
                 {workspaceChoices.length > 0 ? (
@@ -235,13 +282,13 @@ export default function OfficialAuthLanding() {
                     <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                       Select a workspace to continue.
                     </p>
-                    {workspaceChoices.map(workspace => (
+                    {workspaceChoices.map((workspace) => (
                       <button
                         key={workspace}
                         type="button"
                         disabled={selectingWorkspace}
                         onClick={() => handleWorkspaceSelect(workspace)}
-                        className="w-full h-11 rounded-xl border px-4 text-left text-sm font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:opacity-70"
+                        className="h-11 w-full rounded-xl border px-4 text-left text-sm font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:opacity-70"
                         style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                       >
                         {getWorkspaceLabel(workspace)}
@@ -251,37 +298,53 @@ export default function OfficialAuthLanding() {
                 ) : (
                   <form onSubmit={submit} className="mt-6 space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
+                      <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        Email
+                      </label>
                       <input
                         type="email"
                         value={email}
-                        onChange={e => setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        className="h-11 w-full rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                        }}
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Password</label>
-                        <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                          Password
+                        </label>
+                        <Link
+                          href="/forgot-password"
+                          className="text-xs hover:underline"
+                          style={{ color: 'var(--accent)' }}
+                        >
                           Forgot password?
                         </Link>
                       </div>
                       <input
                         type="password"
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="w-full h-11 rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        className="h-11 w-full rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                        }}
                       />
                     </div>
 
                     {(formError || accessMessage) && (
                       <div
-                        className="rounded-xl px-3 py-2 text-sm whitespace-pre-line"
+                        className="whitespace-pre-line rounded-xl px-3 py-2 text-sm"
                         style={{
                           background: 'rgba(239,68,68,0.08)',
                           border: '1px solid rgba(239,68,68,0.28)',
@@ -295,8 +358,11 @@ export default function OfficialAuthLanding() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 rounded-xl font-semibold text-sm text-white inline-flex items-center justify-center gap-2 transition-all disabled:opacity-70 hover:translate-y-[-1px]"
-                      style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)' }}
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition-all hover:translate-y-[-1px] disabled:opacity-70"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)',
+                      }}
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                       {loading ? 'Please wait…' : submitLabel}
@@ -307,31 +373,42 @@ export default function OfficialAuthLanding() {
             </div>
 
             <div
-              className="relative p-6 sm:p-8 lg:p-10 transition-all duration-500"
+              className="relative p-6 transition-all duration-500 sm:p-8 lg:p-10"
               style={{
-                background: 'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
+                background:
+                  'linear-gradient(145deg, rgba(59,130,246,0.94) 0%, rgba(99,102,241,0.94) 46%, rgba(139,92,246,0.9) 100%)',
               }}
             >
-              <div className="relative z-10 h-full flex flex-col justify-between gap-6">
+              <div className="relative z-10 flex h-full flex-col justify-between gap-6">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
-                  <h2 className="text-3xl sm:text-4xl font-semibold mt-2 text-white leading-tight">Welcome back to OPENY</h2>
-                  <p className="text-sm sm:text-base mt-3 text-white/90 max-w-md">
+                  <h2 className="mt-2 text-3xl font-semibold leading-tight text-white sm:text-4xl">
+                    Welcome back to OPENY
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm text-white/90 sm:text-base">
                     Access is provided by your organization administrator.
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <div className="rounded-xl border border-white/35 bg-white/10 px-4 py-3">
-                    <p className="text-sm text-white font-medium">Contact your workspace admin to get access.</p>
+                    <p className="text-sm font-medium text-white">
+                      Contact your workspace admin to get access.
+                    </p>
                   </div>
-                  <p className="text-xs text-white/80 flex items-center gap-2">
+                  <p className="flex items-center gap-2 text-xs text-white/80">
                     <Lock size={12} />
                     One secure session. Workspace access is validated per membership.
                   </p>
                 </div>
               </div>
-              <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)' }} />
+              <div
+                className="absolute inset-0 opacity-40"
+                style={{
+                  background:
+                    'radial-gradient(560px 260px at 80% 10%, rgba(255,255,255,0.35), transparent 65%)',
+                }}
+              />
             </div>
           </div>
         </section>

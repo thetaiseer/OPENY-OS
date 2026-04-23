@@ -118,7 +118,14 @@ interface UseAssetsOptions {
 }
 
 export function useAssets(
-  { page = 1, pageSize = 30, search = '', contentType = '', clientId = '', tags = [] }: UseAssetsOptions = {},
+  {
+    page = 1,
+    pageSize = 30,
+    search = '',
+    contentType = '',
+    clientId = '',
+    tags = [],
+  }: UseAssetsOptions = {},
   options?: Partial<UseQueryOptions<AssetsPage>>,
 ) {
   return useQuery<AssetsPage>({
@@ -134,8 +141,12 @@ export function useAssets(
         q = q.ilike('name', `%${search.trim()}%`);
       }
       if (contentType) q = q.eq('content_type', contentType);
-      if (clientId)    q = q.eq('client_id', clientId);
-      if (tags.length) q = (q as unknown as { overlaps: (col: string, val: string[]) => typeof q }).overlaps('tags', tags);
+      if (clientId) q = q.eq('client_id', clientId);
+      if (tags.length)
+        q = (q as unknown as { overlaps: (col: string, val: string[]) => typeof q }).overlaps(
+          'tags',
+          tags,
+        );
 
       const from = (page - 1) * pageSize;
       q = q.range(from, from + pageSize - 1);
@@ -199,12 +210,19 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
       const settled = await Promise.allSettled([
         sb.from('clients').select('id', { count: 'exact', head: true }),
         // Active tasks: not in any terminal status
-        sb.from('tasks').select('id', { count: 'exact', head: true }).not('status', 'in', terminalStatuses),
+        sb
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .not('status', 'in', terminalStatuses),
         // Overdue tasks: due_date is in the past AND not terminal (computed, not relying on status field)
-        sb.from('tasks').select('id', { count: 'exact', head: true })
+        sb
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
           .lt('due_date', todayStr)
           .not('status', 'in', terminalStatuses),
-        sb.from('tasks').select('id', { count: 'exact', head: true })
+        sb
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
           .gte('due_date', todayStr)
           .lte('due_date', weekLaterStr)
           .not('status', 'in', terminalStatuses),
@@ -213,11 +231,11 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
 
       const [clients, tasks, overdue, dueThisWeek, assets] = settled;
       return {
-        totalClients:     clients.status     === 'fulfilled' ? (clients.value.count     ?? 0) : 0,
-        activeTasks:      tasks.status       === 'fulfilled' ? (tasks.value.count       ?? 0) : 0,
-        overdueTasks:     overdue.status     === 'fulfilled' ? (overdue.value.count     ?? 0) : 0,
+        totalClients: clients.status === 'fulfilled' ? (clients.value.count ?? 0) : 0,
+        activeTasks: tasks.status === 'fulfilled' ? (tasks.value.count ?? 0) : 0,
+        overdueTasks: overdue.status === 'fulfilled' ? (overdue.value.count ?? 0) : 0,
         tasksDueThisWeek: dueThisWeek.status === 'fulfilled' ? (dueThisWeek.value.count ?? 0) : 0,
-        totalAssets:      assets.status      === 'fulfilled' ? (assets.value.count      ?? 0) : 0,
+        totalAssets: assets.status === 'fulfilled' ? (assets.value.count ?? 0) : 0,
       };
     },
     staleTime: 60_000,

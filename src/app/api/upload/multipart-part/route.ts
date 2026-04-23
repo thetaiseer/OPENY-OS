@@ -28,13 +28,18 @@ export async function POST(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const storageKey = (searchParams.get('storageKey') ?? '').trim();
-  const uploadId   = (searchParams.get('uploadId')   ?? '').trim();
+  const uploadId = (searchParams.get('uploadId') ?? '').trim();
   const partNumber = Number(searchParams.get('partNumber') ?? 0);
 
-  if (!storageKey) return NextResponse.json({ error: 'storageKey query param is required' }, { status: 400 });
-  if (!uploadId)   return NextResponse.json({ error: 'uploadId query param is required' }, { status: 400 });
+  if (!storageKey)
+    return NextResponse.json({ error: 'storageKey query param is required' }, { status: 400 });
+  if (!uploadId)
+    return NextResponse.json({ error: 'uploadId query param is required' }, { status: 400 });
   if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
-    return NextResponse.json({ error: 'partNumber must be an integer between 1 and 10000' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'partNumber must be an integer between 1 and 10000' },
+      { status: 400 },
+    );
   }
 
   let buffer: Buffer;
@@ -53,10 +58,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       partNumber: result.partNumber,
-      etag:       result.etag,
+      etag: result.etag,
     });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/multipart-part] failed:', msg);
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });

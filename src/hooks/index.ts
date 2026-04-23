@@ -3,10 +3,4 @@
 export { usePermissions } from './usePermissions';
 
 // Data-fetching hooks (TanStack Query)
-export {
-  useClients,
-  useTasks,
-  useAssets,
-  useNotifications,
-  useDashboardStats,
-} from './queries';
+export { useClients, useTasks, useAssets, useNotifications, useDashboardStats } from './queries';

@@ -48,11 +48,11 @@ export class R2ConfigError extends Error {
 // ── Config helpers ────────────────────────────────────────────────────────────
 
 export interface R2Config {
-  accountId:       string;
-  accessKeyId:     string;
+  accountId: string;
+  accessKeyId: string;
   secretAccessKey: string;
-  bucketName:      string;
-  publicUrl:       string;
+  bucketName: string;
+  publicUrl: string;
 }
 
 /**
@@ -62,16 +62,16 @@ export interface R2Config {
 export function getR2Config(): R2Config {
   const missing: string[] = [];
 
-  const accountId       = process.env.R2_ACCOUNT_ID ?? '';
-  const accessKeyId     = process.env.R2_ACCESS_KEY_ID ?? '';
+  const accountId = process.env.R2_ACCOUNT_ID ?? '';
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID ?? '';
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY ?? '';
-  const bucketName      = process.env.R2_BUCKET_NAME ?? 'client-assets';
-  const publicUrl       = process.env.R2_PUBLIC_URL ?? '';
+  const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
+  const publicUrl = process.env.R2_PUBLIC_URL ?? '';
 
-  if (!accountId)       missing.push('R2_ACCOUNT_ID');
-  if (!accessKeyId)     missing.push('R2_ACCESS_KEY_ID');
+  if (!accountId) missing.push('R2_ACCOUNT_ID');
+  if (!accessKeyId) missing.push('R2_ACCESS_KEY_ID');
   if (!secretAccessKey) missing.push('R2_SECRET_ACCESS_KEY');
-  if (!publicUrl)       missing.push('R2_PUBLIC_URL');
+  if (!publicUrl) missing.push('R2_PUBLIC_URL');
 
   if (missing.length > 0) {
     throw new R2ConfigError(`Missing environment variable(s): ${missing.join(', ')}`);
@@ -86,10 +86,10 @@ export function getR2Config(): R2Config {
  */
 export function checkR2Config(): { configured: boolean; missingVars: string[] } {
   const missingVars: string[] = [];
-  if (!process.env.R2_ACCOUNT_ID)        missingVars.push('R2_ACCOUNT_ID');
-  if (!process.env.R2_ACCESS_KEY_ID)     missingVars.push('R2_ACCESS_KEY_ID');
+  if (!process.env.R2_ACCOUNT_ID) missingVars.push('R2_ACCOUNT_ID');
+  if (!process.env.R2_ACCESS_KEY_ID) missingVars.push('R2_ACCESS_KEY_ID');
   if (!process.env.R2_SECRET_ACCESS_KEY) missingVars.push('R2_SECRET_ACCESS_KEY');
-  if (!process.env.R2_PUBLIC_URL)        missingVars.push('R2_PUBLIC_URL');
+  if (!process.env.R2_PUBLIC_URL) missingVars.push('R2_PUBLIC_URL');
   return { configured: missingVars.length === 0, missingVars };
 }
 
@@ -97,10 +97,10 @@ export function checkR2Config(): { configured: boolean; missingVars: string[] } 
 
 function buildS3Client(config: R2Config): S3Client {
   return new S3Client({
-    region:   'auto',
+    region: 'auto',
     endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
     credentials: {
-      accessKeyId:     config.accessKeyId,
+      accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
     },
   });
@@ -120,9 +120,9 @@ export function buildR2Url(key: string, publicUrl?: string): string {
 // ── Storage operations ────────────────────────────────────────────────────────
 
 export interface UploadResult {
-  key:       string;
+  key: string;
   publicUrl: string;
-  bucket:    string;
+  bucket: string;
 }
 
 /**
@@ -134,8 +134,8 @@ export interface UploadResult {
  * @returns UploadResult with the public URL
  */
 export async function uploadToR2(
-  key:         string,
-  body:        Buffer,
+  key: string,
+  body: Buffer,
   contentType: string,
 ): Promise<UploadResult> {
   const config = getR2Config();
@@ -143,9 +143,9 @@ export async function uploadToR2(
 
   await client.send(
     new PutObjectCommand({
-      Bucket:      config.bucketName,
-      Key:         key,
-      Body:        body,
+      Bucket: config.bucketName,
+      Key: key,
+      Body: body,
       ContentType: contentType,
     }),
   );
@@ -153,7 +153,7 @@ export async function uploadToR2(
   return {
     key,
     publicUrl: buildR2Url(key, config.publicUrl),
-    bucket:    config.bucketName,
+    bucket: config.bucketName,
   };
 }
 
@@ -170,12 +170,14 @@ export async function deleteFromR2(key: string): Promise<void> {
     await client.send(
       new DeleteObjectCommand({
         Bucket: config.bucketName,
-        Key:    key,
+        Key: key,
       }),
     );
   } catch (err: unknown) {
-    const code = (err as { name?: string; Code?: string })?.name ??
-                 (err as { name?: string; Code?: string })?.Code ?? '';
+    const code =
+      (err as { name?: string; Code?: string })?.name ??
+      (err as { name?: string; Code?: string })?.Code ??
+      '';
     if (code === 'NoSuchKey' || code === 'NotFound') {
       throw new R2NotFoundError(key);
     }
@@ -183,14 +185,13 @@ export async function deleteFromR2(key: string): Promise<void> {
   }
 }
 
-
 // ── Multipart upload ──────────────────────────────────────────────────────────
 
 export interface MultipartInitResult {
-  uploadId:   string;
+  uploadId: string;
   storageKey: string;
-  publicUrl:  string;
-  bucket:     string;
+  publicUrl: string;
+  bucket: string;
 }
 
 /**
@@ -198,7 +199,7 @@ export interface MultipartInitResult {
  * Returns an uploadId that must be used for all subsequent part operations.
  */
 export async function createMultipartUpload(
-  key:         string,
+  key: string,
   contentType: string,
 ): Promise<MultipartInitResult> {
   const config = getR2Config();
@@ -206,8 +207,8 @@ export async function createMultipartUpload(
 
   const result = await client.send(
     new CreateMultipartUploadCommand({
-      Bucket:      config.bucketName,
-      Key:         key,
+      Bucket: config.bucketName,
+      Key: key,
       ContentType: contentType,
     }),
   );
@@ -217,10 +218,10 @@ export async function createMultipartUpload(
   }
 
   return {
-    uploadId:   result.UploadId,
+    uploadId: result.UploadId,
     storageKey: key,
-    publicUrl:  buildR2Url(key, config.publicUrl),
-    bucket:     config.bucketName,
+    publicUrl: buildR2Url(key, config.publicUrl),
+    bucket: config.bucketName,
   };
 }
 
@@ -233,21 +234,21 @@ export async function createMultipartUpload(
  * @param body       – raw part bytes
  */
 export async function uploadPartToR2(
-  key:        string,
-  uploadId:   string,
+  key: string,
+  uploadId: string,
   partNumber: number,
-  body:       Buffer,
+  body: Buffer,
 ): Promise<{ etag: string; partNumber: number }> {
   const config = getR2Config();
   const client = buildS3Client(config);
 
   const result = await client.send(
     new UploadPartCommand({
-      Bucket:     config.bucketName,
-      Key:        key,
-      UploadId:   uploadId,
+      Bucket: config.bucketName,
+      Key: key,
+      UploadId: uploadId,
       PartNumber: partNumber,
-      Body:       body,
+      Body: body,
     }),
   );
 
@@ -260,7 +261,7 @@ export async function uploadPartToR2(
 
 export interface CompletedPart {
   partNumber: number;
-  etag:       string;
+  etag: string;
 }
 
 /**
@@ -268,23 +269,23 @@ export interface CompletedPart {
  * Must be called after all parts are successfully uploaded.
  */
 export async function completeMultipartUpload(
-  key:      string,
+  key: string,
   uploadId: string,
-  parts:    CompletedPart[],
+  parts: CompletedPart[],
 ): Promise<{ publicUrl: string }> {
   const config = getR2Config();
   const client = buildS3Client(config);
 
   await client.send(
     new CompleteMultipartUploadCommand({
-      Bucket:   config.bucketName,
-      Key:      key,
+      Bucket: config.bucketName,
+      Key: key,
       UploadId: uploadId,
       MultipartUpload: {
         Parts: parts
           .slice()
           .sort((a, b) => a.partNumber - b.partNumber)
-          .map(p => ({ PartNumber: p.partNumber, ETag: p.etag })),
+          .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
       },
     }),
   );
@@ -296,17 +297,14 @@ export async function completeMultipartUpload(
  * Abort a multipart upload and release all uploaded parts from storage.
  * Call this whenever a multipart upload fails or is cancelled by the user.
  */
-export async function abortMultipartUpload(
-  key:      string,
-  uploadId: string,
-): Promise<void> {
+export async function abortMultipartUpload(key: string, uploadId: string): Promise<void> {
   const config = getR2Config();
   const client = buildS3Client(config);
 
   await client.send(
     new AbortMultipartUploadCommand({
-      Bucket:   config.bucketName,
-      Key:      key,
+      Bucket: config.bucketName,
+      Key: key,
       UploadId: uploadId,
     }),
   );
@@ -327,13 +325,15 @@ export async function objectExistsInR2(key: string): Promise<boolean> {
     await client.send(
       new HeadObjectCommand({
         Bucket: config.bucketName,
-        Key:    key,
+        Key: key,
       }),
     );
     return true;
   } catch (err: unknown) {
-    const code = (err as { name?: string; Code?: string })?.name ??
-                 (err as { name?: string; Code?: string })?.Code ?? '';
+    const code =
+      (err as { name?: string; Code?: string })?.name ??
+      (err as { name?: string; Code?: string })?.Code ??
+      '';
     if (code === 'NoSuchKey' || code === 'NotFound' || code === '404') {
       return false;
     }

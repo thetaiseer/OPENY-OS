@@ -20,18 +20,28 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyPublishingScheduled } from '@/lib/notification-service';
 
-
 const VALID_PLATFORMS = [
-  'instagram', 'facebook', 'tiktok', 'linkedin',
-  'twitter', 'snapchat', 'youtube_shorts',
+  'instagram',
+  'facebook',
+  'tiktok',
+  'linkedin',
+  'twitter',
+  'snapchat',
+  'youtube_shorts',
 ] as const;
 
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 const VALID_STATUSES = [
-  'scheduled', 'queued', 'published', 'missed', 'cancelled',
+  'scheduled',
+  'queued',
+  'published',
+  'missed',
+  'cancelled',
   // legacy values kept for backward compat reading
-  'draft', 'pending_review', 'approved',
+  'draft',
+  'pending_review',
+  'approved',
 ] as const;
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -41,31 +51,33 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const assetId   = searchParams.get('asset_id');
-  const clientId  = searchParams.get('client_id');
-  const status    = searchParams.get('status');
-  const dateFrom  = searchParams.get('date_from');
-  const dateTo    = searchParams.get('date_to');
-  const platform  = searchParams.get('platform');
-  const postType  = searchParams.get('post_type');
+  const assetId = searchParams.get('asset_id');
+  const clientId = searchParams.get('client_id');
+  const status = searchParams.get('status');
+  const dateFrom = searchParams.get('date_from');
+  const dateTo = searchParams.get('date_to');
+  const platform = searchParams.get('platform');
+  const postType = searchParams.get('post_type');
 
   try {
     const db = getServiceClient();
 
     let query = db
       .from('publishing_schedules')
-      .select(`
+      .select(
+        `
         *,
         asset:assets(id, name, content_type, file_url, preview_url, client_name)
-      `)
+      `,
+      )
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 
-    if (assetId)  query = query.eq('asset_id', assetId);
+    if (assetId) query = query.eq('asset_id', assetId);
     if (clientId) query = query.eq('client_id', clientId);
-    if (status)   query = query.eq('status', status);
+    if (status) query = query.eq('status', status);
     if (dateFrom) query = query.gte('scheduled_date', dateFrom);
-    if (dateTo)   query = query.lte('scheduled_date', dateTo);
+    if (dateTo) query = query.lte('scheduled_date', dateTo);
     if (platform) query = query.contains('platforms', [platform]);
     if (postType) query = query.contains('post_types', [postType]);
 
@@ -97,7 +109,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Validate required fields ──────────────────────────────────────────────
-  const assetId       = typeof body.asset_id        === 'string' ? body.asset_id.trim()        : '';
+  const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim() : '';
   const contentItemId = typeof body.content_item_id === 'string' ? body.content_item_id.trim() : '';
 
   // Either asset_id or content_item_id must be provided
@@ -110,7 +122,10 @@ export async function POST(req: NextRequest) {
 
   const scheduledDate = typeof body.scheduled_date === 'string' ? body.scheduled_date.trim() : '';
   if (!scheduledDate) {
-    return NextResponse.json({ success: false, error: 'scheduled_date is required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'scheduled_date is required' },
+      { status: 400 },
+    );
   }
 
   const rawPlatforms = Array.isArray(body.platforms) ? body.platforms : [];
@@ -118,39 +133,53 @@ export async function POST(req: NextRequest) {
     (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
   );
   if (platforms.length === 0) {
-    return NextResponse.json({ success: false, error: 'At least one platform is required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'At least one platform is required' },
+      { status: 400 },
+    );
   }
 
   const rawPostTypes = Array.isArray(body.post_types) ? body.post_types : [];
   const postTypes = rawPostTypes.filter(
-    (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+    (pt): pt is string =>
+      typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
   );
   if (postTypes.length === 0) {
-    return NextResponse.json({ success: false, error: 'At least one post type is required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'At least one post type is required' },
+      { status: 400 },
+    );
   }
 
   // ── Optional fields ───────────────────────────────────────────────────────
-  const scheduledTime   = typeof body.scheduled_time === 'string' ? body.scheduled_time : '09:00:00';
-  const timezone        = typeof body.timezone === 'string' ? body.timezone : 'UTC';
-  const clientId        = typeof body.client_id === 'string' ? body.client_id || null : null;
-  const clientName      = typeof body.client_name === 'string' ? body.client_name || null : null;
-  const caption         = typeof body.caption === 'string' ? body.caption || null : null;
-  const notes           = typeof body.notes === 'string' ? body.notes || null : null;
-  const assignedTo      = typeof body.assigned_to === 'string' ? body.assigned_to || null : null;
-  const assigneeName    = typeof body.assignee_name === 'string' ? body.assignee_name || null : null;
+  const scheduledTime = typeof body.scheduled_time === 'string' ? body.scheduled_time : '09:00:00';
+  const timezone = typeof body.timezone === 'string' ? body.timezone : 'UTC';
+  const clientId = typeof body.client_id === 'string' ? body.client_id || null : null;
+  const clientName = typeof body.client_name === 'string' ? body.client_name || null : null;
+  const caption = typeof body.caption === 'string' ? body.caption || null : null;
+  const notes = typeof body.notes === 'string' ? body.notes || null : null;
+  const assignedTo = typeof body.assigned_to === 'string' ? body.assigned_to || null : null;
+  const assigneeName = typeof body.assignee_name === 'string' ? body.assignee_name || null : null;
   const reminderMinutes = typeof body.reminder_minutes === 'number' ? body.reminder_minutes : null;
-  const rawStatus       = typeof body.status === 'string' ? body.status : 'scheduled';
-  const status          = (VALID_STATUSES as readonly string[]).includes(rawStatus) ? rawStatus : 'scheduled';
-  const createTask      = body.create_task !== false; // default true
+  const rawStatus = typeof body.status === 'string' ? body.status : 'scheduled';
+  const status = (VALID_STATUSES as readonly string[]).includes(rawStatus)
+    ? rawStatus
+    : 'scheduled';
+  const createTask = body.create_task !== false; // default true
 
   try {
     const db = getServiceClient();
 
-    let resolvedClientId: string | null   = clientId;
+    let resolvedClientId: string | null = clientId;
     let resolvedClientName: string | null = clientName;
 
     // ── Fetch asset info (only if asset_id provided) ─────────────────────────
-    let assetData: { id: string; name: string; client_id: string | null; client_name: string | null } | null = null;
+    let assetData: {
+      id: string;
+      name: string;
+      client_id: string | null;
+      client_name: string | null;
+    } | null = null;
     if (assetId) {
       const { data: ad, error: assetErr } = await db
         .from('assets')
@@ -159,35 +188,32 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (assetErr || !ad) {
-        return NextResponse.json(
-          { success: false, error: 'Asset not found' },
-          { status: 404 },
-        );
+        return NextResponse.json({ success: false, error: 'Asset not found' }, { status: 404 });
       }
       assetData = ad;
-      resolvedClientId   = clientId   ?? assetData.client_id   ?? null;
+      resolvedClientId = clientId ?? assetData.client_id ?? null;
       resolvedClientName = clientName ?? assetData.client_name ?? null;
     }
 
     // ── Insert publishing schedule ────────────────────────────────────────────
     const schedulePayload: Record<string, unknown> = {
-      asset_id:         assetId || null,
-      content_item_id:  contentItemId || null,
-      client_id:        resolvedClientId,
-      client_name:      resolvedClientName,
-      scheduled_date:   scheduledDate,
-      scheduled_time:   scheduledTime,
+      asset_id: assetId || null,
+      content_item_id: contentItemId || null,
+      client_id: resolvedClientId,
+      client_name: resolvedClientName,
+      scheduled_date: scheduledDate,
+      scheduled_time: scheduledTime,
       timezone,
       platforms,
-      post_types:       postTypes,
+      post_types: postTypes,
       caption,
       notes,
       status,
-      assigned_to:      assignedTo,
-      assignee_name:    assigneeName,
+      assigned_to: assignedTo,
+      assignee_name: assigneeName,
       reminder_minutes: reminderMinutes,
-      created_by:       auth.profile.id,
-      created_by_name:  auth.profile.name ?? auth.profile.email,
+      created_by: auth.profile.id,
+      created_by_name: auth.profile.name ?? auth.profile.email,
     };
 
     const { data: schedule, error: schedErr } = await db
@@ -208,17 +234,24 @@ export async function POST(req: NextRequest) {
 
     // ── Auto-create linked task ───────────────────────────────────────────────
     if (createTask && resolvedClientId) {
-      const platformLabels = platforms.map(p => {
+      const platformLabels = platforms.map((p) => {
         const labels: Record<string, string> = {
-          instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok',
-          linkedin: 'LinkedIn', twitter: 'X/Twitter', snapchat: 'Snapchat',
+          instagram: 'Instagram',
+          facebook: 'Facebook',
+          tiktok: 'TikTok',
+          linkedin: 'LinkedIn',
+          twitter: 'X/Twitter',
+          snapchat: 'Snapchat',
           youtube_shorts: 'YouTube Shorts',
         };
         return labels[p] ?? p;
       });
-      const postTypeLabels = postTypes.map(pt => {
+      const postTypeLabels = postTypes.map((pt) => {
         const labels: Record<string, string> = {
-          post: 'Post', reel: 'Reel', carousel: 'Carousel', story: 'Story',
+          post: 'Post',
+          reel: 'Reel',
+          carousel: 'Carousel',
+          story: 'Story',
         };
         return labels[pt] ?? pt;
       });
@@ -227,20 +260,20 @@ export async function POST(req: NextRequest) {
       const entityName = assetData ? assetData.name : `content item ${contentItemId}`;
 
       const taskPayload: Record<string, unknown> = {
-        title:                  taskTitle,
-        description:            caption ? `Caption: ${caption}` : `Publishing schedule for "${entityName}"`,
-        status:                 'todo',
-        priority:               'medium',
-        due_date:               scheduledDate,
-        client_id:              resolvedClientId,
-        assigned_to:            assignedTo ?? auth.profile.id,
-        created_by:             auth.profile.id,
-        created_by_id:          auth.profile.id,
+        title: taskTitle,
+        description: caption ? `Caption: ${caption}` : `Publishing schedule for "${entityName}"`,
+        status: 'todo',
+        priority: 'medium',
+        due_date: scheduledDate,
+        client_id: resolvedClientId,
+        assigned_to: assignedTo ?? auth.profile.id,
+        created_by: auth.profile.id,
+        created_by_id: auth.profile.id,
         publishing_schedule_id: schedule.id,
-        asset_id:               assetId || null,
-        content_item_id:        contentItemId || null,
+        asset_id: assetId || null,
+        content_item_id: contentItemId || null,
         platforms,
-        post_types:             postTypes,
+        post_types: postTypes,
       };
 
       const { data: taskData, error: taskErr } = await db
@@ -269,32 +302,32 @@ export async function POST(req: NextRequest) {
     const activityDesc = assetData
       ? `Publishing scheduled for "${assetData.name}" on ${scheduledDate}`
       : `Publishing scheduled for content item on ${scheduledDate}`;
-    void db.from('activities').insert({
-      type:        'publishing_scheduled',
-      description: activityDesc,
-      user_id:     auth.profile.id,
-      user_uuid:   auth.profile.id,
-      client_id:   resolvedClientId,
-      entity_type: 'publishing_schedule',
-      entity_id:   schedule.id,
-    }).then(({ error: actErr }) => {
-      if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
-    });
+    void db
+      .from('activities')
+      .insert({
+        type: 'publishing_scheduled',
+        description: activityDesc,
+        user_id: auth.profile.id,
+        user_uuid: auth.profile.id,
+        client_id: resolvedClientId,
+        entity_type: 'publishing_schedule',
+        entity_id: schedule.id,
+      })
+      .then(({ error: actErr }) => {
+        if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
+      });
 
     // ── Notification (best-effort) ────────────────────────────────────────────
     void notifyPublishingScheduled({
-      scheduleId:    schedule.id,
-      taskId:        schedule.task_id ?? null,
-      clientId:      resolvedClientId,
-      clientName:    resolvedClientName,
+      scheduleId: schedule.id,
+      taskId: schedule.task_id ?? null,
+      clientId: resolvedClientId,
+      clientName: resolvedClientName,
       scheduledDate,
       platforms,
     });
 
-    return NextResponse.json(
-      { success: true, schedule, task: createdTask },
-      { status: 201 },
-    );
+    return NextResponse.json({ success: true, schedule, task: createdTask }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/publishing-schedules] unexpected error:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

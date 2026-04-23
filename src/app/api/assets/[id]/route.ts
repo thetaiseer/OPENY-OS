@@ -4,10 +4,7 @@ import { getApiUser, requireRole } from '@/lib/api-auth';
 import { deleteFile, R2NotFoundError, R2ConfigError } from '@/lib/storage';
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Auth: only owner and admin may delete assets.
   const auth = await getApiUser(req);
   if (!auth) {
@@ -20,8 +17,8 @@ export async function DELETE(
   if (!canDelete) {
     console.warn('[asset-delete] unauthorized delete attempt', {
       userId: auth.profile.id,
-      email:  auth.profile.email,
-      role:   auth.profile.role,
+      email: auth.profile.email,
+      role: auth.profile.role,
       assetId: id ?? 'unknown',
     });
     return NextResponse.json(
@@ -62,7 +59,10 @@ export async function DELETE(
       .eq('id', id);
 
     if (dbError) {
-      console.error('[asset-delete] soft delete DB update failed', { assetId: asset.id, error: dbError.message });
+      console.error('[asset-delete] soft delete DB update failed', {
+        assetId: asset.id,
+        error: dbError.message,
+      });
       return NextResponse.json(
         { error: `Database update failed: ${dbError.message}` },
         { status: 500 },
@@ -87,7 +87,7 @@ export async function DELETE(
       });
     } else {
       try {
-         await deleteFile(filePath);
+        await deleteFile(filePath);
       } catch (err: unknown) {
         if (err instanceof R2NotFoundError) {
           warning = 'Asset record deleted. Remote R2 file was already missing.';
@@ -96,7 +96,8 @@ export async function DELETE(
             filePath,
           });
         } else if (err instanceof R2ConfigError) {
-          warning = 'Asset record deleted. R2 storage is not configured — remote file was not removed.';
+          warning =
+            'Asset record deleted. R2 storage is not configured — remote file was not removed.';
           console.error('[asset-delete] R2 config error – skipping R2 delete', {
             assetId: asset.id,
             filePath,
@@ -118,14 +119,15 @@ export async function DELETE(
     const filePath = asset.file_path as string | null;
 
     if (!filePath) {
-      console.warn('[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion', {
-        assetId: asset.id,
-      });
+      console.warn(
+        '[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion',
+        {
+          assetId: asset.id,
+        },
+      );
     } else {
       const bucketName = (asset.bucket_name as string | null) ?? 'client-assets';
-      const { error: storageError } = await supabase.storage
-        .from(bucketName)
-        .remove([filePath]);
+      const { error: storageError } = await supabase.storage.from(bucketName).remove([filePath]);
 
       if (storageError) {
         if (storageError.message.toLowerCase().includes('not found')) {
@@ -136,7 +138,11 @@ export async function DELETE(
             error: storageError.message,
           });
         } else {
-          console.error('[asset-delete] Storage delete failed', { assetId: asset.id, filePath, error: storageError.message });
+          console.error('[asset-delete] Storage delete failed', {
+            assetId: asset.id,
+            filePath,
+            error: storageError.message,
+          });
           return NextResponse.json(
             { error: `Storage delete failed: ${storageError.message}` },
             { status: 502 },
@@ -163,14 +169,15 @@ export async function DELETE(
   }
 
   const successMessage = warning ?? 'Asset deleted successfully.';
-  return NextResponse.json({ success: true, message: successMessage, ...(warning ? { warning } : {}) });
+  return NextResponse.json({
+    success: true,
+    message: successMessage,
+    ...(warning ? { warning } : {}),
+  });
 }
 
 // ── PATCH /api/assets/[id] — rename ──────────────────────────────────────────
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -181,7 +188,7 @@ export async function PATCH(
 
   let body: { name?: string };
   try {
-    body = await req.json() as { name?: string };
+    body = (await req.json()) as { name?: string };
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
@@ -220,10 +227,7 @@ export async function PATCH(
 
   // ── 2. Update DB record ────────────────────────────────────────────────────
   // R2 objects are identified by key (file_path) not name; only update the DB.
-  const { error: dbError } = await supabase
-    .from('assets')
-    .update({ name: newName })
-    .eq('id', id);
+  const { error: dbError } = await supabase.from('assets').update({ name: newName }).eq('id', id);
 
   if (dbError) {
     console.error('[asset-rename] DB update failed', { assetId: asset.id, error: dbError.message });
@@ -233,5 +237,9 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json({ success: true, message: 'Asset renamed successfully.', name: newName });
+  return NextResponse.json({
+    success: true,
+    message: 'Asset renamed successfully.',
+    name: newName,
+  });
 }

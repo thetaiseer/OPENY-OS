@@ -8,7 +8,15 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
 const VALID_ENTITY_TYPES = ['task', 'asset', 'content', 'client', 'project'] as const;
-const VALID_VIEW_TYPES   = ['list', 'kanban', 'calendar', 'timeline', 'table', 'grid', 'pipeline'] as const;
+const VALID_VIEW_TYPES = [
+  'list',
+  'kanban',
+  'calendar',
+  'timeline',
+  'table',
+  'grid',
+  'pipeline',
+] as const;
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -16,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const entityType = searchParams.get('entity_type');
-  const userId     = searchParams.get('user_id');
+  const userId = searchParams.get('user_id');
 
   const db = getServiceClient();
   let query = db
@@ -42,15 +50,18 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const name       = typeof body.name        === 'string' ? body.name.trim()   : '';
-  const entityType = typeof body.entity_type === 'string' ? body.entity_type   : '';
-  const viewType   = typeof body.view_type   === 'string' ? body.view_type     : 'list';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const entityType = typeof body.entity_type === 'string' ? body.entity_type : '';
+  const viewType = typeof body.view_type === 'string' ? body.view_type : 'list';
 
-  if (!name) return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
+  if (!name)
+    return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
   if (!(VALID_ENTITY_TYPES as readonly string[]).includes(entityType)) {
     return NextResponse.json({ success: false, error: 'Invalid entity_type' }, { status: 400 });
   }
@@ -62,16 +73,16 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db
     .from('saved_views')
     .insert({
-      user_id:     auth.profile.id,
+      user_id: auth.profile.id,
       entity_type: entityType,
       name,
-      view_type:   viewType,
-      filters:     typeof body.filters     === 'object' ? body.filters     : {},
+      view_type: viewType,
+      filters: typeof body.filters === 'object' ? body.filters : {},
       sort_config: typeof body.sort_config === 'object' ? body.sort_config : {},
-      group_by:    typeof body.group_by    === 'string' ? body.group_by    : null,
-      columns:     Array.isArray(body.columns) ? body.columns : [],
-      is_default:  body.is_default === true,
-      is_shared:   body.is_shared  === true,
+      group_by: typeof body.group_by === 'string' ? body.group_by : null,
+      columns: Array.isArray(body.columns) ? body.columns : [],
+      is_default: body.is_default === true,
+      is_shared: body.is_shared === true,
     })
     .select()
     .single();

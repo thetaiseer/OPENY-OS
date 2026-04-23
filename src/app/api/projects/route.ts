@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('client_id');
-  const status   = searchParams.get('status');
+  const status = searchParams.get('status');
 
   try {
     const db = getServiceClient();
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       .limit(200);
 
     if (clientId) query = query.eq('client_id', clientId);
-    if (status)   query = query.eq('status', status);
+    if (status) query = query.eq('status', status);
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -45,7 +45,9 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
@@ -60,12 +62,12 @@ export async function POST(req: NextRequest) {
   const payload: Record<string, unknown> = {
     name,
     status,
-    client_id:   typeof body.client_id   === 'string' ? body.client_id.trim()   : null,
+    client_id: typeof body.client_id === 'string' ? body.client_id.trim() : null,
     description: typeof body.description === 'string' ? body.description.trim() : null,
-    start_date:  typeof body.start_date  === 'string' ? body.start_date.trim()  : null,
-    end_date:    typeof body.end_date    === 'string' ? body.end_date.trim()    : null,
-    color:       typeof body.color       === 'string' ? body.color.trim()       : '#6366f1',
-    created_by:  auth.profile.id,
+    start_date: typeof body.start_date === 'string' ? body.start_date.trim() : null,
+    end_date: typeof body.end_date === 'string' ? body.end_date.trim() : null,
+    color: typeof body.color === 'string' ? body.color.trim() : '#6366f1',
+    created_by: auth.profile.id,
   };
 
   const db = getServiceClient();
@@ -79,20 +81,20 @@ export async function POST(req: NextRequest) {
 
   // Activity log + workspace event (fire-and-forget)
   void db.from('activities').insert({
-    type:        'project_created',
+    type: 'project_created',
     description: `Project "${name}" created`,
-    client_id:   payload.client_id || null,
+    client_id: payload.client_id || null,
     entity_type: 'project',
-    entity_id:   data?.id ?? null,
-    user_uuid:   auth.profile.id,
+    entity_id: data?.id ?? null,
+    user_uuid: auth.profile.id,
   });
 
   void emitEvent(db, {
-    event_type:  EVENT.PROJECT_CREATED,
+    event_type: EVENT.PROJECT_CREATED,
     entity_type: 'project',
-    entity_id:   data?.id,
-    actor_id:    auth.profile.id,
-    payload:     { project: data },
+    entity_id: data?.id,
+    actor_id: auth.profile.id,
+    payload: { project: data },
   });
 
   return NextResponse.json({ success: true, project: data }, { status: 201 });

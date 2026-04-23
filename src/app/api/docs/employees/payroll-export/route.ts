@@ -23,28 +23,43 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const employees = (data ?? []) as Array<{
-    employee_id:     string;
-    full_name:       string;
-    job_title:       string | null;
+    employee_id: string;
+    full_name: string;
+    job_title: string | null;
     employment_type: string;
-    salary:          number;
-    daily_hours:     number;
-    hire_date:       string | null;
+    salary: number;
+    daily_hours: number;
+    hire_date: string | null;
   }>;
 
   const rows: string[][] = [
     [`Payroll Sheet — ${month}`, '', '', '', '', ''],
     [],
-    ['Employee ID', 'Full Name', 'Job Title', 'Employment Type', 'Daily Hours', 'Monthly Salary (SAR)', 'Hire Date'],
-    ...employees.map(e => [
-      e.employee_id, e.full_name, e.job_title ?? '', e.employment_type,
-      String(e.daily_hours), String(e.salary), e.hire_date ?? '',
+    [
+      'Employee ID',
+      'Full Name',
+      'Job Title',
+      'Employment Type',
+      'Daily Hours',
+      'Monthly Salary (SAR)',
+      'Hire Date',
+    ],
+    ...employees.map((e) => [
+      e.employee_id,
+      e.full_name,
+      e.job_title ?? '',
+      e.employment_type,
+      String(e.daily_hours),
+      String(e.salary),
+      e.hire_date ?? '',
     ]),
     [],
     ['', '', '', '', '', `Total: ${employees.reduce((s, e) => s + e.salary, 0)} SAR`, ''],
   ];
 
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
   const filename = `${sanitizeDocCode(documentCode, 'payroll')}-${month}.csv`;
   const storageKey = buildStoragePath({
     module: 'docs',

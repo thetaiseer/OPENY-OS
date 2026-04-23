@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Expected multipart/form-data body' }, { status: 400 });
   }
 
-  const fileField       = formData.get('file');
+  const fileField = formData.get('file');
   const videoStorageKey = ((formData.get('videoStorageKey') as string | null) ?? '').trim();
 
   if (!fileField || !(fileField instanceof Blob)) {
@@ -51,9 +51,9 @@ export async function POST(req: NextRequest) {
   // e.g. clients/acme/social/2024/01/reels/1735000000-video.mp4
   //   →  clients/acme/social/2024/01/reels/thumbnails/1735000000-video.jpg
   const lastSlash = videoStorageKey.lastIndexOf('/');
-  const dir       = lastSlash >= 0 ? videoStorageKey.slice(0, lastSlash) : '';
-  const filename  = lastSlash >= 0 ? videoStorageKey.slice(lastSlash + 1) : videoStorageKey;
-  const baseName  = filename.replace(/\.[^.]+$/, '');
+  const dir = lastSlash >= 0 ? videoStorageKey.slice(0, lastSlash) : '';
+  const filename = lastSlash >= 0 ? videoStorageKey.slice(lastSlash + 1) : videoStorageKey;
+  const baseName = filename.replace(/\.[^.]+$/, '');
   const thumbnailStorageKey = dir
     ? `${dir}/thumbnails/${baseName}.jpg`
     : `thumbnails/${baseName}.jpg`;
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ thumbnailStorageKey, thumbnailUrl });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/thumbnail-presign] failed:', msg);
     return NextResponse.json({ error: msg }, { status: isConfigErr ? 500 : 502 });

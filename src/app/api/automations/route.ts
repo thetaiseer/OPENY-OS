@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const db = getServiceClient();
   let query = db.from('automation_rules').select('*').order('created_at');
-  if (active === 'true')  query = query.eq('is_active', true);
+  if (active === 'true') query = query.eq('is_active', true);
   if (active === 'false') query = query.eq('is_active', false);
 
   const { data, error } = await query;
@@ -30,28 +30,35 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const name         = typeof body.name         === 'string' ? body.name.trim() : '';
-  const triggerType  = typeof body.trigger_type === 'string' ? body.trigger_type.trim() : '';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const triggerType = typeof body.trigger_type === 'string' ? body.trigger_type.trim() : '';
 
-  if (!name)        return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
-  if (!triggerType) return NextResponse.json({ success: false, error: 'trigger_type is required' }, { status: 400 });
+  if (!name)
+    return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
+  if (!triggerType)
+    return NextResponse.json(
+      { success: false, error: 'trigger_type is required' },
+      { status: 400 },
+    );
 
   const db = getServiceClient();
   const { data, error } = await db
     .from('automation_rules')
     .insert({
       name,
-      description:    typeof body.description    === 'string' ? body.description.trim() : null,
-      is_active:      body.is_active !== false,
-      trigger_type:   triggerType,
+      description: typeof body.description === 'string' ? body.description.trim() : null,
+      is_active: body.is_active !== false,
+      trigger_type: triggerType,
       trigger_config: typeof body.trigger_config === 'object' ? body.trigger_config : {},
-      conditions:     Array.isArray(body.conditions) ? body.conditions : [],
-      actions:        Array.isArray(body.actions)    ? body.actions    : [],
-      created_by:     auth.profile.id,
+      conditions: Array.isArray(body.conditions) ? body.conditions : [],
+      actions: Array.isArray(body.actions) ? body.actions : [],
+      created_by: auth.profile.id,
     })
     .select()
     .single();

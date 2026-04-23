@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   return NextResponse.json({
-    success:   true,
+    success: true,
     last_sync: null,
-    message:   'Google Drive sync has been removed. Assets are stored in Cloudflare R2 and synced to the database automatically on upload.',
+    message:
+      'Google Drive sync has been removed. Assets are stored in Cloudflare R2 and synced to the database automatically on upload.',
   });
 }
 
@@ -28,7 +29,10 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   return NextResponse.json(
-    { success: false, error: 'Drive sync is no longer available. Storage has migrated to Cloudflare R2.' },
+    {
+      success: false,
+      error: 'Drive sync is no longer available. Storage has migrated to Cloudflare R2.',
+    },
     { status: 410 },
   );
 }

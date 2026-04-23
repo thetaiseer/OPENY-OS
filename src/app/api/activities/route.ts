@@ -18,7 +18,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -26,11 +25,11 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const clientId   = searchParams.get('client_id');
+  const clientId = searchParams.get('client_id');
   const entityType = searchParams.get('entity_type');
-  const entityId   = searchParams.get('entity_id');
-  const rawLimit   = parseInt(searchParams.get('limit') ?? '50', 10);
-  const limit      = Math.min(Math.max(1, isNaN(rawLimit) ? 50 : rawLimit), 200);
+  const entityId = searchParams.get('entity_id');
+  const rawLimit = parseInt(searchParams.get('limit') ?? '50', 10);
+  const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 50 : rawLimit), 200);
 
   try {
     const db = getServiceClient();
@@ -41,9 +40,9 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (clientId)   query = query.eq('client_id', clientId);
+    if (clientId) query = query.eq('client_id', clientId);
     if (entityType) query = query.eq('entity_type', entityType);
-    if (entityId)   query = query.eq('entity_id', entityId);
+    if (entityId) query = query.eq('entity_id', entityId);
 
     const { data, error } = await query;
 
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const type        = typeof body.type        === 'string' ? body.type.trim()        : '';
+  const type = typeof body.type === 'string' ? body.type.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
 
   if (!type || !description) {
@@ -82,33 +81,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const clientId    = typeof body.client_id   === 'string' ? body.client_id.trim()   : '';
-  const entityType  = typeof body.entity_type === 'string' ? body.entity_type.trim() : '';
-  const entityId    = typeof body.entity_id   === 'string' ? body.entity_id.trim()   : '';
+  const clientId = typeof body.client_id === 'string' ? body.client_id.trim() : '';
+  const entityType = typeof body.entity_type === 'string' ? body.entity_type.trim() : '';
+  const entityId = typeof body.entity_id === 'string' ? body.entity_id.trim() : '';
   const metadataRaw = body.metadata_json;
-  const metadata    = metadataRaw !== null && typeof metadataRaw === 'object' && !Array.isArray(metadataRaw)
-    ? metadataRaw
-    : null;
+  const metadata =
+    metadataRaw !== null && typeof metadataRaw === 'object' && !Array.isArray(metadataRaw)
+      ? metadataRaw
+      : null;
 
   const insertPayload: Record<string, unknown> = {
     type,
     description,
-    user_id:       auth.profile.id,
-    user_uuid:     auth.profile.id,
-    client_id:     clientId   || null,
-    entity_type:   entityType || null,
-    entity_id:     entityId   || null,
+    user_id: auth.profile.id,
+    user_uuid: auth.profile.id,
+    client_id: clientId || null,
+    entity_type: entityType || null,
+    entity_id: entityId || null,
     metadata_json: metadata,
   };
 
   try {
     const db = getServiceClient();
 
-    const { data, error } = await db
-      .from('activities')
-      .insert(insertPayload)
-      .select('*')
-      .single();
+    const { data, error } = await db.from('activities').insert(insertPayload).select('*').single();
 
     if (error) {
       console.error('[POST /api/activities] db error:', error.message);

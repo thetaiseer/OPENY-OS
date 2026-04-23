@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 
-
 const PAGE_SIZE = 100;
 
 /**
@@ -32,17 +31,17 @@ export async function GET(req: NextRequest) {
     const { profile } = auth;
 
     const { searchParams } = new URL(req.url);
-    const page         = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
-    const clientId     = searchParams.get('client_id')     ?? '';
-    const clientName   = searchParams.get('client_name')   ?? '';
+    const page = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
+    const clientId = searchParams.get('client_id') ?? '';
+    const clientName = searchParams.get('client_name') ?? '';
     const mainCategory = searchParams.get('main_category') ?? '';
-    const subCategory  = searchParams.get('sub_category')  ?? '';
-    const year         = searchParams.get('year')          ?? '';
-    const monthKey     = searchParams.get('month_key')     ?? '';
-    const fileType     = searchParams.get('file_type')     ?? '';
-    const search       = searchParams.get('search')        ?? '';
+    const subCategory = searchParams.get('sub_category') ?? '';
+    const year = searchParams.get('year') ?? '';
+    const monthKey = searchParams.get('month_key') ?? '';
+    const fileType = searchParams.get('file_type') ?? '';
+    const search = searchParams.get('search') ?? '';
     const from = page * PAGE_SIZE;
-    const to   = from + PAGE_SIZE - 1;
+    const to = from + PAGE_SIZE - 1;
 
     // Client role: profiles no longer carry client_id, so we cannot scope
     // results to a specific client — return an empty list to avoid exposing
@@ -60,36 +59,33 @@ export async function GET(req: NextRequest) {
       .neq('is_deleted', true)
       .order('created_at', { ascending: false });
 
-    if (clientId)     query = query.eq('client_id', clientId);
-    if (clientName)   query = query.eq('client_name', clientName);
+    if (clientId) query = query.eq('client_id', clientId);
+    if (clientName) query = query.eq('client_name', clientName);
     if (mainCategory) query = query.eq('main_category', mainCategory);
-    if (subCategory)  query = query.eq('sub_category', subCategory);
-    if (monthKey)     query = query.eq('month_key', monthKey);
-    if (year)         query = query.like('month_key', `${year}-%`);
-    if (fileType)     query = query.like('file_type', `${fileType}%`);
-    if (search)       query = query.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
+    if (subCategory) query = query.eq('sub_category', subCategory);
+    if (monthKey) query = query.eq('month_key', monthKey);
+    if (year) query = query.like('month_key', `${year}-%`);
+    if (fileType) query = query.like('file_type', `${fileType}%`);
+    if (search) query = query.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
 
     let result = await query.range(from, to);
 
     if (result.error?.code === '42703') {
       console.warn(
         '[GET /api/assets] Column "is_deleted" does not exist — falling back without is_deleted filter. ' +
-        'Run supabase-migration-missing-columns.sql to add the missing column.',
+          'Run supabase-migration-missing-columns.sql to add the missing column.',
       );
       // Rebuild the same query without the is_deleted filter
-      let fallback = supabase
-        .from('assets')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let fallback = supabase.from('assets').select('*').order('created_at', { ascending: false });
 
-      if (clientId)     fallback = fallback.eq('client_id', clientId);
-      if (clientName)   fallback = fallback.eq('client_name', clientName);
+      if (clientId) fallback = fallback.eq('client_id', clientId);
+      if (clientName) fallback = fallback.eq('client_name', clientName);
       if (mainCategory) fallback = fallback.eq('main_category', mainCategory);
-      if (subCategory)  fallback = fallback.eq('sub_category', subCategory);
-      if (monthKey)     fallback = fallback.eq('month_key', monthKey);
-      if (year)         fallback = fallback.like('month_key', `${year}-%`);
-      if (fileType)     fallback = fallback.like('file_type', `${fileType}%`);
-      if (search)       fallback = fallback.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
+      if (subCategory) fallback = fallback.eq('sub_category', subCategory);
+      if (monthKey) fallback = fallback.eq('month_key', monthKey);
+      if (year) fallback = fallback.like('month_key', `${year}-%`);
+      if (fileType) fallback = fallback.like('file_type', `${fileType}%`);
+      if (search) fallback = fallback.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
 
       result = await fallback.range(from, to);
     }
@@ -99,7 +95,10 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');
       return NextResponse.json(
-        { success: false, error: `Failed to fetch assets: ${error.message}${error.details ? ` — ${error.details}` : ''}` },
+        {
+          success: false,
+          error: `Failed to fetch assets: ${error.message}${error.details ? ` — ${error.details}` : ''}`,
+        },
         { status: 500 },
       );
     }

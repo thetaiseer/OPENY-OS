@@ -4,10 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { User as UserIcon, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import {
-  OPENY_MENU_ITEM_CLASS,
-  OPENY_MENU_PANEL_CLASS,
-} from '@/components/ui/menu-system';
+import { OPENY_MENU_ITEM_CLASS, OPENY_MENU_PANEL_CLASS } from '@/components/ui/menu-system';
 
 interface AccountMenuProps {
   /**
@@ -20,7 +17,7 @@ interface AccountMenuProps {
 
 export default function AccountMenu({ placement, children }: AccountMenuProps) {
   const { user, role, loading, signOut } = useAuth();
-  const [open, setOpen]           = useState(false);
+  const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -61,15 +58,13 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
   }
 
   const dropdownPositionClass =
-    placement === 'header'
-      ? 'right-0 top-full mt-2'
-      : 'left-0 bottom-full mb-2';
+    placement === 'header' ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2';
 
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-lg"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         aria-expanded={open}
         aria-haspopup="menu"
         type="button"
@@ -84,32 +79,41 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
           style={{ padding: '0.45rem' }}
         >
           {/* User info header */}
-          <div className="px-3 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
             {loading ? (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full animate-pulse" style={{ background: 'var(--surface-2)' }} />
-                <div className="space-y-1.5 flex-1">
-                  <div className="h-3 rounded animate-pulse w-24" style={{ background: 'var(--surface-2)' }} />
-                  <div className="h-2.5 rounded animate-pulse w-32" style={{ background: 'var(--surface-2)' }} />
+                <div
+                  className="h-9 w-9 animate-pulse rounded-full"
+                  style={{ background: 'var(--surface-2)' }}
+                />
+                <div className="flex-1 space-y-1.5">
+                  <div
+                    className="h-3 w-24 animate-pulse rounded"
+                    style={{ background: 'var(--surface-2)' }}
+                  />
+                  <div
+                    className="h-2.5 w-32 animate-pulse rounded"
+                    style={{ background: 'var(--surface-2)' }}
+                  />
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
                   style={{ background: 'var(--accent)' }}
                 >
                   {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
                     {user.name || user.email}
                   </p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
                     {user.email}
                   </p>
                   <span
-                    className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-xs font-semibold capitalize"
+                    className="mt-1 inline-block rounded-full px-1.5 py-0.5 text-xs font-semibold capitalize"
                     style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
                     {role}
@@ -120,7 +124,7 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
           </div>
 
           {/* Menu items */}
-          <div className="py-1 space-y-0.5">
+          <div className="space-y-0.5 py-1">
             <Link
               href="/account"
               onClick={() => setOpen(false)}
@@ -146,14 +150,18 @@ export default function AccountMenu({ placement, children }: AccountMenuProps) {
           {/* Sign out error toast */}
           {signOutError && (
             <div
-              className="mx-3 mb-2 px-3 py-2 rounded-lg text-xs font-medium"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+              className="mx-3 mb-2 rounded-lg px-3 py-2 text-xs font-medium"
+              style={{
+                background: 'rgba(239,68,68,0.1)',
+                color: '#ef4444',
+                border: '1px solid rgba(239,68,68,0.25)',
+              }}
             >
               {signOutError}
             </div>
           )}
 
-          <div className="border-t pt-1 mt-1" style={{ borderColor: 'var(--border)' }}>
+          <div className="mt-1 border-t pt-1" style={{ borderColor: 'var(--border)' }}>
             <button
               role="menuitem"
               onClick={handleSignOut}

@@ -18,7 +18,8 @@ import Providers from './providers';
 
 export const metadata: Metadata = {
   title: 'OPENY',
-  description: 'One unified SaaS platform — OPENY OS for operations and OPENY DOCS for business documents.',
+  description:
+    'One unified SaaS platform — OPENY OS for operations and OPENY DOCS for business documents.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -41,9 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>
-              <Providers>
-                {children}
-              </Providers>
+              <Providers>{children}</Providers>
             </AuthProvider>
           </LangProvider>
         </ThemeProvider>

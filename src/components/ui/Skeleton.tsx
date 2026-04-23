@@ -14,7 +14,13 @@ export function SkeletonCard({ className = '' }: { className?: string }) {
   );
 }
 
-export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) {
+export function SkeletonLine({
+  width = 'w-full',
+  height = 'h-4',
+}: {
+  width?: string;
+  height?: string;
+}) {
   return (
     <div
       className={`openy-skeleton rounded-lg ${width} ${height}`}
@@ -25,12 +31,18 @@ export function SkeletonLine({ width = 'w-full', height = 'h-4' }: { width?: str
 
 export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
   return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="openy-skeleton w-9 h-9 rounded-2xl shrink-0" style={{ background: 'var(--surface-2)' }} />
+    <div
+      className="flex items-center gap-4 border-b px-6 py-4"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <div
+        className="openy-skeleton h-9 w-9 shrink-0 rounded-2xl"
+        style={{ background: 'var(--surface-2)' }}
+      />
       {Array.from({ length: cols - 1 }).map((_, i) => (
         <div
           key={i}
-          className="openy-skeleton flex-1 h-4 rounded-lg"
+          className="openy-skeleton h-4 flex-1 rounded-lg"
           style={{ background: 'var(--surface-2)', maxWidth: i === 0 ? 200 : 120 }}
         />
       ))}
@@ -41,7 +53,7 @@ export function SkeletonTableRow({ cols = 4 }: { cols?: number }) {
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
     <div
-      className="rounded-2xl border overflow-hidden"
+      className="overflow-hidden rounded-2xl border"
       style={{
         borderColor: 'var(--border-glass)',
         background: 'var(--surface-glass)',
@@ -58,7 +70,7 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 
 export function SkeletonStatGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}

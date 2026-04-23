@@ -15,7 +15,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   if (totalPages <= 1) return null;
 
   const from = (page - 1) * pageSize + 1;
-  const to   = Math.min(page * pageSize, total);
+  const to = Math.min(page * pageSize, total);
 
   // Build page list — always show first, last, current ± 1
   const pages: (number | '...')[] = [];
@@ -28,7 +28,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   add(page + 1);
   add(totalPages);
 
-  const sorted = [...new Set(pages.filter(p => typeof p === 'number'))] as number[];
+  const sorted = [...new Set(pages.filter((p) => typeof p === 'number'))] as number[];
   sorted.sort((a, b) => a - b);
 
   const withEllipsis: (number | '...')[] = [];
@@ -46,7 +46,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--surface-2)]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-30"
           style={{ color: 'var(--text-secondary)' }}
         >
           <ChevronLeft size={15} />
@@ -54,12 +54,18 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
 
         {withEllipsis.map((p, i) =>
           p === '...' ? (
-            <span key={`e-${i}`} className="w-8 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>…</span>
+            <span
+              key={`e-${i}`}
+              className="w-8 text-center text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              …
+            </span>
           ) : (
             <button
               key={p}
               onClick={() => onPageChange(p)}
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors"
               style={
                 p === page
                   ? { background: 'var(--accent)', color: '#fff' }
@@ -74,7 +80,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--surface-2)]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-30"
           style={{ color: 'var(--text-secondary)' }}
         >
           <ChevronRight size={15} />

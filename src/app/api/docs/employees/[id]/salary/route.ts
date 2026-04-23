@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['manager', 'admin']);
@@ -25,12 +27,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<Param
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const { new_salary } = body as { new_salary?: number };
   if (typeof new_salary !== 'number' || new_salary < 0) {
-    return NextResponse.json({ error: 'new_salary must be a non-negative number' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'new_salary must be a non-negative number' },
+      { status: 400 },
+    );
   }
 
   const db = getServiceClient();
@@ -41,13 +49,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<Param
   const { data: adj, error: adjErr } = await db
     .from('docs_salary_adjustments')
     .insert({
-      employee_id:    id,
+      employee_id: id,
       new_salary,
-      change_amount:  Math.abs(diff),
-      change_type:    diff > 0 ? 'increase' : diff < 0 ? 'decrease' : 'initial',
+      change_amount: Math.abs(diff),
+      change_type: diff > 0 ? 'increase' : diff < 0 ? 'decrease' : 'initial',
       effective_date: body.effective_date ?? new Date().toISOString().slice(0, 10),
-      notes:          body.notes ?? null,
-      created_by:     auth.profile.id,
+      notes: body.notes ?? null,
+      created_by: auth.profile.id,
     })
     .select()
     .single();

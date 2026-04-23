@@ -9,7 +9,10 @@ export default function ClientActivityPage() {
   if (!clientId) return null;
 
   return (
-    <div className="rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <div
+      className="rounded-2xl border p-5"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
       <ActivityLog clientId={clientId} limit={30} />
     </div>
   );

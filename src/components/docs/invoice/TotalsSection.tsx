@@ -47,7 +47,12 @@ export default function TotalsSection({
   return (
     <div
       className="avoid-break"
-      style={{ pageBreakInside: 'avoid', display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}
+      style={{
+        pageBreakInside: 'avoid',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: 16,
+      }}
     >
       <table style={{ width: 300, borderCollapse: 'collapse' }}>
         <tbody>
@@ -59,9 +64,7 @@ export default function TotalsSection({
           </tr>
           <tr>
             <td style={labelCell}>Our Fees</td>
-            <td style={{ ...valueCell, whiteSpace: 'nowrap' }}>
-              {fmt(totals.ourFees, currency)}
-            </td>
+            <td style={{ ...valueCell, whiteSpace: 'nowrap' }}>{fmt(totals.ourFees, currency)}</td>
           </tr>
           <tr>
             <td

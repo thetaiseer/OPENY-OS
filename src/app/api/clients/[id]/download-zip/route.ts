@@ -74,19 +74,23 @@ function buildZipPath(
       const rel = parts.slice(2).join('/');
       return `${root}/${rel}`;
     }
-    if (parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS && parts[0] === 'openy-assets' && parts[1] === 'os') {
+    if (
+      parts.length > OPENY_OS_KEY_PREFIX_SEGMENTS &&
+      parts[0] === 'openy-assets' &&
+      parts[1] === 'os'
+    ) {
       const rel = parts.slice(OPENY_OS_KEY_PREFIX_SEGMENTS).join('/');
       return `${root}/${rel}`;
     }
   }
 
   // ── Option 2: reconstruct from fields ────────────────────────────────────
-  const cat   = sanitiseSegment(asset.main_category ?? 'Other');
+  const cat = sanitiseSegment(asset.main_category ?? 'Other');
   const subCat = sanitiseSegment(asset.sub_category ?? 'General');
   const fileName = sanitiseSegment(asset.name);
 
   // month_key format: "YYYY-MM"
-  let year  = 'Unknown';
+  let year = 'Unknown';
   let month = 'Unknown';
   if (asset.month_key && /^\d{4}-\d{2}$/.test(asset.month_key)) {
     [year, month] = asset.month_key.split('-');
@@ -114,7 +118,7 @@ async function fetchAllAssets(clientId: string) {
   let page = 0;
   while (true) {
     const from = page * PAGE_SIZE;
-    const to   = from + PAGE_SIZE - 1;
+    const to = from + PAGE_SIZE - 1;
 
     const { data, error } = await supabase
       .from('assets')
@@ -154,10 +158,7 @@ function getAssetStorageKey(asset: {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // ── Auth ──────────────────────────────────────────────────────────────────
   const auth = await getApiUser(req);
   if (!auth) {
@@ -194,12 +195,10 @@ export async function GET(
 
   // Filter to R2-hosted assets only (storage_key present OR provider is r2).
   const r2Assets = allAssets.filter(
-    a =>
+    (a) =>
       a.storage_provider === 'r2' ||
-      (a.storage_key && (
-        a.storage_key.startsWith('openy-assets/os/') ||
-        a.storage_key.startsWith('clients/')
-      )),
+      (a.storage_key &&
+        (a.storage_key.startsWith('openy-assets/os/') || a.storage_key.startsWith('clients/'))),
   );
 
   if (r2Assets.length === 0) {
@@ -245,8 +244,7 @@ export async function GET(
         // AWS SDK v3 returns a SdkStreamMixin; in Node.js it is also a Readable.
         archive.append(body as Readable, { name: zipPath });
       } catch (err: unknown) {
-        const code =
-          (err as { name?: string })?.name ?? '';
+        const code = (err as { name?: string })?.name ?? '';
         if (code === 'NoSuchKey' || code === 'NotFound') {
           console.warn(`[download-zip] file missing in R2: ${key}`);
         } else {
@@ -273,11 +271,11 @@ export async function GET(
   return new NextResponse(webStream, {
     status: 200,
     headers: {
-      'Content-Type':        'application/zip',
+      'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="${safeFilename}.zip"`,
       // Disable buffering on Vercel / nginx so bytes stream to the client.
-      'X-Accel-Buffering':   'no',
-      'Cache-Control':       'no-store',
+      'X-Accel-Buffering': 'no',
+      'Cache-Control': 'no-store',
     },
   });
 }

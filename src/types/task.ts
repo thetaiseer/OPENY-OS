@@ -1,7 +1,1 @@
-export type {
-  Task,
-  TaskStatus,
-  TaskCategory,
-  ContentPurpose,
-  TaskAssetLink,
-} from '@/lib/types';
+export type { Task, TaskStatus, TaskCategory, ContentPurpose, TaskAssetLink } from '@/lib/types';

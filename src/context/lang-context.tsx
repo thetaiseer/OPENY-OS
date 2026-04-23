@@ -272,7 +272,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleLang = () => {
-    setLang(prev => {
+    setLang((prev) => {
       const next = prev === 'en' ? 'ar' : 'en';
       localStorage.setItem('lang', next);
       document.documentElement.setAttribute('lang', next);

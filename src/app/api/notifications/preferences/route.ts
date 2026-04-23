@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: unknown;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
@@ -72,29 +74,34 @@ export async function POST(req: NextRequest) {
   }
 
   const isAdmin = auth.profile.role === 'admin' || auth.profile.role === 'owner';
-  const db      = getServiceClient();
-  const now     = new Date().toISOString();
-  const rows = items.map(item => {
-    const eventType = String(item.event_type ?? '');
-    const isCritical = UNMUTABLE_EVENT_TYPES.has(eventType);
-    const row: Record<string, unknown> = {
-      user_id:          auth.profile.id,
-      event_type:       eventType,
-      updated_at:       now,
-    };
-    if (typeof item.in_app_enabled   === 'boolean') row.in_app_enabled   = item.in_app_enabled;
-    if (typeof item.email_enabled    === 'boolean') row.email_enabled    = item.email_enabled;
-    if (typeof item.realtime_enabled === 'boolean') row.realtime_enabled = item.realtime_enabled;
-    if (typeof item.digest_enabled   === 'boolean') row.digest_enabled   = item.digest_enabled;
-    // Enforce policy: critical events cannot be muted unless user is admin
-    if (!isCritical || isAdmin) {
-      if (item.mute_until !== undefined) row.mute_until = item.mute_until ?? null;
-    }
-    return row;
-  }).filter(r => typeof r.event_type === 'string' && r.event_type.length > 0);
+  const db = getServiceClient();
+  const now = new Date().toISOString();
+  const rows = items
+    .map((item) => {
+      const eventType = String(item.event_type ?? '');
+      const isCritical = UNMUTABLE_EVENT_TYPES.has(eventType);
+      const row: Record<string, unknown> = {
+        user_id: auth.profile.id,
+        event_type: eventType,
+        updated_at: now,
+      };
+      if (typeof item.in_app_enabled === 'boolean') row.in_app_enabled = item.in_app_enabled;
+      if (typeof item.email_enabled === 'boolean') row.email_enabled = item.email_enabled;
+      if (typeof item.realtime_enabled === 'boolean') row.realtime_enabled = item.realtime_enabled;
+      if (typeof item.digest_enabled === 'boolean') row.digest_enabled = item.digest_enabled;
+      // Enforce policy: critical events cannot be muted unless user is admin
+      if (!isCritical || isAdmin) {
+        if (item.mute_until !== undefined) row.mute_until = item.mute_until ?? null;
+      }
+      return row;
+    })
+    .filter((r) => typeof r.event_type === 'string' && r.event_type.length > 0);
 
   if (!rows.length) {
-    return NextResponse.json({ success: false, error: 'No valid preferences provided' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: 'No valid preferences provided' },
+      { status: 400 },
+    );
   }
 
   const { data, error } = await db

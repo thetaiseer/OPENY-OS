@@ -24,7 +24,7 @@ export interface VideoThumbnailResult {
   /** Object-URL pointing to the thumbnail Blob. Caller must revoke when done. */
   blobUrl: string;
   /** The compressed JPEG Blob – pass this to the upload flow for permanent storage. */
-  blob:    Blob;
+  blob: Blob;
   /** Duration of the video in seconds (may be NaN or Infinity for live streams). */
   durationSeconds: number | null;
 }
@@ -40,12 +40,12 @@ export interface VideoThumbnailResult {
  *          cannot decode the video or the operation times out.
  */
 export function generateVideoThumbnail(
-  file:     File,
+  file: File,
   seekTime = 1,
 ): Promise<VideoThumbnailResult | null> {
   return new Promise((resolve) => {
     const objectUrl = URL.createObjectURL(file);
-    const video     = document.createElement('video');
+    const video = document.createElement('video');
 
     let settled = false;
 
@@ -69,15 +69,18 @@ export function generateVideoThumbnail(
       clearTimeout(timeoutId);
       try {
         const aspect = video.videoHeight / (video.videoWidth || 1);
-        const width  = Math.min(video.videoWidth, MAX_WIDTH);
+        const width = Math.min(video.videoWidth, MAX_WIDTH);
         const height = Math.max(1, Math.round(width * aspect));
 
         const canvas = document.createElement('canvas');
-        canvas.width  = width;
+        canvas.width = width;
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) { finish(null); return; }
+        if (!ctx) {
+          finish(null);
+          return;
+        }
 
         ctx.drawImage(video, 0, 0, width, height);
 
@@ -90,7 +93,10 @@ export function generateVideoThumbnail(
 
         canvas.toBlob(
           (blob) => {
-            if (!blob) { finish(null); return; }
+            if (!blob) {
+              finish(null);
+              return;
+            }
             const blobUrl = URL.createObjectURL(blob);
             finish({ blobUrl, blob, durationSeconds });
           },
@@ -115,10 +121,10 @@ export function generateVideoThumbnail(
       finish(null);
     });
 
-    video.preload  = 'metadata';
-    video.muted    = true;
+    video.preload = 'metadata';
+    video.muted = true;
     video.playsInline = true;
-    video.src      = objectUrl;
+    video.src = objectUrl;
     video.load();
   });
 }

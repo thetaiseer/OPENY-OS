@@ -8,7 +8,6 @@ import { createNotification } from '@/lib/notification-service';
 // Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
 type Db = SupabaseClient<any>;
 
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function logAction(_intent: string, _detail: string) {}
 
@@ -70,7 +69,7 @@ const TASK_INSERT_ALLOWED_COLUMNS = new Set([
 /** Strip keys that are not in the whitelist to prevent unknown-column errors. */
 function sanitizeTaskPayload(raw: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(raw).filter(([k]) => TASK_INSERT_ALLOWED_COLUMNS.has(k))
+    Object.entries(raw).filter(([k]) => TASK_INSERT_ALLOWED_COLUMNS.has(k)),
   );
 }
 
@@ -185,12 +184,9 @@ interface ExecutionResult {
 
 async function findBestClientMatch(
   sb: Db,
-  nameQuery: string
+  nameQuery: string,
 ): Promise<{ id: string; name: string } | null> {
-  const { data } = await sb
-    .from('clients')
-    .select('id, name')
-    .order('name');
+  const { data } = await sb.from('clients').select('id, name').order('name');
 
   if (!data?.length) return null;
 
@@ -201,7 +197,10 @@ async function findBestClientMatch(
   if (exact) return exact;
 
   // Contains match
-  const contains = data.find((c: { id: string; name: string }) => c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase()));
+  const contains = data.find(
+    (c: { id: string; name: string }) =>
+      c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase()),
+  );
   if (contains) return contains;
 
   // Fuzzy: count common characters
@@ -210,9 +209,14 @@ async function findBestClientMatch(
   for (const client of data as { id: string; name: string }[]) {
     const name = client.name.toLowerCase();
     let score = 0;
-    for (const ch of q) { if (name.includes(ch)) score++; }
+    for (const ch of q) {
+      if (name.includes(ch)) score++;
+    }
     const normalized = score / Math.max(q.length, name.length);
-    if (normalized > bestScore) { bestScore = normalized; best = client; }
+    if (normalized > bestScore) {
+      bestScore = normalized;
+      best = client;
+    }
   }
 
   return bestScore > 0.5 ? best : null;
@@ -223,7 +227,7 @@ async function findBestClientMatch(
 async function executeCreateTask(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const actions: string[] = [];
@@ -233,7 +237,10 @@ async function executeCreateTask(
   let clientName: string | null = null;
   if (entities.client_name) {
     const client = await findBestClientMatch(sb, entities.client_name);
-    if (client) { clientId = client.id; clientName = client.name; }
+    if (client) {
+      clientId = client.id;
+      clientName = client.name;
+    }
   }
 
   const title = parsed.professional_title ?? entities.task_title ?? 'New Task';
@@ -290,10 +297,7 @@ async function executeCreateTask(
   };
 }
 
-async function executeListTasks(
-  sb: Db,
-  parsed: ParsedCommand,
-): Promise<ExecutionResult> {
+async function executeListTasks(sb: Db, parsed: ParsedCommand): Promise<ExecutionResult> {
   const { entities } = parsed;
   // Use only confirmed-safe columns — client_name is excluded to avoid missing-column errors.
   let query = sb.from('tasks').select(TASK_SAFE_COLUMNS).order('due_date', { ascending: true });
@@ -305,7 +309,10 @@ async function executeListTasks(
   }
 
   // overdue filter
-  const isOverdue = entities.query?.includes('متأخر') || entities.query?.includes('overdue') || entities.status === 'overdue';
+  const isOverdue =
+    entities.query?.includes('متأخر') ||
+    entities.query?.includes('overdue') ||
+    entities.status === 'overdue';
   if (isOverdue) {
     query = query.lt('due_date', new Date().toISOString().split('T')[0]).neq('status', 'completed');
   }
@@ -322,16 +329,17 @@ async function executeListTasks(
   };
 }
 
-async function executeSearchClient(
-  sb: Db,
-  parsed: ParsedCommand,
-): Promise<ExecutionResult> {
+async function executeSearchClient(sb: Db, parsed: ParsedCommand): Promise<ExecutionResult> {
   const nameQuery = parsed.entities.client_name ?? parsed.entities.query ?? '';
   logAction('search_client', `query="${nameQuery}"`);
   const client = await findBestClientMatch(sb, nameQuery);
 
   if (!client) {
-    return { success: false, message: `No client found matching "${nameQuery}".`, actions_taken: [] };
+    return {
+      success: false,
+      message: `No client found matching "${nameQuery}".`,
+      actions_taken: [],
+    };
   }
 
   const { data } = await sb.from('clients').select('*').eq('id', client.id).single();
@@ -347,18 +355,22 @@ async function executeSearchClient(
 async function executeCreateClient(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const name = parsed.professional_title ?? entities.client_name;
   if (!name) throw new Error('Client name is required');
 
   logAction('create_client', `name="${name}"`);
-  const { data, error } = await sb.from('clients').insert({
-    name,
-    email: entities.email ?? null,
-    created_by: userId,
-  }).select().single();
+  const { data, error } = await sb
+    .from('clients')
+    .insert({
+      name,
+      email: entities.email ?? null,
+      created_by: userId,
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
 
@@ -370,10 +382,7 @@ async function executeCreateClient(
   };
 }
 
-async function executeUpdateTask(
-  sb: Db,
-  parsed: ParsedCommand,
-): Promise<ExecutionResult> {
+async function executeUpdateTask(sb: Db, parsed: ParsedCommand): Promise<ExecutionResult> {
   const { entities } = parsed;
   const actions: string[] = [];
 
@@ -425,10 +434,7 @@ async function executeUpdateTask(
     };
   }
 
-  const { error: updateErr } = await sb
-    .from('tasks')
-    .update(updatePayload)
-    .eq('id', taskId);
+  const { error: updateErr } = await sb.from('tasks').update(updatePayload).eq('id', taskId);
 
   if (updateErr) throw new Error(updateErr.message);
 
@@ -447,7 +453,7 @@ async function executeUpdateTask(
 async function executeCreatePublishingSchedule(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const actions: string[] = [];
@@ -456,22 +462,32 @@ async function executeCreatePublishingSchedule(
   let clientName: string | null = null;
   if (entities.client_name) {
     const client = await findBestClientMatch(sb, entities.client_name);
-    if (client) { clientId = client.id; clientName = client.name; }
+    if (client) {
+      clientId = client.id;
+      clientName = client.name;
+    }
   }
 
   const platforms = entities.platforms ?? ['Instagram'];
   const contentTitle = parsed.professional_title ?? entities.task_title ?? 'AI Scheduled Post';
-  logAction('create_publishing_schedule', `title="${contentTitle}" platforms=${platforms.join(',')}`);
+  logAction(
+    'create_publishing_schedule',
+    `title="${contentTitle}" platforms=${platforms.join(',')}`,
+  );
 
   // Create a content item first
-  const { data: contentItem, error: contentError } = await sb.from('content_items').insert({
-    title: contentTitle,
-    description: parsed.professional_description ?? entities.task_description ?? null,
-    client_id: clientId,
-    post_type: entities.post_type ?? 'post',
-    status: 'draft',
-    created_by_id: userId,
-  }).select().single();
+  const { data: contentItem, error: contentError } = await sb
+    .from('content_items')
+    .insert({
+      title: contentTitle,
+      description: parsed.professional_description ?? entities.task_description ?? null,
+      client_id: clientId,
+      post_type: entities.post_type ?? 'post',
+      status: 'draft',
+      created_by_id: userId,
+    })
+    .select()
+    .single();
 
   if (contentError) throw new Error(contentError.message);
   actions.push(`Created content item: "${contentTitle}"`);
@@ -483,14 +499,18 @@ async function executeCreatePublishingSchedule(
       ? `${entities.due_date}T${entities.due_time ?? '09:00'}:00`
       : new Date(Date.now() + 86400000).toISOString();
 
-    const { data: schedule, error: schedErr } = await sb.from('publishing_schedules').insert({
-      content_item_id: (contentItem as { id: string }).id,
-      client_id: clientId,
-      platform,
-      scheduled_at: scheduledAt,
-      status: 'scheduled',
-      created_by: userId,
-    }).select().single();
+    const { data: schedule, error: schedErr } = await sb
+      .from('publishing_schedules')
+      .insert({
+        content_item_id: (contentItem as { id: string }).id,
+        client_id: clientId,
+        platform,
+        scheduled_at: scheduledAt,
+        status: 'scheduled',
+        created_by: userId,
+      })
+      .select()
+      .single();
 
     if (schedErr) throw new Error(schedErr.message);
     schedules.push(schedule);
@@ -531,7 +551,7 @@ async function executeCreatePublishingSchedule(
 async function executeInviteTeamMember(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const email = entities.email;
@@ -545,15 +565,19 @@ async function executeInviteTeamMember(
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
 
-  const { data, error } = await sb.from('team_invitations').insert({
-    email,
-    name,
-    role,
-    token,
-    invited_by: userId,
-    expires_at: expiresAt,
-    status: 'pending',
-  }).select().single();
+  const { data, error } = await sb
+    .from('team_invitations')
+    .insert({
+      email,
+      name,
+      role,
+      token,
+      invited_by: userId,
+      expires_at: expiresAt,
+      status: 'pending',
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
 
@@ -580,9 +604,13 @@ async function executeSummarizeClientStatus(
 
   const total = tasks?.length ?? 0;
   const completed = tasks?.filter((t: { status: string }) => t.status === 'completed').length ?? 0;
-  const overdue = tasks?.filter((t: { due_date: string; status: string }) =>
-    t.due_date && t.due_date < new Date().toISOString().split('T')[0] && t.status !== 'completed'
-  ).length ?? 0;
+  const overdue =
+    tasks?.filter(
+      (t: { due_date: string; status: string }) =>
+        t.due_date &&
+        t.due_date < new Date().toISOString().split('T')[0] &&
+        t.status !== 'completed',
+    ).length ?? 0;
 
   const summary = `${client ? `Client: ${client.name}` : 'Workspace'} — ${total} tasks total, ${completed} completed, ${overdue} overdue.`;
 
@@ -594,9 +622,7 @@ async function executeSummarizeClientStatus(
   };
 }
 
-async function executeGenerateContentIdeas(
-  parsed: ParsedCommand,
-): Promise<ExecutionResult> {
+async function executeGenerateContentIdeas(parsed: ParsedCommand): Promise<ExecutionResult> {
   const { entities } = parsed;
   const count = entities.count ?? 3;
   const clientName = entities.client_name ?? 'the client';
@@ -604,7 +630,8 @@ async function executeGenerateContentIdeas(
   logAction('generate_content_ideas', `count=${count} type=${contentType} client="${clientName}"`);
 
   const ideas = await callAI({
-    system: 'You are a creative social media strategist. Generate concise, actionable content ideas.',
+    system:
+      'You are a creative social media strategist. Generate concise, actionable content ideas.',
     user: `Generate ${count} ${contentType} content ideas for ${clientName}. Return as a numbered list. Be specific and creative.`,
     maxTokens: 512,
     temperature: 0.9,
@@ -623,7 +650,7 @@ async function executeGenerateContentIdeas(
 async function executeCreateProject(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const actions: string[] = [];
@@ -632,31 +659,38 @@ async function executeCreateProject(
   let clientName: string | null = null;
   if (entities.client_name) {
     const client = await findBestClientMatch(sb, entities.client_name);
-    if (client) { clientId = client.id; clientName = client.name; }
+    if (client) {
+      clientId = client.id;
+      clientName = client.name;
+    }
   }
 
   const name = parsed.professional_title ?? entities.task_title ?? 'New Project';
   logAction('create_project', `name="${name}" client="${clientName ?? 'none'}"`);
 
-  const { data, error } = await sb.from('projects').insert({
-    name,
-    description: parsed.professional_description ?? entities.task_description ?? null,
-    client_id:   clientId,
-    status:      'active',
-    created_by:  userId,
-  }).select().single();
+  const { data, error } = await sb
+    .from('projects')
+    .insert({
+      name,
+      description: parsed.professional_description ?? entities.task_description ?? null,
+      client_id: clientId,
+      status: 'active',
+      created_by: userId,
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
   actions.push(`Created project: "${name}"`);
   if (clientName) actions.push(`Linked to client: ${clientName}`);
 
   void sb.from('activities').insert({
-    type:        'project_created',
+    type: 'project_created',
     description: `AI created project: ${name}`,
     entity_type: 'project',
-    entity_id:   (data as { id: string }).id,
-    user_uuid:   userId,
-    client_id:   clientId,
+    entity_id: (data as { id: string }).id,
+    user_uuid: userId,
+    client_id: clientId,
   });
 
   return {
@@ -670,17 +704,21 @@ async function executeCreateProject(
 async function executeCreateNote(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const title = parsed.professional_title ?? entities.task_title ?? 'New Note';
   logAction('create_note', `title="${title}"`);
 
-  const { data, error } = await sb.from('notes').insert({
-    title,
-    content:    parsed.professional_description ?? entities.task_description ?? null,
-    created_by: userId,
-  }).select().single();
+  const { data, error } = await sb
+    .from('notes')
+    .insert({
+      title,
+      content: parsed.professional_description ?? entities.task_description ?? null,
+      created_by: userId,
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
 
@@ -695,19 +733,24 @@ async function executeCreateNote(
 async function executeStartTimer(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
 
   // Stop any running timer for this user first
-  await sb.from('time_entries')
+  await sb
+    .from('time_entries')
     .update({ is_running: false, ended_at: new Date().toISOString() })
     .eq('user_id', userId)
     .eq('is_running', true);
 
   let taskId: string | null = null;
   if (entities.task_title) {
-    const { data: tasks } = await sb.from('tasks').select('id').ilike('title', `%${entities.task_title}%`).limit(1);
+    const { data: tasks } = await sb
+      .from('tasks')
+      .select('id')
+      .ilike('title', `%${entities.task_title}%`)
+      .limit(1);
     if (tasks?.length) taskId = (tasks[0] as { id: string }).id;
   }
 
@@ -719,14 +762,18 @@ async function executeStartTimer(
 
   logAction('start_timer', `task_id=${taskId ?? 'none'}`);
 
-  const { data, error } = await sb.from('time_entries').insert({
-    task_id:    taskId,
-    client_id:  clientId,
-    user_id:    userId,
-    description: entities.task_description ?? null,
-    started_at: new Date().toISOString(),
-    is_running: true,
-  }).select().single();
+  const { data, error } = await sb
+    .from('time_entries')
+    .insert({
+      task_id: taskId,
+      client_id: clientId,
+      user_id: userId,
+      description: entities.task_description ?? null,
+      started_at: new Date().toISOString(),
+      is_running: true,
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
 
@@ -738,10 +785,7 @@ async function executeStartTimer(
   };
 }
 
-async function executeStopTimer(
-  sb: Db,
-  userId: string
-): Promise<ExecutionResult> {
+async function executeStopTimer(sb: Db, userId: string): Promise<ExecutionResult> {
   logAction('stop_timer', `user=${userId}`);
   const endedAt = new Date().toISOString();
 
@@ -757,14 +801,19 @@ async function executeStopTimer(
   }
 
   const durationSeconds = Math.round(
-    (new Date(endedAt).getTime() - new Date((running as { started_at: string }).started_at).getTime()) / 1000,
+    (new Date(endedAt).getTime() -
+      new Date((running as { started_at: string }).started_at).getTime()) /
+      1000,
   );
 
-  const { error } = await sb.from('time_entries').update({
-    is_running:       false,
-    ended_at:         endedAt,
-    duration_seconds: durationSeconds,
-  }).eq('id', (running as { id: string }).id);
+  const { error } = await sb
+    .from('time_entries')
+    .update({
+      is_running: false,
+      ended_at: endedAt,
+      duration_seconds: durationSeconds,
+    })
+    .eq('id', (running as { id: string }).id);
 
   if (error) throw new Error(error.message);
 
@@ -781,7 +830,7 @@ async function executeStopTimer(
 async function executeStartNewClientWorkflow(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const clientName = entities.client_name ?? parsed.professional_title ?? 'New Client';
@@ -789,23 +838,31 @@ async function executeStartNewClientWorkflow(
   logAction('start_new_client_workflow', `client="${clientName}"`);
 
   // 1. Create client
-  const { data: client, error: cErr } = await sb.from('clients').insert({
-    name:       clientName,
-    email:      entities.email ?? null,
-    status:     'active',
-    created_by: userId,
-  }).select().single();
+  const { data: client, error: cErr } = await sb
+    .from('clients')
+    .insert({
+      name: clientName,
+      email: entities.email ?? null,
+      status: 'active',
+      created_by: userId,
+    })
+    .select()
+    .single();
   if (cErr) throw new Error(cErr.message);
   actions.push(`Created client: ${clientName}`);
   const clientId = (client as { id: string }).id;
 
   // 2. Create onboarding project
-  const { data: project } = await sb.from('projects').insert({
-    name:       `${clientName} — Onboarding`,
-    client_id:  clientId,
-    status:     'active',
-    created_by: userId,
-  }).select().single();
+  const { data: project } = await sb
+    .from('projects')
+    .insert({
+      name: `${clientName} — Onboarding`,
+      client_id: clientId,
+      status: 'active',
+      created_by: userId,
+    })
+    .select()
+    .single();
   if (project) actions.push('Created onboarding project');
 
   // 3. Create default onboarding tasks
@@ -818,31 +875,31 @@ async function executeStartNewClientWorkflow(
   for (const task of defaultTasks) {
     await sb.from('tasks').insert({
       ...task,
-      client_id:    clientId,
-      project_id:   projectId,
+      client_id: clientId,
+      project_id: projectId,
       created_by_id: userId,
-      due_date:     new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      due_date: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
     });
   }
   actions.push(`Created ${defaultTasks.length} onboarding tasks`);
 
   // 4. Create welcome note
   await sb.from('notes').insert({
-    title:       `${clientName} — Welcome Brief`,
-    content:     `Welcome brief for ${clientName}.\n\nAdd goals, brand guidelines, and key contacts here.`,
+    title: `${clientName} — Welcome Brief`,
+    content: `Welcome brief for ${clientName}.\n\nAdd goals, brand guidelines, and key contacts here.`,
     entity_type: 'client',
-    entity_id:   clientId,
-    created_by:  userId,
+    entity_id: clientId,
+    created_by: userId,
   });
   actions.push('Created welcome brief note');
 
   void sb.from('activities').insert({
-    type:        'client_created',
+    type: 'client_created',
     description: `AI onboarded client: ${clientName}`,
     entity_type: 'client',
-    entity_id:   clientId,
-    user_uuid:   userId,
-    client_id:   clientId,
+    entity_id: clientId,
+    user_uuid: userId,
+    client_id: clientId,
   });
 
   return {
@@ -856,14 +913,18 @@ async function executeStartNewClientWorkflow(
 async function executePrepareMonthWorkflow(
   sb: Db,
   parsed: ParsedCommand,
-  userId: string
+  userId: string,
 ): Promise<ExecutionResult> {
   const { entities } = parsed;
   const actions: string[] = [];
   logAction('prepare_month_workflow', `month=${entities.month ?? 'current'}`);
 
   // Get all active clients
-  const { data: clients } = await sb.from('clients').select('id, name').eq('status', 'active').limit(20);
+  const { data: clients } = await sb
+    .from('clients')
+    .select('id, name')
+    .eq('status', 'active')
+    .limit(20);
   if (!clients?.length) {
     return { success: false, message: 'No active clients found.', actions_taken: [] };
   }
@@ -873,20 +934,22 @@ async function executePrepareMonthWorkflow(
   const targetMonth = entities.month
     ? new Date(`${entities.month} 1, ${entities.year ?? now.getFullYear()}`)
     : new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const monthStr  = targetMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const monthKey  = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
-  const dueDate   = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+  const monthStr = targetMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
+  const dueDate = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+    .toISOString()
+    .split('T')[0];
 
   let taskCount = 0;
   for (const c of clients as { id: string; name: string }[]) {
     // Create monthly planning task for each client
     const { error } = await sb.from('tasks').insert({
-      title:        `${c.name} — ${monthStr} Content Plan`,
-      description:  `Plan and schedule all content for ${c.name} in ${monthStr}.`,
-      client_id:    c.id,
-      status:       'todo',
-      priority:     'medium',
-      due_date:     dueDate,
+      title: `${c.name} — ${monthStr} Content Plan`,
+      description: `Plan and schedule all content for ${c.name} in ${monthStr}.`,
+      client_id: c.id,
+      status: 'todo',
+      priority: 'medium',
+      due_date: dueDate,
       created_by_id: userId,
     });
     if (!error) taskCount++;
@@ -895,8 +958,8 @@ async function executePrepareMonthWorkflow(
 
   // Create a workspace-level planning note
   await sb.from('notes').insert({
-    title:      `${monthStr} — Monthly Plan`,
-    content:    `Monthly content and project plan for ${monthStr}.\n\nClients: ${clients.map((c: { name: string }) => c.name).join(', ')}`,
+    title: `${monthStr} — Monthly Plan`,
+    content: `Monthly content and project plan for ${monthStr}.\n\nClients: ${clients.map((c: { name: string }) => c.name).join(', ')}`,
     created_by: userId,
   });
   actions.push('Created monthly plan note');
@@ -904,15 +967,17 @@ async function executePrepareMonthWorkflow(
   return {
     success: true,
     message: `Month prepared: created ${taskCount} planning tasks for ${clients.length} clients and a monthly plan note.`,
-    data: { month: monthStr, month_key: monthKey, client_count: clients.length, task_count: taskCount },
+    data: {
+      month: monthStr,
+      month_key: monthKey,
+      client_count: clients.length,
+      task_count: taskCount,
+    },
     actions_taken: actions,
   };
 }
 
-async function executeCleanWorkspaceWorkflow(
-  sb: Db,
-  userId: string
-): Promise<ExecutionResult> {
+async function executeCleanWorkspaceWorkflow(sb: Db, userId: string): Promise<ExecutionResult> {
   const actions: string[] = [];
   const issues: string[] = [];
   logAction('clean_workspace_workflow', `user=${userId}`);
@@ -927,7 +992,7 @@ async function executeCleanWorkspaceWorkflow(
     .limit(50);
 
   if (overdueTasks?.length) {
-    const ids = (overdueTasks as { id: string }[]).map(t => t.id);
+    const ids = (overdueTasks as { id: string }[]).map((t) => t.id);
     await sb.from('tasks').update({ status: 'overdue' }).in('id', ids);
     issues.push(`${overdueTasks.length} overdue tasks marked`);
     actions.push(`Marked ${overdueTasks.length} tasks as overdue`);
@@ -944,14 +1009,19 @@ async function executeCleanWorkspaceWorkflow(
     issues.push(`${noDueDateCount} tasks missing a due date`);
   }
 
-  const message = issues.length > 0
-    ? `Workspace cleaned. Issues found: ${issues.join('; ')}.`
-    : 'Workspace is clean — no issues found!';
+  const message =
+    issues.length > 0
+      ? `Workspace cleaned. Issues found: ${issues.join('; ')}.`
+      : 'Workspace is clean — no issues found!';
 
   return {
     success: true,
     message,
-    data: { issues, overdue_count: overdueTasks?.length ?? 0, no_due_date_count: noDueDateCount ?? 0 },
+    data: {
+      issues,
+      overdue_count: overdueTasks?.length ?? 0,
+      no_due_date_count: noDueDateCount ?? 0,
+    },
     actions_taken: actions.length > 0 ? actions : ['Workspace audit completed'],
   };
 }
@@ -963,7 +1033,9 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: { message?: string };
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
@@ -987,14 +1059,20 @@ export async function POST(req: NextRequest) {
 
     let parsed: ParsedCommand;
     try {
-      const jsonStr = rawParsed.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonStr = rawParsed
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
       parsed = JSON.parse(jsonStr) as ParsedCommand;
     } catch {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to parse AI response',
-        raw: rawParsed,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to parse AI response',
+          raw: rawParsed,
+        },
+        { status: 500 },
+      );
     }
 
     // Step 2: If needs clarification, return question
@@ -1083,18 +1161,26 @@ export async function POST(req: NextRequest) {
           let clientName: string | null = null;
           if (parsed.entities.client_name) {
             const client = await findBestClientMatch(sb, parsed.entities.client_name);
-            if (client) { clientId = client.id; clientName = client.name; }
+            if (client) {
+              clientId = client.id;
+              clientName = client.name;
+            }
           }
           const title = parsed.professional_title ?? parsed.entities.task_title ?? 'New Content';
           logAction('create_content_item', `title="${title}"`);
-          const { data, error } = await sb.from('content_items').insert({
-            title,
-            description: parsed.professional_description ?? parsed.entities.task_description ?? null,
-            client_id: clientId,
-            post_type: parsed.entities.post_type ?? 'post',
-            status: 'draft',
-            created_by_id: userId,
-          }).select().single();
+          const { data, error } = await sb
+            .from('content_items')
+            .insert({
+              title,
+              description:
+                parsed.professional_description ?? parsed.entities.task_description ?? null,
+              client_id: clientId,
+              post_type: parsed.entities.post_type ?? 'post',
+              status: 'draft',
+              created_by_id: userId,
+            })
+            .select()
+            .single();
           if (error) throw new Error(error.message);
           result = {
             success: true,
@@ -1107,7 +1193,8 @@ export async function POST(req: NextRequest) {
         default:
           result = {
             success: false,
-            message: "I didn't understand that command. Try asking me to create a task, project, schedule a post, search for a client, start a timer, or kick off a new client workflow.",
+            message:
+              "I didn't understand that command. Try asking me to create a task, project, schedule a post, search for a client, start a timer, or kick off a new client workflow.",
             actions_taken: [],
           };
       }
@@ -1121,15 +1208,17 @@ export async function POST(req: NextRequest) {
       void (async () => {
         try {
           await sb.from('ai_actions').insert({
-            user_id:       userId,
-            intent:        parsed.intent,
-            prompt:        message,
-            status:        'error',
+            user_id: userId,
+            intent: parsed.intent,
+            prompt: message,
+            status: 'error',
             error_message: errMsg,
-            duration_ms:   Date.now() - actionStartMs,
+            duration_ms: Date.now() - actionStartMs,
             actions_taken: [],
           });
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       })();
 
       return NextResponse.json({
@@ -1147,15 +1236,17 @@ export async function POST(req: NextRequest) {
     void (async () => {
       try {
         await sb.from('ai_actions').insert({
-          user_id:       userId,
-          intent:        parsed.intent,
-          prompt:        message,
-          status:        result.success ? 'success' : 'partial',
+          user_id: userId,
+          intent: parsed.intent,
+          prompt: message,
+          status: result.success ? 'success' : 'partial',
           response_text: result.message,
           actions_taken: result.actions_taken ?? [],
-          duration_ms:   Date.now() - actionStartMs,
+          duration_ms: Date.now() - actionStartMs,
         });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
 
     return NextResponse.json({
@@ -1167,7 +1258,6 @@ export async function POST(req: NextRequest) {
       actions_taken: result.actions_taken,
       needs_clarification: false,
     });
-
   } catch (err) {
     if (err instanceof AiUnconfiguredError) {
       return NextResponse.json({ success: false, error: err.message }, { status: 503 });

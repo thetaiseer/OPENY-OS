@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvitationByToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
+import {
+  getInvitationByToken,
+  normalizeInvitationToken,
+  validateInvitationState,
+} from '@/lib/team-invitations';
 
 export async function GET(request: NextRequest) {
   const token = normalizeInvitationToken(request.nextUrl.searchParams.get('token'));

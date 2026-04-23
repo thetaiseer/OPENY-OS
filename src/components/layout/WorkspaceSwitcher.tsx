@@ -17,7 +17,9 @@ export default function WorkspaceSwitcher() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
 
-  const [memberships, setMemberships] = useState<Array<{ key: 'os' | 'docs'; label: 'OPENY OS' | 'OPENY DOCS'; hasMembership: boolean }>>([]);
+  const [memberships, setMemberships] = useState<
+    Array<{ key: 'os' | 'docs'; label: 'OPENY OS' | 'OPENY DOCS'; hasMembership: boolean }>
+  >([]);
   const [ready, setReady] = useState(false);
 
   const currentWorkspace = getCurrentWorkspace(pathname);
@@ -33,7 +35,7 @@ export default function WorkspaceSwitcher() {
     let mounted = true;
     setReady(false);
     getUserWorkspaceMemberships(supabase, user.id)
-      .then(data => {
+      .then((data) => {
         if (!mounted) return;
         setMemberships(data);
         setReady(true);
@@ -59,7 +61,7 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div
-      className="h-10 rounded-full border p-1 inline-flex items-center gap-1"
+      className="inline-flex h-10 items-center gap-1 rounded-full border p-1"
       style={{
         borderColor: 'var(--border)',
         background: 'var(--surface-shell)',
@@ -69,10 +71,12 @@ export default function WorkspaceSwitcher() {
       }}
       aria-label="Workspace switch"
     >
-      {([
-        { key: 'os', label: 'OPENY OS' },
-        { key: 'docs', label: 'OPENY DOCS' },
-      ] as const).map((workspace) => {
+      {(
+        [
+          { key: 'os', label: 'OPENY OS' },
+          { key: 'docs', label: 'OPENY DOCS' },
+        ] as const
+      ).map((workspace) => {
         const isCurrent = workspace.key === currentWorkspace;
         const canAccess = access[workspace.key];
         return (
@@ -85,7 +89,7 @@ export default function WorkspaceSwitcher() {
               document.documentElement.classList.add('workspace-switching');
               switchWorkspace(router, workspace.key);
             }}
-            className="h-7 px-2.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+            className="h-7 rounded-full px-2.5 text-[11px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-45 sm:text-xs"
             style={{
               background: isCurrent
                 ? 'linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, var(--accent-3)) 100%)'

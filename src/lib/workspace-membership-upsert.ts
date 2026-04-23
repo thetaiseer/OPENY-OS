@@ -70,15 +70,13 @@ export async function upsertWorkspaceMembershipsWithFallback(
       continue;
     }
 
-    const { error: insertError } = await db
-      .from('workspace_memberships')
-      .insert({
-        user_id: membership.user_id,
-        workspace_key: membership.workspace_key,
-        role: membership.role,
-        is_active: membership.is_active,
-        updated_at: membership.updated_at ?? new Date().toISOString(),
-      });
+    const { error: insertError } = await db.from('workspace_memberships').insert({
+      user_id: membership.user_id,
+      workspace_key: membership.workspace_key,
+      role: membership.role,
+      is_active: membership.is_active,
+      updated_at: membership.updated_at ?? new Date().toISOString(),
+    });
 
     if (insertError) {
       return { ok: false, usedFallback: true, error: insertError.message };

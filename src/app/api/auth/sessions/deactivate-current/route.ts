@@ -3,7 +3,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-
 // POST /api/auth/sessions/deactivate-current
 // Called by the client before signing out to mark the current session inactive.
 // Uses the openy-sid httpOnly cookie to identify the session — the client
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
   const { error } = await admin
     .from('user_sessions')
     .update({
-      is_active:  false,
+      is_active: false,
       revoked_at: new Date().toISOString(),
       revoked_by: auth.profile.email,
     })

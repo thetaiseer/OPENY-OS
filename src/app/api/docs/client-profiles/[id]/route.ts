@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 function mapDbError(error: { message: string } | null, fallback: string) {
   if (!error?.message) return fallback;
@@ -19,8 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   const { id } = await params;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const allowedKeys = [
     'default_currency',
@@ -56,14 +61,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .select('client_id')
     .eq('id', id)
     .maybeSingle();
-  if (existingProfileError) return NextResponse.json({ error: mapDbError(existingProfileError, 'Unable to load profile.') }, { status: 500 });
+  if (existingProfileError)
+    return NextResponse.json(
+      { error: mapDbError(existingProfileError, 'Unable to load profile.') },
+      { status: 500 },
+    );
 
-  if (typeof updates.default_currency === 'string' && updates.default_currency.trim() && existingProfile?.client_id) {
+  if (
+    typeof updates.default_currency === 'string' &&
+    updates.default_currency.trim() &&
+    existingProfile?.client_id
+  ) {
     const { error: clientUpdateError } = await db
       .from('clients')
       .update({ default_currency: updates.default_currency })
       .eq('id', existingProfile.client_id);
-    if (clientUpdateError) return NextResponse.json({ error: mapDbError(clientUpdateError, 'Unable to update client currency.') }, { status: 500 });
+    if (clientUpdateError)
+      return NextResponse.json(
+        { error: mapDbError(clientUpdateError, 'Unable to update client currency.') },
+        { status: 500 },
+      );
   }
 
   const { data, error } = await db
@@ -75,7 +92,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     .eq('id', id)
     .select('*')
     .single();
-  if (error) return NextResponse.json({ error: mapDbError(error, 'Unable to update profile.') }, { status: 500 });
+  if (error)
+    return NextResponse.json(
+      { error: mapDbError(error, 'Unable to update profile.') },
+      { status: 500 },
+    );
 
   return NextResponse.json({ profile: data });
 }
@@ -86,6 +107,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   const { id } = await params;
   const db = getServiceClient();
   const { error } = await db.from('docs_client_document_profiles').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: mapDbError(error, 'Unable to delete profile.') }, { status: 500 });
+  if (error)
+    return NextResponse.json(
+      { error: mapDbError(error, 'Unable to delete profile.') },
+      { status: 500 },
+    );
   return NextResponse.json({ success: true });
 }

@@ -52,48 +52,57 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const remove = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-    clearTimers(id);
-  }, [clearTimers]);
+  const remove = useCallback(
+    (id: number) => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      clearTimers(id);
+    },
+    [clearTimers],
+  );
 
-  const dismiss = useCallback((id: number) => {
-    const existing = toastsRef.current.find(t => t.id === id);
-    if (!existing || existing.closing) return;
-    setToasts(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      return { ...t, closing: true };
-    }));
-    const existingRemoveTimer = removeTimers.current.get(id);
-    if (!existingRemoveTimer) {
-      const removeTimer = setTimeout(() => remove(id), TOAST_EXIT_ANIMATION_MS);
-      removeTimers.current.set(id, removeTimer);
-    }
-  }, [remove]);
+  const dismiss = useCallback(
+    (id: number) => {
+      const existing = toastsRef.current.find((t) => t.id === id);
+      if (!existing || existing.closing) return;
+      setToasts((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          return { ...t, closing: true };
+        }),
+      );
+      const existingRemoveTimer = removeTimers.current.get(id);
+      if (!existingRemoveTimer) {
+        const removeTimer = setTimeout(() => remove(id), TOAST_EXIT_ANIMATION_MS);
+        removeTimers.current.set(id, removeTimer);
+      }
+    },
+    [remove],
+  );
 
-  const toast = useCallback((message: string, type: ToastType = 'info', durationMs = 4000) => {
-    const id = nextId++;
-    setToasts(prev => [...prev, { id, message, type }]);
-    const tid = setTimeout(() => dismiss(id), durationMs);
-    autoDismissTimers.current.set(id, tid);
-  }, [dismiss]);
+  const toast = useCallback(
+    (message: string, type: ToastType = 'info', durationMs = 4000) => {
+      const id = nextId++;
+      setToasts((prev) => [...prev, { id, message, type }]);
+      const tid = setTimeout(() => dismiss(id), durationMs);
+      autoDismissTimers.current.set(id, tid);
+    },
+    [dismiss],
+  );
 
   // Cleanup timers only when the provider unmounts.
   useEffect(() => {
     const autoDismissMap = autoDismissTimers.current;
     const removeMap = removeTimers.current;
     return () => {
-      autoDismissMap.forEach(timer => clearTimeout(timer));
-      removeMap.forEach(timer => clearTimeout(timer));
+      autoDismissMap.forEach((timer) => clearTimeout(timer));
+      removeMap.forEach((timer) => clearTimeout(timer));
       autoDismissMap.clear();
       removeMap.clear();
     };
   }, []);
 
   return (
-    <ToastContext.Provider value={{ toasts, toast, dismiss }}>
-      {children}
-    </ToastContext.Provider>
+    <ToastContext.Provider value={{ toasts, toast, dismiss }}>{children}</ToastContext.Provider>
   );
 }
 

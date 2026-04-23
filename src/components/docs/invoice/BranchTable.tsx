@@ -82,7 +82,9 @@ export default function BranchTable({
           {/* Column headers */}
           <tr style={{ background: DOC_BLACK, color: '#fff' }}>
             {(['BRANCH', 'PLATFORM', 'AD NAME', 'DATE', 'RESULTS'] as const).map((col) => (
-              <th key={col} style={th}>{col}</th>
+              <th key={col} style={th}>
+                {col}
+              </th>
             ))}
             <th
               style={{
@@ -106,23 +108,16 @@ export default function BranchTable({
           ) : (
             rows.map((row, rowIndex) => (
               <tr key={`${branchTable.id}-r${rowIndex}`} style={{ pageBreakInside: 'avoid' }}>
-
                 {/* Branch cell — rowSpan covers all rows in this branch */}
                 {rowIndex === 0 && (
-                  <td
-                    rowSpan={totalRows}
-                    style={{ ...td, textAlign: 'center', fontWeight: 600 }}
-                  >
+                  <td rowSpan={totalRows} style={{ ...td, textAlign: 'center', fontWeight: 600 }}>
                     {row.branch || branchTable.branchName}
                   </td>
                 )}
 
                 {/* Platform cell — rowSpan covers all rows for this platform */}
                 {row.showPlatform && (
-                  <td
-                    rowSpan={row.platformSpan}
-                    style={{ ...td, textAlign: 'center' }}
-                  >
+                  <td rowSpan={row.platformSpan} style={{ ...td, textAlign: 'center' }}>
                     {row.platform || '—'}
                   </td>
                 )}

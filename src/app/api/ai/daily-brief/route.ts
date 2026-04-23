@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many AI requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        },
       );
     }
 
@@ -96,19 +99,38 @@ export async function POST(req: NextRequest) {
     // ── Build summary for AI ───────────────────────────────────────────────────
 
     const stats = {
-      tasksDueToday:    dueToday.data?.length ?? 0,
-      overdueTasks:     overdue.data?.length ?? 0,
-      activeClients:    activeClients.count ?? 0,
-      recentUploads:    recentUploads.count ?? 0,
-      pendingContent:   pendingContent.count ?? 0,
+      tasksDueToday: dueToday.data?.length ?? 0,
+      overdueTasks: overdue.data?.length ?? 0,
+      activeClients: activeClients.count ?? 0,
+      recentUploads: recentUploads.count ?? 0,
+      pendingContent: pendingContent.count ?? 0,
     };
 
-    const dueTodayList = (dueToday.data ?? []).slice(0, 5)
-      .map((t: { title: string; priority: string; id: string; status: string; client_id: string | null }) => `• ${t.title} [${t.priority}]`)
+    const dueTodayList = (dueToday.data ?? [])
+      .slice(0, 5)
+      .map(
+        (t: {
+          title: string;
+          priority: string;
+          id: string;
+          status: string;
+          client_id: string | null;
+        }) => `• ${t.title} [${t.priority}]`,
+      )
       .join('\n');
 
-    const overdueList = (overdue.data ?? []).slice(0, 5)
-      .map((t: { title: string; due_date: string; id: string; status: string; priority: string; client_id: string | null }) => `• ${t.title} (due: ${t.due_date})`)
+    const overdueList = (overdue.data ?? [])
+      .slice(0, 5)
+      .map(
+        (t: {
+          title: string;
+          due_date: string;
+          id: string;
+          status: string;
+          priority: string;
+          client_id: string | null;
+        }) => `• ${t.title} (due: ${t.due_date})`,
+      )
       .join('\n');
 
     const dataBlock = [
@@ -120,7 +142,9 @@ export async function POST(req: NextRequest) {
       `Active clients: ${stats.activeClients}`,
       `Assets uploaded in last 24h: ${stats.recentUploads}`,
       `Pending content items: ${stats.pendingContent}`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     // ── Generate AI brief ──────────────────────────────────────────────────────
 
@@ -141,7 +165,6 @@ export async function POST(req: NextRequest) {
         data: { stats },
         actions_taken: ['Generated daily brief'],
       });
-
     } catch (aiErr) {
       if (aiErr instanceof AiUnconfiguredError) {
         // Return a plain-text brief without AI
@@ -165,7 +188,6 @@ export async function POST(req: NextRequest) {
       }
       throw aiErr;
     }
-
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[ai/daily-brief] error:', msg);

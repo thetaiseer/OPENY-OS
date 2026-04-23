@@ -14,16 +14,30 @@
   --bg: #e7edf7;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-2: rgba(243, 247, 255, 0.82);
-  --surface-3: rgba(229, 237, 255, 0.70);
+  --surface-3: rgba(229, 237, 255, 0.7);
   --surface-glass: rgba(255, 255, 255, 0.72);
   --surface-elevated: rgba(255, 255, 255, 0.95);
   --surface-shell: rgba(248, 252, 255, 0.78);
   --surface-panel: rgba(255, 255, 255, 0.78);
   --surface-floating: rgba(255, 255, 255, 0.86);
   --surface-active-chip: rgba(58, 95, 224, 0.16);
-  --gradient-card-glass: linear-gradient(155deg, rgba(255, 255, 255, 0.75) 0%, rgba(252, 255, 255, 0.66) 52%, rgba(239, 246, 255, 0.62) 100%);
-  --gradient-main-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 34%, transparent 62%);
-  --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
+  --gradient-card-glass: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(252, 255, 255, 0.66) 52%,
+    rgba(239, 246, 255, 0.62) 100%
+  );
+  --gradient-main-overlay: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.05) 34%,
+    transparent 62%
+  );
+  --gradient-card-elevated: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%,
+    var(--surface-elevated) 100%
+  );
   --overlay-base-dark: #050b17;
   --bg-glow-top-right: rgba(126, 142, 255, 0.22);
   --bg-glow-bottom-left: rgba(86, 170, 255, 0.16);
@@ -43,37 +57,37 @@
   /* ── Accent — Periwinkle / Royal Blue ── */
   --accent: #3a5fe0;
   --accent-hover: #2f52d0;
-  --accent-soft: rgba(58, 95, 224, 0.10);
+  --accent-soft: rgba(58, 95, 224, 0.1);
   --accent-glow: rgba(58, 95, 224, 0.22);
   --accent-contrast: #ffffff;
 
   /* ── Secondary Accent — Cool Cyan / Aqua ── */
   --accent-2: #06b6c8;
-  --accent-2-soft: rgba(6, 182, 200, 0.10);
+  --accent-2-soft: rgba(6, 182, 200, 0.1);
 
   /* ── Tertiary Accent — Soft Lavender ── */
   --accent-3: #8b6dff;
-  --accent-3-soft: rgba(139, 109, 255, 0.10);
+  --accent-3-soft: rgba(139, 109, 255, 0.1);
 
   /* ── Semantic Colors ── */
   --color-info: #2563eb;
-  --color-info-bg: rgba(59, 130, 246, 0.10);
+  --color-info-bg: rgba(59, 130, 246, 0.1);
   --color-info-border: rgba(59, 130, 246, 0.22);
 
   --color-success: #0a9060;
-  --color-success-bg: rgba(10, 144, 96, 0.10);
+  --color-success-bg: rgba(10, 144, 96, 0.1);
   --color-success-border: rgba(10, 144, 96, 0.22);
 
   --color-warning: #c47e0a;
-  --color-warning-bg: rgba(196, 126, 10, 0.10);
+  --color-warning-bg: rgba(196, 126, 10, 0.1);
   --color-warning-border: rgba(196, 126, 10, 0.22);
 
   --color-danger: #c0344a;
-  --color-danger-bg: rgba(192, 52, 74, 0.10);
+  --color-danger-bg: rgba(192, 52, 74, 0.1);
   --color-danger-border: rgba(192, 52, 74, 0.22);
 
   /* ── Shell ── */
-  --sidebar-bg: rgba(245, 249, 255, 0.90);
+  --sidebar-bg: rgba(245, 249, 255, 0.9);
   --sidebar-border: rgba(180, 200, 240, 0.45);
   --sidebar-tint: rgba(133, 154, 207, 0.12);
   --sidebar-icon-chip-base: 82%;
@@ -104,12 +118,14 @@
   --type-nav: 0.83rem;
 
   /* ── Shadow & Glow ── */
-  --shadow-xs: 0 2px 8px rgba(20, 40, 80, 0.05), 0 0 0 1px rgba(180, 200, 240, 0.30);
+  --shadow-xs: 0 2px 8px rgba(20, 40, 80, 0.05), 0 0 0 1px rgba(180, 200, 240, 0.3);
   --shadow-sm: 0 4px 16px rgba(20, 40, 100, 0.07), 0 1px 4px rgba(20, 40, 100, 0.04);
-  --shadow-md: 0 10px 36px rgba(15, 30, 80, 0.10), 0 2px 8px rgba(15, 30, 80, 0.05);
+  --shadow-md: 0 10px 36px rgba(15, 30, 80, 0.1), 0 2px 8px rgba(15, 30, 80, 0.05);
   --shadow-lg: 0 20px 56px rgba(10, 24, 64, 0.13), 0 4px 16px rgba(10, 24, 64, 0.07);
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04), 0 0 26px rgba(120, 140, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  --shadow-focus: 0 0 0 3px rgba(58, 95, 224, 0.22), 0 0 0 1px rgba(58, 95, 224, 0.50);
+  --shadow-card:
+    0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04),
+    0 0 26px rgba(120, 140, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-focus: 0 0 0 3px rgba(58, 95, 224, 0.22), 0 0 0 1px rgba(58, 95, 224, 0.5);
   --glow-accent: 0 0 20px rgba(58, 95, 224, 0.25);
   --glow-accent-sm: 0 0 10px rgba(58, 95, 224, 0.18);
 
@@ -119,7 +135,8 @@
   --blur-overlay: blur(8px) saturate(1.4);
 
   /* ── Inner Highlight ── */
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 18px 30px rgba(255, 255, 255, 0.08);
+  --highlight-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 18px 30px rgba(255, 255, 255, 0.08);
 
   /* ── Typography ── */
   --font-arabic: 'Cairo';
@@ -137,16 +154,30 @@
   --bg: #07101e;
   --surface: rgba(16, 30, 54, 0.72);
   --surface-2: rgba(16, 28, 50, 0.85);
-  --surface-3: rgba(20, 34, 60, 0.80);
+  --surface-3: rgba(20, 34, 60, 0.8);
   --surface-glass: rgba(14, 25, 48, 0.78);
   --surface-elevated: rgba(18, 32, 58, 0.96);
   --surface-shell: rgba(9, 18, 36, 0.78);
   --surface-panel: rgba(17, 32, 60, 0.78);
   --surface-floating: rgba(17, 32, 60, 0.94);
   --surface-active-chip: rgba(97, 127, 255, 0.24);
-  --gradient-card-glass: linear-gradient(155deg, rgba(24, 42, 76, 0.78) 0%, rgba(18, 34, 64, 0.72) 55%, rgba(20, 37, 68, 0.7) 100%);
-  --gradient-main-overlay: linear-gradient(180deg, rgba(34, 56, 96, 0.45) 0%, rgba(22, 40, 74, 0.16) 36%, transparent 66%);
-  --gradient-card-elevated: linear-gradient(160deg, color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%, var(--surface-elevated) 100%);
+  --gradient-card-glass: linear-gradient(
+    155deg,
+    rgba(24, 42, 76, 0.78) 0%,
+    rgba(18, 34, 64, 0.72) 55%,
+    rgba(20, 37, 68, 0.7) 100%
+  );
+  --gradient-main-overlay: linear-gradient(
+    180deg,
+    rgba(34, 56, 96, 0.45) 0%,
+    rgba(22, 40, 74, 0.16) 36%,
+    transparent 66%
+  );
+  --gradient-card-elevated: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--surface-elevated) 94%, var(--accent) 6%) 0%,
+    var(--surface-elevated) 100%
+  );
   --overlay-base-dark: #050b17;
   --bg-glow-top-right: rgba(120, 140, 255, 0.24);
   --bg-glow-bottom-left: rgba(55, 120, 200, 0.18);
@@ -158,7 +189,7 @@
   --text-placeholder: #4d6490;
 
   --border: rgba(40, 70, 130, 0.55);
-  --border-strong: rgba(55, 90, 160, 0.70);
+  --border-strong: rgba(55, 90, 160, 0.7);
   --border-glass: rgba(115, 148, 220, 0.35);
 
   --accent: #617fff;
@@ -175,7 +206,7 @@
 
   --color-info: #93c5fd;
   --color-info-bg: rgba(96, 165, 250, 0.16);
-  --color-info-border: rgba(96, 165, 250, 0.30);
+  --color-info-border: rgba(96, 165, 250, 0.3);
 
   --color-success: #34d49a;
   --color-success-bg: rgba(52, 212, 154, 0.14);
@@ -194,25 +225,30 @@
   --sidebar-tint: rgba(108, 138, 212, 0.2);
   --sidebar-icon-chip-base: 76%;
   --sidebar-icon-chip-tint: 24%;
-  --header-bg: rgba(8, 16, 32, 0.80);
+  --header-bg: rgba(8, 16, 32, 0.8);
 
-  --shadow-xs: 0 2px 8px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(40, 70, 130, 0.30);
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.40), 0 1px 4px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 10px 36px rgba(0, 0, 0, 0.50), 0 2px 8px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.60), 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 10px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 30px rgba(120, 140, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-xs: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(40, 70, 130, 0.3);
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 10px 36px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-card:
+    0 10px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35),
+    0 0 30px rgba(120, 140, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --shadow-focus: 0 0 0 3px rgba(97, 127, 255, 0.28), 0 0 0 1px rgba(97, 127, 255, 0.55);
   --glow-accent: 0 0 24px rgba(97, 127, 255, 0.32);
   --glow-accent-sm: 0 0 12px rgba(97, 127, 255, 0.22);
 
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 18px 28px rgba(255, 255, 255, 0.04);
+  --highlight-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 18px 28px rgba(255, 255, 255, 0.04);
 }
 
 /* ============================================================
    BASE
    ============================================================ */
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html {
   scroll-behavior: smooth;
@@ -234,9 +270,17 @@ body {
     color var(--motion-duration-theme) var(--motion-ease-standard);
 }
 
-img, svg { max-width: 100%; }
+img,
+svg {
+  max-width: 100%;
+}
 
-input, select, textarea, button { font: inherit; }
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
 
 /* ============================================================
    LAYOUT SHELL
@@ -299,7 +343,12 @@ input, select, textarea, button { font: inherit; }
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 30%, transparent 56%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    transparent 56%
+  );
 }
 
 /* Elevated variant — for modals, dropdowns, popovers */
@@ -424,9 +473,16 @@ input, select, textarea, button { font: inherit; }
 /* Primary — accent gradient */
 .btn-primary {
   color: var(--accent-contrast);
-  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 80%, var(--accent-3)) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 80%, var(--accent-3)) 100%
+  );
   border: 1px solid transparent;
-  box-shadow: var(--shadow-sm), var(--glow-accent-sm), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  box-shadow:
+    var(--shadow-sm),
+    var(--glow-accent-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 /* Ghost */
@@ -439,7 +495,11 @@ input, select, textarea, button { font: inherit; }
 /* Danger */
 .btn-danger {
   color: var(--accent-contrast);
-  background: linear-gradient(135deg, var(--color-danger), color-mix(in srgb, var(--color-danger) 75%, #a00));
+  background: linear-gradient(
+    135deg,
+    var(--color-danger),
+    color-mix(in srgb, var(--color-danger) 75%, #a00)
+  );
   border: 1px solid transparent;
   box-shadow: var(--shadow-sm);
 }
@@ -452,7 +512,6 @@ input, select, textarea, button { font: inherit; }
   border-radius: var(--radius-pill);
   box-shadow: var(--highlight-inset);
 }
-
 
 /* Hover states */
 .btn:hover,
@@ -492,7 +551,11 @@ input, select, textarea, button { font: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 84%, var(--surface) 16%) 0%, var(--surface-2) 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-soft) 84%, var(--surface) 16%) 0%,
+    var(--surface-2) 100%
+  );
   color: var(--accent);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-xs), var(--highlight-inset);
@@ -513,7 +576,11 @@ input, select, textarea, button { font: inherit; }
 
 .openy-segmented > button[aria-selected='true'],
 .openy-segmented > button[data-active='true'] {
-  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 78%, var(--accent-3)) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 78%, var(--accent-3)) 100%
+  );
   color: var(--accent-contrast);
   border-color: transparent;
   box-shadow: var(--glow-accent-sm);
@@ -652,8 +719,13 @@ table tbody tr[data-row-state='update'] {
    SCROLLBAR
    ============================================================ */
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 99px;
@@ -667,63 +739,134 @@ table tbody tr[data-row-state='update'] {
    ============================================================ */
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes toast-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
 }
 
 @keyframes openy-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes openy-scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes openy-slide-up {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes openy-card-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes openy-row-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes openy-row-exit {
-  from { opacity: 1; transform: scaleY(1); }
-  to { opacity: 0; transform: scaleY(0.92); }
+  from {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleY(0.92);
+  }
 }
 
 @keyframes openy-row-flash {
-  0% { background: color-mix(in srgb, var(--accent-soft) 82%, transparent); }
-  100% { background: transparent; }
+  0% {
+    background: color-mix(in srgb, var(--accent-soft) 82%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 @keyframes openy-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes openy-fab-glow {
-  0%, 100% { box-shadow: 0 16px 30px rgba(30,58,95,0.45), 0 0 24px rgba(30,58,95,0.3); }
-  50% { box-shadow: 0 18px 34px rgba(30,58,95,0.55), 0 0 30px rgba(30,58,95,0.4); }
+  0%,
+  100% {
+    box-shadow:
+      0 16px 30px rgba(30, 58, 95, 0.45),
+      0 0 24px rgba(30, 58, 95, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 18px 34px rgba(30, 58, 95, 0.55),
+      0 0 30px rgba(30, 58, 95, 0.4);
+  }
 }
 
-.animate-openy-fade-in   { animation: openy-fade-in   0.22s cubic-bezier(0.4, 0, 0.2, 1); }
-.animate-openy-scale-in  { animation: openy-scale-in  0.20s cubic-bezier(0.4, 0, 0.2, 1); }
-.animate-openy-slide-up  { animation: openy-slide-up  0.24s cubic-bezier(0.4, 0, 0.2, 1); }
+.animate-openy-fade-in {
+  animation: openy-fade-in 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.animate-openy-scale-in {
+  animation: openy-scale-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.animate-openy-slide-up {
+  animation: openy-slide-up 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 .openy-motion-card {
   animation: openy-card-in var(--motion-duration-ui) var(--motion-ease-standard) both;
@@ -749,7 +892,12 @@ table tbody tr[data-row-state='update'] {
 }
 
 .openy-skeleton {
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--surface-2) 84%, transparent) 20%, color-mix(in srgb, #fff 30%, var(--surface-2)) 50%, color-mix(in srgb, var(--surface-2) 84%, transparent) 80%);
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--surface-2) 84%, transparent) 20%,
+    color-mix(in srgb, #fff 30%, var(--surface-2)) 50%,
+    color-mix(in srgb, var(--surface-2) 84%, transparent) 80%
+  );
   background-size: 220% 100%;
   animation: openy-shimmer 1.6s var(--motion-ease-standard) infinite;
 }
@@ -792,8 +940,12 @@ html.theme-transition *::after {
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  body { background: var(--bg); }
+  html {
+    scroll-behavior: auto;
+  }
+  body {
+    background: var(--bg);
+  }
   .animate-openy-fade-in,
   .animate-openy-scale-in,
   .animate-openy-slide-up,
@@ -802,36 +954,56 @@ html.theme-transition *::after {
   .fab-motion,
   table tbody tr[data-row-state='enter'],
   table tbody tr[data-row-state='exit'],
-  table tbody tr[data-row-state='update'] { animation: none; }
+  table tbody tr[data-row-state='update'] {
+    animation: none;
+  }
 }
 
 @media (min-width: 640px) {
-  :root { --shell-pad-x: 1rem; --shell-pad-y: 1rem; }
+  :root {
+    --shell-pad-x: 1rem;
+    --shell-pad-y: 1rem;
+  }
 }
 @media (min-width: 1024px) {
-  :root { --shell-pad-x: 1.25rem; --shell-pad-y: 1.25rem; }
+  :root {
+    --shell-pad-x: 1.25rem;
+    --shell-pad-y: 1.25rem;
+  }
 }
 @media (min-width: 1536px) {
-  :root { --shell-pad-x: 1.75rem; --shell-pad-y: 1.5rem; }
+  :root {
+    --shell-pad-x: 1.75rem;
+    --shell-pad-y: 1.5rem;
+  }
 }
 
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']),
   select,
-  textarea { min-height: 2.75rem; }
+  textarea {
+    min-height: 2.75rem;
+  }
 }
 
 /* ============================================================
    NATIVE SELECT SAFEGUARDS
    ============================================================ */
 
-select { max-width: 100%; }
-
-@supports (width: fit-content) {
-  select:not(.w-full) { width: fit-content; min-width: 12rem; }
+select {
+  max-width: 100%;
 }
 
-select option { white-space: normal; }
+@supports (width: fit-content) {
+  select:not(.w-full) {
+    width: fit-content;
+    min-width: 12rem;
+  }
+}
+
+select option {
+  white-space: normal;
+}
 
 /* ============================================================
    OPENY DOCS UNIFIED SHELL
@@ -923,7 +1095,9 @@ select option { white-space: normal; }
   font-weight: 700;
   padding: 0.43rem 0.7rem;
   color: var(--text-secondary);
-  transition: background-color .2s ease, color .2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .docs-toolbar-tab:hover {
@@ -966,7 +1140,11 @@ select option { white-space: normal; }
 .docs-preview-shell {
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-2xl);
-  background: linear-gradient(175deg, color-mix(in srgb, var(--surface-2) 88%, transparent), color-mix(in srgb, var(--surface) 95%, transparent));
+  background: linear-gradient(
+    175deg,
+    color-mix(in srgb, var(--surface-2) 88%, transparent),
+    color-mix(in srgb, var(--surface) 95%, transparent)
+  );
   box-shadow: var(--shadow-card);
   padding: 0.9rem;
   min-height: 0;
@@ -1012,7 +1190,9 @@ select option { white-space: normal; }
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .docs-app .docs-textarea,

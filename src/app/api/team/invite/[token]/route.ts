@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvitationByToken, normalizeInvitationToken, validateInvitationState } from '@/lib/team-invitations';
+import {
+  getInvitationByToken,
+  normalizeInvitationToken,
+  validateInvitationState,
+} from '@/lib/team-invitations';
 
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   void request;
@@ -9,9 +13,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   const validation = validateInvitationState(invitation);
   if (!validation.valid) {
     if (validation.reason === 'expired') {
-      return NextResponse.json({ error: 'This invitation has expired', reason: 'expired' }, { status: 410 });
+      return NextResponse.json(
+        { error: 'This invitation has expired', reason: 'expired' },
+        { status: 410 },
+      );
     }
-    return NextResponse.json({ error: 'Invalid or already used invitation', reason: validation.reason }, { status: 404 });
+    return NextResponse.json(
+      { error: 'Invalid or already used invitation', reason: validation.reason },
+      { status: 404 },
+    );
   }
 
   const teamMember = Array.isArray(validation.invitation.team_member)

@@ -34,17 +34,16 @@ export async function sendEmail(msg: EmailMessage): Promise<void> {
     },
     body: JSON.stringify({
       from: msg.from ?? DEFAULT_FROM,
-      to:   Array.isArray(msg.to) ? msg.to : [msg.to],
+      to: Array.isArray(msg.to) ? msg.to : [msg.to],
       subject: msg.subject,
       html: msg.html,
     }),
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     throw new Error(`Email send failed (${res.status}): ${JSON.stringify(body)}`);
   }
-
 }
 
 // ── HTML templates ────────────────────────────────────────────────────────────
@@ -63,7 +62,7 @@ export function taskAssignedEmail(opts: {
   <div style="background:#f5f5f5;border-radius:12px;padding:20px 24px;margin-bottom:24px">
     <p style="margin:0 0 4px;font-weight:600;color:#111">${opts.taskTitle}</p>
     ${opts.clientName ? `<p style="margin:0 0 4px;color:#555">Client: ${opts.clientName}</p>` : ''}
-    ${opts.dueDate    ? `<p style="margin:0;color:#555">Due: ${opts.dueDate}</p>` : ''}
+    ${opts.dueDate ? `<p style="margin:0;color:#555">Due: ${opts.dueDate}</p>` : ''}
   </div>
   <a href="${opts.appUrl}/tasks" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600">View Task →</a>
 </div>`;
@@ -106,13 +105,13 @@ export async function logEmailSent(opts: {
     const { getServiceClient } = await import('@/lib/supabase/service-client');
     const db = getServiceClient();
     await db.from('email_logs').insert({
-      to_address:  opts.to,
-      subject:     opts.subject,
-      event_type:  opts.eventType ?? null,
+      to_address: opts.to,
+      subject: opts.subject,
+      event_type: opts.eventType ?? null,
       entity_type: opts.entityType ?? null,
-      entity_id:   opts.entityId ?? null,
-      status:      opts.status ?? 'sent',
-      error:       opts.error ?? null,
+      entity_id: opts.entityId ?? null,
+      status: opts.status ?? 'sent',
+      error: opts.error ?? null,
     });
   } catch (err) {
     console.warn('[email] logEmailSent failed:', err instanceof Error ? err.message : String(err));
@@ -127,7 +126,7 @@ export function teamInviteEmail(opts: {
   expiresInDays?: number;
 }): string {
   const workspace = opts.workspaceName ?? 'OPENY OS';
-  const expiry    = opts.expiresInDays ?? 7;
+  const expiry = opts.expiresInDays ?? 7;
   const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName.trim();
 
   // Preheader: short summary text shown in email client inbox preview.
@@ -170,9 +169,11 @@ export function teamInviteEmail(opts: {
               <!-- Greeting -->
               <p style="margin:0 0 8px;font-size:20px;font-weight:bold;color:#111111;font-family:Arial,Helvetica,sans-serif;">Hi ${firstName},</p>
               <p style="margin:0 0 24px;font-size:15px;color:#444444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
-                ${opts.inviterName
-                  ? `<strong style="color:#111111;">${opts.inviterName}</strong> has invited you to join <strong style="color:#111111;">${workspace}</strong>.`
-                  : `You have been invited to join <strong style="color:#111111;">${workspace}</strong>.`}
+                ${
+                  opts.inviterName
+                    ? `<strong style="color:#111111;">${opts.inviterName}</strong> has invited you to join <strong style="color:#111111;">${workspace}</strong>.`
+                    : `You have been invited to join <strong style="color:#111111;">${workspace}</strong>.`
+                }
               </p>
 
               <!-- Role card -->

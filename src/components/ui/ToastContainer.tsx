@@ -9,10 +9,10 @@ import {
 } from '@/context/toast-context';
 
 const STYLE: Record<ToastItem['type'], { bg: string; icon: React.ReactNode }> = {
-  success: { bg: '#16a34a', icon: <CheckCircle  size={16} className="shrink-0" /> },
-  error:   { bg: '#dc2626', icon: <AlertCircle  size={16} className="shrink-0" /> },
+  success: { bg: '#16a34a', icon: <CheckCircle size={16} className="shrink-0" /> },
+  error: { bg: '#dc2626', icon: <AlertCircle size={16} className="shrink-0" /> },
   warning: { bg: '#d97706', icon: <AlertTriangle size={16} className="shrink-0" /> },
-  info:    { bg: '#2563eb', icon: <Info          size={16} className="shrink-0" /> },
+  info: { bg: '#2563eb', icon: <Info size={16} className="shrink-0" /> },
 };
 
 export default function ToastContainer() {
@@ -24,7 +24,7 @@ export default function ToastContainer() {
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
     >
       <div className="flex w-full max-w-[420px] flex-col gap-2">
-        {toasts.map(t => {
+        {toasts.map((t) => {
           const { bg, icon } = STYLE[t.type];
           return (
             <div

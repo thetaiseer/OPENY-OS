@@ -3,7 +3,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
 
-
 // POST /api/auth/sessions/revoke-others — revoke all sessions except the current one
 export async function POST(request: NextRequest) {
   const auth = await getApiUser(request);
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
   let query = admin
     .from('user_sessions')
     .update({
-      is_active:  false,
+      is_active: false,
       revoked_at: new Date().toISOString(),
       revoked_by: auth.profile.email,
     })

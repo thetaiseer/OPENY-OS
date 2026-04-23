@@ -20,7 +20,7 @@ export function DocsPageHeader({
         <h1 className="app-page-title">{title}</h1>
         {subtitle ? <p className="app-page-subtitle">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function DocsSectionCard({
 }) {
   return (
     <section className={clsx('docs-card', className)}>
-      {(title || actions) ? (
+      {title || actions ? (
         <div className="docs-card-header">
           <div>
             {title ? <h2 className="docs-card-title">{title}</h2> : null}

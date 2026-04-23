@@ -13,26 +13,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
-
 const VALID_PLATFORMS = [
-  'instagram', 'facebook', 'tiktok', 'linkedin',
-  'twitter', 'snapchat', 'youtube_shorts',
+  'instagram',
+  'facebook',
+  'tiktok',
+  'linkedin',
+  'twitter',
+  'snapchat',
+  'youtube_shorts',
 ] as const;
 
 const VALID_POST_TYPES = ['post', 'reel', 'carousel', 'story'] as const;
 
 const VALID_STATUSES = [
-  'scheduled', 'queued', 'published', 'missed', 'cancelled',
+  'scheduled',
+  'queued',
+  'published',
+  'missed',
+  'cancelled',
   // legacy values kept for backward compat
-  'draft', 'pending_review', 'approved',
+  'draft',
+  'pending_review',
+  'approved',
 ] as const;
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -73,19 +80,23 @@ export async function PATCH(
     }
     if (Array.isArray(body.platforms)) {
       updates.platforms = (body.platforms as unknown[]).filter(
-        (p): p is string => typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
+        (p): p is string =>
+          typeof p === 'string' && (VALID_PLATFORMS as readonly string[]).includes(p),
       );
     }
     if (Array.isArray(body.post_types)) {
       updates.post_types = (body.post_types as unknown[]).filter(
-        (pt): pt is string => typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
+        (pt): pt is string =>
+          typeof pt === 'string' && (VALID_POST_TYPES as readonly string[]).includes(pt),
       );
     }
-    if ('caption' in body) updates.caption = typeof body.caption === 'string' ? body.caption || null : null;
-    if ('notes' in body)   updates.notes   = typeof body.notes   === 'string' ? body.notes   || null : null;
+    if ('caption' in body)
+      updates.caption = typeof body.caption === 'string' ? body.caption || null : null;
+    if ('notes' in body) updates.notes = typeof body.notes === 'string' ? body.notes || null : null;
     if ('assigned_to' in body) {
-      updates.assigned_to   = typeof body.assigned_to   === 'string' ? body.assigned_to   || null : null;
-      updates.assignee_name = typeof body.assignee_name === 'string' ? body.assignee_name || null : null;
+      updates.assigned_to = typeof body.assigned_to === 'string' ? body.assigned_to || null : null;
+      updates.assignee_name =
+        typeof body.assignee_name === 'string' ? body.assignee_name || null : null;
     }
     if (typeof body.reminder_minutes === 'number') {
       updates.reminder_minutes = body.reminder_minutes;
@@ -102,7 +113,10 @@ export async function PATCH(
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'No valid fields to update' },
+        { status: 400 },
+      );
     }
 
     const { data: updated, error: updateErr } = await db
@@ -140,17 +154,20 @@ export async function PATCH(
 
     // ── Activity log (best-effort) ────────────────────────────────────────────
     if (updates.status) {
-      void db.from('activities').insert({
-        type:        `publishing_${updates.status}`,
-        description: `Publishing schedule status changed to "${updates.status}"`,
-        user_id:     auth.profile.id,
-        user_uuid:   auth.profile.id,
-        client_id:   existing.client_id ?? null,
-        entity_type: 'publishing_schedule',
-        entity_id:   id,
-      }).then(({ error: actErr }) => {
-        if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
-      });
+      void db
+        .from('activities')
+        .insert({
+          type: `publishing_${updates.status}`,
+          description: `Publishing schedule status changed to "${updates.status}"`,
+          user_id: auth.profile.id,
+          user_uuid: auth.profile.id,
+          client_id: existing.client_id ?? null,
+          entity_type: 'publishing_schedule',
+          entity_id: id,
+        })
+        .then(({ error: actErr }) => {
+          if (actErr) console.warn('[publishing-schedules] activity log failed:', actErr.message);
+        });
     }
 
     return NextResponse.json({ success: true, schedule: updated });
@@ -162,10 +179,7 @@ export async function PATCH(
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -174,10 +188,7 @@ export async function DELETE(
   try {
     const db = getServiceClient();
 
-    const { error } = await db
-      .from('publishing_schedules')
-      .delete()
-      .eq('id', id);
+    const { error } = await db.from('publishing_schedules').delete().eq('id', id);
 
     if (error) {
       console.error('[DELETE /api/publishing-schedules/[id]] error:', error.message);

@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
   const moduleName = searchParams.get('module') ?? '';
 
   const db = getServiceClient();
-  let q = db.from('docs_backups').select('id, module, label, created_at').order('created_at', { ascending: false });
+  let q = db
+    .from('docs_backups')
+    .select('id, module, label, created_at')
+    .order('created_at', { ascending: false });
   if (moduleName) q = q.eq('module', moduleName);
 
   const { data, error } = await q;
@@ -24,22 +27,34 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
-  const { module: backupModule, data: backupData, label } = body as {
+  const {
+    module: backupModule,
+    data: backupData,
+    label,
+  } = body as {
     module?: string;
     data?: unknown;
     label?: string;
   };
 
   if (!backupModule) return NextResponse.json({ error: 'module is required' }, { status: 400 });
-  if (!backupData)   return NextResponse.json({ error: 'data is required' }, { status: 400 });
+  if (!backupData) return NextResponse.json({ error: 'data is required' }, { status: 400 });
 
   const db = getServiceClient();
   const { data, error } = await db
     .from('docs_backups')
-    .insert({ module: backupModule, data: backupData, label: label ?? null, created_by: auth.profile.id })
+    .insert({
+      module: backupModule,
+      data: backupData,
+      label: label ?? null,
+      created_by: auth.profile.id,
+    })
     .select()
     .single();
 

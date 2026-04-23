@@ -10,7 +10,11 @@ export async function PATCH(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let body: Record<string, unknown> = {};
-  try { body = await req.json(); } catch { /* ignore */ }
+  try {
+    body = await req.json();
+  } catch {
+    /* ignore */
+  }
   const requestedUserId = typeof body.user_id === 'string' ? body.user_id : null;
   const canTargetAnyUser = auth.profile.role === 'admin' || auth.profile.role === 'owner';
   const userId = canTargetAnyUser && requestedUserId ? requestedUserId : auth.profile.id;

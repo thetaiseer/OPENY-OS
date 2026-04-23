@@ -3,9 +3,23 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Users, Pencil, Trash2, Mail, Briefcase,
-  Send, RotateCcw, XCircle, Clock, CheckCircle, Crown,
-  X, Shield, ChevronDown, ChevronUp, Activity, Copy,
+  Users,
+  Pencil,
+  Trash2,
+  Mail,
+  Briefcase,
+  Send,
+  RotateCcw,
+  XCircle,
+  Clock,
+  CheckCircle,
+  Crown,
+  X,
+  Shield,
+  ChevronDown,
+  ChevronUp,
+  Activity,
+  Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
@@ -15,20 +29,40 @@ import EmptyState from '@/components/ui/EmptyState';
 import AppModal from '@/components/ui/AppModal';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import type { TeamMember, TeamInvitation, MemberPermissions, ModuleAccess, OsModule, DocsModule, ActivityLogEntry } from '@/lib/types';
+import type {
+  TeamMember,
+  TeamInvitation,
+  MemberPermissions,
+  ModuleAccess,
+  OsModule,
+  DocsModule,
+  ActivityLogEntry,
+} from '@/lib/types';
 import { getWorkspaceLabel, normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 
-const inputCls = 'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = { background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' };
+const inputCls =
+  'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
+const inputStyle = {
+  background: 'var(--surface-2)',
+  color: 'var(--text)',
+  border: '1px solid var(--border)',
+};
 
 // ── System access roles ───────────────────────────────────────────────────────
 // These are the valid values for team_members.role (access control).
 // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-const ACCESS_ROLE_VALUES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
+const ACCESS_ROLE_VALUES = [
+  'owner',
+  'admin',
+  'manager',
+  'team_member',
+  'viewer',
+  'client',
+] as const;
 
 const ACCESS_ROLE_OPTIONS = [
-  { value: 'admin',       label: 'Admin — full access' },
+  { value: 'admin', label: 'Admin — full access' },
   { value: 'team_member', label: 'Member — standard access' },
 ];
 
@@ -45,14 +79,23 @@ const MODULE_ACCESS_OPTIONS: { value: ModuleAccess; label: string }[] = [
 ];
 
 const OS_MODULE_LABELS: Record<OsModule, string> = {
-  dashboard: 'Dashboard', clients: 'Clients', tasks: 'Tasks',
-  content: 'Content', calendar: 'Calendar', assets: 'Assets',
-  reports: 'Reports', team: 'Team', activity: 'Activity', security: 'Security',
+  dashboard: 'Dashboard',
+  clients: 'Clients',
+  tasks: 'Tasks',
+  content: 'Content',
+  calendar: 'Calendar',
+  assets: 'Assets',
+  reports: 'Reports',
+  team: 'Team',
+  activity: 'Activity',
+  security: 'Security',
 };
 
 const DOCS_MODULE_LABELS: Record<DocsModule, string> = {
-  invoice: 'Invoice', quotation: 'Quotation',
-  contracts: 'Contracts', accounting: 'Accounting',
+  invoice: 'Invoice',
+  quotation: 'Quotation',
+  contracts: 'Contracts',
+  accounting: 'Accounting',
 };
 
 const ACTIVE_INVITE_STATUSES = new Set(['pending', 'invited']);
@@ -61,24 +104,24 @@ const CANCELLATION_STATUSES = new Set(['revoked', 'cancelled']);
 // ── Marketing roles list (job titles) ────────────────────────────────────────
 // Stored in team_members.job_title — separate from the access role.
 const JOB_TITLE_OPTIONS = [
-  { value: 'Content Creator',           label: 'Content Creator' },
-  { value: 'Social Media Manager',      label: 'Social Media Manager' },
-  { value: 'Graphic Designer',          label: 'Graphic Designer' },
-  { value: 'Video Editor',              label: 'Video Editor' },
-  { value: 'Copywriter',                label: 'Copywriter' },
-  { value: 'SEO Specialist',            label: 'SEO Specialist' },
-  { value: 'Paid Ads Specialist',       label: 'Paid Ads Specialist' },
-  { value: 'Email Marketing Specialist',label: 'Email Marketing Specialist' },
-  { value: 'Brand Strategist',          label: 'Brand Strategist' },
-  { value: 'Marketing Manager',         label: 'Marketing Manager' },
-  { value: 'Account Manager',           label: 'Account Manager' },
-  { value: 'Project Manager',           label: 'Project Manager' },
-  { value: 'UX/UI Designer',            label: 'UX/UI Designer' },
-  { value: 'Photographer',              label: 'Photographer' },
-  { value: 'Influencer Manager',        label: 'Influencer Manager' },
-  { value: 'PR Specialist',             label: 'PR Specialist' },
-  { value: 'Analytics Specialist',      label: 'Analytics Specialist' },
-  { value: '__other__',                 label: 'Other…' },
+  { value: 'Content Creator', label: 'Content Creator' },
+  { value: 'Social Media Manager', label: 'Social Media Manager' },
+  { value: 'Graphic Designer', label: 'Graphic Designer' },
+  { value: 'Video Editor', label: 'Video Editor' },
+  { value: 'Copywriter', label: 'Copywriter' },
+  { value: 'SEO Specialist', label: 'SEO Specialist' },
+  { value: 'Paid Ads Specialist', label: 'Paid Ads Specialist' },
+  { value: 'Email Marketing Specialist', label: 'Email Marketing Specialist' },
+  { value: 'Brand Strategist', label: 'Brand Strategist' },
+  { value: 'Marketing Manager', label: 'Marketing Manager' },
+  { value: 'Account Manager', label: 'Account Manager' },
+  { value: 'Project Manager', label: 'Project Manager' },
+  { value: 'UX/UI Designer', label: 'UX/UI Designer' },
+  { value: 'Photographer', label: 'Photographer' },
+  { value: 'Influencer Manager', label: 'Influencer Manager' },
+  { value: 'PR Specialist', label: 'PR Specialist' },
+  { value: 'Analytics Specialist', label: 'Analytics Specialist' },
+  { value: '__other__', label: 'Other…' },
 ];
 
 // Keep ROLE_OPTIONS for backward compat (edit form uses it for job_title)
@@ -98,7 +141,9 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
 
 function formatWorkspaceRole(role: string | undefined): string {
   const candidate = (role ?? '').toLowerCase();
-  const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number]) ? candidate : 'member';
+  const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number])
+    ? candidate
+    : 'member';
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
@@ -110,7 +155,7 @@ function formatAccessRole(role: string | null | undefined): string {
   if (!normalized) return 'Member';
   return normalized
     .split('_')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
@@ -119,17 +164,21 @@ function parseInviteWorkspaceAccess(raw: TeamInvitation['workspace_access']): Ar
     ? raw
     : typeof raw === 'string'
       ? (() => {
-        try {
-          const parsed = JSON.parse(raw) as unknown;
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      })()
+          try {
+            const parsed = JSON.parse(raw) as unknown;
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
       : [];
-  return [...new Set(values
-    .map(value => normalizeWorkspaceKey(value))
-    .filter((value): value is 'os' | 'docs' => value === 'os' || value === 'docs'))];
+  return [
+    ...new Set(
+      values
+        .map((value) => normalizeWorkspaceKey(value))
+        .filter((value): value is 'os' | 'docs' => value === 'os' || value === 'docs'),
+    ),
+  ];
 }
 
 function parseInviteWorkspaceRoles(raw: TeamInvitation['workspace_roles']): Record<string, string> {
@@ -137,7 +186,8 @@ function parseInviteWorkspaceRoles(raw: TeamInvitation['workspace_roles']): Reco
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+        return parsed as Record<string, string>;
     } catch {
       return {};
     }
@@ -151,30 +201,26 @@ function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>): string {
   return 'OPENY OS';
 }
 
-function hasInviteInsertResult(data: unknown): data is { member: TeamMember; invitation: TeamInvitation } {
+function hasInviteInsertResult(
+  data: unknown,
+): data is { member: TeamMember; invitation: TeamInvitation } {
   if (!data || typeof data !== 'object') return false;
   const payload = data as { member?: Partial<TeamMember>; invitation?: Partial<TeamInvitation> };
   return Boolean(
-    payload.member?.id
-    && payload.member?.full_name
-    && payload.member?.email
-    && payload.invitation?.id
-    && payload.invitation?.team_member_id
-    && payload.invitation?.email,
+    payload.member?.id &&
+    payload.member?.full_name &&
+    payload.member?.email &&
+    payload.invitation?.id &&
+    payload.invitation?.team_member_id &&
+    payload.invitation?.email,
   );
 }
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
-function RoleField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function RoleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   // Determine if the current value matches a preset option
-  const isPreset = ROLE_OPTIONS.some(o => o.value === value && o.value !== '__other__');
-  const [dropVal, setDropVal] = useState(isPreset ? value : (value ? '__other__' : ''));
+  const isPreset = ROLE_OPTIONS.some((o) => o.value === value && o.value !== '__other__');
+  const [dropVal, setDropVal] = useState(isPreset ? value : value ? '__other__' : '');
   const [customVal, setCustomVal] = useState(isPreset ? '' : value);
 
   const handleDropChange = (v: string) => {
@@ -206,7 +252,7 @@ function RoleField({
         <input
           type="text"
           value={customVal}
-          onChange={e => handleCustomChange(e.target.value)}
+          onChange={(e) => handleCustomChange(e.target.value)}
           className={inputCls}
           style={inputStyle}
           placeholder="Enter custom role"
@@ -255,30 +301,36 @@ function MemberForm({
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full Name *</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Full Name *
+        </label>
         <input
           required
           value={f.full_name}
-          onChange={e => setF(x => ({ ...x, full_name: e.target.value }))}
+          onChange={(e) => setF((x) => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="Team member name"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Email
+        </label>
         <input
           type="email"
           value={f.email}
-          onChange={e => setF(x => ({ ...x, email: e.target.value }))}
+          onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="email@company.com"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
-        <RoleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Job Title
+        </label>
+        <RoleField value={f.job_title} onChange={(v) => setF((x) => ({ ...x, job_title: v }))} />
       </div>
     </div>
   );
@@ -295,64 +347,90 @@ function InviteForm({
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Full Name *</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Full Name *
+        </label>
         <input
           required
           value={f.full_name}
-          onChange={e => setF(x => ({ ...x, full_name: e.target.value }))}
+          onChange={(e) => setF((x) => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="Team member name"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Email *</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Email *
+        </label>
         <input
           required
           type="email"
           value={f.email}
-          onChange={e => setF(x => ({ ...x, email: e.target.value }))}
+          onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))}
           className={inputCls}
           style={inputStyle}
           placeholder="email@company.com"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Access Role *</label>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Access Role *
+        </label>
         <SelectDropdown
           value={f.access_role}
-          onChange={v => setF(x => ({ ...x, access_role: v }))}
+          onChange={(v) => setF((x) => ({ ...x, access_role: v }))}
           options={ACCESS_ROLE_OPTIONS}
           placeholder="Select access level…"
           fullWidth
         />
-        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
           Controls what this person can see and do in OPENY OS.
         </p>
       </div>
       <div className="space-y-2">
-        <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace Access *</p>
-        <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-          <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY OS</span>
-          <input type="checkbox" checked={f.os_access} onChange={e => setF(x => ({ ...x, os_access: e.target.checked }))} />
+        <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Workspace Access *
+        </p>
+        <label
+          className="flex items-center justify-between rounded-lg border px-3 py-2"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+        >
+          <span className="text-sm" style={{ color: 'var(--text)' }}>
+            OPENY OS
+          </span>
+          <input
+            type="checkbox"
+            checked={f.os_access}
+            onChange={(e) => setF((x) => ({ ...x, os_access: e.target.checked }))}
+          />
         </label>
         {f.os_access && (
           <SelectDropdown
             value={f.os_role}
-            onChange={v => setF(x => ({ ...x, os_role: v }))}
+            onChange={(v) => setF((x) => ({ ...x, os_role: v }))}
             options={WORKSPACE_ROLE_OPTIONS}
             placeholder="OS role"
             fullWidth
           />
         )}
-        <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-          <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY DOCS</span>
-          <input type="checkbox" checked={f.docs_access} onChange={e => setF(x => ({ ...x, docs_access: e.target.checked }))} />
+        <label
+          className="flex items-center justify-between rounded-lg border px-3 py-2"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+        >
+          <span className="text-sm" style={{ color: 'var(--text)' }}>
+            OPENY DOCS
+          </span>
+          <input
+            type="checkbox"
+            checked={f.docs_access}
+            onChange={(e) => setF((x) => ({ ...x, docs_access: e.target.checked }))}
+          />
         </label>
         {f.docs_access && (
           <SelectDropdown
             value={f.docs_role}
-            onChange={v => setF(x => ({ ...x, docs_role: v }))}
+            onChange={(v) => setF((x) => ({ ...x, docs_role: v }))}
             options={WORKSPACE_ROLE_OPTIONS}
             placeholder="DOCS role"
             fullWidth
@@ -363,19 +441,23 @@ function InviteForm({
         </p>
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>Job Title</label>
-        <RoleField value={f.job_title} onChange={v => setF(x => ({ ...x, job_title: v }))} />
-        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+          Job Title
+        </label>
+        <RoleField value={f.job_title} onChange={(v) => setF((x) => ({ ...x, job_title: v }))} />
+        <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
           Their actual role on the team (e.g. Graphic Designer).
         </p>
       </div>
 
       {/* ── Advanced module permissions (optional) ──────────────────────── */}
-      <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+      <div className="overflow-hidden rounded-lg border" style={{ borderColor: 'var(--border)' }}>
         <button
           type="button"
-          onClick={() => setF(x => ({ ...x, show_advanced_permissions: !x.show_advanced_permissions }))}
-          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium"
+          onClick={() =>
+            setF((x) => ({ ...x, show_advanced_permissions: !x.show_advanced_permissions }))
+          }
+          className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium"
           style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
         >
           <span className="flex items-center gap-2">
@@ -385,25 +467,34 @@ function InviteForm({
           {f.show_advanced_permissions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {f.show_advanced_permissions && (
-          <div className="px-3 py-3 space-y-3" style={{ background: 'var(--surface)' }}>
+          <div className="space-y-3 px-3 py-3" style={{ background: 'var(--surface)' }}>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
               Override default access for specific modules. Leave blank to use role defaults.
             </p>
             {f.os_access && (
               <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>OPENY OS Modules</p>
+                <p
+                  className="mb-2 text-xs font-semibold"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  OPENY OS Modules
+                </p>
                 <div className="space-y-1.5">
-                  {OS_MODULES.map(mod => (
+                  {OS_MODULES.map((mod) => (
                     <div key={mod} className="flex items-center justify-between gap-2">
-                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
+                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>
+                        {OS_MODULE_LABELS[mod]}
+                      </span>
                       <SelectDropdown
                         value={f.os_permissions[mod] ?? ''}
-                        onChange={v => setF(x => {
-                          const perms = { ...x.os_permissions };
-                          if (v) perms[mod] = v as ModuleAccess;
-                          else delete perms[mod];
-                          return { ...x, os_permissions: perms };
-                        })}
+                        onChange={(v) =>
+                          setF((x) => {
+                            const perms = { ...x.os_permissions };
+                            if (v) perms[mod] = v as ModuleAccess;
+                            else delete perms[mod];
+                            return { ...x, os_permissions: perms };
+                          })
+                        }
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -414,19 +505,28 @@ function InviteForm({
             )}
             {f.docs_access && (
               <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>OPENY DOCS Modules</p>
+                <p
+                  className="mb-2 text-xs font-semibold"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  OPENY DOCS Modules
+                </p>
                 <div className="space-y-1.5">
-                  {DOCS_MODULES.map(mod => (
+                  {DOCS_MODULES.map((mod) => (
                     <div key={mod} className="flex items-center justify-between gap-2">
-                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
+                      <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>
+                        {DOCS_MODULE_LABELS[mod]}
+                      </span>
                       <SelectDropdown
                         value={f.docs_permissions[mod] ?? ''}
-                        onChange={v => setF(x => {
-                          const perms = { ...x.docs_permissions };
-                          if (v) perms[mod] = v as ModuleAccess;
-                          else delete perms[mod];
-                          return { ...x, docs_permissions: perms };
-                        })}
+                        onChange={(v) =>
+                          setF((x) => {
+                            const perms = { ...x.docs_permissions };
+                            if (v) perms[mod] = v as ModuleAccess;
+                            else delete perms[mod];
+                            return { ...x, docs_permissions: perms };
+                          })
+                        }
                         options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
                         placeholder="Default"
                       />
@@ -449,17 +549,17 @@ function InviteForm({
 // ── Invite status badge ───────────────────────────────────────────────────────
 function InviteBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
-    pending:  { label: 'Pending',   color: '#d97706', bg: '#fffbeb' },
-    invited:  { label: 'Invited',   color: '#d97706', bg: '#fffbeb' },
-    accepted: { label: 'Active',    color: '#16a34a', bg: '#f0fdf4' },
-    expired:  { label: 'Expired',   color: '#9ca3af', bg: '#f9fafb' },
-    revoked:  { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
-    cancelled:{ label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
+    pending: { label: 'Pending', color: '#d97706', bg: '#fffbeb' },
+    invited: { label: 'Invited', color: '#d97706', bg: '#fffbeb' },
+    accepted: { label: 'Active', color: '#16a34a', bg: '#f0fdf4' },
+    expired: { label: 'Expired', color: '#9ca3af', bg: '#f9fafb' },
+    revoked: { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
+    cancelled: { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
   };
   const c = cfg[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6' };
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
       style={{ color: c.color, background: c.bg }}
     >
       {c.label}
@@ -477,7 +577,7 @@ function AccessBadge({ level }: { level: ModuleAccess }) {
   const c = cfg[level];
   return (
     <span
-      className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium"
+      className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium"
       style={{ color: c.color, background: c.bg }}
     >
       {c.label}
@@ -516,10 +616,12 @@ function MemberSidePanel({
       try {
         const res = await fetch(`/api/team/members/${member.id}/permissions`);
         if (res.ok) {
-          const data = await res.json() as { permissions?: MemberPermissions };
+          const data = (await res.json()) as { permissions?: MemberPermissions };
           setPermissions(data.permissions ?? null);
         }
-      } catch { /* ignore */ } finally {
+      } catch {
+        /* ignore */
+      } finally {
         setPermLoading(false);
       }
     }
@@ -537,16 +639,17 @@ function MemberSidePanel({
         }
         const res = await fetch(`/api/activity-timeline?${params.toString()}`);
         if (res.ok) {
-          const data = await res.json() as { activities?: ActivityLogEntry[] };
+          const data = (await res.json()) as { activities?: ActivityLogEntry[] };
           const all = data.activities ?? [];
           // Client-filter to ensure only this member's events appear
           const relevant = all.filter(
-            a => a.entity_id === member.id
-              || a.actor_id === member.profile_id
+            (a) => a.entity_id === member.id || a.actor_id === member.profile_id,
           );
           setRecentActivity(relevant.slice(0, 5));
         }
-      } catch { /* ignore */ } finally {
+      } catch {
+        /* ignore */
+      } finally {
         setActLoading(false);
       }
     }
@@ -572,13 +675,15 @@ function MemberSidePanel({
       <div className="flex flex-col">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-4 border-b"
+          className="flex items-center justify-between border-b px-5 py-4"
           style={{ borderColor: 'var(--border)' }}
         >
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Member Profile</h2>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+            Member Profile
+          </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
           >
             <X size={16} />
@@ -586,44 +691,54 @@ function MemberSidePanel({
         </div>
 
         {/* Identity */}
-        <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="border-b px-5 py-5" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-4">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 relative"
+              className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
               style={{ background: isOwner ? 'var(--accent)' : '#6366f1' }}
             >
               {member.full_name.charAt(0).toUpperCase()}
               {isOwner && (
                 <span
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                  className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full"
                   style={{ background: 'var(--accent)', color: '#fff' }}
                 >
                   <Crown size={10} />
                 </span>
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{member.full_name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-bold" style={{ color: 'var(--text)' }}>
+                {member.full_name}
+              </p>
               {member.email && (
-                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  <Mail size={11} />{member.email}
+                <p
+                  className="mt-0.5 flex items-center gap-1 text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <Mail size={11} />
+                  {member.email}
                 </p>
               )}
               {resolveDisplayJobTitle(member) && (
-                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  <Briefcase size={11} />{resolveDisplayJobTitle(member)}
+                <p
+                  className="mt-0.5 flex items-center gap-1 text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <Briefcase size={11} />
+                  {resolveDisplayJobTitle(member)}
                 </p>
               )}
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   {isOwner && <Crown size={9} />}
                   {formatAccessRole(member.role)}
                 </span>
                 <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ color: '#16a34a', background: '#f0fdf4' }}
                 >
                   Active
@@ -634,47 +749,73 @@ function MemberSidePanel({
         </div>
 
         {/* Workspace Access */}
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
+        <div className="border-b px-5 py-4" style={{ borderColor: 'var(--border)' }}>
+          <p
+            className="mb-2 text-xs font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             Workspace Access
           </p>
           <div className="flex flex-wrap gap-2">
             {workspaceAccess?.os?.enabled && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <span
+                className="rounded-lg px-2.5 py-1 text-xs font-medium"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
                 {getWorkspaceLabel('os')} · {workspaceAccess.os.role}
               </span>
             )}
             {workspaceAccess?.docs?.enabled && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <span
+                className="rounded-lg px-2.5 py-1 text-xs font-medium"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
                 {getWorkspaceLabel('docs')} · {workspaceAccess.docs.role}
               </span>
             )}
             {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>No workspace access configured</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                No workspace access configured
+              </span>
             )}
           </div>
         </div>
 
         {/* Module Permissions */}
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-secondary)' }}>
-            <Shield size={12} className="inline mr-1" />Module Permissions
+        <div className="border-b px-5 py-4" style={{ borderColor: 'var(--border)' }}>
+          <p
+            className="mb-3 text-xs font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Shield size={12} className="mr-1 inline" />
+            Module Permissions
           </p>
           {permLoading ? (
             <div className="space-y-1.5">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-5 rounded animate-pulse" style={{ background: 'var(--surface-2)' }} />
+                <div
+                  key={i}
+                  className="h-5 animate-pulse rounded"
+                  style={{ background: 'var(--surface-2)' }}
+                />
               ))}
             </div>
           ) : permissions ? (
             <div className="space-y-3">
               {workspaceAccess?.os?.enabled && (
                 <div>
-                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>OS</p>
+                  <p
+                    className="mb-1.5 text-[11px] font-medium"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    OS
+                  </p>
                   <div className="grid grid-cols-2 gap-1">
-                    {OS_MODULES.map(mod => (
+                    {OS_MODULES.map((mod) => (
                       <div key={mod} className="flex items-center justify-between">
-                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>{OS_MODULE_LABELS[mod]}</span>
+                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>
+                          {OS_MODULE_LABELS[mod]}
+                        </span>
                         <AccessBadge level={permissions.os[mod]} />
                       </div>
                     ))}
@@ -683,11 +824,18 @@ function MemberSidePanel({
               )}
               {workspaceAccess?.docs?.enabled && (
                 <div>
-                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>DOCS</p>
+                  <p
+                    className="mb-1.5 text-[11px] font-medium"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    DOCS
+                  </p>
                   <div className="grid grid-cols-2 gap-1">
-                    {DOCS_MODULES.map(mod => (
+                    {DOCS_MODULES.map((mod) => (
                       <div key={mod} className="flex items-center justify-between">
-                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>{DOCS_MODULE_LABELS[mod]}</span>
+                        <span className="text-[11px]" style={{ color: 'var(--text)' }}>
+                          {DOCS_MODULE_LABELS[mod]}
+                        </span>
                         <AccessBadge level={permissions.docs[mod]} />
                       </div>
                     ))}
@@ -696,31 +844,50 @@ function MemberSidePanel({
               )}
             </div>
           ) : (
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Permissions unavailable</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Permissions unavailable
+            </p>
           )}
         </div>
 
         {/* Recent Activity */}
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-secondary)' }}>
-            <Activity size={12} className="inline mr-1" />Recent Activity
+        <div className="border-b px-5 py-4" style={{ borderColor: 'var(--border)' }}>
+          <p
+            className="mb-3 text-xs font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Activity size={12} className="mr-1 inline" />
+            Recent Activity
           </p>
           {actLoading ? (
             <div className="space-y-1.5">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-5 rounded animate-pulse" style={{ background: 'var(--surface-2)' }} />
+                <div
+                  key={i}
+                  className="h-5 animate-pulse rounded"
+                  style={{ background: 'var(--surface-2)' }}
+                />
               ))}
             </div>
           ) : recentActivity.length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No recent activity found.</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              No recent activity found.
+            </p>
           ) : (
             <div className="space-y-2">
-              {recentActivity.map(entry => (
+              {recentActivity.map((entry) => (
                 <div key={entry.id} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: 'var(--accent)' }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{entry.title ?? entry.description}</p>
-                    <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{formatDate(entry.created_at)}</p>
+                  <div
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ background: 'var(--accent)' }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs" style={{ color: 'var(--text)' }}>
+                      {entry.title ?? entry.description}
+                    </p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                      {formatDate(entry.created_at)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -730,20 +897,32 @@ function MemberSidePanel({
 
         {/* Actions */}
         {canManage && !isOwner && (
-          <div className="px-5 py-4 mt-auto space-y-2">
+          <div className="mt-auto space-y-2 px-5 py-4">
             <button
-              onClick={() => { onClose(); onEdit(member); }}
-              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition-colors"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              onClick={() => {
+                onClose();
+                onEdit(member);
+              }}
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             >
-              <Pencil size={14} />Edit Profile & Role
+              <Pencil size={14} />
+              Edit Profile & Role
             </button>
             <button
-              onClick={() => { onClose(); onDelete(member); }}
-              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition-colors text-red-500 hover:bg-red-50"
+              onClick={() => {
+                onClose();
+                onDelete(member);
+              }}
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
               style={{ border: '1px solid #fca5a5' }}
             >
-              <Trash2 size={14} />Remove Member
+              <Trash2 size={14} />
+              Remove Member
             </button>
           </div>
         )}
@@ -782,7 +961,9 @@ export default function TeamPage() {
         console.error('[team] invitations fetch error:', message);
       }
       const membersJson = membersRes.ok ? await membersRes.json() : { members: [] as TeamMember[] };
-      const invitesJson = invitesRes.ok ? await invitesRes.json() : { invitations: [] as TeamInvitation[] };
+      const invitesJson = invitesRes.ok
+        ? await invitesRes.json()
+        : { invitations: [] as TeamInvitation[] };
       const workspaceAccessJson = workspaceAccessRes.ok
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
@@ -795,9 +976,12 @@ export default function TeamPage() {
         mergedInvitations.set(key, invitation);
       }
       return {
-        members:     (membersJson.members ?? []) as TeamMember[],
+        members: (membersJson.members ?? []) as TeamMember[],
         invitations: [...mergedInvitations.values()],
-        workspaceAccess: workspaceAccessJson.access as Record<string, Record<string, { enabled: boolean; role: string }>>,
+        workspaceAccess: workspaceAccessJson.access as Record<
+          string,
+          Record<string, { enabled: boolean; role: string }>
+        >,
       };
     },
   });
@@ -806,21 +990,21 @@ export default function TeamPage() {
   const invitations = useMemo(() => teamData?.invitations ?? [], [teamData?.invitations]);
   const workspaceAccessByEmail = teamData?.workspaceAccess ?? {};
 
-  const [saving, setSaving]             = useState(false);
-  const [actionError, setActionError]   = useState('');
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   // Modals
-  const [inviteOpen, setInviteOpen]     = useState(false);
-  const [editMember, setEditMember]     = useState<TeamMember | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
 
   // Member profile side panel
-  const [panelMember, setPanelMember]   = useState<TeamMember | null>(null);
+  const [panelMember, setPanelMember] = useState<TeamMember | null>(null);
   const [panelRefreshKey, setPanelRefreshKey] = useState(0);
 
   // Forms — all at the top level, never re-created during render
-  const [inviteForm, setInviteForm]     = useState({ ...blankInviteForm });
-  const [editForm, setEditForm]         = useState({ ...blankForm });
+  const [inviteForm, setInviteForm] = useState({ ...blankInviteForm });
+  const [editForm, setEditForm] = useState({ ...blankForm });
 
   useEffect(() => {
     const channel = supabase
@@ -837,7 +1021,7 @@ export default function TeamPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_permissions' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
         // Increment refresh key to force MemberSidePanel to re-fetch permissions
-        setPanelRefreshKey(k => k + 1);
+        setPanelRefreshKey((k) => k + 1);
       })
       .subscribe();
 
@@ -868,12 +1052,18 @@ export default function TeamPage() {
   }, [invitations]);
 
   const pendingInvites = useMemo(
-    () => uniqueInvitations.filter(invite => ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase())),
+    () =>
+      uniqueInvitations.filter((invite) =>
+        ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase()),
+      ),
     [uniqueInvitations],
   );
 
   const invitationHistory = useMemo(
-    () => uniqueInvitations.filter(invite => !ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase())),
+    () =>
+      uniqueInvitations.filter(
+        (invite) => !ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase()),
+      ),
     [uniqueInvitations],
   );
 
@@ -881,7 +1071,11 @@ export default function TeamPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
-    if (!inviteForm.full_name.trim() || !inviteForm.email.trim() || !inviteForm.access_role.trim()) {
+    if (
+      !inviteForm.full_name.trim() ||
+      !inviteForm.email.trim() ||
+      !inviteForm.access_role.trim()
+    ) {
       setActionError('Full name, email, and access role are required.');
       return;
     }
@@ -892,13 +1086,13 @@ export default function TeamPage() {
     setSaving(true);
     try {
       const res = await fetch('/api/team/invite', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          full_name:   inviteForm.full_name,
-          email:       inviteForm.email,
+        body: JSON.stringify({
+          full_name: inviteForm.full_name,
+          email: inviteForm.email,
           access_role: inviteForm.access_role,
-          job_title:   inviteForm.job_title,
+          job_title: inviteForm.job_title,
           workspace_access: [
             ...(inviteForm.os_access ? ['os'] : []),
             ...(inviteForm.docs_access ? ['docs'] : []),
@@ -911,7 +1105,8 @@ export default function TeamPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const exactDbError = process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
+        const exactDbError =
+          process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
         setActionError(exactDbError || data.error || 'Failed to send invitation.');
         if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
         return;
@@ -949,10 +1144,14 @@ export default function TeamPage() {
               workspaceAccess: {},
             };
           }
-          const nextMembers = [data.member, ...prev.members.filter(m => m.id !== data.member.id)]
-            .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
-          const nextInvitations = [optimisticInvitation, ...prev.invitations.filter(i => i.id !== data.invitation.id)]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          const nextMembers = [
+            data.member,
+            ...prev.members.filter((m) => m.id !== data.member.id),
+          ].sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+          const nextInvitations = [
+            optimisticInvitation,
+            ...prev.invitations.filter((i) => i.id !== data.invitation.id),
+          ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return {
             ...prev,
             members: nextMembers,
@@ -1046,7 +1245,10 @@ export default function TeamPage() {
     try {
       const res = await fetch(`/api/team/members/${deleteMember.id}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { toast(data.error ?? 'Failed to remove member.', 'error'); return; }
+      if (!res.ok) {
+        toast(data.error ?? 'Failed to remove member.', 'error');
+        return;
+      }
       setDeleteMember(null);
       toast('Member removed', 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
@@ -1059,12 +1261,15 @@ export default function TeamPage() {
   const handleResend = async (invitation: TeamInvitation) => {
     try {
       const res = await fetch('/api/team/invite/resend', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ team_member_id: invitation.team_member_id }),
+        body: JSON.stringify({ team_member_id: invitation.team_member_id }),
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error ?? 'Failed to resend invitation.', 'error'); return; }
+      if (!res.ok) {
+        toast(data.error ?? 'Failed to resend invitation.', 'error');
+        return;
+      }
       toast(`Invitation resent to ${invitation.email}`, 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
@@ -1077,12 +1282,15 @@ export default function TeamPage() {
     if (!confirm(`Cancel invitation for ${invitation.email}?`)) return;
     try {
       const res = await fetch('/api/team/invite/revoke', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ team_member_id: invitation.team_member_id }),
+        body: JSON.stringify({ team_member_id: invitation.team_member_id }),
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error ?? 'Failed to revoke invitation.', 'error'); return; }
+      if (!res.ok) {
+        toast(data.error ?? 'Failed to revoke invitation.', 'error');
+        return;
+      }
       toast('Invitation cancelled', 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
@@ -1106,92 +1314,122 @@ export default function TeamPage() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const ownerMembers = members.filter(m => m.role === 'owner' && (!m.status || m.status === 'active'));
-  const ownerMembersForDisplay = ownerMembers.length > 0
-    ? ownerMembers
-    : (myRole === 'owner' && user.id && user.email
-      ? [{
-          id: user.id,
-          full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
-          email: user.email,
-          role: 'owner',
-          status: 'active',
-          created_at: new Date().toISOString(),
-        } satisfies TeamMember]
-      : []);
+  const ownerMembers = members.filter(
+    (m) => m.role === 'owner' && (!m.status || m.status === 'active'),
+  );
+  const ownerMembersForDisplay =
+    ownerMembers.length > 0
+      ? ownerMembers
+      : myRole === 'owner' && user.id && user.email
+        ? [
+            {
+              id: user.id,
+              full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
+              email: user.email,
+              role: 'owner',
+              status: 'active',
+              created_at: new Date().toISOString(),
+            } satisfies TeamMember,
+          ]
+        : [];
   const activeMembers = members
-    .filter(m => m.role !== 'owner' && (!m.status || m.status === 'active'))
+    .filter((m) => m.role !== 'owner' && (!m.status || m.status === 'active'))
     .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
 
-  const hasAnyTeamData = ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvites.length > 0;
+  const hasAnyTeamData =
+    ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvites.length > 0;
 
   return (
-    <div className="app-page-shell max-w-6xl mx-auto space-y-8">
+    <div className="app-page-shell mx-auto max-w-6xl space-y-8">
       {/* Header */}
       <div className="app-page-header">
         <div>
           <h1 className="app-page-title">{t('team')}</h1>
           <p className="app-page-subtitle">
-            {activeMembers.length + ownerMembersForDisplay.length} active · {pendingInvites.length} pending
+            {activeMembers.length + ownerMembersForDisplay.length} active · {pendingInvites.length}{' '}
+            pending
           </p>
         </div>
         {canManage && (
           <button
-            onClick={() => { setActionError(''); setInviteOpen(true); }}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            onClick={() => {
+              setActionError('');
+              setInviteOpen(true);
+            }}
+            className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
             style={{ background: 'var(--accent)' }}
           >
-            <Send size={15} />Invite Member
+            <Send size={15} />
+            Invite Member
           </button>
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-28 rounded-xl animate-pulse" style={{ background: 'var(--surface)' }} />
+            <div
+              key={i}
+              className="h-28 animate-pulse rounded-xl"
+              style={{ background: 'var(--surface)' }}
+            />
           ))}
         </div>
       ) : !hasAnyTeamData ? (
         <EmptyState
           icon={Users}
           title={tr('noTeamMembers', 'No team members yet')}
-          description={tr('noTeamMembersDesc', 'Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access.')}
+          description={tr(
+            'noTeamMembersDesc',
+            'Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access.',
+          )}
           action={
             canManage ? (
               <button
                 onClick={() => setInviteOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium text-white"
+                className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
                 style={{ background: 'var(--accent)' }}
               >
-                <Send size={15} />Invite Member
+                <Send size={15} />
+                Invite Member
               </button>
             ) : undefined
           }
         />
       ) : (
         <>
-          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <SectionHeader icon={<Crown size={14} />} label="Owner" count={ownerMembersForDisplay.length} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ownerMembersForDisplay.map(m => (
-                <OwnerCard
-                  key={m.id}
-                  member={m}
-                  canManage={canManage}
-                  onEdit={openEdit}
-                />
+          <section
+            className="rounded-2xl border p-5 shadow-sm"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <SectionHeader
+              icon={<Crown size={14} />}
+              label="Owner"
+              count={ownerMembersForDisplay.length}
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {ownerMembersForDisplay.map((m) => (
+                <OwnerCard key={m.id} member={m} canManage={canManage} onEdit={openEdit} />
               ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <SectionHeader icon={<CheckCircle size={14} />} label="Active Team Members" count={activeMembers.length} />
+          <section
+            className="rounded-2xl border p-5 shadow-sm"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <SectionHeader
+              icon={<CheckCircle size={14} />}
+              label="Active Team Members"
+              count={activeMembers.length}
+            />
             {activeMembers.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tr('noActiveMembers', 'No active members yet.')}</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {tr('noActiveMembers', 'No active members yet.')}
+              </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeMembers.map(m => (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {activeMembers.map((m) => (
                   <MemberCard
                     key={m.id}
                     member={m}
@@ -1207,13 +1445,22 @@ export default function TeamPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <SectionHeader icon={<Clock size={14} />} label="Pending Invitations" count={pendingInvites.length} />
+          <section
+            className="rounded-2xl border p-5 shadow-sm"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <SectionHeader
+              icon={<Clock size={14} />}
+              label="Pending Invitations"
+              count={pendingInvites.length}
+            />
             {pendingInvites.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tr('noPendingInvitations', 'No pending invitations.')}</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {tr('noPendingInvitations', 'No pending invitations.')}
+              </p>
             ) : (
               <div className="space-y-3">
-                {pendingInvites.map(invitation => (
+                {pendingInvites.map((invitation) => (
                   <PendingInvitationRow
                     key={invitation.id}
                     invitation={invitation}
@@ -1226,24 +1473,39 @@ export default function TeamPage() {
               </div>
             )}
             {invitationHistory.length > 0 && (
-              <div className="mt-5 pt-4 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
-                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+              <div
+                className="mt-5 space-y-2 border-t pt-4"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <p
+                  className="text-xs font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   Invite History
                 </p>
                 <div className="space-y-2">
-                  {invitationHistory.map(invitation => (
+                  {invitationHistory.map((invitation) => (
                     <div
                       key={invitation.id}
-                      className="rounded-xl border px-3 py-2 flex items-center justify-between gap-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2"
                       style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                     >
                       <div className="min-w-0">
-                        <p className="text-sm truncate" style={{ color: 'var(--text)' }}>{invitation.email}</p>
+                        <p className="truncate text-sm" style={{ color: 'var(--text)' }}>
+                          {invitation.email}
+                        </p>
                         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          {invitation.role ? `${formatAccessRole(invitation.role)} · ` : ''}Created {new Date(invitation.created_at).toLocaleDateString()}
+                          {invitation.role ? `${formatAccessRole(invitation.role)} · ` : ''}Created{' '}
+                          {new Date(invitation.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <InviteBadge status={CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase()) ? 'cancelled' : invitation.status} />
+                      <InviteBadge
+                        status={
+                          CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase())
+                            ? 'cancelled'
+                            : invitation.status
+                        }
+                      />
                     </div>
                   ))}
                 </div>
@@ -1254,16 +1516,34 @@ export default function TeamPage() {
       )}
 
       {/* ── Invite Modal ──────────────────────────────────────────────────── */}
-      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite Team Member" size="sm">
+      <Modal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Invite Team Member"
+        size="sm"
+      >
         <form onSubmit={handleInvite} className="space-y-4">
           <InviteForm f={inviteForm} setF={setInviteForm} />
           {actionError && (
-            <p className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{actionError}</p>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionError}</p>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setInviteOpen(false)} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
-            <button type="submit" disabled={saving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60 flex items-center gap-2" style={{ background: 'var(--accent)' }}>
-              <Send size={14} />{saving ? 'Sending…' : 'Send Invite'}
+            <button
+              type="button"
+              onClick={() => setInviteOpen(false)}
+              className="h-9 rounded-lg px-4 text-sm font-medium"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              style={{ background: 'var(--accent)' }}
+            >
+              <Send size={14} />
+              {saving ? 'Sending…' : 'Send Invite'}
             </button>
           </div>
         </form>
@@ -1274,28 +1554,48 @@ export default function TeamPage() {
         <form onSubmit={handleEdit} className="space-y-4">
           <MemberForm f={editForm} setF={setEditForm} />
           <div className="space-y-2">
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Workspace Access</p>
-            <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-              <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY OS</span>
-              <input type="checkbox" checked={editForm.os_access} onChange={e => setEditForm(x => ({ ...x, os_access: e.target.checked }))} />
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Workspace Access
+            </p>
+            <label
+              className="flex items-center justify-between rounded-lg border px-3 py-2"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+            >
+              <span className="text-sm" style={{ color: 'var(--text)' }}>
+                OPENY OS
+              </span>
+              <input
+                type="checkbox"
+                checked={editForm.os_access}
+                onChange={(e) => setEditForm((x) => ({ ...x, os_access: e.target.checked }))}
+              />
             </label>
             {editForm.os_access && (
               <SelectDropdown
                 value={editForm.os_role}
-                onChange={v => setEditForm(x => ({ ...x, os_role: v }))}
+                onChange={(v) => setEditForm((x) => ({ ...x, os_role: v }))}
                 options={WORKSPACE_ROLE_OPTIONS}
                 placeholder="OS role"
                 fullWidth
               />
             )}
-            <label className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-              <span className="text-sm" style={{ color: 'var(--text)' }}>OPENY DOCS</span>
-              <input type="checkbox" checked={editForm.docs_access} onChange={e => setEditForm(x => ({ ...x, docs_access: e.target.checked }))} />
+            <label
+              className="flex items-center justify-between rounded-lg border px-3 py-2"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+            >
+              <span className="text-sm" style={{ color: 'var(--text)' }}>
+                OPENY DOCS
+              </span>
+              <input
+                type="checkbox"
+                checked={editForm.docs_access}
+                onChange={(e) => setEditForm((x) => ({ ...x, docs_access: e.target.checked }))}
+              />
             </label>
             {editForm.docs_access && (
               <SelectDropdown
                 value={editForm.docs_role}
-                onChange={v => setEditForm(x => ({ ...x, docs_role: v }))}
+                onChange={(v) => setEditForm((x) => ({ ...x, docs_role: v }))}
                 options={WORKSPACE_ROLE_OPTIONS}
                 placeholder="DOCS role"
                 fullWidth
@@ -1303,21 +1603,53 @@ export default function TeamPage() {
             )}
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setEditMember(null)} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
-            <button type="submit" disabled={saving} className="h-9 px-4 rounded-lg text-sm font-medium text-white disabled:opacity-60" style={{ background: 'var(--accent)' }}>{saving ? t('loading') : t('save')}</button>
+            <button
+              type="button"
+              onClick={() => setEditMember(null)}
+              className="h-9 rounded-lg px-4 text-sm font-medium"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              style={{ background: 'var(--accent)' }}
+            >
+              {saving ? t('loading') : t('save')}
+            </button>
           </div>
         </form>
       </Modal>
 
       {/* ── Delete Confirm ────────────────────────────────────────────────── */}
-      <Modal open={!!deleteMember} onClose={() => setDeleteMember(null)} title="Remove Member" size="sm">
+      <Modal
+        open={!!deleteMember}
+        onClose={() => setDeleteMember(null)}
+        title="Remove Member"
+        size="sm"
+      >
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text)' }}>
             Remove <strong>{deleteMember?.full_name}</strong> from the team? This cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setDeleteMember(null)} className="h-9 px-4 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{t('cancel')}</button>
-            <button type="button" onClick={handleDelete} className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">Remove</button>
+            <button
+              type="button"
+              onClick={() => setDeleteMember(null)}
+              className="h-9 rounded-lg px-4 text-sm font-medium"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="h-9 rounded-lg bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            >
+              Remove
+            </button>
           </div>
         </div>
       </Modal>
@@ -1330,8 +1662,14 @@ export default function TeamPage() {
           canManage={canManage}
           refreshKey={panelRefreshKey}
           onClose={() => setPanelMember(null)}
-          onEdit={m => { setPanelMember(null); openEdit(m); }}
-          onDelete={m => { setPanelMember(null); setDeleteMember(m); }}
+          onEdit={(m) => {
+            setPanelMember(null);
+            openEdit(m);
+          }}
+          onDelete={(m) => {
+            setPanelMember(null);
+            setDeleteMember(m);
+          }}
         />
       )}
     </div>
@@ -1341,12 +1679,17 @@ export default function TeamPage() {
 // ── SectionHeader ─────────────────────────────────────────────────────────────
 function SectionHeader({ icon, label, count }: { icon: ReactNode; label: string; count?: number }) {
   return (
-    <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+    <div
+      className="mb-4 flex items-center gap-2 border-b pb-2"
+      style={{ borderColor: 'var(--border)' }}
+    >
       <span style={{ color: 'var(--text-secondary)' }}>{icon}</span>
-      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</h2>
+      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        {label}
+      </h2>
       {count !== undefined && (
         <span
-          className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium"
+          className="ml-1 rounded-full px-1.5 py-0.5 text-xs font-medium"
           style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
         >
           {count}
@@ -1368,49 +1711,60 @@ function OwnerCard({
 }) {
   return (
     <div
-      className="rounded-xl border-2 p-5 flex flex-col gap-3 relative overflow-hidden"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-5"
       style={{
-        background:   'var(--surface)',
-        borderColor:  'var(--accent)',
+        background: 'var(--surface)',
+        borderColor: 'var(--accent)',
       }}
     >
       {/* subtle accent stripe at top */}
       <div
-        className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl"
+        className="absolute left-0 right-0 top-0 h-0.5 rounded-t-xl"
         style={{ background: 'var(--accent)' }}
       />
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
           <div
-            className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-white"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white"
             style={{ background: 'var(--accent)' }}
           >
             {member.full_name.charAt(0).toUpperCase()}
           </div>
           <span
-            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+            className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full"
             style={{ background: 'var(--accent)', color: '#fff' }}
             title="Workspace Owner"
           >
             <Crown size={10} />
           </span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+            {member.full_name}
+          </p>
           <span
-            className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold"
+            className="mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
             style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
           >
-            <Crown size={9} />Owner
+            <Crown size={9} />
+            Owner
           </span>
           {resolveDisplayJobTitle(member) && (
-            <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-secondary)' }}>
-              <Briefcase size={11} />{resolveDisplayJobTitle(member)}
+            <p
+              className="mt-1 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Briefcase size={11} />
+              {resolveDisplayJobTitle(member)}
             </p>
           )}
           {member.email && (
-            <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Mail size={11} />{member.email}
+            <p
+              className="mt-0.5 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Mail size={11} />
+              {member.email}
             </p>
           )}
         </div>
@@ -1418,7 +1772,7 @@ function OwnerCard({
         {canManage && (
           <button
             onClick={() => onEdit(member)}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors shrink-0"
+            className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
             title="Edit owner profile"
           >
@@ -1443,16 +1797,22 @@ function PendingInvitationRow({
   onCopyLink: (invitation: TeamInvitation) => void;
   onCancel: (invitation: TeamInvitation) => void;
 }) {
-  const member = Array.isArray(invitation.team_member) ? invitation.team_member[0] : invitation.team_member;
-  const profile = member && typeof member === 'object' && 'profiles' in member
-    ? (Array.isArray((member as { profiles?: unknown }).profiles)
-      ? (member as { profiles?: Array<{ full_name?: string | null; email?: string | null }> }).profiles?.[0]
-      : (member as { profiles?: { full_name?: string | null; email?: string | null } }).profiles)
-    : null;
+  const member = Array.isArray(invitation.team_member)
+    ? invitation.team_member[0]
+    : invitation.team_member;
+  const profile =
+    member && typeof member === 'object' && 'profiles' in member
+      ? Array.isArray((member as { profiles?: unknown }).profiles)
+        ? (member as { profiles?: Array<{ full_name?: string | null; email?: string | null }> })
+            .profiles?.[0]
+        : (member as { profiles?: { full_name?: string | null; email?: string | null } }).profiles
+      : null;
   const displayEmail = invitation.email ?? profile?.email ?? '';
   const displayName = member?.full_name ?? profile?.full_name ?? displayEmail;
   const roleLabel = formatAccessRole(invitation.role ?? member?.role ?? 'team_member');
-  const status = CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase()) ? 'cancelled' : invitation.status;
+  const status = CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase())
+    ? 'cancelled'
+    : invitation.status;
   const canCancel = ACTIVE_INVITE_STATUSES.has((invitation.status ?? '').toLowerCase());
   const canResend = canCancel || invitation.status === 'expired';
   const workspaceAccess = parseInviteWorkspaceAccess(invitation.workspace_access);
@@ -1461,21 +1821,25 @@ function PendingInvitationRow({
 
   return (
     <div
-      className="rounded-xl border p-4 flex flex-col gap-3"
+      className="flex flex-col gap-3 rounded-xl border p-4"
       style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{displayName || displayEmail}</p>
-          <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{displayEmail}</p>
+          <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            {displayName || displayEmail}
+          </p>
+          <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {displayEmail}
+          </p>
           <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
             {roleLabel} · Invited {new Date(invitation.created_at).toLocaleDateString()}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {workspaceAccess.map(workspace => (
+            {workspaceAccess.map((workspace) => (
               <span
                 key={`${invitation.id}-${workspace}`}
-                className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium"
+                className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                 style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
               >
                 {getWorkspaceLabel(workspace)} · {formatWorkspaceRole(workspaceRoles[workspace])}
@@ -1483,7 +1847,7 @@ function PendingInvitationRow({
             ))}
             {workspaceAccess.length === 0 && (
               <span
-                className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium"
+                className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                 style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
               >
                 OPENY OS · Member
@@ -1507,26 +1871,29 @@ function PendingInvitationRow({
           {canResend && (
             <button
               onClick={() => onResend(invitation)}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface)] transition-colors"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--surface)]"
               style={{ color: 'var(--text-secondary)' }}
             >
-              <RotateCcw size={12} />Resend
+              <RotateCcw size={12} />
+              Resend
             </button>
           )}
           <button
             onClick={() => onCopyLink(invitation)}
             disabled={!invitation.token}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-50"
             style={{ color: 'var(--text-secondary)' }}
           >
-            <Copy size={12} />Copy Invite Link
+            <Copy size={12} />
+            Copy Invite Link
           </button>
           {canCancel && (
             <button
               onClick={() => onCancel(invitation)}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-500"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-50"
             >
-              <XCircle size={12} />Cancel Invitation
+              <XCircle size={12} />
+              Cancel Invitation
             </button>
           )}
         </div>
@@ -1558,37 +1925,39 @@ function MemberCard({
 
   return (
     <div
-      className={`rounded-xl border p-5 flex flex-col gap-3 transition-shadow${isInteractive ? ' cursor-pointer hover:shadow-md' : ''}`}
+      className={`flex flex-col gap-3 rounded-xl border p-5 transition-shadow${isInteractive ? 'cursor-pointer hover:shadow-md' : ''}`}
       onClick={() => isInteractive && onView?.(member)}
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : -1}
-      onKeyDown={e => {
+      onKeyDown={(e) => {
         if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
           onView?.(member);
         }
       }}
       style={{
-        background:   'var(--surface)',
-        borderColor:  isInvited ? 'var(--accent)' : 'var(--border)',
-        opacity:      isInvited ? 0.92 : 1,
+        background: 'var(--surface)',
+        borderColor: isInvited ? 'var(--accent)' : 'var(--border)',
+        opacity: isInvited ? 0.92 : 1,
       }}
     >
       <div className="flex items-start gap-3">
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
           style={{ background: isInvited ? '#d97706' : 'var(--accent)' }}
         >
           {member.full_name.charAt(0).toUpperCase()}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{member.full_name}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              {member.full_name}
+            </p>
             {isInvited ? (
               <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />
             ) : (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                 style={{ color: '#16a34a', background: '#f0fdf4' }}
               >
                 Active
@@ -1596,56 +1965,90 @@ function MemberCard({
             )}
           </div>
           {resolveDisplayJobTitle(member) && (
-            <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Briefcase size={11} />{resolveDisplayJobTitle(member)}
+            <p
+              className="mt-0.5 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Briefcase size={11} />
+              {resolveDisplayJobTitle(member)}
             </p>
           )}
           {member.role && (ACCESS_ROLE_VALUES as readonly string[]).includes(member.role) && (
             <span
-              className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize"
+              className="mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
               {formatAccessRole(member.role)}
             </span>
           )}
           {member.email && (
-            <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              <Mail size={11} />{member.email}
+            <p
+              className="mt-0.5 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Mail size={11} />
+              {member.email}
             </p>
           )}
           <div className="mt-1">
-            <p id={`member-access-${member.id}`} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Access:</p>
-            <ul aria-labelledby={`member-access-${member.id}`} className="mt-0.5 flex flex-wrap gap-1.5">
+            <p
+              id={`member-access-${member.id}`}
+              className="text-[11px]"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Access:
+            </p>
+            <ul
+              aria-labelledby={`member-access-${member.id}`}
+              className="mt-0.5 flex flex-wrap gap-1.5"
+            >
               {workspaceAccess?.os?.enabled && (
-                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                <li
+                  className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                >
                   {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
                 </li>
               )}
               {workspaceAccess?.docs?.enabled && (
-                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                <li
+                  className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                >
                   {getWorkspaceLabel('docs')} · {formatWorkspaceRole(workspaceAccess.docs.role)}
                 </li>
               )}
               {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
-                <li className="inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                <li
+                  className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                >
                   No workspace access
                 </li>
               )}
             </ul>
           </div>
           {invitation && (
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
               Invited {new Date(invitation.created_at).toLocaleDateString()}
-              {invitation.expires_at && ` · expires ${new Date(invitation.expires_at).toLocaleDateString()}`}
+              {invitation.expires_at &&
+                ` · expires ${new Date(invitation.expires_at).toLocaleDateString()}`}
             </p>
           )}
         </div>
         {canManage && !isInvited && (
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => onEdit(member)} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => onEdit(member)}
+              className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <Pencil size={13} />
             </button>
-            <button onClick={() => onDelete(member)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-red-400">
+            <button
+              onClick={() => onDelete(member)}
+              className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-50"
+            >
               <Trash2 size={13} />
             </button>
           </div>

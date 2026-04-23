@@ -19,57 +19,79 @@
  *   const perms = await fetchMemberPermissions(db, teamMemberId, role);
  */
 
-import type { MemberPermissions, MemberPermissionRow, ModuleAccess, OsModule, DocsModule, PlatformRole } from './types';
+import type {
+  MemberPermissions,
+  MemberPermissionRow,
+  ModuleAccess,
+  OsModule,
+  DocsModule,
+  PlatformRole,
+} from './types';
 
 // ── Module registry ───────────────────────────────────────────────────────────
 
 export const OS_MODULES: OsModule[] = [
-  'dashboard', 'clients', 'tasks', 'content',
-  'calendar', 'assets', 'reports', 'team', 'activity', 'security',
+  'dashboard',
+  'clients',
+  'tasks',
+  'content',
+  'calendar',
+  'assets',
+  'reports',
+  'team',
+  'activity',
+  'security',
 ];
 
-export const DOCS_MODULES: DocsModule[] = [
-  'invoice', 'quotation', 'contracts', 'accounting',
-];
+export const DOCS_MODULES: DocsModule[] = ['invoice', 'quotation', 'contracts', 'accounting'];
 
 // ── Role defaults ─────────────────────────────────────────────────────────────
 
 function buildFullOs(): Record<OsModule, ModuleAccess> {
-  return Object.fromEntries(OS_MODULES.map(m => [m, 'full'])) as Record<OsModule, ModuleAccess>;
+  return Object.fromEntries(OS_MODULES.map((m) => [m, 'full'])) as Record<OsModule, ModuleAccess>;
 }
 
 function buildReadOs(): Record<OsModule, ModuleAccess> {
-  return Object.fromEntries(OS_MODULES.map(m => [m, 'read'])) as Record<OsModule, ModuleAccess>;
+  return Object.fromEntries(OS_MODULES.map((m) => [m, 'read'])) as Record<OsModule, ModuleAccess>;
 }
 
 function buildFullDocs(): Record<DocsModule, ModuleAccess> {
-  return Object.fromEntries(DOCS_MODULES.map(m => [m, 'full'])) as Record<DocsModule, ModuleAccess>;
+  return Object.fromEntries(DOCS_MODULES.map((m) => [m, 'full'])) as Record<
+    DocsModule,
+    ModuleAccess
+  >;
 }
 
 function buildReadDocs(): Record<DocsModule, ModuleAccess> {
-  return Object.fromEntries(DOCS_MODULES.map(m => [m, 'read'])) as Record<DocsModule, ModuleAccess>;
+  return Object.fromEntries(DOCS_MODULES.map((m) => [m, 'read'])) as Record<
+    DocsModule,
+    ModuleAccess
+  >;
 }
 
 function buildNoneOs(): Record<OsModule, ModuleAccess> {
-  return Object.fromEntries(OS_MODULES.map(m => [m, 'none'])) as Record<OsModule, ModuleAccess>;
+  return Object.fromEntries(OS_MODULES.map((m) => [m, 'none'])) as Record<OsModule, ModuleAccess>;
 }
 
 function buildNoneDocs(): Record<DocsModule, ModuleAccess> {
-  return Object.fromEntries(DOCS_MODULES.map(m => [m, 'none'])) as Record<DocsModule, ModuleAccess>;
+  return Object.fromEntries(DOCS_MODULES.map((m) => [m, 'none'])) as Record<
+    DocsModule,
+    ModuleAccess
+  >;
 }
 
 /** Default permission matrix for each platform role */
 export const ROLE_DEFAULTS: Record<PlatformRole, Omit<MemberPermissions, 'role'>> = {
   owner: {
-    os:   buildFullOs(),
+    os: buildFullOs(),
     docs: buildFullDocs(),
   },
   admin: {
-    os:   buildFullOs(),
+    os: buildFullOs(),
     docs: buildFullDocs(),
   },
   member: {
-    os:   buildReadOs(),
+    os: buildReadOs(),
     docs: buildReadDocs(),
   },
 };
@@ -91,14 +113,17 @@ export function resolveEffectivePermissions(
   }
 
   // Start from member defaults, then apply stored overrides.
-  const os   = { ...ROLE_DEFAULTS.member.os };
+  const os = { ...ROLE_DEFAULTS.member.os };
   const docs = { ...ROLE_DEFAULTS.member.docs };
 
   for (const override of overrides) {
     const access = override.access_level;
     if (override.workspace === 'os' && OS_MODULES.includes(override.module as OsModule)) {
       (os as Record<string, ModuleAccess>)[override.module] = access;
-    } else if (override.workspace === 'docs' && DOCS_MODULES.includes(override.module as DocsModule)) {
+    } else if (
+      override.workspace === 'docs' &&
+      DOCS_MODULES.includes(override.module as DocsModule)
+    ) {
       (docs as Record<string, ModuleAccess>)[override.module] = access;
     }
   }

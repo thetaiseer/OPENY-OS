@@ -20,7 +20,7 @@ export function getServiceClient(): SupabaseClient {
     if (!url) throw new Error('[supabase/service-client] Missing NEXT_PUBLIC_SUPABASE_URL');
     if (!key) throw new Error('[supabase/service-client] Missing SUPABASE_SERVICE_ROLE_KEY');
     _client = createClient(url, key);
-    _url    = url;
+    _url = url;
   }
   return _client;
 }

@@ -18,7 +18,7 @@ const PAGE_BREAK_BRANCHES = ['jeddah', 'khobar'];
 function shouldBreakBeforeBranch(index: number, branchName: string): boolean {
   if (index <= 0) return false;
   const normalized = branchName.trim().toLowerCase();
-  return PAGE_BREAK_BRANCHES.some(b => normalized.includes(b));
+  return PAGE_BREAK_BRANCHES.some((b) => normalized.includes(b));
 }
 
 /**
@@ -38,18 +38,12 @@ function shouldBreakBeforeBranch(index: number, branchName: string): boolean {
 export default function InvoicePreview({ model }: { model: InvoiceDocumentModel }) {
   return (
     <OpenyDocumentPage id="invoice-preview">
-      <OpenyDocumentHeader
-        title="INVOICE"
-        number={model.invoiceNumber}
-        date={model.invoiceDate}
-      />
+      <OpenyDocumentHeader title="INVOICE" number={model.invoiceNumber} date={model.invoiceDate} />
 
       <OpenyClientBlock
         label="BILLED TO"
         name={model.clientName}
-        subtext={
-          model.campaignMonth ? `Campaign Month: ${model.campaignMonth}` : undefined
-        }
+        subtext={model.campaignMonth ? `Campaign Month: ${model.campaignMonth}` : undefined}
       />
 
       {model.branchTables.map((branchTable, branchIndex) => (

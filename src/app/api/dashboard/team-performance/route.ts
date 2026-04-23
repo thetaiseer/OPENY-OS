@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 
-
 /**
  * GET /api/dashboard/team-performance
  * Returns tasks completed per team member this month.
@@ -32,7 +31,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Resolve names from team_members
-    const ids = Object.keys(counts).filter(id => id !== 'unassigned');
+    const ids = Object.keys(counts).filter((id) => id !== 'unassigned');
     const nameMap: Record<string, string> = {};
     if (ids.length) {
       const { data: members } = await sb
@@ -44,11 +43,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const result = Object.entries(counts).map(([id, completed]) => ({
-      id,
-      name: nameMap[id] ?? (id === 'unassigned' ? 'Unassigned' : id),
-      completed,
-    })).sort((a, b) => b.completed - a.completed);
+    const result = Object.entries(counts)
+      .map(([id, completed]) => ({
+        id,
+        name: nameMap[id] ?? (id === 'unassigned' ? 'Unassigned' : id),
+        completed,
+      }))
+      .sort((a, b) => b.completed - a.completed);
 
     return NextResponse.json({ success: true, performance: result });
   } catch (err) {

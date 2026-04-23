@@ -35,10 +35,7 @@ function normalizeEmail(value: unknown): string | null | undefined {
   return String(value).trim().toLowerCase();
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
@@ -73,10 +70,16 @@ export async function PATCH(
     return NextResponse.json({ error: `Invalid role "${nextRole}"` }, { status: 400 });
   }
   if (member.role === 'owner' && auth.profile.role !== 'owner') {
-    return NextResponse.json({ error: 'Only the owner can edit owner profile data.' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Only the owner can edit owner profile data.' },
+      { status: 403 },
+    );
   }
   if (nextRole === 'owner' && auth.profile.role !== 'owner') {
-    return NextResponse.json({ error: 'Only the owner can assign the owner role.' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Only the owner can assign the owner role.' },
+      { status: 403 },
+    );
   }
 
   const nextFullName = body.full_name === undefined ? undefined : String(body.full_name).trim();
@@ -86,23 +89,28 @@ export async function PATCH(
 
   const nextEmail = normalizeEmail(body.email);
   if (typeof nextEmail === 'string' && !EMAIL_PATTERN.test(nextEmail)) {
-    return NextResponse.json({ error: 'Invalid email format. Example: name@company.com' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid email format. Example: name@company.com' },
+      { status: 400 },
+    );
   }
 
   const payloadRaw = {
     full_name: nextFullName,
     email: nextEmail,
-    role: nextRole === undefined ? undefined : (nextRole === '' ? null : nextRole),
-    job_title: body.job_title === undefined ? undefined : (body.job_title ? String(body.job_title).trim() : null),
+    role: nextRole === undefined ? undefined : nextRole === '' ? null : nextRole,
+    job_title:
+      body.job_title === undefined
+        ? undefined
+        : body.job_title
+          ? String(body.job_title).trim()
+          : null,
   };
   const payload = Object.fromEntries(
     Object.entries(payloadRaw).filter(([, value]) => value !== undefined),
   );
 
-  const { error: updateError } = await db
-    .from('team_members')
-    .update(payload)
-    .eq('id', id);
+  const { error: updateError } = await db.from('team_members').update(payload).eq('id', id);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -111,15 +119,15 @@ export async function PATCH(
   // Emit activity event for role changes
   if (payload.role && payload.role !== member.role) {
     void processEvent({
-      event_type:  EVENT.ROLE_CHANGED,
-      actor_id:    auth.profile.id,
+      event_type: EVENT.ROLE_CHANGED,
+      actor_id: auth.profile.id,
       entity_type: 'team_member',
-      entity_id:   id,
+      entity_id: id,
       payload: {
         memberName: payload.full_name ?? String(member.id),
-        oldRole:    member.role,
-        newRole:    payload.role,
-        actorName:  auth.profile.name,
+        oldRole: member.role,
+        newRole: payload.role,
+        actorName: auth.profile.name,
       },
     });
   }
@@ -165,10 +173,7 @@ export async function DELETE(
     );
   }
 
-  const { error: deleteError } = await db
-    .from('team_members')
-    .delete()
-    .eq('id', id);
+  const { error: deleteError } = await db.from('team_members').delete().eq('id', id);
 
   if (deleteError) {
     console.error('[team/members/delete] Delete error:', deleteError.message);
@@ -177,13 +182,13 @@ export async function DELETE(
 
   // Emit activity event for audit log
   void processEvent({
-    event_type:  EVENT.MEMBER_REMOVED,
-    actor_id:    auth.profile.id,
+    event_type: EVENT.MEMBER_REMOVED,
+    actor_id: auth.profile.id,
     entity_type: 'team_member',
-    entity_id:   id,
+    entity_id: id,
     payload: {
       memberName: member.full_name,
-      actorName:  auth.profile.name,
+      actorName: auth.profile.name,
     },
   });
 

@@ -5,10 +5,7 @@ function fmtForExcel(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-export function writeInvoiceWorksheet(
-  worksheet: ExcelJS.Worksheet,
-  model: InvoiceDocumentModel,
-) {
+export function writeInvoiceWorksheet(worksheet: ExcelJS.Worksheet, model: InvoiceDocumentModel) {
   worksheet.columns = [
     { width: 24 },
     { width: 20 },
@@ -30,7 +27,14 @@ export function writeInvoiceWorksheet(
 
   worksheet.addRow([]);
   worksheet.addRow(['Invoice #', model.invoiceNumber, '', 'Date', model.invoiceDate || '—', '']);
-  worksheet.addRow(['Billed To', model.clientName || '—', '', 'Campaign Month', model.campaignMonth || '—', '']);
+  worksheet.addRow([
+    'Billed To',
+    model.clientName || '—',
+    '',
+    'Campaign Month',
+    model.campaignMonth || '—',
+    '',
+  ]);
   worksheet.addRow([]);
 
   let rowCursor = worksheet.rowCount + 1;
@@ -47,7 +51,14 @@ export function writeInvoiceWorksheet(
     rowCursor += 1;
 
     const headerRow = worksheet.getRow(rowCursor);
-    headerRow.values = ['BRANCH', 'PLATFORM', 'AD NAME', 'DATE', 'RESULTS', `COST (${model.currency})`];
+    headerRow.values = [
+      'BRANCH',
+      'PLATFORM',
+      'AD NAME',
+      'DATE',
+      'RESULTS',
+      `COST (${model.currency})`,
+    ];
     headerRow.eachCell((cell) => {
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = {
@@ -67,7 +78,18 @@ export function writeInvoiceWorksheet(
 
     const rows = branch.rows.length
       ? branch.rows
-      : [{ branch: branch.branchName, platform: '', ad_name: '', date: '', results: '', cost: 0, showPlatform: true, platformSpan: 1 }];
+      : [
+          {
+            branch: branch.branchName,
+            platform: '',
+            ad_name: '',
+            date: '',
+            results: '',
+            cost: 0,
+            showPlatform: true,
+            platformSpan: 1,
+          },
+        ];
 
     const branchDataStart = rowCursor;
     rows.forEach((row) => {
@@ -129,7 +151,14 @@ export function writeInvoiceWorksheet(
     rowCursor += 2;
   });
 
-  worksheet.addRow(['', '', '', 'Final Budget (Ad Spend)', fmtForExcel(model.totals.finalBudget), '']);
+  worksheet.addRow([
+    '',
+    '',
+    '',
+    'Final Budget (Ad Spend)',
+    fmtForExcel(model.totals.finalBudget),
+    '',
+  ]);
   worksheet.addRow(['', '', '', 'Our Fees', fmtForExcel(model.totals.ourFees), '']);
   worksheet.addRow(['', '', '', 'GRAND TOTAL', fmtForExcel(model.totals.grandTotal), '']);
 

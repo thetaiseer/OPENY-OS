@@ -1,4 +1,10 @@
-import { S3Client, CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
 import {
@@ -45,15 +51,14 @@ export function getFileUrl(key: string): string {
 }
 
 export async function getSignedFileUrl(key: string, _expiresInSeconds = 900): Promise<string> {
-  const expiresInSeconds = Number.isFinite(_expiresInSeconds) && _expiresInSeconds > 0
-    ? Math.floor(_expiresInSeconds)
-    : 900;
+  const expiresInSeconds =
+    Number.isFinite(_expiresInSeconds) && _expiresInSeconds > 0
+      ? Math.floor(_expiresInSeconds)
+      : 900;
   const { client, config } = buildClient();
-  return getSignedUrl(
-    client,
-    new GetObjectCommand({ Bucket: config.bucketName, Key: key }),
-    { expiresIn: expiresInSeconds },
-  );
+  return getSignedUrl(client, new GetObjectCommand({ Bucket: config.bucketName, Key: key }), {
+    expiresIn: expiresInSeconds,
+  });
 }
 
 export async function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {
@@ -64,7 +69,10 @@ export async function deleteFile(key: string): Promise<void> {
   await deleteFromR2(key);
 }
 
-export async function replaceFile(oldKey: string | null | undefined, input: UploadFileInput): Promise<UploadFileResult> {
+export async function replaceFile(
+  oldKey: string | null | undefined,
+  input: UploadFileInput,
+): Promise<UploadFileResult> {
   const uploaded = await uploadFile(input);
   if (oldKey && oldKey !== input.key) {
     try {
@@ -76,44 +84,60 @@ export async function replaceFile(oldKey: string | null | undefined, input: Uplo
   return uploaded;
 }
 
-export async function moveFile(fromKey: string, toKey: string): Promise<{ key: string; publicUrl: string }> {
+export async function moveFile(
+  fromKey: string,
+  toKey: string,
+): Promise<{ key: string; publicUrl: string }> {
   const { client, config } = buildClient();
 
-  await client.send(new CopyObjectCommand({
-    Bucket: config.bucketName,
-    CopySource: `${config.bucketName}/${fromKey}`,
-    Key: toKey,
-  }));
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: config.bucketName,
+      CopySource: `${config.bucketName}/${fromKey}`,
+      Key: toKey,
+    }),
+  );
 
-  await client.send(new DeleteObjectCommand({
-    Bucket: config.bucketName,
-    Key: fromKey,
-  }));
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: config.bucketName,
+      Key: fromKey,
+    }),
+  );
 
   return { key: toKey, publicUrl: buildR2Url(toKey, config.publicUrl) };
 }
 
-export async function listFilesByPrefix(prefix: string, maxKeys = 1000): Promise<StorageListedFile[]> {
+export async function listFilesByPrefix(
+  prefix: string,
+  maxKeys = 1000,
+): Promise<StorageListedFile[]> {
   const { client, config } = buildClient();
-  const result = await client.send(new ListObjectsV2Command({
-    Bucket: config.bucketName,
-    Prefix: prefix,
-    MaxKeys: maxKeys,
-  }));
+  const result = await client.send(
+    new ListObjectsV2Command({
+      Bucket: config.bucketName,
+      Prefix: prefix,
+      MaxKeys: maxKeys,
+    }),
+  );
 
-  return (result.Contents ?? []).map(item => ({
-    key: item.Key ?? '',
-    size: item.Size,
-    lastModified: item.LastModified,
-  })).filter(item => Boolean(item.key));
+  return (result.Contents ?? [])
+    .map((item) => ({
+      key: item.Key ?? '',
+      size: item.Size,
+      lastModified: item.LastModified,
+    }))
+    .filter((item) => Boolean(item.key));
 }
 
 export async function getFileObject(key: string): Promise<StorageObjectResult> {
   const { client, config } = buildClient();
-  const result = await client.send(new GetObjectCommand({
-    Bucket: config.bucketName,
-    Key: key,
-  }));
+  const result = await client.send(
+    new GetObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+    }),
+  );
 
   return {
     body: result.Body as Readable,

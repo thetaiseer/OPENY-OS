@@ -53,4 +53,3 @@ export interface StorageObjectResult {
   contentType?: string;
   contentLength?: number;
 }
-

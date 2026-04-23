@@ -1,17 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { uploadFile, getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
-import { buildStorageKey, MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
+import {
+  buildStorageKey,
+  MAIN_CATEGORIES,
+  SUBCATEGORIES,
+  type MainCategorySlug,
+} from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([
-  'exe','bat','cmd','sh','bash','ps1','msi','vbs',
-  'php','py','rb','pl','cgi','app','com','scr','pif','reg','dll','so',
+  'exe',
+  'bat',
+  'cmd',
+  'sh',
+  'bash',
+  'ps1',
+  'msi',
+  'vbs',
+  'php',
+  'py',
+  'rb',
+  'pl',
+  'cgi',
+  'app',
+  'com',
+  'scr',
+  'pif',
+  'reg',
+  'dll',
+  'so',
 ]);
 
-const VALID_MAIN_CATEGORIES: string[] = MAIN_CATEGORIES.map(c => c.slug);
+const VALID_MAIN_CATEGORIES: string[] = MAIN_CATEGORIES.map((c) => c.slug);
 
 function getExtension(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? '';
@@ -55,7 +78,10 @@ export async function POST(req: NextRequest) {
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Upload limit exceeded. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      },
     );
   }
 
@@ -66,24 +92,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Expected multipart/form-data body' }, { status: 400 });
   }
 
-  const fileField    = formData.get('file');
-  const fileName     = ((formData.get('fileName')     as string | null) ?? '').trim();
-  const fileType     = ((formData.get('fileType')     as string | null) ?? 'application/octet-stream').trim();
-  const fileSize     = Number(formData.get('fileSize') ?? 0);
-  const clientName   = ((formData.get('clientName')   as string | null) ?? '').trim();
-  const clientId     = ((formData.get('clientId')     as string | null) ?? '').trim() || null;
+  const fileField = formData.get('file');
+  const fileName = ((formData.get('fileName') as string | null) ?? '').trim();
+  const fileType = (
+    (formData.get('fileType') as string | null) ?? 'application/octet-stream'
+  ).trim();
+  const fileSize = Number(formData.get('fileSize') ?? 0);
+  const clientName = ((formData.get('clientName') as string | null) ?? '').trim();
+  const clientId = ((formData.get('clientId') as string | null) ?? '').trim() || null;
   const mainCategory = ((formData.get('mainCategory') as string | null) ?? '').trim();
-  const subCategory  = ((formData.get('subCategory')  as string | null) ?? '').trim();
-  const monthKey     = ((formData.get('monthKey')     as string | null) ?? '').trim();
-  const customName   = ((formData.get('customFileName') as string | null) ?? '').trim() || null;
+  const subCategory = ((formData.get('subCategory') as string | null) ?? '').trim();
+  const monthKey = ((formData.get('monthKey') as string | null) ?? '').trim();
+  const customName = ((formData.get('customFileName') as string | null) ?? '').trim() || null;
 
   // ── Validation ─────────────────────────────────────────────────────────────
-  const fail = (message: string, status = 400) =>
-    NextResponse.json({ error: message }, { status });
+  const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
   if (!fileField || !(fileField instanceof Blob)) return fail('file is required');
-  if (!fileName)    return fail('fileName is required');
-  if (!clientName)  return fail('clientName is required');
+  if (!fileName) return fail('fileName is required');
+  if (!clientName) return fail('clientName is required');
   if (!mainCategory) return fail('mainCategory is required');
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return fail('monthKey must be YYYY-MM');
 
@@ -92,9 +119,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (subCategory) {
-    const validSubs = (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? []).map(s => s.slug);
+    const validSubs = (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? []).map((s) => s.slug);
     if (validSubs.length > 0 && !validSubs.includes(subCategory)) {
-      return fail(`Invalid subCategory "${subCategory}" for mainCategory "${mainCategory}". Must be one of: ${validSubs.join(', ')}`);
+      return fail(
+        `Invalid subCategory "${subCategory}" for mainCategory "${mainCategory}". Must be one of: ${validSubs.join(', ')}`,
+      );
     }
   }
 
@@ -107,7 +136,7 @@ export async function POST(req: NextRequest) {
 
   // Build the storage key and display name.
   const sanitizedFile = sanitizeFileName(fileName);
-  const timestamp     = Date.now();
+  const timestamp = Date.now();
 
   const storageKey = buildStorageKey({
     clientName,
@@ -115,17 +144,17 @@ export async function POST(req: NextRequest) {
     mainCategory,
     subCategory: subCategory || 'general',
     monthKey,
-    fileName:    sanitizedFile,
+    fileName: sanitizedFile,
     timestamp,
   });
 
   let displayName: string;
   if (customName) {
-    const base      = sanitizeFileName(customName);
-    const dotExt    = ext ? `.${ext}` : '';
+    const base = sanitizeFileName(customName);
+    const dotExt = ext ? `.${ext}` : '';
     const baseLower = base.toLowerCase();
-    const extLower  = dotExt.toLowerCase();
-    displayName = (dotExt && baseLower.endsWith(extLower)) ? base : `${base}${dotExt}`;
+    const extLower = dotExt.toLowerCase();
+    displayName = dotExt && baseLower.endsWith(extLower) ? base : `${base}${dotExt}`;
   } else {
     displayName = `${timestamp}-${sanitizedFile}`;
   }
@@ -134,7 +163,7 @@ export async function POST(req: NextRequest) {
 
   // ── Upload to R2 server-side ───────────────────────────────────────────────
   try {
-    const buffer      = Buffer.from(await fileField.arrayBuffer());
+    const buffer = Buffer.from(await fileField.arrayBuffer());
     const contentType = fileType || (fileField as File).type || 'application/octet-stream';
 
     await uploadFile({ key: storageKey, body: buffer, contentType });
@@ -143,7 +172,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ storageKey, publicUrl, displayName });
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;
     console.error('[upload/presign] upload failure', {
       provider: 'r2',

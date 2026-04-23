@@ -3,9 +3,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, LayoutDashboard, Users2, CheckSquare, FolderOpen,
-  BarChart2, Users, Shield, CalendarDays, FileText, Upload,
-  Plus, UserCheck, Settings, Zap,
+  Search,
+  LayoutDashboard,
+  Users2,
+  CheckSquare,
+  FolderOpen,
+  BarChart2,
+  Users,
+  Shield,
+  CalendarDays,
+  FileText,
+  Upload,
+  Plus,
+  UserCheck,
+  Settings,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -64,7 +76,10 @@ export default function CommandPalette({
       icon: Plus,
       group: 'Create',
       keywords: ['new', 'task', 'create', 'add'],
-      action: () => { onClose(); onOpenNewTask?.(); },
+      action: () => {
+        onClose();
+        onOpenNewTask?.();
+      },
     },
     {
       id: 'upload-file',
@@ -73,7 +88,10 @@ export default function CommandPalette({
       icon: Upload,
       group: 'Create',
       keywords: ['upload', 'file', 'asset', 'drive'],
-      action: () => { onClose(); onOpenUpload?.(); },
+      action: () => {
+        onClose();
+        onOpenUpload?.();
+      },
     },
 
     // ── Navigate ──
@@ -173,7 +191,9 @@ export default function CommandPalette({
       icon: Zap,
       group: 'AI Workflows',
       keywords: ['ai', 'client', 'onboard', 'new client', 'workflow'],
-      action: () => { onClose(); },
+      action: () => {
+        onClose();
+      },
     },
     {
       id: 'ai-prepare-month',
@@ -182,7 +202,9 @@ export default function CommandPalette({
       icon: Zap,
       group: 'AI Workflows',
       keywords: ['ai', 'month', 'plan', 'prepare', 'schedule'],
-      action: () => { onClose(); },
+      action: () => {
+        onClose();
+      },
     },
     {
       id: 'ai-clean-workspace',
@@ -191,19 +213,21 @@ export default function CommandPalette({
       icon: Zap,
       group: 'AI Workflows',
       keywords: ['ai', 'clean', 'audit', 'overdue', 'workspace'],
-      action: () => { onClose(); },
+      action: () => {
+        onClose();
+      },
     },
   ];
 
   // ── Filter ──────────────────────────────────────────────────────────────────
 
   const filtered = query.trim()
-    ? allActions.filter(a => {
+    ? allActions.filter((a) => {
         const q = query.toLowerCase();
         return (
           a.label.toLowerCase().includes(q) ||
           (a.description ?? '').toLowerCase().includes(q) ||
-          (a.keywords ?? []).some(k => k.toLowerCase().includes(q))
+          (a.keywords ?? []).some((k) => k.toLowerCase().includes(q))
         );
       })
     : allActions;
@@ -235,10 +259,10 @@ export default function CommandPalette({
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx(i => Math.min(i + 1, flatFiltered.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, flatFiltered.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIdx(i => Math.max(i - 1, 0));
+      setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const action = flatFiltered[activeIdx];
@@ -249,7 +273,9 @@ export default function CommandPalette({
   }
 
   // Reset active when query changes
-  useEffect(() => { setActiveIdx(0); }, [query]);
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [query]);
 
   if (!open) return null;
 
@@ -263,124 +289,134 @@ export default function CommandPalette({
       panelClassName="max-w-xl overflow-hidden"
       bodyClassName="p-0 overflow-hidden"
     >
-        {/* Search input */}
-        <div
-          className="flex items-center gap-3 px-4 border-b"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <Zap size={17} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search commands or navigate…"
-            className="flex-1 h-14 text-base bg-transparent outline-none"
-            style={{ color: 'var(--text)' }}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="text-xs px-2 py-1 rounded-lg hover:bg-[var(--surface-2)] transition-colors"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
+      {/* Search input */}
+      <div
+        className="flex items-center gap-3 border-b px-4"
+        style={{ borderColor: 'var(--border)' }}
+      >
+        <Zap size={17} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Search commands or navigate…"
+          className="h-14 flex-1 bg-transparent text-base outline-none"
+          style={{ color: 'var(--text)' }}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="rounded-lg px-2 py-1 text-xs transition-colors hover:bg-[var(--surface-2)]"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
-        {/* Results */}
-        <div
-          ref={listRef}
-          className="overflow-y-auto max-h-[60vh] py-2"
-        >
-          {flatFiltered.length === 0 && (
-            <div className="px-4 py-8 text-center">
-              <Search size={28} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text)' }} />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No commands found for &ldquo;{query}&rdquo;
-              </p>
+      {/* Results */}
+      <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-2">
+        {flatFiltered.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <Search
+              size={28}
+              className="mx-auto mb-3 opacity-30"
+              style={{ color: 'var(--text)' }}
+            />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              No commands found for &ldquo;{query}&rdquo;
+            </p>
+          </div>
+        )}
+
+        {(Object.entries(groups) as [string, PaletteAction[]][]).map(([group, items]) => (
+          <div key={group}>
+            <div className="px-4 pb-1 pt-3">
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {group}
+              </span>
             </div>
-          )}
-
-          {(Object.entries(groups) as [string, PaletteAction[]][]).map(([group, items]) => (
-            <div key={group}>
-              <div className="px-4 pt-3 pb-1">
-                <span
-                  className="text-[11px] font-semibold uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)' }}
+            {items.map((action) => {
+              const globalIdx = flatFiltered.indexOf(action);
+              const isActive = globalIdx === activeIdx;
+              return (
+                <button
+                  key={action.id}
+                  data-active={isActive}
+                  onClick={action.action}
+                  onMouseEnter={() => setActiveIdx(globalIdx)}
+                  className={clsx(
+                    'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                    isActive ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--surface-2)]',
+                  )}
                 >
-                  {group}
-                </span>
-              </div>
-              {items.map(action => {
-                const globalIdx = flatFiltered.indexOf(action);
-                const isActive = globalIdx === activeIdx;
-                return (
-                  <button
-                    key={action.id}
-                    data-active={isActive}
-                    onClick={action.action}
-                    onMouseEnter={() => setActiveIdx(globalIdx)}
-                    className={clsx(
-                      'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                      isActive ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--surface-2)]',
-                    )}
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                    style={{
+                      background: isActive ? 'var(--accent)' : 'var(--surface-2)',
+                    }}
                   >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{
-                        background: isActive ? 'var(--accent)' : 'var(--surface-2)',
-                      }}
-                    >
-                      <action.icon
-                        size={16}
-                        style={{ color: isActive ? '#fff' : 'var(--text-secondary)' }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className="text-sm font-medium"
-                        style={{ color: 'var(--text)' }}
-                      >
-                        {action.label}
+                    <action.icon
+                      size={16}
+                      style={{ color: isActive ? '#fff' : 'var(--text-secondary)' }}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {action.label}
+                    </p>
+                    {action.description && (
+                      <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {action.description}
                       </p>
-                      {action.description && (
-                        <p
-                          className="text-xs mt-0.5"
-                          style={{ color: 'var(--text-secondary)' }}
-                        >
-                          {action.description}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      style={{
-                        color: 'var(--text-secondary)',
-                        opacity: isActive ? 1 : 0,
-                        fontSize: 14,
-                        lineHeight: 1,
-                      }}
-                    >↵</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      color: 'var(--text-secondary)',
+                      opacity: isActive ? 1 : 0,
+                      fontSize: 14,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ↵
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
-        {/* Footer */}
-        <div
-          className="px-4 py-2.5 border-t flex items-center gap-4 text-[11px]"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-        >
-          <span><kbd className="font-mono bg-[var(--surface-2)] px-1.5 py-0.5 rounded text-[10px]">↑↓</kbd> Navigate</span>
-          <span><kbd className="font-mono bg-[var(--surface-2)] px-1.5 py-0.5 rounded text-[10px]">↵</kbd> Run</span>
-          <span><kbd className="font-mono bg-[var(--surface-2)] px-1.5 py-0.5 rounded text-[10px]">Esc</kbd> Close</span>
-          <span className="ml-auto opacity-60">⌘K to toggle</span>
-        </div>
+      {/* Footer */}
+      <div
+        className="flex items-center gap-4 border-t px-4 py-2.5 text-[11px]"
+        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+      >
+        <span>
+          <kbd className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px]">
+            ↑↓
+          </kbd>{' '}
+          Navigate
+        </span>
+        <span>
+          <kbd className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>{' '}
+          Run
+        </span>
+        <span>
+          <kbd className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px]">
+            Esc
+          </kbd>{' '}
+          Close
+        </span>
+        <span className="ml-auto opacity-60">⌘K to toggle</span>
+      </div>
     </AppModal>
   );
 }

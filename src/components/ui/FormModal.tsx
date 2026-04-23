@@ -38,7 +38,13 @@ export default function FormModal({
       bodyClassName={bodyClassName}
       footer={footer}
     >
-      {onSubmit ? <form onSubmit={onSubmit} className="openy-modal-stack">{children}</form> : children}
+      {onSubmit ? (
+        <form onSubmit={onSubmit} className="openy-modal-stack">
+          {children}
+        </form>
+      ) : (
+        children
+      )}
     </AppModal>
   );
 }

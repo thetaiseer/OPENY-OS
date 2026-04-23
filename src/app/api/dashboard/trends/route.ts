@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 
-
 /**
  * GET /api/dashboard/trends
  * Returns task completion counts grouped by date for the last 30 days.

@@ -17,7 +17,6 @@ import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-
 function monthLabel(ym: string): string {
   const [year, month] = ym.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
@@ -45,82 +44,112 @@ export async function GET(req: NextRequest) {
     const [clientsResult, tasksResult, assetsResult, schedulesResult, membersResult] =
       await Promise.allSettled([
         db.from('clients').select('id, name'),
-        db.from('tasks').select('id, status, priority, due_date, client_id, assignee_id, created_at'),
+        db
+          .from('tasks')
+          .select('id, status, priority, due_date, client_id, assignee_id, created_at'),
         db.from('assets').select('id, client_id, content_type, created_at'),
         db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
         db.from('team_members').select('id, full_name, role, profile_id').neq('status', 'invited'),
       ]);
 
-    const clients   = clientsResult.status   === 'fulfilled' ? (clientsResult.value.data   ?? []) : [];
-    const tasks     = tasksResult.status     === 'fulfilled' ? (tasksResult.value.data     ?? []) : [];
-    const assets    = assetsResult.status    === 'fulfilled' ? (assetsResult.value.data    ?? []) : [];
-    const schedules = schedulesResult.status === 'fulfilled' ? (schedulesResult.value.data ?? []) : [];
-    const members   = membersResult.status   === 'fulfilled' ? (membersResult.value.data   ?? []) : [];
+    const clients = clientsResult.status === 'fulfilled' ? (clientsResult.value.data ?? []) : [];
+    const tasks = tasksResult.status === 'fulfilled' ? (tasksResult.value.data ?? []) : [];
+    const assets = assetsResult.status === 'fulfilled' ? (assetsResult.value.data ?? []) : [];
+    const schedules =
+      schedulesResult.status === 'fulfilled' ? (schedulesResult.value.data ?? []) : [];
+    const members = membersResult.status === 'fulfilled' ? (membersResult.value.data ?? []) : [];
 
     const today = new Date().toISOString().slice(0, 10);
     const completedStatuses = new Set(['done', 'delivered', 'completed', 'published']);
 
     // ── Summary ───────────────────────────────────────────────────────────────
 
-    const completedTaskCount = tasks.filter((t: Record<string, string>) => completedStatuses.has(t.status)).length;
-    const publishedCount = schedules.filter((s: Record<string, string>) => s.status === 'published').length;
+    const completedTaskCount = tasks.filter((t: Record<string, string>) =>
+      completedStatuses.has(t.status),
+    ).length;
+    const publishedCount = schedules.filter(
+      (s: Record<string, string>) => s.status === 'published',
+    ).length;
 
     // ── Client stats ──────────────────────────────────────────────────────────
 
-    const clientStats = clients.map((c: Record<string, string>) => {
-      const cTasks = tasks.filter((t: Record<string, string>) => t.client_id === c.id);
-      const cAssets = assets.filter((a: Record<string, string>) => a.client_id === c.id);
-      return {
-        id: c.id,
-        name: c.name,
-        totalTasks: cTasks.length,
-        completedTasks: cTasks.filter((t: Record<string, string>) => completedStatuses.has(t.status)).length,
-        pendingTasks: cTasks.filter((t: Record<string, string>) => !completedStatuses.has(t.status) && t.status !== 'cancelled').length,
-        overdueTasks: cTasks.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status)).length,
-        totalAssets: cAssets.length,
-      };
-    }).sort((a: { totalTasks: number }, b: { totalTasks: number }) => b.totalTasks - a.totalTasks).slice(0, 15);
+    const clientStats = clients
+      .map((c: Record<string, string>) => {
+        const cTasks = tasks.filter((t: Record<string, string>) => t.client_id === c.id);
+        const cAssets = assets.filter((a: Record<string, string>) => a.client_id === c.id);
+        return {
+          id: c.id,
+          name: c.name,
+          totalTasks: cTasks.length,
+          completedTasks: cTasks.filter((t: Record<string, string>) =>
+            completedStatuses.has(t.status),
+          ).length,
+          pendingTasks: cTasks.filter(
+            (t: Record<string, string>) =>
+              !completedStatuses.has(t.status) && t.status !== 'cancelled',
+          ).length,
+          overdueTasks: cTasks.filter(
+            (t: Record<string, string>) =>
+              t.due_date && t.due_date < today && !completedStatuses.has(t.status),
+          ).length,
+          totalAssets: cAssets.length,
+        };
+      })
+      .sort((a: { totalTasks: number }, b: { totalTasks: number }) => b.totalTasks - a.totalTasks)
+      .slice(0, 15);
 
     // ── Team stats ────────────────────────────────────────────────────────────
 
     const teamStats = members
       .filter((m: Record<string, string>) => m.role !== 'client')
       .map((m: Record<string, string>) => {
-        const assigned = tasks.filter((t: Record<string, string>) => t.assignee_id === m.profile_id);
-        const completed = assigned.filter((t: Record<string, string>) => completedStatuses.has(t.status));
-        const overdue = assigned.filter((t: Record<string, string>) => t.due_date && t.due_date < today && !completedStatuses.has(t.status));
+        const assigned = tasks.filter(
+          (t: Record<string, string>) => t.assignee_id === m.profile_id,
+        );
+        const completed = assigned.filter((t: Record<string, string>) =>
+          completedStatuses.has(t.status),
+        );
+        const overdue = assigned.filter(
+          (t: Record<string, string>) =>
+            t.due_date && t.due_date < today && !completedStatuses.has(t.status),
+        );
         return {
           id: m.id,
           name: m.full_name,
           completedTasks: completed.length,
           totalAssigned: assigned.length,
-          completionRate: assigned.length > 0 ? Math.round((completed.length / assigned.length) * 100) : 0,
+          completionRate:
+            assigned.length > 0 ? Math.round((completed.length / assigned.length) * 100) : 0,
           overdueTasks: overdue.length,
         };
       })
       .filter((s: { totalAssigned: number }) => s.totalAssigned > 0)
-      .sort((a: { completedTasks: number }, b: { completedTasks: number }) => b.completedTasks - a.completedTasks)
+      .sort(
+        (a: { completedTasks: number }, b: { completedTasks: number }) =>
+          b.completedTasks - a.completedTasks,
+      )
       .slice(0, 10);
 
     // ── Platform stats ────────────────────────────────────────────────────────
 
-    const platformCounts: Record<string, { published: number; scheduled: number; missed: number }> = {};
+    const platformCounts: Record<string, { published: number; scheduled: number; missed: number }> =
+      {};
     for (const s of schedules as { status: string; platforms?: string[] }[]) {
-      for (const p of (s.platforms ?? [])) {
+      for (const p of s.platforms ?? []) {
         if (!platformCounts[p]) platformCounts[p] = { published: 0, scheduled: 0, missed: 0 };
-        if (s.status === 'published')                         platformCounts[p].published++;
+        if (s.status === 'published') platformCounts[p].published++;
         else if (s.status === 'scheduled' || s.status === 'queued') platformCounts[p].scheduled++;
-        else if (s.status === 'missed')                       platformCounts[p].missed++;
+        else if (s.status === 'missed') platformCounts[p].missed++;
       }
     }
     const platformStats = Object.entries(platformCounts)
       .map(([platform, counts]) => ({ platform, ...counts }))
-      .sort((a, b) => (b.published + b.scheduled) - (a.published + a.scheduled));
+      .sort((a, b) => b.published + b.scheduled - (a.published + a.scheduled));
 
     // ── Monthly trends ────────────────────────────────────────────────────────
 
     const months = last6Months();
-    const monthlyTrends = months.map(ym => {
+    const monthlyTrends = months.map((ym) => {
       const [y, m] = ym.split('-');
       const start = `${y}-${m}-01`;
       const daysInMonth = new Date(Number(y), Number(m), 0).getDate();
@@ -129,14 +158,19 @@ export async function GET(req: NextRequest) {
       return {
         month: ym,
         label: monthLabel(ym),
-        completedTasks: tasks.filter((t: Record<string, string>) =>
-          t.created_at >= start && t.created_at <= end + 'T23:59:59Z' && completedStatuses.has(t.status),
+        completedTasks: tasks.filter(
+          (t: Record<string, string>) =>
+            t.created_at >= start &&
+            t.created_at <= end + 'T23:59:59Z' &&
+            completedStatuses.has(t.status),
         ).length,
-        publishedPosts: schedules.filter((s: Record<string, string>) =>
-          s.scheduled_date >= start && s.scheduled_date <= end && s.status === 'published',
+        publishedPosts: schedules.filter(
+          (s: Record<string, string>) =>
+            s.scheduled_date >= start && s.scheduled_date <= end && s.status === 'published',
         ).length,
-        newAssets: assets.filter((a: Record<string, string>) =>
-          a.created_at >= start && a.created_at <= end + 'T23:59:59Z',
+        newAssets: assets.filter(
+          (a: Record<string, string>) =>
+            a.created_at >= start && a.created_at <= end + 'T23:59:59Z',
         ).length,
       };
     });
@@ -149,7 +183,8 @@ export async function GET(req: NextRequest) {
           totalTasks: tasks.length,
           totalAssets: assets.length,
           totalPublished: publishedCount,
-          completionRate: tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0,
+          completionRate:
+            tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0,
         },
         clientStats,
         teamStats,

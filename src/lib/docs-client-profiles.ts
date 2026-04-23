@@ -45,7 +45,11 @@ export function isVirtualDocsProfileId(id: string | null | undefined) {
 }
 
 export function buildClientSlug(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/(^-|-$)/g, '');
 }
 
 export async function fetchDocsClientProfiles(): Promise<DocsClientProfile[]> {
@@ -53,14 +57,14 @@ export async function fetchDocsClientProfiles(): Promise<DocsClientProfile[]> {
   if (!res.ok) {
     let apiError = '';
     try {
-      const json = await res.json() as { error?: string };
+      const json = (await res.json()) as { error?: string };
       apiError = json?.error ?? '';
     } catch {
       // ignore parse and fallback
     }
     throw new Error(apiError || 'Unable to load client document profiles.');
   }
-  const json = await res.json() as { profiles?: DocsClientProfile[] };
+  const json = (await res.json()) as { profiles?: DocsClientProfile[] };
   return json.profiles ?? [];
 }
 

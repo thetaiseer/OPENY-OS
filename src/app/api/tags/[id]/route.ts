@@ -13,13 +13,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const allowed: Record<string, unknown> = {};
-  if (typeof body.name        === 'string') allowed.name        = body.name.trim();
-  if (typeof body.color       === 'string') allowed.color       = body.color.trim();
+  if (typeof body.name === 'string') allowed.name = body.name.trim();
+  if (typeof body.color === 'string') allowed.color = body.color.trim();
   if (typeof body.description === 'string') allowed.description = body.description.trim();
 
   const db = getServiceClient();

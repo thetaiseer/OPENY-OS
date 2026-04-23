@@ -28,7 +28,7 @@ export async function POST(_req: NextRequest) {
         'This endpoint no longer accepts file uploads. ' +
         'POST multipart/form-data to /api/upload/presign to upload the file, ' +
         'then POST /api/upload/complete to save metadata.',
-      presignEndpoint:  '/api/upload/presign',
+      presignEndpoint: '/api/upload/presign',
       completeEndpoint: '/api/upload/complete',
       docs: 'See src/lib/upload-context.tsx for the reference implementation.',
     },

@@ -8,19 +8,19 @@ import { Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react';
 const REDIRECT_DELAY_MS = 2500;
 
 function ResetPasswordForm() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase     = createClient();
+  const supabase = createClient();
 
-  const [exchanging,  setExchanging]  = useState(true);
+  const [exchanging, setExchanging] = useState(true);
   const [exchangeErr, setExchangeErr] = useState<string | null>(null);
-  const [password,    setPassword]    = useState('');
-  const [confirmPw,   setConfirmPw]   = useState('');
-  const [showPw,      setShowPw]      = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading,     setLoading]     = useState(false);
-  const [formError,   setFormError]   = useState<string | null>(null);
-  const [success,     setSuccess]     = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   // Exchange the PKCE code from the URL for a session.
   useEffect(() => {
@@ -73,7 +73,7 @@ function ResetPasswordForm() {
   // ── Loading state (exchanging code) ────────────────────────────────────────
   if (exchanging) {
     return (
-      <div className="flex items-center justify-center h-20">
+      <div className="flex h-20 items-center justify-center">
         <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     );
@@ -82,13 +82,13 @@ function ResetPasswordForm() {
   // ── Error state (bad/expired code) ──────────────────────────────────────────
   if (exchangeErr) {
     return (
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <XCircle size={40} className="mx-auto" style={{ color: '#dc2626' }} />
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Reset link invalid
           </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {exchangeErr}
           </p>
         </div>
@@ -106,13 +106,13 @@ function ResetPasswordForm() {
   // ── Success state ───────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Password updated!
           </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Redirecting you to login…
           </p>
         </div>
@@ -135,18 +135,18 @@ function ResetPasswordForm() {
             autoComplete="new-password"
             required
             value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none transition-colors"
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-10 w-full rounded-lg px-3 pr-10 text-sm outline-none transition-colors"
             style={{
               background: 'var(--surface-2)',
-              color:      'var(--text)',
-              border:     '1px solid var(--border)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
             }}
             placeholder="At least 8 characters"
           />
           <button
             type="button"
-            onClick={() => setShowPw(v => !v)}
+            onClick={() => setShowPw((v) => !v)}
             tabIndex={-1}
             className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
             style={{ color: 'var(--text-secondary)' }}
@@ -169,18 +169,18 @@ function ResetPasswordForm() {
             autoComplete="new-password"
             required
             value={confirmPw}
-            onChange={e => setConfirmPw(e.target.value)}
-            className="w-full h-10 px-3 pr-10 rounded-lg text-sm outline-none transition-colors"
+            onChange={(e) => setConfirmPw(e.target.value)}
+            className="h-10 w-full rounded-lg px-3 pr-10 text-sm outline-none transition-colors"
             style={{
               background: 'var(--surface-2)',
-              color:      'var(--text)',
-              border:     `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : 'var(--border)'}`,
+              color: 'var(--text)',
+              border: `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : 'var(--border)'}`,
             }}
             placeholder="Repeat your password"
           />
           <button
             type="button"
-            onClick={() => setShowConfirm(v => !v)}
+            onClick={() => setShowConfirm((v) => !v)}
             tabIndex={-1}
             className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
             style={{ color: 'var(--text-secondary)' }}
@@ -190,17 +190,19 @@ function ResetPasswordForm() {
           </button>
         </div>
         {confirmPw && confirmPw !== password && (
-          <p className="text-xs" style={{ color: '#ef4444' }}>Passwords do not match.</p>
+          <p className="text-xs" style={{ color: '#ef4444' }}>
+            Passwords do not match.
+          </p>
         )}
       </div>
 
       {formError && (
         <p
-          className="text-sm rounded-lg px-3 py-2"
+          className="rounded-lg px-3 py-2 text-sm"
           style={{
             background: 'rgba(239,68,68,0.08)',
-            color:      '#ef4444',
-            border:     '1px solid rgba(239,68,68,0.25)',
+            color: '#ef4444',
+            border: '1px solid rgba(239,68,68,0.25)',
           }}
         >
           {formError}
@@ -210,7 +212,7 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={loading || !password || password !== confirmPw}
-        className="w-full h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
         style={{ background: 'var(--accent)', color: '#fff' }}
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -223,14 +225,14 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div
-      className="w-full max-w-sm rounded-2xl border p-8 space-y-6 shadow-lg"
+      className="w-full max-w-sm space-y-6 rounded-2xl border p-8 shadow-lg"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
           OPENY <span style={{ color: 'var(--accent)' }}>OS</span>
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
           Set a new password
         </p>
       </div>

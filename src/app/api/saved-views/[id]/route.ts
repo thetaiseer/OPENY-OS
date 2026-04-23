@@ -13,22 +13,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const allowed: Record<string, unknown> = {};
-  if (typeof body.name       === 'string')  allowed.name       = body.name.trim();
-  if (typeof body.view_type  === 'string')  allowed.view_type  = body.view_type;
-  if (typeof body.filters    === 'object')  allowed.filters    = body.filters;
+  if (typeof body.name === 'string') allowed.name = body.name.trim();
+  if (typeof body.view_type === 'string') allowed.view_type = body.view_type;
+  if (typeof body.filters === 'object') allowed.filters = body.filters;
   if (typeof body.sort_config === 'object') allowed.sort_config = body.sort_config;
-  if (typeof body.group_by   === 'string')  allowed.group_by   = body.group_by || null;
-  if (Array.isArray(body.columns))          allowed.columns    = body.columns;
+  if (typeof body.group_by === 'string') allowed.group_by = body.group_by || null;
+  if (Array.isArray(body.columns)) allowed.columns = body.columns;
   if (typeof body.is_default === 'boolean') allowed.is_default = body.is_default;
-  if (typeof body.is_shared  === 'boolean') allowed.is_shared  = body.is_shared;
+  if (typeof body.is_shared === 'boolean') allowed.is_shared = body.is_shared;
 
   const db = getServiceClient();
-  const { data, error } = await db.from('saved_views').update(allowed).eq('id', id).select().single();
+  const { data, error } = await db
+    .from('saved_views')
+    .update(allowed)
+    .eq('id', id)
+    .select()
+    .single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, view: data });
 }

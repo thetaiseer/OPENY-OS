@@ -12,13 +12,7 @@
  *  - initialPrompt — optional pre-filled prompt when opening
  */
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -64,23 +58,23 @@ interface AiContextValue {
 
 function pathnameToSection(pathname: string): AppSection {
   if (pathname.startsWith('/os/dashboard')) return 'dashboard';
-  if (pathname.startsWith('/os/clients'))   return 'clients';
-  if (pathname.startsWith('/os/tasks'))     return 'tasks';
-  if (pathname.startsWith('/os/content'))   return 'content';
-  if (pathname.startsWith('/os/calendar'))  return 'calendar';
-  if (pathname.startsWith('/os/assets'))    return 'assets';
-  if (pathname.startsWith('/os/reports'))   return 'reports';
-  if (pathname.startsWith('/os/team'))      return 'team';
-  if (pathname.startsWith('/os/settings'))  return 'settings';
+  if (pathname.startsWith('/os/clients')) return 'clients';
+  if (pathname.startsWith('/os/tasks')) return 'tasks';
+  if (pathname.startsWith('/os/content')) return 'content';
+  if (pathname.startsWith('/os/calendar')) return 'calendar';
+  if (pathname.startsWith('/os/assets')) return 'assets';
+  if (pathname.startsWith('/os/reports')) return 'reports';
+  if (pathname.startsWith('/os/team')) return 'team';
+  if (pathname.startsWith('/os/settings')) return 'settings';
   if (pathname.startsWith('/dashboard')) return 'dashboard';
-  if (pathname.startsWith('/clients'))   return 'clients';
-  if (pathname.startsWith('/tasks'))     return 'tasks';
-  if (pathname.startsWith('/content'))   return 'content';
-  if (pathname.startsWith('/calendar'))  return 'calendar';
-  if (pathname.startsWith('/assets'))    return 'assets';
-  if (pathname.startsWith('/reports'))   return 'reports';
-  if (pathname.startsWith('/team'))      return 'team';
-  if (pathname.startsWith('/settings'))  return 'settings';
+  if (pathname.startsWith('/clients')) return 'clients';
+  if (pathname.startsWith('/tasks')) return 'tasks';
+  if (pathname.startsWith('/content')) return 'content';
+  if (pathname.startsWith('/calendar')) return 'calendar';
+  if (pathname.startsWith('/assets')) return 'assets';
+  if (pathname.startsWith('/reports')) return 'reports';
+  if (pathname.startsWith('/team')) return 'team';
+  if (pathname.startsWith('/settings')) return 'settings';
   return 'general';
 }
 
@@ -90,18 +84,18 @@ const AiCtx = createContext<AiContextValue | null>(null);
 
 export function AiProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen]               = useState(false);
-  const [mode, setMode]                   = useState<AiMode>('ask');
+  const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<AiMode>('ask');
   const [clientContext, setClientContext] = useState<ClientContext | null>(null);
   const [initialPrompt, setInitialPrompt] = useState('');
 
   const section = useMemo(() => pathnameToSection(pathname), [pathname]);
 
   const open = useCallback((opts?: OpenOptions) => {
-    if (opts?.mode)          setMode(opts.mode);
+    if (opts?.mode) setMode(opts.mode);
     if (opts?.clientContext) setClientContext(opts.clientContext);
-    if (opts?.prompt)        setInitialPrompt(opts.prompt);
-    else                     setInitialPrompt('');
+    if (opts?.prompt) setInitialPrompt(opts.prompt);
+    else setInitialPrompt('');
     setIsOpen(true);
   }, []);
 

@@ -26,14 +26,16 @@ export async function POST(request: NextRequest) {
   if (!teamMemberId) {
     return NextResponse.json({ error: 'team_member_id is required' }, { status: 400 });
   }
-  const appUrl   = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const fromEmail =
     process.env.INVITE_FROM_EMAIL ??
     process.env.RESEND_FROM_EMAIL ??
     'OPENY OS <noreply@openy-os.com>';
 
   if (!appUrl) {
-    console.warn('[team/invite/resend] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
+    console.warn(
+      '[team/invite/resend] NEXT_PUBLIC_APP_URL is not set — invite links will be broken',
+    );
   }
 
   const db = getServiceClient();
@@ -49,28 +51,35 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (error || !invitation) {
-    return NextResponse.json({ error: 'No pending invitation found for this member.' }, { status: 404 });
+    return NextResponse.json(
+      { error: 'No pending invitation found for this member.' },
+      { status: 404 },
+    );
   }
 
   // Resolve full_name and role from the team_member join
-  const memberData  = Array.isArray(invitation.team_member)
+  const memberData = Array.isArray(invitation.team_member)
     ? invitation.team_member[0]
     : invitation.team_member;
   const memberFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
-  const memberRole     = (memberData as { role?: string } | null)?.role
+  const memberRole =
+    (memberData as { role?: string } | null)?.role ??
     // Fallback to invitation.role while `role` still exists on team_invitations
     // for backward compatibility with rows created before the schema migration.
-    ?? (invitation as { role?: string }).role ?? '';
+    (invitation as { role?: string }).role ??
+    '';
 
   // Generate a fresh token and extend expiry
-  const newToken    = randomBytes(32).toString('hex');
-  const newExpiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const newToken = randomBytes(32).toString('hex');
+  const newExpiresAt = new Date(
+    Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   const { error: updateError } = await db
     .from('team_invitations')
     .update({
-      token:      newToken,
-      status:     INVITATION_STATUS.PENDING,
+      token: newToken,
+      status: INVITATION_STATUS.PENDING,
       expires_at: newExpiresAt,
       updated_at: new Date().toISOString(),
     })
@@ -90,39 +99,39 @@ export async function POST(request: NextRequest) {
   const inviteUrl = `${appUrl}/invite?token=${newToken}`;
   const html = teamInviteEmail({
     recipientName: memberFullName,
-    inviterName:   auth.profile.name,
+    inviterName: auth.profile.name,
     workspaceName: 'OPENY OS',
-    role:          memberRole,
+    role: memberRole,
     inviteUrl,
     expiresInDays: INVITE_EXPIRY_DAYS,
   });
 
   try {
     await sendEmail({
-      to:      invitation.email,
+      to: invitation.email,
       subject: "You're invited to join OPENY OS",
       html,
-      from:    fromEmail,
+      from: fromEmail,
     });
     await logEmailSent({
-      to:         invitation.email,
-      subject:    "You're invited to join OPENY OS",
-      eventType:  'team_invite_resend',
+      to: invitation.email,
+      subject: "You're invited to join OPENY OS",
+      eventType: 'team_invite_resend',
       entityType: 'team_invitation',
-      entityId:   invitation.id,
-      status:     'sent',
+      entityId: invitation.id,
+      status: 'sent',
     });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.error('[team/invite/resend] Email send failed:', errMsg);
     await logEmailSent({
-      to:         invitation.email,
-      subject:    "You're invited to join OPENY OS",
-      eventType:  'team_invite_resend',
+      to: invitation.email,
+      subject: "You're invited to join OPENY OS",
+      eventType: 'team_invite_resend',
       entityType: 'team_invitation',
-      entityId:   invitation.id,
-      status:     'failed',
-      error:      errMsg,
+      entityId: invitation.id,
+      status: 'failed',
+      error: errMsg,
     });
     return NextResponse.json(
       { error: `Failed to send invitation email: ${errMsg}` },

@@ -69,7 +69,7 @@ export default function AppModal({
         root.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
-      ).filter(el => !el.hasAttribute('disabled'));
+      ).filter((el) => !el.hasAttribute('disabled'));
     };
 
     requestAnimationFrame(() => {
@@ -133,7 +133,7 @@ export default function AppModal({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className={`openy-modal-panel w-full ${widthMap[size]} rounded-[var(--modal-radius)] max-h-[92dvh] flex flex-col ${panelClassName}`}
+            className={`openy-modal-panel w-full ${widthMap[size]} flex max-h-[92dvh] flex-col rounded-[var(--modal-radius)] ${panelClassName}`}
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -141,10 +141,10 @@ export default function AppModal({
           >
             {shouldRenderHeader && (
               <div className="openy-modal-header shrink-0">
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex min-w-0 items-center gap-2.5">
                   {icon && (
                     <div
-                      className="w-8 h-8 rounded-xl inline-flex items-center justify-center shrink-0"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
                       style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                     >
                       {icon}
@@ -155,25 +155,27 @@ export default function AppModal({
                     {subtitle && <p className="openy-modal-subtitle truncate">{subtitle}</p>}
                   </div>
                 </div>
-                <button ref={closeButtonRef} type="button" onClick={onClose} className="openy-modal-close shrink-0" aria-label="Close modal">
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  onClick={onClose}
+                  className="openy-modal-close shrink-0"
+                  aria-label="Close modal"
+                >
                   <X size={16} />
                 </button>
               </div>
             )}
 
-            <div className={`openy-modal-body overflow-y-auto flex-1 ${bodyClassName}`}>
+            <div className={`openy-modal-body flex-1 overflow-y-auto ${bodyClassName}`}>
               {children}
             </div>
 
-            {footer && (
-              <div className="openy-modal-footer shrink-0">
-                {footer}
-              </div>
-            )}
+            {footer && <div className="openy-modal-footer shrink-0">{footer}</div>}
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
-    , document.body
+    </AnimatePresence>,
+    document.body,
   );
 }

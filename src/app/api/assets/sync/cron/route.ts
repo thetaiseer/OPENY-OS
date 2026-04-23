@@ -13,7 +13,8 @@ export async function GET() {
   return NextResponse.json(
     {
       success: false,
-      error:   'Google Drive sync has been removed. Assets are stored in Cloudflare R2 and synced to the database automatically on upload.',
+      error:
+        'Google Drive sync has been removed. Assets are stored in Cloudflare R2 and synced to the database automatically on upload.',
     },
     { status: 410 },
   );

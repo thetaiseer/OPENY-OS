@@ -28,13 +28,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
   const allowed: Record<string, unknown> = {};
-  if (typeof body.title     === 'string')  allowed.title     = body.title.trim();
-  if (typeof body.content   === 'string')  allowed.content   = body.content;
+  if (typeof body.title === 'string') allowed.title = body.title.trim();
+  if (typeof body.content === 'string') allowed.content = body.content;
   if (typeof body.is_pinned === 'boolean') allowed.is_pinned = body.is_pinned;
   allowed.updated_at = new Date().toISOString();
 
@@ -44,11 +46,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
   void emitEvent(db, {
-    event_type:  EVENT.NOTE_UPDATED,
+    event_type: EVENT.NOTE_UPDATED,
     entity_type: 'note',
-    entity_id:   id,
-    actor_id:    auth.profile.id,
-    payload:     { changes: allowed },
+    entity_id: id,
+    actor_id: auth.profile.id,
+    payload: { changes: allowed },
   });
 
   return NextResponse.json({ success: true, note: data });

@@ -24,10 +24,7 @@ import { EVENT } from '@/lib/workspace-events';
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -63,10 +60,7 @@ export async function GET(
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
@@ -117,9 +111,17 @@ export async function PATCH(
       if (raw !== undefined) {
         const access = String(raw) as ModuleAccess;
         if (!VALID_ACCESS.includes(access)) {
-          return NextResponse.json({ error: `Invalid access level "${raw}" for os.${mod}` }, { status: 400 });
+          return NextResponse.json(
+            { error: `Invalid access level "${raw}" for os.${mod}` },
+            { status: 400 },
+          );
         }
-        rows.push({ team_member_id: id, workspace: 'os', module: mod as OsModule, access_level: access });
+        rows.push({
+          team_member_id: id,
+          workspace: 'os',
+          module: mod as OsModule,
+          access_level: access,
+        });
       }
     }
   }
@@ -130,9 +132,17 @@ export async function PATCH(
       if (raw !== undefined) {
         const access = String(raw) as ModuleAccess;
         if (!VALID_ACCESS.includes(access)) {
-          return NextResponse.json({ error: `Invalid access level "${raw}" for docs.${mod}` }, { status: 400 });
+          return NextResponse.json(
+            { error: `Invalid access level "${raw}" for docs.${mod}` },
+            { status: 400 },
+          );
         }
-        rows.push({ team_member_id: id, workspace: 'docs', module: mod as DocsModule, access_level: access });
+        rows.push({
+          team_member_id: id,
+          workspace: 'docs',
+          module: mod as DocsModule,
+          access_level: access,
+        });
       }
     }
   }
@@ -156,19 +166,22 @@ export async function PATCH(
     .select('id, team_member_id, workspace, module, access_level, created_at, updated_at')
     .eq('team_member_id', id);
 
-  const permissions = resolveEffectivePermissions(memberRole, (overrides ?? []) as MemberPermissionRow[]);
+  const permissions = resolveEffectivePermissions(
+    memberRole,
+    (overrides ?? []) as MemberPermissionRow[],
+  );
 
   // Activity log — fire and forget
   void processEvent({
-    event_type:  EVENT.PERMISSION_CHANGED,
-    actor_id:    auth.profile.id,
+    event_type: EVENT.PERMISSION_CHANGED,
+    actor_id: auth.profile.id,
     entity_type: 'team_member',
-    entity_id:   id,
+    entity_id: id,
     payload: {
-      memberName:  member.full_name,
-      actorName:   auth.profile.name,
-      changeType:  'permissions',
-      modulesUpdated: rows.map(r => `${r.workspace}.${r.module}`),
+      memberName: member.full_name,
+      actorName: auth.profile.name,
+      changeType: 'permissions',
+      modulesUpdated: rows.map((r) => `${r.workspace}.${r.module}`),
     },
   });
 

@@ -12,18 +12,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 
+const VALID_EVENT_TYPES = [
+  'task',
+  'publishing',
+  'deadline',
+  'meeting',
+  'reminder',
+  'other',
+] as const;
+const VALID_STATUSES = ['active', 'cancelled', 'completed'] as const;
 
-const VALID_EVENT_TYPES = ['task', 'publishing', 'deadline', 'meeting', 'reminder', 'other'] as const;
-const VALID_STATUSES    = ['active', 'cancelled', 'completed'] as const;
-
-interface Params { id: string }
+interface Params {
+  id: string;
+}
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<Params> },
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -76,7 +81,10 @@ export async function PATCH(
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'No valid fields to update' },
+        { status: 400 },
+      );
     }
 
     const { data, error } = await db
@@ -103,10 +111,7 @@ export async function PATCH(
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<Params> },
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -115,10 +120,7 @@ export async function DELETE(
   try {
     const db = getServiceClient();
 
-    const { error } = await db
-      .from('calendar_events')
-      .delete()
-      .eq('id', id);
+    const { error } = await db.from('calendar_events').delete().eq('id', id);
 
     if (error) {
       console.error('[DELETE /api/calendar-events/[id]] error:', error.message);
