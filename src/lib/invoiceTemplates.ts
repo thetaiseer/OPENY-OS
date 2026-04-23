@@ -1,9 +1,9 @@
-import type { InvoiceBranchGroup } from '@/lib/docs-types';
 import {
   createDefaultProIconKsaBranchConfigs,
   generateProIconKsaInvoice,
   PRO_ICON_KSA_TEMPLATE_CONFIG,
   PRO_ICON_KSA_TEMPLATE_KEY,
+  type InvoiceBranchGroup,
   type ProIconKsaBranchConfig,
 } from '@/lib/proIconKsaTemplate';
 

@@ -1,8 +1,22 @@
-import type {
-  InvoiceBranchGroup,
-  InvoiceCampaignRow,
-  InvoicePlatformGroup,
-} from '@/lib/docs-types';
+export interface InvoiceCampaignRow {
+  id: string;
+  ad_name: string;
+  date: string;
+  results: string;
+  cost: number;
+}
+
+export interface InvoicePlatformGroup {
+  id: string;
+  platform_name: string;
+  campaign_rows: InvoiceCampaignRow[];
+}
+
+export interface InvoiceBranchGroup {
+  id: string;
+  branch_name: string;
+  platform_groups: InvoicePlatformGroup[];
+}
 
 export const PRO_ICON_KSA_TEMPLATE_KEY = 'pro_icon_ksa' as const;
 export const PRO_ICON_KSA_TEMPLATE_LABEL = 'Pro icon KSA';
