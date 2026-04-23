@@ -3,10 +3,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { createClient } from './supabase/client';
-import type { User } from './types';
-import { OWNER_EMAIL } from './constants/auth';
-import { mapWorkspaceRoleToUserRole, type WorkspaceKey, type WorkspaceRole } from './workspace-access';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@/lib/types';
+import { OWNER_EMAIL } from '@/lib/constants/auth';
+import { mapWorkspaceRoleToUserRole, type WorkspaceKey, type WorkspaceRole } from '@/lib/workspace-access';
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
 

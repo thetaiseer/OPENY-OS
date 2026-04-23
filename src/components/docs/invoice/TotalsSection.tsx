@@ -6,16 +6,24 @@ const DOC_BLACK = OPENY_DOC_BLACK;
 
 const labelCell: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: '8px 10px',
+  borderRight: '1px solid #fff',
+  padding: '8px 12px',
   fontWeight: 700,
-  textAlign: 'left',
+  fontSize: 11,
+  textAlign: 'right',
+  background: '#fff',
+  width: '60%',
 };
 
 const valueCell: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: '8px 10px',
+  padding: '8px 12px',
   fontWeight: 700,
-  textAlign: 'right',
+  fontSize: 11,
+  textAlign: 'center',
+  background: '#fff',
+  whiteSpace: 'nowrap',
+  width: '40%',
 };
 
 function fmt(v: number, cur: string) {
@@ -59,14 +67,17 @@ export default function TotalsSection({
             <td
               style={{
                 ...labelCell,
+                borderRight: `1px solid ${DOC_BLACK}`,
                 fontWeight: 900,
                 background: DOC_BLACK,
                 color: '#fff',
                 textAlign: 'center',
                 fontSize: 12,
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
               }}
             >
-              GRAND TOTAL
+              Grand Total
             </td>
             <td
               style={{
@@ -74,9 +85,7 @@ export default function TotalsSection({
                 fontWeight: 900,
                 background: DOC_BLACK,
                 color: '#fff',
-                textAlign: 'center',
                 fontSize: 12,
-                whiteSpace: 'nowrap',
               }}
             >
               {fmt(totals.grandTotal, currency)}

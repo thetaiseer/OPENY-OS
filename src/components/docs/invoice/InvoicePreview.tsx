@@ -31,7 +31,7 @@ function shouldBreakBeforeBranch(index: number, branchName: string): boolean {
  *   OpenyDocumentPage (A4 white canvas)
  *   └─ OpenyDocumentHeader  — logo | INVOICE | REF + DATE
  *   └─ OpenyClientBlock     — BILLED TO + campaign month
- *   └─ BranchTable × N      — per-branch rows via PlatformBlock
+ *   └─ BranchTable × N      — per-branch campaign rows with platform grouping
  *   └─ TotalsSection        — Final Budget | Our Fees | GRAND TOTAL
  *   └─ Notes                — optional free-text
  */

@@ -1,26 +1,26 @@
 import type { CSSProperties } from 'react';
-import type { InvoiceDocumentBranchTable, InvoiceDocumentRow } from '@/lib/docs-invoice-document-model';
+import type { InvoiceDocumentBranchTable } from '@/lib/docs-invoice-document-model';
 import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
-import PlatformBlock from './PlatformBlock';
 
 const DOC_BLACK = OPENY_DOC_BLACK;
 
-const headerCell: CSSProperties = {
+const th: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   borderRight: '1px solid #fff',
-  padding: 12,
-  textAlign: 'left',
+  padding: '10px 12px',
   fontSize: 10,
-  letterSpacing: 1.2,
   fontWeight: 800,
+  letterSpacing: 1.2,
   textTransform: 'uppercase',
+  textAlign: 'left',
 };
 
-const bodyCell: CSSProperties = {
+const td: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: 6,
+  padding: '6px 8px',
   fontSize: 11,
-  verticalAlign: 'top',
+  verticalAlign: 'middle',
+  background: '#fff',
 };
 
 function fmt(v: number, cur: string) {
@@ -31,22 +31,12 @@ function fmt(v: number, cur: string) {
   }).format(v || 0);
 }
 
-/** Split flat model rows into per-platform groups using the showPlatform flag. */
-function groupByPlatform(rows: InvoiceDocumentRow[]): InvoiceDocumentRow[][] {
-  const groups: InvoiceDocumentRow[][] = [];
-  for (const row of rows) {
-    if (row.showPlatform || groups.length === 0) {
-      groups.push([row]);
-    } else {
-      groups[groups.length - 1]!.push(row);
-    }
-  }
-  return groups;
-}
-
 /**
- * Renders one branch section: a black header bar followed by a table of
- * campaign rows grouped by platform via PlatformBlock.
+ * Renders one branch section exactly matching the OPENY-DOCS invoice layout:
+ *  - Full-width black branch-name header row (colspan 6) inside <thead>
+ *  - Column headers row (Branch / Platform / Ad Name / Date / Results / Cost)
+ *  - Campaign rows with proper rowSpan for the branch cell and platform cell
+ *  - Grey subtotal row at the bottom
  */
 export default function BranchTable({
   branchTable,
@@ -55,77 +45,117 @@ export default function BranchTable({
   branchTable: InvoiceDocumentBranchTable;
   currency: string;
 }) {
-  const platformGroups = groupByPlatform(branchTable.rows);
+  const rows = branchTable.rows;
+  const totalRows = rows.length;
 
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* Branch header bar */}
-      <div
-        style={{
-          background: DOC_BLACK,
-          color: '#fff',
-          fontWeight: 700,
-          fontSize: 12,
-          padding: '6px 10px',
-        }}
-      >
-        {branchTable.branchName || 'Branch'}
-      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '13%' }} />
+          <col style={{ width: '33%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '16%' }} />
+        </colgroup>
 
-      {/* Campaign rows table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
+          {/* Branch name — full-width black header spanning all columns */}
           <tr style={{ background: DOC_BLACK, color: '#fff' }}>
-            <th style={headerCell}>BRANCH</th>
-            <th style={headerCell}>PLATFORM</th>
-            <th style={headerCell}>AD NAME</th>
-            <th style={headerCell}>DATE</th>
-            <th style={headerCell}>RESULTS</th>
-            <th style={{ ...headerCell, textAlign: 'right' }}>COST ({currency})</th>
+            <th
+              colSpan={6}
+              style={{
+                border: `1px solid ${DOC_BLACK}`,
+                padding: '10px 12px',
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
+                textAlign: 'center',
+              }}
+            >
+              {branchTable.branchName}
+            </th>
+          </tr>
+
+          {/* Column headers */}
+          <tr style={{ background: DOC_BLACK, color: '#fff' }}>
+            {(['BRANCH', 'PLATFORM', 'AD NAME', 'DATE', 'RESULTS'] as const).map((col) => (
+              <th key={col} style={th}>{col}</th>
+            ))}
+            <th
+              style={{
+                ...th,
+                borderRight: `1px solid ${DOC_BLACK}`,
+                textAlign: 'right',
+              }}
+            >
+              COST ({currency})
+            </th>
           </tr>
         </thead>
+
         <tbody>
-          {platformGroups.length === 0 ? (
-            /* Empty state row */
+          {totalRows === 0 ? (
             <tr>
-              <td style={bodyCell}>{branchTable.branchName}</td>
-              <td style={bodyCell}>—</td>
-              <td style={bodyCell}>—</td>
-              <td style={bodyCell}>—</td>
-              <td style={bodyCell}>—</td>
-              <td style={{ ...bodyCell, textAlign: 'right' }}>{fmt(0, currency)}</td>
+              <td colSpan={6} style={{ ...td, textAlign: 'center', color: '#666' }}>
+                No campaign data.
+              </td>
             </tr>
           ) : (
-            platformGroups.map((rows, platformIndex) => (
-              <PlatformBlock
-                key={`${branchTable.id}-platform-${platformIndex}`}
-                rows={rows}
-                currency={currency}
-                branchTableId={branchTable.id}
-                platformIndex={platformIndex}
-              />
+            rows.map((row, rowIndex) => (
+              <tr key={`${branchTable.id}-r${rowIndex}`} style={{ pageBreakInside: 'avoid' }}>
+
+                {/* Branch cell — rowSpan covers all rows in this branch */}
+                {rowIndex === 0 && (
+                  <td
+                    rowSpan={totalRows}
+                    style={{ ...td, textAlign: 'center', fontWeight: 600 }}
+                  >
+                    {row.branch || branchTable.branchName}
+                  </td>
+                )}
+
+                {/* Platform cell — rowSpan covers all rows for this platform */}
+                {row.showPlatform && (
+                  <td
+                    rowSpan={row.platformSpan}
+                    style={{ ...td, textAlign: 'center' }}
+                  >
+                    {row.platform || '—'}
+                  </td>
+                )}
+
+                <td style={td}>{row.ad_name || '—'}</td>
+                <td style={{ ...td, whiteSpace: 'nowrap' }}>{row.date || '—'}</td>
+                <td style={td}>{row.results || '—'}</td>
+                <td style={{ ...td, textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {fmt(row.cost, currency)}
+                </td>
+              </tr>
             ))
           )}
 
-          {/* Branch subtotal row */}
+          {/* Branch subtotal */}
           <tr>
             <td
               colSpan={5}
               style={{
-                ...bodyCell,
+                ...td,
                 background: '#E5E7EB',
-                textAlign: 'right',
                 fontWeight: 700,
+                textAlign: 'right',
               }}
             >
-              Subtotal ({branchTable.branchName || 'Branch'})
+              {branchTable.branchName} Total
             </td>
             <td
               style={{
-                ...bodyCell,
+                ...td,
                 background: '#E5E7EB',
-                textAlign: 'right',
                 fontWeight: 700,
+                textAlign: 'right',
                 whiteSpace: 'nowrap',
               }}
             >
