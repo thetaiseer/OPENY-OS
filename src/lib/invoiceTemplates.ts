@@ -1,7 +1,7 @@
 import type { InvoiceBranchGroup } from '@/lib/docs-types';
+import { generateProIconKsa } from '@/lib/invoice-templates';
 import {
   createDefaultProIconKsaBranchConfigs,
-  generateProIconKsaInvoice,
   PRO_ICON_KSA_TEMPLATE_CONFIG,
   PRO_ICON_KSA_TEMPLATE_KEY,
   type ProIconKsaBranchConfig,
@@ -63,24 +63,54 @@ export interface ApplyInvoiceTemplateParams {
   fees?: number;
 }
 
+const DEFAULT_PRO_ICON_KSA_PLATFORMS = [
+  { type: 'instagram', percentage: 50, campaignCount: 2 },
+  { type: 'snapchat', percentage: 30, campaignCount: 1 },
+  { type: 'tiktok', percentage: 20, campaignCount: 1 },
+] as const;
+
+function normalizePlatformLabel(platform: string) {
+  return platform
+    .split('_')
+    .map((segment) => segment.slice(0, 1).toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
+function templateOutputToBranchGroups(output: Awaited<ReturnType<typeof generateProIconKsa>>): InvoiceBranchGroup[] {
+  return output.branches.map((branch, branchIndex) => ({
+    id: `branch-${branchIndex}-${branch.branch}`,
+    branch_name: normalizePlatformLabel(branch.branch),
+    platform_groups: branch.platforms.map((platform, platformIndex) => ({
+      id: `platform-${branchIndex}-${platformIndex}-${platform.platform}`,
+      platform_name: normalizePlatformLabel(String(platform.platform)),
+      campaign_rows: platform.campaigns.map((campaign, campaignIndex) => ({
+        id: `row-${branchIndex}-${platformIndex}-${campaignIndex}`,
+        ad_name: campaign.adName,
+        date: campaign.date,
+        results: String(campaign.results),
+        cost: campaign.cost,
+      })),
+    })),
+  }));
+}
+
 export function applyInvoiceTemplate(params: ApplyInvoiceTemplateParams): AppliedInvoiceTemplate {
   if (params.templateKey === PRO_ICON_KSA_TEMPLATE_KEY) {
     const defaultBranchConfigs = createDefaultProIconKsaBranchConfigs();
-    const generated = generateProIconKsaInvoice({
-      campaignMonth: params.campaignMonth,
-      invoiceDate: params.invoiceDate,
+    const generated = generateProIconKsa({
       totalBudget: params.totalBudget ?? PRO_ICON_KSA_TEMPLATE_CONFIG.defaultTotalBudget,
-      fees: params.fees ?? PRO_ICON_KSA_TEMPLATE_CONFIG.defaultFees,
-      clientName: PRO_ICON_KSA_TEMPLATE_CONFIG.clientName,
-      branchConfigs: defaultBranchConfigs,
+      month: params.campaignMonth,
+      currency: PRO_ICON_KSA_TEMPLATE_CONFIG.defaultCurrency,
+      platforms: DEFAULT_PRO_ICON_KSA_PLATFORMS,
     });
+
     return {
       templateKey: PRO_ICON_KSA_TEMPLATE_KEY,
-      clientName: generated.clientName,
-      totalBudget: generated.totalBudgetInput,
-      fees: generated.fees,
-      grandTotal: generated.grandTotal,
-      branchGroups: generated.branchGroups,
+      clientName: PRO_ICON_KSA_TEMPLATE_CONFIG.clientName,
+      totalBudget: params.totalBudget ?? PRO_ICON_KSA_TEMPLATE_CONFIG.defaultTotalBudget,
+      fees: generated.fixedFee,
+      grandTotal: Number((generated.total + generated.fixedFee).toFixed(2)),
+      branchGroups: templateOutputToBranchGroups(generated),
       defaultBranchConfigs,
     };
   }
