@@ -226,20 +226,12 @@ export async function GET(
 
   archive.pipe(passThrough);
 
-  // Process files sequentially and append to archive, then finalise — all in
-  // a detached async IIFE so the HTTP response body starts streaming immediately.
-  let filesAdded = 0;
-  let filesSkipped = 0;
-
   (async () => {
     for (const asset of r2Assets) {
       // Prefer the canonical storage_key. Fall back to file_path only when the
       // asset is explicitly r2-hosted (consistent with the DELETE route pattern).
       const key = getAssetStorageKey(asset);
-      if (!key) {
-        filesSkipped++;
-        continue;
-      }
+      if (!key) continue;
 
       const zipPath = buildZipPath(clientName, asset);
 
@@ -247,13 +239,11 @@ export async function GET(
         const { body } = await getFileObject(key);
         if (!body) {
           console.warn(`[download-zip] empty body for key: ${key}`);
-          filesSkipped++;
           continue;
         }
 
         // AWS SDK v3 returns a SdkStreamMixin; in Node.js it is also a Readable.
         archive.append(body as Readable, { name: zipPath });
-        filesAdded++;
       } catch (err: unknown) {
         const code =
           (err as { name?: string })?.name ?? '';
@@ -262,7 +252,6 @@ export async function GET(
         } else {
           console.error(`[download-zip] error fetching ${key}:`, err);
         }
-        filesSkipped++;
       }
     }
 

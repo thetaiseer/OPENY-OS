@@ -19,7 +19,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  X, Calendar, Clock, Globe,
+  Calendar, Clock, Globe,
   CheckCircle, AlertCircle, Loader2, Send,
 } from 'lucide-react';
 import SelectDropdown from '@/components/ui/SelectDropdown';

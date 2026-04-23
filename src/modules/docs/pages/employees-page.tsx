@@ -2,14 +2,12 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Plus, Trash2, Save, Edit2, Search, Download, X, Check, ChevronUp, ChevronDown,
+  Plus, Trash2, Edit2, Search, Download, ChevronUp,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsEmployee, DocsSalaryAdjustment } from '@/lib/docs-types';
-import { DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
+import { type DocsEmployee, type DocsSalaryAdjustment, DOCS_EMPLOYMENT_TYPES } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
-import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { type DocsClientProfile, fetchDocsClientProfiles, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
 import { DocsDocTypeTabs, DocsEditorCard, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
@@ -18,7 +16,6 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(n);
 }
-function uid() { return Math.random().toString(36).slice(2, 10); }
 function nextEmpId(list: DocsEmployee[]) {
   const nums = list.map(e => parseInt(e.employee_id.replace(/\D/g, '') || '0')).filter(Boolean);
   return `EMP-${String((nums.length ? Math.max(...nums) : 0) + 1).padStart(4, '0')}`;

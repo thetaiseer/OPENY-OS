@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     // Resolve names from team_members
     const ids = Object.keys(counts).filter(id => id !== 'unassigned');
-    let nameMap: Record<string, string> = {};
+    const nameMap: Record<string, string> = {};
     if (ids.length) {
       const { data: members } = await sb
         .from('team_members')

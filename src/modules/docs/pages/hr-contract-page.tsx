@@ -3,16 +3,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
-  Download, Printer, Check, AlertCircle, Archive, ExternalLink, X,
+  Download, Printer, Check, AlertCircle, Archive, ExternalLink,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsHrContract, ContractClause } from '@/lib/docs-types';
-import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS, DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
+import { type DocsHrContract, type ContractClause, DOCS_CURRENCIES, DOCS_PAYMENT_METHODS, DOCS_EMPLOYMENT_TYPES, DOCS_MARITAL_STATUSES } from '@/lib/docs-types';
 import { OpenyClientBlock, OpenyDocumentHeader, OpenyDocumentPage, OpenySectionTitle } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
-import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { type DocsClientProfile, fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import AppModal from '@/components/ui/AppModal';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';

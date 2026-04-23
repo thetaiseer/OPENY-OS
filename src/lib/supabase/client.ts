@@ -21,7 +21,7 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
         // Return nested proxies so call-chains like supabase.from('x').select() don't throw.
         if (typeof prop === 'string') {
           return (..._args: unknown[]) => new Proxy({} as object, {
-            get(_t2, p2) {
+            get(_t2, _p2) {
               return (..._a: unknown[]) => Promise.resolve({ data: null, error: null });
             },
           });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { acceptInvitationToken, maskInvitationToken } from '@/lib/team-invitations';
+import { acceptInvitationToken } from '@/lib/team-invitations';
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;

@@ -172,7 +172,7 @@ function R2StorageCard() {
 export default function SettingsProfilePage() {
   const { user, role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { lang, toggleLang, t } = useLang();
+  const { lang, toggleLang } = useLang();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 

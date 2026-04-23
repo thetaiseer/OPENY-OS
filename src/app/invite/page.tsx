@@ -25,12 +25,6 @@ type ValidationState =
 type ValidateResponse = { error?: string; reason?: string; invitation?: { full_name?: string } };
 type AcceptResponse = { error?: string; email?: string; workspaces?: Array<'os' | 'docs'> };
 
-function maskToken(token: string): string {
-  if (!token) return '';
-  if (token.length <= 8) return `${token.slice(0, 2)}...${token.slice(-2)}`;
-  return `${token.slice(0, 6)}...${token.slice(-4)}`;
-}
-
 function formatRole(value: string | null | undefined): string {
   return (value ?? 'team_member')
     .replaceAll('_', ' ')

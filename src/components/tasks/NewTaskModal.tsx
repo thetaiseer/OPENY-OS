@@ -15,7 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   X, Plus, Upload, Loader2, Check, AlertCircle,
   Calendar, Clock, Globe, User, Tag, Send,
-  Paperclip, ChevronDown, FileText,
+  Paperclip, FileText,
 } from 'lucide-react';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';

@@ -16,12 +16,6 @@ import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
 
-interface Stats {
-  totalClients: number;
-  activeTasks: number;
-  overdueTasks: number;
-  tasksDueThisWeek: number;
-}
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
 

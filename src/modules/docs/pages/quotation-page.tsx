@@ -3,14 +3,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   Plus, Trash2, Save, Copy, Edit2, RotateCcw, Search,
-  Download, Printer, Check, AlertCircle, Archive, ExternalLink, X,
+  Download, Printer, Check, AlertCircle, Archive, ExternalLink,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsQuotation, QuotationDeliverable } from '@/lib/docs-types';
-import { DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
+import { type DocsQuotation, type QuotationDeliverable, DOCS_CURRENCIES, DOCS_PAYMENT_METHODS } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
-import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
+import { type DocsClientProfile, fetchDocsClientProfiles, isVirtualDocsProfileId } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import AppModal from '@/components/ui/AppModal';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';

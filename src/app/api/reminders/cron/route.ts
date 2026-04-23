@@ -97,9 +97,7 @@ export async function GET(req: NextRequest) {
   const db      = getServiceClient();
   const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const now     = new Date();
-  const in24h   = new Date(now.getTime() + MS_PER_DAY);
-  const in1h    = new Date(now.getTime() + MS_PER_HOUR);
-  const in15min = new Date(now.getTime() + 15 * MS_PER_MINUTE);
+  const in24h = new Date(now.getTime() + MS_PER_DAY);
 
   let dueSoonCount    = 0;
   let overdueCount    = 0;

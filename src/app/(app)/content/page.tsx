@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  FileText, Plus, Search, Filter, Pencil, Trash2, ChevronRight,
-  Instagram, Linkedin, Youtube, Globe, CheckCircle, Clock, AlertCircle, Send,
+  FileText, Plus, Search, Trash2, ChevronRight,
+  Instagram, Linkedin, Youtube, Globe,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';

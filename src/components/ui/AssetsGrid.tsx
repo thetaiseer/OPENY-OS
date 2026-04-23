@@ -80,18 +80,6 @@ function monthLabel(mm: string): string {
   return MONTH_NAMES[idx] ?? mm;
 }
 
-// ── Standalone helpers ────────────────────────────────────────────────────────
-
-/** Trigger a browser download without relying on component state. */
-function triggerDownload(url: string, filename: string): void {
-  const a       = document.createElement('a');
-  a.href        = url;
-  a.download    = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 // ── AssetCard ─────────────────────────────────────────────────────────────────
 
 export interface AssetCardProps {

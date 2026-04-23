@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Download, Search, Archive } from 'lucide-react';
+import { Plus, Trash2, Edit2, Download, Search, Archive } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsAccountingEntry, DocsAccountingExpense } from '@/lib/docs-types';
-import { DOCS_CURRENCIES, ACCOUNTING_COLLECTORS, getAccountingCollectorByType } from '@/lib/docs-types';
+import { type DocsAccountingEntry, type DocsAccountingExpense, DOCS_CURRENCIES, ACCOUNTING_COLLECTORS, getAccountingCollectorByType } from '@/lib/docs-types';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
-import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
+import { type DocsClientProfile, fetchDocsClientProfiles, isVirtualDocsProfileId, sanitizeDocCode } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
 import { DocsDocTypeTabs } from '@/components/docs/DocsWorkspace';

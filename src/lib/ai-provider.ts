@@ -33,8 +33,7 @@ export interface AiCallOptions {
 // ── Startup env check ─────────────────────────────────────────────────────────
 // Runs once when this module is first imported (server startup).
 {
-  const geminiKey   = process.env.GEMINI_API_KEY;
-  const geminiModel = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+  const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) {
     console.warn('[ai] GEMINI_API_KEY is not set — AI features will return HTTP 503');
   }

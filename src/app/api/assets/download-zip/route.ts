@@ -169,16 +169,10 @@ export async function GET(req: NextRequest) {
 
   archive.pipe(passThrough);
 
-  let filesAdded   = 0;
-  let filesSkipped = 0;
-
   (async () => {
     for (const asset of r2Assets) {
       const key = getAssetStorageKey(asset);
-      if (!key) {
-        filesSkipped++;
-        continue;
-      }
+      if (!key) continue;
 
       const zipPath = buildZipPath(asset);
 
@@ -186,12 +180,10 @@ export async function GET(req: NextRequest) {
         const { body } = await getFileObject(key);
         if (!body) {
           console.warn(`[assets/download-zip] empty body for key: ${key}`);
-          filesSkipped++;
           continue;
         }
 
         archive.append(body as Readable, { name: zipPath });
-        filesAdded++;
       } catch (err: unknown) {
         const code = (err as { name?: string })?.name ?? '';
         if (code === 'NoSuchKey' || code === 'NotFound') {
@@ -199,7 +191,6 @@ export async function GET(req: NextRequest) {
         } else {
           console.error(`[assets/download-zip] error fetching ${key}:`, err);
         }
-        filesSkipped++;
       }
     }
 

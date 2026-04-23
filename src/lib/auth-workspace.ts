@@ -1,7 +1,6 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { WorkspaceKey } from '@/lib/workspace-access';
-import { isGlobalOwnerEmail } from '@/lib/workspace-access';
+import { type WorkspaceKey, isGlobalOwnerEmail } from '@/lib/workspace-access';
 
 export const AUTH_WORKSPACE_OPTIONS = [
   { value: 'OPENY OS', key: 'os' as const },

@@ -147,7 +147,7 @@ export async function getApiUser(
 
   // 3. Fetch role from public.team_members using the service-role key so that
   //    Row Level Security does not block the read.
-  const { data: member, error: memberError } = await admin
+  const { data: member } = await admin
     .from('team_members')
     .select('id, full_name, email, role')
     .eq('email', email)

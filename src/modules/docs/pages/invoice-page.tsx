@@ -13,10 +13,8 @@ import {
   Wand2,
 } from 'lucide-react';
 import clsx from 'clsx';
-import type { DocsInvoice, InvoiceBranchGroup, InvoiceCampaignRow, InvoicePlatformGroup } from '@/lib/docs-types';
-import { DOCS_CURRENCIES } from '@/lib/docs-types';
-import type { DocsClientProfile } from '@/lib/docs-client-profiles';
-import { fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
+import { type DocsInvoice, type InvoiceBranchGroup, type InvoiceCampaignRow, type InvoicePlatformGroup, DOCS_CURRENCIES } from '@/lib/docs-types';
+import { type DocsClientProfile, fetchDocsClientProfiles } from '@/lib/docs-client-profiles';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import { DocsDocTypeTabs, DocsEditorCard, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
