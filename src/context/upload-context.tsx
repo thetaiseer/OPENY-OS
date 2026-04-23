@@ -36,7 +36,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import type { Asset } from './types';
+import type { Asset } from '../lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

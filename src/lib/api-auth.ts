@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import type { UserRole } from './auth-context';
+import type { UserRole } from '../context/auth-context';
 import {
   getWorkspaceFromApiPath,
   isGlobalOwnerEmail,
