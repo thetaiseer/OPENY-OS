@@ -3,15 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  FolderKanban,
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  LayoutGrid,
-  Calendar,
-} from 'lucide-react';
+import { FolderKanban, Plus, Pencil, Trash2, Search, LayoutGrid, Calendar } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Client, Project } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
@@ -70,8 +62,7 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const canManage =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
-  const canDelete =
-    role === 'owner' || role === 'admin' || role === 'manager';
+  const canDelete = role === 'owner' || role === 'admin' || role === 'manager';
 
   const [tab, setTab] = useState<ProjectTab>('all');
   const [search, setSearch] = useState('');
@@ -213,9 +204,7 @@ export default function ProjectsPage() {
       <div className="app-page-header">
         <div>
           <h1 className="app-page-title">{t('projects')}</h1>
-          <p className="app-page-subtitle">
-            All workspace projects · {metrics.total} total
-          </p>
+          <p className="app-page-subtitle">All workspace projects · {metrics.total} total</p>
         </div>
         {canManage && (
           <button
@@ -367,9 +356,16 @@ export default function ProjectsPage() {
                         {project.name}
                       </h2>
                       {project.client?.name && (
-                        <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <p
+                          className="mt-0.5 truncate text-xs"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
                           {clientHref ? (
-                            <Link href={clientHref} className="hover:underline" style={{ color: 'var(--accent)' }}>
+                            <Link
+                              href={clientHref}
+                              className="hover:underline"
+                              style={{ color: 'var(--accent)' }}
+                            >
                               {project.client.name}
                             </Link>
                           ) : (
@@ -384,17 +380,26 @@ export default function ProjectsPage() {
                   </Badge>
                 </div>
                 {project.description && (
-                  <p className="mb-4 line-clamp-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <p
+                    className="mb-4 line-clamp-2 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
                     {project.description}
                   </p>
                 )}
-                <div className="mt-auto flex flex-wrap gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <div
+                  className="mt-auto flex flex-wrap gap-3 text-xs"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
                   <span>Start {formatDate(project.start_date)}</span>
                   <span>·</span>
                   <span>Due {formatDate(project.end_date)}</span>
                 </div>
                 {canManage && (
-                  <div className="mt-4 flex gap-2 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                  <div
+                    className="mt-4 flex gap-2 border-t pt-4"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
                     <button
                       type="button"
                       onClick={() => openEdit(project)}
@@ -408,7 +413,10 @@ export default function ProjectsPage() {
                         type="button"
                         onClick={() => void handleDelete(project.id)}
                         className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-                        style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
+                        style={{
+                          background: 'var(--color-danger-bg)',
+                          color: 'var(--color-danger)',
+                        }}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -432,12 +440,18 @@ export default function ProjectsPage() {
       >
         <form onSubmit={handleSave} className="space-y-4">
           {saveErr && (
-            <p className="rounded-xl px-3 py-2 text-sm" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}>
+            <p
+              className="rounded-xl px-3 py-2 text-sm"
+              style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
+            >
               {saveErr}
             </p>
           )}
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            <label
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               Client
             </label>
             <SelectDropdown
@@ -449,7 +463,10 @@ export default function ProjectsPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            <label
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               Name
             </label>
             <input
@@ -457,11 +474,18 @@ export default function ProjectsPage() {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="h-10 w-full rounded-xl border px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              style={{
+                background: 'var(--surface-2)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)',
+              }}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            <label
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               Description
             </label>
             <textarea
@@ -469,12 +493,19 @@ export default function ProjectsPage() {
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={3}
               className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              style={{
+                background: 'var(--surface-2)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)',
+              }}
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <label
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 Status
               </label>
               <SelectDropdown
@@ -487,7 +518,10 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <label
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 Color
               </label>
               <input
@@ -499,7 +533,10 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <label
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 Start
               </label>
               <input
@@ -507,11 +544,18 @@ export default function ProjectsPage() {
                 value={form.start_date}
                 onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
                 className="h-10 w-full rounded-xl border px-3 text-sm outline-none"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                style={{
+                  background: 'var(--surface-2)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                }}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <label
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 End
               </label>
               <input
@@ -519,7 +563,11 @@ export default function ProjectsPage() {
                 value={form.end_date}
                 onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
                 className="h-10 w-full rounded-xl border px-3 text-sm outline-none"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                style={{
+                  background: 'var(--surface-2)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                }}
               />
             </div>
           </div>
