@@ -8,44 +8,44 @@ interface StatCardProps {
 
 const colorMap = {
   blue: {
-    iconBg: 'linear-gradient(135deg, rgba(58,95,224,0.18) 0%, rgba(58,95,224,0.10) 100%)',
-    iconColor: 'var(--accent)',
-    glow: 'rgba(58,95,224,0.15)',
+    iconBg: 'linear-gradient(135deg, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.10) 100%)',
+    iconColor: '#6366f1',
+    glow: 'rgba(99,102,241,0.2)',
   },
   green: {
-    iconBg: 'linear-gradient(135deg, rgba(10,144,96,0.18) 0%, rgba(10,144,96,0.10) 100%)',
-    iconColor: '#0a9060',
-    glow: 'rgba(10,144,96,0.12)',
+    iconBg: 'linear-gradient(135deg, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.10) 100%)',
+    iconColor: '#10b981',
+    glow: 'rgba(16,185,129,0.15)',
   },
   amber: {
-    iconBg: 'linear-gradient(135deg, rgba(196,126,10,0.18) 0%, rgba(196,126,10,0.10) 100%)',
-    iconColor: '#c47e0a',
-    glow: 'rgba(196,126,10,0.12)',
+    iconBg: 'linear-gradient(135deg, rgba(245,158,11,0.22) 0%, rgba(245,158,11,0.10) 100%)',
+    iconColor: '#f59e0b',
+    glow: 'rgba(245,158,11,0.14)',
   },
   red: {
-    iconBg: 'linear-gradient(135deg, rgba(192,52,74,0.18) 0%, rgba(192,52,74,0.10) 100%)',
-    iconColor: '#c0344a',
-    glow: 'rgba(192,52,74,0.12)',
+    iconBg: 'linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(239,68,68,0.10) 100%)',
+    iconColor: '#ef4444',
+    glow: 'rgba(239,68,68,0.14)',
   },
   violet: {
-    iconBg: 'linear-gradient(135deg, rgba(139,109,255,0.18) 0%, rgba(139,109,255,0.10) 100%)',
+    iconBg: 'linear-gradient(135deg, rgba(168,85,247,0.22) 0%, rgba(168,85,247,0.10) 100%)',
     iconColor: 'var(--accent-3)',
-    glow: 'rgba(139,109,255,0.12)',
+    glow: 'rgba(168,85,247,0.14)',
   },
   mint: {
-    iconBg: 'linear-gradient(135deg, rgba(6,182,200,0.18) 0%, rgba(6,182,200,0.10) 100%)',
+    iconBg: 'linear-gradient(135deg, rgba(56,189,248,0.22) 0%, rgba(56,189,248,0.10) 100%)',
     iconColor: 'var(--accent-2)',
-    glow: 'rgba(6,182,200,0.12)',
+    glow: 'rgba(56,189,248,0.14)',
   },
   rose: {
-    iconBg: 'linear-gradient(135deg, rgba(225,29,72,0.18) 0%, rgba(225,29,72,0.10) 100%)',
-    iconColor: '#be123c',
-    glow: 'rgba(225,29,72,0.12)',
+    iconBg: 'linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(239,68,68,0.10) 100%)',
+    iconColor: '#ef4444',
+    glow: 'rgba(239,68,68,0.14)',
   },
   cyan: {
-    iconBg: 'linear-gradient(135deg, rgba(6,182,212,0.18) 0%, rgba(6,182,212,0.10) 100%)',
-    iconColor: '#0891b2',
-    glow: 'rgba(6,182,212,0.12)',
+    iconBg: 'linear-gradient(135deg, rgba(56,189,248,0.22) 0%, rgba(56,189,248,0.10) 100%)',
+    iconColor: '#38bdf8',
+    glow: 'rgba(56,189,248,0.14)',
   },
 };
 
@@ -53,7 +53,7 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
   const c = colorMap[color];
   return (
     <div
-      className="openy-motion-card relative overflow-hidden rounded-3xl border p-6"
+      className="openy-motion-card relative overflow-hidden rounded-2xl border p-6"
       style={{
         background: 'var(--gradient-card-glass)',
         backdropFilter: 'var(--blur-glass)',
