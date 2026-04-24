@@ -69,6 +69,8 @@ function ClientsPage() {
   const canManageClients =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [industryFilter, setIndustryFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -173,11 +175,14 @@ function ClientsPage() {
   // Client-side search filter — no extra round-trips, no race conditions.
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter(
-      (c) => c.name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q),
-    );
-  }, [clients, search]);
+    const ind = industryFilter.trim().toLowerCase();
+    return clients.filter((c) => {
+      if (statusFilter !== 'all' && (c.status ?? '') !== statusFilter) return false;
+      if (ind && !(c.industry ?? '').toLowerCase().includes(ind)) return false;
+      if (!q) return true;
+      return (c.name ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q);
+    });
+  }, [clients, search, statusFilter, industryFilter]);
 
   useEffect(() => {
     return registerQuickActionHandler('add-client', () => {
@@ -306,38 +311,91 @@ function ClientsPage() {
       <div className="app-page-header">
         <div>
           <h1 className="app-page-title">{t('clients')}</h1>
-          <p className="app-page-subtitle">Manage all your clients</p>
+          <p className="app-page-subtitle">Manage your clients and client relationships.</p>
         </div>
         {canManageClients && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
             style={{ background: 'var(--accent)' }}
           >
-            <Plus size={16} />
-            {t('newClient')}
+            <Plus size={16} />+ Add client
           </button>
         )}
       </div>
 
-      <div className="relative max-w-sm">
-        <Search
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2"
-          style={{ color: 'var(--text-secondary)' }}
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('search')}
-          className="h-9 w-full rounded-lg pl-9 pr-4 text-sm outline-none"
-          style={{
-            background: 'var(--surface)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-          }}
-        />
+      <div
+        className="flex flex-col gap-3 rounded-2xl border p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-end"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="relative min-w-[200px] flex-1">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email or company…"
+            className="h-10 w-full rounded-xl pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
+          />
+        </div>
+        <div className="w-full min-w-[140px] sm:w-44">
+          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+            Status
+          </p>
+          <SelectDropdown
+            fullWidth
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'all', label: 'All statuses' },
+              { value: 'active', label: t('active') },
+              { value: 'inactive', label: t('inactive') },
+              { value: 'prospect', label: t('prospect') },
+            ]}
+          />
+        </div>
+        <div className="w-full min-w-[160px] sm:w-48">
+          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+            Industry
+          </p>
+          <input
+            type="text"
+            value={industryFilter}
+            onChange={(e) => setIndustryFilter(e.target.value)}
+            placeholder="Filter industry"
+            className="h-10 w-full rounded-xl px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
+          />
+        </div>
+        <div className="w-full min-w-[180px] sm:w-56">
+          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+            Account manager
+          </p>
+          <input
+            disabled
+            title="Coming soon"
+            placeholder="Filter (soon)"
+            className="h-10 w-full cursor-not-allowed rounded-xl px-3 text-sm opacity-60"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
+          />
+        </div>
       </div>
 
       {fetchError && (
@@ -430,7 +488,7 @@ function ClientsPage() {
                     router.push(baseClientHref);
                   }
                 }}
-                className="group flex cursor-pointer select-none flex-col rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] active:shadow-sm"
+                className="group flex cursor-pointer select-none flex-col rounded-2xl border p-5 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] active:shadow-sm"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)', gap: 0 }}
               >
                 {/* ── Header ──────────────────────────────────────────────── */}

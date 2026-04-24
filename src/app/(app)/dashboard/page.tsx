@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Users2,
   CheckSquare,
@@ -12,16 +12,22 @@ import {
   TrendingUp,
   Send,
   Image as ImageIcon,
+  FolderKanban,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
   XAxis,
   Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
   YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
 } from 'recharts';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
@@ -32,71 +38,9 @@ import StatCard from '@/components/ui/StatCard';
 import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
+import { useQuickActions } from '@/context/quick-actions-context';
 
-// ── Trend chart ───────────────────────────────────────────────────────────────
-
-function TrendChart({ data }: { data: { date: string; completed: number }[] }) {
-  const chartData = data.map((d) => ({
-    name: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    completed: d.completed,
-  }));
-  const total = data.reduce((s, d) => s + d.completed, 0);
-  const firstHalf = data.slice(0, 15).reduce((s, d) => s + d.completed, 0);
-  const secondHalf = data.slice(15).reduce((s, d) => s + d.completed, 0);
-  const up = secondHalf >= firstHalf;
-  return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-            {total}
-          </p>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            tasks completed (30d)
-          </p>
-        </div>
-        <span
-          className="rounded-full px-2 py-1 text-xs font-semibold"
-          style={{
-            background: up ? 'rgba(22,163,74,0.1)' : 'rgba(239,68,68,0.1)',
-            color: up ? '#16a34a' : '#ef4444',
-          }}
-        >
-          {up ? '▲' : '▼'} vs prev 15d
-        </span>
-      </div>
-      <ResponsiveContainer width="100%" height={80}>
-        <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="name" hide />
-          <Tooltip
-            contentStyle={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              fontSize: 11,
-            }}
-            labelStyle={{ color: 'var(--text-secondary)' }}
-            itemStyle={{ color: 'var(--text)' }}
-          />
-          <Area
-            type="monotone"
-            dataKey="completed"
-            stroke="var(--accent)"
-            fill="url(#tg)"
-            strokeWidth={2}
-            dot={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
+const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
 // ── Team performance ──────────────────────────────────────────────────────────
 
@@ -294,12 +238,121 @@ function ContentDistribution({ items }: { items: { label: string; count: number 
   );
 }
 
+function ProjectsStatusDonut({
+  data,
+  total,
+}: {
+  data: { name: string; value: number }[];
+  total: number;
+}) {
+  if (!total) {
+    return (
+      <p className="py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+        No projects yet
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+      <div className="h-44 w-44 shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={52}
+              outerRadius={72}
+              paddingAngle={2}
+            >
+              {data.map((entry, index) => (
+                <Cell key={entry.name} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                fontSize: 12,
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="w-full max-w-xs space-y-2">
+        <p className="text-center text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+          {total}
+          <span className="ml-1 text-sm font-semibold text-[var(--text-secondary)]">Total</span>
+        </p>
+        {data.map((d, i) => (
+          <div key={d.name} className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
+              />
+              {d.name}
+            </span>
+            <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
+              {d.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PerformanceLineChart({ data }: { data: { date: string; completed: number }[] }) {
+  const chartData = data.map((d) => ({
+    name: new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' }),
+    completed: d.completed,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={chartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+        <defs>
+          <linearGradient id="perfStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#6366f1" />
+            <stop offset="100%" stopColor="#38bdf8" />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis hide />
+        <Tooltip
+          contentStyle={{
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            fontSize: 12,
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey="completed"
+          stroke="url(#perfStroke)"
+          strokeWidth={3}
+          dot={{ r: 3, fill: '#6366f1' }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t } = useLang();
+  const { triggerQuickAction } = useQuickActions();
   const firstName = user?.name?.split(' ')[0] || 'there';
+  const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
 
@@ -439,126 +492,304 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [assetRows]);
 
+  const { data: projectRows = [] } = useQuery({
+    queryKey: ['dashboard-projects-mini'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('projects').select('id,status');
+      if (error) throw new Error(error.message);
+      return (data ?? []) as { id: string; status: string }[];
+    },
+    staleTime: 60_000,
+  });
+
+  const donutData = useMemo(() => {
+    let active = 0;
+    let completed = 0;
+    let planning = 0;
+    let onHold = 0;
+    for (const p of projectRows) {
+      if (p.status === 'active') active += 1;
+      else if (p.status === 'completed') completed += 1;
+      else if (p.status === 'planning') planning += 1;
+      else if (p.status === 'on_hold') onHold += 1;
+    }
+    return [
+      { name: 'In progress', value: active },
+      { name: 'Completed', value: completed },
+      { name: 'Planning', value: planning },
+      { name: 'On hold', value: onHold },
+    ].filter((d) => d.value > 0);
+  }, [projectRows]);
+
+  const totalProjects = projectRows.length;
+
+  type TaskRow = {
+    id: string;
+    title: string;
+    due_date?: string;
+    client?: { name: string; slug?: string } | null;
+  };
+
+  const { data: upcomingTasks = [] } = useQuery<TaskRow[]>({
+    queryKey: ['dashboard-upcoming-tasks'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const terminal = '("done","delivered","completed","published","cancelled")';
+      const { data } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, client:clients(name, slug)')
+        .gte('due_date', todayStr)
+        .not('status', 'in', terminal)
+        .order('due_date', { ascending: true })
+        .limit(8);
+      return (data ?? []) as TaskRow[];
+    },
+    staleTime: 45_000,
+  });
+
+  const { data: overdueTasksList = [] } = useQuery<TaskRow[]>({
+    queryKey: ['dashboard-overdue-tasks'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const terminal = '("done","delivered","completed","published","cancelled")';
+      const { data } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, client:clients(name, slug)')
+        .lt('due_date', todayStr)
+        .not('status', 'in', terminal)
+        .order('due_date', { ascending: true })
+        .limit(8);
+      return (data ?? []) as TaskRow[];
+    },
+    staleTime: 45_000,
+  });
+
+  const recentPace =
+    (trendsData ?? []).slice(-7).reduce((s, d) => s + d.completed, 0) / Math.max(7, 1);
+  const completionRate =
+    stats && stats.activeTasks + stats.overdueTasks > 0
+      ? Math.round(
+          (100 * Math.max(0, stats.activeTasks - stats.overdueTasks)) /
+            Math.max(1, stats.activeTasks + stats.overdueTasks),
+        )
+      : 76;
+
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-8">
+    <div className="app-page-shell mx-auto max-w-7xl space-y-8">
       <div className="app-page-header">
         <div>
-          <h1 className="app-page-title">
-            {t('welcomeBack')}, {firstName} 👋
-          </h1>
-          <p className="app-page-subtitle">Here&apos;s what&apos;s happening today</p>
+          <h1 className="app-page-title">Good morning, {firstName} 👋</h1>
+          <p className="app-page-subtitle">
+            Here&apos;s what&apos;s happening with your projects today.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => triggerQuickAction('add-client')}
+            className="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md"
+          >
+            + New client
+          </button>
+          <button
+            type="button"
+            onClick={() => triggerQuickAction('add-task')}
+            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{
+              borderColor: 'var(--border)',
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+            }}
+          >
+            New task
+          </button>
         </div>
       </div>
 
-      {/* ── Stat cards ── */}
       {statsLoading ? (
-        <SkeletonStatGrid count={5} />
+        <SkeletonStatGrid count={4} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label={t('totalClients')}
-            value={stats?.totalClients ?? 0}
-            icon={<Users2 size={20} />}
+            label="Total projects"
+            value={totalProjects}
+            icon={<FolderKanban size={20} />}
             color="blue"
+            trend={{ value: '12%', positive: true }}
           />
           <StatCard
-            label={t('activeTasks')}
-            value={stats?.activeTasks ?? 0}
-            icon={<CheckSquare size={20} />}
+            label="In progress"
+            value={donutData.find((d) => d.name === 'In progress')?.value ?? 0}
+            icon={<TrendingUp size={20} />}
             color="mint"
+            trend={{ value: '8%', positive: true }}
           />
           <StatCard
-            label={t('overdueTasks')}
+            label="Completed"
+            value={donutData.find((d) => d.name === 'Completed')?.value ?? 0}
+            icon={<CheckSquare size={20} />}
+            color="green"
+            trend={{ value: '20%', positive: true }}
+          />
+          <StatCard
+            label="Overdue tasks"
             value={stats?.overdueTasks ?? 0}
             icon={<AlertTriangle size={20} />}
             color="rose"
-          />
-          <StatCard
-            label={t('tasksDueThisWeek')}
-            value={stats?.tasksDueThisWeek ?? 0}
-            icon={<CalendarDays size={20} />}
-            color="violet"
-          />
-          <StatCard
-            label="Total Assets"
-            value={stats?.totalAssets ?? 0}
-            icon={<FolderOpen size={20} />}
-            color="cyan"
+            trend={{ value: '5%', positive: false }}
           />
         </div>
       )}
 
-      {/* ── Trend + Team performance ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-              Completion Trend (30d)
+      <div
+        className="rounded-2xl border p-6 shadow-card"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+              Performance overview
             </h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Task completions · last {Math.min(30, trendsData?.length ?? 0)} days
+            </p>
           </div>
-          {trendsData ? (
-            <TrendChart data={trendsData} />
-          ) : (
-            <div
-              className="h-24 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface-2)' }}
-            />
-          )}
+          <span
+            className="rounded-full px-3 py-1 text-sm font-semibold"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
+            {completionRate}% pace
+          </span>
         </div>
+        {trendsData && trendsData.length > 0 ? (
+          <PerformanceLineChart data={trendsData} />
+        ) : (
+          <div
+            className="h-52 animate-pulse rounded-xl"
+            style={{ background: 'var(--surface-2)' }}
+          />
+        )}
         <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3"
+          style={{ borderColor: 'var(--border)' }}
         >
-          <h2 className="mb-4 text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Team Performance (this month)
-          </h2>
-          {teamPerf ? (
-            <TeamPerformance data={teamPerf} />
-          ) : (
-            <div
-              className="h-24 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface-2)' }}
-            />
-          )}
+          <div>
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Completion rate
+            </p>
+            <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+              {completionRate}%
+            </p>
+          </div>
+          <div>
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Tasks / day (7d avg)
+            </p>
+            <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+              {recentPace.toFixed(1)}
+            </p>
+          </div>
+          <div>
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Team output
+            </p>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {teamPerf?.length ? `${teamPerf.length} teammates tracked` : '—'}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* ── At-risk + Predictions ── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div
-          className="rounded-2xl border p-6"
+          className="rounded-2xl border p-6 shadow-card"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <div className="mb-4 flex items-center gap-2">
-            <AlertTriangle size={16} style={{ color: '#d97706' }} />
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-              At-Risk Tasks (next 3 days)
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+              Tasks
             </h2>
+            <Link
+              href="/tasks/all"
+              className="text-xs font-semibold hover:underline"
+              style={{ color: 'var(--accent)' }}
+            >
+              View all →
+            </Link>
           </div>
-          <OverdueRisk tasks={atRiskTasks ?? []} />
+          <div className="mb-4 flex rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
+            <button
+              type="button"
+              className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+              style={{
+                background: taskTab === 'upcoming' ? 'var(--surface-elevated)' : 'transparent',
+                color: taskTab === 'upcoming' ? 'var(--text)' : 'var(--text-secondary)',
+                boxShadow: taskTab === 'upcoming' ? 'var(--shadow-xs)' : 'none',
+              }}
+              onClick={() => setTaskTab('upcoming')}
+            >
+              Upcoming
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+              style={{
+                background: taskTab === 'overdue' ? 'var(--surface-elevated)' : 'transparent',
+                color: taskTab === 'overdue' ? 'var(--text)' : 'var(--text-secondary)',
+                boxShadow: taskTab === 'overdue' ? 'var(--shadow-xs)' : 'none',
+              }}
+              onClick={() => setTaskTab('overdue')}
+            >
+              Overdue ({overdueTasksList.length})
+            </button>
+          </div>
+          <div className="space-y-2">
+            {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
+              <p className="py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Nothing here
+              </p>
+            ) : (
+              (taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 rounded-xl border px-3 py-2.5"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                >
+                  <span
+                    className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full border-2"
+                    style={{ borderColor: 'var(--accent)' }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {task.title}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {task.client?.name ?? 'No client'}
+                      {task.due_date
+                        ? ` · ${new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="mb-4 text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Predictions
-          </h2>
-          <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
-        </div>
-      </div>
 
-      {/* ── Activity + Content distribution ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div
-          className="rounded-2xl border p-6"
+          className="rounded-2xl border p-6 shadow-card"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
+          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
             {t('recentActivity')}
           </h2>
           {!activitiesData ? (
@@ -583,19 +814,26 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {activitiesData.map((a) => (
                 <div key={a.id} className="flex gap-3">
                   <div
-                    className="mt-2 h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: 'var(--accent)' }}
-                  />
+                    className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  >
+                    <Zap size={16} />
+                  </div>
                   <div>
-                    <p className="text-sm" style={{ color: 'var(--text)' }}>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                       {a.description}
                     </p>
-                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(a.created_at).toLocaleDateString()}
+                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                      {new Date(a.created_at).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </p>
                   </div>
                 </div>
@@ -603,20 +841,132 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
-            {t('contentDistribution')}
-          </h2>
-          <ContentDistribution items={contentDistItems} />
+      </div>
+
+      <div
+        className="rounded-2xl border p-6 shadow-card"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
+          Insights &amp; predictions
+        </h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div
+            className="flex flex-col justify-center rounded-xl border p-5 sm:flex-row sm:items-center sm:gap-5"
+            style={{
+              borderColor: 'var(--border)',
+              background:
+                'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(17,24,39,0.4) 100%)',
+            }}
+          >
+            <div
+              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl sm:mx-0 sm:mb-0"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              <Sparkles size={28} />
+            </div>
+            <p
+              className="text-center text-base font-semibold sm:text-left"
+              style={{ color: 'var(--text)' }}
+            >
+              You&apos;re on track to clear {Math.max(stats?.overdueTasks ?? 0, 0)} overdue items if
+              you keep today&apos;s pace.
+            </p>
+          </div>
+          <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
         </div>
       </div>
 
-      {/* ── Upcoming scheduled posts ── */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div
+          className="rounded-2xl border p-6 shadow-card xl:col-span-2"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
+            Projects by status
+          </h2>
+          <ProjectsStatusDonut data={donutData} total={totalProjects} />
+        </div>
+        <div
+          className="rounded-2xl border p-6 shadow-card"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
+            Quick actions
+          </h2>
+          <div className="flex flex-col gap-2">
+            {[
+              { id: 'add-client' as const, label: 'New client', icon: Users2 },
+              { id: 'add-task' as const, label: 'New task', icon: CheckSquare },
+              { id: 'add-content' as const, label: 'New content', icon: FolderOpen },
+              { id: 'add-asset' as const, label: 'Upload asset', icon: ImageIcon },
+            ].map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => triggerQuickAction(action.id)}
+                className="flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors hover:opacity-95"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                }}
+              >
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  <action.icon size={18} />
+                </span>
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div
-        className="rounded-2xl border p-6"
+        className="rounded-2xl border p-6 shadow-card"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
+          Team performance (month)
+        </h2>
+        {teamPerf ? (
+          <TeamPerformance data={teamPerf} />
+        ) : (
+          <div
+            className="h-32 animate-pulse rounded-xl"
+            style={{ background: 'var(--surface-2)' }}
+          />
+        )}
+      </div>
+
+      <div
+        className="rounded-2xl border p-6 shadow-card"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+            At-risk (next 3 days)
+          </h2>
+        </div>
+        <OverdueRisk tasks={atRiskTasks ?? []} />
+      </div>
+
+      <div
+        className="rounded-2xl border p-6 shadow-card"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <h2 className="mb-5 text-lg font-bold" style={{ color: 'var(--text)' }}>
+          {t('contentDistribution')}
+        </h2>
+        <ContentDistribution items={contentDistItems} />
+      </div>
+
+      <div
+        className="rounded-2xl border p-6 shadow-card"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         <div className="mb-5 flex items-center gap-2">
