@@ -1,5 +1,5 @@
 import type { InvoiceBranchGroup } from '@/lib/docs-types';
-import { generateProIconKsa } from '@/lib/invoice-templates';
+import { generateProIconKsa, type TemplateInput } from '@/lib/invoice-templates';
 import {
   createDefaultProIconKsaBranchConfigs,
   PRO_ICON_KSA_TEMPLATE_CONFIG,
@@ -63,11 +63,11 @@ export interface ApplyInvoiceTemplateParams {
   fees?: number;
 }
 
-const DEFAULT_PRO_ICON_KSA_PLATFORMS = [
+const DEFAULT_PRO_ICON_KSA_PLATFORMS: TemplateInput['platforms'] = [
   { type: 'instagram', percentage: 50, campaignCount: 2 },
   { type: 'snapchat', percentage: 30, campaignCount: 1 },
   { type: 'tiktok', percentage: 20, campaignCount: 1 },
-] as const;
+];
 
 function normalizePlatformLabel(platform: string) {
   return platform
