@@ -527,7 +527,8 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           <button
             onClick={() => onDelete(task)}
             title="Delete"
-            className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-50"
+            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-danger-bg)]"
+            style={{ color: 'var(--color-danger)' }}
           >
             <Trash2 size={14} />
           </button>
@@ -761,7 +762,10 @@ function TaskDetailModal({
           {task.due_date &&
             row(
               t('deadline'),
-              <span className={overdue ? 'font-medium text-red-500' : ''}>
+              <span
+                className={overdue ? 'font-medium' : ''}
+                style={overdue ? { color: 'var(--color-danger)' } : undefined}
+              >
                 {fmtDate(task.due_date)}
                 {overdue ? ` (${t('overdue')})` : ''}
               </span>,
@@ -1045,7 +1049,8 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
                 e.stopPropagation();
                 onDelete(task);
               }}
-              className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
+              className="rounded p-1 transition-colors hover:bg-[var(--color-danger-bg)]"
+              style={{ color: 'var(--color-danger)' }}
             >
               <Trash2 size={13} />
             </button>
@@ -1409,7 +1414,8 @@ function DeleteConfirmModal({
           <button
             type="button"
             onClick={onConfirm}
-            className="h-9 rounded-lg bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            className="h-9 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ background: 'var(--color-danger)' }}
           >
             {t('deleteTask')}
           </button>
@@ -1991,10 +1997,7 @@ function TasksPage() {
   ].filter(Boolean).length;
 
   return (
-    <div
-      className="app-page-shell openy-tasks-page animate-openy-fade-in mx-auto max-w-7xl sm:pb-14"
-      style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
-    >
+    <div className="app-page-shell openy-tasks-page animate-openy-fade-in mx-auto max-w-7xl space-y-6">
       {/* Fetch error banner */}
       {fetchError && (
         <div
@@ -2009,7 +2012,10 @@ function TasksPage() {
           <span>{fetchError}</span>
         </div>
       )}
-      <div className="openy-card p-4 sm:p-6">
+      <div
+        className="rounded-2xl border p-4 shadow-card sm:p-6"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
         <div className="app-page-header">
           <div>
             <h1 className="app-page-title">{t('tasks')}</h1>
@@ -2021,7 +2027,7 @@ function TasksPage() {
             <div role="tablist" aria-label="Task views" className="openy-segmented">
               <button
                 onClick={() => setView('list')}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
                 style={{
                   background: view === 'list' ? 'var(--accent)' : 'var(--surface-2)',
                   color: view === 'list' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
@@ -2037,7 +2043,7 @@ function TasksPage() {
               </button>
               <button
                 onClick={() => setView('kanban')}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
                 style={{
                   background: view === 'kanban' ? 'var(--accent)' : 'var(--surface-2)',
                   color: view === 'kanban' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
@@ -2107,7 +2113,10 @@ function TasksPage() {
         </div>
       </div>
 
-      <div className="openy-card space-y-4 p-4 sm:p-5">
+      <div
+        className="space-y-4 rounded-2xl border p-4 shadow-card sm:p-5"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
         <div className="flex items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search
@@ -2272,7 +2281,8 @@ function TasksPage() {
         />
       ) : view === 'kanban' ? (
         <div
-          className="openy-card overflow-hidden p-3 sm:p-5"
+          className="overflow-hidden rounded-2xl border p-3 shadow-card sm:p-5"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           role="tabpanel"
           id="tasks-kanban-panel"
           aria-labelledby="tasks-kanban-tab"
@@ -2382,7 +2392,8 @@ function TasksPage() {
                       </button>
                       <button
                         onClick={() => setDeleteTask(task)}
-                        className="btn-ghost p-1.5 text-red-500"
+                        className="btn-ghost p-1.5"
+                        style={{ color: 'var(--color-danger)' }}
                         aria-label={`Delete ${task.title}`}
                       >
                         <Trash2 size={14} />

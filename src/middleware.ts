@@ -12,7 +12,6 @@ const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
   '/clients': '/os/clients',
   '/projects': '/os/projects',
-  '/tasks': '/os/tasks',
   '/tasks/all': '/os/tasks',
   '/content': '/os/content',
   '/calendar': '/os/calendar',
