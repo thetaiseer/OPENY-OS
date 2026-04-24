@@ -107,15 +107,15 @@ function SummaryCard({
 }) {
   return (
     <div
-      className="flex items-start gap-4 rounded-3xl border p-6"
+      className="flex items-start gap-4 rounded-2xl border p-6 shadow-card"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div
-        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
         style={{
-          background: `linear-gradient(140deg, ${color}26 0%, rgba(255,255,255,0.44) 100%)`,
+          background: `color-mix(in srgb, ${color} 22%, var(--surface-2) 78%)`,
           color,
-          boxShadow: `0 8px 18px ${color}40`,
+          boxShadow: `0 6px 16px color-mix(in srgb, ${color} 35%, transparent)`,
         }}
       >
         {icon}
@@ -154,13 +154,13 @@ function TabBtn({
         active
           ? {
               background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
-              color: '#fff',
+              color: 'var(--accent-contrast)',
               boxShadow: 'var(--glow-accent-sm)',
             }
           : {
               background: 'var(--surface-2)',
               color: 'var(--text-secondary)',
-              border: '1px solid var(--border-glass)',
+              border: '1px solid var(--border)',
             }
       }
     >
@@ -216,7 +216,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-8">
+    <div className="app-page-shell mx-auto max-w-6xl space-y-6">
       <div className="app-page-header">
         <div>
           <h1 className="app-page-title">Reports & Analytics</h1>
@@ -227,7 +227,7 @@ export default function ReportsPage() {
         <button
           onClick={() => void refetch()}
           disabled={isFetching}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80"
           style={{
             background: 'var(--surface-2)',
             color: 'var(--text-secondary)',
@@ -241,11 +241,11 @@ export default function ReportsPage() {
 
       {error && (
         <div
-          className="flex items-center gap-3 rounded-xl p-4"
+          className="flex items-center gap-3 rounded-xl border p-4"
           style={{
-            background: 'rgba(239,68,68,0.1)',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.2)',
+            background: 'var(--color-danger-bg)',
+            color: 'var(--color-danger)',
+            borderColor: 'var(--color-danger-border)',
           }}
         >
           <AlertCircle size={16} />
@@ -274,7 +274,7 @@ export default function ReportsPage() {
       ) : (
         <>
           {tab === 'overview' && report && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                 <SummaryCard
                   label="Total Clients"
@@ -316,7 +316,7 @@ export default function ReportsPage() {
               </div>
 
               <div
-                className="rounded-2xl border p-6"
+                className="rounded-2xl border p-6 shadow-card"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
               >
                 <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
@@ -393,7 +393,7 @@ export default function ReportsPage() {
 
               {report.platformStats.length > 0 && (
                 <div
-                  className="rounded-2xl border p-6"
+                  className="rounded-2xl border p-6 shadow-card"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                 >
                   <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
@@ -452,7 +452,7 @@ export default function ReportsPage() {
               </div>
               {report.clientStats.length === 0 ? (
                 <div
-                  className="rounded-2xl border p-12 text-center"
+                  className="rounded-2xl border p-12 text-center shadow-card"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                 >
                   <BarChart2
@@ -466,7 +466,7 @@ export default function ReportsPage() {
                 </div>
               ) : (
                 <div
-                  className="overflow-hidden rounded-2xl border"
+                  className="overflow-hidden rounded-2xl border shadow-card"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                 >
                   <table className="w-full text-sm">
@@ -552,7 +552,7 @@ export default function ReportsPage() {
               </div>
               {report.teamStats.length === 0 ? (
                 <div
-                  className="rounded-2xl border p-12 text-center"
+                  className="rounded-2xl border p-12 text-center shadow-card"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                 >
                   <Users2
@@ -567,7 +567,7 @@ export default function ReportsPage() {
               ) : (
                 <>
                   <div
-                    className="rounded-2xl border p-6"
+                    className="rounded-2xl border p-6 shadow-card"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
                     <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -599,7 +599,7 @@ export default function ReportsPage() {
                     </ResponsiveContainer>
                   </div>
                   <div
-                    className="overflow-hidden rounded-2xl border"
+                    className="overflow-hidden rounded-2xl border shadow-card"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
                     <table className="w-full text-sm">
@@ -690,11 +690,11 @@ export default function ReportsPage() {
           )}
 
           {tab === 'content' && report && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {report.platformStats.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <div
-                    className="rounded-2xl border p-6"
+                    className="rounded-2xl border p-6 shadow-card"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
                     <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -730,7 +730,7 @@ export default function ReportsPage() {
                     </ResponsiveContainer>
                   </div>
                   <div
-                    className="rounded-2xl border p-6"
+                    className="rounded-2xl border p-6 shadow-card"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
                     <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -773,7 +773,7 @@ export default function ReportsPage() {
                 </div>
               ) : (
                 <div
-                  className="rounded-2xl border p-12 text-center"
+                  className="rounded-2xl border p-12 text-center shadow-card"
                   style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                 >
                   <Send
@@ -787,7 +787,7 @@ export default function ReportsPage() {
                 </div>
               )}
               <div
-                className="rounded-2xl border p-6"
+                className="rounded-2xl border p-6 shadow-card"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
               >
                 <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
