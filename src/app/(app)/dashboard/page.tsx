@@ -581,13 +581,21 @@ export default function DashboardPage() {
     <PageShell className="space-y-8">
       <PageHeader
         title={`Good morning, ${firstName} 👋`}
-        subtitle="Here&apos;s what&apos;s happening with your projects today."
+        subtitle="Here's what's happening with your projects today."
         actions={
           <>
-            <Button type="button" variant="primary" onClick={() => triggerQuickAction('add-client')}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => triggerQuickAction('add-client')}
+            >
               + New client
             </Button>
-            <Button type="button" variant="secondary" onClick={() => triggerQuickAction('add-task')}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => triggerQuickAction('add-task')}
+            >
               New task
             </Button>
           </>
@@ -707,63 +715,63 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-          <div className="mb-4 flex rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
-            <button
-              type="button"
-              className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
-              style={{
-                background: taskTab === 'upcoming' ? 'var(--surface-elevated)' : 'transparent',
-                color: taskTab === 'upcoming' ? 'var(--text)' : 'var(--text-secondary)',
-                boxShadow: taskTab === 'upcoming' ? 'var(--shadow-xs)' : 'none',
-              }}
-              onClick={() => setTaskTab('upcoming')}
-            >
-              Upcoming
-            </button>
-            <button
-              type="button"
-              className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
-              style={{
-                background: taskTab === 'overdue' ? 'var(--surface-elevated)' : 'transparent',
-                color: taskTab === 'overdue' ? 'var(--text)' : 'var(--text-secondary)',
-                boxShadow: taskTab === 'overdue' ? 'var(--shadow-xs)' : 'none',
-              }}
-              onClick={() => setTaskTab('overdue')}
-            >
-              Overdue ({overdueTasksList.length})
-            </button>
-          </div>
-          <div className="space-y-2">
-            {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
-              <p className="py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Nothing here
-              </p>
-            ) : (
-              (taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-3 rounded-xl border px-3 py-2.5"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-                >
-                  <span
-                    className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full border-2"
-                    style={{ borderColor: 'var(--accent)' }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {task.title}
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {task.client?.name ?? 'No client'}
-                      {task.due_date
-                        ? ` · ${new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
-                        : ''}
-                    </p>
+            <div className="mb-4 flex rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
+              <button
+                type="button"
+                className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+                style={{
+                  background: taskTab === 'upcoming' ? 'var(--surface-elevated)' : 'transparent',
+                  color: taskTab === 'upcoming' ? 'var(--text)' : 'var(--text-secondary)',
+                  boxShadow: taskTab === 'upcoming' ? 'var(--shadow-xs)' : 'none',
+                }}
+                onClick={() => setTaskTab('upcoming')}
+              >
+                Upcoming
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+                style={{
+                  background: taskTab === 'overdue' ? 'var(--surface-elevated)' : 'transparent',
+                  color: taskTab === 'overdue' ? 'var(--text)' : 'var(--text-secondary)',
+                  boxShadow: taskTab === 'overdue' ? 'var(--shadow-xs)' : 'none',
+                }}
+                onClick={() => setTaskTab('overdue')}
+              >
+                Overdue ({overdueTasksList.length})
+              </button>
+            </div>
+            <div className="space-y-2">
+              {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
+                <p className="py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  Nothing here
+                </p>
+              ) : (
+                (taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-start gap-3 rounded-xl border px-3 py-2.5"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                  >
+                    <span
+                      className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full border-2"
+                      style={{ borderColor: 'var(--accent)' }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {task.client?.name ?? 'No client'}
+                        {task.due_date
+                          ? ` · ${new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                          : ''}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -772,54 +780,54 @@ export default function DashboardPage() {
             <CardTitle className="!text-lg">{t('recentActivity')}</CardTitle>
           </CardHeader>
           <CardContent>
-          {!activitiesData ? (
-            <div className="space-y-3">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-10 animate-pulse rounded-lg"
-                  style={{ background: 'var(--surface-2)' }}
-                />
-              ))}
-            </div>
-          ) : activitiesData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <Activity
-                size={28}
-                className="mb-3 opacity-40"
-                style={{ color: 'var(--text-secondary)' }}
-              />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No recent activity
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activitiesData.map((a) => (
-                <div key={a.id} className="flex gap-3">
+            {!activitiesData ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
                   <div
-                    className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Zap size={16} />
+                    key={i}
+                    className="h-10 animate-pulse rounded-lg"
+                    style={{ background: 'var(--surface-2)' }}
+                  />
+                ))}
+              </div>
+            ) : activitiesData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Activity
+                  size={28}
+                  className="mb-3 opacity-40"
+                  style={{ color: 'var(--text-secondary)' }}
+                />
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  No recent activity
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activitiesData.map((a) => (
+                  <div key={a.id} className="flex gap-3">
+                    <div
+                      className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        {a.description}
+                      </p>
+                      <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                        {new Date(a.created_at).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {a.description}
-                    </p>
-                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                      {new Date(a.created_at).toLocaleString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -829,31 +837,31 @@ export default function DashboardPage() {
           <CardTitle className="!text-lg">Insights &amp; predictions</CardTitle>
         </CardHeader>
         <CardContent>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div
-            className="flex flex-col justify-center rounded-xl border p-5 sm:flex-row sm:items-center sm:gap-5"
-            style={{
-              borderColor: 'var(--border)',
-              background:
-                'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(17,24,39,0.4) 100%)',
-            }}
-          >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div
-              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl sm:mx-0 sm:mb-0"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              className="flex flex-col justify-center rounded-xl border p-5 sm:flex-row sm:items-center sm:gap-5"
+              style={{
+                borderColor: 'var(--border)',
+                background:
+                  'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(17,24,39,0.4) 100%)',
+              }}
             >
-              <Sparkles size={28} />
+              <div
+                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl sm:mx-0 sm:mb-0"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
+                <Sparkles size={28} />
+              </div>
+              <p
+                className="text-center text-base font-semibold sm:text-left"
+                style={{ color: 'var(--text)' }}
+              >
+                You&apos;re on track to clear {Math.max(stats?.overdueTasks ?? 0, 0)} overdue items
+                if you keep today&apos;s pace.
+              </p>
             </div>
-            <p
-              className="text-center text-base font-semibold sm:text-left"
-              style={{ color: 'var(--text)' }}
-            >
-              You&apos;re on track to clear {Math.max(stats?.overdueTasks ?? 0, 0)} overdue items if
-              you keep today&apos;s pace.
-            </p>
+            <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
           </div>
-          <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
-        </div>
         </CardContent>
       </Card>
 
@@ -863,7 +871,7 @@ export default function DashboardPage() {
             <CardTitle className="!text-lg">Projects by status</CardTitle>
           </CardHeader>
           <CardContent>
-          <ProjectsStatusDonut data={donutData} total={totalProjects} />
+            <ProjectsStatusDonut data={donutData} total={totalProjects} />
           </CardContent>
         </Card>
         <Card>
@@ -902,14 +910,14 @@ export default function DashboardPage() {
           <CardTitle className="!text-lg">Team performance (month)</CardTitle>
         </CardHeader>
         <CardContent>
-        {teamPerf ? (
-          <TeamPerformance data={teamPerf} />
-        ) : (
-          <div
-            className="h-32 animate-pulse rounded-xl"
-            style={{ background: 'var(--surface-2)' }}
-          />
-        )}
+          {teamPerf ? (
+            <TeamPerformance data={teamPerf} />
+          ) : (
+            <div
+              className="h-32 animate-pulse rounded-xl"
+              style={{ background: 'var(--surface-2)' }}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -921,7 +929,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-        <OverdueRisk tasks={atRiskTasks ?? []} />
+          <OverdueRisk tasks={atRiskTasks ?? []} />
         </CardContent>
       </Card>
 
@@ -930,7 +938,7 @@ export default function DashboardPage() {
           <CardTitle className="!text-lg">{t('contentDistribution')}</CardTitle>
         </CardHeader>
         <CardContent>
-        <ContentDistribution items={contentDistItems} />
+          <ContentDistribution items={contentDistItems} />
         </CardContent>
       </Card>
 
@@ -942,57 +950,57 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-        {!scheduled ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="h-12 animate-pulse rounded-xl"
-                style={{ background: 'var(--surface-2)' }}
-              />
-            ))}
-          </div>
-        ) : scheduled.length === 0 ? (
-          <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No scheduled posts coming up
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {scheduled.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
-                style={{ background: 'var(--surface-2)' }}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <Send size={16} style={{ color: 'var(--accent)' }} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
-                    </p>
-                    {s.asset?.client_name && (
-                      <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {s.asset.client_name}
+          {!scheduled ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-12 animate-pulse rounded-xl"
+                  style={{ background: 'var(--surface-2)' }}
+                />
+              ))}
+            </div>
+          ) : scheduled.length === 0 ? (
+            <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+              No scheduled posts coming up
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {scheduled.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+                  style={{ background: 'var(--surface-2)' }}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Send size={16} style={{ color: 'var(--accent)' }} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
                       </p>
-                    )}
-                    {s.platforms?.length > 0 && (
-                      <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {s.platforms.join(', ')}
-                      </p>
-                    )}
+                      {s.asset?.client_name && (
+                        <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {s.asset.client_name}
+                        </p>
+                      )}
+                      {s.platforms?.length > 0 && (
+                        <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {s.platforms.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                    {new Date(s.scheduled_date).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                    {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
                   </div>
                 </div>
-                <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
-                  {new Date(s.scheduled_date).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                  {s.scheduled_time ? ` · ${s.scheduled_time.slice(0, 5)}` : ''}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1014,64 +1022,64 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-          {!recentAssets ? (
-            <div className="grid grid-cols-3 gap-2">
-              {[...Array(6)].map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-square animate-pulse rounded-lg"
-                  style={{ background: 'var(--surface-2)' }}
-                />
-              ))}
-            </div>
-          ) : recentAssets.length === 0 ? (
-            <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No assets yet
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {recentAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="overflow-hidden rounded-xl border"
-                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-                >
-                  {(asset.thumbnail_url ??
-                  asset.preview_url ??
-                  (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
-                    <img
-                      src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
-                      alt={asset.name}
-                      className="aspect-square w-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="flex aspect-square w-full items-center justify-center"
-                      style={{ background: 'var(--surface)' }}
-                    >
-                      <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
-                    </div>
-                  )}
-                  <div className="px-2 py-1">
-                    <p
-                      className="truncate text-[10px] font-medium"
-                      style={{ color: 'var(--text)' }}
-                    >
-                      {asset.name}
-                    </p>
-                    {asset.client_name && (
-                      <p
-                        className="truncate text-[10px]"
-                        style={{ color: 'var(--text-secondary)' }}
+            {!recentAssets ? (
+              <div className="grid grid-cols-3 gap-2">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square animate-pulse rounded-lg"
+                    style={{ background: 'var(--surface-2)' }}
+                  />
+                ))}
+              </div>
+            ) : recentAssets.length === 0 ? (
+              <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                No assets yet
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {recentAssets.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className="overflow-hidden rounded-xl border"
+                    style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+                  >
+                    {(asset.thumbnail_url ??
+                    asset.preview_url ??
+                    (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
+                      <img
+                        src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
+                        alt={asset.name}
+                        className="aspect-square w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex aspect-square w-full items-center justify-center"
+                        style={{ background: 'var(--surface)' }}
                       >
-                        {asset.client_name}
-                      </p>
+                        <FolderOpen size={18} style={{ color: 'var(--text-secondary)' }} />
+                      </div>
                     )}
+                    <div className="px-2 py-1">
+                      <p
+                        className="truncate text-[10px] font-medium"
+                        style={{ color: 'var(--text)' }}
+                      >
+                        {asset.name}
+                      </p>
+                      {asset.client_name && (
+                        <p
+                          className="truncate text-[10px]"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {asset.client_name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1091,57 +1099,57 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-          {!activeClients ? (
-            <div className="space-y-2">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-10 animate-pulse rounded-lg"
-                  style={{ background: 'var(--surface-2)' }}
-                />
-              ))}
-            </div>
-          ) : activeClients.length === 0 ? (
-            <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No active clients
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {activeClients.map((client) => (
-                <Link
-                  key={client.id}
-                  href={`/clients/${client.slug ?? client.id}/overview`}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--surface-2)' }}
-                >
+            {!activeClients ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-                    style={{ background: 'var(--accent)' }}
+                    key={i}
+                    className="h-10 animate-pulse rounded-lg"
+                    style={{ background: 'var(--surface-2)' }}
+                  />
+                ))}
+              </div>
+            ) : activeClients.length === 0 ? (
+              <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                No active clients
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {activeClients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/clients/${client.slug ?? client.id}/overview`}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--surface-2)' }}
                   >
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
-                      {client.name}
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      Updated{' '}
-                      {new Date(client.updated_at).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
-                    style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
-                  >
-                    active
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      {client.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        {client.name}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Updated{' '}
+                        {new Date(client.updated_at).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                      style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
+                    >
+                      active
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

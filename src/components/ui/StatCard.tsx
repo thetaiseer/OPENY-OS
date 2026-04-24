@@ -103,12 +103,13 @@ export default function StatCard({
       >
         {value}
       </div>
-      <div className="relative z-[1] text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+      <div
+        className="relative z-[1] text-sm font-medium"
+        style={{ color: 'var(--text-secondary)' }}
+      >
         {label}
       </div>
-      {detail ? (
-        <div className="relative z-[1] mt-1 text-xs font-medium">{detail}</div>
-      ) : null}
+      {detail ? <div className="relative z-[1] mt-1 text-xs font-medium">{detail}</div> : null}
     </div>
   );
 }

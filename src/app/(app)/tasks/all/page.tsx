@@ -2021,51 +2021,51 @@ function TasksPage() {
           subtitle={`${filtered.length} task${filtered.length !== 1 ? 's' : ''} shown · ${tasks.length} total`}
           actions={
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <div role="tablist" aria-label="Task views" className="openy-segmented">
-              <button
-                onClick={() => setView('list')}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
-                style={{
-                  background: view === 'list' ? 'var(--accent)' : 'var(--surface-2)',
-                  color: view === 'list' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                  border: `1px solid ${view === 'list' ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-                role="tab"
-                aria-selected={view === 'list'}
-                aria-controls="tasks-list-panel"
-                id="tasks-list-tab"
-              >
-                <List size={14} />
-                {t('list')}
-              </button>
-              <button
-                onClick={() => setView('kanban')}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
-                style={{
-                  background: view === 'kanban' ? 'var(--accent)' : 'var(--surface-2)',
-                  color: view === 'kanban' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                  border: `1px solid ${view === 'kanban' ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-                role="tab"
-                aria-selected={view === 'kanban'}
-                aria-controls="tasks-kanban-panel"
-                id="tasks-kanban-tab"
-              >
-                <LayoutGrid size={14} />
-                {t('kanban')}
-              </button>
-            </div>
-            {canManageTasks && (
-              <Button
-                type="button"
-                variant="primary"
-                className="hidden sm:inline-flex"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus size={16} />
-                {t('newTask')}
-              </Button>
-            )}
+              <div role="tablist" aria-label="Task views" className="openy-segmented">
+                <button
+                  onClick={() => setView('list')}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
+                  style={{
+                    background: view === 'list' ? 'var(--accent)' : 'var(--surface-2)',
+                    color: view === 'list' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: `1px solid ${view === 'list' ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                  role="tab"
+                  aria-selected={view === 'list'}
+                  aria-controls="tasks-list-panel"
+                  id="tasks-list-tab"
+                >
+                  <List size={14} />
+                  {t('list')}
+                </button>
+                <button
+                  onClick={() => setView('kanban')}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
+                  style={{
+                    background: view === 'kanban' ? 'var(--accent)' : 'var(--surface-2)',
+                    color: view === 'kanban' ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: `1px solid ${view === 'kanban' ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                  role="tab"
+                  aria-selected={view === 'kanban'}
+                  aria-controls="tasks-kanban-panel"
+                  id="tasks-kanban-tab"
+                >
+                  <LayoutGrid size={14} />
+                  {t('kanban')}
+                </button>
+              </div>
+              {canManageTasks && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="hidden sm:inline-flex"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus size={16} />
+                  {t('newTask')}
+                </Button>
+              )}
             </div>
           }
         />
@@ -2115,139 +2115,141 @@ function TasksPage() {
 
       <Card padding="sm" className="sm:p-5">
         <CardContent className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="relative min-w-[220px] flex-1">
-            <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-              style={{ color: 'var(--text-secondary)' }}
-            />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('searchTasks')}
-              className="pl-9"
-            />
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-11 shrink-0 px-3"
-            onClick={() => setFiltersOpen((prev) => !prev)}
-            aria-label="Toggle filters"
-            aria-expanded={filtersOpen}
-          >
-            <SlidersHorizontal size={16} />
-            <span className="hidden text-xs sm:inline">
-              {activeFilterCount} {t('active')}
-            </span>
-          </Button>
-        </div>
-
-        <div className={`${filtersOpen ? 'flex' : 'hidden'} flex-wrap items-center gap-2 sm:flex`}>
-          <SelectDropdown
-            value={clientFilter}
-            onChange={setClientFilter}
-            className="!h-10 min-w-[150px] rounded-lg !px-3"
-            placeholder={t('allClients')}
-            options={[
-              { value: '', label: t('allClients') },
-              ...clients.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-          <SelectDropdown
-            value={assignedFilter}
-            onChange={setAssignedFilter}
-            className="!h-10 min-w-[150px] rounded-lg !px-3"
-            placeholder={t('allMembers')}
-            options={[
-              { value: '', label: t('allMembers') },
-              ...team.map((m) => ({ value: m.id, label: m.full_name })),
-            ]}
-          />
-          <SelectDropdown
-            value={priorityFilter}
-            onChange={setPriorityFilter}
-            className="!h-10 min-w-[132px] rounded-lg !px-3"
-            placeholder={t('allPriorities')}
-            options={[
-              { value: '', label: t('allPriorities') },
-              { value: 'high', label: t('high') },
-              { value: 'medium', label: t('medium') },
-              { value: 'low', label: t('low') },
-            ]}
-          />
-          <SelectDropdown
-            value={dateFilter}
-            onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
-            className="!h-10 min-w-[132px] rounded-lg !px-3"
-            placeholder={t('date')}
-            options={[
-              { value: 'all', label: `${t('date')}: ${t('all')}` },
-              { value: 'overdue', label: `${t('date')}: ${t('overdue')}` },
-              { value: 'today', label: `${t('date')}: ${t('today')}` },
-              { value: 'upcoming', label: `${t('date')}: ${t('upcoming')}` },
-            ]}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {statuses.map((s) => {
-            const isActive = statusFilter === s;
-            const count =
-              s === 'all'
-                ? tasks.length
-                : s === 'overdue'
-                  ? tasks.filter((tk) => isOverdue(tk.due_date, tk.status)).length
-                  : tasks.filter((tk) => tk.status === s).length;
-            return (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-xs font-semibold transition-colors"
-                style={{
-                  background: isActive ? 'var(--accent)' : 'var(--surface-2)',
-                  color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-              >
-                {s === 'all' ? t('all') : statusLabel(s, t)}
-                <span
-                  className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold"
-                  style={{
-                    background: isActive ? 'rgba(255,255,255,0.22)' : 'var(--surface-3)',
-                    color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-          {(clientFilter ||
-            assignedFilter ||
-            priorityFilter ||
-            dateFilter !== 'all' ||
-            searchQuery ||
-            statusFilter !== 'all') && (
+          <div className="flex items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+                style={{ color: 'var(--text-secondary)' }}
+              />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('searchTasks')}
+                className="pl-9"
+              />
+            </div>
             <Button
               type="button"
-              variant="ghost"
-              className="h-9 px-3 text-xs"
-              onClick={() => {
-                setClientFilter('');
-                setAssignedFilter('');
-                setPriorityFilter('');
-                setDateFilter('all');
-                setSearchQuery('');
-                setStatusFilter('all');
-              }}
+              variant="secondary"
+              className="h-11 shrink-0 px-3"
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              aria-label="Toggle filters"
+              aria-expanded={filtersOpen}
             >
-              {t('clearFilters')}
+              <SlidersHorizontal size={16} />
+              <span className="hidden text-xs sm:inline">
+                {activeFilterCount} {t('active')}
+              </span>
             </Button>
-          )}
-        </div>
+          </div>
+
+          <div
+            className={`${filtersOpen ? 'flex' : 'hidden'} flex-wrap items-center gap-2 sm:flex`}
+          >
+            <SelectDropdown
+              value={clientFilter}
+              onChange={setClientFilter}
+              className="!h-10 min-w-[150px] rounded-lg !px-3"
+              placeholder={t('allClients')}
+              options={[
+                { value: '', label: t('allClients') },
+                ...clients.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+            <SelectDropdown
+              value={assignedFilter}
+              onChange={setAssignedFilter}
+              className="!h-10 min-w-[150px] rounded-lg !px-3"
+              placeholder={t('allMembers')}
+              options={[
+                { value: '', label: t('allMembers') },
+                ...team.map((m) => ({ value: m.id, label: m.full_name })),
+              ]}
+            />
+            <SelectDropdown
+              value={priorityFilter}
+              onChange={setPriorityFilter}
+              className="!h-10 min-w-[132px] rounded-lg !px-3"
+              placeholder={t('allPriorities')}
+              options={[
+                { value: '', label: t('allPriorities') },
+                { value: 'high', label: t('high') },
+                { value: 'medium', label: t('medium') },
+                { value: 'low', label: t('low') },
+              ]}
+            />
+            <SelectDropdown
+              value={dateFilter}
+              onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
+              className="!h-10 min-w-[132px] rounded-lg !px-3"
+              placeholder={t('date')}
+              options={[
+                { value: 'all', label: `${t('date')}: ${t('all')}` },
+                { value: 'overdue', label: `${t('date')}: ${t('overdue')}` },
+                { value: 'today', label: `${t('date')}: ${t('today')}` },
+                { value: 'upcoming', label: `${t('date')}: ${t('upcoming')}` },
+              ]}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {statuses.map((s) => {
+              const isActive = statusFilter === s;
+              const count =
+                s === 'all'
+                  ? tasks.length
+                  : s === 'overdue'
+                    ? tasks.filter((tk) => isOverdue(tk.due_date, tk.status)).length
+                    : tasks.filter((tk) => tk.status === s).length;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-xs font-semibold transition-colors"
+                  style={{
+                    background: isActive ? 'var(--accent)' : 'var(--surface-2)',
+                    color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  {s === 'all' ? t('all') : statusLabel(s, t)}
+                  <span
+                    className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                    style={{
+                      background: isActive ? 'rgba(255,255,255,0.22)' : 'var(--surface-3)',
+                      color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+            {(clientFilter ||
+              assignedFilter ||
+              priorityFilter ||
+              dateFilter !== 'all' ||
+              searchQuery ||
+              statusFilter !== 'all') && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 px-3 text-xs"
+                onClick={() => {
+                  setClientFilter('');
+                  setAssignedFilter('');
+                  setPriorityFilter('');
+                  setDateFilter('all');
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                }}
+              >
+                {t('clearFilters')}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 

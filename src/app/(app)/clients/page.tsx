@@ -327,53 +327,58 @@ function ClientsPage() {
 
       <Card padding="sm" className="sm:p-6">
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="relative min-w-[200px] flex-1">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email or company…"
-            className="pl-9"
-          />
-        </div>
-        <div className="w-full min-w-[140px] sm:w-44">
-          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-            Status
-          </p>
-          <SelectDropdown
-            fullWidth
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: 'all', label: 'All statuses' },
-              { value: 'active', label: t('active') },
-              { value: 'inactive', label: t('inactive') },
-              { value: 'prospect', label: t('prospect') },
-            ]}
-          />
-        </div>
-        <div className="w-full min-w-[160px] sm:w-48">
-          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-            Industry
-          </p>
-          <Input
-            type="text"
-            value={industryFilter}
-            onChange={(e) => setIndustryFilter(e.target.value)}
-            placeholder="Filter industry"
-          />
-        </div>
-        <div className="w-full min-w-[180px] sm:w-56">
-          <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-            Account manager
-          </p>
-          <Input disabled title="Coming soon" placeholder="Filter (soon)" className="cursor-not-allowed opacity-60" />
-        </div>
+          <div className="relative min-w-[200px] flex-1">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email or company…"
+              className="pl-9"
+            />
+          </div>
+          <div className="w-full min-w-[140px] sm:w-44">
+            <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+              Status
+            </p>
+            <SelectDropdown
+              fullWidth
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'all', label: 'All statuses' },
+                { value: 'active', label: t('active') },
+                { value: 'inactive', label: t('inactive') },
+                { value: 'prospect', label: t('prospect') },
+              ]}
+            />
+          </div>
+          <div className="w-full min-w-[160px] sm:w-48">
+            <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+              Industry
+            </p>
+            <Input
+              type="text"
+              value={industryFilter}
+              onChange={(e) => setIndustryFilter(e.target.value)}
+              placeholder="Filter industry"
+            />
+          </div>
+          <div className="w-full min-w-[180px] sm:w-56">
+            <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+              Account manager
+            </p>
+            <Input
+              disabled
+              title="Coming soon"
+              placeholder="Filter (soon)"
+              className="cursor-not-allowed opacity-60"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -404,24 +409,24 @@ function ClientsPage() {
       ) : filteredClients.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-          <div
-            className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
-            style={{ background: 'var(--surface-2)' }}
-          >
-            <Users2 size={36} style={{ color: 'var(--text-secondary)' }} />
-          </div>
-          <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
-            {t('noClientsYet')}
-          </h3>
-          <p className="mb-6 max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {t('noClientsDesc')}
-          </p>
-          {canManageClients && (
-            <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
-              <Plus size={16} />
-              {t('newClient')}
-            </Button>
-          )}
+            <div
+              className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <Users2 size={36} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
+              {t('noClientsYet')}
+            </h3>
+            <p className="mb-6 max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {t('noClientsDesc')}
+            </p>
+            {canManageClients && (
+              <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
+                <Plus size={16} />
+                {t('newClient')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -462,7 +467,7 @@ function ClientsPage() {
                     router.push(baseClientHref);
                   }
                 }}
-                className="group openy-motion-card flex cursor-pointer select-none flex-col rounded-2xl border border-[var(--border-glass)] p-6 shadow-card transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:translate-y-0 active:scale-[0.99]"
+                className="openy-motion-card group flex cursor-pointer select-none flex-col rounded-2xl border border-[var(--border-glass)] p-6 shadow-card transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:translate-y-0 active:scale-[0.99]"
                 style={{
                   background: 'var(--gradient-card-glass)',
                   backdropFilter: 'var(--blur-glass)',

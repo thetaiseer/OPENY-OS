@@ -4,7 +4,10 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { OPENY_MENU_PANEL_COMPACT_CLASS, OPENY_MENU_ITEM_COMPACT_CLASS } from '@/components/ui/menu-system';
+import {
+  OPENY_MENU_PANEL_COMPACT_CLASS,
+  OPENY_MENU_ITEM_COMPACT_CLASS,
+} from '@/components/ui/menu-system';
 
 type Align = 'start' | 'end';
 
@@ -110,7 +113,9 @@ export default function Dropdown({
               }
             }}
           >
-            {item.icon ? <span className="shrink-0 text-[var(--text-secondary)]">{item.icon}</span> : null}
+            {item.icon ? (
+              <span className="shrink-0 text-[var(--text-secondary)]">{item.icon}</span>
+            ) : null}
             {item.label}
           </button>
         ))}

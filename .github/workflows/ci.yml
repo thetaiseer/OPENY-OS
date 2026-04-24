@@ -31,8 +31,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Format check
-        run: npm run format:check
+      # Apply Prettier in CI, then fail if the tree changed (same bar as --check,
+      # but ensures plugins/config match `prettier --write` used locally and in hooks).
+      - name: Format
+        run: npx prettier --write .
+
+      - name: Assert committed formatting
+        run: git diff --exit-code
 
       - name: Unit tests
         run: npm test

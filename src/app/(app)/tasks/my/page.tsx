@@ -560,12 +560,17 @@ export default function MyTasksPage() {
                   cardSurfaceClass,
                   'w-full p-4 text-left transition-shadow hover:shadow-sm',
                   active &&
-                    'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)] border-[var(--accent)]',
+                    'border-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]',
                 )}
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <Icon size={18} className={active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'} />
-                  <span className="text-2xl font-bold tabular-nums text-[var(--text)]">{count}</span>
+                  <Icon
+                    size={18}
+                    className={active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}
+                  />
+                  <span className="text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {count}
+                  </span>
                 </div>
                 <p className="text-xs font-medium leading-tight text-[var(--text-secondary)]">
                   {t(sec.labelKey)}
@@ -580,14 +585,22 @@ export default function MyTasksPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <LayoutList size={16} className="shrink-0 text-[var(--accent)]" />
-            <SectionTitle as="h2" className="!mb-0 flex min-w-0 flex-wrap items-baseline gap-2 text-sm">
+            <SectionTitle
+              as="h2"
+              className="!mb-0 flex min-w-0 flex-wrap items-baseline gap-2 text-sm"
+            >
               <span className="truncate">{sectionHeaderLabel}</span>
               <span className="text-xs font-normal text-[var(--text-secondary)]">
                 ({visibleTasks.length})
               </span>
             </SectionTitle>
           </div>
-          <Button type="button" variant="ghost" className="h-8 shrink-0 text-xs" onClick={() => setShowNewTask(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-8 shrink-0 text-xs"
+            onClick={() => setShowNewTask(true)}
+          >
             <Plus size={12} /> Add task
           </Button>
         </div>

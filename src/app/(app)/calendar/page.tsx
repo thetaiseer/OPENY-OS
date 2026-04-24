@@ -474,244 +474,197 @@ export default function CalendarPage() {
                 })}
               </div>
             )}
-        </Card>
+          </Card>
         </div>
 
         {/* Detail panel */}
         <div>
           <Card className="sticky top-6">
             <CardContent className="space-y-4">
-            {selectedDay ? (
-              <>
-                <h3 className="text-sm font-semibold text-[var(--text)]">
-                  {MONTH_NAMES[month]} {selectedDay}, {year}
-                </h3>
+              {selectedDay ? (
+                <>
+                  <h3 className="text-sm font-semibold text-[var(--text)]">
+                    {MONTH_NAMES[month]} {selectedDay}, {year}
+                  </h3>
 
-                {selectedTasks.length === 0 &&
-                selectedAssets.length === 0 &&
-                selectedSchedules.length === 0 &&
-                selectedContent.length === 0 ? (
-                  <p className="py-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Nothing scheduled for this day
-                  </p>
-                ) : (
-                  <>
-                    {/* Publishing schedules */}
-                    {selectedSchedules.length > 0 && (
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <Send size={14} style={{ color: '#7c3aed' }} />
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: 'var(--text-secondary)' }}
-                          >
-                            PUBLISHING ({selectedSchedules.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {selectedSchedules.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={() => setSelectedSchedule(s)}
-                              className="w-full rounded-lg p-2.5 text-left transition-opacity hover:opacity-80"
-                              style={{
-                                background: 'var(--surface-2)',
-                                border:
-                                  selectedSchedule?.id === s.id
-                                    ? '1.5px solid var(--accent)'
-                                    : '1.5px solid transparent',
-                              }}
+                  {selectedTasks.length === 0 &&
+                  selectedAssets.length === 0 &&
+                  selectedSchedules.length === 0 &&
+                  selectedContent.length === 0 ? (
+                    <p className="py-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      Nothing scheduled for this day
+                    </p>
+                  ) : (
+                    <>
+                      {/* Publishing schedules */}
+                      {selectedSchedules.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-2">
+                            <Send size={14} style={{ color: '#7c3aed' }} />
+                            <span
+                              className="text-xs font-semibold"
+                              style={{ color: 'var(--text-secondary)' }}
                             >
-                              <p
-                                className="truncate text-sm font-medium"
-                                style={{ color: 'var(--text)' }}
+                              PUBLISHING ({selectedSchedules.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedSchedules.map((s) => (
+                              <button
+                                key={s.id}
+                                onClick={() => setSelectedSchedule(s)}
+                                className="w-full rounded-lg p-2.5 text-left transition-opacity hover:opacity-80"
+                                style={{
+                                  background: 'var(--surface-2)',
+                                  border:
+                                    selectedSchedule?.id === s.id
+                                      ? '1.5px solid var(--accent)'
+                                      : '1.5px solid transparent',
+                                }}
                               >
-                                {s.asset?.name ?? 'Asset'}
-                              </p>
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                <span
-                                  className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                                  style={{
-                                    background: `${scheduleStatusColor(s.status)}20`,
-                                    color: scheduleStatusColor(s.status),
-                                  }}
-                                >
-                                  {s.status}
-                                </span>
-                                {s.platforms.slice(0, 2).map((p) => (
-                                  <span
-                                    key={p}
-                                    className="rounded px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: 'var(--surface)',
-                                      color: 'var(--text-secondary)',
-                                    }}
-                                  >
-                                    {platformLabel(p)}
-                                  </span>
-                                ))}
-                                {s.post_types.slice(0, 2).map((pt) => (
-                                  <span
-                                    key={pt}
-                                    className="rounded px-1.5 py-0.5 text-[10px]"
-                                    style={{
-                                      background: 'rgba(99,102,241,0.1)',
-                                      color: 'var(--accent)',
-                                    }}
-                                  >
-                                    {postTypeLabel(pt)}
-                                  </span>
-                                ))}
-                              </div>
-                              {s.scheduled_time && (
-                                <p
-                                  className="mt-1 text-[10px]"
-                                  style={{ color: 'var(--text-secondary)' }}
-                                >
-                                  🕐 {s.scheduled_time.slice(0, 5)}{' '}
-                                  {s.timezone !== 'UTC' ? s.timezone : ''}
-                                </p>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedTasks.length > 0 && (
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: 'var(--text-secondary)' }}
-                          >
-                            TASKS
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {selectedTasks.map((t) => {
-                            const taskClient = (
-                              t as unknown as { client?: { slug?: string; name?: string } }
-                            ).client;
-                            const taskLink = taskClient?.slug
-                              ? `/clients/${taskClient.slug}/tasks`
-                              : '/tasks/all';
-                            return (
-                              <Link
-                                key={t.id}
-                                href={taskLink}
-                                className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
-                                style={{ background: 'var(--surface-2)' }}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <p
-                                    className="text-sm font-medium"
-                                    style={{ color: 'var(--text)' }}
-                                  >
-                                    {t.title}
-                                  </p>
-                                  <ExternalLink
-                                    size={11}
-                                    className="mt-0.5 shrink-0"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                  />
-                                </div>
-                                {taskClient?.name && (
-                                  <p className="mt-0.5 text-xs" style={{ color: 'var(--accent)' }}>
-                                    {taskClient.name}
-                                  </p>
-                                )}
-                                <div className="mt-1 flex gap-2">
-                                  <span
-                                    className="rounded px-1.5 py-0.5 text-xs"
-                                    style={{
-                                      background: `${priorityColor(t.priority)}20`,
-                                      color: priorityColor(t.priority),
-                                    }}
-                                  >
-                                    {t.priority}
-                                  </span>
-                                  <span
-                                    className="text-xs"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                  >
-                                    {t.status.replace(/_/g, ' ')}
-                                  </span>
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedAssets.length > 0 && (
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <FolderOpen size={14} style={{ color: 'var(--accent)' }} />
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: 'var(--text-secondary)' }}
-                          >
-                            ASSETS
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {selectedAssets.map((a) => (
-                            <Link
-                              key={a.id}
-                              href="/assets"
-                              className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
-                              style={{ background: 'var(--surface-2)' }}
-                            >
-                              <div className="flex items-start justify-between gap-2">
                                 <p
                                   className="truncate text-sm font-medium"
                                   style={{ color: 'var(--text)' }}
                                 >
-                                  {a.name}
+                                  {s.asset?.name ?? 'Asset'}
                                 </p>
-                                <ExternalLink
-                                  size={11}
-                                  className="mt-0.5 shrink-0"
-                                  style={{ color: 'var(--text-secondary)' }}
-                                />
-                              </div>
-                              {a.client_name && (
-                                <p className="mt-0.5 text-xs" style={{ color: 'var(--accent)' }}>
-                                  {a.client_name}
-                                </p>
-                              )}
-                            </Link>
-                          ))}
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  <span
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                                    style={{
+                                      background: `${scheduleStatusColor(s.status)}20`,
+                                      color: scheduleStatusColor(s.status),
+                                    }}
+                                  >
+                                    {s.status}
+                                  </span>
+                                  {s.platforms.slice(0, 2).map((p) => (
+                                    <span
+                                      key={p}
+                                      className="rounded px-1.5 py-0.5 text-[10px]"
+                                      style={{
+                                        background: 'var(--surface)',
+                                        color: 'var(--text-secondary)',
+                                      }}
+                                    >
+                                      {platformLabel(p)}
+                                    </span>
+                                  ))}
+                                  {s.post_types.slice(0, 2).map((pt) => (
+                                    <span
+                                      key={pt}
+                                      className="rounded px-1.5 py-0.5 text-[10px]"
+                                      style={{
+                                        background: 'rgba(99,102,241,0.1)',
+                                        color: 'var(--accent)',
+                                      }}
+                                    >
+                                      {postTypeLabel(pt)}
+                                    </span>
+                                  ))}
+                                </div>
+                                {s.scheduled_time && (
+                                  <p
+                                    className="mt-1 text-[10px]"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                  >
+                                    🕐 {s.scheduled_time.slice(0, 5)}{' '}
+                                    {s.timezone !== 'UTC' ? s.timezone : ''}
+                                  </p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {selectedContent.length > 0 && (
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <FileText size={14} style={{ color: '#0891b2' }} />
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: 'var(--text-secondary)' }}
-                          >
-                            CONTENT ({selectedContent.length})
-                          </span>
+                      {selectedTasks.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-2">
+                            <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                            <span
+                              className="text-xs font-semibold"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              TASKS
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedTasks.map((t) => {
+                              const taskClient = (
+                                t as unknown as { client?: { slug?: string; name?: string } }
+                              ).client;
+                              const taskLink = taskClient?.slug
+                                ? `/clients/${taskClient.slug}/tasks`
+                                : '/tasks/all';
+                              return (
+                                <Link
+                                  key={t.id}
+                                  href={taskLink}
+                                  className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
+                                  style={{ background: 'var(--surface-2)' }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p
+                                      className="text-sm font-medium"
+                                      style={{ color: 'var(--text)' }}
+                                    >
+                                      {t.title}
+                                    </p>
+                                    <ExternalLink
+                                      size={11}
+                                      className="mt-0.5 shrink-0"
+                                      style={{ color: 'var(--text-secondary)' }}
+                                    />
+                                  </div>
+                                  {taskClient?.name && (
+                                    <p
+                                      className="mt-0.5 text-xs"
+                                      style={{ color: 'var(--accent)' }}
+                                    >
+                                      {taskClient.name}
+                                    </p>
+                                  )}
+                                  <div className="mt-1 flex gap-2">
+                                    <span
+                                      className="rounded px-1.5 py-0.5 text-xs"
+                                      style={{
+                                        background: `${priorityColor(t.priority)}20`,
+                                        color: priorityColor(t.priority),
+                                      }}
+                                    >
+                                      {t.priority}
+                                    </span>
+                                    <span
+                                      className="text-xs"
+                                      style={{ color: 'var(--text-secondary)' }}
+                                    >
+                                      {t.status.replace(/_/g, ' ')}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {selectedContent.map((c) => {
-                            const contentClient = (
-                              c as unknown as { client?: { slug?: string; name?: string } }
-                            ).client;
-                            const contentLink = contentClient?.slug
-                              ? `/clients/${contentClient.slug}/content`
-                              : '/content';
-                            return (
+                      )}
+
+                      {selectedAssets.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-2">
+                            <FolderOpen size={14} style={{ color: 'var(--accent)' }} />
+                            <span
+                              className="text-xs font-semibold"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              ASSETS
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedAssets.map((a) => (
                               <Link
-                                key={c.id}
-                                href={contentLink}
+                                key={a.id}
+                                href="/assets"
                                 className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
                                 style={{ background: 'var(--surface-2)' }}
                               >
@@ -720,7 +673,7 @@ export default function CalendarPage() {
                                     className="truncate text-sm font-medium"
                                     style={{ color: 'var(--text)' }}
                                   >
-                                    {c.title}
+                                    {a.name}
                                   </p>
                                   <ExternalLink
                                     size={11}
@@ -728,38 +681,91 @@ export default function CalendarPage() {
                                     style={{ color: 'var(--text-secondary)' }}
                                   />
                                 </div>
-                                {contentClient?.name && (
+                                {a.client_name && (
                                   <p className="mt-0.5 text-xs" style={{ color: 'var(--accent)' }}>
-                                    {contentClient.name}
+                                    {a.client_name}
                                   </p>
                                 )}
-                                <span
-                                  className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                                  style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
-                                >
-                                  {c.status.replace(/_/g, ' ')}
-                                </span>
                               </Link>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Calendar
-                  size={28}
-                  className="mb-3 opacity-40"
-                  style={{ color: 'var(--text-secondary)' }}
-                />
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Click a day to see scheduled items
-                </p>
-              </div>
-            )}
+                      )}
+
+                      {selectedContent.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center gap-2">
+                            <FileText size={14} style={{ color: '#0891b2' }} />
+                            <span
+                              className="text-xs font-semibold"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              CONTENT ({selectedContent.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedContent.map((c) => {
+                              const contentClient = (
+                                c as unknown as { client?: { slug?: string; name?: string } }
+                              ).client;
+                              const contentLink = contentClient?.slug
+                                ? `/clients/${contentClient.slug}/content`
+                                : '/content';
+                              return (
+                                <Link
+                                  key={c.id}
+                                  href={contentLink}
+                                  className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
+                                  style={{ background: 'var(--surface-2)' }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p
+                                      className="truncate text-sm font-medium"
+                                      style={{ color: 'var(--text)' }}
+                                    >
+                                      {c.title}
+                                    </p>
+                                    <ExternalLink
+                                      size={11}
+                                      className="mt-0.5 shrink-0"
+                                      style={{ color: 'var(--text-secondary)' }}
+                                    />
+                                  </div>
+                                  {contentClient?.name && (
+                                    <p
+                                      className="mt-0.5 text-xs"
+                                      style={{ color: 'var(--accent)' }}
+                                    >
+                                      {contentClient.name}
+                                    </p>
+                                  )}
+                                  <span
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                                    style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                                  >
+                                    {c.status.replace(/_/g, ' ')}
+                                  </span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Calendar
+                    size={28}
+                    className="mb-3 opacity-40"
+                    style={{ color: 'var(--text-secondary)' }}
+                  />
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Click a day to see scheduled items
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

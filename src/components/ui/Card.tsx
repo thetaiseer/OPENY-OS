@@ -26,14 +26,22 @@ export function Card({ className, padding = 'md', children, ...rest }: CardProps
 }
 
 export function CardHeader({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mb-4 flex flex-wrap items-start justify-between gap-3', className)} {...rest} />;
+  return (
+    <div
+      className={cn('mb-4 flex flex-wrap items-start justify-between gap-3', className)}
+      {...rest}
+    />
+  );
 }
 
 export function CardTitle({ className, ...rest }: React.ComponentPropsWithoutRef<'h2'>) {
   return <h2 className={cn('app-card-title', className)} {...rest} />;
 }
 
-export function CardDescription({ className, ...rest }: React.HTMLAttributes<HTMLParagraphElement>) {
+export function CardDescription({
+  className,
+  ...rest
+}: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
       className={cn('mt-1 text-sm leading-relaxed text-[var(--text-secondary)]', className)}
@@ -49,7 +57,10 @@ export function CardContent({ className, ...rest }: React.HTMLAttributes<HTMLDiv
 export function CardFooter({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4', className)}
+      className={cn(
+        'mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4',
+        className,
+      )}
       {...rest}
     />
   );

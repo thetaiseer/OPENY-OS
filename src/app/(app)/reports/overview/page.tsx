@@ -387,22 +387,23 @@ export default function ReportsPage() {
                     </thead>
                     <tbody>
                       {report.clientStats.map((c) => (
-                        <tr
-                          key={c.id}
-                          className="border-b border-[var(--border)] last:border-b-0"
-                        >
+                        <tr key={c.id} className="border-b border-[var(--border)] last:border-b-0">
                           <td className="px-4 py-3 font-medium text-[var(--text)]">{c.name}</td>
                           <td className="px-4 py-3 text-[var(--text-secondary)]">{c.totalTasks}</td>
                           <td className="px-4 py-3">
                             <Badge variant="success">{c.completedTasks}</Badge>
                           </td>
-                          <td className="px-4 py-3 text-[var(--text-secondary)]">{c.pendingTasks}</td>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">
+                            {c.pendingTasks}
+                          </td>
                           <td className="px-4 py-3">
                             <Badge variant={c.overdueTasks > 0 ? 'danger' : 'default'}>
                               {c.overdueTasks}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 text-[var(--text-secondary)]">{c.totalAssets}</td>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">
+                            {c.totalAssets}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

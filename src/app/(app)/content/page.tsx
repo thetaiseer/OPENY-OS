@@ -141,7 +141,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
             <Button
               type="button"
               variant="ghost"
-              className="h-7 w-7 min-h-0 p-0"
+              className="h-7 min-h-0 w-7 p-0"
               onClick={() => onDelete(item.id)}
               aria-label="Delete"
             >
@@ -276,7 +276,7 @@ function ContentPage() {
         title="Content Items"
         subtitle="Manage your content pipeline from draft to published"
         actions={
-          (role === 'admin' || role === 'manager' || role === 'team_member') ? (
+          role === 'admin' || role === 'manager' || role === 'team_member' ? (
             <Button type="button" variant="primary" onClick={() => setNewOpen(true)}>
               <Plus size={16} /> New Content
             </Button>

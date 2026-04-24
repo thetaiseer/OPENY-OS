@@ -94,7 +94,7 @@ function R2StorageCard() {
         <Button
           type="button"
           variant="secondary"
-          className="h-8 w-8 min-h-0 p-0"
+          className="h-8 min-h-0 w-8 p-0"
           onClick={fetchStatus}
           disabled={loading}
           title="Refresh status"
@@ -284,7 +284,12 @@ export default function SettingsProfilePage() {
               <p className="text-sm font-medium text-[var(--text)]">Theme</p>
               <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Currently: {theme}</p>
             </div>
-            <Button type="button" variant="secondary" className="h-9 shrink-0" onClick={toggleTheme}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9 shrink-0"
+              onClick={toggleTheme}
+            >
               Switch to {theme === 'light' ? 'Dark' : 'Light'}
             </Button>
           </div>

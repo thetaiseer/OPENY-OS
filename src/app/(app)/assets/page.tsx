@@ -1167,63 +1167,63 @@ function AssetsPage() {
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
         <Card padding="sm" className="sm:p-6">
           <CardContent className="space-y-3 !p-0">
-          <div className="flex flex-wrap gap-2">
-            <div className="relative min-w-48 flex-1">
-              <Search
-                size={14}
-                className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
-              />
-              <Input
-                type="text"
-                placeholder="Search files…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <SelectDropdown
-              value={filterFileType}
-              onChange={setFilterFileType}
-              placeholder="All file types"
-              options={[
-                { value: '', label: 'All file types' },
-                { value: 'image', label: 'Images' },
-                { value: 'video', label: 'Videos' },
-                { value: 'audio', label: 'Audio' },
-                { value: 'application/pdf', label: 'PDFs' },
-                ...availableFileTypes
-                  .filter((tp) => !['image', 'video', 'audio'].includes(tp))
-                  .map((tp) => ({ value: tp, label: tp.charAt(0).toUpperCase() + tp.slice(1) })),
-              ]}
-            />
-            <SelectDropdown
-              value={sortBy}
-              onChange={(v) => setSortBy(v as 'newest' | 'oldest' | 'largest')}
-              options={[
-                { value: 'newest', label: 'Newest First' },
-                { value: 'oldest', label: 'Oldest First' },
-                { value: 'largest', label: 'Largest First' },
-              ]}
-            />
-            {hasActiveFilters && (
-              <Button type="button" variant="danger" className="h-10" onClick={clearFilters}>
-                <X size={13} /> Clear
-              </Button>
-            )}
-          </div>
-          {hasActiveFilters && (
-            <div className="flex flex-wrap gap-1.5">
-              {filterFileType && (
-                <FilterBadge
-                  label={fileTypeFilterLabel(filterFileType)}
-                  onRemove={() => setFilterFileType('')}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-48 flex-1">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
                 />
-              )}
-              {searchQuery && (
-                <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />
+                <Input
+                  type="text"
+                  placeholder="Search files…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <SelectDropdown
+                value={filterFileType}
+                onChange={setFilterFileType}
+                placeholder="All file types"
+                options={[
+                  { value: '', label: 'All file types' },
+                  { value: 'image', label: 'Images' },
+                  { value: 'video', label: 'Videos' },
+                  { value: 'audio', label: 'Audio' },
+                  { value: 'application/pdf', label: 'PDFs' },
+                  ...availableFileTypes
+                    .filter((tp) => !['image', 'video', 'audio'].includes(tp))
+                    .map((tp) => ({ value: tp, label: tp.charAt(0).toUpperCase() + tp.slice(1) })),
+                ]}
+              />
+              <SelectDropdown
+                value={sortBy}
+                onChange={(v) => setSortBy(v as 'newest' | 'oldest' | 'largest')}
+                options={[
+                  { value: 'newest', label: 'Newest First' },
+                  { value: 'oldest', label: 'Oldest First' },
+                  { value: 'largest', label: 'Largest First' },
+                ]}
+              />
+              {hasActiveFilters && (
+                <Button type="button" variant="danger" className="h-10" onClick={clearFilters}>
+                  <X size={13} /> Clear
+                </Button>
               )}
             </div>
-          )}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-1.5">
+                {filterFileType && (
+                  <FilterBadge
+                    label={fileTypeFilterLabel(filterFileType)}
+                    onRemove={() => setFilterFileType('')}
+                  />
+                )}
+                {searchQuery && (
+                  <FilterBadge label={`"${searchQuery}"`} onRemove={() => setSearchQuery('')} />
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1245,13 +1245,18 @@ function AssetsPage() {
         {/* ── Fetch error ──────────────────────────────────────────────────── */}
         {fetchError && !loading && (
           <Card className="border-[var(--color-danger-border)] bg-[var(--color-danger-bg)]">
-            <CardContent className="flex items-start gap-3 py-3 text-sm text-[var(--color-danger)] !p-4">
+            <CardContent className="flex items-start gap-3 !p-4 py-3 text-sm text-[var(--color-danger)]">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">Failed to load assets</p>
                 <p className="break-all opacity-80">{fetchError}</p>
               </div>
-              <Button type="button" variant="ghost" className="h-auto shrink-0 p-0 underline" onClick={() => fetchAssets(0)}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-auto shrink-0 p-0 underline"
+                onClick={() => fetchAssets(0)}
+              >
                 Retry
               </Button>
             </CardContent>
@@ -1337,7 +1342,12 @@ function AssetsPage() {
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <Button type="button" variant="secondary" className="h-9 px-6 text-sm" onClick={loadMore}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 px-6 text-sm"
+                  onClick={loadMore}
+                >
                   Load More
                 </Button>
               </div>
@@ -1371,7 +1381,12 @@ function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <Button type="button" variant="secondary" className="h-9 px-6 text-sm" onClick={loadMore}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 px-6 text-sm"
+                  onClick={loadMore}
+                >
                   Load More
                 </Button>
               </div>

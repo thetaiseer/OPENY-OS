@@ -247,42 +247,42 @@ export default function ProjectsPage() {
 
       <Card padding="sm" className="sm:p-6">
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Project filters">
-          {tabs.map(({ id, label }) => {
-            const active = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(id)}
-                className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
-                style={{
-                  background: active ? 'var(--accent)' : 'var(--surface-2)',
-                  color: active ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
-            style={{ color: 'var(--text-tertiary)' }}
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search projects…"
-            className="pl-10"
-          />
-        </div>
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Project filters">
+            {tabs.map(({ id, label }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                  style={{
+                    background: active ? 'var(--accent)' : 'var(--surface-2)',
+                    color: active ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              style={{ color: 'var(--text-tertiary)' }}
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search projects…"
+              className="pl-10"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -299,24 +299,24 @@ export default function ProjectsPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-          <FolderKanban
-            size={40}
-            className="mb-4 opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            No projects found
-          </p>
-          <p className="mt-1 max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {tab === 'all'
-              ? 'Create a project to organize work for your clients.'
-              : 'Try another filter or clear search.'}
-          </p>
-          {canManage && tab === 'all' && !search && (
-            <Button type="button" variant="primary" className="mt-6" onClick={openCreate}>
-              + New project
-            </Button>
-          )}
+            <FolderKanban
+              size={40}
+              className="mb-4 opacity-30"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+              No projects found
+            </p>
+            <p className="mt-1 max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {tab === 'all'
+                ? 'Create a project to organize work for your clients.'
+                : 'Try another filter or clear search.'}
+            </p>
+            {canManage && tab === 'all' && !search && (
+              <Button type="button" variant="primary" className="mt-6" onClick={openCreate}>
+                + New project
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -325,7 +325,10 @@ export default function ProjectsPage() {
             const slug = project.client?.slug;
             const clientHref = slug ? `/clients/${slug}/overview` : null;
             return (
-              <Card key={project.id} className="flex flex-col transition-transform hover:-translate-y-0.5">
+              <Card
+                key={project.id}
+                className="flex flex-col transition-transform hover:-translate-y-0.5"
+              >
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <div

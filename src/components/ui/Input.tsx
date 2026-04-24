@@ -14,7 +14,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   { className, type = 'text', ...props },
   ref,
 ) {
-  return <input ref={ref} type={type} className={cn(fieldClass, inputHeightClass, className)} {...props} />;
+  return (
+    <input
+      ref={ref}
+      type={type}
+      className={cn(fieldClass, inputHeightClass, className)}
+      {...props}
+    />
+  );
 });
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
@@ -40,7 +47,10 @@ export function Label({
 }: React.LabelHTMLAttributes<HTMLLabelElement> & { children: React.ReactNode }) {
   return (
     <label
-      className={cn('mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]', className)}
+      className={cn(
+        'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]',
+        className,
+      )}
       {...rest}
     >
       {children}
@@ -62,7 +72,10 @@ export function Field({
   return (
     <div className={cn('space-y-1.5', className)}>
       {label ? (
-        <label htmlFor={id ?? undefined} className="mb-1 block text-sm font-medium text-[var(--text)]">
+        <label
+          htmlFor={id ?? undefined}
+          className="mb-1 block text-sm font-medium text-[var(--text)]"
+        >
           {label}
         </label>
       ) : null}
