@@ -549,14 +549,18 @@ function InviteForm({
 // ── Invite status badge ───────────────────────────────────────────────────────
 function InviteBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
-    pending: { label: 'Pending', color: '#d97706', bg: '#fffbeb' },
-    invited: { label: 'Invited', color: '#d97706', bg: '#fffbeb' },
-    accepted: { label: 'Active', color: '#16a34a', bg: '#f0fdf4' },
-    expired: { label: 'Expired', color: '#9ca3af', bg: '#f9fafb' },
-    revoked: { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
-    cancelled: { label: 'Cancelled', color: '#dc2626', bg: '#fef2f2' },
+    pending: { label: 'Pending', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
+    invited: { label: 'Invited', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
+    accepted: { label: 'Active', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
+    expired: { label: 'Expired', color: 'var(--text-secondary)', bg: 'var(--surface-2)' },
+    revoked: { label: 'Cancelled', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
+    cancelled: { label: 'Cancelled', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
   };
-  const c = cfg[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6' };
+  const c = cfg[status] ?? {
+    label: status,
+    color: 'var(--text-secondary)',
+    bg: 'var(--surface-2)',
+  };
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
@@ -570,9 +574,9 @@ function InviteBadge({ status }: { status: string }) {
 // ── AccessBadge — colored module access level badge ───────────────────────────
 function AccessBadge({ level }: { level: ModuleAccess }) {
   const cfg: Record<ModuleAccess, { color: string; bg: string; label: string }> = {
-    full: { color: '#16a34a', bg: '#f0fdf4', label: 'Full' },
-    read: { color: '#2563eb', bg: '#eff6ff', label: 'Read' },
-    none: { color: '#9ca3af', bg: '#f3f4f6', label: 'None' },
+    full: { color: 'var(--color-success)', bg: 'var(--color-success-bg)', label: 'Full' },
+    read: { color: 'var(--color-info)', bg: 'var(--color-info-bg)', label: 'Read' },
+    none: { color: 'var(--text-secondary)', bg: 'var(--surface-2)', label: 'None' },
   };
   const c = cfg[level];
   return (
@@ -739,7 +743,7 @@ function MemberSidePanel({
                 </span>
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ color: '#16a34a', background: '#f0fdf4' }}
+                  style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}
                 >
                   Active
                 </span>
@@ -918,8 +922,12 @@ function MemberSidePanel({
                 onClose();
                 onDelete(member);
               }}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-red-500 transition-colors hover:bg-red-50"
-              style={{ border: '1px solid #fca5a5' }}
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors hover:opacity-90"
+              style={{
+                color: 'var(--color-danger)',
+                border: '1px solid var(--color-danger-border)',
+                background: 'var(--color-danger-bg)',
+              }}
             >
               <Trash2 size={14} />
               Remove Member
@@ -1340,7 +1348,7 @@ export default function TeamPage() {
     ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvites.length > 0;
 
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-8">
+    <div className="app-page-shell mx-auto max-w-6xl space-y-6">
       {/* Header */}
       <div className="app-page-header">
         <div>
@@ -1356,7 +1364,7 @@ export default function TeamPage() {
               setActionError('');
               setInviteOpen(true);
             }}
-            className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             style={{ background: 'var(--accent)' }}
           >
             <Send size={15} />
@@ -1387,7 +1395,7 @@ export default function TeamPage() {
             canManage ? (
               <button
                 onClick={() => setInviteOpen(true)}
-                className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+                className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white"
                 style={{ background: 'var(--accent)' }}
               >
                 <Send size={15} />
@@ -1399,7 +1407,7 @@ export default function TeamPage() {
       ) : (
         <>
           <section
-            className="rounded-2xl border p-5 shadow-sm"
+            className="rounded-2xl border p-5 shadow-card"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <SectionHeader
@@ -1415,7 +1423,7 @@ export default function TeamPage() {
           </section>
 
           <section
-            className="rounded-2xl border p-5 shadow-sm"
+            className="rounded-2xl border p-5 shadow-card"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <SectionHeader
@@ -1446,7 +1454,7 @@ export default function TeamPage() {
           </section>
 
           <section
-            className="rounded-2xl border p-5 shadow-sm"
+            className="rounded-2xl border p-5 shadow-card"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <SectionHeader
@@ -1525,7 +1533,12 @@ export default function TeamPage() {
         <form onSubmit={handleInvite} className="space-y-4">
           <InviteForm f={inviteForm} setF={setInviteForm} />
           {actionError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionError}</p>
+            <p
+              className="rounded-xl px-3 py-2 text-sm"
+              style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
+            >
+              {actionError}
+            </p>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -1646,7 +1659,8 @@ export default function TeamPage() {
             <button
               type="button"
               onClick={handleDelete}
-              className="h-9 rounded-lg bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600"
+              className="h-9 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              style={{ background: 'var(--color-danger)' }}
             >
               Remove
             </button>
@@ -1711,7 +1725,7 @@ function OwnerCard({
 }) {
   return (
     <div
-      className="relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-5"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5 shadow-card"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--accent)',
@@ -1890,7 +1904,8 @@ function PendingInvitationRow({
           {canCancel && (
             <button
               onClick={() => onCancel(invitation)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-50"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:opacity-90"
+              style={{ color: 'var(--color-danger)', background: 'var(--color-danger-bg)' }}
             >
               <XCircle size={12} />
               Cancel Invitation
@@ -1925,7 +1940,7 @@ function MemberCard({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-xl border p-5 transition-shadow${isInteractive ? 'cursor-pointer hover:shadow-md' : ''}`}
+      className={`flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow${isInteractive ? 'cursor-pointer hover:-translate-y-0.5' : ''}`}
       onClick={() => isInteractive && onView?.(member)}
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : -1}
@@ -1958,7 +1973,7 @@ function MemberCard({
             ) : (
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                style={{ color: '#16a34a', background: '#f0fdf4' }}
+                style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}
               >
                 Active
               </span>
@@ -2047,7 +2062,8 @@ function MemberCard({
             </button>
             <button
               onClick={() => onDelete(member)}
-              className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-50"
+              className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-danger-bg)]"
+              style={{ color: 'var(--color-danger)' }}
             >
               <Trash2 size={13} />
             </button>
