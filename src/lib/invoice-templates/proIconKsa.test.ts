@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { generateProIconKsa } from './proIconKsa';
-import { distributeWithVariance, generateCPAResults, generateDates, randomVariance } from './shared';
+import {
+  distributeWithVariance,
+  generateCPAResults,
+  generateDates,
+  randomVariance,
+} from './shared';
 
 describe('Invoice template engine', () => {
   it('generates a valid Pro Icon KSA output shape', () => {

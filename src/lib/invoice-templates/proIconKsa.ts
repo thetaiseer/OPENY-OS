@@ -1,9 +1,4 @@
-import type {
-  BranchOutput,
-  PlatformOutput,
-  TemplateInput,
-  TemplateOutput,
-} from './types';
+import type { BranchOutput, PlatformOutput, TemplateInput, TemplateOutput } from './types';
 import { distributeWithVariance, generateCPAResults, generateDates } from './shared';
 
 const FIXED_FEE = 500;
@@ -36,7 +31,10 @@ export function generateProIconKsa(input: TemplateInput): TemplateOutput {
         const campaignDates = generateDates(input.month, platform.campaignCount);
 
         const campaigns = campaignCosts.map((cost, campaignIndex) => ({
-          date: campaignDates[campaignIndex] ?? campaignDates[campaignDates.length - 1] ?? `${input.month}-01`,
+          date:
+            campaignDates[campaignIndex] ??
+            campaignDates[campaignDates.length - 1] ??
+            `${input.month}-01`,
           adName: `${branch} ${input.month} ${formatPlatformName(platform.type)} ${campaignIndex + 1}`,
           results: generateCPAResults(cost, platform.type),
           cost,

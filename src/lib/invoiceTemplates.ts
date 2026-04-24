@@ -76,7 +76,9 @@ function normalizePlatformLabel(platform: string) {
     .join(' ');
 }
 
-function templateOutputToBranchGroups(output: Awaited<ReturnType<typeof generateProIconKsa>>): InvoiceBranchGroup[] {
+function templateOutputToBranchGroups(
+  output: Awaited<ReturnType<typeof generateProIconKsa>>,
+): InvoiceBranchGroup[] {
   return output.branches.map((branch, branchIndex) => ({
     id: `branch-${branchIndex}-${branch.branch}`,
     branch_name: normalizePlatformLabel(branch.branch),
