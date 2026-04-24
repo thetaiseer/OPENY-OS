@@ -1940,7 +1940,10 @@ function MemberCard({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow${isInteractive ? 'cursor-pointer hover:-translate-y-0.5' : ''}`}
+      className={
+        'flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow' +
+        (isInteractive ? ' cursor-pointer hover:-translate-y-0.5' : '')
+      }
       onClick={() => isInteractive && onView?.(member)}
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : -1}
