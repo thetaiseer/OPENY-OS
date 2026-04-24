@@ -61,9 +61,6 @@ const MIN_ELAPSED_MS_FOR_SPEED = 1500;
 /** Maximum number of concurrent uploads processed from the queue. */
 const UPLOAD_CONCURRENCY = 2;
 
-/** Client-visible bucket label for temporary upload logs. */
-const R2_BUCKET_LOG_NAME = process.env.NEXT_PUBLIC_R2_BUCKET_NAME?.trim() || 'client-assets';
-
 const DB_FAIL_ARABIC = 'فشل الرفع: تم رفع الملف إلى التخزين لكن فشل حفظه في قاعدة البيانات';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -657,7 +654,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         if ((err as Error)?.name === 'AbortError') return;
 
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[upload] unhandled error for item', item.id, msg);
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step: 'upload',
@@ -721,10 +717,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[upload] single upload failed before R2 upload', {
-        fileName: item.file.name,
-        error: errMsg,
-      });
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step: 'r2_upload_request',
@@ -758,14 +750,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       !r2UploadJson.displayName
     ) {
       const errorMessage = r2UploadJson?.error ?? `Upload failed (HTTP ${r2UploadRes.status})`;
-      console.error('[upload] single upload failed during R2 upload', {
-        fileName: item.file.name,
-        fileSize: item.file.size,
-        provider: 'cloudflare-r2',
-        bucket: R2_BUCKET_LOG_NAME,
-        error: errorMessage,
-        response: r2UploadText || null,
-      });
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step: 'r2_upload',
@@ -1002,11 +986,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             return result;
           },
           MAX_CHUNK_RETRIES,
-          (attempt, err) => {
-            console.warn(
-              `[upload] chunk ${partNumber} retry ${attempt}/${MAX_CHUNK_RETRIES}:`,
-              err.message,
-            );
+          (attempt, _err) => {
             update(item.id, {
               statusText: `Retrying part ${partNumber} (attempt ${attempt})…`,
               statusLabel: 'Retrying',
@@ -1028,7 +1008,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         // All retries exhausted — abort and surface the error.
         void abortMultipartSession(storageKey, uploadId);
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[upload] chunk ${partNumber} permanently failed:`, msg);
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step: `chunk_${partNumber}`,
@@ -1200,7 +1179,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           ? String((completeJson.error as { message?: unknown }).message ?? '')
           : '') ||
         `Upload complete failed (HTTP ${completeRes.status})`;
-      console.error('[upload] /api/upload/complete failed:', responseText || '(empty)');
       setStage(item.id, 'failed_db', 'Saved to storage, system save failed', {
         progress: 100,
         errorDetail: classifyUploadError({
@@ -1227,8 +1205,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ storageKey, uploadId }),
       });
-    } catch (err) {
-      console.warn('[upload] multipart-abort request failed:', err);
+    } catch {
+      /* best-effort abort */
     }
   }
 

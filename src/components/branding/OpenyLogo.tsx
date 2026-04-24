@@ -30,6 +30,8 @@ export default function OpenyLogo({
       className={className}
       width={width}
       height={height}
+      loading="lazy"
+      priority={false}
       style={{ width, height, objectFit: 'contain' }}
     />
   );

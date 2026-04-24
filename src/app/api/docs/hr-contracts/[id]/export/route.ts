@@ -73,7 +73,7 @@ table{width:100%;border-collapse:collapse}td{padding:6px 10px;border-bottom:1px 
     <h1>${isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}</h1>
     <p class="meta">${c.contract_number} &middot; ${c.contract_date ?? ''}</p>
   </div>
-  <div class="brand"><img src="${logoUrl}" alt="OPENY" /></div>
+  <div class="brand"><img src="${logoUrl}" alt="OPENY" loading="lazy" decoding="async" /></div>
 </div>
 <p style="text-align:center;color:#64748b;margin:14px 0 18px">Official OPENY HR Agreement</p>
 <div class="section"><table>

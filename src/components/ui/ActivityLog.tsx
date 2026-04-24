@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import supabase from '@/lib/supabase';
+import { ACTIVITY_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import type { Activity as ActivityType } from '@/lib/types';
 
 interface ActivityLogProps {
@@ -31,7 +32,7 @@ export default function ActivityLog({ clientId, limit = 20 }: ActivityLogProps) 
     try {
       let query = supabase
         .from('activities')
-        .select('*')
+        .select(ACTIVITY_LIST_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(limit);
       if (clientId) query = query.eq('client_id', clientId);

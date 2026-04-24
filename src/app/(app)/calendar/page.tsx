@@ -16,7 +16,7 @@ import {
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
-import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import { PLATFORMS, POST_TYPES } from '@/components/features/publishing/SchedulePublishingModal';
 import AppModal from '@/components/ui/AppModal';
 import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';

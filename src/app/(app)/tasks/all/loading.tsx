@@ -1,8 +1,4 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-function TasksAllSkeleton() {
+export default function TasksAllRouteLoading() {
   return (
     <div className="animate-pulse space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -28,13 +24,4 @@ function TasksAllSkeleton() {
       </div>
     </div>
   );
-}
-
-const TasksAllView = dynamic(() => import('./TasksAllView'), {
-  loading: () => <TasksAllSkeleton />,
-  ssr: false,
-});
-
-export default function TasksAllPage() {
-  return <TasksAllView />;
 }

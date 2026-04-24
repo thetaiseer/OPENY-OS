@@ -33,7 +33,7 @@ import {
   PLATFORMS,
   POST_TYPES,
   getPlatformDisplayColor,
-} from '@/components/publishing/SchedulePublishingModal';
+} from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
 import { useQuickActions } from '@/context/quick-actions-context';
 

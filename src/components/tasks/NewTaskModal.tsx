@@ -28,7 +28,7 @@ import {
   Paperclip,
   FileText,
 } from 'lucide-react';
-import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
+import { PLATFORMS, POST_TYPES } from '@/components/features/publishing/SchedulePublishingModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import AppModal from '@/components/ui/AppModal';
 import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/types';

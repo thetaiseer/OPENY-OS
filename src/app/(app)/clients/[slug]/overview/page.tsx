@@ -252,10 +252,13 @@ export default function ClientOverviewPage() {
                 {(asset.thumbnail_url ??
                 asset.preview_url ??
                 (asset.file_type?.startsWith('image/') ? asset.file_url : null)) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={asset.thumbnail_url ?? asset.preview_url ?? asset.file_url}
                     alt={asset.name}
                     className="aspect-square w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div

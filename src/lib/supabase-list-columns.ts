@@ -1,0 +1,110 @@
+/**
+ * Narrow PostgREST column lists for list views — smaller payloads than select('*').
+ * Keep in sync with `Client`, `Task`, `Asset`, and `Notification` in `lib/types`.
+ */
+export const CLIENT_LIST_COLUMNS =
+  'id,name,email,phone,website,industry,status,logo,notes,slug,default_currency,created_at,updated_at';
+
+export const TASK_LIST_COLUMNS = [
+  'id',
+  'title',
+  'description',
+  'status',
+  'position',
+  'priority',
+  'start_date',
+  'due_date',
+  'due_time',
+  'timezone',
+  'task_date',
+  'task_category',
+  'content_purpose',
+  'caption',
+  'notes',
+  'client_id',
+  'assignee_id',
+  'created_by_id',
+  'project_id',
+  'content_item_id',
+  'mentions',
+  'tags',
+  'created_at',
+  'updated_at',
+  'publishing_schedule_id',
+  'asset_id',
+  'platforms',
+  'post_types',
+  'reminder_at',
+].join(',');
+
+export const ASSET_LIST_COLUMNS = [
+  'id',
+  'name',
+  'original_filename',
+  'file_path',
+  'file_url',
+  'view_url',
+  'download_url',
+  'file_type',
+  'file_size',
+  'bucket_name',
+  'storage_provider',
+  'client_folder_name',
+  'content_type',
+  'month_key',
+  'status',
+  'task_id',
+  'client_id',
+  'client_name',
+  'uploaded_by',
+  'mime_type',
+  'preview_url',
+  'thumbnail_url',
+  'web_view_link',
+  'duration_seconds',
+  'preview_status',
+  'last_synced_at',
+  'source_updated_at',
+  'is_deleted',
+  'upload_state',
+  'tags',
+  'version_number',
+  'parent_asset_id',
+  'main_category',
+  'sub_category',
+  'storage_key',
+  'created_at',
+  'updated_at',
+].join(',');
+
+export const ACTIVITY_LIST_COLUMNS =
+  'id,type,description,user_id,user_uuid,client_id,entity_type,entity_id,metadata_json,created_at';
+
+export const COMMENT_LIST_COLUMNS =
+  'id,content,user_id,user_name,asset_id,task_id,entity_type,entity_id,parent_id,mentions,is_resolved,created_at';
+
+export const NOTIFICATION_LIST_COLUMNS = [
+  'id',
+  'title',
+  'message',
+  'type',
+  'read',
+  'read_at',
+  'priority',
+  'category',
+  'is_archived',
+  'actor_id',
+  'metadata',
+  'client_id',
+  'user_id',
+  'task_id',
+  'entity_type',
+  'entity_id',
+  'action_url',
+  'event_type',
+  'delivered_in_app',
+  'delivered_email',
+  'workspace_id',
+  'idempotency_key',
+  'created_at',
+].join(',');

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/context/upload-context';
-import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
+import GlobalUploadQueue from '@/components/features/upload/GlobalUploadQueue';
 import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import GlobalQuickActionModalHost from '@/components/layout/GlobalQuickActionModalHost';
@@ -19,15 +19,32 @@ import { queryClient } from '@/app/providers';
 import { QuickActionsProvider } from '@/context/quick-actions-context';
 import AppRouteTransition from '@/components/layout/AppRouteTransition';
 
-const AiCommandCenter = dynamic(() => import('@/components/ai/AiCommandCenter'), { ssr: false });
+const AiCommandCenter = dynamic(() => import('@/components/features/ai/AiCommandCenter'), {
+  ssr: false,
+});
 const NotificationRealtimeSync = dynamic(
-  () => import('@/components/notifications/NotificationRealtimeSync'),
+  () => import('@/components/features/notifications/NotificationRealtimeSync'),
   { ssr: false },
 );
-const CommandPalette = dynamic(() => import('@/components/search/CommandPalette'), { ssr: false });
+const CommandPalette = dynamic(() => import('@/components/features/search/CommandPalette'), {
+  ssr: false,
+});
 
 const SESSION_CHECK_INTERVAL = 3 * 60 * 1000;
 const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000;
+
+function AppMainSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6 p-4 md:p-6">
+      <div className="h-9 w-48 rounded-xl" style={{ background: 'var(--surface)' }} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-28 rounded-2xl" style={{ background: 'var(--surface)' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -153,7 +170,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
           )}
           style={{ background: 'var(--gradient-main-overlay)' }}
         >
-          <AppRouteTransition>{children}</AppRouteTransition>
+          <Suspense fallback={<AppMainSkeleton />}>
+            <AppRouteTransition>{children}</AppRouteTransition>
+          </Suspense>
         </main>
       </div>
 

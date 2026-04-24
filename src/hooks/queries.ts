@@ -7,6 +7,12 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { Client, Task, Asset, Notification } from '@/lib/types';
+import {
+  ASSET_LIST_COLUMNS,
+  CLIENT_LIST_COLUMNS,
+  NOTIFICATION_LIST_COLUMNS,
+  TASK_LIST_COLUMNS,
+} from '@/lib/supabase-list-columns';
 
 function supabase() {
   return createClient();
@@ -35,7 +41,7 @@ export function useClients(
       const sb = supabase();
       let q = sb
         .from('clients')
-        .select('*', { count: 'exact' })
+        .select(CLIENT_LIST_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (search.trim()) {
@@ -80,7 +86,7 @@ export function useTasks(
       const sb = supabase();
       let q = sb
         .from('tasks')
-        .select('*, client:clients(id,name)', { count: 'exact' })
+        .select(`${TASK_LIST_COLUMNS}, client:clients(id,name)`, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (search.trim()) {
@@ -134,7 +140,7 @@ export function useAssets(
       const sb = supabase();
       let q = sb
         .from('assets')
-        .select('*', { count: 'exact' })
+        .select(ASSET_LIST_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (search.trim()) {
@@ -173,7 +179,7 @@ export function useNotifications(
       const from = (page - 1) * pageSize;
       const { data, error, count } = await sb
         .from('notifications')
-        .select('*', { count: 'exact' })
+        .select(NOTIFICATION_LIST_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, from + pageSize - 1);
       if (error) throw new Error(error.message);

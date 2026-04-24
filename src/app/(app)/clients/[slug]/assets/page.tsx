@@ -7,7 +7,7 @@ import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import { useUpload, type InitialUploadItem } from '@/context/upload-context';
-import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
+import UploadModal, { type UploadFileItem } from '@/components/features/upload/UploadModal';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';

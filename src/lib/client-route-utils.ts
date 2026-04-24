@@ -1,5 +1,3 @@
-export const shouldDebugClientRouting = process.env.NODE_ENV !== 'production';
-
 const INVALID_ROUTE_TOKENS = new Set(['', 'undefined', 'null']);
 const CLIENT_ID_UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -23,12 +21,7 @@ export const getClientRouteKey = (client: {
   return null;
 };
 
-export const debugClientRouting = (message: string, payload: Record<string, unknown>) => {
-  if (!shouldDebugClientRouting) return;
-  console.debug(message, payload);
-};
+/** No-op in production builds — avoids console noise and main-thread work. */
+export const debugClientRouting = (_message: string, _payload: Record<string, unknown>) => {};
 
-export const warnClientRouting = (message: string, payload: Record<string, unknown>) => {
-  if (!shouldDebugClientRouting) return;
-  console.warn(message, payload);
-};
+export const warnClientRouting = (_message: string, _payload: Record<string, unknown>) => {};

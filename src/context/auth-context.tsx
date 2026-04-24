@@ -146,9 +146,8 @@ async function fetchUserStateFromTables(
       ),
     ]);
     data = result.data;
-  } catch (err) {
-    const isTimeout = err instanceof Error && err.message === 'team-member-fetch-timeout';
-    console.warn('[auth] team_members fetch', isTimeout ? 'timed out' : 'threw:', err);
+  } catch {
+    /* team_members lookup timed out or failed */
   }
 
   const { data: memberships } = await supabase
@@ -196,12 +195,6 @@ async function fetchUserStateFromTables(
       : workspaceAccess.os
         ? osFallbackRole
         : 'viewer';
-  console.warn(
-    '[auth] No team_member row found for email:',
-    email,
-    '— defaulting role to',
-    fallbackRole,
-  );
   return {
     user: {
       id: supabaseUser.id,
@@ -256,7 +249,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const safetyTimer = !hadCache
       ? setTimeout(() => {
           if (mounted) {
-            console.warn('[auth] Safety timeout reached — clearing loading state');
             setLoading(false);
           }
         }, 5_000)
@@ -271,14 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (hadCache) {
           // We rendered immediately from cache — re-validate in background
           // without blocking the UI again.
-          loadUser(session.user).catch((err) => {
-            console.warn(
-              '[auth] Background user refresh failed for user',
-              session.user.id,
-              ':',
-              err,
-            );
-          });
+          loadUser(session.user).catch(() => {});
         } else {
           await loadUser(session.user);
           if (mounted) setLoading(false);
@@ -309,26 +294,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
       });
     } catch {
-      console.warn('[auth] Session deactivation request failed — continuing with sign-out');
+      /* continue sign-out */
     }
 
     try {
-      const result = await Promise.race([
+      await Promise.race([
         supabase.auth.signOut(),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('sign-out-timeout')), 5_000),
         ),
       ]);
-      if (result.error) {
-        console.error('[auth] Sign out error:', result.error.message);
-      }
-    } catch (err) {
-      const isTimeout = err instanceof Error && err.message === 'sign-out-timeout';
-      if (isTimeout) {
-        console.warn('[auth] Sign out timed out — redirecting anyway');
-      } else {
-        console.error('[auth] Sign out failed:', err);
-      }
+    } catch {
+      /* sign-out timeout or failure — still clear session below */
     } finally {
       try {
         Object.keys(localStorage)

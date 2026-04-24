@@ -19,7 +19,7 @@ import { X, FileImage, FileText, FileVideo, FileAudio, File, Plus } from 'lucide
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import CreateClientModal from '@/components/upload/CreateClientModal';
+import CreateClientModal from '@/components/features/upload/CreateClientModal';
 import AppModal from '@/components/ui/AppModal';
 import { MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 import type { Client } from '@/lib/types';
@@ -138,7 +138,13 @@ function FileRow({
       <div className="flex items-center gap-2">
         {item.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.previewUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+          <img
+            src={item.previewUrl}
+            alt=""
+            className="h-8 w-8 shrink-0 rounded-lg object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"

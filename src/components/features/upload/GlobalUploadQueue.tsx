@@ -151,7 +151,13 @@ function QueueRow({ item }: { item: UploadItem }) {
         >
           {item.previewUrl && isImageFile(item.file.name, item.file.type) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={item.previewUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <FileTypeIcon item={item} />
           )}

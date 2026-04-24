@@ -74,7 +74,7 @@ td,th{padding:7px 10px;border-bottom:1px solid #dbe0e6}th{background:#f8fafc;tex
     <h1>${isAr ? 'عقد خدمات' : 'SERVICE CONTRACT'}</h1>
     <p class="meta">${c.contract_number} &middot; ${c.contract_date ?? ''}</p>
   </div>
-  <div class="brand"><img src="${logoUrl}" alt="OPENY" /></div>
+  <div class="brand"><img src="${logoUrl}" alt="OPENY" loading="lazy" decoding="async" /></div>
 </div>
 <p style="text-align:center;color:#64748b;margin:14px 0 18px">Official OPENY Client Agreement</p>
 <div class="section">

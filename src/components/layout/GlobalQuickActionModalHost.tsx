@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import CreateClientModal from '@/components/upload/CreateClientModal';
+import CreateClientModal from '@/components/features/upload/CreateClientModal';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import NewContentModal from '@/components/content/NewContentModal';
-import UploadModal, { type UploadFileItem } from '@/components/upload/UploadModal';
+import UploadModal, { type UploadFileItem } from '@/components/features/upload/UploadModal';
 import { MAIN_CATEGORIES } from '@/lib/asset-utils';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
@@ -67,7 +67,10 @@ export default function GlobalQuickActionModalHost() {
     queryKey: ['quick-actions-team'],
     queryFn: async () => {
       const sb = createSupabase();
-      const { data } = await sb.from('team_members').select('*').order('full_name');
+      const { data } = await sb
+        .from('team_members')
+        .select('id, full_name, email, role, avatar, job_title, status, created_at, updated_at')
+        .order('full_name');
       return (data ?? []) as TeamMember[];
     },
     staleTime: 60_000,

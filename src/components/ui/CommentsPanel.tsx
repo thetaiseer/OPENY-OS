@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { MessageSquare, Send } from 'lucide-react';
 import supabase from '@/lib/supabase';
+import { COMMENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import type { Comment } from '@/lib/types';
 
 interface CommentsPanelProps {
@@ -17,7 +18,10 @@ export default function CommentsPanel({ assetId, taskId }: CommentsPanelProps) {
   const [saving, setSaving] = useState(false);
 
   const fetchComments = useCallback(async () => {
-    let query = supabase.from('comments').select('*').order('created_at', { ascending: true });
+    let query = supabase
+      .from('comments')
+      .select(COMMENT_LIST_COLUMNS)
+      .order('created_at', { ascending: true });
     if (assetId) query = query.eq('asset_id', assetId);
     else if (taskId) query = query.eq('task_id', taskId);
     const { data, error } = await query;

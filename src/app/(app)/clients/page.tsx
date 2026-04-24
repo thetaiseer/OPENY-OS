@@ -28,6 +28,7 @@ import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
+import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { useQuickActions } from '@/context/quick-actions-context';
 
 const statusVariant = (s: string) => {
@@ -100,7 +101,7 @@ function ClientsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
+        .select(CLIENT_LIST_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw new Error(error.message);

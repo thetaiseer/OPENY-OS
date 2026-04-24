@@ -12,12 +12,8 @@ import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
-import {
-  debugClientRouting,
-  isClientUuid,
-  sanitizeClientRouteToken,
-  warnClientRouting,
-} from '@/lib/client-route-utils';
+import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
+import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { ClientWorkspaceContext } from './client-context';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,14 +66,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     })();
     const normalizedParam = sanitizeClientRouteToken(decodedParam);
 
-    debugClientRouting('[client layout] route param received', {
-      routeParam,
-      normalizedParam,
-      decodedParam,
-    });
-
     if (!normalizedParam) {
-      warnClientRouting('[client layout] invalid route param', { decodedParam });
       setClient(null);
       setClientId('');
       setLoading(false);
@@ -86,13 +75,11 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     const shouldLookupByIdFirst = isClientUuid(normalizedParam);
 
     const findByField = async (field: 'slug' | 'id') => {
-      debugClientRouting('[client layout] querying client', { field, value: normalizedParam });
-      const result = await supabase.from('clients').select('*').eq(field, normalizedParam).single();
-      debugClientRouting('[client layout] query result', {
-        field,
-        hasData: !!result.data,
-        error: result.error?.message ?? null,
-      });
+      const result = await supabase
+        .from('clients')
+        .select(CLIENT_LIST_COLUMNS)
+        .eq(field, normalizedParam)
+        .single();
       return result;
     };
 
@@ -144,7 +131,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
         .from('clients')
         .update({ ...editForm, updated_at: new Date().toISOString() })
         .eq('id', client?.id ?? '')
-        .select()
+        .select(CLIENT_LIST_COLUMNS)
         .single();
       if (error) throw error;
       setClient(data as Client);

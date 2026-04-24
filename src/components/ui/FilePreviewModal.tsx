@@ -136,6 +136,8 @@ function ImagePreview({ src, alt }: { src: string; alt: string }) {
         <img
           src={src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
           style={{
             transform: `scale(${scale})`,
