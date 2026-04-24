@@ -23,6 +23,10 @@ import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import { Card, cardSurfaceClass } from '@/components/ui/Card';
+import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLayout';
+import { cn } from '@/lib/cn';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import {
@@ -170,22 +174,17 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
         : 'var(--border)';
 
   return (
-    <div
-      className="flex flex-col gap-2.5 rounded-xl border px-4 py-3 transition-shadow hover:shadow-sm"
-      style={{
-        background: 'var(--surface)',
-        borderColor: 'var(--border)',
-        borderLeft: `3px solid ${borderColor}`,
-      }}
+    <Card
+      padding="none"
+      className="flex flex-col gap-2.5 border-l-[3px] px-4 py-3 transition-shadow hover:shadow-sm"
+      style={{ borderLeftColor: borderColor }}
     >
       {/* Row 1: title + status badges */}
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            {task.title}
-          </p>
+          <p className="truncate text-sm font-semibold text-[var(--text)]">{task.title}</p>
           {task.description && (
-            <p className="mt-0.5 line-clamp-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-0.5 line-clamp-1 text-xs text-[var(--text-secondary)]">
               {task.description}
             </p>
           )}
@@ -197,10 +196,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       </div>
 
       {/* Row 2: meta info */}
-      <div
-        className="flex flex-wrap items-center gap-1.5 text-xs"
-        style={{ color: 'var(--text-secondary)' }}
-      >
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">
         {cat && (
           <span
             className="rounded-full px-2 py-0.5 font-medium text-white"
@@ -210,10 +206,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
           </span>
         )}
         {task.client && (
-          <span
-            className="flex items-center gap-1 rounded-full px-2 py-0.5"
-            style={{ background: 'var(--surface-2)' }}
-          >
+          <span className="flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2 py-0.5">
             <User size={10} />
             {task.client.name}
           </span>
@@ -234,7 +227,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       {/* Row 3: publishing badges */}
       {(hasPlatforms || hasPostTypes) && (
         <div className="flex flex-wrap items-center gap-1">
-          <Send size={10} style={{ color: '#7c3aed' }} />
+          <Send size={10} className="text-[#7c3aed]" />
           {(task.platforms ?? []).map((p) => {
             const pl = PLATFORMS.find((x) => x.value === p);
             return (
@@ -289,18 +282,18 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       {/* Row 5: actions */}
       {onDuplicate && (
         <div className="mt-1 flex justify-end">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            className="h-8 min-h-0 gap-1 px-2 py-1 text-xs opacity-70 hover:opacity-100"
             onClick={() => onDuplicate(task)}
-            className="flex items-center gap-1 text-xs opacity-60 transition-opacity hover:underline hover:opacity-100"
-            style={{ color: 'var(--text-secondary)' }}
             title="Duplicate task"
           >
             <Copy size={11} /> Duplicate
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -475,95 +468,81 @@ export default function MyTasksPage() {
       : t(SECTIONS.find((s) => s.key === activeSection)?.labelKey ?? '');
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1
-            className="flex items-center gap-2 text-2xl font-bold"
-            style={{ color: 'var(--text)' }}
-          >
-            <Zap size={22} style={{ color: 'var(--accent)' }} />
+    <PageShell className="mx-auto max-w-5xl space-y-6">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Zap size={22} className="text-[var(--accent)]" />
             {t('myTasks')}
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          </span>
+        }
+        subtitle={
+          <>
             {selectedMemberName} &mdash; {memberTasks.length} tasks
             {overdueCount > 0 && (
               <span className="ml-2 font-medium text-red-500">{overdueCount} overdue</span>
             )}
-          </p>
-        </div>
-        <button
-          onClick={() => setShowNewTask(true)}
-          className="flex h-10 shrink-0 items-center gap-2 rounded-xl px-5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ background: 'var(--accent)' }}
-        >
-          <Plus size={16} /> New Task
-        </button>
-      </div>
+          </>
+        }
+        actions={
+          <Button type="button" variant="primary" onClick={() => setShowNewTask(true)}>
+            <Plus size={16} /> New Task
+          </Button>
+        }
+      />
 
-      {/* Filters row */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <User size={14} style={{ color: 'var(--text-secondary)' }} />
-          <SelectDropdown
-            value={selectedMember}
-            onChange={(v) => {
-              setSelectedMember(v);
-              setActiveSection('all');
-            }}
-            placeholder={t('allTeamMembers')}
-            options={[
-              { value: '', label: t('allTeamMembers') },
-              ...team.map((m) => ({ value: m.id, label: m.full_name })),
-            ]}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Filter size={13} style={{ color: 'var(--text-secondary)' }} />
-          {categoryFilter && (
-            <button
-              onClick={() => setCategoryFilter('')}
-              className="flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium"
-              style={{
-                background: 'var(--surface-2)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
+      <Card padding="sm" className="sm:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <User size={14} className="text-[var(--text-secondary)]" />
+            <SelectDropdown
+              value={selectedMember}
+              onChange={(v) => {
+                setSelectedMember(v);
+                setActiveSection('all');
               }}
-            >
-              <X size={10} /> Clear
-            </button>
-          )}
-          {CATEGORY_FILTERS.map((cf) => {
-            const active = categoryFilter === cf.value;
-            return (
-              <button
-                key={cf.value}
-                onClick={() => setCategoryFilter(active ? '' : cf.value)}
-                className="h-7 rounded-full px-2.5 text-xs font-medium transition-all"
-                style={{
-                  background: active ? categoryColor(cf.value) : 'var(--surface-2)',
-                  color: active ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${active ? categoryColor(cf.value) : 'var(--border)'}`,
-                }}
-              >
-                {cf.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+              placeholder={t('allTeamMembers')}
+              options={[
+                { value: '', label: t('allTeamMembers') },
+                ...team.map((m) => ({ value: m.id, label: m.full_name })),
+              ]}
+            />
+          </div>
 
-      {/* Stat cards */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Filter size={13} className="text-[var(--text-secondary)]" />
+            {categoryFilter && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-7 min-h-0 gap-1 rounded-full px-2.5 py-0 text-xs"
+                onClick={() => setCategoryFilter('')}
+              >
+                <X size={10} /> Clear
+              </Button>
+            )}
+            {CATEGORY_FILTERS.map((cf) => {
+              const active = categoryFilter === cf.value;
+              return (
+                <Button
+                  key={cf.value}
+                  type="button"
+                  variant={active ? 'primary' : 'secondary'}
+                  className="h-7 min-h-0 rounded-full px-2.5 py-0 text-xs"
+                  onClick={() => setCategoryFilter(active ? '' : cf.value)}
+                >
+                  {cf.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface)' }}
-            />
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-[var(--surface)]" />
           ))}
         </div>
       ) : (
@@ -575,29 +554,20 @@ export default function MyTasksPage() {
             return (
               <button
                 key={sec.key}
+                type="button"
                 onClick={() => setActiveSection(active ? 'all' : sec.key)}
-                className="rounded-2xl border p-4 text-left transition-all hover:shadow-sm"
-                style={{
-                  background: active ? sec.color : 'var(--surface)',
-                  borderColor: active ? sec.color : 'var(--border)',
-                  color: active ? '#fff' : 'var(--text)',
-                  outline: active ? `2px solid ${sec.color}` : 'none',
-                  outlineOffset: '2px',
-                }}
+                className={cn(
+                  cardSurfaceClass,
+                  'w-full p-4 text-left transition-shadow hover:shadow-sm',
+                  active &&
+                    'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)] border-[var(--accent)]',
+                )}
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <Icon size={18} style={{ color: active ? '#fff' : sec.color }} />
-                  <span
-                    className="text-2xl font-bold tabular-nums"
-                    style={{ color: active ? '#fff' : 'var(--text)' }}
-                  >
-                    {count}
-                  </span>
+                  <Icon size={18} className={active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'} />
+                  <span className="text-2xl font-bold tabular-nums text-[var(--text)]">{count}</span>
                 </div>
-                <p
-                  className="text-xs font-medium leading-tight"
-                  style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)' }}
-                >
+                <p className="text-xs font-medium leading-tight text-[var(--text-secondary)]">
                   {t(sec.labelKey)}
                 </p>
               </button>
@@ -606,58 +576,39 @@ export default function MyTasksPage() {
         </div>
       )}
 
-      {/* Task list */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <LayoutList size={16} style={{ color: 'var(--accent)' }} />
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              {sectionHeaderLabel}
-              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <LayoutList size={16} className="shrink-0 text-[var(--accent)]" />
+            <SectionTitle as="h2" className="!mb-0 flex min-w-0 flex-wrap items-baseline gap-2 text-sm">
+              <span className="truncate">{sectionHeaderLabel}</span>
+              <span className="text-xs font-normal text-[var(--text-secondary)]">
                 ({visibleTasks.length})
               </span>
-            </h2>
+            </SectionTitle>
           </div>
-          <button
-            onClick={() => setShowNewTask(true)}
-            className="flex items-center gap-1 text-xs font-medium hover:underline"
-            style={{ color: 'var(--accent)' }}
-          >
+          <Button type="button" variant="ghost" className="h-8 shrink-0 text-xs" onClick={() => setShowNewTask(true)}>
             <Plus size={12} /> Add task
-          </button>
+          </Button>
         </div>
 
         {loading ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="h-16 animate-pulse rounded-xl"
-                style={{ background: 'var(--surface)' }}
-              />
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--surface)]" />
             ))}
           </div>
         ) : visibleTasks.length === 0 ? (
-          <div
-            className="rounded-2xl border p-10 text-center"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
+          <Card padding="md" className="p-10 text-center">
             <CheckSquare
               size={32}
-              className="mx-auto mb-3 opacity-30"
-              style={{ color: 'var(--text-secondary)' }}
+              className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
             />
-            <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {t('noTasksInSection')}
-            </p>
-            <button
-              onClick={() => setShowNewTask(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-xl px-4 text-sm font-medium text-white"
-              style={{ background: 'var(--accent)' }}
-            >
+            <p className="mb-4 text-sm text-[var(--text-secondary)]">{t('noTasksInSection')}</p>
+            <Button type="button" variant="primary" onClick={() => setShowNewTask(true)}>
               <Plus size={14} /> Create your first task
-            </button>
-          </div>
+            </Button>
+          </Card>
         ) : (
           <div className="space-y-2">
             {visibleTasks.map((task) => (
@@ -667,7 +618,6 @@ export default function MyTasksPage() {
         )}
       </div>
 
-      {/* New Task Modal */}
       <NewTaskModal
         open={showNewTask}
         onClose={() => setShowNewTask(false)}
@@ -675,6 +625,6 @@ export default function MyTasksPage() {
         clients={clients}
         team={team}
       />
-    </div>
+    </PageShell>
   );
 }

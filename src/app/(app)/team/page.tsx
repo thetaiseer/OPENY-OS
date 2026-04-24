@@ -28,6 +28,9 @@ import { useToast } from '@/context/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
 import AppModal from '@/components/ui/AppModal';
 import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type {
   TeamMember,
@@ -1348,39 +1351,31 @@ export default function TeamPage() {
     ownerMembersForDisplay.length > 0 || activeMembers.length > 0 || pendingInvites.length > 0;
 
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">{t('team')}</h1>
-          <p className="app-page-subtitle">
-            {activeMembers.length + ownerMembersForDisplay.length} active · {pendingInvites.length}{' '}
-            pending
-          </p>
-        </div>
-        {canManage && (
-          <button
-            onClick={() => {
-              setActionError('');
-              setInviteOpen(true);
-            }}
-            className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Send size={15} />
-            Invite Member
-          </button>
-        )}
-      </div>
+    <PageShell className="max-w-6xl space-y-6">
+      <PageHeader
+        title={t('team')}
+        subtitle={`${activeMembers.length + ownerMembersForDisplay.length} active · ${pendingInvites.length} pending`}
+        actions={
+          canManage ? (
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setActionError('');
+                setInviteOpen(true);
+              }}
+            >
+              <Send size={15} />
+              Invite Member
+            </Button>
+          ) : undefined
+        }
+      />
 
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="h-28 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface)' }}
-            />
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-[var(--surface)]" />
           ))}
         </div>
       ) : !hasAnyTeamData ? (
@@ -1393,77 +1388,69 @@ export default function TeamPage() {
           )}
           action={
             canManage ? (
-              <button
-                onClick={() => setInviteOpen(true)}
-                className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white"
-                style={{ background: 'var(--accent)' }}
-              >
+              <Button type="button" variant="primary" onClick={() => setInviteOpen(true)}>
                 <Send size={15} />
                 Invite Member
-              </button>
+              </Button>
             ) : undefined
           }
         />
       ) : (
         <>
-          <section
-            className="rounded-2xl border p-5 shadow-card"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <SectionHeader
-              icon={<Crown size={14} />}
-              label="Owner"
-              count={ownerMembersForDisplay.length}
-            />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ownerMembersForDisplay.map((m) => (
-                <OwnerCard key={m.id} member={m} canManage={canManage} onEdit={openEdit} />
-              ))}
-            </div>
-          </section>
-
-          <section
-            className="rounded-2xl border p-5 shadow-card"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <SectionHeader
-              icon={<CheckCircle size={14} />}
-              label="Active Team Members"
-              count={activeMembers.length}
-            />
-            {activeMembers.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                {tr('noActiveMembers', 'No active members yet.')}
-              </p>
-            ) : (
+          <Card padding="sm" className="sm:p-6">
+            <CardContent className="space-y-4 !p-0">
+              <SectionHeader
+                icon={<Crown size={14} />}
+                label="Owner"
+                count={ownerMembersForDisplay.length}
+              />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {activeMembers.map((m) => (
-                  <MemberCard
-                    key={m.id}
-                    member={m}
-                    workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
-                    invitation={invitationByMember.get(m.id)}
-                    canManage={canManage}
-                    onEdit={openEdit}
-                    onDelete={setDeleteMember}
-                    onView={setPanelMember}
-                  />
+                {ownerMembersForDisplay.map((m) => (
+                  <OwnerCard key={m.id} member={m} canManage={canManage} onEdit={openEdit} />
                 ))}
               </div>
-            )}
-          </section>
+            </CardContent>
+          </Card>
 
-          <section
-            className="rounded-2xl border p-5 shadow-card"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <SectionHeader
-              icon={<Clock size={14} />}
-              label="Pending Invitations"
-              count={pendingInvites.length}
-            />
+          <Card padding="sm" className="sm:p-6">
+            <CardContent className="space-y-4 !p-0">
+              <SectionHeader
+                icon={<CheckCircle size={14} />}
+                label="Active Team Members"
+                count={activeMembers.length}
+              />
+              {activeMembers.length === 0 ? (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {tr('noActiveMembers', 'No active members yet.')}
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {activeMembers.map((m) => (
+                    <MemberCard
+                      key={m.id}
+                      member={m}
+                      workspaceAccess={workspaceAccessByEmail[(m.email ?? '').toLowerCase()]}
+                      invitation={invitationByMember.get(m.id)}
+                      canManage={canManage}
+                      onEdit={openEdit}
+                      onDelete={setDeleteMember}
+                      onView={setPanelMember}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card padding="sm" className="sm:p-6">
+            <CardContent className="space-y-4 !p-0">
+              <SectionHeader
+                icon={<Clock size={14} />}
+                label="Pending Invitations"
+                count={pendingInvites.length}
+              />
             {pendingInvites.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-sm text-[var(--text-secondary)]">
                 {tr('noPendingInvitations', 'No pending invitations.')}
               </p>
             ) : (
@@ -1481,28 +1468,19 @@ export default function TeamPage() {
               </div>
             )}
             {invitationHistory.length > 0 && (
-              <div
-                className="mt-5 space-y-2 border-t pt-4"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                <p
-                  className="text-xs font-medium uppercase tracking-wide"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
+              <div className="mt-5 space-y-2 border-t border-[var(--border)] pt-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]">
                   Invite History
                 </p>
                 <div className="space-y-2">
                   {invitationHistory.map((invitation) => (
                     <div
                       key={invitation.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2"
-                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm" style={{ color: 'var(--text)' }}>
-                          {invitation.email}
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="truncate text-sm text-[var(--text)]">{invitation.email}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">
                           {invitation.role ? `${formatAccessRole(invitation.role)} · ` : ''}Created{' '}
                           {new Date(invitation.created_at).toLocaleDateString()}
                         </p>
@@ -1519,7 +1497,8 @@ export default function TeamPage() {
                 </div>
               </div>
             )}
-          </section>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -1686,26 +1665,18 @@ export default function TeamPage() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
 // ── SectionHeader ─────────────────────────────────────────────────────────────
 function SectionHeader({ icon, label, count }: { icon: ReactNode; label: string; count?: number }) {
   return (
-    <div
-      className="mb-4 flex items-center gap-2 border-b pb-2"
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <span style={{ color: 'var(--text-secondary)' }}>{icon}</span>
-      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-        {label}
-      </h2>
+    <div className="mb-4 flex items-center gap-2 border-b border-[var(--border)] pb-2">
+      <span className="text-[var(--text-secondary)]">{icon}</span>
+      <h2 className="text-sm font-semibold text-[var(--text-secondary)]">{label}</h2>
       {count !== undefined && (
-        <span
-          className="ml-1 rounded-full px-1.5 py-0.5 text-xs font-medium"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
+        <span className="ml-1 rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
           {count}
         </span>
       )}

@@ -18,6 +18,9 @@ import supabase from '@/lib/supabase';
 import type { Task, CalendarAsset, PublishingSchedule, ContentItem } from '@/lib/types';
 import { PLATFORMS, POST_TYPES } from '@/components/publishing/SchedulePublishingModal';
 import AppModal from '@/components/ui/AppModal';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -275,44 +278,27 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">Calendar</h1>
-          <p className="app-page-subtitle">
-            View tasks, content, assets, and publishing schedules by date
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={prevMonth}
-            className="rounded-lg p-2 transition-opacity hover:opacity-70"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <ChevronLeft size={16} style={{ color: 'var(--text)' }} />
-          </button>
-          <span
-            className="min-w-[9rem] px-2 text-center text-sm font-semibold"
-            style={{ color: 'var(--text)' }}
-          >
-            {MONTH_NAMES[month]} {year}
-          </span>
-          <button
-            onClick={nextMonth}
-            className="rounded-lg p-2 transition-opacity hover:opacity-70"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <ChevronRight size={16} style={{ color: 'var(--text)' }} />
-          </button>
-        </div>
-      </div>
+    <PageShell className="max-w-6xl space-y-6">
+      <PageHeader
+        title="Calendar"
+        subtitle="View tasks, content, assets, and publishing schedules by date"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={prevMonth}>
+              <ChevronLeft size={16} className="text-[var(--text)]" />
+            </Button>
+            <span className="min-w-[9rem] px-2 text-center text-sm font-semibold text-[var(--text)]">
+              {MONTH_NAMES[month]} {year}
+            </span>
+            <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={nextMonth}>
+              <ChevronRight size={16} className="text-[var(--text)]" />
+            </Button>
+          </div>
+        }
+      />
 
       {/* Legend */}
-      <div
-        className="flex flex-wrap items-center gap-3 text-xs"
-        style={{ color: 'var(--text-secondary)' }}
-      >
+      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
           Tasks
@@ -334,25 +320,17 @@ export default function CalendarPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Error banner */}
         {error && (
-          <div
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm lg:col-span-3"
-            style={{
-              background: 'rgba(239,68,68,0.1)',
-              color: '#ef4444',
-              border: '1px solid rgba(239,68,68,0.3)',
-            }}
-          >
-            <AlertCircle size={16} className="shrink-0" />
-            <span>{error}</span>
-          </div>
+          <Card className="border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] lg:col-span-3">
+            <CardContent className="flex items-center gap-3 py-3 text-sm text-[var(--color-danger)]">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
+            </CardContent>
+          </Card>
         )}
 
         {/* Calendar grid */}
         <div className="lg:col-span-2">
-          <div
-            className="overflow-hidden rounded-2xl border"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
+          <Card padding="none" className="overflow-hidden">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
               {DAY_NAMES.map((d) => (
@@ -496,18 +474,16 @@ export default function CalendarPage() {
                 })}
               </div>
             )}
-          </div>
+        </Card>
         </div>
 
         {/* Detail panel */}
         <div>
-          <div
-            className="sticky top-6 space-y-4 rounded-2xl border p-5"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
+          <Card className="sticky top-6">
+            <CardContent className="space-y-4">
             {selectedDay ? (
               <>
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                <h3 className="text-sm font-semibold text-[var(--text)]">
                   {MONTH_NAMES[month]} {selectedDay}, {year}
                 </h3>
 
@@ -779,12 +755,13 @@ export default function CalendarPage() {
                   className="mb-3 opacity-40"
                   style={{ color: 'var(--text-secondary)' }}
                 />
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-sm text-[var(--text-secondary)]">
                   Click a day to see scheduled items
                 </p>
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -800,13 +777,15 @@ export default function CalendarPage() {
           bodyClassName="space-y-4"
           footer={
             selectedSchedule.status !== 'published' && selectedSchedule.status !== 'cancelled' ? (
-              <button
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full"
                 onClick={() => void handleMarkPublished(selectedSchedule)}
                 disabled={markingPublished}
-                className="openy-modal-btn-primary w-full disabled:opacity-60"
               >
                 {markingPublished ? 'Marking…' : '✓ Mark as Published'}
-              </button>
+              </Button>
             ) : undefined
           }
         >
@@ -933,6 +912,6 @@ export default function CalendarPage() {
           )}
         </AppModal>
       )}
-    </div>
+    </PageShell>
   );
 }

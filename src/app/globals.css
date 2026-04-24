@@ -40,7 +40,7 @@
   --border-strong: rgba(15, 23, 42, 0.14);
   --border-glass: rgba(255, 255, 255, 0.5);
 
-  --accent: #6366f1;
+  --accent: #5b5ff0;
   --accent-hover: #4f46e5;
   --accent-soft: rgba(99, 102, 241, 0.12);
   --accent-glow: rgba(99, 102, 241, 0.35);
@@ -112,7 +112,8 @@
 
   --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 
-  --font-arabic: 'Cairo';
+  /* Legacy alias (e.g. document export) — matches primary sans */
+  --font-arabic: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --motion-duration-micro: 150ms;
@@ -244,7 +245,7 @@ body {
     radial-gradient(62vw 52vh at 4% 96%, var(--bg-glow-bottom-left), transparent 62%),
     var(--bg-gradient-base);
   color: var(--text);
-  font-family: var(--font-arabic), Inter, system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   min-height: 100dvh;
@@ -304,6 +305,22 @@ button {
   font-size: var(--type-body);
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.app-section-title {
+  font-size: var(--type-section-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.app-card-title {
+  font-size: var(--type-card-title);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  line-height: 1.35;
 }
 
 /* ============================================================

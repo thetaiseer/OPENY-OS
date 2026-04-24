@@ -3,6 +3,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
+import { PageShell } from '@/components/layout/PageLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
 const DOC_TYPE_LINKS = [
   { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
@@ -41,13 +43,15 @@ export function DocsWorkspaceShell({
   preview: ReactNode;
 }) {
   return (
-    <div className="docs-app docs-workspace">
-      <header className="docs-workspace-toolbar">{toolbar}</header>
-      <div className="docs-workspace-body">
-        <section className="docs-workspace-editor">{editor}</section>
-        <aside className="docs-workspace-preview">{preview}</aside>
+    <PageShell className="max-w-[96rem]">
+      <div className="docs-workspace">
+        <header className="docs-workspace-toolbar">{toolbar}</header>
+        <div className="docs-workspace-body">
+          <section className="docs-workspace-editor">{editor}</section>
+          <aside className="docs-workspace-preview">{preview}</aside>
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
@@ -63,12 +67,16 @@ export function DocsEditorCard({
   compact?: boolean;
 }) {
   return (
-    <section className={clsx('docs-editor-card', compact && 'docs-editor-card-compact')}>
-      <div className="docs-editor-card-header">
-        <h3>{title}</h3>
-        {actions ? <div>{actions}</div> : null}
-      </div>
-      {children}
+    <section className={clsx('openy-motion-card', compact && 'docs-editor-card-compact')}>
+      <Card padding={compact ? 'sm' : 'md'} className="!rounded-2xl">
+        <CardHeader className="!mb-3">
+          <CardTitle className="!text-xs !font-bold !uppercase !tracking-wider !text-[var(--text-secondary)]">
+            {title}
+          </CardTitle>
+          {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+        </CardHeader>
+        <CardContent>{children}</CardContent>
+      </Card>
     </section>
   );
 }

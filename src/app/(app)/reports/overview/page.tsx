@@ -27,6 +27,11 @@ import {
   Cell,
   Legend,
 } from 'recharts';
+import Button from '@/components/ui/Button';
+import StatCard from '@/components/ui/StatCard';
+import Badge from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLayout';
 
 interface ClientStat {
   id: string;
@@ -92,85 +97,10 @@ function downloadCSV(csv: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function SummaryCard({
-  label,
-  value,
-  icon,
-  color,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-  sub?: string;
-}) {
-  return (
-    <div
-      className="flex items-start gap-4 rounded-2xl border p-6 shadow-card"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <div
-        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-        style={{
-          background: `color-mix(in srgb, ${color} 22%, var(--surface-2) 78%)`,
-          color,
-          boxShadow: `0 6px 16px color-mix(in srgb, ${color} 35%, transparent)`,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-          {value}
-        </p>
-        <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {label}
-        </p>
-        {sub && (
-          <p className="mt-1 text-xs font-medium" style={{ color }}>
-            {sub}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-      style={
-        active
-          ? {
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 100%)',
-              color: 'var(--accent-contrast)',
-              boxShadow: 'var(--glow-accent-sm)',
-            }
-          : {
-              background: 'var(--surface-2)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }
-      }
-    >
-      {children}
-    </button>
-  );
-}
+type ReportTab = 'overview' | 'clients' | 'team' | 'content';
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState<'overview' | 'clients' | 'team' | 'content'>('overview');
+  const [tab, setTab] = useState<ReportTab>('overview');
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<{
     success: boolean;
@@ -216,59 +146,53 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="app-page-shell mx-auto max-w-6xl space-y-6">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">Reports & Analytics</h1>
-          <p className="app-page-subtitle">
-            Live data across clients, team, and publishing performance
-          </p>
-        </div>
-        <button
-          onClick={() => void refetch()}
-          disabled={isFetching}
-          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80"
-          style={{
-            background: 'var(--surface-2)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-          {isFetching ? 'Refreshing\u2026' : 'Refresh'}
-        </button>
-      </div>
+    <PageShell className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        title="Reports & Analytics"
+        subtitle="Live data across clients, team, and publishing performance"
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            {isFetching ? 'Refreshing\u2026' : 'Refresh'}
+          </Button>
+        }
+      />
 
       {error && (
-        <div
-          className="flex items-center gap-3 rounded-xl border p-4"
-          style={{
-            background: 'var(--color-danger-bg)',
-            color: 'var(--color-danger)',
-            borderColor: 'var(--color-danger-border)',
-          }}
+        <Card
+          padding="md"
+          className="border-[var(--color-danger-border)] bg-[var(--color-danger-bg)]"
         >
-          <AlertCircle size={16} />
-          <p className="text-sm">Failed to load report data. Please try again.</p>
-        </div>
+          <div className="flex items-center gap-3 text-[var(--color-danger)]">
+            <AlertCircle size={16} className="shrink-0" />
+            <p className="text-sm">Failed to load report data. Please try again.</p>
+          </div>
+        </Card>
       )}
 
       <div className="flex flex-wrap gap-2">
         {(['overview', 'clients', 'team', 'content'] as const).map((t) => (
-          <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
+          <Button
+            key={t}
+            type="button"
+            variant={tab === t ? 'primary' : 'secondary'}
+            className="h-9 rounded-full px-4"
+            onClick={() => setTab(t)}
+          >
             {t.charAt(0).toUpperCase() + t.slice(1)}
-          </TabBtn>
+          </Button>
         ))}
       </div>
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface)' }}
-            />
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-[var(--surface)]" />
           ))}
         </div>
       ) : (
@@ -276,57 +200,59 @@ export default function ReportsPage() {
           {tab === 'overview' && report && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-                <SummaryCard
+                <StatCard
                   label="Total Clients"
                   value={report.summary.totalClients}
                   icon={<Users2 size={18} />}
-                  color="#6366f1"
+                  color="blue"
                 />
-                <SummaryCard
+                <StatCard
                   label="Total Tasks"
                   value={report.summary.totalTasks}
                   icon={<CheckSquare size={18} />}
-                  color="#10b981"
+                  color="green"
                 />
-                <SummaryCard
+                <StatCard
                   label="Total Assets"
                   value={report.summary.totalAssets}
                   icon={<FolderOpen size={18} />}
-                  color="#f59e0b"
+                  color="amber"
                 />
-                <SummaryCard
+                <StatCard
                   label="Posts Published"
                   value={report.summary.totalPublished}
                   icon={<Send size={18} />}
-                  color="#8b5cf6"
+                  color="violet"
                 />
-                <SummaryCard
+                <StatCard
                   label="Task Completion Rate"
                   value={`${report.summary.completionRate}%`}
                   icon={<TrendingUp size={18} />}
-                  color="#06b6d4"
-                  sub={
-                    report.summary.completionRate >= 80
-                      ? 'On track'
-                      : report.summary.completionRate >= 50
-                        ? 'Needs attention'
-                        : 'At risk'
+                  color="cyan"
+                  detail={
+                    <span
+                      className={
+                        report.summary.completionRate >= 80
+                          ? 'text-[#10b981]'
+                          : report.summary.completionRate >= 50
+                            ? 'text-[#f59e0b]'
+                            : 'text-[#ef4444]'
+                      }
+                    >
+                      {report.summary.completionRate >= 80
+                        ? 'On track'
+                        : report.summary.completionRate >= 50
+                          ? 'Needs attention'
+                          : 'At risk'}
+                    </span>
                   }
                 />
               </div>
 
-              <div
-                className="rounded-2xl border p-6 shadow-card"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              >
-                <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
-                  6-Month Performance Trend
-                </h2>
+              <Card padding="md">
+                <SectionTitle className="mb-5">6-Month Performance Trend</SectionTitle>
                 {report.monthlyTrends.length === 0 ? (
-                  <p
-                    className="py-10 text-center text-sm"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
+                  <p className="py-10 text-center text-sm text-[var(--text-secondary)]">
                     No trend data yet
                   </p>
                 ) : (
@@ -389,16 +315,11 @@ export default function ReportsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
-              </div>
+              </Card>
 
               {report.platformStats.length > 0 && (
-                <div
-                  className="rounded-2xl border p-6 shadow-card"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
-                  <h2 className="mb-5 text-base font-semibold" style={{ color: 'var(--text)' }}>
-                    Publishing by Platform
-                  </h2>
+                <Card padding="md">
+                  <SectionTitle className="mb-5">Publishing by Platform</SectionTitle>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart
                       data={report.platformStats}
@@ -430,7 +351,7 @@ export default function ReportsPage() {
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </Card>
               )}
             </div>
           )}
@@ -438,46 +359,23 @@ export default function ReportsPage() {
           {tab === 'clients' && report && (
             <div className="space-y-4">
               <div className="flex justify-end">
-                <button
-                  onClick={exportClients}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
+                <Button type="button" variant="secondary" onClick={exportClients}>
                   <Download size={14} /> Export CSV
-                </button>
+                </Button>
               </div>
               {report.clientStats.length === 0 ? (
-                <div
-                  className="rounded-2xl border p-12 text-center shadow-card"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
+                <Card padding="md" className="p-12 text-center">
                   <BarChart2
                     size={32}
-                    className="mx-auto mb-3 opacity-30"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    No client data yet
-                  </p>
-                </div>
+                  <p className="text-sm text-[var(--text-secondary)]">No client data yet</p>
+                </Card>
               ) : (
-                <div
-                  className="overflow-hidden rounded-2xl border shadow-card"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
+                <Card padding="none" className="overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr
-                        style={{
-                          borderBottom: '1px solid var(--border)',
-                          color: 'var(--text-secondary)',
-                          fontSize: 11,
-                        }}
-                      >
+                      <tr className="border-b border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)]">
                         {['Client', 'Total Tasks', 'Completed', 'Pending', 'Overdue', 'Assets'].map(
                           (h) => (
                             <th key={h} className="px-4 py-3 text-left font-medium">
@@ -491,46 +389,25 @@ export default function ReportsPage() {
                       {report.clientStats.map((c) => (
                         <tr
                           key={c.id}
-                          className="border-b last:border-b-0"
-                          style={{ borderColor: 'var(--border)' }}
+                          className="border-b border-[var(--border)] last:border-b-0"
                         >
-                          <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>
-                            {c.name}
-                          </td>
-                          <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                            {c.totalTasks}
-                          </td>
+                          <td className="px-4 py-3 font-medium text-[var(--text)]">{c.name}</td>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">{c.totalTasks}</td>
                           <td className="px-4 py-3">
-                            <span
-                              className="rounded-full px-2 py-0.5 text-xs"
-                              style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}
-                            >
-                              {c.completedTasks}
-                            </span>
+                            <Badge variant="success">{c.completedTasks}</Badge>
                           </td>
-                          <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                            {c.pendingTasks}
-                          </td>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">{c.pendingTasks}</td>
                           <td className="px-4 py-3">
-                            <span
-                              className="rounded-full px-2 py-0.5 text-xs"
-                              style={{
-                                background:
-                                  c.overdueTasks > 0 ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)',
-                                color: c.overdueTasks > 0 ? '#ef4444' : 'var(--text-secondary)',
-                              }}
-                            >
+                            <Badge variant={c.overdueTasks > 0 ? 'danger' : 'default'}>
                               {c.overdueTasks}
-                            </span>
+                            </Badge>
                           </td>
-                          <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                            {c.totalAssets}
-                          </td>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">{c.totalAssets}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </Card>
               )}
             </div>
           )}
@@ -538,41 +415,26 @@ export default function ReportsPage() {
           {tab === 'team' && report && (
             <div className="space-y-4">
               <div className="flex justify-end">
-                <button
-                  onClick={exportTeam}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
+                <Button type="button" variant="secondary" onClick={exportTeam}>
                   <Download size={14} /> Export CSV
-                </button>
+                </Button>
               </div>
               {report.teamStats.length === 0 ? (
-                <div
-                  className="rounded-2xl border p-12 text-center shadow-card"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
+                <Card padding="md" className="p-12 text-center">
                   <Users2
                     size={32}
-                    className="mx-auto mb-3 opacity-30"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-sm text-[var(--text-secondary)]">
                     No team task data yet. Assign tasks to team members to see performance.
                   </p>
-                </div>
+                </Card>
               ) : (
                 <>
-                  <div
-                    className="rounded-2xl border p-6 shadow-card"
-                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                  >
-                    <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  <Card padding="md">
+                    <SectionTitle as="h3" className="mb-4 text-sm">
                       Completed Tasks by Member
-                    </h2>
+                    </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
                         data={report.teamStats}
@@ -597,20 +459,11 @@ export default function ReportsPage() {
                         />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                  <div
-                    className="overflow-hidden rounded-2xl border shadow-card"
-                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                  >
+                  </Card>
+                  <Card padding="none" className="overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr
-                          style={{
-                            borderBottom: '1px solid var(--border)',
-                            color: 'var(--text-secondary)',
-                            fontSize: 11,
-                          }}
-                        >
+                        <tr className="border-b border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)]">
                           {[
                             'Team Member',
                             'Assigned',
@@ -628,24 +481,18 @@ export default function ReportsPage() {
                         {report.teamStats.map((m) => (
                           <tr
                             key={m.id}
-                            className="border-b last:border-b-0"
-                            style={{ borderColor: 'var(--border)' }}
+                            className="border-b border-[var(--border)] last:border-b-0"
                           >
-                            <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>
-                              {m.name}
-                            </td>
-                            <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
+                            <td className="px-4 py-3 font-medium text-[var(--text)]">{m.name}</td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">
                               {m.totalAssigned}
                             </td>
-                            <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">
                               {m.completedTasks}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <div
-                                  className="h-1.5 flex-1 overflow-hidden rounded-full"
-                                  style={{ background: 'var(--surface-2)' }}
-                                >
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
                                   <div
                                     className="h-full rounded-full"
                                     style={{
@@ -659,31 +506,21 @@ export default function ReportsPage() {
                                     }}
                                   />
                                 </div>
-                                <span
-                                  className="w-8 text-right text-xs"
-                                  style={{ color: 'var(--text-secondary)' }}
-                                >
+                                <span className="w-8 text-right text-xs text-[var(--text-secondary)]">
                                   {m.completionRate}%
                                 </span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <span
-                                className="rounded-full px-2 py-0.5 text-xs"
-                                style={{
-                                  background:
-                                    m.overdueTasks > 0 ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)',
-                                  color: m.overdueTasks > 0 ? '#ef4444' : 'var(--text-secondary)',
-                                }}
-                              >
+                              <Badge variant={m.overdueTasks > 0 ? 'danger' : 'default'}>
                                 {m.overdueTasks}
-                              </span>
+                              </Badge>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </Card>
                 </>
               )}
             </div>
@@ -693,13 +530,10 @@ export default function ReportsPage() {
             <div className="space-y-6">
               {report.platformStats.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div
-                    className="rounded-2xl border p-6 shadow-card"
-                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                  >
-                    <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  <Card padding="md">
+                    <SectionTitle as="h3" className="mb-4 text-sm">
                       Platform Distribution
-                    </h2>
+                    </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie
@@ -728,14 +562,11 @@ export default function ReportsPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
-                  <div
-                    className="rounded-2xl border p-6 shadow-card"
-                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                  >
-                    <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  </Card>
+                  <Card padding="md">
+                    <SectionTitle as="h3" className="mb-4 text-sm">
                       Published vs Scheduled vs Missed
-                    </h2>
+                    </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
                         data={report.platformStats}
@@ -769,30 +600,23 @@ export default function ReportsPage() {
                         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </Card>
                 </div>
               ) : (
-                <div
-                  className="rounded-2xl border p-12 text-center shadow-card"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
+                <Card padding="md" className="p-12 text-center">
                   <Send
                     size={32}
-                    className="mx-auto mb-3 opacity-30"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-sm text-[var(--text-secondary)]">
                     No publishing data yet. Start scheduling posts to see analytics.
                   </p>
-                </div>
+                </Card>
               )}
-              <div
-                className="rounded-2xl border p-6 shadow-card"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              >
-                <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              <Card padding="md">
+                <SectionTitle as="h3" className="mb-4 text-sm">
                   Monthly Publishing Velocity
-                </h2>
+                </SectionTitle>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart
                     data={report.monthlyTrends}
@@ -823,11 +647,11 @@ export default function ReportsPage() {
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </Card>
             </div>
           )}
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

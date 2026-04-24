@@ -48,6 +48,10 @@ import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useQuickActions } from '@/context/quick-actions-context';
 import AppModal from '@/components/ui/AppModal';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -67,10 +71,7 @@ interface FolderPath {
 
 function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium"
-      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}
-    >
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs font-medium text-[var(--accent)]">
       {label}
       <button
         onClick={onRemove}
@@ -1081,143 +1082,103 @@ function AssetsPage() {
 
   return (
     <>
-      <div
-        className="app-page-shell mx-auto max-w-6xl space-y-6"
+      <PageShell
+        className="max-w-6xl space-y-6"
         ref={dropZoneRef}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="app-page-header">
-          <div>
-            <h1 className="app-page-title">{t('assets')}</h1>
-            <p className="app-page-subtitle">
-              Manage uploaded files · Drag &amp; drop or click Upload
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {/* Upload File */}
-            {canUpload && !selectionMode && (
-              <button
-                onClick={() => !isUploading && fileRef.current?.click()}
-                disabled={isUploading}
-                className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Upload size={16} />
-                {isUploading ? 'Uploading…' : t('uploadFile')}
-              </button>
-            )}
-            {/* Select Files / Cancel Selection */}
-            {!selectionMode ? (
-              <button
-                onClick={enterSelectionMode}
-                className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-90"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <Square size={14} /> Select
-              </button>
-            ) : (
-              <>
-                {/* Select all / deselect all in current view */}
-                <button
-                  onClick={handleToggleSelectAll}
-                  className="flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-80"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: 'var(--text)',
-                    border: '1px solid var(--border)',
-                  }}
+        <PageHeader
+          title={t('assets')}
+          subtitle="Manage uploaded files · Drag & drop or click Upload"
+          actions={
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {canUpload && !selectionMode && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={isUploading}
+                  onClick={() => !isUploading && fileRef.current?.click()}
                 >
-                  <CheckSquare size={14} />
-                  {filteredAssets.length > 0 && filteredAssets.every((a) => selectedIds.has(a.id))
-                    ? 'Deselect All'
-                    : 'Select All'}
-                </button>
-                {/* Download Selected */}
-                <button
-                  onClick={() => void handleDownloadSelected()}
-                  disabled={selectedIds.size === 0 || downloadingZip}
-                  className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{
-                    background: 'rgba(99,102,241,0.12)',
-                    color: 'var(--accent)',
-                    border: '1.5px solid var(--accent)',
-                  }}
-                >
-                  <Download size={14} />
-                  {downloadingZip
-                    ? 'Preparing…'
-                    : selectedIds.size > 0
-                      ? `Download (${selectedIds.size})`
-                      : 'Download Selected'}
-                </button>
-                {/* Cancel Selection */}
-                <button
-                  onClick={exitSelectionMode}
-                  className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
-                >
-                  <X size={14} /> Cancel
-                </button>
-              </>
-            )}
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleInputChange}
-          />
-        </div>
+                  <Upload size={16} />
+                  {isUploading ? 'Uploading…' : t('uploadFile')}
+                </Button>
+              )}
+              {!selectionMode ? (
+                <Button type="button" variant="secondary" onClick={enterSelectionMode}>
+                  <Square size={14} /> Select
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" variant="secondary" onClick={handleToggleSelectAll}>
+                    <CheckSquare size={14} />
+                    {filteredAssets.length > 0 && filteredAssets.every((a) => selectedIds.has(a.id))
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="border-2 border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] disabled:opacity-40"
+                    onClick={() => void handleDownloadSelected()}
+                    disabled={selectedIds.size === 0 || downloadingZip}
+                  >
+                    <Download size={14} />
+                    {downloadingZip
+                      ? 'Preparing…'
+                      : selectedIds.size > 0
+                        ? `Download (${selectedIds.size})`
+                        : 'Download Selected'}
+                  </Button>
+                  <Button type="button" variant="danger" onClick={exitSelectionMode}>
+                    <X size={14} /> Cancel
+                  </Button>
+                </>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleInputChange}
+              />
+            </div>
+          }
+        />
 
         {/* ── Breadcrumb navigation ────────────────────────────────────────── */}
         {breadcrumbItems.length > 0 && (
-          <div
-            className="flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-card"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
-            <button
-              type="button"
-              onClick={goUp}
-              className="ml-auto flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <ChevronLeft size={12} /> Up
-            </button>
-          </div>
+          <Card padding="sm" className="sm:px-5 sm:py-3">
+            <CardContent className="flex items-center gap-2 !p-0">
+              <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
+              <Button
+                type="button"
+                variant="ghost"
+                className="ml-auto h-8 gap-1 px-2 text-xs"
+                onClick={goUp}
+              >
+                <ChevronLeft size={12} /> Up
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
-        <div
-          className="space-y-3 rounded-2xl border p-4 shadow-card"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card padding="sm" className="sm:p-6">
+          <CardContent className="space-y-3 !p-0">
           <div className="flex flex-wrap gap-2">
             <div className="relative min-w-48 flex-1">
               <Search
                 size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--text-secondary)' }}
+                className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
               />
-              <input
+              <Input
                 type="text"
                 placeholder="Search files…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-lg pl-8 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--accent)]"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
+                className="pl-8"
               />
             </div>
             <SelectDropdown
@@ -1245,13 +1206,9 @@ function AssetsPage() {
               ]}
             />
             {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold hover:opacity-80"
-                style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
-              >
+              <Button type="button" variant="danger" className="h-10" onClick={clearFilters}>
                 <X size={13} /> Clear
-              </button>
+              </Button>
             )}
           </div>
           {hasActiveFilters && (
@@ -1267,7 +1224,8 @@ function AssetsPage() {
               )}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* ── Drag-over overlay ────────────────────────────────────────────── */}
         {isDragOver && (
@@ -1286,26 +1244,18 @@ function AssetsPage() {
 
         {/* ── Fetch error ──────────────────────────────────────────────────── */}
         {fetchError && !loading && (
-          <div
-            className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
-            style={{
-              background: 'var(--color-danger-bg)',
-              borderColor: 'var(--color-danger-border)',
-              color: 'var(--color-danger)',
-            }}
-          >
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">Failed to load assets</p>
-              <p className="break-all opacity-80">{fetchError}</p>
-            </div>
-            <button
-              onClick={() => fetchAssets(0)}
-              className="shrink-0 font-medium underline opacity-80 hover:opacity-100"
-            >
-              Retry
-            </button>
-          </div>
+          <Card className="border-[var(--color-danger-border)] bg-[var(--color-danger-bg)]">
+            <CardContent className="flex items-start gap-3 py-3 text-sm text-[var(--color-danger)] !p-4">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Failed to load assets</p>
+                <p className="break-all opacity-80">{fetchError}</p>
+              </div>
+              <Button type="button" variant="ghost" className="h-auto shrink-0 p-0 underline" onClick={() => fetchAssets(0)}>
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* ── Content area ─────────────────────────────────────────────────── */}
@@ -1336,26 +1286,26 @@ function AssetsPage() {
             }
             action={
               !hasActiveFilters && canUpload ? (
-                <button
-                  onClick={() => !isUploading && fileRef.current?.click()}
+                <Button
+                  type="button"
+                  variant="primary"
                   disabled={isUploading}
-                  className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: 'var(--accent)' }}
+                  onClick={() => !isUploading && fileRef.current?.click()}
                 >
                   <Upload size={16} />
                   {t('uploadFile')}
-                </button>
+                </Button>
               ) : hasActiveFilters || breadcrumbItems.length > 0 ? (
-                <button
+                <Button
+                  type="button"
+                  variant="danger"
                   onClick={() => {
                     clearFilters();
                     setFolderPath({});
                   }}
-                  className="flex h-10 items-center gap-1.5 rounded-xl px-5 text-sm font-semibold hover:opacity-80"
-                  style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
                 >
                   <X size={14} /> Clear all
-                </button>
+                </Button>
               ) : undefined
             }
           />
@@ -1387,9 +1337,9 @@ function AssetsPage() {
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn h-9 px-6 text-sm">
+                <Button type="button" variant="secondary" className="h-9 px-6 text-sm" onClick={loadMore}>
                   Load More
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -1421,14 +1371,14 @@ function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <button onClick={loadMore} className="btn h-9 px-6 text-sm">
+                <Button type="button" variant="secondary" className="h-9 px-6 text-sm" onClick={loadMore}>
                   Load More
-                </button>
+                </Button>
               </div>
             )}
           </>
         )}
-      </div>
+      </PageShell>
 
       {/* ── Upload modal ─────────────────────────────────────────────────────── */}
       {(pendingItems.length > 0 || quickActionUploadOpen) && (

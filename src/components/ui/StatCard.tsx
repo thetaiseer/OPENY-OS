@@ -1,9 +1,14 @@
+import { cn } from '@/lib/cn';
+import { cardSurfaceClass } from '@/components/ui/Card';
+
 interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
   color?: 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'mint' | 'rose' | 'cyan';
   trend?: { value: string; positive: boolean };
+  /** Optional line under the label (e.g. status hint) */
+  detail?: React.ReactNode;
 }
 
 const colorMap = {
@@ -49,29 +54,27 @@ const colorMap = {
   },
 };
 
-export default function StatCard({ label, value, icon, color = 'blue', trend }: StatCardProps) {
+export default function StatCard({
+  label,
+  value,
+  icon,
+  color = 'blue',
+  trend,
+  detail,
+}: StatCardProps) {
   const c = colorMap[color];
   return (
-    <div
-      className="openy-motion-card relative overflow-hidden rounded-2xl border p-6"
-      style={{
-        background: 'var(--gradient-card-glass)',
-        backdropFilter: 'var(--blur-glass)',
-        WebkitBackdropFilter: 'var(--blur-glass)',
-        borderColor: 'var(--border-glass)',
-        boxShadow: 'var(--shadow-card), var(--highlight-inset)',
-      }}
-    >
+    <div className={cn(cardSurfaceClass, 'openy-motion-card p-6')}>
       {/* Subtle background glow blob */}
       <div
-        className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 rounded-full"
+        className="pointer-events-none absolute -right-4 -top-4 z-0 h-24 w-24 rounded-full"
         style={{
           background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`,
           filter: 'blur(12px)',
         }}
       />
 
-      <div className="relative mb-4 flex items-start justify-between">
+      <div className="relative z-[1] mb-4 flex items-start justify-between">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-full"
           style={{
@@ -95,14 +98,17 @@ export default function StatCard({ label, value, icon, color = 'blue', trend }: 
         )}
       </div>
       <div
-        className="mb-1 text-3xl font-bold tracking-tight"
+        className="relative z-[1] mb-1 text-3xl font-bold tracking-tight"
         style={{ color: 'var(--text)', letterSpacing: '-0.03em' }}
       >
         {value}
       </div>
-      <div className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+      <div className="relative z-[1] text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
         {label}
       </div>
+      {detail ? (
+        <div className="relative z-[1] mt-1 text-xs font-medium">{detail}</div>
+      ) : null}
     </div>
   );
 }

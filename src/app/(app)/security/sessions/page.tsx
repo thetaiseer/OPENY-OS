@@ -19,6 +19,9 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -224,21 +227,16 @@ function SessionCard({
       {/* Actions */}
       {session.is_active && (
         <div className="pt-1">
-          <button
+          <Button
+            type="button"
+            variant={session.is_current ? 'danger' : 'secondary'}
+            className="h-8 min-h-0 gap-2 px-3 text-xs"
             onClick={() => onRevoke(session.id)}
             disabled={revoking}
-            className="flex h-8 items-center gap-2 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{
-              background: session.is_current ? 'rgba(239,68,68,0.10)' : 'var(--surface-2)',
-              color: session.is_current ? '#ef4444' : 'var(--text-secondary)',
-              border: session.is_current
-                ? '1px solid rgba(239,68,68,0.25)'
-                : '1px solid var(--border)',
-            }}
           >
             {revoking ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />}
             {session.is_current ? 'Sign out this device' : 'Sign out'}
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -333,17 +331,16 @@ export default function SecurityPage() {
   const hasRiskFlags = activeSessions.some((s) => s.risk_flag);
 
   return (
-    <div className="app-page-shell mx-auto max-w-2xl space-y-8">
-      {/* Page header */}
-      <div className="app-page-header">
-        <div>
-          <div className="flex items-center gap-3">
-            <Shield size={24} style={{ color: 'var(--accent)' }} />
-            <h1 className="app-page-title">Security</h1>
-          </div>
-          <p className="app-page-subtitle">Manage your active sessions and review login history.</p>
-        </div>
-      </div>
+    <PageShell className="mx-auto max-w-2xl space-y-8">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <Shield size={24} className="text-[var(--accent)]" />
+            Security
+          </span>
+        }
+        subtitle="Manage your active sessions and review login history."
+      />
 
       {/* Risk alert */}
       {hasRiskFlags && (
@@ -394,11 +391,7 @@ export default function SecurityPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface)' }}
-            />
+            <div key={i} className="h-32 animate-pulse rounded-2xl bg-[var(--surface)]" />
           ))}
         </div>
       ) : (
@@ -418,17 +411,14 @@ export default function SecurityPage() {
           {/* Other active sessions */}
           {otherActive.length > 0 && (
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <SectionHeader label={`Other active sessions (${otherActive.length})`} />
-                <button
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="h-8 min-h-0 gap-2 px-3 text-xs"
                   onClick={handleRevokeOthers}
                   disabled={revokingOthers}
-                  className="flex h-8 items-center gap-2 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-                  style={{
-                    background: 'rgba(239,68,68,0.10)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239,68,68,0.25)',
-                  }}
                 >
                   {revokingOthers ? (
                     <Loader2 size={12} className="animate-spin" />
@@ -436,7 +426,7 @@ export default function SecurityPage() {
                     <LogOut size={12} />
                   )}
                   Sign out all other devices
-                </button>
+                </Button>
               </div>
               <div className="space-y-3">
                 {otherActive.map((s) => (
@@ -453,21 +443,14 @@ export default function SecurityPage() {
 
           {/* No other sessions */}
           {activeSessions.length <= 1 && (
-            <div
-              className="rounded-2xl border py-6 text-center"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <Shield
-                size={32}
-                className="mx-auto mb-2"
-                style={{ color: 'var(--text-secondary)', opacity: 0.4 }}
-              />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <Card padding="md" className="py-6 text-center">
+              <Shield size={32} className="mx-auto mb-2 text-[var(--text-secondary)] opacity-40" />
+              <p className="text-sm text-[var(--text-secondary)]">
                 {sessions.length === 0
                   ? 'No sessions found.'
                   : 'No other active sessions. You\u2019re only logged in from this device.'}
               </p>
-            </div>
+            </Card>
           )}
 
           {/* Login history */}
@@ -489,32 +472,19 @@ export default function SecurityPage() {
         </>
       )}
 
-      {/* Refresh */}
       <div className="flex justify-end">
-        <button
-          onClick={loadSessions}
-          disabled={loading}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-          style={{
-            background: 'var(--surface-2)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-          }}
-        >
+        <Button type="button" variant="secondary" onClick={loadSessions} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh
-        </button>
+        </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
 function SectionHeader({ label }: { label: string }) {
   return (
-    <h2
-      className="text-sm font-semibold uppercase tracking-wide"
-      style={{ color: 'var(--text-secondary)' }}
-    >
+    <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
       {label}
     </h2>
   );

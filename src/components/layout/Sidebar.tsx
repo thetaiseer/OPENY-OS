@@ -194,7 +194,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3.5 py-5">
+        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
           <LayoutGroup id="sidebar-nav">
             {navItems.map(({ href, base, icon: Icon, key, label }) => {
               const active =

@@ -20,7 +20,11 @@ import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input, Textarea, Field } from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
@@ -307,44 +311,34 @@ function ClientsPage() {
   };
 
   return (
-    <div className="app-page-shell mx-auto max-w-7xl space-y-6">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">{t('clients')}</h1>
-          <p className="app-page-subtitle">Manage your clients and client relationships.</p>
-        </div>
-        {canManageClients && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Plus size={16} />+ Add client
-          </button>
-        )}
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t('clients')}
+        subtitle="Manage your clients and client relationships."
+        actions={
+          canManageClients ? (
+            <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
+              <Plus size={16} />
+              Add client
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div
-        className="flex flex-col gap-3 rounded-2xl border p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-end"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
+      <Card padding="sm" className="sm:p-6">
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="relative min-w-[200px] flex-1">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
+            className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
             style={{ color: 'var(--text-secondary)' }}
           />
-          <input
+          <Input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or company…"
-            className="h-10 w-full rounded-xl pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
+            className="pl-9"
           />
         </div>
         <div className="w-full min-w-[140px] sm:w-44">
@@ -367,36 +361,21 @@ function ClientsPage() {
           <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
             Industry
           </p>
-          <input
+          <Input
             type="text"
             value={industryFilter}
             onChange={(e) => setIndustryFilter(e.target.value)}
             placeholder="Filter industry"
-            className="h-10 w-full rounded-xl px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
           />
         </div>
         <div className="w-full min-w-[180px] sm:w-56">
           <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
             Account manager
           </p>
-          <input
-            disabled
-            title="Coming soon"
-            placeholder="Filter (soon)"
-            className="h-10 w-full cursor-not-allowed rounded-xl px-3 text-sm opacity-60"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
-          />
+          <Input disabled title="Coming soon" placeholder="Filter (soon)" className="cursor-not-allowed opacity-60" />
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {fetchError && (
         <div
@@ -423,10 +402,8 @@ function ClientsPage() {
           ))}
         </div>
       ) : filteredClients.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center rounded-2xl border py-24 text-center"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
           <div
             className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
             style={{ background: 'var(--surface-2)' }}
@@ -440,16 +417,13 @@ function ClientsPage() {
             {t('noClientsDesc')}
           </p>
           {canManageClients && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex h-10 items-center gap-2 rounded-lg px-5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-              style={{ background: 'var(--accent)' }}
-            >
+            <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
               <Plus size={16} />
               {t('newClient')}
-            </button>
+            </Button>
           )}
-        </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => {
@@ -488,8 +462,13 @@ function ClientsPage() {
                     router.push(baseClientHref);
                   }
                 }}
-                className="group flex cursor-pointer select-none flex-col rounded-2xl border p-5 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] active:shadow-sm"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', gap: 0 }}
+                className="group openy-motion-card flex cursor-pointer select-none flex-col rounded-2xl border border-[var(--border-glass)] p-6 shadow-card transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:translate-y-0 active:scale-[0.99]"
+                style={{
+                  background: 'var(--gradient-card-glass)',
+                  backdropFilter: 'var(--blur-glass)',
+                  WebkitBackdropFilter: 'var(--blur-glass)',
+                  gap: 0,
+                }}
               >
                 {/* ── Header ──────────────────────────────────────────────── */}
                 <div className="mb-4 flex items-start justify-between gap-3">
@@ -628,8 +607,18 @@ function ClientsPage() {
           setSaveError(null);
         }}
         title={t('newClient')}
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" variant="primary" form="client-create-form" disabled={saving}>
+              {saving ? t('loading') : t('save')}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        <form id="client-create-form" onSubmit={handleSave} className="space-y-4">
           {saveError && (
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm"
@@ -651,28 +640,17 @@ function ClientsPage() {
               { label: t('website'), key: 'website', type: 'text', required: false },
               { label: t('industry'), key: 'industry', type: 'text', required: false },
             ].map(({ label, key, type, required }) => (
-              <div key={key} className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {label}
-                </label>
-                <input
+              <Field key={key} label={label} id={`client-${key}`}>
+                <Input
+                  id={`client-${key}`}
                   type={type}
                   required={required}
                   value={form[key as keyof typeof form]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                  className="h-9 w-full rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: 'var(--text)',
-                    border: '1px solid var(--border)',
-                  }}
                 />
-              </div>
+              </Field>
             ))}
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {t('status')}
-              </label>
+            <Field label={t('status')}>
               <SelectDropdown
                 fullWidth
                 value={form.status}
@@ -683,45 +661,18 @@ function ClientsPage() {
                   { value: 'prospect', label: t('prospect') },
                 ]}
               />
-            </div>
+            </Field>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              {t('notes')}
-            </label>
-            <textarea
+          <Field label={t('notes')}>
+            <Textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               rows={3}
-              className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{
-                background: 'var(--surface-2)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
             />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="h-9 rounded-lg px-4 text-sm font-medium transition-colors"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-9 rounded-lg px-4 text-sm font-medium text-white transition-opacity disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
-            >
-              {saving ? t('loading') : t('save')}
-            </button>
-          </div>
+          </Field>
         </form>
       </Modal>
-    </div>
+    </PageShell>
   );
 }
 

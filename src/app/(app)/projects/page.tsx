@@ -8,7 +8,11 @@ import supabase from '@/lib/supabase';
 import type { Client, Project } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input, Textarea, Field } from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
@@ -200,24 +204,19 @@ export default function ProjectsPage() {
   ];
 
   return (
-    <div className="app-page-shell mx-auto max-w-7xl space-y-6">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">{t('projects')}</h1>
-          <p className="app-page-subtitle">All workspace projects · {metrics.total} total</p>
-        </div>
-        {canManage && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Plus size={18} />
-            New project
-          </button>
-        )}
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t('projects')}
+        subtitle={`All workspace projects · ${metrics.total} total`}
+        actions={
+          canManage ? (
+            <Button type="button" variant="primary" onClick={openCreate}>
+              <Plus size={18} />
+              New project
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -246,10 +245,8 @@ export default function ProjectsPage() {
         />
       </div>
 
-      <div
-        className="flex flex-col gap-4 rounded-2xl border p-4 shadow-card sm:flex-row sm:items-center sm:justify-between"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
+      <Card padding="sm" className="sm:p-6">
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Project filters">
           {tabs.map(({ id, label }) => {
             const active = tab === id;
@@ -275,23 +272,19 @@ export default function ProjectsPage() {
         <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
+            className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
             style={{ color: 'var(--text-tertiary)' }}
           />
-          <input
+          <Input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search projects…"
-            className="h-10 w-full rounded-xl border pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            style={{
-              background: 'var(--surface-2)',
-              borderColor: 'var(--border)',
-              color: 'var(--text)',
-            }}
+            className="pl-10"
           />
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -304,10 +297,8 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center rounded-2xl border py-20 text-center shadow-card"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
           <FolderKanban
             size={40}
             className="mb-4 opacity-30"
@@ -322,27 +313,19 @@ export default function ProjectsPage() {
               : 'Try another filter or clear search.'}
           </p>
           {canManage && tab === 'all' && !search && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="mt-6 rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
+            <Button type="button" variant="primary" className="mt-6" onClick={openCreate}>
               + New project
-            </button>
+            </Button>
           )}
-        </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((project) => {
             const slug = project.client?.slug;
             const clientHref = slug ? `/clients/${slug}/overview` : null;
             return (
-              <div
-                key={project.id}
-                className="flex flex-col rounded-2xl border p-5 shadow-card transition-transform hover:-translate-y-0.5"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              >
+              <Card key={project.id} className="flex flex-col transition-transform hover:-translate-y-0.5">
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <div
@@ -352,9 +335,9 @@ export default function ProjectsPage() {
                       <FolderKanban size={20} style={{ color: project.color ?? '#6366f1' }} />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="truncate text-base font-bold" style={{ color: 'var(--text)' }}>
+                      <p className="truncate text-base font-bold" style={{ color: 'var(--text)' }}>
                         {project.name}
-                      </h2>
+                      </p>
                       {project.client?.name && (
                         <p
                           className="mt-0.5 truncate text-xs"
@@ -400,30 +383,27 @@ export default function ProjectsPage() {
                     className="mt-4 flex gap-2 border-t pt-4"
                     style={{ borderColor: 'var(--border)' }}
                   >
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      className="h-9 flex-1 text-xs"
                       onClick={() => openEdit(project)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                     >
                       <Pencil size={14} /> Edit
-                    </button>
+                    </Button>
                     {canDelete && (
-                      <button
+                      <Button
                         type="button"
+                        variant="danger"
+                        className="h-9 px-3 text-xs"
                         onClick={() => void handleDelete(project.id)}
-                        className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-                        style={{
-                          background: 'var(--color-danger-bg)',
-                          color: 'var(--color-danger)',
-                        }}
                       >
                         <Trash2 size={14} />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -437,8 +417,18 @@ export default function ProjectsPage() {
         }}
         title={editProject ? 'Edit project' : 'New project'}
         size="md"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" variant="primary" form="project-form" disabled={saving}>
+              {saving ? t('loading') : t('save')}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        <form id="project-form" onSubmit={handleSave} className="space-y-4">
           {saveErr && (
             <p
               className="rounded-xl px-3 py-2 text-sm"
@@ -447,13 +437,7 @@ export default function ProjectsPage() {
               {saveErr}
             </p>
           )}
-          <div className="space-y-1">
-            <label
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Client
-            </label>
+          <Field label="Client">
             <SelectDropdown
               fullWidth
               value={form.client_id}
@@ -461,53 +445,24 @@ export default function ProjectsPage() {
               options={clients.map((c) => ({ value: c.id, label: c.name }))}
               placeholder="Select client"
             />
-          </div>
-          <div className="space-y-1">
-            <label
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Name
-            </label>
-            <input
+          </Field>
+          <Field label="Name" id="project-name">
+            <Input
+              id="project-name"
               required
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="h-10 w-full rounded-xl border px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{
-                background: 'var(--surface-2)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)',
-              }}
             />
-          </div>
-          <div className="space-y-1">
-            <label
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Description
-            </label>
-            <textarea
+          </Field>
+          <Field label="Description">
+            <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={3}
-              className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{
-                background: 'var(--surface-2)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)',
-              }}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                Status
-              </label>
+            <Field label="Status">
               <SelectDropdown
                 fullWidth
                 value={form.status}
@@ -516,81 +471,35 @@ export default function ProjectsPage() {
                   ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as ProjectStatus[]
                 ).map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
               />
-            </div>
-            <div className="space-y-1">
-              <label
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                Color
-              </label>
+            </Field>
+            <Field label="Color" id="project-color">
               <input
+                id="project-color"
                 type="color"
                 value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                className="h-10 w-full cursor-pointer rounded-xl border"
-                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                className="h-10 w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
               />
-            </div>
-            <div className="space-y-1">
-              <label
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                Start
-              </label>
-              <input
+            </Field>
+            <Field label="Start" id="project-start">
+              <Input
+                id="project-start"
                 type="date"
                 value={form.start_date}
                 onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                className="h-10 w-full rounded-xl border px-3 text-sm outline-none"
-                style={{
-                  background: 'var(--surface-2)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                }}
               />
-            </div>
-            <div className="space-y-1">
-              <label
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                End
-              </label>
-              <input
+            </Field>
+            <Field label="End" id="project-end">
+              <Input
+                id="project-end"
                 type="date"
                 value={form.end_date}
                 onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-                className="h-10 w-full rounded-xl border px-3 text-sm outline-none"
-                style={{
-                  background: 'var(--surface-2)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                }}
               />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="rounded-xl px-4 py-2 text-sm font-semibold"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'var(--accent)' }}
-            >
-              {saving ? t('loading') : t('save')}
-            </button>
+            </Field>
           </div>
         </form>
       </Modal>
-    </div>
+    </PageShell>
   );
 }

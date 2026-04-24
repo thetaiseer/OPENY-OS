@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import SelectDropdown, { type SelectOption } from '@/components/ui/SelectDropdown';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { PageHeader } from '@/components/layout/PageLayout';
 
 export function DocsPageHeader({
   title,
@@ -14,15 +16,7 @@ export function DocsPageHeader({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  return (
-    <div className="app-page-header">
-      <div>
-        <h1 className="app-page-title">{title}</h1>
-        {subtitle ? <p className="app-page-subtitle">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
-  );
+  return <PageHeader title={title} subtitle={subtitle} actions={actions} />;
 }
 
 export function DocsSectionCard({
@@ -39,17 +33,19 @@ export function DocsSectionCard({
   className?: string;
 }) {
   return (
-    <section className={clsx('docs-card', className)}>
-      {title || actions ? (
-        <div className="docs-card-header">
-          <div>
-            {title ? <h2 className="docs-card-title">{title}</h2> : null}
-            {subtitle ? <p className="docs-card-subtitle">{subtitle}</p> : null}
-          </div>
-          {actions ? <div>{actions}</div> : null}
-        </div>
-      ) : null}
-      {children}
+    <section className={className}>
+      <Card className="openy-motion-card" padding="md">
+        {title || actions ? (
+          <CardHeader>
+            <div>
+              {title ? <CardTitle>{title}</CardTitle> : null}
+              {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
+            </div>
+            {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+          </CardHeader>
+        ) : null}
+        <CardContent>{children}</CardContent>
+      </Card>
     </section>
   );
 }

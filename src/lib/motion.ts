@@ -1,8 +1,8 @@
 export const motionTiming = {
-  micro: 0.16,
-  ui: 0.24,
-  modal: 0.22,
-  page: 0.32,
+  micro: 0.15,
+  ui: 0.2,
+  modal: 0.2,
+  page: 0.28,
 } as const;
 
 export const motionEase = [0.4, 0, 0.2, 1] as const;

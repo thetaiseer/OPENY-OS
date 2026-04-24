@@ -14,6 +14,9 @@ import {
   HardDrive,
   RotateCcw,
 } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLayout';
 
 // ── R2 Storage Card ───────────────────────────────────────────────────────────
 
@@ -80,26 +83,24 @@ function R2StorageCard() {
   }, [fetchStatus]);
 
   return (
-    <div
-      className="space-y-5 rounded-2xl border p-6"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
+    <Card padding="md" className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HardDrive size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+          <HardDrive size={18} className="text-[var(--accent)]" />
+          <SectionTitle as="h2" className="!mb-0 text-base">
             Cloudflare R2 Storage
-          </h2>
+          </SectionTitle>
         </div>
-        <button
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-8 w-8 min-h-0 p-0"
           onClick={fetchStatus}
           disabled={loading}
           title="Refresh status"
-          className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
         >
           {loading ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
-        </button>
+        </Button>
       </div>
 
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -218,7 +219,7 @@ function R2StorageCard() {
           <CloudLightning size={15} /> Open Cloudflare R2
         </a>
       </section>
-    </div>
+    </Card>
   );
 }
 
@@ -252,171 +253,106 @@ export default function SettingsProfilePage() {
   }
 
   return (
-    <div className="app-page-shell space-y-6">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">Settings</h1>
-          <p className="app-page-subtitle">Profile, appearance, access, and session preferences.</p>
-        </div>
-      </div>
-      {/* Profile */}
-      <div
-        className="space-y-4 rounded-2xl border p-6"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-          Profile
-        </h2>
-        <div className="flex items-center gap-4">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white"
-            style={{ background: 'var(--accent)' }}
-          >
+    <PageShell className="space-y-6">
+      <PageHeader
+        title="Settings"
+        subtitle="Profile, appearance, access, and session preferences."
+      />
+
+      <Card padding="md">
+        <CardHeader className="!mb-4">
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-4 !p-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-lg font-bold text-white">
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium" style={{ color: 'var(--text)' }}>
-              {user.name}
-            </p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {user.role}
-            </p>
+            <p className="font-medium text-[var(--text)]">{user.name}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{user.role}</p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Appearance */}
-      <div
-        className="space-y-4 rounded-2xl border p-6"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-          Appearance
-        </h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              Theme
-            </p>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Currently: {theme}
-            </p>
+      <Card padding="md">
+        <CardHeader className="!mb-4">
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 !p-0">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[var(--text)]">Theme</p>
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Currently: {theme}</p>
+            </div>
+            <Button type="button" variant="secondary" className="h-9 shrink-0" onClick={toggleTheme}>
+              Switch to {theme === 'light' ? 'Dark' : 'Light'}
+            </Button>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="h-9 rounded-lg px-4 text-sm font-medium transition-colors"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            Switch to {theme === 'light' ? 'Dark' : 'Light'}
-          </button>
-        </div>
-        <div
-          className="flex items-center justify-between border-t pt-3"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              Language
-            </p>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Currently: {lang === 'en' ? 'English' : 'Arabic'}
-            </p>
+          <div className="flex items-center justify-between gap-4 border-t border-[var(--border)] pt-4">
+            <div>
+              <p className="text-sm font-medium text-[var(--text)]">Language</p>
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                Currently: {lang === 'en' ? 'English' : 'Arabic'}
+              </p>
+            </div>
+            <Button type="button" variant="secondary" className="h-9 shrink-0" onClick={toggleLang}>
+              Switch to {lang === 'en' ? 'Arabic' : 'English'}
+            </Button>
           </div>
-          <button
-            onClick={toggleLang}
-            className="h-9 rounded-lg px-4 text-sm font-medium transition-colors"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            Switch to {lang === 'en' ? 'Arabic' : 'English'}
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Admin-only: R2 Storage */}
       {isAdmin && <R2StorageCard />}
 
-      {/* Role & Access */}
-      <div
-        className="space-y-4 rounded-2xl border p-6"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Role & Access
-          </h2>
-        </div>
-        <div
-          className="flex items-start gap-3 rounded-xl p-4"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
-        >
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-            style={{ background: 'var(--accent)' }}
-          >
-            {(user.name || user.email).charAt(0).toUpperCase()}
+      <Card padding="md">
+        <CardHeader className="!mb-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-[var(--accent)]" />
+            <CardTitle>Role & Access</CardTitle>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              {user.name || user.email}
-            </p>
-            <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {user.email}
-            </p>
-            <span
-              className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-            >
-              {role}
-            </span>
+        </CardHeader>
+        <CardContent className="space-y-4 !p-0">
+          <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white">
+              {(user.name || user.email).charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--text)]">
+                {user.name || user.email}
+              </p>
+              <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
+              <span className="mt-1.5 inline-block rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold capitalize text-[var(--accent)]">
+                {role}
+              </span>
+            </div>
           </div>
-        </div>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {roleDescriptions[role] ?? 'Your access level is managed by your administrator.'}
-        </p>
-      </div>
+          <p className="text-xs text-[var(--text-secondary)]">
+            {roleDescriptions[role] ?? 'Your access level is managed by your administrator.'}
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* Sign Out */}
-      <div
-        className="rounded-2xl border p-6"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text)' }}>
-          Session
-        </h2>
-        {signOutError && (
-          <div
-            className="mb-3 rounded-lg px-3 py-2 text-sm"
-            style={{
-              background: 'rgba(239,68,68,0.1)',
-              color: '#ef4444',
-              border: '1px solid rgba(239,68,68,0.25)',
-            }}
+      <Card padding="md">
+        <CardHeader className="!mb-3">
+          <CardTitle>Session</CardTitle>
+        </CardHeader>
+        <CardContent className="!p-0">
+          {signOutError && (
+            <div className="mb-3 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.1)] px-3 py-2 text-sm text-[#ef4444]">
+              {signOutError}
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="danger"
+            className="h-9"
+            onClick={handleSignOut}
+            disabled={signingOut}
           >
-            {signOutError}
-          </div>
-        )}
-        <button
-          onClick={handleSignOut}
-          disabled={signingOut}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
-          style={{
-            background: 'rgba(239,68,68,0.1)',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.25)',
-          }}
-        >
-          <LogOut size={15} /> {signingOut ? 'Signing out…' : 'Sign out'}
-        </button>
-      </div>
-    </div>
+            <LogOut size={15} /> {signingOut ? 'Signing out…' : 'Sign out'}
+          </Button>
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }

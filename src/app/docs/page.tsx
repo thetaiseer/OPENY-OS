@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { cardSurfaceClass } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 const MODULES = [
   {
@@ -54,45 +57,40 @@ const MODULES = [
 
 export default function DocsHomePage() {
   return (
-    <div className="app-page-shell mx-auto max-w-5xl">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">DOCS</h1>
-          <p className="app-page-subtitle">
-            Internal business documents — invoices, contracts, employees &amp; accounting.
-          </p>
-        </div>
-      </div>
+    <PageShell className="max-w-5xl">
+      <PageHeader
+        title="DOCS"
+        subtitle="Internal business documents — invoices, contracts, employees & accounting."
+      />
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
           <Link
             key={href}
             href={href}
-            className="group rounded-3xl border p-6 transition-all hover:-translate-y-1"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            className={cn(
+              cardSurfaceClass,
+              'openy-motion-card group block p-6 no-underline transition-transform duration-200 hover:-translate-y-1',
+            )}
           >
-            <div
-              className="mb-5 flex h-12 w-12 items-center justify-center rounded-full"
-              style={{
-                background: `linear-gradient(145deg, ${bg} 0%, rgba(255,255,255,0.38) 100%)`,
-                boxShadow: `0 8px 18px ${bg}`,
-              }}
-            >
-              <Icon size={22} style={{ color }} strokeWidth={1.8} />
+            <div className="relative z-[1]">
+              <div
+                className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl"
+                style={{
+                  background: `linear-gradient(145deg, ${bg} 0%, color-mix(in srgb, var(--surface-elevated) 88%, transparent) 100%)`,
+                  boxShadow: `0 8px 18px ${bg}`,
+                }}
+              >
+                <Icon size={22} style={{ color }} strokeWidth={2} />
+              </div>
+              <h2 className="app-card-title mb-1.5 transition-colors group-hover:text-[var(--accent)]">
+                {label}
+              </h2>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{description}</p>
             </div>
-            <h2
-              className="mb-1.5 text-base font-semibold transition-colors group-hover:text-[var(--accent)]"
-              style={{ color: 'var(--text)' }}
-            >
-              {label}
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {description}
-            </p>
           </Link>
         ))}
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -1,15 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-// Self-hosted via @fontsource/cairo — no network fetch at build time.
-import '@fontsource/cairo/arabic-300.css';
-import '@fontsource/cairo/arabic-400.css';
-import '@fontsource/cairo/arabic-500.css';
-import '@fontsource/cairo/arabic-600.css';
-import '@fontsource/cairo/arabic-700.css';
-import '@fontsource/cairo/latin-300.css';
-import '@fontsource/cairo/latin-400.css';
-import '@fontsource/cairo/latin-500.css';
-import '@fontsource/cairo/latin-600.css';
-import '@fontsource/cairo/latin-700.css';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/context/theme-context';
 import { LangProvider } from '@/context/lang-context';
@@ -37,13 +27,19 @@ export const viewport: Viewport = {
 
 const themeBootScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`;
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body>
+      <body className={`${inter.className} font-sans antialiased`}>
         <ThemeProvider>
           <LangProvider>
             <AuthProvider>

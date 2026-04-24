@@ -56,6 +56,10 @@ import {
   OPENY_MENU_ITEM_COMPACT_CLASS,
   OPENY_MENU_PANEL_COMPACT_CLASS,
 } from '@/components/ui/menu-system';
+import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import {
   PLATFORMS,
   POST_TYPES,
@@ -1997,33 +2001,26 @@ function TasksPage() {
   ].filter(Boolean).length;
 
   return (
-    <div className="app-page-shell openy-tasks-page animate-openy-fade-in mx-auto max-w-7xl space-y-6">
+    <PageShell className="openy-tasks-page animate-openy-fade-in space-y-6">
       {/* Fetch error banner */}
       {fetchError && (
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          className="flex items-center gap-3 rounded-xl border border-[var(--color-danger-border)] px-4 py-3 text-sm"
           style={{
             background: 'var(--color-danger-bg)',
             color: 'var(--color-danger)',
-            border: '1px solid var(--color-danger-border)',
           }}
         >
           <AlertCircle size={16} className="shrink-0" />
           <span>{fetchError}</span>
         </div>
       )}
-      <div
-        className="rounded-2xl border p-4 shadow-card sm:p-6"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="app-page-header">
-          <div>
-            <h1 className="app-page-title">{t('tasks')}</h1>
-            <p className="app-page-subtitle">
-              {filtered.length} task{filtered.length !== 1 ? 's' : ''} shown • {tasks.length} total
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+      <Card padding="sm" className="sm:p-6">
+        <PageHeader
+          title={t('tasks')}
+          subtitle={`${filtered.length} task${filtered.length !== 1 ? 's' : ''} shown · ${tasks.length} total`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <div role="tablist" aria-label="Task views" className="openy-segmented">
               <button
                 onClick={() => setView('list')}
@@ -2059,16 +2056,19 @@ function TasksPage() {
               </button>
             </div>
             {canManageTasks && (
-              <button
+              <Button
+                type="button"
+                variant="primary"
+                className="hidden sm:inline-flex"
                 onClick={() => setCreateOpen(true)}
-                className="btn-primary hidden h-10 px-4 text-sm sm:inline-flex"
               >
                 <Plus size={16} />
                 {t('newTask')}
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
+            </div>
+          }
+        />
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <div className="min-w-0">
             <StatCard
@@ -2111,32 +2111,30 @@ function TasksPage() {
             />
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div
-        className="space-y-4 rounded-2xl border p-4 shadow-card sm:p-5"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
+      <Card padding="sm" className="sm:p-5">
+        <CardContent className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search
               size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
               style={{ color: 'var(--text-secondary)' }}
             />
-            <input
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('searchTasks')}
-              className="h-10 w-full rounded-lg pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={inputStyle}
+              className="pl-9"
             />
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            className="h-11 shrink-0 px-3"
             onClick={() => setFiltersOpen((prev) => !prev)}
-            className="btn-secondary h-11 shrink-0 rounded-xl px-3"
             aria-label="Toggle filters"
             aria-expanded={filtersOpen}
           >
@@ -2144,7 +2142,7 @@ function TasksPage() {
             <span className="hidden text-xs sm:inline">
               {activeFilterCount} {t('active')}
             </span>
-          </button>
+          </Button>
         </div>
 
         <div className={`${filtersOpen ? 'flex' : 'hidden'} flex-wrap items-center gap-2 sm:flex`}>
@@ -2233,7 +2231,10 @@ function TasksPage() {
             dateFilter !== 'all' ||
             searchQuery ||
             statusFilter !== 'all') && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 px-3 text-xs"
               onClick={() => {
                 setClientFilter('');
                 setAssignedFilter('');
@@ -2242,13 +2243,13 @@ function TasksPage() {
                 setSearchQuery('');
                 setStatusFilter('all');
               }}
-              className="btn-ghost h-9 rounded-lg px-3 text-xs"
             >
               {t('clearFilters')}
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Task list / kanban */}
       {loading ? (
@@ -2268,21 +2269,17 @@ function TasksPage() {
           description={t('noTasksDesc')}
           action={
             canManageTasks ? (
-              <button
-                onClick={() => setCreateOpen(true)}
-                className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
-                style={{ background: 'var(--accent)' }}
-              >
+              <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
                 <Plus size={16} />
                 {t('newTask')}
-              </button>
+              </Button>
             ) : undefined
           }
         />
       ) : view === 'kanban' ? (
-        <div
-          className="overflow-hidden rounded-2xl border p-3 shadow-card sm:p-5"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        <Card
+          padding="sm"
+          className="overflow-hidden sm:p-5"
           role="tabpanel"
           id="tasks-kanban-panel"
           aria-labelledby="tasks-kanban-tab"
@@ -2296,7 +2293,7 @@ function TasksPage() {
             t={t}
             onReorder={handleKanbanReorder}
           />
-        </div>
+        </Card>
       ) : (
         <div
           className="space-y-3"
@@ -2535,7 +2532,7 @@ function TasksPage() {
         error={deleteError}
         t={t}
       />
-    </div>
+    </PageShell>
   );
 }
 

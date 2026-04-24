@@ -19,6 +19,11 @@ import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
 import { useQuickActions } from '@/context/quick-actions-context';
 import NewContentModal from '@/components/content/NewContentModal';
+import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { cn } from '@/lib/cn';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -72,10 +77,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
   const nextStatus = nextStatuses[item.status];
 
   return (
-    <div
-      className="flex flex-col gap-3 rounded-2xl border p-4"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
+    <Card padding="md" className="flex flex-col gap-3 !p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -116,31 +118,39 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
         </p>
         <div className="flex items-center gap-2">
           {nextStatus && (
-            <button
+            <Button
+              type="button"
+              variant="primary"
+              className="h-7 min-h-0 gap-1 px-2 py-1 text-xs"
               onClick={() => onStatusChange(item.id, nextStatus)}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
-              style={{ background: 'var(--accent)', color: '#fff' }}
             >
               <ChevronRight size={12} /> {getStatusCfg(nextStatus).label}
-            </button>
+            </Button>
           )}
           {item.status !== 'rejected' && (
-            <button
+            <Button
+              type="button"
+              variant="danger"
+              className="h-7 min-h-0 px-2 py-1 text-xs"
               onClick={() => onStatusChange(item.id, 'rejected')}
-              className="rounded-lg px-2 py-1 text-xs font-medium"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
             >
               Reject
-            </button>
+            </Button>
           )}
           {onDelete && (
-            <button onClick={() => onDelete(item.id)} className="rounded p-1 hover:opacity-70">
-              <Trash2 size={13} style={{ color: 'var(--text-secondary)' }} />
-            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-7 w-7 min-h-0 p-0"
+              onClick={() => onDelete(item.id)}
+              aria-label="Delete"
+            >
+              <Trash2 size={13} />
+            </Button>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -257,110 +267,80 @@ function ContentPage() {
     return acc;
   }, {});
 
-  return (
-    <div className="app-page-shell mx-auto max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">Content Items</h1>
-          <p className="app-page-subtitle">Manage your content pipeline from draft to published</p>
-        </div>
-        {(role === 'admin' || role === 'manager' || role === 'team_member') && (
-          <button
-            onClick={() => setNewOpen(true)}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Plus size={16} /> New Content
-          </button>
-        )}
-      </div>
+  const selectFieldClass =
+    'h-9 min-w-[10rem] rounded-xl border border-[var(--border)] bg-[var(--surface-glass)] px-3 text-sm text-[var(--text)] shadow-xs backdrop-blur-glass focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]';
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search content\u2026"
-            className="h-9 rounded-lg border pl-8 pr-3 text-sm"
-            style={{
-              background: 'var(--surface)',
-              borderColor: 'var(--border)',
-              color: 'var(--text)',
-              minWidth: 200,
-            }}
-          />
+  return (
+    <PageShell className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        title="Content Items"
+        subtitle="Manage your content pipeline from draft to published"
+        actions={
+          (role === 'admin' || role === 'manager' || role === 'team_member') ? (
+            <Button type="button" variant="primary" onClick={() => setNewOpen(true)}>
+              <Plus size={16} /> New Content
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Card padding="sm" className="sm:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search content\u2026"
+              className="min-w-0 pl-9"
+              aria-label="Search content"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={cn(selectFieldClass)}
+          >
+            <option value="">All Statuses</option>
+            {STATUS_PIPELINE.map((s) => (
+              <option key={s.status} value={s.status}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className={cn(selectFieldClass)}
+          >
+            <option value="">All Clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 rounded-lg border px-3 text-sm"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)',
-          }}
-        >
-          <option value="">All Statuses</option>
-          {STATUS_PIPELINE.map((s) => (
-            <option key={s.status} value={s.status}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={clientFilter}
-          onChange={(e) => setClientFilter(e.target.value)}
-          className="h-9 rounded-lg border px-3 text-sm"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)',
-          }}
-        >
-          <option value="">All Clients</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      </Card>
 
       {/* Pipeline columns */}
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="h-48 animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface)' }}
-            />
+            <div key={i} className="h-48 animate-pulse rounded-2xl bg-[var(--surface)]" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div
-          className="rounded-2xl border p-16 text-center"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <FileText
-            size={36}
-            className="mx-auto mb-3 opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-base font-medium" style={{ color: 'var(--text)' }}>
-            No content items yet
-          </p>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <Card padding="md" className="p-16 text-center">
+          <FileText size={36} className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30" />
+          <p className="text-base font-medium text-[var(--text)]">No content items yet</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             Click &ldquo;New Content&rdquo; to start your pipeline
           </p>
-        </div>
+        </Card>
       ) : (
         <div
           className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -408,7 +388,7 @@ function ContentPage() {
           });
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

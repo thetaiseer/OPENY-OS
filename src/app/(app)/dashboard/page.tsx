@@ -39,6 +39,9 @@ import { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
 import { useQuickActions } from '@/context/quick-actions-context';
+import Button from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
@@ -575,36 +578,21 @@ export default function DashboardPage() {
       : 76;
 
   return (
-    <div className="app-page-shell mx-auto max-w-7xl space-y-8">
-      <div className="app-page-header">
-        <div>
-          <h1 className="app-page-title">Good morning, {firstName} 👋</h1>
-          <p className="app-page-subtitle">
-            Here&apos;s what&apos;s happening with your projects today.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => triggerQuickAction('add-client')}
-            className="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md"
-          >
-            + New client
-          </button>
-          <button
-            type="button"
-            onClick={() => triggerQuickAction('add-task')}
-            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{
-              borderColor: 'var(--border)',
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-            }}
-          >
-            New task
-          </button>
-        </div>
-      </div>
+    <PageShell className="space-y-8">
+      <PageHeader
+        title={`Good morning, ${firstName} 👋`}
+        subtitle="Here&apos;s what&apos;s happening with your projects today."
+        actions={
+          <>
+            <Button type="button" variant="primary" onClick={() => triggerQuickAction('add-client')}>
+              + New client
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => triggerQuickAction('add-task')}>
+              New task
+            </Button>
+          </>
+        }
+      />
 
       {statsLoading ? (
         <SkeletonStatGrid count={4} />
@@ -641,18 +629,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+      <Card>
+        <CardHeader className="mb-2 items-center">
           <div>
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-              Performance overview
-            </h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <CardTitle className="!text-lg">Performance overview</CardTitle>
+            <CardDescription>
               Task completions · last {Math.min(30, trendsData?.length ?? 0)} days
-            </p>
+            </CardDescription>
           </div>
           <span
             className="rounded-full px-3 py-1 text-sm font-semibold"
@@ -660,64 +643,61 @@ export default function DashboardPage() {
           >
             {completionRate}% pace
           </span>
-        </div>
-        {trendsData && trendsData.length > 0 ? (
-          <PerformanceLineChart data={trendsData} />
-        ) : (
+        </CardHeader>
+        <CardContent>
+          {trendsData && trendsData.length > 0 ? (
+            <PerformanceLineChart data={trendsData} />
+          ) : (
+            <div
+              className="h-52 animate-pulse rounded-xl"
+              style={{ background: 'var(--surface-2)' }}
+            />
+          )}
           <div
-            className="h-52 animate-pulse rounded-xl"
-            style={{ background: 'var(--surface-2)' }}
-          />
-        )}
-        <div
-          className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Completion rate
-            </p>
-            <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
-              {completionRate}%
-            </p>
+            className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <div>
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                Completion rate
+              </p>
+              <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+                {completionRate}%
+              </p>
+            </div>
+            <div>
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                Tasks / day (7d avg)
+              </p>
+              <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+                {recentPace.toFixed(1)}
+              </p>
+            </div>
+            <div>
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                Team output
+              </p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {teamPerf?.length ? `${teamPerf.length} teammates tracked` : '—'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Tasks / day (7d avg)
-            </p>
-            <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
-              {recentPace.toFixed(1)}
-            </p>
-          </div>
-          <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Team output
-            </p>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              {teamPerf?.length ? `${teamPerf.length} teammates tracked` : '—'}
-            </p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div
-          className="rounded-2xl border p-6 shadow-card"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-              Tasks
-            </h2>
+        <Card>
+          <CardHeader className="mb-4 items-center">
+            <CardTitle className="!text-lg">Tasks</CardTitle>
             <Link
               href="/tasks/all"
               className="text-xs font-semibold hover:underline"
@@ -725,7 +705,8 @@ export default function DashboardPage() {
             >
               View all →
             </Link>
-          </div>
+          </CardHeader>
+          <CardContent>
           <div className="mb-4 flex rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
             <button
               type="button"
@@ -783,15 +764,14 @@ export default function DashboardPage() {
               ))
             )}
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div
-          className="rounded-2xl border p-6 shadow-card"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
-            {t('recentActivity')}
-          </h2>
+        <Card>
+          <CardHeader className="mb-4">
+            <CardTitle className="!text-lg">{t('recentActivity')}</CardTitle>
+          </CardHeader>
+          <CardContent>
           {!activitiesData ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
@@ -840,16 +820,15 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
-          Insights &amp; predictions
-        </h2>
+      <Card>
+        <CardHeader className="mb-4">
+          <CardTitle className="!text-lg">Insights &amp; predictions</CardTitle>
+        </CardHeader>
+        <CardContent>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div
             className="flex flex-col justify-center rounded-xl border p-5 sm:flex-row sm:items-center sm:gap-5"
@@ -875,63 +854,54 @@ export default function DashboardPage() {
           </div>
           <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div
-          className="rounded-2xl border p-6 shadow-card xl:col-span-2"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
-            Projects by status
-          </h2>
+        <Card className="xl:col-span-2">
+          <CardHeader className="mb-4">
+            <CardTitle className="!text-lg">Projects by status</CardTitle>
+          </CardHeader>
+          <CardContent>
           <ProjectsStatusDonut data={donutData} total={totalProjects} />
-        </div>
-        <div
-          className="rounded-2xl border p-6 shadow-card"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
-            Quick actions
-          </h2>
-          <div className="flex flex-col gap-2">
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="mb-4">
+            <CardTitle className="!text-lg">Quick actions</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
             {[
               { id: 'add-client' as const, label: 'New client', icon: Users2 },
               { id: 'add-task' as const, label: 'New task', icon: CheckSquare },
               { id: 'add-content' as const, label: 'New content', icon: FolderOpen },
               { id: 'add-asset' as const, label: 'Upload asset', icon: ImageIcon },
             ].map((action) => (
-              <button
+              <Button
                 key={action.id}
                 type="button"
+                variant="secondary"
+                className="h-auto min-h-0 justify-start py-3 text-left"
                 onClick={() => triggerQuickAction(action.id)}
-                className="flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors hover:opacity-95"
-                style={{
-                  borderColor: 'var(--border)',
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                }}
               >
                 <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   <action.icon size={18} />
                 </span>
                 {action.label}
-              </button>
+              </Button>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--text)' }}>
-          Team performance (month)
-        </h2>
+      <Card>
+        <CardHeader className="mb-4">
+          <CardTitle className="!text-lg">Team performance (month)</CardTitle>
+        </CardHeader>
+        <CardContent>
         {teamPerf ? (
           <TeamPerformance data={teamPerf} />
         ) : (
@@ -940,41 +910,38 @@ export default function DashboardPage() {
             style={{ background: 'var(--surface-2)' }}
           />
         )}
-      </div>
+        </CardContent>
+      </Card>
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="mb-4 flex items-center gap-2">
-          <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
-          <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-            At-risk (next 3 days)
-          </h2>
-        </div>
+      <Card>
+        <CardHeader className="mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
+            <CardTitle className="!text-lg">At-risk (next 3 days)</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
         <OverdueRisk tasks={atRiskTasks ?? []} />
-      </div>
+        </CardContent>
+      </Card>
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <h2 className="mb-5 text-lg font-bold" style={{ color: 'var(--text)' }}>
-          {t('contentDistribution')}
-        </h2>
+      <Card>
+        <CardHeader className="mb-4">
+          <CardTitle className="!text-lg">{t('contentDistribution')}</CardTitle>
+        </CardHeader>
+        <CardContent>
         <ContentDistribution items={contentDistItems} />
-      </div>
+        </CardContent>
+      </Card>
 
-      <div
-        className="rounded-2xl border p-6 shadow-card"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="mb-5 flex items-center gap-2">
-          <CalendarDays size={18} style={{ color: 'var(--accent)' }} />
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Upcoming Scheduled Posts
-          </h2>
-        </div>
+      <Card>
+        <CardHeader className="mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={18} style={{ color: 'var(--accent)' }} />
+            <CardTitle className="!text-lg">Upcoming Scheduled Posts</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
         {!scheduled ? (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => (
@@ -1026,21 +993,17 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* ── Recent Assets + Active Clients ── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Assets */}
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="mb-5 flex items-center justify-between">
+        <Card>
+          <CardHeader className="mb-4 items-center">
             <div className="flex items-center gap-2">
               <ImageIcon size={16} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-                Recent Assets
-              </h2>
+              <CardTitle className="!text-base !font-semibold">Recent Assets</CardTitle>
             </div>
             <Link
               href="/assets"
@@ -1049,7 +1012,8 @@ export default function DashboardPage() {
             >
               View all
             </Link>
-          </div>
+          </CardHeader>
+          <CardContent>
           {!recentAssets ? (
             <div className="grid grid-cols-3 gap-2">
               {[...Array(6)].map((_, i) => (
@@ -1108,19 +1072,15 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Active Clients */}
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="mb-5 flex items-center justify-between">
+        <Card>
+          <CardHeader className="mb-4 items-center">
             <div className="flex items-center gap-2">
               <Users2 size={16} style={{ color: 'var(--accent)' }} />
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-                Active Clients
-              </h2>
+              <CardTitle className="!text-base !font-semibold">Active Clients</CardTitle>
             </div>
             <Link
               href="/clients"
@@ -1129,7 +1089,8 @@ export default function DashboardPage() {
             >
               View all
             </Link>
-          </div>
+          </CardHeader>
+          <CardContent>
           {!activeClients ? (
             <div className="space-y-2">
               {[...Array(4)].map((_, i) => (
@@ -1181,8 +1142,9 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }
