@@ -164,7 +164,7 @@ function FolderCard({
           onClick();
         }
       }}
-      className="flex cursor-pointer select-none flex-col gap-2 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] active:shadow-sm"
+      className="flex cursor-pointer select-none flex-col gap-2 rounded-2xl border p-4 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
@@ -259,7 +259,7 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="flex cursor-pointer select-none flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] active:shadow-sm"
+      className="flex cursor-pointer select-none flex-col gap-3 rounded-2xl border p-4 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -1102,7 +1102,7 @@ function AssetsPage() {
               <button
                 onClick={() => !isUploading && fileRef.current?.click()}
                 disabled={isUploading}
-                className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: 'var(--accent)' }}
               >
                 <Upload size={16} />
@@ -1113,7 +1113,7 @@ function AssetsPage() {
             {!selectionMode ? (
               <button
                 onClick={enterSelectionMode}
-                className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-90"
+                className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-90"
                 style={{
                   background: 'var(--surface-2)',
                   color: 'var(--text)',
@@ -1127,7 +1127,7 @@ function AssetsPage() {
                 {/* Select all / deselect all in current view */}
                 <button
                   onClick={handleToggleSelectAll}
-                  className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-80"
+                  className="flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-80"
                   style={{
                     background: 'var(--surface-2)',
                     color: 'var(--text)',
@@ -1143,7 +1143,7 @@ function AssetsPage() {
                 <button
                   onClick={() => void handleDownloadSelected()}
                   disabled={selectedIds.size === 0 || downloadingZip}
-                  className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   style={{
                     background: 'rgba(99,102,241,0.12)',
                     color: 'var(--accent)',
@@ -1160,8 +1160,8 @@ function AssetsPage() {
                 {/* Cancel Selection */}
                 <button
                   onClick={exitSelectionMode}
-                  className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                  className="flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
                 >
                   <X size={14} /> Cancel
                 </button>
@@ -1180,7 +1180,7 @@ function AssetsPage() {
         {/* ── Breadcrumb navigation ────────────────────────────────────────── */}
         {breadcrumbItems.length > 0 && (
           <div
-            className="flex items-center gap-2 rounded-xl border px-4 py-2.5"
+            className="flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-card"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <Breadcrumb items={breadcrumbItems} onNavigate={navigateTo} />
@@ -1197,7 +1197,7 @@ function AssetsPage() {
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
         <div
-          className="space-y-3 rounded-2xl border p-4"
+          className="space-y-3 rounded-2xl border p-4 shadow-card"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <div className="flex flex-wrap gap-2">
@@ -1247,8 +1247,8 @@ function AssetsPage() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium hover:opacity-80"
-                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                className="flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold hover:opacity-80"
+                style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
               >
                 <X size={13} /> Clear
               </button>
@@ -1288,7 +1288,11 @@ function AssetsPage() {
         {fetchError && !loading && (
           <div
             className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
-            style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444', color: '#ef4444' }}
+            style={{
+              background: 'var(--color-danger-bg)',
+              borderColor: 'var(--color-danger-border)',
+              color: 'var(--color-danger)',
+            }}
           >
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
@@ -1335,7 +1339,7 @@ function AssetsPage() {
                 <button
                   onClick={() => !isUploading && fileRef.current?.click()}
                   disabled={isUploading}
-                  className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+                  className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white disabled:opacity-60"
                   style={{ background: 'var(--accent)' }}
                 >
                   <Upload size={16} />
@@ -1347,8 +1351,8 @@ function AssetsPage() {
                     clearFilters();
                     setFolderPath({});
                   }}
-                  className="flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium hover:opacity-80"
-                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                  className="flex h-10 items-center gap-1.5 rounded-xl px-5 text-sm font-semibold hover:opacity-80"
+                  style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
                 >
                   <X size={14} /> Clear all
                 </button>
