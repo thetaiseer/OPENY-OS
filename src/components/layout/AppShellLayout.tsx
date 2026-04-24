@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
+import clsx from 'clsx';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { UploadProvider } from '@/context/upload-context';
 import GlobalUploadQueue from '@/components/upload/GlobalUploadQueue';
 import GlobalQuickActionsFab from '@/components/layout/GlobalQuickActionsFab';
+import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import GlobalQuickActionModalHost from '@/components/layout/GlobalQuickActionModalHost';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToTasks, subscribeToTableChanges } from '@/lib/realtime';
@@ -29,7 +31,8 @@ const ACTIVITY_PING_INTERVAL = 5 * 60 * 1000;
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
+  const isDocs = pathname.startsWith('/docs');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -143,13 +146,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main
-          className="app-shell-main flex-1 overflow-y-auto"
+          className={clsx(
+            'app-shell-main flex-1 overflow-y-auto',
+            !isDocs &&
+              'max-lg:pb-[calc(var(--shell-pad-y)+4.25rem+env(safe-area-inset-bottom,0px))]',
+          )}
           style={{ background: 'var(--gradient-main-overlay)' }}
         >
           <AppRouteTransition>{children}</AppRouteTransition>
         </main>
       </div>
 
+      <MobileBottomNav />
       <GlobalQuickActionsFab />
       <GlobalQuickActionModalHost />
       <GlobalUploadQueue />

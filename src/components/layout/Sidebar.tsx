@@ -140,11 +140,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
         style={{
-          background: 'color-mix(in srgb, var(--surface-panel) 88%, var(--sidebar-tint) 12%)',
+          background: 'var(--sidebar-bg)',
           borderColor: 'var(--sidebar-border)',
           backdropFilter: 'var(--blur-panel)',
           WebkitBackdropFilter: 'var(--blur-panel)',
-          boxShadow: 'var(--shadow-card)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
         {/* Logo */}

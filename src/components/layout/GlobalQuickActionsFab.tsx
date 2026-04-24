@@ -72,6 +72,8 @@ export default function GlobalQuickActionsFab() {
     };
   }, [open]);
 
+  if (pathname.startsWith('/docs')) return null;
+
   return (
     /*
      * Wrapper is anchored to the bottom-right corner with enough clearance to:
@@ -87,8 +89,7 @@ export default function GlobalQuickActionsFab() {
      */
     <div
       ref={wrapperRef}
-      className="fixed right-4 z-[48] flex flex-col items-end gap-3"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
+      className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.25rem)] z-[48] flex flex-col gap-3 max-lg:left-1/2 max-lg:-translate-x-1/2 max-lg:items-center lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0 lg:items-end"
     >
       {/* Quick-action menu — renders above FAB due to flex-col + bottom anchor */}
       <AnimatePresence>
@@ -97,9 +98,9 @@ export default function GlobalQuickActionsFab() {
             id={menuId}
             role="menu"
             aria-label="Quick actions"
-            className={`${OPENY_MENU_PANEL_CLASS} w-52 origin-bottom-right`}
+            className={`${OPENY_MENU_PANEL_CLASS} w-52 max-lg:origin-bottom lg:origin-bottom-right`}
             style={{
-              transformOrigin: 'bottom right',
+              transformOrigin: 'bottom center',
             }}
             initial={{ opacity: 0, scale: 0.95, y: 10, filter: 'blur(6px)' }}
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
@@ -144,10 +145,10 @@ export default function GlobalQuickActionsFab() {
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={open ? 'Close quick actions menu' : 'Open quick actions menu'}
-        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#dc2626] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+        className="fab-motion group flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366f1] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
         style={{
-          background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-          boxShadow: '0 16px 30px rgba(220,38,38,0.45), 0 0 24px rgba(220,38,38,0.3)',
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          boxShadow: '0 16px 30px rgba(99,102,241,0.45), 0 0 24px rgba(99,102,241,0.3)',
           transitionDuration: 'var(--motion-duration-ui)',
           transitionTimingFunction: 'var(--motion-ease-standard)',
         }}

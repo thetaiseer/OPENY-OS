@@ -119,7 +119,7 @@ export default function AppModal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClassName} openy-modal-overlay flex items-center justify-center p-4`}
+          className={`fixed inset-0 ${zIndexClassName} openy-modal-overlay flex items-end justify-center p-0 sm:items-center sm:p-4`}
           onClick={(event) => {
             if (!closeOnBackdrop) return;
             if (event.target === event.currentTarget) onClose();
@@ -133,12 +133,17 @@ export default function AppModal({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className={`openy-modal-panel w-full ${widthMap[size]} flex max-h-[92dvh] flex-col rounded-[var(--modal-radius)] ${panelClassName}`}
-            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            className={`openy-modal-panel flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-bottom)))] w-full flex-col rounded-t-[1.25rem] sm:max-h-[92dvh] sm:rounded-[var(--modal-radius)] ${widthMap[size]} ${panelClassName}`}
+            initial={{ opacity: 0, scale: 0.98, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            exit={{ opacity: 0, scale: 0.98, y: 16 }}
             transition={motionTransition.modal}
           >
+            <div
+              className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full sm:hidden"
+              style={{ background: 'var(--border-strong)' }}
+              aria-hidden
+            />
             {shouldRenderHeader && (
               <div className="openy-modal-header shrink-0">
                 <div className="flex min-w-0 items-center gap-2.5">

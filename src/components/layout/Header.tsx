@@ -47,7 +47,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   return (
     <header className="sticky top-0 z-20 px-2 pb-0 pt-3 sm:px-3 lg:px-4">
       <div
-        className="flex h-16 items-center gap-2 rounded-3xl border px-3 sm:gap-3 sm:px-4 lg:px-5"
+        className="flex h-14 items-center gap-2 rounded-2xl border px-3 sm:h-16 sm:gap-3 sm:px-4 lg:px-5"
         style={{
           background: 'var(--gradient-card-glass)',
           borderColor: 'var(--border-glass)',
