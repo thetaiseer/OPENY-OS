@@ -14,6 +14,7 @@ const translations: Record<string, Record<string, string>> = {
   en: {
     dashboard: 'Dashboard',
     clients: 'Clients',
+    projects: 'Projects',
     tasks: 'Tasks',
     assets: 'Assets',
     reports: 'Reports',
@@ -136,6 +137,7 @@ const translations: Record<string, Record<string, string>> = {
   ar: {
     dashboard: 'لوحة التحكم',
     clients: 'العملاء',
+    projects: 'المشاريع',
     tasks: 'المهام',
     assets: 'الملفات',
     reports: 'التقارير',

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users2,
   CheckSquare,
+  FolderKanban,
   FolderOpen,
   BarChart2,
   Users,
@@ -40,6 +41,13 @@ const osNavItems = [
     label: 'Dashboard',
   },
   { href: '/os/clients', base: '/os/clients', icon: Users2, key: 'clients', label: 'Clients' },
+  {
+    href: '/os/projects',
+    base: '/os/projects',
+    icon: FolderKanban,
+    key: 'projects',
+    label: 'Projects',
+  },
   { href: '/os/tasks', base: '/os/tasks', icon: CheckSquare, key: 'tasks', label: 'Tasks' },
   { href: '/os/content', base: '/os/content', icon: FileText, key: 'content', label: 'Content' },
   {

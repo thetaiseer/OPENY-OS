@@ -11,6 +11,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
   '/clients': '/os/clients',
+  '/projects': '/os/projects',
   '/tasks': '/os/tasks',
   '/tasks/all': '/os/tasks',
   '/content': '/os/content',
