@@ -19,6 +19,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyPublishingScheduled } from '@/lib/notification-service';
+import {
+  PUBLISHING_SCHEDULE_COLUMNS,
+  PUBLISHING_SCHEDULE_WITH_ASSET,
+} from '@/lib/supabase-list-columns';
 
 const VALID_PLATFORMS = [
   'instagram',
@@ -64,12 +68,7 @@ export async function GET(req: NextRequest) {
 
     let query = db
       .from('publishing_schedules')
-      .select(
-        `
-        *,
-        asset:assets(id, name, content_type, file_url, preview_url, client_name)
-      `,
-      )
+      .select(PUBLISHING_SCHEDULE_WITH_ASSET)
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 
@@ -219,7 +218,7 @@ export async function POST(req: NextRequest) {
     const { data: schedule, error: schedErr } = await db
       .from('publishing_schedules')
       .insert(schedulePayload)
-      .select('*')
+      .select(PUBLISHING_SCHEDULE_COLUMNS)
       .single();
 
     if (schedErr || !schedule) {

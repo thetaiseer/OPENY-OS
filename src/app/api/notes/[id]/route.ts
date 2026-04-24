@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { NOTE_COLUMNS } from '@/lib/supabase-list-columns';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.from('notes').select('*').eq('id', id).single();
+  const { data, error } = await db.from('notes').select(NOTE_COLUMNS).eq('id', id).single();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
   return NextResponse.json({ success: true, note: data });

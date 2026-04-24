@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { SAVED_VIEW_COLUMNS } from '@/lib/supabase-list-columns';
 
 const VALID_ENTITY_TYPES = ['task', 'asset', 'content', 'client', 'project'] as const;
 const VALID_VIEW_TYPES = [
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   let query = db
     .from('saved_views')
-    .select('*')
+    .select(SAVED_VIEW_COLUMNS)
     .order('is_default', { ascending: false })
     .order('created_at');
 

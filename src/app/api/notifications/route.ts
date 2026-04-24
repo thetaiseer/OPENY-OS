@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { NOTIFICATION_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member', 'client']);
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
     let query = db
       .from('notifications')
-      .select('*')
+      .select(NOTIFICATION_LIST_COLUMNS)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 

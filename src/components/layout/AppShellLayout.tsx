@@ -53,6 +53,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const activityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
   const { isOpen: paletteOpen, close: closePalette } = useCommandPalette();
   const { open: openAi } = useAi();
 
@@ -62,6 +64,22 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabaseClient = createClient();
+    const debounceMs = 400;
+    function createDebouncer() {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      return (fn: () => void) => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          timer = null;
+          fn();
+        }, debounceMs);
+      };
+    }
+    const debounceTasks = createDebouncer();
+    const debounceClients = createDebouncer();
+    const debounceContent = createDebouncer();
+    const debounceAssets = createDebouncer();
+    const debouncePublishing = createDebouncer();
 
     async function checkRevocation() {
       const controller = new AbortController();
@@ -105,38 +123,67 @@ function AppShell({ children }: { children: React.ReactNode }) {
     activityTimer.current = setInterval(pingActivity, ACTIVITY_PING_INTERVAL);
 
     const unsubTasks = subscribeToTasks(() => {
-      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
-      void queryClient.invalidateQueries({ queryKey: ['tasks-my'] });
-      void queryClient.invalidateQueries({ queryKey: ['tasks-select'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-      void queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['activities'] });
-      void queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      void queryClient.invalidateQueries({ queryKey: ['reports-overview'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] });
+      debounceTasks(() => {
+        const p = pathnameRef.current;
+        void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
+        void queryClient.invalidateQueries({ queryKey: ['tasks-my'] });
+        void queryClient.invalidateQueries({ queryKey: ['tasks-select'] });
+        if (p.includes('/activity') || p.includes('/clients/')) {
+          void queryClient.invalidateQueries({ queryKey: ['activities'] });
+        }
+        if (p.includes('/calendar') || p.startsWith('/os/calendar')) {
+          void queryClient.invalidateQueries({ queryKey: ['calendar'] });
+        }
+        if (p.includes('/dashboard') || p.startsWith('/os/dashboard')) {
+          void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+          void queryClient.invalidateQueries({ queryKey: ['at-risk-tasks'] });
+          void queryClient.invalidateQueries({ queryKey: ['dashboard-trends'] });
+          void queryClient.invalidateQueries({ queryKey: ['dashboard-team-performance'] });
+        }
+        if (p.includes('/reports') || p.startsWith('/os/reports')) {
+          void queryClient.invalidateQueries({ queryKey: ['reports-overview'] });
+        }
+      });
     });
 
     const unsubscribeTableListeners = [
       subscribeToTableChanges({ table: 'clients' }, () => {
-        void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
-        void queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
-        void queryClient.invalidateQueries({ queryKey: ['clients'] });
-        void queryClient.invalidateQueries({ queryKey: ['dashboard-active-clients'] });
+        debounceClients(() => {
+          const p = pathnameRef.current;
+          void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
+          void queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
+          void queryClient.invalidateQueries({ queryKey: ['clients'] });
+          void queryClient.invalidateQueries({ queryKey: ['quick-actions-clients'] });
+          if (p.includes('/dashboard') || p.startsWith('/os/dashboard')) {
+            void queryClient.invalidateQueries({ queryKey: ['dashboard-active-clients'] });
+          }
+        });
       }),
       subscribeToTableChanges({ table: 'projects' }, () => {
-        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+        debounceClients(() => {
+          void queryClient.invalidateQueries({ queryKey: ['projects'] });
+        });
       }),
       subscribeToTableChanges({ table: 'content_items' }, () => {
-        void queryClient.invalidateQueries({ queryKey: ['content-items'] });
+        debounceContent(() => {
+          void queryClient.invalidateQueries({ queryKey: ['content-items'] });
+        });
       }),
       subscribeToTableChanges({ table: 'assets' }, () => {
-        void queryClient.invalidateQueries({ queryKey: ['dashboard-recent-assets'] });
-        void queryClient.invalidateQueries({ queryKey: ['asset-content-types'] });
+        debounceAssets(() => {
+          const p = pathnameRef.current;
+          void queryClient.invalidateQueries({ queryKey: ['asset-content-types'] });
+          void queryClient.invalidateQueries({ queryKey: ['assets'] });
+          if (p.includes('/dashboard') || p.startsWith('/os/dashboard')) {
+            void queryClient.invalidateQueries({ queryKey: ['dashboard-recent-assets'] });
+          }
+        });
       }),
       subscribeToTableChanges({ table: 'publishing_schedules' }, () => {
-        void queryClient.invalidateQueries({ queryKey: ['scheduled-posts'] });
+        debouncePublishing(() => {
+          void queryClient.invalidateQueries({ queryKey: ['scheduled-posts'] });
+        });
       }),
     ];
 
@@ -155,7 +202,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       unsubscribeTableListeners.forEach((unsub) => unsub());
       window.removeEventListener('keydown', handleAiShortcut);
     };
-  }, [openAi, router]);
+  }, [openAi, router, pathname]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'transparent' }}>

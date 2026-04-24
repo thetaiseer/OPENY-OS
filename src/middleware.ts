@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 import {
   getWorkspaceFromAppPath,
   isGlobalOwnerEmail,
@@ -25,39 +26,34 @@ const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/settings/profile': '/os/settings',
 };
 
+/** Short TTL cache for auth.getUser() — reduces duplicate Auth API calls during rapid navigations. */
+const MW_USER_CACHE_MS = 12_000;
+
+type MwAuthCache = { key: string; user: User | null; expiresAt: number };
+
+function readMwAuthCache(): MwAuthCache | undefined {
+  return (globalThis as typeof globalThis & { __OPENY_MW_AUTH?: MwAuthCache }).__OPENY_MW_AUTH;
+}
+
+function writeMwAuthCache(entry: MwAuthCache | undefined) {
+  (globalThis as typeof globalThis & { __OPENY_MW_AUTH?: MwAuthCache }).__OPENY_MW_AUTH = entry;
+}
+
+function authCookieSignature(request: NextRequest): string {
+  return request.cookies
+    .getAll()
+    .filter((c) => c.name.startsWith('sb-'))
+    .map((c) => `${c.name}:${c.value.length}:${c.value.slice(0, 32)}`)
+    .join('|');
+}
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options),
-        );
-      },
-    },
-  });
-
-  // IMPORTANT: always call getUser() to refresh the session token.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
   const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
   const requiredWorkspaceFromPath =
     getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);
 
-  // Routes that are always public — no auth required.
-  // Note: /api/ routes are excluded from middleware because each API route
-  // enforces its own authentication via getApiUser() / requireRole() helpers.
-  // This avoids middleware interfering with cookie parsing in Route Handlers.
   const isPublicRoute =
     pathname === '/' ||
     pathname === '/choose-workspace' ||
@@ -81,8 +77,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/?switch=1', request.url));
   }
 
+  // Public routes: skip Supabase client + getUser() — saves an Auth round-trip per hit.
   if (isPublicRoute) {
-    return supabaseResponse;
+    return NextResponse.next({ request });
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        supabaseResponse = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options),
+        );
+      },
+    },
+  });
+
+  const cookieKey = authCookieSignature(request);
+  const now = Date.now();
+  const cached = readMwAuthCache();
+  let user: User | null =
+    cached && cached.key === cookieKey && cached.expiresAt > now ? cached.user : null;
+
+  if (!cached || cached.key !== cookieKey || cached.expiresAt <= now) {
+    const {
+      data: { user: freshUser },
+    } = await supabase.auth.getUser();
+    user = freshUser;
+    writeMwAuthCache({ key: cookieKey, user: freshUser, expiresAt: now + MW_USER_CACHE_MS });
   }
 
   const loginRouteForWorkspace = (workspace: WorkspaceKey | null) => {
@@ -91,14 +119,12 @@ export async function middleware(request: NextRequest) {
     return '/';
   };
 
-  // If there is no authenticated user, redirect to the workspace login page.
   if (!user) {
     const loginUrl = new URL(loginRouteForWorkspace(requiredWorkspaceFromPath), request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Enforce workspace-level authorization for protected app routes.
   if (requiredWorkspaceFromPath && !isGlobalOwnerEmail(user.email)) {
     const { data: membership } = await supabase
       .from('workspace_memberships')
@@ -115,7 +141,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Normalize legacy OPENY OS paths into the /os namespace.
   if (normalizedLegacyPath) {
     return NextResponse.redirect(new URL(normalizedLegacyPath, request.url));
   }
@@ -124,14 +149,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except static files and images:
-     *   - _next/static (static files)
-     *   - _next/image  (image optimisation)
-     *   - favicon.ico  (browser icon)
-     *   - public image extensions
-     */
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

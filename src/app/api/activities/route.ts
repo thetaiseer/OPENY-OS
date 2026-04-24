@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { ACTIVITY_API_COLUMNS } from '@/lib/supabase-list-columns';
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     let query = db
       .from('activities')
-      .select('*')
+      .select(ACTIVITY_API_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -104,7 +105,11 @@ export async function POST(req: NextRequest) {
   try {
     const db = getServiceClient();
 
-    const { data, error } = await db.from('activities').insert(insertPayload).select('*').single();
+    const { data, error } = await db
+      .from('activities')
+      .insert(insertPayload)
+      .select(ACTIVITY_API_COLUMNS)
+      .single();
 
     if (error) {
       console.error('[POST /api/activities] db error:', error.message);

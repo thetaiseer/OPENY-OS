@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { NOTE_COLUMNS } from '@/lib/supabase-list-columns';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 
 export async function GET(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   let query = db
     .from('notes')
-    .select('*')
+    .select(NOTE_COLUMNS)
     .order('is_pinned', { ascending: false })
     .order('updated_at', { ascending: false })
     .limit(200);

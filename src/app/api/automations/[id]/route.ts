@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { AUTOMATION_RULE_COLUMNS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -14,7 +15,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.from('automation_rules').select('*').eq('id', id).single();
+  const { data, error } = await db
+    .from('automation_rules')
+    .select(AUTOMATION_RULE_COLUMNS)
+    .eq('id', id)
+    .single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
   return NextResponse.json({ success: true, rule: data });
 }

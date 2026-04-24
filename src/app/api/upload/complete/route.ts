@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { ASSET_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { requireRole } from '@/lib/api-auth';
 import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
   {
     const { data: existing } = await supabase
       .from('assets')
-      .select('*')
+      .select(ASSET_LIST_COLUMNS)
       .eq('file_path', storageKey)
       .maybeSingle();
 

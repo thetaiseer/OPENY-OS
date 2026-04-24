@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { AUTOMATION_RULE_COLUMNS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const active = searchParams.get('active');
 
   const db = getServiceClient();
-  let query = db.from('automation_rules').select('*').order('created_at');
+  let query = db.from('automation_rules').select(AUTOMATION_RULE_COLUMNS).order('created_at');
   if (active === 'true') query = query.eq('is_active', true);
   if (active === 'false') query = query.eq('is_active', false);
 

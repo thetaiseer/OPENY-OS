@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
+import { ASSET_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 
 const PAGE_SIZE = 100;
 
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
     // Build query with optional filters
     let query = supabase
       .from('assets')
-      .select('*')
+      .select(ASSET_LIST_COLUMNS)
       .neq('is_deleted', true)
       .order('created_at', { ascending: false });
 
@@ -76,7 +77,10 @@ export async function GET(req: NextRequest) {
           'Run supabase-migration-missing-columns.sql to add the missing column.',
       );
       // Rebuild the same query without the is_deleted filter
-      let fallback = supabase.from('assets').select('*').order('created_at', { ascending: false });
+      let fallback = supabase
+        .from('assets')
+        .select(ASSET_LIST_COLUMNS)
+        .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);
       if (clientName) fallback = fallback.eq('client_name', clientName);

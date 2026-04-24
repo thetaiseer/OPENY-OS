@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { PUBLISHING_SCHEDULE_COLUMNS } from '@/lib/supabase-list-columns';
 
 const VALID_PLATFORMS = [
   'instagram',
@@ -58,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Fetch current record
     const { data: existing, error: fetchErr } = await db
       .from('publishing_schedules')
-      .select('*')
+      .select(PUBLISHING_SCHEDULE_COLUMNS)
       .eq('id', id)
       .single();
 
@@ -123,7 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .from('publishing_schedules')
       .update(updates)
       .eq('id', id)
-      .select('*')
+      .select(PUBLISHING_SCHEDULE_COLUMNS)
       .single();
 
     if (updateErr || !updated) {

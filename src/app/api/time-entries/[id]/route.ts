@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { TIME_ENTRY_WITH_RELATIONS } from '@/lib/supabase-list-columns';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -52,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from('time_entries')
     .update(allowed)
     .eq('id', id)
-    .select('*, task:tasks(id, title), client:clients(id, name)')
+    .select(TIME_ENTRY_WITH_RELATIONS)
     .single();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

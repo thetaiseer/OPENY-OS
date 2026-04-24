@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
 
 const VALID_STATUSES = [
   'draft',
@@ -34,12 +35,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
     let query = db
       .from('content_items')
-      .select(
-        `
-        *,
-        client:clients(id, name)
-      `,
-      )
+      .select(CONTENT_ITEM_WITH_CLIENT)
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -101,7 +97,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await db
       .from('content_items')
       .insert(payload)
-      .select('*, client:clients(id, name)')
+      .select(CONTENT_ITEM_WITH_CLIENT)
       .single();
 
     if (error) {

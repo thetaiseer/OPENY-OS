@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
 
 const VALID_STATUSES = [
   'draft',
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     const db = getServiceClient();
     const { data, error } = await db
       .from('content_items')
-      .select('*, client:clients(id, name)')
+      .select(CONTENT_ITEM_WITH_CLIENT)
       .eq('id', id)
       .single();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
@@ -82,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       .from('content_items')
       .update(updates)
       .eq('id', id)
-      .select('*, client:clients(id, name)')
+      .select(CONTENT_ITEM_WITH_CLIENT)
       .single();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 

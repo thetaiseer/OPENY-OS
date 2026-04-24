@@ -21,7 +21,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { TASK_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { notifyTaskCompleted } from '@/lib/notification-service';
+import type { Task } from '@/lib/types';
 
 const VALID_STATUSES = [
   'todo',
@@ -223,7 +225,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .from('tasks')
     .update(updatePayload)
     .eq('id', id)
-    .select('*, client:clients(id,name)')
+    .select(TASK_WITH_CLIENT)
     .single();
 
   if (error) {
@@ -239,18 +241,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
   }
 
-  const isCompleted = ['done', 'completed'].includes(String(data?.status ?? '').toLowerCase());
-  if (data?.id && isCompleted && !wasCompleted) {
+  const task = data as unknown as Task;
+  const isCompleted = ['done', 'completed'].includes(String(task.status ?? '').toLowerCase());
+  if (task.id && isCompleted && !wasCompleted) {
     void notifyTaskCompleted({
-      taskId: data.id,
-      taskTitle: data.title ?? existingTask?.title ?? 'Task',
-      ownerId: data.created_by_id ?? existingTask?.created_by_id ?? null,
+      taskId: task.id,
+      taskTitle: task.title ?? existingTask?.title ?? 'Task',
+      ownerId: task.created_by_id ?? existingTask?.created_by_id ?? null,
       actorId: auth.profile.id,
-      clientId: data.client_id ?? existingTask?.client_id ?? null,
+      clientId: task.client_id ?? existingTask?.client_id ?? null,
     });
   }
 
-  return NextResponse.json({ success: true, task: data });
+  return NextResponse.json({ success: true, task });
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────

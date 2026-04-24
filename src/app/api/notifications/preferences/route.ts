@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { NOTIFICATION_PREF_COLUMNS } from '@/lib/supabase-list-columns';
 
 // Critical event types — cannot be muted by non-admin users
 const UNMUTABLE_EVENT_TYPES = new Set([
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   const { data, error } = await db
     .from('notification_preferences')
-    .select('*')
+    .select(NOTIFICATION_PREF_COLUMNS)
     .eq('user_id', auth.profile.id)
     .order('event_type');
 

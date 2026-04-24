@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { ENTITY_LINK_COLUMNS } from '@/lib/supabase-list-columns';
 
 const VALID_ENTITY_TYPES = [
   'task',
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   let query = db
     .from('entity_links')
-    .select('*')
+    .select(ENTITY_LINK_COLUMNS)
     .order('created_at', { ascending: false })
     .limit(500);
 

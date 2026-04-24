@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
+import { USER_SESSION_COLUMNS } from '@/lib/supabase-list-columns';
 
 // ── User-Agent parser ──────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
   const admin = getServiceClient();
   const { data: sessions, error } = await admin
     .from('user_sessions')
-    .select('*')
+    .select(USER_SESSION_COLUMNS)
     .eq('user_id', auth.profile.id)
     .order('last_seen_at', { ascending: false })
     .limit(50);

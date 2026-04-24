@@ -4,6 +4,7 @@ import { callAI, AiUnconfiguredError } from '@/lib/ai-provider';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
+import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 
 // Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
 type Db = SupabaseClient<any>;
@@ -342,7 +343,11 @@ async function executeSearchClient(sb: Db, parsed: ParsedCommand): Promise<Execu
     };
   }
 
-  const { data } = await sb.from('clients').select('*').eq('id', client.id).single();
+  const { data } = await sb
+    .from('clients')
+    .select(CLIENT_LIST_COLUMNS)
+    .eq('id', client.id)
+    .single();
 
   return {
     success: true,
@@ -1001,7 +1006,7 @@ async function executeCleanWorkspaceWorkflow(sb: Db, userId: string): Promise<Ex
   // 2. Find tasks without due dates (warn only — count only, head: true avoids fetching rows)
   const { count: noDueDateCount } = await sb
     .from('tasks')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .is('due_date', null)
     .not('status', 'in', '("completed","cancelled")');
 

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { TIME_ENTRY_WITH_RELATIONS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   let query = db
     .from('time_entries')
-    .select('*, task:tasks(id, title), client:clients(id, name)')
+    .select(TIME_ENTRY_WITH_RELATIONS)
     .order('started_at', { ascending: false })
     .limit(500);
 
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db
     .from('time_entries')
     .insert(payload)
-    .select('*, task:tasks(id, title), client:clients(id, name)')
+    .select(TIME_ENTRY_WITH_RELATIONS)
     .single();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

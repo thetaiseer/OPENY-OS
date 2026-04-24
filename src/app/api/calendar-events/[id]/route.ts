@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { CALENDAR_EVENT_WITH_RELATIONS } from '@/lib/supabase-list-columns';
 
 const VALID_EVENT_TYPES = [
   'task',
@@ -91,7 +92,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       .from('calendar_events')
       .update(updates)
       .eq('id', id)
-      .select('*, client:clients(id,name), task:tasks(id,title,status,priority)')
+      .select(CALENDAR_EVENT_WITH_RELATIONS)
       .single();
 
     if (error || !data) {

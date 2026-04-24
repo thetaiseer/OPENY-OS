@@ -26,6 +26,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { TASK_WITH_CLIENT } from '@/lib/supabase-list-columns';
+import type { Task } from '@/lib/types';
 import { notifyTaskCreated } from '@/lib/notification-service';
 import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 
@@ -247,7 +249,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await db
     .from('tasks')
     .insert(insertPayload)
-    .select('*, client:clients(id,name)')
+    .select(TASK_WITH_CLIENT)
     .single();
 
   if (error) {
@@ -263,11 +265,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const task = data as unknown as Task;
+
   // If an asset was provided, link the asset back to this task (fire-and-forget)
-  if (assetId && data?.id) {
+  if (assetId && task.id) {
     void db
       .from('assets')
-      .update({ task_id: data.id })
+      .update({ task_id: task.id })
       .eq('id', assetId)
       .then(({ error: aErr }) => {
         if (aErr) console.warn('[POST /api/tasks] asset link failed:', aErr.message);
@@ -275,9 +279,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Insert task_asset_links for all provided asset IDs
-  if (assetIds.length > 0 && data?.id) {
+  if (assetIds.length > 0 && task.id) {
     const linkRows = assetIds.map((aid) => ({
-      task_id: data.id,
+      task_id: task.id,
       asset_id: aid,
       linked_by: auth.profile.id ?? null,
     }));
@@ -291,7 +295,7 @@ export async function POST(request: NextRequest) {
     // Also update assets.status → 'linked' and assets.task_id (best-effort)
     void db
       .from('assets')
-      .update({ task_id: data.id, status: 'linked' })
+      .update({ task_id: task.id, status: 'linked' })
       .in('id', assetIds)
       .then(({ error: aErr }) => {
         if (aErr) console.warn('[POST /api/tasks] asset status update failed:', aErr.message);
@@ -305,7 +309,7 @@ export async function POST(request: NextRequest) {
       description: `Task "${title}" created`,
       client_id: clientId || null,
       entity_type: 'task',
-      entity_id: data?.id ?? null,
+      entity_id: task.id ?? null,
       user_uuid: auth.profile.id ?? null,
     }),
   )
@@ -320,7 +324,7 @@ export async function POST(request: NextRequest) {
     });
 
   // Auto-create calendar event for tasks with a due date (fire-and-forget)
-  if (data?.id && dueDate) {
+  if (task.id && dueDate) {
     const calStartsAt = dueTime ? `${dueDate}T${dueTime}` : `${dueDate}T09:00:00`;
     void db
       .from('calendar_events')
@@ -329,7 +333,7 @@ export async function POST(request: NextRequest) {
         event_type: 'task',
         starts_at: calStartsAt,
         client_id: clientId || null,
-        task_id: data.id,
+        task_id: task.id,
         status: 'active',
         notes: description || null,
       })
@@ -340,13 +344,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Auto-create publishing schedule for publishing_task category
-  if (taskCategory === 'publishing_task' && data?.id && dueDate) {
+  if (taskCategory === 'publishing_task' && task.id && dueDate) {
     void (async () => {
       try {
         const schedPayload: Record<string, unknown> = {
           asset_id: assetId || null,
           client_id: clientId || null,
-          client_name: data.client_name || clientName || null,
+          client_name: task.client_name || clientName || null,
           scheduled_date: dueDate,
           scheduled_time: dueTime || '09:00:00',
           timezone: insertPayload.timezone || 'UTC',
@@ -354,7 +358,7 @@ export async function POST(request: NextRequest) {
           post_types: insertPayload.post_types || [],
           caption: caption || null,
           status: 'scheduled',
-          task_id: data.id,
+          task_id: task.id,
           created_by: createdBy || null,
         };
         const { data: sched, error: schedErr } = await db
@@ -368,7 +372,7 @@ export async function POST(request: NextRequest) {
             schedErr.message,
           );
         } else if (sched?.id) {
-          await db.from('tasks').update({ publishing_schedule_id: sched.id }).eq('id', data.id);
+          await db.from('tasks').update({ publishing_schedule_id: sched.id }).eq('id', task.id);
         }
       } catch (e) {
         console.warn(
@@ -380,18 +384,18 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire notifications (side effect — never blocks)
-  if (data?.id) {
+  if (task.id) {
     void notifyTaskCreated({
-      taskId: data.id,
+      taskId: task.id,
       taskTitle: title,
       clientId: clientId || null,
       assignedToId: assignedTo || null,
       createdById: createdBy || null,
-      clientName: data.client_name || clientName || null,
+      clientName: task.client_name || clientName || null,
     });
   }
 
-  if (assignedTo && data?.id) {
+  if (assignedTo && task.id) {
     void (async () => {
       let assigneeEmail = '';
       try {
@@ -409,7 +413,7 @@ export async function POST(request: NextRequest) {
             html: taskAssignedEmail({
               recipientName: member.full_name ?? member.email,
               taskTitle: title,
-              clientName: data.client_name || clientName || undefined,
+              clientName: task.client_name || clientName || undefined,
               dueDate: dueDate || undefined,
               appUrl,
             }),
@@ -419,7 +423,7 @@ export async function POST(request: NextRequest) {
             subject: `New Task: ${title}`,
             eventType: 'task_assigned',
             entityType: 'task',
-            entityId: data.id,
+            entityId: task.id,
           });
         }
       } catch (emailErr) {
@@ -436,12 +440,12 @@ export async function POST(request: NextRequest) {
             error: String(emailErr),
             eventType: 'task_assigned',
             entityType: 'task',
-            entityId: data?.id,
+            entityId: task.id,
           });
         }
       }
     })();
   }
 
-  return NextResponse.json({ success: true, task: data }, { status: 201 });
+  return NextResponse.json({ success: true, task }, { status: 201 });
 }

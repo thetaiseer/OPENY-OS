@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { TAG_COLUMNS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search');
 
   const db = getServiceClient();
-  let query = db.from('tags').select('*').order('name');
+  let query = db.from('tags').select(TAG_COLUMNS).order('name');
 
   if (search) query = query.ilike('name', `%${search}%`);
 

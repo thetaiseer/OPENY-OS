@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
+import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
     let query = db
       .from('projects')
-      .select('*, client:clients(id, name, slug)')
+      .select(PROJECT_WITH_CLIENT)
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db
     .from('projects')
     .insert(payload)
-    .select('*, client:clients(id, name, slug)')
+    .select(PROJECT_WITH_CLIENT)
     .single();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
