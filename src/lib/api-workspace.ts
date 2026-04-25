@@ -29,6 +29,9 @@ function resolveWorkspaceKeyFromRequest(request: NextRequest): WorkspaceKey | nu
   return getWorkspaceFromApiPath(request.nextUrl.pathname);
 }
 
+/** Seeded in `supabase-migration-workspaces.sql` when slug was not set on the default row. */
+const LEGACY_DEFAULT_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
+
 async function resolveWorkspaceIdByKey(
   db: SupabaseClient,
   workspaceKey: WorkspaceKey,
@@ -45,6 +48,40 @@ async function resolveWorkspaceIdByKey(
     .maybeSingle();
   if (byName.error) return null;
   if (byName.data?.id) return byName.data.id as string;
+
+  // Legacy seed: "Default Workspace" with no slug (still maps to OPENY OS app surface).
+  if (workspaceKey === 'os') {
+    const byKnownId = await db
+      .from('workspaces')
+      .select('id')
+      .eq('id', LEGACY_DEFAULT_WORKSPACE_ID)
+      .maybeSingle();
+    if (!byKnownId.error && byKnownId.data?.id) return byKnownId.data.id as string;
+
+    const byDefaultLabel = await db
+      .from('workspaces')
+      .select('id')
+      .ilike('name', '%default%workspace%')
+      .limit(1)
+      .maybeSingle();
+    if (!byDefaultLabel.error && byDefaultLabel.data?.id) return byDefaultLabel.data.id as string;
+  }
+
+  if (workspaceKey === 'docs') {
+    const byDocsName = await db
+      .from('workspaces')
+      .select('id')
+      .or('name.ilike.%DOCS%,name.ilike.%docs%')
+      .limit(1)
+      .maybeSingle();
+    if (!byDocsName.error && byDocsName.data?.id) return byDocsName.data.id as string;
+  }
+
+  // Single-tenant fallback: exactly one workspace row.
+  const all = await db.from('workspaces').select('id').limit(2);
+  if (!all.error && all.data?.length === 1 && (all.data[0] as { id?: string }).id) {
+    return (all.data[0] as { id: string }).id;
+  }
 
   return null;
 }
