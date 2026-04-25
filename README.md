@@ -1,99 +1,273 @@
-# OPENY OS
+# OPENY — Agency Operating System
 
-A modern agency workspace built with **Next.js 15**, **React 18**, **TypeScript**, **Tailwind CSS**, **Supabase**, and **Cloudflare R2** storage.
+OPENY is a unified, multi-tenant SaaS platform for digital marketing agencies, combining:
+- **OPENY OS**: daily operations (clients, projects, tasks, team, assets, reports)
+- **OPENY DOCS**: business documents (invoices, quotations, contracts, employees, accounting)
 
-## Real Architecture
+OPENY runs as a single Next.js application with shared identity, shared design system, and shared Supabase database.
 
-| Layer | Technology |
-|-------|-----------|
-| Database | [Supabase](https://supabase.com) (PostgreSQL) |
-| Auth | Supabase Auth (email + password) |
-| Storage | Cloudflare R2 (unified) |
-| Sync | API-driven storage + metadata persistence |
-| AI | OpenAI GPT-4o-mini / Google Gemini (fallback) |
-| Deployment | Vercel |
+---
 
-The storage layer is unified through `src/lib/storage/` and uses a single root prefix:
+## العربية
 
-`openy-assets/os/...` and `openy-assets/docs/...`
+### ما هو OPENY؟
 
-## Quick Setup
+OPENY هو نظام تشغيل متكامل للوكالات التسويقية الرقمية، يجمع بين:
+- **OPENY OS** لإدارة التشغيل اليومي
+- **OPENY DOCS** لإدارة الوثائق المالية والإدارية
 
-1. Install dependencies:
+كل ذلك داخل تطبيق واحد وهوية واحدة وقاعدة بيانات واحدة.
+
+### التقنيات المستخدمة
+
+- Frontend: Next.js 15 (App Router), React 18, TypeScript
+- UI: Tailwind CSS + CSS Variables + Lucide Icons + Recharts
+- Data: Supabase (PostgreSQL + Supabase Auth)
+- Storage: Cloudflare R2
+- State & Data Fetching: TanStack Query v5
+- Deployment: Vercel
+
+### المميزات (جميع الوحدات)
+
+#### OPENY OS
+- Dashboard
+- Clients
+- Projects
+- Tasks (Kanban + List)
+- Calendar
+- Assets
+- Content
+- Reports
+- Team
+- Activity
+- Settings
+
+#### OPENY DOCS
+- Invoice
+- Quotation
+- Client Contract
+- HR Contract
+- Employees
+- Accounting
+
+### الأدوار والصلاحيات
+
+| الدور | الصلاحيات |
+|---|---|
+| Owner | صلاحيات كاملة + إدارة الفوترة + حذف مساحة العمل |
+| Admin | إدارة الفريق والوصول لجميع البيانات |
+| Manager | إدارة العملاء/المشاريع/المهام والوصول للوثائق |
+| Member | إنشاء/تعديل مهامه وعرض البيانات التشغيلية |
+| Viewer | عرض فقط بدون تعديل |
+
+### العلاقات بين البيانات
+
+```text
+auth.users
+  -> profiles (1:1)
+  -> workspace_members (1:many)
+
+workspaces
+  -> clients / projects / tasks / assets / content_items / activity_log
+  -> docs_invoices / docs_quotations / docs_employees / docs_accounting_entries
+
+clients -> projects -> tasks
+clients -> assets / content_items / docs_invoices / activity_log
+projects -> tasks
+tasks -> comments / time_entries
+docs_invoices -> docs_invoice_branches -> docs_invoice_platforms -> docs_invoice_rows
+docs_employees -> docs_salary_history
+```
+
+### تشغيل المشروع محليًا
+
+1. تثبيت الحزم:
    ```bash
-   npm install --legacy-peer-deps
+   npm install
    ```
-
-2. Copy the environment template and fill in your values:
+2. إعداد متغيرات البيئة:
    ```bash
    cp .env.example .env.local
    ```
-
-3. Run the Supabase migrations in order (use the SQL Editor in your Supabase dashboard):
-   - `supabase-schema.sql` — base schema
-   - `supabase-migration-*.sql` files — incremental additions
-
-4. Start the development server:
+3. تطبيق ترحيلات Supabase (من مجلد `supabase/migrations`).
+4. تشغيل بيئة التطوير:
    ```bash
    npm run dev
    ```
+5. التحقق قبل النشر:
+   ```bash
+   npm run type-check
+   npm run build
+   ```
 
-## Environment Variables
+### متغيرات البيئة المطلوبة
 
-See `.env.example` for the full list. Required groups:
+- Supabase:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET`
+- R2:
+  - `R2_ACCOUNT_ID`
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_BUCKET_NAME`
+  - `R2_PUBLIC_URL`
+- App/Email/Jobs:
+  - `NEXT_PUBLIC_APP_URL`
+  - `CRON_SECRET`
+  - `RESEND_API_KEY`
+  - `EMAIL_FROM`
+- AI:
+  - `GEMINI_API_KEY`
+  - `GEMINI_MODEL`
 
-- **Supabase** — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- **Cloudflare R2** — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
+### دليل النشر (Vercel + Supabase)
 
-## Database Schema (Supabase)
+1. أنشئ مشروع Supabase وطبّق جميع ملفات الترحيل.
+2. فعّل Supabase Auth (Email/Password) واضبط إعدادات OAuth إذا لزم.
+3. أنشئ Bucket على Cloudflare R2 واضبط مفاتيح الوصول وCORS.
+4. أنشئ مشروع Vercel واربطه بمستودع GitHub.
+5. أضف جميع متغيرات البيئة في Vercel (Production/Preview).
+6. تحقق من:
+   - اتصال قاعدة البيانات
+   - رفع الملفات إلى R2
+   - إرسال الإيميلات (Resend)
+   - وظائف AI
+7. نفّذ نشر Production وتحقق من الصفحات الأساسية وواجهات API.
 
-| Table | Purpose |
-|-------|---------|
-| `profiles` | User profiles with roles (`admin`, `manager`, `team`, `client`) |
-| `clients` | Client records |
-| `tasks` | Task lifecycle (todo → in_progress → review → done → delivered) |
-| `assets` | File metadata (provider, remote IDs, preview URLs, …) |
-| `activities` | Audit log |
-| `automation_rules` | Trigger-based automations |
-| `drive_sync_logs` | Google Drive ↔ DB sync history |
-| `user_sessions` | Active session tracking |
+---
 
-## Assets Schema
+## English
 
-The `assets` table stores provider-agnostic metadata:
+### What is OPENY?
 
-| Column | Description |
-|--------|-------------|
-| `storage_provider` | `'google_drive'` (or future providers) |
-| `drive_file_id` | Remote file ID |
-| `drive_folder_id` | Remote folder ID |
-| `preview_url` | Inline preview URL |
-| `thumbnail_url` | Thumbnail URL |
-| `download_url` | Direct download URL |
-| `web_view_link` | Provider view link |
-| `mime_type` | MIME type |
-| `file_size` | Size in bytes |
-| `client_id` | FK → clients |
-| `month_key` | `YYYY-MM` (folder routing) |
-| `content_type` | `SOCIAL_POSTS`, `VIDEOS`, etc. |
+OPENY is an all-in-one, multi-tenant operating system for digital marketing agencies, combining:
+- **OPENY OS** for operational workflows
+- **OPENY DOCS** for financial and legal documents
 
-## Storage Architecture
+Both sections run in one application with one authentication layer and one shared data model.
 
+### Tech Stack
+
+- Frontend: Next.js 15 (App Router), React 18, TypeScript
+- UI: Tailwind CSS, CSS variables, Lucide React, Recharts
+- Backend/Data: Supabase (PostgreSQL + Supabase Auth)
+- File Storage: Cloudflare R2
+- State/Data fetching: TanStack Query v5
+- Deployment: Vercel
+
+### Feature List (All Modules)
+
+#### OPENY OS
+- Dashboard
+- Clients
+- Projects
+- Tasks (Kanban + List)
+- Calendar
+- Assets
+- Content
+- Reports
+- Team
+- Activity
+- Settings
+
+#### OPENY DOCS
+- Invoice
+- Quotation
+- Client Contract
+- HR Contract
+- Employees
+- Accounting
+
+### User Roles and Permissions
+
+| Role | Permissions |
+|---|---|
+| Owner | Full access, billing control, workspace deletion |
+| Admin | Team management, global data access |
+| Manager | Manage clients/projects/tasks and docs workflows |
+| Member | Create/update own tasks, operational visibility |
+| Viewer | Read-only access |
+
+### Data Relationships
+
+```text
+auth.users
+  -> profiles
+  -> workspace_members
+
+workspaces
+  -> clients / projects / tasks / assets / content_items / activity_log
+  -> docs_invoices / docs_quotations / docs_employees / docs_accounting_entries
+
+clients -> projects -> tasks
+projects -> tasks
+tasks -> comments / time_entries
+docs_invoices -> docs_invoice_branches -> docs_invoice_platforms -> docs_invoice_rows
+docs_employees -> docs_salary_history
 ```
-src/lib/storage/
-  index.ts        — public exports
-  path-builder.ts — deterministic path builder for `openy-assets/os|docs/...`
-  service.ts      — shared upload/delete/url/list/move/multipart operations
-  metadata.ts     — shared metadata persistence (`stored_files`)
-```
 
-## Stack
+### Run Locally
 
-- Next.js 15.5
-- React 18
-- TypeScript 5
-- Tailwind CSS v3
-- Supabase (PostgreSQL + Auth)
-- Google Drive API (googleapis)
-- TanStack Query v5
-- Recharts
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create local env file:
+   ```bash
+   cp .env.example .env.local
+   ```
+3. Run Supabase migrations from `supabase/migrations`.
+4. Start dev server:
+   ```bash
+   npm run dev
+   ```
+5. Validate:
+   ```bash
+   npm run type-check
+   npm run build
+   ```
+
+### Required Environment Variables
+
+- Supabase:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET`
+- Cloudflare R2:
+  - `R2_ACCOUNT_ID`
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_BUCKET_NAME`
+  - `R2_PUBLIC_URL`
+- App/Email/Cron:
+  - `NEXT_PUBLIC_APP_URL`
+  - `CRON_SECRET`
+  - `RESEND_API_KEY`
+  - `EMAIL_FROM`
+- AI:
+  - `GEMINI_API_KEY`
+  - `GEMINI_MODEL`
+
+### Deployment Guide (Vercel + Supabase)
+
+1. Create a Supabase project and apply all migrations.
+2. Configure Supabase Auth providers and redirect URLs.
+3. Create and configure an R2 bucket + API credentials + CORS.
+4. Create a Vercel project and connect the GitHub repo.
+5. Add all environment variables in Vercel for Production/Preview.
+6. Deploy and validate:
+   - auth flows
+   - workspace-scoped data
+   - uploads/downloads
+   - docs exports
+   - API endpoints
+
+---
+
+## Documentation
+
+- Product spec: `docs/PRODUCT_SPEC.md`
+- Delivery roadmap: `docs/ROADMAP.md`
