@@ -37,8 +37,7 @@ async function resolveWorkspaceIdByKey(
   workspaceKey: WorkspaceKey,
 ): Promise<string | null> {
   const bySlug = await db.from('workspaces').select('id').eq('slug', workspaceKey).maybeSingle();
-  if (bySlug.error) return null;
-  if (bySlug.data?.id) return bySlug.data.id as string;
+  if (!bySlug.error && bySlug.data?.id) return bySlug.data.id as string;
 
   const byName = await db
     .from('workspaces')
@@ -46,8 +45,7 @@ async function resolveWorkspaceIdByKey(
     .ilike('name', `OPENY ${workspaceKey.toUpperCase()}`)
     .limit(1)
     .maybeSingle();
-  if (byName.error) return null;
-  if (byName.data?.id) return byName.data.id as string;
+  if (!byName.error && byName.data?.id) return byName.data.id as string;
 
   // Legacy seed: "Default Workspace" with no slug (still maps to OPENY OS app surface).
   if (workspaceKey === 'os') {
@@ -86,9 +84,44 @@ async function resolveWorkspaceIdByKey(
   return null;
 }
 
+type WorkspaceRow = { id: string; slug: string | null; name: string | null };
+
+function scoreWorkspaceForKey(row: WorkspaceRow, preferredKey: WorkspaceKey): number {
+  const slug = (row.slug ?? '').toLowerCase();
+  const name = (row.name ?? '').toUpperCase();
+  if (slug === preferredKey) return 100;
+  if (name.includes(`OPENY ${preferredKey.toUpperCase()}`)) return 90;
+  if (preferredKey === 'os') {
+    if (row.id === LEGACY_DEFAULT_WORKSPACE_ID) return 85;
+    if (name.includes('DEFAULT') && name.includes('WORKSPACE')) return 80;
+    if (name.includes('OPENY') && name.includes('OS')) return 75;
+  }
+  if (preferredKey === 'docs' && (name.includes('DOCS') || slug === 'docs')) return 75;
+  return 0;
+}
+
+/** Pick the best workspace row for this surface among rows the user belongs to. */
+function pickWorkspaceForPreferredKey(
+  rows: WorkspaceRow[],
+  preferredKey: WorkspaceKey,
+): WorkspaceRow | null {
+  if (!rows.length) return null;
+  let best = rows[0];
+  let bestScore = scoreWorkspaceForKey(best, preferredKey);
+  for (let i = 1; i < rows.length; i++) {
+    const s = scoreWorkspaceForKey(rows[i], preferredKey);
+    if (s > bestScore) {
+      best = rows[i];
+      bestScore = s;
+    }
+  }
+  return best;
+}
+
 async function resolveWorkspaceIdFromSession(
   db: SupabaseClient,
   userId: string,
+  preferredKey: WorkspaceKey,
 ): Promise<{ workspaceId: string | null; workspaceKey: WorkspaceKey | null }> {
   const membership = await db
     .from('workspace_memberships')
@@ -106,20 +139,26 @@ async function resolveWorkspaceIdFromSession(
     }
   }
 
-  const legacyMembership = await db
+  const allMembers = await db
     .from('workspace_members')
     .select('workspace_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  if (!legacyMembership.error && legacyMembership.data?.workspace_id) {
-    return {
-      workspaceId: legacyMembership.data.workspace_id as string,
-      workspaceKey: null,
-    };
+    .eq('user_id', userId);
+  if (allMembers.error || !allMembers.data?.length) {
+    return { workspaceId: null, workspaceKey: null };
   }
 
-  return { workspaceId: null, workspaceKey: null };
+  const ids = [
+    ...new Set(allMembers.data.map((r) => (r as { workspace_id: string }).workspace_id)),
+  ];
+  const workspaces = await db.from('workspaces').select('id, slug, name').in('id', ids);
+  if (workspaces.error || !workspaces.data?.length) {
+    return { workspaceId: null, workspaceKey: null };
+  }
+
+  const rows = workspaces.data as WorkspaceRow[];
+  const picked = pickWorkspaceForPreferredKey(rows, preferredKey);
+  if (!picked) return { workspaceId: null, workspaceKey: null };
+  return { workspaceId: picked.id, workspaceKey: preferredKey };
 }
 
 export async function resolveWorkspaceForRequest(
@@ -133,7 +172,7 @@ export async function resolveWorkspaceForRequest(
   if (byKey) return { workspaceKey, workspaceId: byKey, error: null };
 
   if (userId) {
-    const bySession = await resolveWorkspaceIdFromSession(db, userId);
+    const bySession = await resolveWorkspaceIdFromSession(db, userId, workspaceKey);
     if (bySession.workspaceId) {
       return {
         workspaceKey: bySession.workspaceKey ?? workspaceKey,
