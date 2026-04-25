@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -1712,7 +1713,12 @@ function OwnerCard({
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-[var(--text)]">{member.full_name}</p>
+          <Link
+            href={`/team/${member.id}`}
+            className="text-sm font-bold text-[var(--text)] hover:text-[var(--accent)]"
+          >
+            {member.full_name}
+          </Link>
           <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
             <Crown size={9} />
             Owner
@@ -1914,7 +1920,12 @@ function MemberCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-[var(--text)]">{member.full_name}</p>
+            <Link
+              href={`/team/${member.id}`}
+              className="text-sm font-semibold text-[var(--text)] hover:text-[var(--accent)]"
+            >
+              {member.full_name}
+            </Link>
             {isInvited ? (
               <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />
             ) : (

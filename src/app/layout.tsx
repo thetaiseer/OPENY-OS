@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   themeColor: '#6366f1',
 };
 
-const themeBootScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`;
+const themeBootScript = `(function(){try{var t=localStorage.getItem('theme');var next=(t==='light'||t==='dark')?t:'dark';document.documentElement.setAttribute('data-theme',next);if(next==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.classList.add('dark');}})();`;
 
 const inter = Inter({
   subsets: ['latin'],
