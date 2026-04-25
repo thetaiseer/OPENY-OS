@@ -96,6 +96,31 @@ export const ASSET_LIST_COLUMNS_LEGACY = [
   'created_at',
 ].join(',');
 
+/** Oldest-safe list projection (no tags / categories / storage_key / file_path). */
+export const ASSET_LIST_COLUMNS_MINIMAL = [
+  'id',
+  'name',
+  'file_url',
+  'view_url',
+  'download_url',
+  'file_type',
+  'file_size',
+  'bucket_name',
+  'storage_provider',
+  'client_folder_name',
+  'content_type',
+  'month_key',
+  'task_id',
+  'client_id',
+  'client_name',
+  'uploaded_by',
+  'mime_type',
+  'preview_url',
+  'thumbnail_url',
+  'web_view_link',
+  'created_at',
+].join(',');
+
 export const ACTIVITY_LIST_COLUMNS =
   'id,type,description,user_id,user_uuid,client_id,entity_type,entity_id,metadata_json,created_at';
 
