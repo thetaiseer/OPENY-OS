@@ -16,6 +16,15 @@
   --danger: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface);
+  --surface-2: var(--bg-elevated);
+  --surface-elevated: #1f2a44;
+  --surface-shell: color-mix(in srgb, var(--bg-surface) 96%, black 4%);
+  --text: var(--text-primary);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-contrast: #ffffff;
+  --border-glass: var(--border);
   --radius-card: 12px;
   --radius-control: 8px;
   --radius-badge: 6px;
@@ -36,6 +45,15 @@
   --danger: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface);
+  --surface-2: var(--bg-elevated);
+  --surface-elevated: #e2e8f0;
+  --surface-shell: color-mix(in srgb, var(--bg-surface) 98%, #e2e8f0 2%);
+  --text: var(--text-primary);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-contrast: #ffffff;
+  --border-glass: var(--border);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
