@@ -22,6 +22,7 @@ export default function Header() {
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-control border border-border bg-surface text-secondary hover:text-primary"
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            aria-pressed={theme === 'dark'}
             onClick={toggleTheme}
             title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >

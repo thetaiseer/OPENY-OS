@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   themeColor: '#6366f1',
 };
 
-const themeBootScript = `(function(){try{var t=localStorage.getItem('theme');var theme=t==='light'?'light':'dark';var root=document.documentElement;root.setAttribute('data-theme',theme);if(theme==='dark'){root.classList.add('dark');}else{root.classList.remove('dark');}}catch(e){var root=document.documentElement;root.setAttribute('data-theme','dark');root.classList.add('dark');}})();`;
+const themeBootScript = `(function(){try{var stored=localStorage.getItem('theme');var theme=stored==='light'||stored==='dark'?stored:'dark';if(!stored){localStorage.setItem('theme',theme);}var root=document.documentElement;root.setAttribute('data-theme',theme);root.classList.toggle('dark',theme==='dark');}catch(e){var root=document.documentElement;root.setAttribute('data-theme','dark');root.classList.add('dark');}})();`;
 
 const inter = Inter({
   subsets: ['latin'],
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        <script id="openy-theme-init" dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className={`${inter.className} font-sans antialiased`}>
         <ThemeProvider>
