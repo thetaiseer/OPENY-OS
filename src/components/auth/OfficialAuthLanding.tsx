@@ -36,8 +36,6 @@ export default function OfficialAuthLanding() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [workspaceChoices, setWorkspaceChoices] = useState<WorkspaceKey[]>([]);
   const [selectingWorkspace, setSelectingWorkspace] = useState(false);
@@ -169,33 +167,20 @@ export default function OfficialAuthLanding() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    setFormSuccess(null);
     setAccessMessage(null);
 
     setLoading(true);
     try {
-      if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-        await supabase.auth.signOut().catch(() => null);
-        setFormSuccess(
-          'Account created. Ask your workspace admin to send an invitation or grant workspace access before signing in.',
-        );
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
 
-        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(
-          () => null,
-        );
-        await finalizeAuth(data.user.id, data.user.email, readSelectedWorkspace(), true);
-      }
+      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(
+        () => null,
+      );
+      await finalizeAuth(data.user.id, data.user.email, readSelectedWorkspace(), true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Network or server error. Please try again.';
@@ -205,8 +190,6 @@ export default function OfficialAuthLanding() {
       setLoading(false);
     }
   };
-
-  const submitLabel = authMode === 'signup' ? 'Create Account' : 'Sign In';
 
   const handleWorkspaceSelect = (workspace: WorkspaceKey) => {
     setSelectingWorkspace(true);
@@ -276,7 +259,7 @@ export default function OfficialAuthLanding() {
                   className="text-xs uppercase tracking-[0.2em]"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  {authMode === 'signup' ? 'Sign Up' : 'Sign In'}
+                  Sign In
                 </p>
                 <h1
                   className="mt-2 text-3xl font-semibold tracking-tight"
@@ -288,46 +271,9 @@ export default function OfficialAuthLanding() {
                   className="mt-2 text-sm leading-relaxed"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  {authMode === 'signup'
-                    ? 'Create your account first, then your admin can grant workspace access.'
-                    : 'Sign in with your assigned account. Workspace access is loaded automatically based on your membership.'}
+                  Sign in with your assigned account. Only invited team members with active
+                  workspace membership can access OPENY.
                 </p>
-
-                <div
-                  className="mt-4 inline-flex rounded-xl border p-1"
-                  style={{ borderColor: 'var(--border)' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signin');
-                      setFormError(null);
-                      setFormSuccess(null);
-                    }}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                    style={{
-                      background: authMode === 'signin' ? 'var(--accent)' : 'transparent',
-                      color: authMode === 'signin' ? '#fff' : 'var(--text-secondary)',
-                    }}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setFormError(null);
-                      setFormSuccess(null);
-                    }}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                    style={{
-                      background: authMode === 'signup' ? 'var(--accent)' : 'transparent',
-                      color: authMode === 'signup' ? '#fff' : 'var(--text-secondary)',
-                    }}
-                  >
-                    Sign Up
-                  </button>
-                </div>
 
                 {workspaceChoices.length > 0 ? (
                   <div className="mt-6 space-y-3">
@@ -358,12 +304,7 @@ export default function OfficialAuthLanding() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="h-11 w-full rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{
-                          background: 'var(--surface-2)',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text)',
-                        }}
+                        className="openy-control h-11 w-full px-4 text-sm text-primary outline-none"
                       />
                     </div>
 
@@ -385,41 +326,30 @@ export default function OfficialAuthLanding() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="h-11 w-full rounded-xl px-3 text-sm outline-none transition-all focus:ring-2"
-                        style={{
-                          background: 'var(--surface-2)',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text)',
-                        }}
+                        className="openy-control h-11 w-full px-4 text-sm text-primary outline-none"
                       />
                     </div>
 
-                    {(formError || accessMessage || formSuccess) && (
+                    {(formError || accessMessage) && (
                       <div
                         className="whitespace-pre-line rounded-xl px-3 py-2 text-sm"
                         style={{
-                          background: formSuccess ? 'rgba(22,163,74,0.1)' : 'rgba(239,68,68,0.08)',
-                          border: formSuccess
-                            ? '1px solid rgba(22,163,74,0.25)'
-                            : '1px solid rgba(239,68,68,0.28)',
-                          color: formSuccess ? '#166534' : '#ef4444',
+                          background: 'rgba(239,68,68,0.08)',
+                          border: '1px solid rgba(239,68,68,0.28)',
+                          color: '#ef4444',
                         }}
                       >
-                        {formSuccess ?? formError ?? accessMessage}
+                        {formError ?? accessMessage}
                       </div>
                     )}
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition-all hover:translate-y-[-1px] disabled:opacity-70"
-                      style={{
-                        background:
-                          'linear-gradient(135deg, #3b82f6 0%, #6366f1 45%, #8b5cf6 100%)',
-                      }}
+                      className="openy-modal-btn-primary inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-semibold text-white disabled:opacity-70"
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                      {loading ? 'Please wait…' : submitLabel}
+                      {loading ? 'Please wait…' : 'Sign In'}
                     </button>
                   </form>
                 )}
@@ -440,14 +370,14 @@ export default function OfficialAuthLanding() {
                     Welcome back to OPENY
                   </h2>
                   <p className="mt-3 max-w-md text-sm text-white/90 sm:text-base">
-                    Access is provided by your organization administrator.
+                    Access is granted only by the owner/admin through team invitation inside OPENY.
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <div className="rounded-xl border border-white/35 bg-white/10 px-4 py-3">
                     <p className="text-sm font-medium text-white">
-                      Contact your workspace admin to get access.
+                      No public sign up. Ask your owner/admin to invite you first.
                     </p>
                   </div>
                   <p className="flex items-center gap-2 text-xs text-white/80">
