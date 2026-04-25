@@ -314,39 +314,54 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
     name: new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' }),
     completed: d.completed,
   }));
+  const maxCompleted = Math.max(0, ...chartData.map((d) => d.completed));
+  const allZero = maxCompleted === 0;
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={chartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-        <defs>
-          <linearGradient id="perfStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#38bdf8" />
-          </linearGradient>
-        </defs>
-        <XAxis
-          dataKey="name"
-          tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis hide />
-        <Tooltip
-          contentStyle={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            fontSize: 12,
-          }}
-        />
-        <Line
-          type="monotone"
-          dataKey="completed"
-          stroke="url(#perfStroke)"
-          strokeWidth={3}
-          dot={{ r: 3, fill: '#6366f1' }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="relative">
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+          <defs>
+            <linearGradient id="perfStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#38bdf8" />
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            width={28}
+            tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
+            axisLine={false}
+            tickLine={false}
+            allowDecimals={false}
+          />
+          <Tooltip
+            contentStyle={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              fontSize: 12,
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="completed"
+            stroke="url(#perfStroke)"
+            strokeWidth={3}
+            dot={{ r: 3, fill: '#6366f1' }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      {allZero ? (
+        <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+          No completed tasks in this period yet.
+        </p>
+      ) : null}
+    </div>
   );
 }
 

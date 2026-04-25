@@ -154,6 +154,9 @@ export const USER_SESSION_COLUMNS =
 export const USER_SESSION_COLUMNS_LEGACY =
   'id,user_id,ip_address,user_agent,browser,os,device_type,is_active,last_seen_at,created_at,revoked_at,revoked_by,risk_flag';
 
+export const USER_SESSION_COLUMNS_MIN =
+  'id,user_id,ip_address,browser,os,device_type,is_active,last_seen_at,created_at,revoked_at,revoked_by,risk_flag';
+
 export const NOTE_COLUMNS =
   'id,workspace_id,title,content,entity_type,entity_id,is_pinned,created_by,created_at,updated_at';
 

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_COLUMN, PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
-import { USER_SESSION_COLUMNS, USER_SESSION_COLUMNS_LEGACY } from '@/lib/supabase-list-columns';
+import {
+  USER_SESSION_COLUMNS,
+  USER_SESSION_COLUMNS_LEGACY,
+  USER_SESSION_COLUMNS_MIN,
+} from '@/lib/supabase-list-columns';
 
 // ── User-Agent parser ──────────────────────────────────────────────────────────
 
@@ -95,13 +99,26 @@ export async function GET(request: NextRequest) {
     sessions = fallback.data as Array<Record<string, unknown>> | null;
     error = fallback.error;
   }
+  if (error?.code === PG_UNDEFINED_COLUMN) {
+    const fallbackMin = await admin
+      .from('user_sessions')
+      .select(USER_SESSION_COLUMNS_MIN)
+      .eq('user_id', auth.profile.id)
+      .order('last_seen_at', { ascending: false })
+      .limit(50);
+    sessions = fallbackMin.data as Array<Record<string, unknown>> | null;
+    error = fallbackMin.error;
+  }
 
   if (error) {
     // Table not yet created — return empty list so the UI degrades gracefully
     if (error.code === PG_UNDEFINED_TABLE) {
       return NextResponse.json({ sessions: [] });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to load session history right now. Please try again shortly.' },
+      { status: 500 },
+    );
   }
 
   const currentSid = request.cookies.get('openy-sid')?.value;
@@ -203,6 +220,23 @@ export async function POST(request: NextRequest) {
     session = fallbackInsert.data;
     error = fallbackInsert.error;
   }
+  if (error?.code === PG_UNDEFINED_COLUMN) {
+    const fallbackInsertMin = await admin
+      .from('user_sessions')
+      .insert({
+        user_id: auth.profile.id,
+        ip_address: ip || null,
+        browser,
+        os,
+        device_type: deviceType,
+        is_active: true,
+        risk_flag: riskFlag,
+      })
+      .select()
+      .single();
+    session = fallbackInsertMin.data;
+    error = fallbackInsertMin.error;
+  }
 
   if (error) {
     // Table not yet created — skip session creation silently
@@ -218,7 +252,10 @@ export async function POST(request: NextRequest) {
       '| error:',
       error.message,
     );
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create a new login session. Please try again.' },
+      { status: 500 },
+    );
   }
 
   const response = NextResponse.json({ session, risk_flag: riskFlag });

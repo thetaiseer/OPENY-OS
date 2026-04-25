@@ -12,6 +12,8 @@ import {
   Send,
   FileText,
   ExternalLink,
+  ListTodo,
+  Layers3,
 } from 'lucide-react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
@@ -346,7 +348,7 @@ export default function CalendarPage() {
       />
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border px-3 py-2 text-xs text-[var(--text-secondary)]">
         <Tabs>
           <TabButton active={viewMode === 'month'} onClick={() => setViewMode('month')}>
             Month
@@ -355,19 +357,23 @@ export default function CalendarPage() {
             Week
           </TabButton>
         </Tabs>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
+          <ListTodo size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
           Tasks
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
+          <Send size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#7c3aed' }} />
           Publishing schedules
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
+          <FileText size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#0891b2' }} />
           Content
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
+          <Layers3 size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#6b7280' }} />
           Assets
         </span>

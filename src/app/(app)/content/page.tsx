@@ -281,7 +281,7 @@ function ContentPage() {
         title="Content Items"
         subtitle="Manage your content pipeline from draft to published"
         actions={
-          role === 'admin' || role === 'manager' || role === 'team_member' ? (
+          role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member' ? (
             <Button type="button" variant="primary" onClick={() => setNewOpen(true)}>
               <Plus size={16} /> New Content
             </Button>
@@ -299,7 +299,7 @@ function ContentPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search content\u2026"
+              placeholder="Search content..."
               className="min-w-0 pl-9"
               aria-label="Search content"
             />

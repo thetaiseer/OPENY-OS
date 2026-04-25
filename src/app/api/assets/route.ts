@@ -132,6 +132,15 @@ export async function GET(req: NextRequest) {
     const { data, error } = result;
 
     if (error) {
+      if (error.code === PG_UNDEFINED_COLUMN) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Assets are temporarily unavailable while schema updates complete.',
+          },
+          { status: 503 },
+        );
+      }
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');
       return NextResponse.json(
         {

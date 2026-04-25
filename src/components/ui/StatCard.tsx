@@ -62,10 +62,10 @@ export default function StatCard({
           </div>
         ) : null}
       </div>
-      {value ? (
+      {value !== null && value !== undefined ? (
         <div className="text-3xl font-semibold leading-none text-primary">{value}</div>
       ) : null}
-      {trendNode ? (
+      {trendNode !== null && trendNode !== undefined ? (
         <div
           className={cn(
             'text-xs font-medium',
