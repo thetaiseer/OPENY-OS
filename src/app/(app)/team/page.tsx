@@ -1696,7 +1696,7 @@ function OwnerCard({
 }) {
   return (
     <div
-      className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5 shadow-card"
+      className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--accent)',
@@ -1912,7 +1912,7 @@ function MemberCard({
   return (
     <div
       className={
-        'flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow' +
+        'shadow-card flex flex-col gap-3 rounded-2xl border p-5 transition-shadow' +
         (isInteractive ? ' cursor-pointer hover:-translate-y-0.5' : '')
       }
       onClick={() => isInteractive && onView?.(member)}

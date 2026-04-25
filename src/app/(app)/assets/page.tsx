@@ -165,7 +165,7 @@ function FolderCard({
           onClick();
         }
       }}
-      className="flex cursor-pointer select-none flex-col gap-2 rounded-2xl border p-4 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
+      className="shadow-card flex cursor-pointer select-none flex-col gap-2 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
@@ -260,7 +260,7 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="flex cursor-pointer select-none flex-col gap-3 rounded-2xl border p-4 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
+      className="shadow-card flex cursor-pointer select-none flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
     >
       <div className="flex min-w-0 items-center gap-2">
