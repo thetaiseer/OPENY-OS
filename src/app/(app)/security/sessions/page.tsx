@@ -22,6 +22,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { cn } from '@/lib/cn';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,55 +88,27 @@ function DeviceIcon({ type }: { type: string | null }) {
 function StatusBadge({ session }: { session: Session }) {
   if (!session.is_active) {
     return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{
-          background: 'rgba(107,114,128,0.10)',
-          color: '#6b7280',
-          border: '1px solid rgba(107,114,128,0.25)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
         <WifiOff size={10} /> Signed out
       </span>
     );
   }
   if (session.is_current) {
     return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{
-          background: 'rgba(22,163,74,0.10)',
-          color: '#16a34a',
-          border: '1px solid rgba(22,163,74,0.25)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-600">
         <Wifi size={10} /> Current device
       </span>
     );
   }
   if (isActiveSession(session.last_seen_at)) {
     return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{
-          background: 'rgba(59,130,246,0.10)',
-          color: '#3b82f6',
-          border: '1px solid rgba(59,130,246,0.25)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">
         <Wifi size={10} /> Active now
       </span>
     );
   }
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{
-        background: 'rgba(234,179,8,0.10)',
-        color: '#ca8a04',
-        border: '1px solid rgba(234,179,8,0.25)',
-      }}
-    >
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-600">
       <WifiOff size={10} /> Idle
     </span>
   );
@@ -158,26 +131,19 @@ function SessionCard({
 
   return (
     <div
-      className="space-y-4 rounded-2xl border p-5 transition-colors"
-      style={{
-        background: session.is_current ? 'var(--accent-soft)' : 'var(--surface)',
-        borderColor: session.risk_flag
-          ? 'rgba(239,68,68,0.4)'
+      className={cn(
+        'space-y-4 rounded-2xl border p-5 transition-colors',
+        session.is_current ? 'bg-[var(--accent-soft)]' : 'bg-[var(--surface)]',
+        session.risk_flag
+          ? 'border-red-400'
           : session.is_current
-            ? 'var(--accent)'
-            : 'var(--border)',
-      }}
+            ? 'border-[var(--accent)]'
+            : 'border-border',
+      )}
     >
       {/* Risk banner */}
       {session.risk_flag && session.is_active && (
-        <div
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
-          style={{
-            background: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.20)',
-          }}
-        >
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-500">
           <AlertTriangle size={13} className="shrink-0" />
           Suspicious login — new country or location detected
         </div>
@@ -185,16 +151,13 @@ function SessionCard({
 
       {/* Header row */}
       <div className="flex items-start gap-3">
-        <div
-          className="mt-0.5"
-          style={{ color: session.is_current ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
+        <div className={cn('mt-0.5', session.is_current ? 'text-accent' : 'text-secondary')}>
           <DeviceIcon type={session.device_type} />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            <span className="truncate text-sm font-semibold text-primary">
               {session.device_type ?? 'Device'} — {deviceLabel}
             </span>
             <StatusBadge session={session} />
@@ -246,13 +209,9 @@ function SessionCard({
 function Detail({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span style={{ color: 'var(--text-secondary)' }}>{icon}</span>
-      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-        {label}:
-      </span>
-      <span className="truncate text-xs font-medium" style={{ color: 'var(--text)' }}>
-        {value}
-      </span>
+      <span className="text-secondary">{icon}</span>
+      <span className="text-xs text-secondary">{label}:</span>
+      <span className="truncate text-xs font-medium text-primary">{value}</span>
     </div>
   );
 }
@@ -344,16 +303,11 @@ export default function SecurityPage() {
 
       {/* Risk alert */}
       {hasRiskFlags && (
-        <div
-          className="flex items-start gap-3 rounded-xl p-4"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
-        >
-          <ShieldAlert size={18} style={{ color: '#ef4444' }} className="mt-0.5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4">
+          <ShieldAlert size={18} className="mt-0.5 shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>
-              Suspicious login detected
-            </p>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm font-semibold text-red-500">Suspicious login detected</p>
+            <p className="mt-0.5 text-xs text-secondary">
               One or more logins were flagged as suspicious (new country or location). If you
               don&apos;t recognise them, sign those devices out immediately.
             </p>
@@ -363,27 +317,17 @@ export default function SecurityPage() {
 
       {/* Success message */}
       {successMsg && (
-        <div
-          className="flex items-center gap-2 rounded-xl p-3"
-          style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}
-        >
-          <CheckCircle2 size={16} style={{ color: '#16a34a' }} />
-          <p className="text-sm" style={{ color: '#16a34a' }}>
-            {successMsg}
-          </p>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
+          <CheckCircle2 size={16} className="text-emerald-600" />
+          <p className="text-sm text-emerald-600">{successMsg}</p>
         </div>
       )}
 
       {/* Error message */}
       {error && (
-        <div
-          className="flex items-center gap-2 rounded-xl p-3"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
-        >
-          <AlertTriangle size={16} style={{ color: '#ef4444' }} />
-          <p className="text-sm" style={{ color: '#ef4444' }}>
-            {error}
-          </p>
+        <div className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 p-3">
+          <AlertTriangle size={16} className="text-red-500" />
+          <p className="text-sm text-red-500">{error}</p>
         </div>
       )}
 

@@ -300,19 +300,19 @@ export default function CalendarPage() {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-600" />
           Tasks
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#7c3aed' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-violet-600" />
           Publishing schedules
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#0891b2' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cyan-600" />
           Content
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#6b7280' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-500" />
           Assets
         </span>
       </div>
@@ -491,7 +491,7 @@ export default function CalendarPage() {
                   selectedAssets.length === 0 &&
                   selectedSchedules.length === 0 &&
                   selectedContent.length === 0 ? (
-                    <p className="py-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="py-4 text-sm text-[var(--text-secondary)]">
                       Nothing scheduled for this day
                     </p>
                   ) : (

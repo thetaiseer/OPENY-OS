@@ -1,33 +1,33 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Mail, Phone, Globe, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Globe, Mail, Pencil, Phone, Trash2 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
-import Badge from '@/components/ui/Badge';
-import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Field, Input, Textarea } from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
-import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
+import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
 import { ClientWorkspaceContext } from './client-context';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const tabs = ['overview', 'projects', 'tasks', 'content', 'assets', 'activity'] as const;
 type TabSlug = (typeof tabs)[number];
 
-const statusVariant = (s: string) => {
-  if (s === 'active') return 'success' as const;
-  if (s === 'inactive') return 'default' as const;
+const statusVariant = (status: string) => {
+  if (status === 'active') return 'success' as const;
+  if (status === 'inactive') return 'default' as const;
   return 'info' as const;
 };
-
-// ── Layout ────────────────────────────────────────────────────────────────────
 
 export default function ClientWorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { slug } = useParams<{ slug: string }>();
@@ -39,9 +39,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   const [client, setClient] = useState<Client | null>(null);
   const [clientId, setClientId] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -51,11 +50,9 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     status: 'active',
     notes: '',
   });
-  const [saving, setSaving] = useState(false);
 
   const loadClient = useCallback(async () => {
     setLoading(true);
-
     const routeParam = typeof slug === 'string' ? slug : '';
     const decodedParam = (() => {
       try {
@@ -72,24 +69,17 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       setLoading(false);
       return;
     }
-    const shouldLookupByIdFirst = isClientUuid(normalizedParam);
 
-    const findByField = async (field: 'slug' | 'id') => {
-      const result = await supabase
-        .from('clients')
-        .select(CLIENT_LIST_COLUMNS)
-        .eq(field, normalizedParam)
-        .single();
-      return result;
-    };
+    const byId = isClientUuid(normalizedParam);
+    const primary: 'id' | 'slug' = byId ? 'id' : 'slug';
+    const fallback: 'id' | 'slug' = byId ? 'slug' : 'id';
 
-    const primaryLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'id' : 'slug';
-    const fallbackLookupField: 'slug' | 'id' = shouldLookupByIdFirst ? 'slug' : 'id';
+    const lookup = async (field: 'id' | 'slug') =>
+      supabase.from('clients').select(CLIENT_LIST_COLUMNS).eq(field, normalizedParam).single();
 
-    let { data, error } = await findByField(primaryLookupField);
-
+    let { data, error } = await lookup(primary);
     if (!data) {
-      const fallbackResult = await findByField(fallbackLookupField);
+      const fallbackResult = await lookup(fallback);
       data = fallbackResult.data;
       error = fallbackResult.error;
     }
@@ -100,6 +90,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       setLoading(false);
       return;
     }
+
     setClient(data as Client);
     setClientId(data.id);
     setLoading(false);
@@ -123,8 +114,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     setEditOpen(true);
   };
 
-  const handleEditSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSaving(true);
     try {
       const { data, error } = await supabase
@@ -134,6 +125,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
         .select(CLIENT_LIST_COLUMNS)
         .single();
       if (error) throw error;
+
       setClient(data as Client);
       setEditOpen(false);
       await supabase.from('activities').insert({
@@ -142,8 +134,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
         client_id: clientId,
       });
       toast('Client updated', 'success');
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to update client', 'error');
+    } catch (error: unknown) {
+      toast(error instanceof Error ? error.message : 'Failed to update client', 'error');
     } finally {
       setSaving(false);
     }
@@ -160,244 +152,195 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     router.push('/clients');
   };
 
-  // Determine active tab from pathname
   const lastSegment = pathname.split('/').pop() as TabSlug;
   const activeTab = tabs.includes(lastSegment as TabSlug) ? lastSegment : 'overview';
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div
-          className="h-6 w-6 animate-spin rounded-full border-2"
-          style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
-        />
-      </div>
+      <PageShell>
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-secondary">
+            {t('loading')}...
+          </CardContent>
+        </Card>
+      </PageShell>
     );
   }
 
   if (!client) {
     return (
-      <div className="py-20 text-center">
-        <p style={{ color: 'var(--text-secondary)' }}>Client not found</p>
-        <button
-          onClick={() => router.push('/clients')}
-          className="mt-4 text-sm"
-          style={{ color: 'var(--accent)' }}
-        >
-          Back to clients
-        </button>
-      </div>
+      <PageShell>
+        <Card>
+          <CardContent className="space-y-3 py-8 text-center">
+            <p className="text-sm text-secondary">Client not found.</p>
+            <Button type="button" variant="secondary" onClick={() => router.push('/clients')}>
+              Back to clients
+            </Button>
+          </CardContent>
+        </Card>
+      </PageShell>
     );
   }
 
   return (
     <ClientWorkspaceContext.Provider value={{ client, clientId, setClient, reload: loadClient }}>
-      <div className="mx-auto max-w-6xl space-y-6">
-        {/* Back link */}
+      <PageShell className="space-y-6">
+        <PageHeader
+          title={client.name}
+          subtitle={client.industry ?? client.email ?? 'Client workspace'}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="secondary" onClick={handleEdit}>
+                <Pencil size={14} />
+                Edit
+              </Button>
+              <Button type="button" variant="danger" onClick={() => void handleDelete()}>
+                <Trash2 size={14} />
+                Delete
+              </Button>
+            </div>
+          }
+        />
+
         <Link
           href="/clients"
-          className="inline-flex items-center gap-2 text-sm transition-opacity hover:opacity-80"
-          style={{ color: 'var(--text-secondary)' }}
+          className="inline-flex items-center gap-2 text-sm text-secondary hover:text-primary"
         >
           <ArrowLeft size={16} />
           {t('clients')}
         </Link>
 
-        {/* Client header */}
-        <div
-          className="rounded-2xl border p-6"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-start gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              {client.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
-                  {client.name}
-                </h1>
-                <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
+        <Card>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-control bg-accent text-sm font-semibold text-white">
+                {client.name?.charAt(0).toUpperCase()}
               </div>
-              <div className="mt-2 flex flex-wrap gap-4">
-                {client.email && (
-                  <span
-                    className="flex items-center gap-1.5 text-sm"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <Mail size={14} />
-                    {client.email}
-                  </span>
-                )}
-                {client.phone && (
-                  <span
-                    className="flex items-center gap-1.5 text-sm"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <Phone size={14} />
-                    {client.phone}
-                  </span>
-                )}
-                {client.website && (
-                  <a
-                    href={client.website}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-sm"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    <Globe size={14} />
-                    {client.website}
-                  </a>
-                )}
-                {client.industry && (
-                  <span
-                    className="flex items-center gap-1.5 text-sm"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <Building2 size={14} />
-                    {client.industry}
-                  </span>
-                )}
+              <div className="min-w-0">
+                <CardTitle className="truncate">{client.name}</CardTitle>
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-secondary">
+                  {client.email ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Mail size={12} />
+                      {client.email}
+                    </span>
+                  ) : null}
+                  {client.phone ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Phone size={12} />
+                      {client.phone}
+                    </span>
+                  ) : null}
+                  {client.website ? (
+                    <a
+                      href={client.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-accent hover:text-accent-hover"
+                    >
+                      <Globe size={12} />
+                      {client.website}
+                    </a>
+                  ) : null}
+                  {client.industry ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Building2 size={12} />
+                      {client.industry}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                onClick={handleEdit}
-                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <Pencil size={14} /> Edit
-              </button>
-              <button
-                onClick={() => void handleDelete()}
-                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-red-500 transition-colors"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
-              >
-                <Trash2 size={14} /> Delete
-              </button>
+            <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((tab) => (
+                <Link
+                  key={tab}
+                  href={`/clients/${slug}/${tab}`}
+                  className={`rounded-control border px-3 py-1.5 text-sm capitalize transition-colors ${
+                    activeTab === tab
+                      ? 'border-accent bg-accent text-white'
+                      : 'border-border bg-surface text-secondary hover:text-primary'
+                  }`}
+                >
+                  {t(tab)}
+                </Link>
+              ))}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Tab navigation */}
-        <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
-          {tabs.map((tab) => (
-            <Link
-              key={tab}
-              href={`/clients/${slug}/${tab}`}
-              className="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium capitalize transition-colors"
-              style={{
-                color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
-                borderColor: activeTab === tab ? 'var(--accent)' : 'transparent',
-              }}
-            >
-              {t(tab)}
-            </Link>
-          ))}
-        </div>
+        <Card>
+          <CardContent>{children}</CardContent>
+        </Card>
 
-        {/* Tab content */}
-        <div>{children}</div>
-
-        {/* Edit Client Modal */}
         <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Client">
-          <form onSubmit={(e) => void handleEditSave(e)} className="space-y-4">
+          <form onSubmit={(event) => void handleEditSave(event)} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {(
                 [
-                  { label: t('companyName') + ' *', key: 'name', type: 'text', required: true },
+                  { label: `${t('companyName')} *`, key: 'name', type: 'text', required: true },
                   { label: t('email'), key: 'email', type: 'email', required: false },
                   { label: t('phone'), key: 'phone', type: 'text', required: false },
                   { label: t('website'), key: 'website', type: 'text', required: false },
                   { label: t('industry'), key: 'industry', type: 'text', required: false },
                 ] as const
               ).map(({ label, key, type, required }) => (
-                <div key={key} className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                    {label}
-                  </label>
-                  <input
+                <Field key={key} label={label}>
+                  <Input
                     type={type}
                     required={required}
                     value={editForm[key]}
-                    onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="h-9 w-full rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                    style={{
-                      background: 'var(--surface-2)',
-                      color: 'var(--text)',
-                      border: '1px solid var(--border)',
-                    }}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, [key]: event.target.value }))
+                    }
                   />
-                </div>
+                </Field>
               ))}
-              <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {t('status')}
-                </label>
+              <Field label={t('status')}>
                 <SelectDropdown
                   fullWidth
                   value={editForm.status}
-                  onChange={(v) => setEditForm((f) => ({ ...f, status: v }))}
+                  onChange={(value) => setEditForm((prev) => ({ ...prev, status: value }))}
                   options={[
                     { value: 'active', label: t('active') },
                     { value: 'inactive', label: t('inactive') },
                     { value: 'prospect', label: t('prospect') },
                   ]}
                 />
-              </div>
+              </Field>
             </div>
-            <div className="space-y-1">
-              <div className="mb-1 flex items-center justify-between">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {t('notes')}
-                </label>
-                <AiImproveButton
+            <Field label={t('notes')}>
+              <div className="space-y-2">
+                <div className="flex justify-end">
+                  <AiImproveButton
+                    value={editForm.notes}
+                    onImproved={(value) => setEditForm((prev) => ({ ...prev, notes: value }))}
+                    showMenu
+                  />
+                </div>
+                <Textarea
                   value={editForm.notes}
-                  onImproved={(v) => setEditForm((f) => ({ ...f, notes: v }))}
-                  showMenu
+                  onChange={(event) =>
+                    setEditForm((prev) => ({ ...prev, notes: event.target.value }))
+                  }
+                  rows={3}
                 />
               </div>
-              <textarea
-                value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                rows={3}
-                className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
-              />
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="h-9 rounded-lg px-4 text-sm font-medium"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-              >
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
                 {t('cancel')}
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
+              </Button>
+              <Button type="submit" variant="primary" disabled={saving}>
                 {saving ? t('loading') : t('save')}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>
-      </div>
+      </PageShell>
     </ClientWorkspaceContext.Provider>
   );
 }

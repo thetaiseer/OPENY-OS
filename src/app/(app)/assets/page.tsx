@@ -341,15 +341,14 @@ function Breadcrumb({
       <button
         type="button"
         onClick={() => onNavigate({})}
-        className="flex h-7 w-7 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
-        style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
+        className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--text-secondary)] transition-opacity hover:opacity-70"
         title="All clients"
       >
         <Home size={13} />
       </button>
       {items.map((item, idx) => (
         <span key={idx} className="flex items-center gap-1">
-          <ChevronRight size={13} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
+          <ChevronRight size={13} className="text-[var(--text-secondary)] opacity-50" />
           {idx < items.length - 1 ? (
             <button
               type="button"
@@ -1234,10 +1233,8 @@ function AssetsPage() {
             style={{ background: 'rgba(99,102,241,0.12)', outline: '3px dashed var(--accent)' }}
           >
             <div className="space-y-2 text-center">
-              <Upload size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
-              <p className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>
-                Drop files to upload
-              </p>
+              <Upload size={48} className="mx-auto text-[var(--accent)]" />
+              <p className="text-lg font-semibold text-[var(--accent)]">Drop files to upload</p>
             </div>
           </div>
         )}
@@ -1358,8 +1355,8 @@ function AssetsPage() {
           <>
             {pathDepth >= 5 && (
               <div className="flex items-center gap-2">
-                <File size={14} style={{ color: 'var(--text-secondary)' }} />
-                <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                <File size={14} className="text-[var(--text-secondary)]" />
+                <span className="text-sm font-semibold text-[var(--text)]">
                   {filteredAssets.length} {filteredAssets.length === 1 ? 'file' : 'files'}
                 </span>
               </div>

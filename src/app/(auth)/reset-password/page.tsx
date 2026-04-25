@@ -4,6 +4,9 @@ import { useState, useEffect, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent } from '@/components/ui/Card';
 
 const REDIRECT_DELAY_MS = 2500;
 
@@ -74,7 +77,7 @@ function ResetPasswordForm() {
   if (exchanging) {
     return (
       <div className="flex h-20 items-center justify-center">
-        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 size={20} className="animate-spin text-accent" />
       </div>
     );
   }
@@ -83,19 +86,14 @@ function ResetPasswordForm() {
   if (exchangeErr) {
     return (
       <div className="space-y-4 text-center">
-        <XCircle size={40} className="mx-auto" style={{ color: '#dc2626' }} />
+        <XCircle size={40} className="mx-auto text-danger" />
         <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Reset link invalid
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {exchangeErr}
-          </p>
+          <h2 className="text-base font-semibold text-primary">Reset link invalid</h2>
+          <p className="mt-1 text-sm text-secondary">{exchangeErr}</p>
         </div>
         <a
           href="/forgot-password"
-          className="inline-block text-sm font-medium hover:underline"
-          style={{ color: 'var(--accent)' }}
+          className="inline-block text-sm font-medium text-accent hover:underline"
         >
           Request a new reset link →
         </a>
@@ -107,14 +105,10 @@ function ResetPasswordForm() {
   if (success) {
     return (
       <div className="space-y-4 text-center">
-        <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
+        <CheckCircle size={40} className="mx-auto text-success" />
         <div>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Password updated!
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Redirecting you to login…
-          </p>
+          <h2 className="text-base font-semibold text-primary">Password updated!</h2>
+          <p className="mt-1 text-sm text-secondary">Redirecting you to login…</p>
         </div>
       </div>
     );
@@ -125,31 +119,23 @@ function ResetPasswordForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* New password */}
       <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          New password
-        </label>
         <div className="relative">
-          <input
+          <Input
             id="password"
             type={showPw ? 'text' : 'password'}
             autoComplete="new-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-10 w-full rounded-lg px-3 pr-10 text-sm outline-none transition-colors"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-            }}
+            label="New password"
+            className="pr-10"
             placeholder="At least 8 characters"
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
             tabIndex={-1}
-            className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--text-secondary)' }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary transition-opacity hover:opacity-70"
             aria-label={showPw ? 'Hide password' : 'Show password'}
           >
             {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -159,87 +145,64 @@ function ResetPasswordForm() {
 
       {/* Confirm password */}
       <div className="space-y-1">
-        <label htmlFor="confirmPw" className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Confirm new password
-        </label>
         <div className="relative">
-          <input
+          <Input
             id="confirmPw"
             type={showConfirm ? 'text' : 'password'}
             autoComplete="new-password"
             required
             value={confirmPw}
             onChange={(e) => setConfirmPw(e.target.value)}
-            className="h-10 w-full rounded-lg px-3 pr-10 text-sm outline-none transition-colors"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              border: `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : 'var(--border)'}`,
-            }}
+            label="Confirm new password"
+            error={confirmPw && confirmPw !== password ? 'Passwords do not match.' : undefined}
+            className="pr-10"
             placeholder="Repeat your password"
           />
           <button
             type="button"
             onClick={() => setShowConfirm((v) => !v)}
             tabIndex={-1}
-            className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--text-secondary)' }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary transition-opacity hover:opacity-70"
             aria-label={showConfirm ? 'Hide password' : 'Show password'}
           >
             {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-        {confirmPw && confirmPw !== password && (
-          <p className="text-xs" style={{ color: '#ef4444' }}>
-            Passwords do not match.
-          </p>
-        )}
       </div>
 
       {formError && (
-        <p
-          className="rounded-lg px-3 py-2 text-sm"
-          style={{
-            background: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.25)',
-          }}
-        >
+        <p className="border-danger/30 bg-danger/10 rounded-control border px-3 py-2 text-sm text-danger">
           {formError}
         </p>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={loading || !password || password !== confirmPw}
-        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
-        style={{ background: 'var(--accent)', color: '#fff' }}
+        className="w-full"
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
         {loading ? 'Updating…' : 'Set new password'}
-      </button>
+      </Button>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div
-      className="w-full max-w-sm space-y-6 rounded-2xl border p-8 shadow-lg"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
-          OPENY <span style={{ color: 'var(--accent)' }}>OS</span>
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Set a new password
-        </p>
-      </div>
+    <Card className="w-full max-w-sm">
+      <CardContent className="space-y-6 p-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-primary">
+            OPENY <span className="text-accent">OS</span>
+          </h1>
+          <p className="mt-1 text-sm text-secondary">Set a new password</p>
+        </div>
 
-      <Suspense fallback={<div className="h-32" />}>
-        <ResetPasswordForm />
-      </Suspense>
-    </div>
+        <Suspense fallback={<div className="h-32" />}>
+          <ResetPasswordForm />
+        </Suspense>
+      </CardContent>
+    </Card>
   );
 }

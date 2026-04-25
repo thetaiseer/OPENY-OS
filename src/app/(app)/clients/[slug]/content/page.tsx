@@ -6,6 +6,8 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import AiImproveButton from '@/components/ui/AiImproveButton';
+import Button from '@/components/ui/Button';
+import { Field, Input, Textarea } from '@/components/ui/Input';
 import { useClientWorkspace } from '../client-context';
 import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus } from '@/lib/types';
@@ -131,11 +133,7 @@ export default function ClientContentPage() {
     return (
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-16 animate-pulse rounded-xl"
-            style={{ background: 'var(--surface)' }}
-          />
+          <div key={i} className="h-16 animate-pulse rounded-control bg-surface" />
         ))}
       </div>
     );
@@ -145,49 +143,31 @@ export default function ClientContentPage() {
     <div className="space-y-4">
       {/* Header with create button */}
       <div className="flex justify-end">
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
-          style={{ background: 'var(--accent)' }}
-        >
+        <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
           <Plus size={14} /> New Content
-        </button>
+        </Button>
       </div>
 
       {content.length === 0 ? (
         <div className="space-y-2 py-16 text-center">
-          <FileText
-            size={32}
-            className="mx-auto opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No content yet. Create your first content item.
-          </p>
+          <FileText size={32} className="mx-auto text-secondary opacity-30" />
+          <p className="text-sm text-secondary">No content yet. Create your first content item.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {content.map((item) => (
             <div
               key={item.id}
-              className="space-y-2 rounded-xl border p-4"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+              className="space-y-2 rounded-control border border-border bg-surface p-4"
             >
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                    {item.title}
-                  </p>
+                  <p className="text-sm font-medium text-primary">{item.title}</p>
                   {item.description && (
-                    <p
-                      className="mt-0.5 line-clamp-2 text-xs"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {item.description}
-                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-secondary">{item.description}</p>
                   )}
                   {(item.platform_targets?.length ?? 0) > 0 && (
-                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="mt-0.5 text-xs text-secondary">
                       {item.platform_targets?.join(', ')}
                     </p>
                   )}
@@ -197,10 +177,7 @@ export default function ClientContentPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   {item.schedule_date && (
-                    <span
-                      className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                      style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-                    >
+                    <span className="flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5 text-xs text-secondary">
                       <Calendar size={10} />
                       {fmtDate(item.schedule_date)}
                     </span>
@@ -227,92 +204,52 @@ export default function ClientContentPage() {
         size="sm"
       >
         <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
-          <div className="space-y-1">
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                Title *
-              </label>
+          <Field label="Title *">
+            <div className="mb-1 flex items-center justify-end">
               <AiImproveButton
                 value={form.title}
                 onImproved={(v) => setForm((f) => ({ ...f, title: v }))}
               />
             </div>
-            <input
+            <Input
               required
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              className="h-9 w-full rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{
-                background: 'var(--surface-2)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
               placeholder="Content title"
             />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              Description
-            </label>
-            <textarea
+          </Field>
+          <Field label="Description">
+            <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={2}
-              className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              style={{
-                background: 'var(--surface-2)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
               placeholder="Optional description"
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                Status
-              </label>
+            <Field label="Status">
               <SelectDropdown
                 fullWidth
                 value={form.status}
                 onChange={(v) => setForm((f) => ({ ...f, status: v as ContentItemStatus }))}
                 options={STATUS_OPTIONS}
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                Scheduled Date
-              </label>
-              <input
+            </Field>
+            <Field label="Scheduled Date">
+              <Input
                 type="date"
                 value={form.schedule_date}
                 onChange={(e) => setForm((f) => ({ ...f, schedule_date: e.target.value }))}
-                className="h-9 w-full rounded-lg px-3 text-sm outline-none"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
               />
-            </div>
+            </Field>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setCreateOpen(false)}
-              className="h-9 rounded-lg px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-            >
+            <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'var(--accent)' }}
-            >
+            </Button>
+            <Button type="submit" variant="primary" disabled={saving}>
               {saving ? 'Creating…' : 'Create'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

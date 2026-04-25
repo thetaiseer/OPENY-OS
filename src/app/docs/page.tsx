@@ -10,48 +10,42 @@ const MODULES = [
     icon: FileText,
     label: 'Invoice',
     description: 'Generate, manage and export client invoices with platform budget allocation.',
-    color: '#2563eb',
-    bg: 'rgba(37,99,235,0.08)',
+    iconClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   },
   {
     href: '/docs/quotation',
     icon: ClipboardList,
     label: 'Quotation',
     description: 'Create professional quotations with deliverables, pricing and payment terms.',
-    color: '#7c3aed',
-    bg: 'rgba(124,58,237,0.08)',
+    iconClass: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
   },
   {
     href: '/docs/client-contract',
     icon: FileSignature,
     label: 'Client Contract',
     description: 'Bilingual client agreements with legal clauses, services and signatures.',
-    color: '#0891b2',
-    bg: 'rgba(8,145,178,0.08)',
+    iconClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
   },
   {
     href: '/docs/hr-contract',
     icon: BookOpen,
     label: 'HR Contract',
     description: 'Employee contracts with job details, salary, benefits and legal clauses.',
-    color: '#059669',
-    bg: 'rgba(5,150,105,0.08)',
+    iconClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   },
   {
     href: '/docs/employees',
     icon: Users,
     label: 'Employees',
     description: 'Full employee management — profiles, payroll history and salary adjustments.',
-    color: '#d97706',
-    bg: 'rgba(217,119,6,0.08)',
+    iconClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
   {
     href: '/docs/accounting',
     icon: BarChart2,
     label: 'Accounting',
     description: 'Client ledger, expenses and partner-based settlement summaries.',
-    color: '#dc2626',
-    bg: 'rgba(220,38,38,0.08)',
+    iconClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
   },
 ];
 
@@ -64,7 +58,7 @@ export default function DocsHomePage() {
       />
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
+        {MODULES.map(({ href, icon: Icon, label, description, iconClass }) => (
           <Link
             key={href}
             href={href}
@@ -75,13 +69,12 @@ export default function DocsHomePage() {
           >
             <div className="relative z-[1]">
               <div
-                className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl"
-                style={{
-                  background: `linear-gradient(145deg, ${bg} 0%, color-mix(in srgb, var(--surface-elevated) 88%, transparent) 100%)`,
-                  boxShadow: `0 8px 18px ${bg}`,
-                }}
+                className={cn(
+                  'ring-border/60 mb-5 flex h-12 w-12 items-center justify-center rounded-xl shadow-sm ring-1',
+                  iconClass,
+                )}
               >
-                <Icon size={22} style={{ color }} strokeWidth={2} />
+                <Icon size={22} strokeWidth={2} />
               </div>
               <h2 className="app-card-title mb-1.5 transition-colors group-hover:text-[var(--accent)]">
                 {label}
