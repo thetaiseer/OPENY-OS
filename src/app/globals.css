@@ -76,13 +76,19 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html {
   margin: 0;
   min-height: 100%;
+  /* Fluid root size: phones ↔ tablets ↔ desktop */
+  font-size: clamp(15px, 0.2vw + 14px, 17px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family:
@@ -95,6 +101,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizelegibility;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 input,

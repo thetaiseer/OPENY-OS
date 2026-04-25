@@ -47,8 +47,8 @@ export default function MobileBottomNav() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface md:hidden">
-        <ul className="scrollbar-thin flex items-stretch gap-1 overflow-x-auto px-2 py-1.5">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-[env(safe-area-inset-bottom,0px)] md:hidden">
+        <ul className="scrollbar-thin flex min-h-12 items-stretch gap-1 overflow-x-auto px-2 py-2">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const isDocsHome = item.href === '/docs';
@@ -60,13 +60,13 @@ export default function MobileBottomNav() {
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-control px-2 py-2 text-[11px]',
+                    'flex min-h-11 min-w-[4.5rem] max-w-[5.5rem] flex-col items-center justify-center gap-0.5 rounded-control px-1.5 py-1.5 text-[clamp(10px,2.8vw,12px)] leading-tight xs:min-w-[4.75rem]',
                     active
                       ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
                       : 'text-secondary',
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 xs:h-5 xs:w-5" />
                   {item.label}
                 </Link>
               </li>

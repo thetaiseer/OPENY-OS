@@ -28,7 +28,7 @@ export default function FloatingActionButton({
         }
       }}
       className={cn(
-        'fixed bottom-16 right-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft-md transition-transform hover:scale-[1.03] active:scale-[0.97] md:hidden',
+        'fixed bottom-[calc(4.35rem+env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] z-50 inline-flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft-md transition-transform hover:scale-[1.03] active:scale-[0.97] md:hidden',
         className,
       )}
       title="Quick add"

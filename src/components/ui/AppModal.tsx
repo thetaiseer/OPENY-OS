@@ -79,12 +79,12 @@ export default function AppModal({
         }}
       />
 
-      <div className="relative flex h-full items-center justify-center p-3 sm:p-6">
+      <div className="relative flex h-full max-h-screen-dynamic items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:p-6">
         <div
           role="dialog"
           aria-modal="true"
           className={cn(
-            'openy-surface flex max-h-[90vh] w-full flex-col overflow-hidden rounded-xl',
+            'openy-surface flex max-h-modal-dynamic w-full flex-col overflow-hidden rounded-xl',
             SIZE_CLASS[size],
             panelClassName,
             className,

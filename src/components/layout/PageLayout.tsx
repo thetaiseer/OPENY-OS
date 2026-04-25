@@ -25,7 +25,14 @@ export const PageShell = forwardRef<HTMLDivElement, DivProps>(function PageShell
 
   if (hasGlobalShell) {
     return (
-      <div ref={ref} {...props} className={className}>
+      <div
+        ref={ref}
+        {...props}
+        className={cn(
+          'mx-auto w-full max-w-shell space-y-4 py-3 pl-[max(0.875rem,env(safe-area-inset-left,0px))] pr-[max(0.875rem,env(safe-area-inset-right,0px))] sm:space-y-6 sm:py-4 sm:pl-[max(1.25rem,env(safe-area-inset-left,0px))] sm:pr-[max(1.25rem,env(safe-area-inset-right,0px))] md:py-5 md:pl-[max(1.5rem,env(safe-area-inset-left,0px))] md:pr-[max(1.5rem,env(safe-area-inset-right,0px))]',
+          className,
+        )}
+      >
         {children}
       </div>
     );

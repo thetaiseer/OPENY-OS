@@ -90,10 +90,10 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-base text-primary">
+    <div className="min-h-screen min-h-screen-dynamic bg-base text-primary">
       <Sidebar />
       <Header />
-      <main className="pb-20 pt-16 md:ml-[240px] md:pb-6">
+      <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(4rem+env(safe-area-inset-top,0px))] md:ml-[240px] md:pb-6 md:pt-16">
         <PageShellProvider>
           <PageShell>{children}</PageShell>
         </PageShellProvider>

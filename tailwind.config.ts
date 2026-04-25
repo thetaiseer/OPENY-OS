@@ -10,6 +10,17 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: '380px',
+        '3xl': '120rem',
+      },
+      maxHeight: {
+        'screen-dynamic': '100dvh',
+        'modal-dynamic': 'min(90vh, 90dvh)',
+      },
+      minHeight: {
+        'screen-dynamic': '100dvh',
+      },
       colors: {
         base: 'var(--bg-base)',
         surface: 'var(--bg-surface)',
