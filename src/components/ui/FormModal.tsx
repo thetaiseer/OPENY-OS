@@ -14,7 +14,13 @@ type FormModalProps = {
 export default function FormModal({ onSubmit, children, ...props }: FormModalProps) {
   return (
     <AppModal {...props}>
-      {onSubmit ? <form onSubmit={onSubmit}>{children}</form> : children}
+      {onSubmit ? (
+        <form onSubmit={onSubmit} className="space-y-4">
+          {children}
+        </form>
+      ) : (
+        children
+      )}
     </AppModal>
   );
 }
