@@ -98,7 +98,7 @@ export async function logEmailSent(opts: {
   eventType?: string;
   entityType?: string;
   entityId?: string;
-  status?: 'sent' | 'failed';
+  status?: 'sent' | 'failed' | 'skipped';
   error?: string;
 }): Promise<void> {
   try {

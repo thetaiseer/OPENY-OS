@@ -233,6 +233,30 @@ function hasInviteInsertResult(
   );
 }
 
+/** Fallback row when a team_member is invited but invitations API failed or is out of sync. */
+function buildSyntheticInvitation(member: TeamMember): TeamInvitation {
+  const createdMs = member.created_at ? new Date(member.created_at).getTime() : Date.now();
+  return {
+    id: `synthetic-invite-${member.id}`,
+    team_member_id: member.id,
+    email: member.email ?? '',
+    role: member.role,
+    token: '',
+    status: 'invited',
+    invited_by: null,
+    expires_at: new Date(createdMs + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    accepted_at: null,
+    created_at: member.created_at,
+    updated_at: member.updated_at ?? member.created_at,
+    team_member: {
+      full_name: member.full_name,
+      job_title: member.job_title ?? null,
+      role: member.role ?? null,
+      status: member.status ?? null,
+    },
+  };
+}
+
 // ── RoleField — dropdown + optional custom text input ────────────────────────
 function RoleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   // Determine if the current value matches a preset option
@@ -1007,6 +1031,7 @@ export default function TeamPage() {
           string,
           Record<string, { enabled: boolean; role: string }>
         >,
+        invitationsLoadFailed: !invitesRes.ok,
       };
     },
   });
@@ -1014,6 +1039,7 @@ export default function TeamPage() {
   const members = useMemo(() => teamData?.members ?? [], [teamData?.members]);
   const invitations = useMemo(() => teamData?.invitations ?? [], [teamData?.invitations]);
   const workspaceAccessByEmail = teamData?.workspaceAccess ?? {};
+  const invitationsLoadFailed = Boolean(teamData?.invitationsLoadFailed);
 
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -1076,13 +1102,30 @@ export default function TeamPage() {
     return rows;
   }, [invitations]);
 
-  const pendingInvites = useMemo(
+  const pendingInvitesFromApi = useMemo(
     () =>
       uniqueInvitations.filter((invite) =>
         ACTIVE_INVITE_STATUSES.has((invite.status ?? '').toLowerCase()),
       ),
     [uniqueInvitations],
   );
+
+  const pendingInvites = useMemo(() => {
+    const fromApi = [...pendingInvitesFromApi];
+    const seenMemberIds = new Set(
+      fromApi.map((i) => i.team_member_id).filter((id): id is string => Boolean(id)),
+    );
+    const out: TeamInvitation[] = [...fromApi];
+    for (const m of members) {
+      if (m.role === 'owner') continue;
+      const st = (m.status ?? '').toLowerCase();
+      if (st !== 'invited' && st !== 'pending') continue;
+      if (seenMemberIds.has(m.id)) continue;
+      seenMemberIds.add(m.id);
+      out.push(buildSyntheticInvitation(m));
+    }
+    return out.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [pendingInvitesFromApi, members]);
 
   const invitationHistory = useMemo(
     () =>
@@ -1150,6 +1193,7 @@ export default function TeamPage() {
                 members: TeamMember[];
                 invitations: TeamInvitation[];
                 workspaceAccess: Record<string, Record<string, { enabled: boolean; role: string }>>;
+                invitationsLoadFailed?: boolean;
               }
             | undefined,
         ) => {
@@ -1167,6 +1211,7 @@ export default function TeamPage() {
               members: [data.member],
               invitations: [optimisticInvitation],
               workspaceAccess: {},
+              invitationsLoadFailed: false,
             };
           }
           const nextMembers = [
@@ -1181,13 +1226,24 @@ export default function TeamPage() {
             ...prev,
             members: nextMembers,
             invitations: nextInvitations,
+            invitationsLoadFailed: false,
           };
         },
       );
 
       setInviteOpen(false);
       setInviteForm({ ...blankInviteForm });
-      toast(`Invitation sent to ${inviteForm.email}`, 'success');
+      const emailSent = (data as { emailSent?: boolean }).emailSent !== false;
+      const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
+      if (emailSent) {
+        toast(`Invitation sent to ${inviteForm.email}`, 'success');
+      } else {
+        toast(
+          skipReason ??
+            `Invitation created for ${inviteForm.email} — email was not sent. Use Copy invite link on the Team page.`,
+          'warning',
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Network error. Please try again.');
@@ -1385,6 +1441,22 @@ export default function TeamPage() {
           ) : undefined
         }
       />
+
+      {invitationsLoadFailed && !loading ? (
+        <p
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: 'var(--color-warning-border, var(--border))',
+            background: 'var(--color-warning-bg, var(--surface-2))',
+            color: 'var(--color-warning, var(--text))',
+          }}
+        >
+          {tr(
+            'teamInvitationsLoadFailed',
+            'Could not load the invitation list from the server. Pending invites may be incomplete until you refresh the page.',
+          )}
+        </p>
+      ) : null}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -327,6 +327,32 @@ export async function POST(request: NextRequest) {
     expiresInDays: INVITE_EXPIRY_DAYS,
   });
 
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+  if (!resendConfigured) {
+    console.warn(
+      '[team/invite] RESEND_API_KEY is not set — invitation saved but no email was sent.',
+    );
+    await logEmailSent({
+      to: email,
+      subject: "You're invited to join OPENY OS",
+      eventType: 'team_invite',
+      entityType: 'team_invitation',
+      entityId: String(invitation.id),
+      status: 'skipped',
+      error: 'RESEND_API_KEY not configured',
+    });
+    return NextResponse.json(
+      {
+        member,
+        invitation,
+        emailSent: false,
+        emailSkippedReason:
+          'Email service is not configured (RESEND_API_KEY). The invitation is active — use Copy invite link on the Team page or configure Resend to send emails.',
+      },
+      { status: 201 },
+    );
+  }
+
   try {
     await sendEmail({
       to: email,
@@ -398,5 +424,5 @@ export async function POST(request: NextRequest) {
     }
   })();
 
-  return NextResponse.json({ member, invitation }, { status: 201 });
+  return NextResponse.json({ member, invitation, emailSent: true }, { status: 201 });
 }

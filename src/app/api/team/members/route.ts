@@ -3,12 +3,14 @@ import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
+type MemberStatus = 'active' | 'invited' | 'pending' | 'inactive' | 'suspended';
+
 type TeamMemberPayload = {
   id: string;
   full_name: string;
   email: string;
   role: string;
-  status: 'active';
+  status: MemberStatus;
   job_title: string | null;
   profile_id: string | null;
   created_at: string;
@@ -28,6 +30,12 @@ function normalizeMemberRole(role: string | null | undefined): string {
   if (role === 'viewer') return 'viewer';
   if (role === 'team_member') return 'team_member';
   return 'member';
+}
+
+function normalizeMemberStatus(raw: string | null | undefined): MemberStatus {
+  const s = (raw ?? 'active').toLowerCase();
+  if (s === 'invited' || s === 'pending' || s === 'inactive' || s === 'suspended') return s;
+  return 'active';
 }
 
 export async function GET(request: NextRequest) {
@@ -153,21 +161,55 @@ export async function GET(request: NextRequest) {
     const profile = profileById.get(member.user_id);
     const fullName = team?.full_name ?? profile?.name ?? profile?.email ?? member.user_id;
     const email = team?.email ?? profile?.email ?? '';
+    const isOwner = member.user_id === workspaceRow.owner_id;
     return {
       id: team?.id ?? member.user_id,
       full_name: fullName,
       email,
-      role:
-        member.user_id === workspaceRow.owner_id
-          ? 'owner'
-          : normalizeMemberRole(team?.role ?? member.role),
-      status: 'active',
+      role: isOwner ? 'owner' : normalizeMemberRole(team?.role ?? member.role),
+      status: isOwner ? 'active' : normalizeMemberStatus(team?.status),
       job_title: team?.job_title ?? null,
       profile_id: member.user_id,
       created_at: team?.created_at ?? member.joined_at ?? new Date().toISOString(),
       updated_at: team?.updated_at ?? null,
     };
   });
+
+  const existingMemberIds = new Set(members.map((m) => m.id));
+  const existingEmails = new Set(
+    members.map((m) => (m.email ?? '').toLowerCase()).filter((e) => e.length > 0),
+  );
+
+  const { data: invitedRows, error: invitedError } = await db
+    .from('team_members')
+    .select('id, profile_id, email, role, full_name, job_title, status, created_at, updated_at')
+    .in('status', ['invited', 'pending']);
+
+  if (invitedError) {
+    console.error('[team/members/get] Failed to fetch invited team_members:', invitedError.message);
+  } else {
+    for (const row of invitedRows ?? []) {
+      if (!row?.id) continue;
+      if (existingMemberIds.has(row.id)) continue;
+      const emailLower = (row.email ?? '').toLowerCase();
+      if (emailLower && existingEmails.has(emailLower)) continue;
+
+      existingMemberIds.add(row.id);
+      if (emailLower) existingEmails.add(emailLower);
+
+      members.push({
+        id: row.id,
+        full_name: row.full_name?.trim() || row.email || 'Invited member',
+        email: row.email ?? '',
+        role: normalizeMemberRole(row.role),
+        status: normalizeMemberStatus(row.status),
+        job_title: row.job_title ?? null,
+        profile_id: row.profile_id ?? null,
+        created_at: row.created_at ?? new Date().toISOString(),
+        updated_at: row.updated_at ?? null,
+      });
+    }
+  }
 
   members.sort((a, b) => a.full_name.localeCompare(b.full_name));
 
