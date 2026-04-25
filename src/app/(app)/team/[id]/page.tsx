@@ -138,7 +138,7 @@ export default function TeamMemberDetailPage() {
     return (
       <PageShell>
         <Card>
-          <CardContent className="text-secondary py-10 text-center text-sm">
+          <CardContent className="py-10 text-center text-sm text-secondary">
             Loading member profile...
           </CardContent>
         </Card>
@@ -151,7 +151,7 @@ export default function TeamMemberDetailPage() {
       <PageShell>
         <Card>
           <CardContent className="space-y-3 py-10 text-center">
-            <p className="text-secondary text-sm">Member not found.</p>
+            <p className="text-sm text-secondary">Member not found.</p>
             <Button type="button" variant="secondary" onClick={() => router.push('/team')}>
               Back to team
             </Button>
@@ -186,24 +186,24 @@ export default function TeamMemberDetailPage() {
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center gap-3">
-            <div className="bg-accent flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
               {initials}
             </div>
             <div>
-              <p className="text-primary text-sm font-semibold">{member.full_name}</p>
-              <p className="text-secondary text-xs">{member.email || 'No email'}</p>
+              <p className="text-sm font-semibold text-primary">{member.full_name}</p>
+              <p className="text-xs text-secondary">{member.email || 'No email'}</p>
             </div>
           </div>
           <div className="space-y-2 text-sm">
-            <p className="text-primary inline-flex items-center gap-2">
+            <p className="inline-flex items-center gap-2 text-primary">
               <Shield size={14} />
               Role: <span className="font-semibold capitalize">{member.role ?? 'team_member'}</span>
             </p>
-            <p className="text-secondary inline-flex items-center gap-2">
+            <p className="inline-flex items-center gap-2 text-secondary">
               <UserCircle2 size={14} />
               Job title: {member.job_title || 'Not set'}
             </p>
-            <p className="text-secondary inline-flex items-center gap-2">
+            <p className="inline-flex items-center gap-2 text-secondary">
               <Mail size={14} />
               Contact: {member.email || 'N/A'}
             </p>
@@ -217,16 +217,16 @@ export default function TeamMemberDetailPage() {
         </CardHeader>
         <CardContent>
           {assignedTasks.length === 0 ? (
-            <p className="text-secondary text-sm">No assigned tasks.</p>
+            <p className="text-sm text-secondary">No assigned tasks.</p>
           ) : (
             <div className="space-y-2">
               {assignedTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="rounded-control border-border bg-elevated border px-3 py-2"
+                  className="rounded-control border border-border bg-elevated px-3 py-2"
                 >
-                  <p className="text-primary text-sm font-medium">{task.title}</p>
-                  <p className="text-secondary text-xs">{task.status}</p>
+                  <p className="text-sm font-medium text-primary">{task.title}</p>
+                  <p className="text-xs text-secondary">{task.status}</p>
                 </div>
               ))}
             </div>
@@ -243,16 +243,16 @@ export default function TeamMemberDetailPage() {
         </CardHeader>
         <CardContent>
           {recentActivity.length === 0 ? (
-            <p className="text-secondary text-sm">No recent activity.</p>
+            <p className="text-sm text-secondary">No recent activity.</p>
           ) : (
             <div className="space-y-2">
               {recentActivity.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-control border-border bg-elevated border px-3 py-2"
+                  className="rounded-control border border-border bg-elevated px-3 py-2"
                 >
-                  <p className="text-primary text-sm">{entry.title ?? entry.description}</p>
-                  <p className="text-secondary text-xs">
+                  <p className="text-sm text-primary">{entry.title ?? entry.description}</p>
+                  <p className="text-xs text-secondary">
                     {new Date(entry.created_at).toLocaleString()}
                   </p>
                 </div>
@@ -265,7 +265,7 @@ export default function TeamMemberDetailPage() {
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Team Member">
         <form onSubmit={handleSave} className="space-y-4">
           {saveError ? (
-            <div className="border-danger/30 bg-danger/10 rounded-control text-danger border px-3 py-2 text-sm">
+            <div className="border-danger/30 bg-danger/10 rounded-control border px-3 py-2 text-sm text-danger">
               {saveError}
             </div>
           ) : null}

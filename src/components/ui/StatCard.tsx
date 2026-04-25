@@ -53,10 +53,10 @@ export default function StatCard({
   return (
     <Card className={cn('space-y-2', className)}>
       <div className="flex items-start justify-between gap-2">
-        {label ? <div className="text-secondary text-sm">{label}</div> : null}
+        {label ? <div className="text-sm text-secondary">{label}</div> : null}
         {iconNode ? <div className="text-secondary">{iconNode}</div> : null}
       </div>
-      {value ? <div className="text-primary text-2xl font-semibold">{value}</div> : null}
+      {value ? <div className="text-2xl font-semibold text-primary">{value}</div> : null}
       {trendNode ? (
         <div
           className={cn(
@@ -72,7 +72,7 @@ export default function StatCard({
           {trendNode}
         </div>
       ) : null}
-      {detail ? <div className="text-secondary text-xs">{detail}</div> : null}
+      {detail ? <div className="text-xs text-secondary">{detail}</div> : null}
       {children}
     </Card>
   );

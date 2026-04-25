@@ -16,7 +16,7 @@ export default function MobileBottomNav() {
   const pathname = usePathname();
   return (
     <>
-      <nav className="border-border bg-surface fixed inset-x-0 bottom-0 z-40 border-t md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface md:hidden">
         <ul className="grid grid-cols-4">
           {items.map((item) => {
             const Icon = item.icon;
@@ -40,7 +40,7 @@ export default function MobileBottomNav() {
       </nav>
       <button
         type="button"
-        className="bg-accent shadow-soft fixed bottom-16 right-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full text-white md:hidden"
+        className="fixed bottom-16 right-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-soft md:hidden"
         aria-label="Quick action"
       >
         <Plus className="h-5 w-5" />

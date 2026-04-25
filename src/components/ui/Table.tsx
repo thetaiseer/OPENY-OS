@@ -12,7 +12,7 @@ export function TableContainer({ className, children, ...props }: HTMLAttributes
     <div
       {...props}
       className={cn(
-        'rounded-card border-border bg-surface shadow-soft overflow-x-auto border',
+        'overflow-x-auto rounded-card border border-border bg-surface shadow-soft',
         className,
       )}
     >
@@ -30,7 +30,7 @@ export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSecti
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr {...props} className={cn('border-border border-b', className)} />;
+  return <tr {...props} className={cn('border-b border-border', className)} />;
 }
 
 export function TableHeaderCell({
@@ -42,7 +42,7 @@ export function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        'text-secondary px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide',
+        'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-secondary',
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function TableCell({
   ...props
 }: HTMLAttributes<HTMLTableCellElement> & { children?: ReactNode }) {
   return (
-    <td {...props} className={cn('text-primary px-4 py-3 text-sm', className)}>
+    <td {...props} className={cn('px-4 py-3 text-sm text-primary', className)}>
       {children}
     </td>
   );
