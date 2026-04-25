@@ -23,7 +23,11 @@ export async function GET(req: NextRequest) {
   const db = getServiceClient();
   const [{ data: entriesData }, { data: expensesData }] = await Promise.all([
     db.from('docs_accounting_entries').select('*').eq('month_key', month_key).order('entry_date'),
-    db.from('docs_expenses').select('*').eq('month_key', month_key).order('expense_date'),
+    db
+      .from('docs_accounting_expenses')
+      .select('*')
+      .eq('month_key', month_key)
+      .order('expense_date'),
   ]);
 
   const entries = (entriesData ?? []) as Array<{

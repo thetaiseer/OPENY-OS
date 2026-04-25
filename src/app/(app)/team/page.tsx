@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -1696,12 +1695,24 @@ function OwnerCard({
   onEdit: (m: TeamMember) => void;
 }) {
   return (
-    <div className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] p-5">
+    <div
+      className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5"
+      style={{
+        background: 'var(--surface)',
+        borderColor: 'var(--accent)',
+      }}
+    >
       {/* subtle accent stripe at top */}
-      <div className="absolute left-0 right-0 top-0 h-0.5 rounded-t-xl bg-[var(--accent)]" />
+      <div
+        className="absolute left-0 right-0 top-0 h-0.5 rounded-t-xl"
+        style={{ background: 'var(--accent)' }}
+      />
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-base font-bold text-white">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white"
+            style={{ background: 'var(--accent)' }}
+          >
             {member.full_name.charAt(0).toUpperCase()}
           </div>
           <span
@@ -1713,24 +1724,30 @@ function OwnerCard({
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <Link
-            href={`/team/${member.id}`}
-            className="text-sm font-bold text-[var(--text)] hover:text-[var(--accent)]"
-          >
+          <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>
             {member.full_name}
-          </Link>
-          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
+          </p>
+          <span
+            className="mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
             <Crown size={9} />
             Owner
           </span>
           {resolveDisplayJobTitle(member) && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--text-secondary)]">
+            <p
+              className="mt-1 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <Briefcase size={11} />
               {resolveDisplayJobTitle(member)}
             </p>
           )}
           {member.email && (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--text-secondary)]">
+            <p
+              className="mt-0.5 flex items-center gap-1 text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <Mail size={11} />
               {member.email}
             </p>
@@ -1895,8 +1912,7 @@ function MemberCard({
   return (
     <div
       className={
-        'shadow-card flex flex-col gap-3 rounded-2xl border p-5 transition-shadow ' +
-        (isInvited ? 'border-[var(--accent)]' : 'border-[var(--border)]') +
+        'shadow-card flex flex-col gap-3 rounded-2xl border p-5 transition-shadow' +
         (isInteractive ? ' cursor-pointer hover:-translate-y-0.5' : '')
       }
       onClick={() => isInteractive && onView?.(member)}
@@ -1908,24 +1924,24 @@ function MemberCard({
           onView?.(member);
         }
       }}
-      style={{ background: 'var(--surface)', opacity: isInvited ? 0.92 : 1 }}
+      style={{
+        background: 'var(--surface)',
+        borderColor: isInvited ? 'var(--accent)' : 'var(--border)',
+        opacity: isInvited ? 0.92 : 1,
+      }}
     >
       <div className="flex items-start gap-3">
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-            isInvited ? 'bg-amber-600' : 'bg-[var(--accent)]'
-          }`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+          style={{ background: isInvited ? '#d97706' : 'var(--accent)' }}
         >
           {member.full_name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/team/${member.id}`}
-              className="text-sm font-semibold text-[var(--text)] hover:text-[var(--accent)]"
-            >
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
               {member.full_name}
-            </Link>
+            </p>
             {isInvited ? (
               <InviteBadge status={invitation?.status ?? member.status ?? 'pending'} />
             ) : (

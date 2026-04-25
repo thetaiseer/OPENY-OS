@@ -70,7 +70,7 @@ export function maskInvitationToken(token: string): string {
 export async function getInvitationByToken(token: string): Promise<ResolvedInvitation | null> {
   const db = getServiceClient();
   const { data: baseRow, error: baseError } = await db
-    .from('invitations')
+    .from('team_invitations')
     .select('id, token, email, status, expires_at, team_member_id')
     .eq('token', token)
     .order('created_at', { ascending: false })
@@ -96,7 +96,7 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
   let detail: InvitationDetailRow = {};
   for (const selectClause of detailSelectVariants) {
     const { data, error } = await db
-      .from('invitations')
+      .from('team_invitations')
       .select(selectClause)
       .eq('id', baseRow.id)
       .maybeSingle();
@@ -112,7 +112,7 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
   let teamMember: { full_name?: string | null } | null = null;
   for (const selectClause of memberSelectVariants) {
     const { data, error } = await db
-      .from('workspace_members')
+      .from('team_members')
       .select(selectClause)
       .eq('id', baseRow.team_member_id)
       .maybeSingle();
@@ -578,7 +578,7 @@ export async function acceptInvitationToken(
   let invitationWriteError: { message: string } | null = null;
 
   const acceptedWrite = await db
-    .from('invitations')
+    .from('team_invitations')
     .update({
       status: INVITATION_STATUS.ACCEPTED,
       accepted_at: acceptedAt,
@@ -589,7 +589,7 @@ export async function acceptInvitationToken(
 
   if (invitationWriteError && invitationWriteError.message.toLowerCase().includes('accepted_at')) {
     const fallbackAcceptedWrite = await db
-      .from('invitations')
+      .from('team_invitations')
       .update({
         status: INVITATION_STATUS.ACCEPTED,
         updated_at: acceptedAt,
@@ -641,7 +641,7 @@ export async function acceptInvitationToken(
   let memberUpdateError: { message: string } | null = null;
   for (const payload of memberUpdateVariants) {
     const { error } = await db
-      .from('workspace_members')
+      .from('team_members')
       .update(payload)
       .eq('id', validInvitation.team_member_id);
     if (!error) {
@@ -662,7 +662,7 @@ export async function acceptInvitationToken(
   void (async () => {
     try {
       const { data: admins } = await db
-        .from('workspace_members')
+        .from('team_members')
         .select('profile_id')
         .eq('role', 'admin');
       const adminUserIds = (admins ?? [])

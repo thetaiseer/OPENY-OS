@@ -16,7 +16,6 @@ import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
-import { cn } from '@/lib/cn';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -258,12 +257,12 @@ export default function ProjectsPage() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setTab(id)}
-                  className={cn(
-                    'rounded-xl border px-4 py-2 text-sm font-semibold transition-colors',
-                    active
-                      ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]'
-                      : 'border-[var(--border)] bg-[var(--surface-2)] text-secondary',
-                  )}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                  style={{
+                    background: active ? 'var(--accent)' : 'var(--surface-2)',
+                    color: active ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
                 >
                   {label}
                 </button>
@@ -273,7 +272,8 @@ export default function ProjectsPage() {
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
             <Search
               size={16}
-              className="text-tertiary pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              style={{ color: 'var(--text-tertiary)' }}
             />
             <Input
               type="search"
@@ -289,15 +289,25 @@ export default function ProjectsPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+            <div
+              key={i}
+              className="h-44 animate-pulse rounded-2xl"
+              style={{ background: 'var(--surface-2)' }}
+            />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-            <FolderKanban size={40} className="mb-4 text-secondary opacity-30" />
-            <p className="text-base font-semibold text-primary">No projects found</p>
-            <p className="mt-1 max-w-sm text-sm text-secondary">
+            <FolderKanban
+              size={40}
+              className="mb-4 opacity-30"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+              No projects found
+            </p>
+            <p className="mt-1 max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
               {tab === 'all'
                 ? 'Create a project to organize work for your clients.'
                 : 'Try another filter or clear search.'}
@@ -328,11 +338,20 @@ export default function ProjectsPage() {
                       <FolderKanban size={20} style={{ color: project.color ?? '#6366f1' }} />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-base font-bold text-primary">{project.name}</p>
+                      <p className="truncate text-base font-bold" style={{ color: 'var(--text)' }}>
+                        {project.name}
+                      </p>
                       {project.client?.name && (
-                        <p className="mt-0.5 truncate text-xs text-secondary">
+                        <p
+                          className="mt-0.5 truncate text-xs"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
                           {clientHref ? (
-                            <Link href={clientHref} className="text-accent hover:underline">
+                            <Link
+                              href={clientHref}
+                              className="hover:underline"
+                              style={{ color: 'var(--accent)' }}
+                            >
                               {project.client.name}
                             </Link>
                           ) : (
@@ -347,15 +366,26 @@ export default function ProjectsPage() {
                   </Badge>
                 </div>
                 {project.description && (
-                  <p className="mb-4 line-clamp-2 text-sm text-secondary">{project.description}</p>
+                  <p
+                    className="mb-4 line-clamp-2 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {project.description}
+                  </p>
                 )}
-                <div className="text-tertiary mt-auto flex flex-wrap gap-3 text-xs">
+                <div
+                  className="mt-auto flex flex-wrap gap-3 text-xs"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
                   <span>Start {formatDate(project.start_date)}</span>
                   <span>·</span>
                   <span>Due {formatDate(project.end_date)}</span>
                 </div>
                 {canManage && (
-                  <div className="mt-4 flex gap-2 border-t border-border pt-4">
+                  <div
+                    className="mt-4 flex gap-2 border-t pt-4"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
                     <Button
                       type="button"
                       variant="secondary"
@@ -403,7 +433,10 @@ export default function ProjectsPage() {
       >
         <form id="project-form" onSubmit={handleSave} className="space-y-4">
           {saveErr && (
-            <p className="rounded-xl bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">
+            <p
+              className="rounded-xl px-3 py-2 text-sm"
+              style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
+            >
               {saveErr}
             </p>
           )}

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     ? true
     : await (async () => {
         const { data } = await db
-          .from('workspace_members')
+          .from('workspace_memberships')
           .select('id')
           .eq('user_id', auth.profile.id)
           .eq('workspace_key', 'docs')
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       .limit(limit),
 
     db
-      .from('workspace_members')
+      .from('team_members')
       .select('id, full_name, email, role, status')
       .or(`full_name.ilike.${pattern},email.ilike.${pattern}`)
       .limit(limit),

@@ -104,7 +104,7 @@ export async function logEmailSent(opts: {
   try {
     const { getServiceClient } = await import('@/lib/supabase/service-client');
     const db = getServiceClient();
-    await db.from('activity_log').insert({
+    await db.from('email_logs').insert({
       to_address: opts.to,
       subject: opts.subject,
       event_type: opts.eventType ?? null,

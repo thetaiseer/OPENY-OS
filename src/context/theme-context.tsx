@@ -17,7 +17,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('theme') as Theme | null;
     const initial = saved === 'light' || saved === 'dark' ? saved : 'dark';
     setTheme(initial);
-    document.documentElement.setAttribute('data-theme', initial);
     document.documentElement.classList.toggle('dark', initial === 'dark');
   }, []);
 
@@ -29,7 +28,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove('theme-transition');
       }, motionTiming.page * 1000);
       localStorage.setItem('theme', next);
-      document.documentElement.setAttribute('data-theme', next);
       document.documentElement.classList.toggle('dark', next === 'dark');
       return next;
     });

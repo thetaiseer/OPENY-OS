@@ -49,7 +49,7 @@ export default function OfficialAuthLanding() {
       if (isGlobalOwnerEmail(userEmail)) return ['os', 'docs'];
 
       const query = await supabase
-        .from('workspace_members')
+        .from('workspace_memberships')
         .select('workspace_key')
         .eq('user_id', userId)
         .eq('is_active', true);

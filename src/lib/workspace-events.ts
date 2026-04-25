@@ -32,7 +32,7 @@ export interface WorkspaceEventPayload {
  */
 export async function emitEvent(db: SupabaseClient, event: WorkspaceEventPayload): Promise<void> {
   try {
-    const { error } = await db.from('activity_log').insert({
+    const { error } = await db.from('workspace_events').insert({
       workspace_id: event.workspace_id ?? null,
       event_type: event.event_type,
       entity_type: event.entity_type ?? null,

@@ -1462,7 +1462,7 @@ export default function TasksPage() {
         supabase.from('projects').select('id,name,client_id').order('name'),
         // Select only the columns the UI actually uses to reduce payload size.
         supabase
-          .from('workspace_members')
+          .from('team_members')
           .select('id,full_name,email,role,avatar_url,job_title,created_at')
           .order('full_name'),
       ]);

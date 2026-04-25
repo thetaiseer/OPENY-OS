@@ -28,7 +28,7 @@ export async function upsertWorkspaceMembershipsWithFallback(
   }
 
   const { error: upsertError } = await db
-    .from('workspace_members')
+    .from('workspace_memberships')
     .upsert(memberships, { onConflict: 'user_id,workspace_key' });
 
   if (!upsertError) {
@@ -44,7 +44,7 @@ export async function upsertWorkspaceMembershipsWithFallback(
 
   for (const membership of memberships) {
     const { data: existing, error: existingError } = await db
-      .from('workspace_members')
+      .from('workspace_memberships')
       .select('id')
       .eq('user_id', membership.user_id)
       .eq('workspace_key', membership.workspace_key)
@@ -56,7 +56,7 @@ export async function upsertWorkspaceMembershipsWithFallback(
 
     if (existing?.id) {
       const { error: updateError } = await db
-        .from('workspace_members')
+        .from('workspace_memberships')
         .update({
           role: membership.role,
           is_active: membership.is_active,
@@ -70,7 +70,7 @@ export async function upsertWorkspaceMembershipsWithFallback(
       continue;
     }
 
-    const { error: insertError } = await db.from('workspace_members').insert({
+    const { error: insertError } = await db.from('workspace_memberships').insert({
       user_id: membership.user_id,
       workspace_key: membership.workspace_key,
       role: membership.role,

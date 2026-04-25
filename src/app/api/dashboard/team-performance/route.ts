@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     const nameMap: Record<string, string> = {};
     if (ids.length) {
       const { data: members } = await sb
-        .from('workspace_members')
+        .from('team_members')
         .select('profile_id, full_name')
         .in('profile_id', ids);
       for (const m of members ?? []) {

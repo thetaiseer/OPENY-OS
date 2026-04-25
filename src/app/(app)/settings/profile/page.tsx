@@ -28,13 +28,17 @@ interface R2Status {
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${
-        ok
-          ? 'border-emerald-300 bg-emerald-100 text-emerald-600'
-          : 'border-red-300 bg-red-100 text-red-500'
-      }`}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+      style={{
+        background: ok ? 'rgba(22,163,74,0.10)' : 'rgba(239,68,68,0.10)',
+        color: ok ? '#16a34a' : '#ef4444',
+        border: `1px solid ${ok ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
+      }}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-emerald-600' : 'bg-red-500'}`} />
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: ok ? '#16a34a' : '#ef4444' }}
+      />
       {label}
     </span>
   );
@@ -43,15 +47,10 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 function DiagRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-secondary">{label}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span
-        className={
-          ok === false
-            ? 'max-w-[180px] truncate text-right font-mono text-red-500'
-            : ok === true
-              ? 'max-w-[180px] truncate text-right font-mono text-emerald-600'
-              : 'max-w-[180px] truncate text-right font-mono text-primary'
-        }
+        className="max-w-[180px] truncate text-right font-mono"
+        style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
       >
         {value}
       </span>
@@ -104,32 +103,40 @@ function R2StorageCard() {
         </Button>
       </div>
 
-      <p className="text-sm text-secondary">
+      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
         Cloudflare R2 is the sole file storage provider. All asset uploads go directly to R2.
       </p>
 
       <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
+        <p
+          className="text-xs font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--text-secondary)' }}
+        >
           Configuration
         </p>
         {loading ? (
-          <div className="flex items-center gap-2 text-sm text-secondary">
+          <div
+            className="flex items-center gap-2 text-sm"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <Loader2 size={15} className="animate-spin" /> Checking…
           </div>
         ) : (
           <div
-            className={`flex items-start gap-3 rounded-xl border p-4 ${
-              status?.configured ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
-            }`}
+            className="flex items-start gap-3 rounded-xl p-4"
+            style={{
+              background: status?.configured ? 'rgba(22,163,74,0.06)' : 'rgba(239,68,68,0.06)',
+              border: `1px solid ${status?.configured ? 'rgba(22,163,74,0.20)' : 'rgba(239,68,68,0.20)'}`,
+            }}
           >
             {status?.configured ? (
-              <CheckCircle size={17} className="mt-0.5 shrink-0 text-emerald-600" />
+              <CheckCircle size={17} style={{ color: '#16a34a' }} className="mt-0.5 shrink-0" />
             ) : (
-              <AlertCircle size={17} className="mt-0.5 shrink-0 text-red-500" />
+              <AlertCircle size={17} style={{ color: '#ef4444' }} className="mt-0.5 shrink-0" />
             )}
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-primary">
+                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {status?.configured ? 'Configured' : 'Not configured'}
                 </p>
                 <StatusBadge
@@ -139,12 +146,19 @@ function R2StorageCard() {
               </div>
               {!status?.configured && (status?.missingVars?.length ?? 0) > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  <p className="text-xs text-red-500">Missing environment variable(s):</p>
+                  <p className="text-xs" style={{ color: '#ef4444' }}>
+                    Missing environment variable(s):
+                  </p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {(status?.missingVars ?? []).map((v) => (
                       <code
                         key={v}
-                        className="rounded bg-red-100 px-1 font-mono text-xs text-red-500"
+                        className="rounded px-1 text-xs"
+                        style={{
+                          background: 'rgba(239,68,68,0.12)',
+                          fontFamily: 'monospace',
+                          color: '#ef4444',
+                        }}
                       >
                         {v}
                       </code>
@@ -157,8 +171,16 @@ function R2StorageCard() {
         )}
       </section>
 
-      <section className="space-y-2 rounded-xl border border-border bg-[var(--surface-2)] p-4 text-xs">
-        <p className="font-semibold uppercase tracking-wide text-secondary">Diagnostics</p>
+      <section
+        className="space-y-2 rounded-xl p-4 text-xs"
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+      >
+        <p
+          className="font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          Diagnostics
+        </p>
         <DiagRow label="Storage provider" value="Cloudflare R2" ok={true} />
         <DiagRow
           label="R2_ACCOUNT_ID"
@@ -187,7 +209,12 @@ function R2StorageCard() {
           href="https://dash.cloudflare.com/?to=/:account/r2"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 items-center gap-2 rounded-lg border border-border bg-[var(--surface-2)] px-4 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-80"
+          style={{
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+          }}
         >
           <CloudLightning size={15} /> Open Cloudflare R2
         </a>
@@ -316,7 +343,7 @@ export default function SettingsProfilePage() {
         </CardHeader>
         <CardContent className="!p-0">
           {signOutError && (
-            <div className="mb-3 rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-500">
+            <div className="mb-3 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.1)] px-3 py-2 text-sm text-[#ef4444]">
               {signOutError}
             </div>
           )}

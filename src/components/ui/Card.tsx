@@ -1,60 +1,27 @@
 'use client';
 
 import type { HTMLAttributes, ReactNode } from 'react';
-import { cn } from '@/lib/cn';
 
 type DivProps = HTMLAttributes<HTMLDivElement> & { children?: ReactNode };
 
-const paddingClasses = {
-  none: '',
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
-} as const;
+export const cardSurfaceClass = '';
 
-export const cardSurfaceClass = 'rounded-card border border-border bg-surface shadow-soft';
-
-export function Card({
-  children,
-  padding = 'md',
-  className,
-  ...props
-}: DivProps & { padding?: keyof typeof paddingClasses }) {
-  return (
-    <section {...props} className={cn(cardSurfaceClass, paddingClasses[padding], className)}>
-      {children}
-    </section>
-  );
+export function Card({ children, ...props }: DivProps & { padding?: string }) {
+  return <div {...props}>{children}</div>;
 }
 
-export function CardHeader({ children, className, ...props }: DivProps) {
-  return (
-    <div {...props} className={cn('mb-3 flex items-start justify-between gap-3', className)}>
-      {children}
-    </div>
-  );
+export function CardHeader({ children, ...props }: DivProps) {
+  return <div {...props}>{children}</div>;
 }
 
-export function CardTitle({ children, className, ...props }: DivProps) {
-  return (
-    <h3 {...props} className={cn('text-base font-semibold text-primary', className)}>
-      {children}
-    </h3>
-  );
+export function CardTitle({ children, ...props }: DivProps) {
+  return <div {...props}>{children}</div>;
 }
 
-export function CardDescription({ children, className, ...props }: DivProps) {
-  return (
-    <p {...props} className={cn('text-sm text-secondary', className)}>
-      {children}
-    </p>
-  );
+export function CardDescription({ children, ...props }: DivProps) {
+  return <div {...props}>{children}</div>;
 }
 
-export function CardContent({ children, className, ...props }: DivProps) {
-  return (
-    <div {...props} className={cn('space-y-3', className)}>
-      {children}
-    </div>
-  );
+export function CardContent({ children, ...props }: DivProps) {
+  return <div {...props}>{children}</div>;
 }

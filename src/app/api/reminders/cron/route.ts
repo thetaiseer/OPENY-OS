@@ -66,7 +66,7 @@ async function resolveAssignees(
   const map = new Map<string, AssigneeMember>();
   if (!assigneeIds.length) return map;
   const { data } = await db
-    .from('workspace_members')
+    .from('team_members')
     .select('profile_id, full_name, email')
     .in('profile_id', assigneeIds);
   for (const m of data ?? []) {
@@ -312,7 +312,7 @@ export async function GET(req: NextRequest) {
         // Send email reminder to the assigned user
         if (userId && appUrl) {
           const { data: member } = await db
-            .from('workspace_members')
+            .from('team_members')
             .select('email, full_name')
             .eq('profile_id', userId)
             .maybeSingle();

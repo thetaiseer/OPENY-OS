@@ -10,7 +10,6 @@ import { useUpload, type InitialUploadItem } from '@/context/upload-context';
 import UploadModal, { type UploadFileItem } from '@/components/features/upload/UploadModal';
 import FilePreviewModal from '@/components/ui/FilePreviewModal';
 import { AssetsGrid, isPdf as isPdfFile } from '@/components/ui/AssetsGrid';
-import Button from '@/components/ui/Button';
 import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
@@ -182,7 +181,7 @@ export default function ClientAssetsPage() {
     }
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
     addToast('File deleted', 'success');
-    await supabase.from('activity_log').insert({
+    await supabase.from('activities').insert({
       type: 'delete',
       description: `Asset "${asset.name}" deleted`,
       client_id: clientId,
@@ -202,12 +201,22 @@ export default function ClientAssetsPage() {
     return (
       <div className="space-y-4">
         <div className="flex justify-end gap-2">
-          <div className="h-9 w-40 animate-pulse rounded-control bg-elevated" />
-          <div className="h-9 w-32 animate-pulse rounded-control bg-elevated" />
+          <div
+            className="h-9 w-40 animate-pulse rounded-lg"
+            style={{ background: 'var(--surface-2)' }}
+          />
+          <div
+            className="h-9 w-32 animate-pulse rounded-lg"
+            style={{ background: 'var(--surface-2)' }}
+          />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="aspect-square animate-pulse rounded-control bg-surface" />
+            <div
+              key={i}
+              className="aspect-square animate-pulse rounded-xl"
+              style={{ background: 'var(--surface)' }}
+            />
           ))}
         </div>
       </div>
@@ -217,18 +226,27 @@ export default function ClientAssetsPage() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <Button
+        <button
           onClick={() => void handleDownloadZip()}
           disabled={downloadingZip || assets.length === 0}
-          variant="secondary"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+          }}
         >
           <Download size={14} />
           {downloadingZip ? 'Preparing download…' : 'Download Client Folder'}
-        </Button>
-        <Button onClick={() => fileRef.current?.click()} variant="primary">
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: 'var(--accent)' }}
+        >
           <Upload size={14} />
           {t('uploadFile')}
-        </Button>
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -240,7 +258,9 @@ export default function ClientAssetsPage() {
       </div>
 
       {assets.length === 0 ? (
-        <div className="py-16 text-center text-secondary">{t('noAssetsYet')}</div>
+        <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>
+          {t('noAssetsYet')}
+        </div>
       ) : (
         <AssetsGrid
           assets={assets}

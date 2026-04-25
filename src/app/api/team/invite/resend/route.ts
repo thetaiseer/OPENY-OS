@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   // Find the most recent non-accepted invitation (with team_member join for full_name)
   const { data: invitation, error } = await db
-    .from('invitations')
+    .from('team_invitations')
     .select('*, team_member:team_members(full_name, role)')
     .eq('team_member_id', teamMemberId)
     .in('status', [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED, INVITATION_STATUS.EXPIRED])
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   ).toISOString();
 
   const { error: updateError } = await db
-    .from('invitations')
+    .from('team_invitations')
     .update({
       token: newToken,
       status: INVITATION_STATUS.PENDING,
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
   // Also reset team_member status to invited in case it was changed
   await db
-    .from('workspace_members')
+    .from('team_members')
     .update({ status: MEMBER_STATUS.INVITED, updated_at: new Date().toISOString() })
     .eq('id', teamMemberId);
 

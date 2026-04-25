@@ -80,18 +80,6 @@ interface ReportsData {
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
 
-function completionToneClass(rate: number): string {
-  if (rate >= 80) return 'text-emerald-500';
-  if (rate >= 50) return 'text-amber-500';
-  return 'text-red-500';
-}
-
-function completionBarClass(rate: number): string {
-  if (rate >= 80) return 'bg-emerald-500';
-  if (rate >= 50) return 'bg-amber-500';
-  return 'bg-red-500';
-}
-
 function toCSV<T extends object>(rows: T[], headers: Array<keyof T>): string {
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   return [headers.join(','), ...rows.map((r) => headers.map((h) => escape(r[h])).join(','))].join(
@@ -242,7 +230,15 @@ export default function ReportsPage() {
                   icon={<TrendingUp size={18} />}
                   color="cyan"
                   detail={
-                    <span className={completionToneClass(report.summary.completionRate)}>
+                    <span
+                      className={
+                        report.summary.completionRate >= 80
+                          ? 'text-[#10b981]'
+                          : report.summary.completionRate >= 50
+                            ? 'text-[#f59e0b]'
+                            : 'text-[#ef4444]'
+                      }
+                    >
                       {report.summary.completionRate >= 80
                         ? 'On track'
                         : report.summary.completionRate >= 50
@@ -499,9 +495,15 @@ export default function ReportsPage() {
                               <div className="flex items-center gap-2">
                                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
                                   <div
-                                    className={`h-full rounded-full ${completionBarClass(m.completionRate)}`}
+                                    className="h-full rounded-full"
                                     style={{
                                       width: `${m.completionRate}%`,
+                                      background:
+                                        m.completionRate >= 80
+                                          ? '#10b981'
+                                          : m.completionRate >= 50
+                                            ? '#f59e0b'
+                                            : '#ef4444',
                                     }}
                                   />
                                 </div>

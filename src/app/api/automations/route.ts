@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const active = searchParams.get('active');
 
   const db = getServiceClient();
-  let query = db.from('automations').select(AUTOMATION_RULE_COLUMNS).order('created_at');
+  let query = db.from('automation_rules').select(AUTOMATION_RULE_COLUMNS).order('created_at');
   if (active === 'true') query = query.eq('is_active', true);
   if (active === 'false') query = query.eq('is_active', false);
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('automations')
+    .from('automation_rules')
     .insert({
       name,
       description: typeof body.description === 'string' ? body.description.trim() : null,

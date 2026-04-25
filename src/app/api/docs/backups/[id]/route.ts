@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
 
   const { id } = await params;
   const db = getServiceClient();
-  const { data, error } = await db.from('saved_views').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db.from('docs_backups').select('*').eq('id', id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ backup: data });
@@ -24,7 +24,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
 
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('saved_views').delete().eq('id', id);
+  const { error } = await db.from('docs_backups').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

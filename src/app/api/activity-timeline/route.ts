@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
 
     let query = db
-      .from('activity_log')
+      .from('activities')
       .select(
         `
         id,

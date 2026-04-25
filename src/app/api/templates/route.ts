@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const entityType = searchParams.get('entity_type');
 
   const db = getServiceClient();
-  let query = db.from('content_items').select('*, items:template_items(*)').order('name');
+  let query = db.from('templates').select('*, items:template_items(*)').order('name');
 
   if (entityType) query = query.eq('entity_type', entityType);
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('content_items')
+    .from('templates')
     .insert({
       name,
       entity_type: entityType,
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       sort_order: typeof item.sort_order === 'number' ? item.sort_order : i,
       item_data: typeof item.item_data === 'object' ? item.item_data : {},
     }));
-    await db.from('content_items').insert(itemRows);
+    await db.from('template_items').insert(itemRows);
   }
 
   return NextResponse.json({ success: true, template: data }, { status: 201 });

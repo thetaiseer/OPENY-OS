@@ -177,7 +177,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
     <Card
       padding="none"
       className="flex flex-col gap-2.5 border-l-[3px] px-4 py-3 transition-shadow hover:shadow-sm"
-      style={{ borderLeftColor: borderColor }} // data-driven accent per task category/severity
+      style={{ borderLeftColor: borderColor }}
     >
       {/* Row 1: title + status badges */}
       <div className="flex items-start gap-2">
@@ -200,7 +200,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
         {cat && (
           <span
             className="rounded-full px-2 py-0.5 font-medium text-white"
-            style={{ backgroundColor: categoryColor(cat) }}
+            style={{ background: categoryColor(cat), fontSize: '10px' }}
           >
             {categoryLabel(cat)}
           </span>
@@ -213,7 +213,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
         )}
         {task.due_date && (
           <span
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'bg-red-50 font-medium text-red-500' : isToday ? 'bg-amber-50 font-medium text-amber-600' : 'bg-elevated text-secondary'}`}
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'font-medium text-red-500' : isToday ? 'font-medium text-amber-600' : ''}`}
+            style={{ background: overdue ? '#fef2f2' : isToday ? '#fffbeb' : 'var(--surface-2)' }}
           >
             <Calendar size={10} />
             {fmtDate(task.due_date)}
@@ -233,7 +234,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
               <span
                 key={p}
                 className="rounded px-1.5 py-0.5 font-medium text-white"
-                style={{ backgroundColor: getPlatformDisplayColor(p) }}
+                style={{ background: getPlatformDisplayColor(p), fontSize: '10px' }}
               >
                 {pl?.label ?? p}
               </span>
@@ -244,7 +245,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
             return (
               <span
                 key={pt}
-                className="rounded bg-purple-100 px-1.5 py-0.5 font-medium text-purple-700"
+                className="rounded px-1.5 py-0.5 font-medium"
+                style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', fontSize: '10px' }}
               >
                 {typ?.label ?? pt}
               </span>
@@ -257,13 +259,19 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       {(hasAsset || hasPubSchedule) && (
         <div className="flex items-center gap-1.5">
           {hasAsset && (
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{ background: '#e0f2fe', color: '#0284c7' }}
+            >
               <Paperclip size={9} className="mr-0.5 inline" />
               Asset
             </span>
           )}
           {hasPubSchedule && (
-            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{ background: '#f3e8ff', color: '#7c3aed' }}
+            >
               <Send size={9} className="mr-0.5 inline" />
               Schedule
             </span>
@@ -308,7 +316,7 @@ export default function MyTasksPage() {
           .order('due_date', { ascending: true })
           .limit(500),
         supabase
-          .from('workspace_members')
+          .from('team_members')
           .select('id,full_name,email,role,avatar_url,job_title,created_at')
           .order('full_name'),
         supabase.from('clients').select('id,name,status').order('name'),

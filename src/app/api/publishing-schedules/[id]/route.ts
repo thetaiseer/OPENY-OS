@@ -156,7 +156,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // ── Activity log (best-effort) ────────────────────────────────────────────
     if (updates.status) {
       void db
-        .from('activity_log')
+        .from('activities')
         .insert({
           type: `publishing_${updates.status}`,
           description: `Publishing schedule status changed to "${updates.status}"`,

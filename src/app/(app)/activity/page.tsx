@@ -19,11 +19,6 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
-import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { PageHeader, PageShell } from '@/components/layout/PageLayout';
-import { cn } from '@/lib/cn';
 import type { ActivityLogEntry, NotificationCategory } from '@/lib/types';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -49,41 +44,18 @@ const CATEGORY_TABS: CategoryTab[] = [
 
 interface EventStyle {
   icon: React.ElementType;
-  iconClass: string;
-  chipClass: string;
-  railClass: string;
+  color: string;
+  bg: string;
 }
 
 function getEventStyle(type: string): EventStyle {
-  if (type.startsWith('task'))
-    return {
-      icon: CheckSquare,
-      iconClass: 'text-blue-500',
-      chipClass: 'bg-blue-50 text-blue-700',
-      railClass: 'border-blue-200 bg-blue-50',
-    };
-  if (type.startsWith('client'))
-    return {
-      icon: Briefcase,
-      iconClass: 'text-violet-500',
-      chipClass: 'bg-violet-50 text-violet-700',
-      railClass: 'border-violet-200 bg-violet-50',
-    };
+  if (type.startsWith('task')) return { icon: CheckSquare, color: '#3b82f6', bg: '#eff6ff' };
+  if (type.startsWith('client')) return { icon: Briefcase, color: '#8b5cf6', bg: '#f5f3ff' };
   if (type.startsWith('content') || type.startsWith('publish')) {
-    return {
-      icon: FileText,
-      iconClass: 'text-emerald-600',
-      chipClass: 'bg-emerald-50 text-emerald-700',
-      railClass: 'border-emerald-200 bg-emerald-50',
-    };
+    return { icon: FileText, color: '#059669', bg: '#f0fdf4' };
   }
   if (type.startsWith('asset') || type.startsWith('file')) {
-    return {
-      icon: Image,
-      iconClass: 'text-amber-500',
-      chipClass: 'bg-amber-50 text-amber-700',
-      railClass: 'border-amber-200 bg-amber-50',
-    };
+    return { icon: Image, color: '#f59e0b', bg: '#fffbeb' };
   }
   if (
     type.startsWith('invite') ||
@@ -91,28 +63,13 @@ function getEventStyle(type: string): EventStyle {
     type.startsWith('role') ||
     type.startsWith('team')
   ) {
-    return {
-      icon: UserCheck,
-      iconClass: 'text-emerald-500',
-      chipClass: 'bg-emerald-50 text-emerald-700',
-      railClass: 'border-emerald-200 bg-emerald-50',
-    };
+    return { icon: UserCheck, color: '#10b981', bg: '#ecfdf5' };
   }
   if (type.startsWith('comment')) {
-    return {
-      icon: MessageSquare,
-      iconClass: 'text-indigo-500',
-      chipClass: 'bg-indigo-50 text-indigo-700',
-      railClass: 'border-indigo-200 bg-indigo-50',
-    };
+    return { icon: MessageSquare, color: '#6366f1', bg: '#f0f0ff' };
   }
   if (type.startsWith('event') || type.startsWith('calendar')) {
-    return {
-      icon: CalendarDays,
-      iconClass: 'text-cyan-500',
-      chipClass: 'bg-cyan-50 text-cyan-700',
-      railClass: 'border-cyan-200 bg-cyan-50',
-    };
+    return { icon: CalendarDays, color: '#06b6d4', bg: '#ecfeff' };
   }
   if (
     type.startsWith('login') ||
@@ -120,19 +77,9 @@ function getEventStyle(type: string): EventStyle {
     type.startsWith('critical') ||
     type.startsWith('security')
   ) {
-    return {
-      icon: AlertOctagon,
-      iconClass: 'text-red-500',
-      chipClass: 'bg-red-50 text-red-700',
-      railClass: 'border-red-200 bg-red-50',
-    };
+    return { icon: AlertOctagon, color: '#ef4444', bg: '#fef2f2' };
   }
-  return {
-    icon: Activity,
-    iconClass: 'text-secondary',
-    chipClass: 'bg-[var(--surface-2)] text-secondary',
-    railClass: 'border-border bg-[var(--surface-2)]',
-  };
+  return { icon: Activity, color: 'var(--text-secondary)', bg: 'var(--surface-2)' };
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -225,33 +172,42 @@ export default function ActivityTimelinePage() {
   const hasActiveFilters = Boolean(searchQuery || fromDate || toDate);
 
   return (
-    <PageShell className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Activity size={22} className="text-accent" />
-            Activity Timeline
-          </span>
-        }
-        subtitle={total > 0 ? `${total.toLocaleString()} events` : 'Permanent workspace history'}
-        actions={
-          <Button
-            type="button"
-            variant={showFilters ? 'primary' : 'secondary'}
-            className="h-9 gap-2"
-            onClick={() => setShowFilters((v) => !v)}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1
+            className="flex items-center gap-2 text-2xl font-bold"
+            style={{ color: 'var(--text)' }}
           >
-            <Filter size={14} />
-            Filters
-            {hasActiveFilters && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-accent">
-                !
-              </span>
-            )}
-          </Button>
-        }
-      />
+            <Activity size={22} style={{ color: 'var(--accent)' }} />
+            Activity Timeline
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {total > 0 ? `${total.toLocaleString()} events` : 'Permanent workspace history'}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-80"
+          style={{
+            background: showFilters ? 'var(--accent)' : 'var(--surface)',
+            color: showFilters ? '#fff' : 'var(--text)',
+            border: `1px solid ${showFilters ? 'var(--accent)' : 'var(--border)'}`,
+          }}
+        >
+          <Filter size={14} />
+          Filters
+          {hasActiveFilters && (
+            <span
+              className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold"
+              style={{ color: 'var(--accent)' }}
+            >
+              !
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* ── Category tabs ────────────────────────────────────────────────── */}
       <div className="scrollbar-thin flex items-center gap-1 overflow-x-auto pb-1">
@@ -262,12 +218,12 @@ export default function ActivityTimelinePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
-                active
-                  ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                  : 'border-border bg-[var(--surface)] text-secondary',
-              )}
+              className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium transition-colors"
+              style={{
+                background: active ? 'var(--accent)' : 'var(--surface)',
+                color: active ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              }}
             >
               <Icon size={13} />
               {tab.label}
@@ -278,61 +234,96 @@ export default function ActivityTimelinePage() {
 
       {/* ── Filter panel ─────────────────────────────────────────────────── */}
       {showFilters && (
-        <Card padding="sm" className="space-y-3 border border-border bg-[var(--surface)] p-4">
+        <div
+          className="space-y-3 rounded-xl border p-4"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
           {/* Search */}
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search
                 size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                style={{ color: 'var(--text-secondary)' }}
               />
-              <Input
+              <input
                 type="text"
                 value={draftSearch}
                 onChange={(e) => setDraftSearch(e.target.value)}
                 placeholder="Search activity…"
-                className="h-9 pl-9"
+                className="h-9 w-full rounded-lg pl-9 pr-3 text-sm outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
               />
             </div>
-            <Button type="submit" variant="primary" className="h-9 px-4 text-sm">
+            <button
+              type="submit"
+              className="h-9 rounded-lg px-4 text-sm font-medium"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
               Search
-            </Button>
+            </button>
           </form>
 
           {/* Date range */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-xs text-secondary">From</label>
-              <Input
+              <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                From
+              </label>
+              <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="h-8 rounded-lg px-2 text-xs"
+                className="h-8 rounded-lg px-2 text-xs outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-secondary">To</label>
-              <Input
+              <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                To
+              </label>
+              <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="h-8 rounded-lg px-2 text-xs"
+                className="h-8 rounded-lg px-2 text-xs outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
               />
             </div>
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs text-secondary underline">
+              <button
+                onClick={clearFilters}
+                className="text-xs underline"
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 Clear filters
               </button>
             )}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* ── Timeline list ─────────────────────────────────────────────────── */}
       {loading ? (
         <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--surface)]" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl"
+              style={{ background: 'var(--surface)' }}
+            />
           ))}
         </div>
       ) : entries.length === 0 ? (
@@ -353,49 +344,68 @@ export default function ActivityTimelinePage() {
                 {/* Timeline rail */}
                 <div className="flex shrink-0 flex-col items-center">
                   <div
-                    className={cn(
-                      'mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
-                      style.railClass,
-                    )}
+                    className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: style.bg, border: `1.5px solid ${style.color}40` }}
                   >
-                    <Icon size={15} className={style.iconClass} />
+                    <Icon size={15} style={{ color: style.color }} />
                   </div>
-                  {!isLast && <div className="mt-1 min-h-4 w-px flex-1 bg-border" />}
+                  {!isLast && (
+                    <div
+                      className="mt-1 w-px flex-1"
+                      style={{ background: 'var(--border)', minHeight: '16px' }}
+                    />
+                  )}
                 </div>
 
                 {/* Content */}
                 <div className="min-w-0 flex-1 pb-4">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium leading-snug text-primary">
+                    <p
+                      className="text-sm font-medium leading-snug"
+                      style={{ color: 'var(--text)' }}
+                    >
                       {entry.title ?? entry.description}
                     </p>
                     <span
-                      className="mt-0.5 shrink-0 text-[11px] text-secondary"
+                      className="mt-0.5 shrink-0 text-[11px]"
+                      style={{ color: 'var(--text-secondary)' }}
                       title={fmtFull(entry.created_at)}
                     >
                       {fmtDate(entry.created_at)}
                     </span>
                   </div>
                   {entry.title && entry.description !== entry.title && (
-                    <p className="mt-0.5 line-clamp-2 text-xs text-secondary">
+                    <p
+                      className="mt-0.5 line-clamp-2 text-xs"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
                       {entry.description}
                     </p>
                   )}
                   {/* Before / after change summary */}
                   {(entry.before_value || entry.after_value) && (
-                    <div className="mt-1.5 flex gap-2 text-[11px] text-secondary">
+                    <div
+                      className="mt-1.5 flex gap-2 text-[11px]"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
                       {entry.before_value && (
-                        <span className="rounded bg-red-50 px-2 py-0.5 text-red-600">
+                        <span
+                          className="rounded px-2 py-0.5"
+                          style={{ background: '#fef2f2', color: '#dc2626' }}
+                        >
                           {String(
                             entry.before_value.status ?? entry.before_value.priority ?? 'before',
                           )}
                         </span>
                       )}
                       {entry.before_value && entry.after_value && (
-                        <span className="text-secondary">→</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>→</span>
                       )}
                       {entry.after_value && (
-                        <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-600">
+                        <span
+                          className="rounded px-2 py-0.5"
+                          style={{ background: '#f0fdf4', color: '#16a34a' }}
+                        >
                           {String(
                             entry.after_value.status ?? entry.after_value.priority ?? 'after',
                           )}
@@ -409,17 +419,21 @@ export default function ActivityTimelinePage() {
           })}
 
           {hasMore && (
-            <Button
+            <button
               onClick={() => void load(page + 1, true)}
               disabled={loadingMore}
-              variant="secondary"
-              className="mt-2 h-10 w-full text-sm"
+              className="mt-2 h-10 w-full rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             >
               {loadingMore ? 'Loading…' : 'Load more events'}
-            </Button>
+            </button>
           )}
         </div>
       )}
-    </PageShell>
+    </div>
   );
 }

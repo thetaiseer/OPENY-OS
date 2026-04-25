@@ -7,8 +7,6 @@ import { useClientWorkspace } from '../client-context';
 import type { Project } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import FormModal from '@/components/ui/FormModal';
-import Button from '@/components/ui/Button';
-import { Field, Input, Textarea } from '@/components/ui/Input';
 
 type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
 
@@ -139,30 +137,48 @@ export default function ClientProjectsPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-primary">
+        <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
           Projects
           {projects.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-secondary">{projects.length}</span>
+            <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
+              {projects.length}
+            </span>
           )}
         </h2>
-        <Button type="button" variant="primary" className="h-8 px-3 text-sm" onClick={openCreate}>
+        <button
+          onClick={openCreate}
+          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: 'var(--accent)' }}
+        >
           <Plus size={14} /> New Project
-        </Button>
+        </button>
       </div>
 
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-10">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-accent" />
+          <div
+            className="h-5 w-5 animate-spin rounded-full border-2"
+            style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
+          />
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && projects.length === 0 && (
-        <div className="rounded-card border border-border py-14 text-center">
-          <FolderOpen size={36} className="mx-auto mb-3 text-secondary opacity-30" />
-          <p className="text-sm font-medium text-secondary">No projects yet</p>
-          <p className="mt-1 text-xs text-secondary">
+        <div
+          className="rounded-2xl border py-14 text-center"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <FolderOpen
+            size={36}
+            className="mx-auto mb-3 opacity-30"
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            No projects yet
+          </p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
             Create a project to organize tasks for {client?.name}
           </p>
         </div>
@@ -174,7 +190,8 @@ export default function ClientProjectsPage() {
           {projects.map((project) => (
             <div
               key={project.id}
-              className="group rounded-card border border-border bg-surface p-4 transition-colors hover:border-accent"
+              className="group rounded-2xl border p-4 transition-colors hover:border-[var(--accent)]"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               {/* Card top */}
               <div className="flex items-start gap-3">
@@ -186,14 +203,19 @@ export default function ClientProjectsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-primary">{project.name}</h3>
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                      {project.name}
+                    </h3>
                     <Badge variant={statusVariant(project.status)}>
                       {STATUS_OPTIONS.find((s) => s.value === project.status)?.label ??
                         project.status}
                     </Badge>
                   </div>
                   {project.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-secondary">
+                    <p
+                      className="mt-1 line-clamp-2 text-xs"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
                       {project.description}
                     </p>
                   )}
@@ -202,7 +224,8 @@ export default function ClientProjectsPage() {
                 <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     onClick={() => openEdit(project)}
-                    className="rounded p-1 text-secondary hover:bg-elevated"
+                    className="rounded p-1 hover:bg-[var(--surface-2)]"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <Pencil size={13} />
                   </button>
@@ -217,7 +240,10 @@ export default function ClientProjectsPage() {
 
               {/* Dates */}
               {(project.start_date || project.end_date) && (
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-secondary">
+                <div
+                  className="mt-3 flex items-center gap-1.5 text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   <Calendar size={11} />
                   <span>{formatDate(project.start_date)}</span>
                   {project.end_date && (
@@ -244,14 +270,17 @@ export default function ClientProjectsPage() {
           onSubmit={(e) => void handleSave(e)}
           footer={
             <>
-              <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="openy-modal-btn-secondary"
+              >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
-                variant="primary"
                 disabled={saving}
-                className="flex items-center gap-2"
+                className="openy-modal-btn-primary flex items-center gap-2 disabled:opacity-60"
               >
                 {saving ? (
                   'Saving…'
@@ -260,24 +289,41 @@ export default function ClientProjectsPage() {
                     <Check size={14} /> Save
                   </>
                 )}
-              </Button>
+              </button>
             </>
           }
         >
-          <Field label="Name *">
-            <Input
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Name *
+            </label>
+            <input
               type="text"
               required
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Project name…"
+              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             />
-          </Field>
-          <Field label="Status">
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Status
+            </label>
             <select
               value={form.status}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}
-              className="h-9 w-full rounded-control border border-border bg-elevated px-3 text-sm text-primary outline-none"
+              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -285,39 +331,70 @@ export default function ClientProjectsPage() {
                 </option>
               ))}
             </select>
-          </Field>
-          <Field label="Description">
-            <Textarea
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Description
+            </label>
+            <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={3}
               placeholder="Optional description…"
+              className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             />
-          </Field>
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start Date">
-              <Input
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+                Start Date
+              </label>
+              <input
                 type="date"
                 value={form.start_date}
                 onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
               />
-            </Field>
-            <Field label="End Date">
-              <Input
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+                End Date
+              </label>
+              <input
                 type="date"
                 value={form.end_date}
                 onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
               />
-            </Field>
+            </div>
           </div>
-          <Field label="Color">
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Color
+            </label>
             <input
               type="color"
               value={form.color}
               onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-              className="h-9 w-20 cursor-pointer rounded-control border border-border"
+              className="h-9 w-20 cursor-pointer rounded-lg border"
+              style={{ borderColor: 'var(--border)' }}
             />
-          </Field>
+          </div>
 
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>

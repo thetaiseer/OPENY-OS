@@ -49,10 +49,7 @@ export async function GET(req: NextRequest) {
           .select('id, status, priority, due_date, client_id, assignee_id, created_at'),
         db.from('assets').select('id, client_id, content_type, created_at'),
         db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
-        db
-          .from('workspace_members')
-          .select('id, full_name, role, profile_id')
-          .neq('status', 'invited'),
+        db.from('team_members').select('id, full_name, role, profile_id').neq('status', 'invited'),
       ]);
 
     const clients = clientsResult.status === 'fulfilled' ? (clientsResult.value.data ?? []) : [];

@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
   const { data: teamRows, error: teamRowsError } =
     userIds.length > 0
       ? await db
-          .from('workspace_members')
+          .from('team_members')
           .select('id, profile_id, email, full_name, job_title, status, created_at, updated_at')
           .in('profile_id', userIds)
       : {

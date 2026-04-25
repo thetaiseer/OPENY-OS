@@ -269,7 +269,7 @@ async function executeCreateTask(
   if (clientName) actions.push(`Linked to client: ${clientName}`);
 
   // Create activity log
-  void sb.from('activity_log').insert({
+  void sb.from('activities').insert({
     type: 'task_created',
     description: `AI created task: ${title}`,
     entity_type: 'task',
@@ -571,7 +571,7 @@ async function executeInviteTeamMember(
   const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
 
   const { data, error } = await sb
-    .from('invitations')
+    .from('team_invitations')
     .insert({
       email,
       name,
@@ -689,7 +689,7 @@ async function executeCreateProject(
   actions.push(`Created project: "${name}"`);
   if (clientName) actions.push(`Linked to client: ${clientName}`);
 
-  void sb.from('activity_log').insert({
+  void sb.from('activities').insert({
     type: 'project_created',
     description: `AI created project: ${name}`,
     entity_type: 'project',
@@ -898,7 +898,7 @@ async function executeStartNewClientWorkflow(
   });
   actions.push('Created welcome brief note');
 
-  void sb.from('activity_log').insert({
+  void sb.from('activities').insert({
     type: 'client_created',
     description: `AI onboarded client: ${clientName}`,
     entity_type: 'client',
@@ -1212,7 +1212,7 @@ export async function POST(req: NextRequest) {
       // AI audit log (best-effort)
       void (async () => {
         try {
-          await sb.from('activity_log').insert({
+          await sb.from('ai_actions').insert({
             user_id: userId,
             intent: parsed.intent,
             prompt: message,
@@ -1240,7 +1240,7 @@ export async function POST(req: NextRequest) {
     // AI audit log (best-effort, fire-and-forget)
     void (async () => {
       try {
-        await sb.from('activity_log').insert({
+        await sb.from('ai_actions').insert({
           user_id: userId,
           intent: parsed.intent,
           prompt: message,

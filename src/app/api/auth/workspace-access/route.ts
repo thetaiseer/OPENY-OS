@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const db = getServiceClient();
   const { data: membership } = await db
-    .from('workspace_members')
+    .from('workspace_memberships')
     .select('role')
     .eq('user_id', auth.profile.id)
     .eq('workspace_key', workspace)

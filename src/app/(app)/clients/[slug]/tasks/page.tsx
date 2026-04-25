@@ -6,7 +6,6 @@ import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import { useClientWorkspace } from '../client-context';
 import type { Task, TeamMember, Client } from '@/lib/types';
@@ -69,7 +68,7 @@ export default function ClientTasksPage() {
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
         .limit(100),
-      supabase.from('workspace_members').select('*').order('full_name'),
+      supabase.from('team_members').select('*').order('full_name'),
     ]);
     if (tk.status === 'fulfilled' && !tk.value.error) setTasks((tk.value.data ?? []) as Task[]);
     if (tm.status === 'fulfilled' && !tm.value.error)
@@ -107,7 +106,11 @@ export default function ClientTasksPage() {
     return (
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-control bg-surface" />
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-xl"
+            style={{ background: 'var(--surface)' }}
+          />
         ))}
       </div>
     );
@@ -119,14 +122,20 @@ export default function ClientTasksPage() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button type="button" variant="primary" onClick={() => setNewTaskOpen(true)}>
+        <button
+          onClick={() => setNewTaskOpen(true)}
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+          style={{ background: 'var(--accent)' }}
+        >
           <Plus size={14} />
           {t('newTask')}
-        </Button>
+        </button>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="py-16 text-center text-secondary">{t('noTasksYet')}</div>
+        <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>
+          {t('noTasksYet')}
+        </div>
       ) : (
         <div className="space-y-3">
           {tasks.map((task) => {
@@ -144,24 +153,31 @@ export default function ClientTasksPage() {
             return (
               <div
                 key={task.id}
-                className={`space-y-2 rounded-control border border-border bg-surface p-4 ${
-                  overdue
-                    ? 'border-l-4 border-l-danger'
-                    : isCompleted
-                      ? 'border-l-4 border-l-success'
-                      : ''
-                }`}
+                className="space-y-2 rounded-xl border p-4"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  borderLeft: `3px solid ${overdue ? '#ef4444' : isCompleted ? '#22c55e' : 'var(--border)'}`,
+                }}
               >
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-primary">{task.title}</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {task.title}
+                    </p>
                     {task.description && (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-secondary">
+                      <p
+                        className="mt-0.5 line-clamp-2 text-xs"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
                         {task.description}
                       </p>
                     )}
                     {task.task_category && (
-                      <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-secondary">
+                      <p
+                        className="mt-0.5 text-[10px] font-medium uppercase tracking-wide"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
                         {task.task_category.replace(/_/g, ' ')}
                       </p>
                     )}
@@ -173,23 +189,33 @@ export default function ClientTasksPage() {
                     <Trash2 size={13} />
                   </button>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
+                <div
+                  className="flex flex-wrap items-center gap-2 text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   {task.due_date && (
                     <span
-                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'bg-red-50 text-red-500' : 'bg-elevated text-secondary'}`}
+                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'text-red-500' : ''}`}
+                      style={{ background: overdue ? '#fef2f2' : 'var(--surface-2)' }}
                     >
                       {overdue ? <AlertCircle size={10} /> : <Calendar size={10} />}
                       {fmtDate(task.due_date)}
                     </span>
                   )}
                   {assignee && (
-                    <span className="flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5">
+                    <span
+                      className="flex items-center gap-1 rounded-full px-2 py-0.5"
+                      style={{ background: 'var(--surface-2)' }}
+                    >
                       <User size={10} />
                       {assignee.full_name}
                     </span>
                   )}
                   {mentionedMembers.length > 0 && (
-                    <span className="flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5">
+                    <span
+                      className="flex items-center gap-1 rounded-full px-2 py-0.5"
+                      style={{ background: 'var(--surface-2)' }}
+                    >
                       {mentionedMembers.map((m) => `@${m.full_name}`).join(', ')}
                     </span>
                   )}
@@ -198,7 +224,8 @@ export default function ClientTasksPage() {
                     task.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5"
+                        className="flex items-center gap-1 rounded-full px-2 py-0.5"
+                        style={{ background: 'var(--surface-2)' }}
                       >
                         <Tag size={10} />
                         {tag}

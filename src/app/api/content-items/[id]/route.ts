@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
     // Log activity when status changes (fire-and-forget)
     if (newStatus && existing && newStatus !== existing.status) {
-      void db.from('activity_log').insert({
+      void db.from('activities').insert({
         type: 'content_status_changed',
         description: `Content "${existing.title}" moved from ${existing.status} to ${newStatus}`,
         user_id: auth.profile.id,
@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
     // Log general update activity if non-status fields changed (fire-and-forget)
     if (!newStatus && existing) {
-      void db.from('activity_log').insert({
+      void db.from('activities').insert({
         type: 'content_updated',
         description: `Content "${existing.title}" updated`,
         user_id: auth.profile.id,
@@ -161,7 +161,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
 
     // Log deletion activity (fire-and-forget)
     if (existing) {
-      void db.from('activity_log').insert({
+      void db.from('activities').insert({
         type: 'content_deleted',
         description: `Content "${existing.title}" deleted`,
         user_id: auth.profile.id,

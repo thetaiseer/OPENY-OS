@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Activity log (best-effort)
-    void db.from('activity_log').insert({
+    void db.from('activities').insert({
       type: 'content_item_created',
       description: `Content item "${title}" created`,
       user_id: auth.profile.id,

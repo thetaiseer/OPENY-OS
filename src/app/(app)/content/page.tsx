@@ -27,48 +27,13 @@ import { cn } from '@/lib/cn';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
-const STATUS_PIPELINE: {
-  status: ContentItemStatus;
-  label: string;
-  textClass: string;
-  badgeClass: string;
-}[] = [
-  {
-    status: 'draft',
-    label: 'Draft',
-    textClass: 'text-slate-500',
-    badgeClass: 'bg-slate-100 text-slate-500',
-  },
-  {
-    status: 'pending_review',
-    label: 'In Review',
-    textClass: 'text-amber-600',
-    badgeClass: 'bg-amber-100 text-amber-700',
-  },
-  {
-    status: 'approved',
-    label: 'Approved',
-    textClass: 'text-emerald-600',
-    badgeClass: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    status: 'scheduled',
-    label: 'Scheduled',
-    textClass: 'text-violet-600',
-    badgeClass: 'bg-violet-100 text-violet-700',
-  },
-  {
-    status: 'published',
-    label: 'Published',
-    textClass: 'text-cyan-600',
-    badgeClass: 'bg-cyan-100 text-cyan-700',
-  },
-  {
-    status: 'rejected',
-    label: 'Rejected',
-    textClass: 'text-red-500',
-    badgeClass: 'bg-red-100 text-red-600',
-  },
+const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string; bg: string }[] = [
+  { status: 'draft', label: 'Draft', color: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
+  { status: 'pending_review', label: 'In Review', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+  { status: 'approved', label: 'Approved', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+  { status: 'scheduled', label: 'Scheduled', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
+  { status: 'published', label: 'Published', color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
+  { status: 'rejected', label: 'Rejected', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
 ];
 
 function getStatusCfg(status: ContentItemStatus) {
@@ -78,7 +43,10 @@ function getStatusCfg(status: ContentItemStatus) {
 function StatusBadge({ status }: { status: ContentItemStatus }) {
   const cfg = getStatusCfg(status);
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', cfg.badgeClass)}>
+    <span
+      className="rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
       {cfg.label}
     </span>
   );
@@ -112,20 +80,31 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
     <Card padding="md" className="flex flex-col gap-3 !p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-primary">{item.title}</p>
-          {item.client && <p className="mt-0.5 text-xs text-secondary">{item.client.name}</p>}
+          <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            {item.title}
+          </p>
+          {item.client && (
+            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {item.client.name}
+            </p>
+          )}
         </div>
         <StatusBadge status={item.status} />
       </div>
 
-      {item.caption && <p className="line-clamp-2 text-xs text-secondary">{item.caption}</p>}
+      {item.caption && (
+        <p className="line-clamp-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {item.caption}
+        </p>
+      )}
 
       {item.platform_targets && item.platform_targets.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {item.platform_targets.map((p) => (
             <span
               key={p}
-              className="flex items-center gap-1 rounded-full bg-elevated px-2 py-0.5 text-xs text-secondary"
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
             >
               {PLATFORM_ICONS[p] ?? <Globe size={10} />} {p}
             </span>
@@ -134,7 +113,9 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
       )}
 
       <div className="flex items-center justify-between gap-2 pt-1">
-        <p className="text-xs text-secondary">{new Date(item.created_at).toLocaleDateString()}</p>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {new Date(item.created_at).toLocaleDateString()}
+        </p>
         <div className="flex items-center gap-2">
           {nextStatus && (
             <Button
@@ -369,10 +350,16 @@ function ContentPage() {
           {STATUS_PIPELINE.filter((s) => grouped[s.status]?.length > 0).map((s) => (
             <div key={s.status} className="space-y-3" role="list" aria-label={`${s.label} items`}>
               <div className="flex items-center justify-between" role="heading" aria-level={2}>
-                <span className={cn('text-xs font-semibold uppercase tracking-wider', s.textClass)}>
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: s.color }}
+                >
                   {s.label}
                 </span>
-                <span className={cn('rounded-full px-2 py-0.5 text-xs', s.badgeClass)}>
+                <span
+                  className="rounded-full px-2 py-0.5 text-xs"
+                  style={{ background: s.bg, color: s.color }}
+                >
                   {grouped[s.status].length}
                 </span>
               </div>

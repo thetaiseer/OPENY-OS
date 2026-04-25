@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const order = searchParams.get('order') === 'asc';
 
   const db = getServiceClient();
-  let q = db.from('docs_expenses').select('*').order(sort, { ascending: order });
+  let q = db.from('docs_accounting_expenses').select('*').order(sort, { ascending: order });
   if (month_key) q = q.eq('month_key', month_key);
 
   const { data, error } = await q;
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('docs_expenses')
+    .from('docs_accounting_expenses')
     .insert({ ...body, created_by: auth.profile.id })
     .select()
     .single();

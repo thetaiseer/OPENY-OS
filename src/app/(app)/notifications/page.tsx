@@ -22,9 +22,6 @@ import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
-import Button from '@/components/ui/Button';
-import { PageHeader, PageShell } from '@/components/layout/PageLayout';
-import { cn } from '@/lib/cn';
 import type { Notification, NotificationCategory, NotificationPriority } from '@/lib/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -191,30 +188,36 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <PageShell className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Bell size={22} className="text-accent" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1
+            className="flex items-center gap-2 text-2xl font-bold"
+            style={{ color: 'var(--text)' }}
+          >
+            <Bell size={22} style={{ color: 'var(--accent)' }} />
             {t('notifications')}
-          </span>
-        }
-        subtitle={unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-        actions={
-          unreadCount > 0 ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={markAllRead}
-              disabled={markingAll}
-              className="h-9 gap-2 text-sm"
-            >
-              <CheckCheck size={14} /> Mark all read
-            </Button>
-          ) : undefined
-        }
-      />
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            disabled={markingAll}
+            className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
+            style={{
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <CheckCheck size={14} /> Mark all read
+          </button>
+        )}
+      </div>
 
       {/* ── Category tabs ────────────────────────────────────────────────── */}
       <div className="scrollbar-thin flex items-center gap-1 overflow-x-auto pb-1">
@@ -225,12 +228,12 @@ export default function NotificationsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
-                active
-                  ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                  : 'border-border bg-[var(--surface)] text-secondary',
-              )}
+              className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium transition-colors"
+              style={{
+                background: active ? 'var(--accent)' : 'var(--surface)',
+                color: active ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              }}
             >
               <Icon size={13} />
               {tab.label}
@@ -243,7 +246,11 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--surface)]" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl"
+              style={{ background: 'var(--surface)' }}
+            />
           ))}
         </div>
       ) : notifications.length === 0 ? (
@@ -282,7 +289,7 @@ export default function NotificationsPage() {
                 {/* Icon */}
                 <div
                   className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${color}18` }}
+                  style={{ background: `${color}18` }}
                 >
                   <Icon size={16} style={{ color }} />
                 </div>
@@ -291,7 +298,12 @@ export default function NotificationsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-primary">{n.title}</p>
+                      <p
+                        className="truncate text-sm font-semibold"
+                        style={{ color: 'var(--text)' }}
+                      >
+                        {n.title}
+                      </p>
                       {priorityLbl && (
                         <span
                           className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold"
@@ -304,9 +316,16 @@ export default function NotificationsPage() {
                         </span>
                       )}
                     </div>
-                    <span className="shrink-0 text-xs text-secondary">{fmtDate(n.created_at)}</span>
+                    <span className="shrink-0 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {fmtDate(n.created_at)}
+                    </span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-secondary">{n.message}</p>
+                  <p
+                    className="mt-0.5 line-clamp-2 text-xs"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {n.message}
+                  </p>
                 </div>
 
                 {/* Actions */}
@@ -314,7 +333,8 @@ export default function NotificationsPage() {
                   {n.action_url && (
                     <Link
                       href={n.action_url}
-                      className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-[var(--surface-2)]"
+                      className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+                      style={{ color: 'var(--text-secondary)' }}
                       title="Open related item"
                     >
                       <ExternalLink size={13} />
@@ -323,7 +343,8 @@ export default function NotificationsPage() {
                   {!n.read && (
                     <button
                       onClick={() => markRead(n.id)}
-                      className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-[var(--surface-2)]"
+                      className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+                      style={{ color: 'var(--text-secondary)' }}
                       title="Mark as read"
                     >
                       <Check size={13} />
@@ -331,7 +352,8 @@ export default function NotificationsPage() {
                   )}
                   <button
                     onClick={() => archiveNotif(n.id)}
-                    className="rounded-lg p-1.5 text-secondary transition-colors hover:opacity-70"
+                    className="rounded-lg p-1.5 transition-colors hover:opacity-70"
+                    style={{ color: 'var(--text-secondary)' }}
                     title="Archive"
                   >
                     <Archive size={13} />
@@ -342,17 +364,21 @@ export default function NotificationsPage() {
           })}
 
           {hasMore && (
-            <Button
+            <button
               onClick={() => void loadNotifications(page + 1, true)}
               disabled={loadingMore}
-              variant="secondary"
-              className="h-10 w-full text-sm"
+              className="h-10 w-full rounded-xl text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
             >
               {loadingMore ? 'Loading…' : 'Load more'}
-            </Button>
+            </button>
           )}
         </div>
       )}
-    </PageShell>
+    </div>
   );
 }

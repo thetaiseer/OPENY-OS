@@ -10,6 +10,6 @@ type ModalProps = {
   [key: string]: any;
 };
 
-export default function Modal({ children, ...props }: ModalProps) {
-  return <AppModal {...props}>{children}</AppModal>;
+export default function Modal(props: ModalProps) {
+  return <AppModal {...props}>{props.children}</AppModal>;
 }

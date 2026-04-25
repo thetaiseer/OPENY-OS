@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
   const db = getServiceClient();
   let query = db
-    .from('saved_views')
+    .from('entity_links')
     .select(ENTITY_LINK_COLUMNS)
     .order('created_at', { ascending: false })
     .limit(500);
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('saved_views')
+    .from('entity_links')
     .upsert(
       {
         source_type: sourceType,

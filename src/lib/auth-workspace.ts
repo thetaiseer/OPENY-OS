@@ -36,7 +36,7 @@ export async function checkWorkspaceAccess(
   if (!workspaceError && (workspaceRows ?? []).length === 0) return false;
 
   const { data: membership } = await supabase
-    .from('workspace_members')
+    .from('workspace_memberships')
     .select('id')
     .eq('user_id', userId)
     .eq('workspace_key', workspaceKey)

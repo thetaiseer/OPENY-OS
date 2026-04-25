@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
       linked_by: auth.profile.id ?? null,
     }));
     void db
-      .from('assets')
+      .from('task_asset_links')
       .upsert(linkRows, { onConflict: 'task_id,asset_id' })
       .then(({ error: linkErr }) => {
         if (linkErr)
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
 
   // Activity log (fire-and-forget — never blocks response)
   void Promise.resolve(
-    db.from('activity_log').insert({
+    db.from('activities').insert({
       type: 'task',
       description: `Task "${title}" created`,
       client_id: clientId || null,
@@ -400,7 +400,7 @@ export async function POST(request: NextRequest) {
       let assigneeEmail = '';
       try {
         const { data: member } = await db
-          .from('workspace_members')
+          .from('team_members')
           .select('email, full_name')
           .eq('profile_id', assignedTo)
           .maybeSingle();

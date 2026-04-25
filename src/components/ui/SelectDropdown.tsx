@@ -1,23 +1,19 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
 
 export type SelectOption = {
   value: string;
   label: ReactNode;
-  disabled?: boolean;
-  [key: string]: unknown;
+  [key: string]: any;
 };
 
 type SelectDropdownProps = {
-  value?: string;
+  value?: any;
   options?: SelectOption[];
-  onChange?: (value: string) => void;
+  onChange?: (value: any) => void;
   placeholder?: string;
-  fullWidth?: boolean;
-  className?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 };
 
 export default function SelectDropdown({
@@ -25,26 +21,19 @@ export default function SelectDropdown({
   options = [],
   onChange,
   placeholder,
-  fullWidth = false,
-  className,
   ...props
 }: SelectDropdownProps) {
   return (
     <select
       {...props}
       value={value ?? ''}
-      className={cn(
-        'h-10 rounded-control border border-border bg-surface px-3 text-sm text-primary outline-none focus:border-accent',
-        fullWidth ? 'w-full' : 'w-auto min-w-[10rem]',
-        className,
-      )}
       onChange={(event) => {
         onChange?.(event.target.value);
       }}
     >
       {placeholder ? <option value="">{placeholder}</option> : null}
       {options.map((option, index) => (
-        <option key={`${option.value}-${index}`} value={option.value} disabled={option.disabled}>
+        <option key={`${option.value}-${index}`} value={option.value}>
           {typeof option.label === 'string' ? option.label : option.value}
         </option>
       ))}

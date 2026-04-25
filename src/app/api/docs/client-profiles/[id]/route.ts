@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const db = getServiceClient();
   const { data: existingProfile, error: existingProfileError } = await db
-    .from('docs_client_contracts')
+    .from('docs_client_document_profiles')
     .select('client_id')
     .eq('id', id)
     .maybeSingle();
@@ -84,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
 
   const { data, error } = await db
-    .from('docs_client_contracts')
+    .from('docs_client_document_profiles')
     .update({
       ...updates,
       updated_at: new Date().toISOString(),
@@ -106,7 +106,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('docs_client_contracts').delete().eq('id', id);
+  const { error } = await db.from('docs_client_document_profiles').delete().eq('id', id);
   if (error)
     return NextResponse.json(
       { error: mapDbError(error, 'Unable to delete profile.') },

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   // Resolve team member row to get the member ID for permission lookup.
   const { data: memberRow } = await db
-    .from('workspace_members')
+    .from('team_members')
     .select('id, role, platform_role')
     .eq('email', auth.profile.email)
     .maybeSingle();
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const memberPlatformRole = normalizePlatformRole(memberRow.platform_role ?? memberRow.role);
 
   const { data: overrides } = await db
-    .from('workspace_members')
+    .from('member_permissions')
     .select('id, team_member_id, workspace, module, access_level, created_at, updated_at')
     .eq('team_member_id', memberRow.id);
 
