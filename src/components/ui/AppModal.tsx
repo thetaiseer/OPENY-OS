@@ -103,9 +103,7 @@ export default function AppModal({
                         {icon}
                       </span>
                     ) : null}
-                    <h3 className="truncate text-base font-semibold text-gray-900 dark:text-neutral-100">
-                      {title}
-                    </h3>
+                    <h3 className="truncate text-base font-semibold text-[var(--text)]">{title}</h3>
                   </div>
                 ) : null}
                 {subtitle ? (
