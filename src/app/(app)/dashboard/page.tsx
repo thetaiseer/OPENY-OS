@@ -40,7 +40,7 @@ export default function DashboardPage() {
     queryKey: ['activities'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('activities')
+        .from('activity_log')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);

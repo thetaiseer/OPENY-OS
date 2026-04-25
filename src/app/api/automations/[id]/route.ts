@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const db = getServiceClient();
   const { data, error } = await db
-    .from('automation_rules')
+    .from('automations')
     .select(AUTOMATION_RULE_COLUMNS)
     .eq('id', id)
     .single();
@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('automation_rules')
+    .from('automations')
     .update(allowed)
     .eq('id', id)
     .select()
@@ -62,7 +62,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('automation_rules').delete().eq('id', id);
+  const { error } = await db.from('automations').delete().eq('id', id);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

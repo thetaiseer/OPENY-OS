@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
 
     let query = db
-      .from('activities')
+      .from('activity_log')
       .select(ACTIVITY_API_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     const db = getServiceClient();
 
     const { data, error } = await db
-      .from('activities')
+      .from('activity_log')
       .insert(insertPayload)
       .select(ACTIVITY_API_COLUMNS)
       .single();

@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('docs_accounting_expenses')
+    .from('docs_expenses')
     .update(body)
     .eq('id', id)
     .select()
@@ -36,7 +36,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
 
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('docs_accounting_expenses').delete().eq('id', id);
+  const { error } = await db.from('docs_expenses').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

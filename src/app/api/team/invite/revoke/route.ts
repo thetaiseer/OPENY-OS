@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   // Mark all active invitations for this member as revoked.
   const { error: revokeError } = await db
-    .from('team_invitations')
+    .from('invitations')
     .update({ status: INVITATION_STATUS.REVOKED, updated_at: new Date().toISOString() })
     .eq('team_member_id', teamMemberId)
     .in('status', [INVITATION_STATUS.INVITED, INVITATION_STATUS.PENDING]);
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   // Remove the invited team member record
   const { error: deleteError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .delete()
     .eq('id', teamMemberId)
     .eq('status', INVITATION_STATUS.INVITED);

@@ -69,7 +69,7 @@ export default function ClientTasksPage() {
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
         .limit(100),
-      supabase.from('team_members').select('*').order('full_name'),
+      supabase.from('workspace_members').select('*').order('full_name'),
     ]);
     if (tk.status === 'fulfilled' && !tk.value.error) setTasks((tk.value.data ?? []) as Task[]);
     if (tm.status === 'fulfilled' && !tm.value.error)

@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
       ? `Publishing scheduled for "${assetData.name}" on ${scheduledDate}`
       : `Publishing scheduled for content item on ${scheduledDate}`;
     void db
-      .from('activities')
+      .from('activity_log')
       .insert({
         type: 'publishing_scheduled',
         description: activityDesc,

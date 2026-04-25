@@ -32,10 +32,7 @@ export async function GET(req: NextRequest) {
         .from('clients')
         .select('id,name,slug,status,default_currency')
         .order('name', { ascending: true }),
-      db
-        .from('docs_client_document_profiles')
-        .select('*')
-        .order('created_at', { ascending: false }),
+      db.from('docs_client_contracts').select('*').order('created_at', { ascending: false }),
     ]);
 
   if (clientsError)
@@ -150,7 +147,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data, error } = await db
-    .from('docs_client_document_profiles')
+    .from('docs_client_contracts')
     .upsert(payload, { onConflict: 'client_id' })
     .select('*')
     .single();

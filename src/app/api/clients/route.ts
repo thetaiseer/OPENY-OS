@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     void (async () => {
       try {
         const { data: admins } = await db
-          .from('team_members')
+          .from('workspace_members')
           .select('profile_id')
           .eq('role', 'admin');
         const adminUserIds = (admins ?? [])

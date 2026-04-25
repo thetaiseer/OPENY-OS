@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   if (existing && typeof body.salary === 'number' && body.salary !== existing.salary) {
     const diff = (body.salary as number) - existing.salary;
-    await db.from('docs_salary_adjustments').insert({
+    await db.from('docs_salary_history').insert({
       employee_id: id,
       new_salary: body.salary,
       change_amount: Math.abs(diff),

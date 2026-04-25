@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
 
   // ── Activity log (fire-and-forget) ─────────────────────────────────────────
   void supabase
-    .from('activities')
+    .from('activity_log')
     .insert({
       type: 'asset',
       description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
     void (async () => {
       try {
         const { data: members } = await supabase
-          .from('team_members')
+          .from('workspace_members')
           .select('profile_id')
           .eq('status', 'active');
 

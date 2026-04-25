@@ -117,7 +117,7 @@ async function insertInvitationWithFallback(
   const errors: string[] = [];
   for (const candidate of variants) {
     const { data: invitation, error } = await db
-      .from('team_invitations')
+      .from('invitations')
       .insert(candidate)
       .select()
       .single();
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
 
   // ── 1. Check for active invite already sent to this email ────────────────
   const { data: existingInvite } = await db
-    .from('team_invitations')
+    .from('invitations')
     .select('id, status, expires_at')
     .eq('email', email)
     .in('status', [...ACTIVE_INVITATION_STATUSES])
@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
 
   // ── 3. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .insert({
       full_name,
       email,
@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
   if (!invitation) {
     console.error('[team/invite] Failed to insert team_invitations row:', inviteInsertError);
     // Roll back the team member if we can't create the invitation
-    await db.from('team_members').delete().eq('id', member.id);
+    await db.from('workspace_members').delete().eq('id', member.id);
     return NextResponse.json(
       {
         error: inviteInsertError ?? 'Failed to create invitation',
@@ -354,8 +354,8 @@ export async function POST(request: NextRequest) {
       error: errMsg,
     });
     // Roll back both records so there's no broken state
-    await db.from('team_invitations').delete().eq('id', String(invitation.id));
-    await db.from('team_members').delete().eq('id', member.id);
+    await db.from('invitations').delete().eq('id', String(invitation.id));
+    await db.from('workspace_members').delete().eq('id', member.id);
     return NextResponse.json(
       { error: `Invitation created but email failed to send: ${errMsg}` },
       { status: 502 },

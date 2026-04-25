@@ -127,7 +127,7 @@ export async function middleware(request: NextRequest) {
 
   if (requiredWorkspaceFromPath && !isGlobalOwnerEmail(user.email)) {
     const { data: membership } = await supabase
-      .from('workspace_memberships')
+      .from('workspace_members')
       .select('id')
       .eq('user_id', user.id)
       .eq('workspace_key', requiredWorkspaceFromPath)

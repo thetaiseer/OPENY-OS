@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
   for (const selectClause of selectVariants) {
     const { data, error } = await db
-      .from('team_invitations')
+      .from('invitations')
       .select(selectClause)
       .order('created_at', { ascending: false });
 

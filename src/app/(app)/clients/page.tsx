@@ -105,7 +105,7 @@ function ClientsPage() {
         supabase.from('tasks').select('client_id').not('client_id', 'is', null),
         supabase.from('content_items').select('client_id').not('client_id', 'is', null),
         supabase
-          .from('activities')
+          .from('activity_log')
           .select('client_id, created_at, description')
           .not('client_id', 'is', null)
           .order('created_at', { ascending: false })
@@ -181,7 +181,7 @@ function ClientsPage() {
 
   const logActivity = (description: string, clientId?: string) => {
     void supabase
-      .from('activities')
+      .from('activity_log')
       .insert({
         type: 'client',
         description,

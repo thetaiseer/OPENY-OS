@@ -182,7 +182,7 @@ export default function ClientAssetsPage() {
     }
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
     addToast('File deleted', 'success');
-    await supabase.from('activities').insert({
+    await supabase.from('activity_log').insert({
       type: 'delete',
       description: `Asset "${asset.name}" deleted`,
       client_id: clientId,

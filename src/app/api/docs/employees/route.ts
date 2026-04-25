@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (data && typeof body.salary === 'number' && body.salary > 0) {
-    await db.from('docs_salary_adjustments').insert({
+    await db.from('docs_salary_history').insert({
       employee_id: data.id,
       new_salary: body.salary,
       change_amount: body.salary,

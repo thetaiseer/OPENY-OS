@@ -290,7 +290,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   // Activity log (fire-and-forget)
   void Promise.resolve(
-    db.from('activities').insert({
+    db.from('activity_log').insert({
       type: 'task',
       description: `Task deleted (id: ${id})`,
     }),

@@ -308,7 +308,7 @@ export default function MyTasksPage() {
           .order('due_date', { ascending: true })
           .limit(500),
         supabase
-          .from('team_members')
+          .from('workspace_members')
           .select('id,full_name,email,role,avatar_url,job_title,created_at')
           .order('full_name'),
         supabase.from('clients').select('id,name,status').order('name'),

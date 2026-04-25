@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const db = getServiceClient();
 
   const { data: member, error: memberError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('id, role, platform_role')
     .eq('id', id)
     .maybeSingle();
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const role = normalizePlatformRole(member.platform_role ?? member.role);
 
   const { data: overrides } = await db
-    .from('member_permissions')
+    .from('workspace_members')
     .select('id, team_member_id, workspace, module, access_level, created_at, updated_at')
     .eq('team_member_id', id);
 
@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const db = getServiceClient();
 
   const { data: member, error: memberError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('id, full_name, role, platform_role')
     .eq('id', id)
     .maybeSingle();
@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const { error: upsertError } = await db
-    .from('member_permissions')
+    .from('workspace_members')
     .upsert(rows, { onConflict: 'team_member_id,workspace,module' });
 
   if (upsertError) {
@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   // Re-fetch and return updated permissions
   const { data: overrides } = await db
-    .from('member_permissions')
+    .from('workspace_members')
     .select('id, team_member_id, workspace, module, access_level, created_at, updated_at')
     .eq('team_member_id', id);
 

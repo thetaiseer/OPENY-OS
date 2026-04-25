@@ -18,7 +18,7 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
     // Return a proxy that satisfies type-checking without throwing.
     return new Proxy({} as ReturnType<typeof createBrowserClient>, {
       get(_target, prop) {
-        // Return nested proxies so call-chains like supabase.from('x').select() don't throw.
+        // Return nested proxies so call-chains like supabase.from('profiles').select() don't throw.
         if (typeof prop === 'string') {
           return (..._args: unknown[]) =>
             new Proxy({} as object, {

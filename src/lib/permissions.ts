@@ -182,7 +182,7 @@ export async function fetchMemberPermissions(
   }
 
   const { data, error } = await db
-    .from('member_permissions')
+    .from('workspace_members')
     .select('workspace, module, access_level')
     .eq('team_member_id', teamMemberId);
 

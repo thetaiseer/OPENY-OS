@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { data: members } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('email, profile_id')
     .not('email', 'is', null);
 

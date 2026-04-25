@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const db = getServiceClient();
 
   const { data: member, error: fetchError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('id, role')
     .eq('id', id)
     .maybeSingle();
@@ -110,7 +110,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     Object.entries(payloadRaw).filter(([, value]) => value !== undefined),
   );
 
-  const { error: updateError } = await db.from('team_members').update(payload).eq('id', id);
+  const { error: updateError } = await db.from('workspace_members').update(payload).eq('id', id);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -151,7 +151,7 @@ export async function DELETE(
 
   // Fetch the member to verify they exist and check their role.
   const { data: member, error: fetchError } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('id, full_name, role')
     .eq('id', id)
     .maybeSingle();
@@ -173,7 +173,7 @@ export async function DELETE(
     );
   }
 
-  const { error: deleteError } = await db.from('team_members').delete().eq('id', id);
+  const { error: deleteError } = await db.from('workspace_members').delete().eq('id', id);
 
   if (deleteError) {
     console.error('[team/members/delete] Delete error:', deleteError.message);

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const db = getServiceClient();
 
     let query = db
-      .from('task_asset_links')
+      .from('assets')
       .select(
         `
         task_id, asset_id, linked_at, linked_by,
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     }));
 
     const { data, error } = await db
-      .from('task_asset_links')
+      .from('assets')
       .upsert(linkRows, { onConflict: 'task_id,asset_id' })
       .select('task_id, asset_id, linked_at, linked_by');
 
@@ -166,7 +166,7 @@ export async function DELETE(req: NextRequest) {
     const db = getServiceClient();
 
     const { error } = await db
-      .from('task_asset_links')
+      .from('assets')
       .delete()
       .eq('task_id', taskId)
       .eq('asset_id', assetId);
@@ -178,7 +178,7 @@ export async function DELETE(req: NextRequest) {
 
     // If this asset has no other task links, reset its status to 'ready'
     void db
-      .from('task_asset_links')
+      .from('assets')
       .select('task_id', { count: 'exact', head: true })
       .eq('asset_id', assetId)
       .then(async ({ count }) => {

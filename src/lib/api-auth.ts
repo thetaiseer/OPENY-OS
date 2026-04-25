@@ -129,7 +129,7 @@ export async function getApiUser(request: NextRequest): Promise<{ profile: UserP
   let membershipRole: WorkspaceRole | null = null;
   if (requiredWorkspace) {
     const { data: membership } = await admin
-      .from('workspace_memberships')
+      .from('workspace_members')
       .select('role')
       .eq('user_id', user.id)
       .eq('workspace_key', requiredWorkspace)
@@ -151,7 +151,7 @@ export async function getApiUser(request: NextRequest): Promise<{ profile: UserP
   // 3. Fetch role from public.team_members using the service-role key so that
   //    Row Level Security does not block the read.
   const { data: member } = await admin
-    .from('team_members')
+    .from('workspace_members')
     .select('id, full_name, email, role')
     .eq('email', email)
     .maybeSingle();
@@ -269,7 +269,7 @@ export async function requireModulePermission(
   // Resolve team_member_id for this user to load stored overrides.
   const db = getServiceClient();
   const { data: memberRow } = await db
-    .from('team_members')
+    .from('workspace_members')
     .select('id, role, platform_role')
     .eq('email', auth.profile.email)
     .maybeSingle();

@@ -134,7 +134,7 @@ async function fetchUserStateFromTables(
   try {
     const result = await Promise.race([
       supabase
-        .from('team_members')
+        .from('workspace_members')
         .select('id, full_name, email, role')
         .eq('email', email)
         .maybeSingle() as unknown as Promise<{
@@ -151,7 +151,7 @@ async function fetchUserStateFromTables(
   }
 
   const { data: memberships } = await supabase
-    .from('workspace_memberships')
+    .from('workspace_members')
     .select('workspace_key, role, is_active')
     .eq('user_id', supabaseUser.id)
     .eq('is_active', true);

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   const { id } = await params;
   const db = getServiceClient();
   const { data, error } = await db
-    .from('docs_salary_adjustments')
+    .from('docs_salary_history')
     .select('*')
     .eq('employee_id', id)
     .order('effective_date', { ascending: false });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<Param
   const diff = new_salary - oldSalary;
 
   const { data: adj, error: adjErr } = await db
-    .from('docs_salary_adjustments')
+    .from('docs_salary_history')
     .insert({
       employee_id: id,
       new_salary,

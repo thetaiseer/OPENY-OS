@@ -543,7 +543,7 @@ function AssetsPage() {
 
   useEffect(() => {
     supabase
-      .from('team_members')
+      .from('workspace_members')
       .select('*')
       .order('full_name')
       .then(({ data }) => {

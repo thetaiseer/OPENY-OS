@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
   // Activity log + workspace event (fire-and-forget)
-  void db.from('activities').insert({
+  void db.from('activity_log').insert({
     type: 'project_created',
     description: `Project "${name}" created`,
     client_id: payload.client_id || null,

@@ -21,7 +21,7 @@ export async function saveStoredFileMetadata(
     visibility: input.visibility ?? 'public',
   };
 
-  const { data, error } = await db.from('stored_files').insert(payload).select('id').maybeSingle();
+  const { data, error } = await db.from('assets').insert(payload).select('id').maybeSingle();
 
   if (error) {
     // Keep runtime backward compatible while migration rolls out.

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const db = getServiceClient();
   let q = db
-    .from('docs_backups')
+    .from('saved_views')
     .select('id, module, label, created_at')
     .order('created_at', { ascending: false });
   if (moduleName) q = q.eq('module', moduleName);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const db = getServiceClient();
   const { data, error } = await db
-    .from('docs_backups')
+    .from('saved_views')
     .insert({
       module: backupModule,
       data: backupData,

@@ -72,7 +72,7 @@ export async function getWorkspaceMembership(
   workspace: WorkspaceKey,
 ): Promise<{ role: WorkspaceRole; is_active: boolean } | null> {
   const { data } = await supabase
-    .from('workspace_memberships')
+    .from('workspace_members')
     .select('role, is_active')
     .eq('user_id', userId)
     .eq('workspace_key', workspace)

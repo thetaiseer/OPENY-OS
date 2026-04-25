@@ -498,7 +498,7 @@ async function logActivity(
 ): Promise<void> {
   const payload = event.payload ?? {};
   try {
-    await db.from('activities').insert({
+    await db.from('activity_log').insert({
       type: event.event_type,
       category: rule.category,
       title: rule.title(payload),
@@ -598,7 +598,7 @@ async function maybeSendEmail(
   try {
     // Fetch recipient email
     const { data: member } = await db
-      .from('team_members')
+      .from('workspace_members')
       .select('email, full_name')
       .eq('profile_id', userId)
       .maybeSingle();
@@ -649,7 +649,7 @@ async function maybeSendEmail(
 
     // Delivery log
     if (notificationId) {
-      void db.from('notification_delivery_logs').insert({
+      void db.from('notifications').insert({
         notification_id: notificationId,
         channel: 'email',
         status: 'success',
@@ -661,7 +661,7 @@ async function maybeSendEmail(
       emailErr instanceof Error ? emailErr.message : String(emailErr),
     );
     if (notificationId) {
-      void db.from('notification_delivery_logs').insert({
+      void db.from('notifications').insert({
         notification_id: notificationId,
         channel: 'email',
         status: 'failed',

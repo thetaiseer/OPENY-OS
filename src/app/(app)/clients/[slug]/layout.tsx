@@ -128,7 +128,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
       setClient(data as Client);
       setEditOpen(false);
-      await supabase.from('activities').insert({
+      await supabase.from('activity_log').insert({
         type: 'client',
         description: `Client "${editForm.name}" updated`,
         client_id: clientId,
