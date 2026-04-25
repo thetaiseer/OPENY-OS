@@ -3,7 +3,16 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderKanban, Plus, Pencil, Trash2, Search, LayoutGrid, Calendar } from 'lucide-react';
+import {
+  FolderKanban,
+  FolderOpen,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  LayoutGrid,
+  Calendar,
+} from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Client, Project, Task, TeamMember, Activity as ActivityItem } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
@@ -431,10 +440,15 @@ export default function ProjectsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <div
-              className="mb-5 flex h-20 w-20 animate-pulse items-center justify-center rounded-2xl"
+              className="relative mb-5 flex h-24 w-24 animate-pulse items-center justify-center rounded-2xl ring-1 ring-[var(--border)]"
               style={{ background: 'var(--surface-2)' }}
             >
-              <FolderKanban size={36} style={{ color: 'var(--text-secondary)' }} />
+              <FolderOpen
+                className="absolute opacity-25"
+                size={52}
+                style={{ color: 'var(--accent)' }}
+              />
+              <FolderKanban size={34} style={{ color: 'var(--text-secondary)' }} />
             </div>
             <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
               Loading projects…
@@ -448,10 +462,15 @@ export default function ProjectsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <div
-              className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
+              className="relative mb-5 flex h-24 w-24 items-center justify-center rounded-2xl ring-1 ring-[var(--border)]"
               style={{ background: 'var(--surface-2)' }}
             >
-              <FolderKanban size={36} style={{ color: 'var(--text-secondary)' }} />
+              <FolderOpen
+                className="absolute opacity-20"
+                size={52}
+                style={{ color: 'var(--accent)' }}
+              />
+              <FolderKanban size={34} style={{ color: 'var(--text-secondary)' }} />
             </div>
             <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
               No projects yet
@@ -462,7 +481,7 @@ export default function ProjectsPage() {
             {canManage ? (
               <Button type="button" variant="primary" onClick={openCreate}>
                 <Plus size={16} />
-                Create project
+                Create Project
               </Button>
             ) : null}
           </CardContent>

@@ -419,9 +419,14 @@ function triggerDownload(url: string, filename: string): void {
 
 function AssetsPage() {
   const pathname = usePathname();
-  const workspaceQs = useMemo(() => workspaceSearchParamFromPathname(pathname), [pathname]);
   const { t } = useLang();
-  const { user } = useAuth();
+  const { user, defaultWorkspaceId } = useAuth();
+  const workspaceQs = useMemo(() => {
+    if (defaultWorkspaceId) {
+      return `workspace_id=${encodeURIComponent(defaultWorkspaceId)}`;
+    }
+    return workspaceSearchParamFromPathname(pathname);
+  }, [defaultWorkspaceId, pathname]);
   const { toast } = useToast();
   const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
   const canUpload = canDeleteFiles || user?.role === 'team_member';

@@ -13,6 +13,22 @@ export type WorkspaceResolution = {
   error: string | null;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function userBelongsToWorkspace(
+  db: SupabaseClient,
+  userId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const row = await db
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', userId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+  return !row.error && Boolean(row.data?.workspace_id);
+}
+
 function resolveWorkspaceKeyFromRequest(request: NextRequest): WorkspaceKey | null {
   const fromQuery = normalizeWorkspaceKey(request.nextUrl.searchParams.get('workspace'));
   if (fromQuery) return fromQuery;
@@ -168,9 +184,16 @@ export async function resolveWorkspaceForRequest(
 ): Promise<WorkspaceResolution> {
   const requestedKey = resolveWorkspaceKeyFromRequest(request);
   const workspaceKey = requestedKey ?? 'os';
-  const byKey = await resolveWorkspaceIdByKey(db, workspaceKey);
-  if (byKey) return { workspaceKey, workspaceId: byKey, error: null };
 
+  const workspaceIdParam = request.nextUrl.searchParams.get('workspace_id')?.trim() ?? '';
+  if (workspaceIdParam && UUID_RE.test(workspaceIdParam) && userId) {
+    const allowed = await userBelongsToWorkspace(db, userId, workspaceIdParam);
+    if (allowed) {
+      return { workspaceKey, workspaceId: workspaceIdParam, error: null };
+    }
+  }
+
+  // Prefer membership-based resolution for authenticated users (slug "os" may not exist).
   if (userId) {
     const bySession = await resolveWorkspaceIdFromSession(db, userId, workspaceKey);
     if (bySession.workspaceId) {
@@ -181,6 +204,9 @@ export async function resolveWorkspaceForRequest(
       };
     }
   }
+
+  const byKey = await resolveWorkspaceIdByKey(db, workspaceKey);
+  if (byKey) return { workspaceKey, workspaceId: byKey, error: null };
 
   return {
     workspaceKey,

@@ -371,8 +371,27 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { t } = useLang();
   const { triggerQuickAction } = useQuickActions();
-  const firstName = user?.name?.split(' ')[0] || 'there';
   const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
+
+  const { data: profileDisplayName } = useQuery({
+    queryKey: ['dashboard-profile-display-name', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, name')
+        .eq('id', user.id)
+        .maybeSingle();
+      const row = data as { full_name?: string | null; name?: string | null } | null;
+      return (row?.full_name?.trim() || row?.name?.trim() || null) as string | null;
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 120_000,
+  });
+
+  const displayName = profileDisplayName?.trim() || user?.name?.trim() || 'there';
+  const firstName = displayName.includes(' ')
+    ? (displayName.split(/\s+/)[0] ?? 'there')
+    : displayName;
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
 

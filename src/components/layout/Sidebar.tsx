@@ -24,49 +24,47 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-const osNavItems = [
+/** Single unified nav: operations + Docs hub + document tools in one shell. */
+const primaryNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Gauge },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/tasks/all', label: 'Tasks', icon: ClipboardList },
   { href: '/content', label: 'Content', icon: FileText },
+  { href: '/docs', label: 'Docs', icon: LayoutDashboard },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/assets', label: 'Assets', icon: ImageIcon },
   { href: '/reports/overview', label: 'Reports', icon: BarChart3 },
   { href: '/team', label: 'Team', icon: UserSquare2 },
   { href: '/activity', label: 'Activity', icon: Activity },
   { href: '/security/sessions', label: 'Security', icon: Shield },
-  { href: '/settings/profile', label: 'Settings', icon: Settings },
-] as const;
-
-const docsNavItems = [
-  { href: '/docs', label: 'Docs Home', icon: LayoutDashboard },
   { href: '/docs/invoice', label: 'Invoice', icon: Receipt },
   { href: '/docs/quotation', label: 'Quotation', icon: FilePenLine },
-  { href: '/docs/client-contract', label: 'Client Contract', icon: Handshake },
-  { href: '/docs/hr-contract', label: 'HR Contract', icon: FileBadge2 },
+  { href: '/docs/client-contract', label: 'Client contract', icon: Handshake },
+  { href: '/docs/hr-contract', label: 'HR contract', icon: FileBadge2 },
   { href: '/docs/employees', label: 'Employees', icon: Users },
   { href: '/docs/accounting', label: 'Accounting', icon: FileSpreadsheet },
+  { href: '/settings/profile', label: 'Settings', icon: Settings },
 ] as const;
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const activeWorkspace = pathname.startsWith('/docs') ? 'docs' : 'os';
-  const navItems = activeWorkspace === 'docs' ? docsNavItems : osNavItems;
 
   return (
-    <aside className="openy-glass fixed inset-y-0 left-0 z-40 hidden w-[240px] border-r md:block">
-      <div className="flex h-16 items-center border-b border-border px-4">
+    <aside className="openy-glass fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-y-auto border-r md:block">
+      <div className="flex h-16 shrink-0 items-center border-b border-border px-4">
         <span className="text-lg font-semibold tracking-tight text-primary">OPENY</span>
       </div>
-      <nav className="space-y-1.5 p-3 pt-4">
-        {navItems.map((item) => {
+      <nav className="space-y-1.5 p-3 pb-8 pt-4">
+        {primaryNavItems.map((item) => {
           const Icon = item.icon;
-          const active =
-            pathname === item.href ||
-            pathname.startsWith(`${item.href}/`) ||
-            (item.href === '/reports/overview' && pathname === '/reports') ||
-            (item.href === '/security/sessions' && pathname === '/security');
+          const isDocsHome = item.href === '/docs';
+          const active = isDocsHome
+            ? pathname === '/docs' || pathname === '/docs/'
+            : pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              (item.href === '/reports/overview' && pathname === '/reports') ||
+              (item.href === '/security/sessions' && pathname === '/security');
           return (
             <Link
               key={item.href}

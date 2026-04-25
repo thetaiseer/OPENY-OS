@@ -32,26 +32,39 @@ export interface WorkspaceAccessState {
 interface CachedUserEntry {
   user: User;
   workspaceAccess: WorkspaceAccessState;
+  defaultWorkspaceId?: string | null;
   ts: number;
 }
 
-function readUserCache(): { user: User; workspaceAccess: WorkspaceAccessState } | null {
+function readUserCache(): {
+  user: User;
+  workspaceAccess: WorkspaceAccessState;
+  defaultWorkspaceId: string | null;
+} | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const entry = JSON.parse(raw) as CachedUserEntry;
     if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
-    return { user: entry.user, workspaceAccess: entry.workspaceAccess };
+    return {
+      user: entry.user,
+      workspaceAccess: entry.workspaceAccess,
+      defaultWorkspaceId: entry.defaultWorkspaceId ?? null,
+    };
   } catch {
     return null;
   }
 }
 
-function writeUserCache(user: User, workspaceAccess: WorkspaceAccessState): void {
+function writeUserCache(
+  user: User,
+  workspaceAccess: WorkspaceAccessState,
+  defaultWorkspaceId: string | null,
+): void {
   if (typeof window === 'undefined') return;
   try {
-    const entry: CachedUserEntry = { user, workspaceAccess, ts: Date.now() };
+    const entry: CachedUserEntry = { user, workspaceAccess, defaultWorkspaceId, ts: Date.now() };
     sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
   } catch {
     /* ignore — storage quota or private-mode */
@@ -78,6 +91,8 @@ interface AuthContextType {
   user: User;
   role: UserRole;
   workspaceAccess: WorkspaceAccessState;
+  /** First workspace_members.workspace_id for API scoping (unified app). */
+  defaultWorkspaceId: string | null;
   clientId: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -97,6 +112,7 @@ const AuthContext = createContext<AuthContextType>({
   user: LOADING_USER,
   role: 'team_member',
   workspaceAccess: DEFAULT_WORKSPACE_ACCESS,
+  defaultWorkspaceId: null,
   clientId: null,
   loading: true,
   signOut: async () => {},
@@ -127,19 +143,33 @@ function pickDisplayName(
 async function fetchUserStateFromTables(
   supabase: ReturnType<typeof createClient>,
   supabaseUser: SupabaseUser,
-): Promise<{ user: User; workspaceAccess: WorkspaceAccessState }> {
+): Promise<{
+  user: User;
+  workspaceAccess: WorkspaceAccessState;
+  defaultWorkspaceId: string | null;
+}> {
   const email = supabaseUser.email ?? '';
   const meta = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>;
 
+  const [profileRes, memberWsRes] = await Promise.all([
+    supabase.from('profiles').select('name, full_name').eq('id', supabaseUser.id).maybeSingle(),
+    supabase
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', supabaseUser.id)
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
   let profile: { full_name?: string | null; name?: string | null } | null = null;
-  const profileRes = await supabase
-    .from('profiles')
-    .select('name, full_name')
-    .eq('id', supabaseUser.id)
-    .maybeSingle();
   if (!profileRes.error && profileRes.data) {
     profile = profileRes.data as { full_name?: string | null; name?: string | null };
   }
+
+  const defaultWorkspaceId =
+    !memberWsRes.error && memberWsRes.data?.workspace_id
+      ? (memberWsRes.data.workspace_id as string)
+      : null;
 
   // Force owner role for the workspace owner email without a DB round-trip.
   if (email.toLowerCase() === OWNER_EMAIL) {
@@ -156,6 +186,7 @@ async function fetchUserStateFromTables(
         roles: { os: 'owner', docs: 'owner' },
         isGlobalOwner: true,
       },
+      defaultWorkspaceId,
     };
   }
 
@@ -211,6 +242,7 @@ async function fetchUserStateFromTables(
         role: resolvedRole,
       },
       workspaceAccess,
+      defaultWorkspaceId,
     };
   }
 
@@ -234,6 +266,7 @@ async function fetchUserStateFromTables(
       role: fallbackRole,
     },
     workspaceAccess,
+    defaultWorkspaceId,
   };
 }
 
@@ -248,12 +281,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // repeat page loads without waiting for the DB round-trip.
   // A single useState lazy initializer reads the cache once; subsequent
   // state calls reuse the already-computed value.
-  const [initCache] = useState<{ user: User; workspaceAccess: WorkspaceAccessState } | null>(
-    readUserCache,
-  );
+  const [initCache] = useState<{
+    user: User;
+    workspaceAccess: WorkspaceAccessState;
+    defaultWorkspaceId: string | null;
+  } | null>(readUserCache);
   const [user, setUser] = useState<User>(initCache?.user ?? LOADING_USER);
   const [workspaceAccess, setWorkspaceAccess] = useState<WorkspaceAccessState>(
     initCache?.workspaceAccess ?? DEFAULT_WORKSPACE_ACCESS,
+  );
+  const [defaultWorkspaceId, setDefaultWorkspaceId] = useState<string | null>(
+    initCache?.defaultWorkspaceId ?? null,
   );
   const [loading, setLoading] = useState<boolean>(initCache === null);
   // Keep a stable ref so the effect below can read the initial cache status
@@ -265,7 +303,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resolved = await fetchUserStateFromTables(supabase, sbUser);
       setUser(resolved.user);
       setWorkspaceAccess(resolved.workspaceAccess);
-      writeUserCache(resolved.user, resolved.workspaceAccess);
+      setDefaultWorkspaceId(resolved.defaultWorkspaceId);
+      writeUserCache(resolved.user, resolved.workspaceAccess, resolved.defaultWorkspaceId);
       return resolved.user;
     },
     [supabase],
@@ -303,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setUser(LOADING_USER);
           setWorkspaceAccess(DEFAULT_WORKSPACE_ACCESS);
+          setDefaultWorkspaceId(null);
           clearUserCache();
           setLoading(false);
         }
@@ -359,6 +399,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         role,
         workspaceAccess,
+        defaultWorkspaceId,
         clientId,
         loading,
         signOut,
