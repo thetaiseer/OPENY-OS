@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Moon, Search, Sun, UserCircle2 } from 'lucide-react';
+import { Bell, Languages, Moon, Search, Sun, UserCircle2 } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
 import { cn } from '@/lib/cn';
@@ -11,7 +11,7 @@ type TopbarProps = {
 
 export default function Topbar({ className }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
-  const { t } = useLang();
+  const { t, lang, toggleLang } = useLang();
 
   return (
     <header
@@ -31,6 +31,18 @@ export default function Topbar({ className }: TopbarProps) {
           />
         </label>
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          <button
+            type="button"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:min-w-[64px]"
+            aria-label={lang === 'ar' ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
+            onClick={toggleLang}
+            title={lang === 'ar' ? 'Switch to English' : 'اللغة العربية'}
+          >
+            <Languages className="h-4 w-4" />
+            <span className="text-[11px] font-semibold leading-none">
+              {lang === 'ar' ? 'EN' : 'AR'}
+            </span>
+          </button>
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
