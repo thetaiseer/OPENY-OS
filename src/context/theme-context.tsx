@@ -10,6 +10,12 @@ interface ThemeContextType {
 }
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
+function applyThemeToDocument(theme: Theme) {
+  const root = document.documentElement;
+  root.setAttribute('data-theme', theme);
+  root.classList.toggle('dark', theme === 'dark');
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
@@ -17,7 +23,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('theme') as Theme | null;
     const initial = saved === 'light' || saved === 'dark' ? saved : 'dark';
     setTheme(initial);
-    document.documentElement.classList.toggle('dark', initial === 'dark');
+    applyThemeToDocument(initial);
   }, []);
 
   const toggleTheme = () => {
@@ -28,7 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove('theme-transition');
       }, motionTiming.page * 1000);
       localStorage.setItem('theme', next);
-      document.documentElement.classList.toggle('dark', next === 'dark');
+      applyThemeToDocument(next);
       return next;
     });
   };
