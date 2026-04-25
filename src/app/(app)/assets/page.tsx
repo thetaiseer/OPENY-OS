@@ -54,6 +54,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -595,6 +596,10 @@ function AssetsPage() {
       setQuickActionUploadOpen(true);
     });
   }, [canUpload, registerQuickActionHandler, setQuickActionUploadOpen]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-asset' && canUpload) setQuickActionUploadOpen(true);
+  }, [canUpload]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 

@@ -30,6 +30,7 @@ import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { useQuickActions } from '@/context/quick-actions-context';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
@@ -194,6 +195,10 @@ function ClientsPage() {
       setModalOpen(true);
     });
   }, [registerQuickActionHandler, setModalOpen]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-client') setModalOpen(true);
+  }, []);
 
   const logActivity = (description: string, clientId?: string) => {
     void supabase

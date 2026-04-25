@@ -66,6 +66,7 @@ import {
   getPlatformDisplayColor,
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 import { useQuickActions } from '@/context/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -1568,6 +1569,10 @@ export default function TasksPage() {
       setCreateOpen(true);
     });
   }, [registerQuickActionHandler, setCreateOpen]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-task') setCreateOpen(true);
+  }, []);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });

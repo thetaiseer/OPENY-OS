@@ -36,6 +36,7 @@ import {
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
 import { useQuickActions } from '@/context/quick-actions-context';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -374,6 +375,10 @@ export default function MyTasksPage() {
       setShowNewTask(true);
     });
   }, [registerQuickActionHandler, setShowNewTask]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-task') setShowNewTask(true);
+  }, []);
 
   const memberTasks = useMemo(() => {
     let result = tasks;

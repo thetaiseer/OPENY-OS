@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QuickActionsProvider } from '@/context/quick-actions-context';
 import { ToastProvider } from '@/context/toast-context';
 import ToastContainer from '@/components/ui/ToastContainer';
 
@@ -36,10 +37,12 @@ export { queryClient };
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        {children}
-        <ToastContainer />
-      </ToastProvider>
+      <QuickActionsProvider>
+        <ToastProvider>
+          {children}
+          <ToastContainer />
+        </ToastProvider>
+      </QuickActionsProvider>
     </QueryClientProvider>
   );
 }

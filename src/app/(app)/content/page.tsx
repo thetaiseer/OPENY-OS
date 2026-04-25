@@ -18,6 +18,7 @@ import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
 import { useQuickActions } from '@/context/quick-actions-context';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 import NewContentModal from '@/components/content/NewContentModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -231,6 +232,10 @@ function ContentPage() {
       setNewOpen(true);
     });
   }, [registerQuickActionHandler, setNewOpen]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-content') setNewOpen(true);
+  }, []);
 
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {

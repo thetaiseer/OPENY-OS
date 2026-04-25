@@ -9,7 +9,8 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
 import AppModal from '@/components/ui/AppModal';
 import Button from '@/components/ui/Button';
-import { useQuickActions } from '@/context/quick-actions-context';
+import { useQuickActions, type QuickActionId } from '@/context/quick-actions-context';
+import { queuePendingQuickAction } from '@/lib/pending-quick-action';
 
 function routePermissionTarget(
   pathname: string,
@@ -74,6 +75,20 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     return null;
   }
 
+  const quickActionRoutes: Record<QuickActionId, { href: string; label: string }> = {
+    'add-task': { href: '/tasks/all', label: 'Open Tasks' },
+    'add-client': { href: '/clients', label: 'Open Clients' },
+    'add-content': { href: '/content', label: 'Open Content' },
+    'add-asset': { href: '/assets', label: 'Open Assets' },
+  };
+
+  const goQuickAction = (action: QuickActionId) => {
+    const target = quickActionRoutes[action];
+    queuePendingQuickAction(action);
+    clearFallbackAction();
+    router.push(target.href);
+  };
+
   return (
     <div className="min-h-screen bg-base text-primary">
       <Sidebar />
@@ -87,15 +102,24 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
       <AppModal
         open={Boolean(fallbackAction)}
         onClose={clearFallbackAction}
-        title="Quick action"
-        subtitle="This action is available in specific modules."
+        title="Quick add"
+        subtitle="Open the right page to add your item — the form will open automatically."
         size="sm"
       >
-        <div className="space-y-3 text-sm text-secondary">
-          <p>Navigate to the relevant module, then try again:</p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={clearFallbackAction}>
-              Close
+        <div className="space-y-4 text-sm text-secondary">
+          {fallbackAction ? (
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full"
+              onClick={() => goQuickAction(fallbackAction)}
+            >
+              {quickActionRoutes[fallbackAction].label}
+            </Button>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={clearFallbackAction}>
+              Cancel
             </Button>
           </div>
         </div>
