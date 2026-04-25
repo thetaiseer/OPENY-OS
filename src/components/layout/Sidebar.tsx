@@ -7,16 +7,11 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardList,
-  FileBadge2,
-  FilePenLine,
-  FileSpreadsheet,
   FileText,
   FolderKanban,
   Gauge,
-  Handshake,
   ImageIcon,
   LayoutDashboard,
-  Receipt,
   Shield,
   Settings,
   Users,
@@ -38,12 +33,6 @@ const primaryNavItems = [
   { href: '/team', label: 'Team', icon: UserSquare2 },
   { href: '/activity', label: 'Activity', icon: Activity },
   { href: '/security/sessions', label: 'Security', icon: Shield },
-  { href: '/docs/invoice', label: 'Invoice', icon: Receipt },
-  { href: '/docs/quotation', label: 'Quotation', icon: FilePenLine },
-  { href: '/docs/client-contract', label: 'Client contract', icon: Handshake },
-  { href: '/docs/hr-contract', label: 'HR contract', icon: FileBadge2 },
-  { href: '/docs/employees', label: 'Employees', icon: Users },
-  { href: '/docs/accounting', label: 'Accounting', icon: FileSpreadsheet },
   { href: '/settings/profile', label: 'Settings', icon: Settings },
 ] as const;
 
@@ -60,7 +49,7 @@ export default function Sidebar() {
           const Icon = item.icon;
           const isDocsHome = item.href === '/docs';
           const active = isDocsHome
-            ? pathname === '/docs' || pathname === '/docs/'
+            ? pathname === '/docs' || pathname === '/docs/' || pathname.startsWith('/docs/')
             : pathname === item.href ||
               pathname.startsWith(`${item.href}/`) ||
               (item.href === '/reports/overview' && pathname === '/reports') ||

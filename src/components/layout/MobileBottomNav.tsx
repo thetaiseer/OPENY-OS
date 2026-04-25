@@ -6,14 +6,12 @@ import {
   Activity,
   CalendarDays,
   ClipboardList,
-  FilePenLine,
   FileSpreadsheet,
   FileText,
   FolderKanban,
   Gauge,
   ImageIcon,
   LayoutDashboard,
-  Receipt,
   Settings,
   Shield,
   UserSquare2,
@@ -36,9 +34,6 @@ const mobileNavItems = [
   { href: '/team', label: 'Team', icon: UserSquare2 },
   { href: '/activity', label: 'Activity', icon: Activity },
   { href: '/security/sessions', label: 'Security', icon: Shield },
-  { href: '/docs/invoice', label: 'Invoice', icon: Receipt },
-  { href: '/docs/quotation', label: 'Quote', icon: FilePenLine },
-  { href: '/docs/accounting', label: 'Books', icon: FileSpreadsheet },
   { href: '/settings/profile', label: 'Settings', icon: Settings },
 ] as const;
 
@@ -53,7 +48,7 @@ export default function MobileBottomNav() {
             const Icon = item.icon;
             const isDocsHome = item.href === '/docs';
             const active = isDocsHome
-              ? pathname === '/docs' || pathname === '/docs/'
+              ? pathname === '/docs' || pathname === '/docs/' || pathname.startsWith('/docs/')
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <li key={item.href} className="shrink-0">
