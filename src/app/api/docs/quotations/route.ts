@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { requireRole } from '@/lib/api-auth';
+import { requireModulePermission, requireRole } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
-  const { getApiUser } = await import('@/lib/api-auth');
-  const auth = await getApiUser(req);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireModulePermission(req, 'docs', 'quotation', 'read');
+  if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') ?? '';
@@ -34,6 +33,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const moduleAuth = await requireModulePermission(req, 'docs', 'quotation', 'full');
+  if (moduleAuth instanceof NextResponse) return moduleAuth;
+
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 

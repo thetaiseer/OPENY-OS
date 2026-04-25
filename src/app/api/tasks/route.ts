@@ -30,6 +30,7 @@ import { TASK_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import type { Task } from '@/lib/types';
 import { notifyTaskCreated } from '@/lib/notification-service';
 import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
+import { processEvent } from '@/lib/event-engine';
 
 const VALID_STATUSES = [
   'todo',
@@ -385,6 +386,19 @@ export async function POST(request: NextRequest) {
 
   // Fire notifications (side effect — never blocks)
   if (task.id) {
+    void processEvent({
+      event_type: 'task.created',
+      actor_id: auth.profile.id,
+      entity_type: 'task',
+      entity_id: task.id,
+      client_id: clientId || null,
+      payload: {
+        taskTitle: title,
+        clientName: task.client_name || clientName || null,
+      },
+      recipients: assignedTo ? [assignedTo] : [],
+    });
+
     void notifyTaskCreated({
       taskId: task.id,
       taskTitle: title,

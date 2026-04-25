@@ -3,7 +3,7 @@
  *
  * Canonical permission resolver for OPENY Platform.
  *
- * Roles:   owner | admin | member
+ * Roles:   owner | admin | manager | member | viewer
  * Access:  full | read | none
  *
  * Resolution order (highest wins):
@@ -90,9 +90,42 @@ export const ROLE_DEFAULTS: Record<PlatformRole, Omit<MemberPermissions, 'role'>
     os: buildFullOs(),
     docs: buildFullDocs(),
   },
+  manager: {
+    os: {
+      ...buildFullOs(),
+      team: 'read',
+      security: 'read',
+    },
+    docs: {
+      ...buildFullDocs(),
+      accounting: 'read',
+    },
+  },
   member: {
-    os: buildReadOs(),
-    docs: buildReadDocs(),
+    os: {
+      ...buildReadOs(),
+      tasks: 'full',
+      content: 'full',
+      calendar: 'full',
+      assets: 'full',
+      team: 'none',
+      security: 'none',
+    },
+    docs: {
+      ...buildReadDocs(),
+      accounting: 'none',
+    },
+  },
+  viewer: {
+    os: {
+      ...buildReadOs(),
+      team: 'none',
+      security: 'none',
+    },
+    docs: {
+      ...buildReadDocs(),
+      accounting: 'none',
+    },
   },
 };
 
@@ -112,9 +145,9 @@ export function resolveEffectivePermissions(
     return { role, ...ROLE_DEFAULTS[role] };
   }
 
-  // Start from member defaults, then apply stored overrides.
-  const os = { ...ROLE_DEFAULTS.member.os };
-  const docs = { ...ROLE_DEFAULTS.member.docs };
+  // Start from role defaults, then apply stored overrides.
+  const os = { ...ROLE_DEFAULTS[role].os };
+  const docs = { ...ROLE_DEFAULTS[role].docs };
 
   for (const override of overrides) {
     const access = override.access_level;
@@ -135,6 +168,8 @@ export function resolveEffectivePermissions(
 export function normalizePlatformRole(raw: string | null | undefined): PlatformRole {
   if (raw === 'owner') return 'owner';
   if (raw === 'admin') return 'admin';
+  if (raw === 'manager') return 'manager';
+  if (raw === 'viewer' || raw === 'client') return 'viewer';
   return 'member';
 }
 

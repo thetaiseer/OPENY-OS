@@ -6,6 +6,7 @@ import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
 import { getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
+import { processEvent } from '@/lib/event-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -299,6 +300,18 @@ export async function POST(req: NextRequest) {
 
   // ── Notify (fire-and-forget) ───────────────────────────────────────────────
   if (inserted) {
+    void processEvent({
+      event_type: 'asset.uploaded',
+      actor_id: auth.profile.id,
+      entity_type: 'asset',
+      entity_id: inserted.id as string,
+      client_id: clientId ?? null,
+      payload: {
+        assetName: displayName,
+        clientName,
+      },
+    });
+
     void (async () => {
       try {
         const { data: members } = await supabase

@@ -93,11 +93,11 @@ export function clientToSlug(name: string): string {
 }
 
 /**
- * Build the canonical storage key for the new hierarchy:
- *   clients/{clientSlug}/{mainCategory}/{year}/{MM-MonthName}/{subCategory}/{timestamp}-{filename}
+ * Build the canonical storage key for OS client files:
+ *   openy-assets/os/client-files/{clientSlug}/{mainCategory}/{year}/{month}/{subCategory}/{timestamp}-{filename}
  *
  * Example:
- *   clients/pro-icon/social-media/2026/04-april/posts/1712345678-logo.jpg
+ *   openy-assets/os/client-files/pro-icon/social-media/2026/04/posts/1712345678-logo.jpg
  */
 export function buildStorageKey(params: {
   clientName: string;
@@ -111,14 +111,17 @@ export function buildStorageKey(params: {
   const { clientName, clientId, mainCategory, subCategory, monthKey, fileName, timestamp } = params;
   const ts = timestamp ?? Date.now();
   const safeFileName = `${ts}-${fileName}`;
-  const entityId = clientId || clientToSlug(clientName);
+  const clientSlug = clientToSlug(clientName);
+  const [year, month] = /^\d{4}-\d{2}$/.test(monthKey)
+    ? monthKey.split('-')
+    : [new Date().getUTCFullYear().toString(), '01'];
 
   return buildStoragePath({
     module: 'os',
-    section: 'assets',
-    entityId,
+    section: 'client-files',
+    entityId: clientId || null,
     monthKey,
-    subPath: [mainCategory, subCategory || 'general'],
+    subPath: [clientSlug, mainCategory, year, month, subCategory || 'general'],
     filename: safeFileName,
   });
 }

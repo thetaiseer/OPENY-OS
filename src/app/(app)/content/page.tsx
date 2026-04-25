@@ -20,10 +20,11 @@ import { createClient as createSupabase } from '@/lib/supabase/client';
 import { useQuickActions } from '@/context/quick-actions-context';
 import NewContentModal from '@/components/content/NewContentModal';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
-import { cn } from '@/lib/cn';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -42,13 +43,20 @@ function getStatusCfg(status: ContentItemStatus) {
 
 function StatusBadge({ status }: { status: ContentItemStatus }) {
   const cfg = getStatusCfg(status);
+  const variant =
+    status === 'published' || status === 'approved'
+      ? 'success'
+      : status === 'scheduled'
+        ? 'info'
+        : status === 'pending_review'
+          ? 'warning'
+          : status === 'rejected'
+            ? 'danger'
+            : 'default';
   return (
-    <span
-      className="rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{ background: cfg.bg, color: cfg.color }}
-    >
+    <Badge variant={variant} className="text-xs">
       {cfg.label}
-    </span>
+    </Badge>
   );
 }
 
@@ -267,9 +275,6 @@ function ContentPage() {
     return acc;
   }, {});
 
-  const selectFieldClass =
-    'h-9 min-w-[10rem] rounded-xl border border-[var(--border)] bg-[var(--surface-glass)] px-3 text-sm text-[var(--text)] shadow-xs backdrop-blur-glass focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]';
-
   return (
     <PageShell className="mx-auto max-w-7xl space-y-6">
       <PageHeader
@@ -299,30 +304,22 @@ function ContentPage() {
               aria-label="Search content"
             />
           </div>
-          <select
+          <SelectDropdown
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={cn(selectFieldClass)}
-          >
-            <option value="">All Statuses</option>
-            {STATUS_PIPELINE.map((s) => (
-              <option key={s.status} value={s.status}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <select
+            onChange={setStatusFilter}
+            options={[
+              { value: '', label: 'All Statuses' },
+              ...STATUS_PIPELINE.map((s) => ({ value: s.status, label: s.label })),
+            ]}
+          />
+          <SelectDropdown
             value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-            className={cn(selectFieldClass)}
-          >
-            <option value="">All Clients</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setClientFilter}
+            options={[
+              { value: '', label: 'All Clients' },
+              ...clients.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </div>
       </Card>
 

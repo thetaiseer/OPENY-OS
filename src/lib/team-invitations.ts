@@ -13,6 +13,7 @@ import {
   type WorkspaceMembershipUpsertPayload,
 } from '@/lib/workspace-membership-upsert';
 import { notifyMemberJoined } from '@/lib/notification-service';
+import { processEvent } from '@/lib/event-engine';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -681,6 +682,17 @@ export async function acceptInvitationToken(
       );
     }
   })();
+
+  void processEvent({
+    event_type: 'invite.accepted',
+    actor_id: resolvedAuthUserId,
+    entity_type: 'team_invitation',
+    entity_id: validInvitation.id,
+    payload: {
+      inviteeName: profileName,
+      email: invitationEmail,
+    },
+  });
 
   return {
     ok: true as const,

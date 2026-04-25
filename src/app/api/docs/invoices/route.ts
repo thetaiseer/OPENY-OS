@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { requireRole } from '@/lib/api-auth';
+import { requireModulePermission, requireRole } from '@/lib/api-auth';
 import {
   calculateInvoiceTotals,
   hydrateInvoiceBranchGroups,
@@ -8,11 +8,11 @@ import {
   normalizeInvoiceBranchGroups,
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
+import { processEvent } from '@/lib/event-engine';
 
 export async function GET(req: NextRequest) {
-  const { getApiUser } = await import('@/lib/api-auth');
-  const auth = await getApiUser(req);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireModulePermission(req, 'docs', 'invoice', 'read');
+  if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') ?? '';
@@ -62,6 +62,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const moduleAuth = await requireModulePermission(req, 'docs', 'invoice', 'full');
+  if (moduleAuth instanceof NextResponse) return moduleAuth;
+
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -107,6 +110,16 @@ export async function POST(req: NextRequest) {
     const hydrated = await hydrateInvoiceBranchGroups(db, [
       data as { id: string; branch_groups?: unknown },
     ]);
+    void processEvent({
+      event_type: 'invoice.generated',
+      actor_id: auth.profile.id,
+      entity_type: 'docs_invoice',
+      entity_id: data.id as string,
+      payload: {
+        invoiceNumber: (data as { invoice_number?: string }).invoice_number ?? null,
+        clientName: (data as { client_name?: string }).client_name ?? null,
+      },
+    });
     return NextResponse.json({ invoice: hydrated[0] }, { status: 201 });
   } catch (nestedError) {
     // DB-level ON DELETE CASCADE is defined in supabase-migration-docs-invoice-nested-tables.sql,

@@ -354,6 +354,17 @@ const EVENT_RULES: Record<string, EventRule> = {
     send_email: false,
   },
 
+  // ── Docs ─────────────────────────────────────────────────────────────────
+  'invoice.generated': {
+    priority: 'medium',
+    category: 'content',
+    title: () => 'Invoice Generated',
+    message: (p) =>
+      `Invoice "${p.invoiceNumber ?? 'draft'}" generated${p.clientName ? ` for ${p.clientName}` : ''}`,
+    action_url: () => '/docs/invoice',
+    send_email: false,
+  },
+
   // ── Security / System ────────────────────────────────────────────────────
   'login.new_device': {
     priority: 'high',

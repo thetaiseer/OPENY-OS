@@ -124,13 +124,24 @@ export async function GET(req: NextRequest) {
 
   // ── Fetch assets from DB ──────────────────────────────────────────────────
   const supabase = getServiceClient();
-  const { data, error } = await supabase
+  let result = await supabase
     .from('assets')
     .select(
       'id,name,client_name,storage_key,storage_provider,file_path,main_category,sub_category,month_key',
     )
     .in('id', ids)
     .neq('is_deleted', true);
+
+  if (result.error?.code === '42703') {
+    result = await supabase
+      .from('assets')
+      .select(
+        'id,name,client_name,storage_key,storage_provider,file_path,main_category,sub_category,month_key',
+      )
+      .in('id', ids);
+  }
+
+  const { data, error } = result;
 
   if (error) {
     console.error('[assets/download-zip] DB error', error);

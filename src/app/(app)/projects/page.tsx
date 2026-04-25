@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FolderKanban, Plus, Pencil, Trash2, Search, LayoutGrid, Calendar } from 'lucide-react';
 import supabase from '@/lib/supabase';
-import type { Client, Project } from '@/lib/types';
+import type { Client, Project, Task, TeamMember, Activity as ActivityItem } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,9 @@ import { Input, Textarea, Field } from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
+import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 
@@ -43,6 +46,36 @@ function formatDate(d: string | null | undefined) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatRelativeDate(d: string | null | undefined) {
+  if (!d) return 'No activity yet';
+  const diff = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(d);
+}
+
+function derivePriority(tasks: Task[]): 'high' | 'medium' | 'low' | 'none' {
+  const openTasks = tasks.filter(
+    (task) => !['done', 'completed', 'cancelled', 'delivered'].includes(task.status),
+  );
+  if (openTasks.some((task) => task.priority === 'high')) return 'high';
+  if (openTasks.some((task) => task.priority === 'medium')) return 'medium';
+  if (openTasks.some((task) => task.priority === 'low')) return 'low';
+  return 'none';
+}
+
+function priorityVariant(priority: 'high' | 'medium' | 'low' | 'none') {
+  if (priority === 'high') return 'danger' as const;
+  if (priority === 'medium') return 'warning' as const;
+  if (priority === 'low') return 'info' as const;
+  return 'default' as const;
 }
 
 async function fetchAllProjects(): Promise<Project[]> {
@@ -99,6 +132,127 @@ export default function ProjectsPage() {
     },
     staleTime: 120_000,
   });
+
+  const { data: projectTasks = [] } = useQuery({
+    queryKey: ['projects-task-metadata'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, project_id, status, priority, due_date, assigned_to')
+        .not('project_id', 'is', null)
+        .limit(2000);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<
+        Task,
+        'id' | 'project_id' | 'status' | 'priority' | 'due_date' | 'assigned_to'
+      >[];
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['projects-team-members'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, full_name, profile_id')
+        .limit(500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<TeamMember, 'id' | 'full_name' | 'profile_id'>[];
+    },
+    staleTime: 120_000,
+  });
+
+  const { data: projectActivities = [] } = useQuery({
+    queryKey: ['projects-activity-metadata'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('id, entity_id, entity_type, created_at, description')
+        .eq('entity_type', 'project')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<
+        ActivityItem,
+        'id' | 'entity_id' | 'entity_type' | 'created_at' | 'description'
+      >[];
+    },
+    staleTime: 60_000,
+  });
+
+  const projectMeta = useMemo(() => {
+    const tasksByProject = new Map<
+      string,
+      Pick<Task, 'id' | 'status' | 'priority' | 'due_date' | 'assigned_to'>[]
+    >();
+    for (const task of projectTasks) {
+      if (!task.project_id) continue;
+      const bucket = tasksByProject.get(task.project_id) ?? [];
+      bucket.push(task);
+      tasksByProject.set(task.project_id, bucket);
+    }
+
+    const memberNameById = new Map<string, string>();
+    for (const member of teamMembers) {
+      if (member.id) memberNameById.set(member.id, member.full_name);
+      if (member.profile_id) memberNameById.set(member.profile_id, member.full_name);
+    }
+
+    const latestActivityByProject = new Map<
+      string,
+      Pick<ActivityItem, 'created_at' | 'description'>
+    >();
+    for (const activity of projectActivities) {
+      if (!activity.entity_id || latestActivityByProject.has(activity.entity_id)) continue;
+      latestActivityByProject.set(activity.entity_id, {
+        created_at: activity.created_at,
+        description: activity.description,
+      });
+    }
+
+    return new Map(
+      projects.map((project) => {
+        const tasks = tasksByProject.get(project.id) ?? [];
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter((task) =>
+          ['done', 'completed', 'delivered', 'cancelled'].includes(task.status),
+        ).length;
+        const openTasks = Math.max(0, totalTasks - completedTasks);
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        const nextDue = tasks
+          .filter(
+            (task) =>
+              task.due_date &&
+              !['done', 'completed', 'delivered', 'cancelled'].includes(task.status),
+          )
+          .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))[0]?.due_date;
+        const priority = derivePriority(tasks as Task[]);
+        const assignedNames = Array.from(
+          new Set(
+            tasks
+              .map((task) => task.assigned_to)
+              .filter((assignedTo): assignedTo is string => Boolean(assignedTo))
+              .map((id) => memberNameById.get(id) ?? id),
+          ),
+        );
+        const activity = latestActivityByProject.get(project.id) ?? null;
+        return [
+          project.id,
+          {
+            totalTasks,
+            completedTasks,
+            openTasks,
+            progress,
+            nextDue,
+            priority,
+            assignedNames,
+            activity,
+          },
+        ];
+      }),
+    );
+  }, [projectTasks, teamMembers, projectActivities, projects]);
 
   const metrics = useMemo(() => {
     let active = 0;
@@ -247,28 +401,16 @@ export default function ProjectsPage() {
 
       <Card padding="sm" className="sm:p-6">
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Project filters">
+          <Tabs className="w-fit" aria-label="Project filters">
             {tabs.map(({ id, label }) => {
               const active = tab === id;
               return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(id)}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
-                  style={{
-                    background: active ? 'var(--accent)' : 'var(--surface-2)',
-                    color: active ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                >
+                <TabButton key={id} type="button" active={active} onClick={() => setTab(id)}>
                   {label}
-                </button>
+                </TabButton>
               );
             })}
-          </div>
+          </Tabs>
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
             <Search
               size={16}
@@ -289,41 +431,32 @@ export default function ProjectsPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="h-44 animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface-2)' }}
-            />
+            <Skeleton key={i} className="h-56 rounded-2xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-            <FolderKanban
-              size={40}
-              className="mb-4 opacity-30"
-              style={{ color: 'var(--text-secondary)' }}
-            />
-            <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-              No projects found
-            </p>
-            <p className="mt-1 max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {tab === 'all'
-                ? 'Create a project to organize work for your clients.'
-                : 'Try another filter or clear search.'}
-            </p>
-            {canManage && tab === 'all' && !search && (
-              <Button type="button" variant="primary" className="mt-6" onClick={openCreate}>
+        <EmptyState
+          icon={FolderKanban}
+          title="No projects found"
+          description={
+            tab === 'all'
+              ? 'Create a project to organize work for your clients.'
+              : 'Try another filter or clear search.'
+          }
+          action={
+            canManage && tab === 'all' && !search ? (
+              <Button type="button" variant="primary" onClick={openCreate}>
                 + New project
               </Button>
-            )}
-          </CardContent>
-        </Card>
+            ) : null
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((project) => {
             const slug = project.client?.slug;
             const clientHref = slug ? `/clients/${slug}/overview` : null;
+            const meta = projectMeta.get(project.id);
             return (
               <Card
                 key={project.id}
@@ -373,14 +506,39 @@ export default function ProjectsPage() {
                     {project.description}
                   </p>
                 )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant={priorityVariant(meta?.priority ?? 'none')}>
+                    Priority: {meta?.priority === 'none' ? 'n/a' : meta?.priority}
+                  </Badge>
+                  <Badge variant="info">Progress: {meta?.progress ?? 0}%</Badge>
+                  <Badge variant="default">
+                    Tasks: {meta?.openTasks ?? 0} open / {meta?.totalTasks ?? 0}
+                  </Badge>
+                  <Badge variant="default">Assigned: {meta?.assignedNames.length ?? 0}</Badge>
+                </div>
                 <div
                   className="mt-auto flex flex-wrap gap-3 text-xs"
                   style={{ color: 'var(--text-tertiary)' }}
                 >
                   <span>Start {formatDate(project.start_date)}</span>
                   <span>·</span>
-                  <span>Due {formatDate(project.end_date)}</span>
+                  <span>Due {formatDate(meta?.nextDue ?? project.end_date)}</span>
                 </div>
+                <p className="mt-2 line-clamp-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Activity:{' '}
+                  {meta?.activity?.description
+                    ? `${meta.activity.description} · ${formatRelativeDate(meta.activity.created_at)}`
+                    : 'No project activity yet'}
+                </p>
+                {meta?.assignedNames && meta.assignedNames.length > 0 && (
+                  <p
+                    className="mt-1 line-clamp-1 text-xs"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    Team: {meta.assignedNames.slice(0, 3).join(', ')}
+                    {meta.assignedNames.length > 3 ? ` +${meta.assignedNames.length - 3}` : ''}
+                  </p>
+                )}
                 {canManage && (
                   <div
                     className="mt-4 flex gap-2 border-t pt-4"

@@ -4,9 +4,13 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, FolderOpen, Pencil, Trash2, Check, Calendar } from 'lucide-react';
 import { useClientWorkspace } from '../client-context';
-import type { Project } from '@/lib/types';
+import type { Project, Task, TeamMember, Activity as ActivityItem } from '@/lib/types';
+import supabase from '@/lib/supabase';
 import Badge from '@/components/ui/Badge';
 import FormModal from '@/components/ui/FormModal';
+import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
 
 type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
 
@@ -63,6 +67,59 @@ export default function ClientProjectsPage() {
     queryKey: ['projects', clientId],
     queryFn: () => fetchProjects(clientId),
     enabled: !!clientId,
+  });
+
+  const { data: projectTasks = [] } = useQuery({
+    queryKey: ['client-project-tasks', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, project_id, status, priority, due_date, assigned_to')
+        .eq('client_id', clientId)
+        .not('project_id', 'is', null)
+        .limit(1500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<
+        Task,
+        'id' | 'project_id' | 'status' | 'priority' | 'due_date' | 'assigned_to'
+      >[];
+    },
+    enabled: !!clientId,
+    staleTime: 60_000,
+  });
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['client-project-team', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, full_name, profile_id')
+        .limit(500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<TeamMember, 'id' | 'full_name' | 'profile_id'>[];
+    },
+    enabled: !!clientId,
+    staleTime: 120_000,
+  });
+
+  const { data: projectActivities = [] } = useQuery({
+    queryKey: ['client-project-activities', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('id, entity_id, entity_type, description, created_at')
+        .eq('entity_type', 'project')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Pick<
+        ActivityItem,
+        'id' | 'entity_id' | 'entity_type' | 'description' | 'created_at'
+      >[];
+    },
+    enabled: !!clientId,
+    staleTime: 60_000,
   });
 
   const openCreate = () => {
@@ -145,43 +202,25 @@ export default function ClientProjectsPage() {
             </span>
           )}
         </h2>
-        <button
-          onClick={openCreate}
-          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ background: 'var(--accent)' }}
-        >
+        <Button type="button" variant="primary" onClick={openCreate}>
           <Plus size={14} /> New Project
-        </button>
+        </Button>
       </div>
 
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-10">
-          <div
-            className="h-5 w-5 animate-spin rounded-full border-2"
-            style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
-          />
+          <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && projects.length === 0 && (
-        <div
-          className="rounded-2xl border py-14 text-center"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <FolderOpen
-            size={36}
-            className="mx-auto mb-3 opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-            No projects yet
-          </p>
-          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Create a project to organize tasks for {client?.name}
-          </p>
-        </div>
+        <EmptyState
+          icon={FolderOpen}
+          title="No projects yet"
+          description={`Create a project to organize tasks for ${client?.name ?? 'this client'}.`}
+        />
       )}
 
       {/* Project cards */}
@@ -219,6 +258,65 @@ export default function ClientProjectsPage() {
                       {project.description}
                     </p>
                   )}
+                  {(() => {
+                    const tasks = projectTasks.filter((task) => task.project_id === project.id);
+                    const completed = tasks.filter((task) =>
+                      ['done', 'completed', 'delivered', 'cancelled'].includes(task.status),
+                    ).length;
+                    const progress = tasks.length
+                      ? Math.round((completed / tasks.length) * 100)
+                      : 0;
+                    const priority = tasks.some((task) => task.priority === 'high')
+                      ? 'high'
+                      : tasks.some((task) => task.priority === 'medium')
+                        ? 'medium'
+                        : tasks.some((task) => task.priority === 'low')
+                          ? 'low'
+                          : 'none';
+                    const latest = projectActivities.find((a) => a.entity_id === project.id);
+                    const assignedNames = Array.from(
+                      new Set(
+                        tasks
+                          .map((task) => task.assigned_to)
+                          .filter((assignee): assignee is string => Boolean(assignee))
+                          .map(
+                            (assignee) =>
+                              teamMembers.find(
+                                (member) =>
+                                  member.id === assignee || member.profile_id === assignee,
+                              )?.full_name ?? assignee,
+                          ),
+                      ),
+                    );
+                    return (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="info">Progress {progress}%</Badge>
+                          <Badge
+                            variant={
+                              priority === 'high'
+                                ? 'danger'
+                                : priority === 'medium'
+                                  ? 'warning'
+                                  : 'default'
+                            }
+                          >
+                            Priority {priority}
+                          </Badge>
+                          <Badge variant="default">Tasks {tasks.length}</Badge>
+                        </div>
+                        <p className="line-clamp-1 text-xs text-secondary">
+                          Activity: {latest?.description ?? 'No project activity yet'}
+                        </p>
+                        {assignedNames.length > 0 && (
+                          <p className="line-clamp-1 text-xs text-secondary">
+                            Team: {assignedNames.slice(0, 3).join(', ')}
+                            {assignedNames.length > 3 ? ` +${assignedNames.length - 3}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Actions */}
                 <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">

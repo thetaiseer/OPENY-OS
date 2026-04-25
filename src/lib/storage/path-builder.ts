@@ -42,6 +42,7 @@ function normalizeSubPath(subPath?: string | string[] | null): string[] {
 export function buildStoragePath(input: BuildStoragePathInput): string {
   const section = sanitizeSegment(input.section);
   const filename = sanitizeFilename(input.filename);
+  const normalizedDocType = input.documentType ? sanitizeSegment(input.documentType) : null;
 
   const segments: string[] = [ROOT_PREFIX, input.module, section];
 
@@ -62,7 +63,18 @@ export function buildStoragePath(input: BuildStoragePathInput): string {
 
   if (input.module === 'docs') {
     if (section === 'exports') {
-      if (input.documentType) segments.push(sanitizeSegment(input.documentType));
+      // Canonical docs export roots expected by product requirements.
+      const docFolderMap: Record<string, string> = {
+        invoices: 'invoices',
+        quotations: 'quotations',
+        accounting: 'accounting',
+        'client-contracts': 'contracts',
+        'hr-contracts': 'contracts',
+      };
+      if (normalizedDocType) {
+        segments.pop();
+        segments.push(docFolderMap[normalizedDocType] ?? normalizedDocType);
+      }
       if (input.entityId) segments.push(sanitizeSegment(input.entityId));
     } else if (section === 'accounting') {
       if (input.entityId) segments.push(sanitizeSegment(input.entityId));

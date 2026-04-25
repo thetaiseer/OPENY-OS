@@ -7,12 +7,12 @@ type DivProps = HTMLAttributes<HTMLDivElement> & { children?: ReactNode };
 
 const paddingClasses = {
   none: '',
-  sm: 'p-3',
-  md: 'p-4',
+  sm: 'p-4',
+  md: 'p-5',
   lg: 'p-6',
 } as const;
 
-export const cardSurfaceClass = 'rounded-card border border-border bg-surface shadow-soft';
+export const cardSurfaceClass = 'openy-surface';
 
 export function Card({
   children,
@@ -29,7 +29,7 @@ export function Card({
 
 export function CardHeader({ children, className, ...props }: DivProps) {
   return (
-    <div {...props} className={cn('mb-3 flex items-start justify-between gap-3', className)}>
+    <div {...props} className={cn('mb-4 flex items-start justify-between gap-3', className)}>
       {children}
     </div>
   );
@@ -37,7 +37,7 @@ export function CardHeader({ children, className, ...props }: DivProps) {
 
 export function CardTitle({ children, className, ...props }: DivProps) {
   return (
-    <h3 {...props} className={cn('text-base font-semibold text-primary', className)}>
+    <h3 {...props} className={cn('text-lg font-semibold text-primary', className)}>
       {children}
     </h3>
   );
@@ -53,7 +53,7 @@ export function CardDescription({ children, className, ...props }: DivProps) {
 
 export function CardContent({ children, className, ...props }: DivProps) {
   return (
-    <div {...props} className={cn('space-y-3', className)}>
+    <div {...props} className={cn('space-y-4', className)}>
       {children}
     </div>
   );

@@ -257,9 +257,27 @@ export interface DocsAccountingExpense {
   currency: DocsCurrency;
   expense_date: string;
   month_key: string;
+  /** Which partner paid this expense from their side (settlement). */
+  paid_by_partner?: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface DocsAccountingTransfer extends BaseDocument {
+  month_key: string;
+  from_partner: string;
+  to_partner: string;
+  amount: number;
+  currency: DocsCurrency;
+  transfer_date: string;
+  notes: string | null;
+}
+
+export interface DocsAccountingMonthMeta {
+  month_key: string;
+  notes: string;
   updated_at: string;
 }
 
@@ -326,7 +344,7 @@ export const DOCS_MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'
 // ── Accounting partners ────────────────────────────────────────────────────────
 // Taiseer: local/Egypt; Ahmed: overseas/international
 
-export const ACCOUNTING_COLLECTORS = ['Taiseer Mahmoud', 'Ahmed Mansour'];
+export const ACCOUNTING_COLLECTORS = ['Taiseer Mahmoud', 'Ahmed Mansour'] as const;
 
 export function getAccountingCollectorByType(type: DocsCollectionType | string) {
   const [localCollector = 'Taiseer Mahmoud', overseasCollector = 'Ahmed Mansour'] =

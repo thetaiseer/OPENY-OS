@@ -129,6 +129,7 @@ export const EVENT = {
   PROJECT_STATUS: 'project.status_changed',
   NOTE_CREATED: 'note.created',
   NOTE_UPDATED: 'note.updated',
+  INVOICE_GENERATED: 'invoice.generated',
 
   // ── AI ───────────────────────────────────────────────────────────────────
   AI_ACTION: 'ai.action',

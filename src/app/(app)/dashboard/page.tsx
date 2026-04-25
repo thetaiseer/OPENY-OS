@@ -35,11 +35,13 @@ import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import { useDashboardStats } from '@/hooks/queries';
 import StatCard from '@/components/ui/StatCard';
-import { SkeletonStatGrid } from '@/components/ui/Skeleton';
+import Skeleton, { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
 import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from '@/lib/types';
 import { useQuickActions } from '@/context/quick-actions-context';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
@@ -645,21 +647,15 @@ export default function DashboardPage() {
               Task completions · last {Math.min(30, trendsData?.length ?? 0)} days
             </CardDescription>
           </div>
-          <span
-            className="rounded-full px-3 py-1 text-sm font-semibold"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-          >
+          <Badge variant="info" className="px-3 py-1 text-sm font-semibold">
             {completionRate}% pace
-          </span>
+          </Badge>
         </CardHeader>
         <CardContent>
           {trendsData && trendsData.length > 0 ? (
             <PerformanceLineChart data={trendsData} />
           ) : (
-            <div
-              className="h-52 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface-2)' }}
-            />
+            <Skeleton className="h-52 rounded-xl" />
           )}
           <div
             className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3"
@@ -743,9 +739,15 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-2">
               {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
-                <p className="py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Nothing here
-                </p>
+                <EmptyState
+                  icon={CheckSquare}
+                  title={taskTab === 'upcoming' ? 'No upcoming tasks' : 'No overdue tasks'}
+                  description={
+                    taskTab === 'upcoming'
+                      ? 'Newly scheduled work will appear here.'
+                      : 'Great work. Everything is on track right now.'
+                  }
+                />
               ) : (
                 (taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).map((task) => (
                   <div
@@ -783,24 +785,15 @@ export default function DashboardPage() {
             {!activitiesData ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-10 animate-pulse rounded-lg"
-                    style={{ background: 'var(--surface-2)' }}
-                  />
+                  <Skeleton key={i} className="h-10 rounded-lg" />
                 ))}
               </div>
             ) : activitiesData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Activity
-                  size={28}
-                  className="mb-3 opacity-40"
-                  style={{ color: 'var(--text-secondary)' }}
-                />
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  No recent activity
-                </p>
-              </div>
+              <EmptyState
+                icon={Activity}
+                title="No recent activity"
+                description="Actions from your team will show up here."
+              />
             ) : (
               <div className="space-y-4">
                 {activitiesData.map((a) => (
@@ -913,10 +906,7 @@ export default function DashboardPage() {
           {teamPerf ? (
             <TeamPerformance data={teamPerf} />
           ) : (
-            <div
-              className="h-32 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface-2)' }}
-            />
+            <Skeleton className="h-32 rounded-xl" />
           )}
         </CardContent>
       </Card>
@@ -953,17 +943,15 @@ export default function DashboardPage() {
           {!scheduled ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 animate-pulse rounded-xl"
-                  style={{ background: 'var(--surface-2)' }}
-                />
+                <Skeleton key={i} className="h-12 rounded-xl" />
               ))}
             </div>
           ) : scheduled.length === 0 ? (
-            <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No scheduled posts coming up
-            </p>
+            <EmptyState
+              icon={CalendarDays}
+              title="No scheduled posts coming up"
+              description="Once content is scheduled, upcoming posts will appear here."
+            />
           ) : (
             <div className="space-y-3">
               {scheduled.map((s) => (
@@ -1025,17 +1013,15 @@ export default function DashboardPage() {
             {!recentAssets ? (
               <div className="grid grid-cols-3 gap-2">
                 {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="aspect-square animate-pulse rounded-lg"
-                    style={{ background: 'var(--surface-2)' }}
-                  />
+                  <Skeleton key={i} className="aspect-square rounded-lg" />
                 ))}
               </div>
             ) : recentAssets.length === 0 ? (
-              <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No assets yet
-              </p>
+              <EmptyState
+                icon={ImageIcon}
+                title="No assets yet"
+                description="Uploaded files and media previews will appear in this grid."
+              />
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {recentAssets.map((asset) => (
@@ -1105,17 +1091,15 @@ export default function DashboardPage() {
             {!activeClients ? (
               <div className="space-y-2">
                 {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-10 animate-pulse rounded-lg"
-                    style={{ background: 'var(--surface-2)' }}
-                  />
+                  <Skeleton key={i} className="h-10 rounded-lg" />
                 ))}
               </div>
             ) : activeClients.length === 0 ? (
-              <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No active clients
-              </p>
+              <EmptyState
+                icon={Users2}
+                title="No active clients"
+                description="Clients with recent activity will be listed here."
+              />
             ) : (
               <div className="space-y-2">
                 {activeClients.map((client) => (
@@ -1143,12 +1127,9 @@ export default function DashboardPage() {
                         })}
                       </p>
                     </div>
-                    <span
-                      className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
-                      style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
-                    >
+                    <Badge variant="success" className="shrink-0 text-[10px]">
                       active
-                    </span>
+                    </Badge>
                   </Link>
                 ))}
               </div>

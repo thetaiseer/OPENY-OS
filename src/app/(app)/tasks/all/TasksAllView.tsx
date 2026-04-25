@@ -58,7 +58,7 @@ import {
 } from '@/components/ui/menu-system';
 import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import {
   PLATFORMS,
@@ -133,14 +133,6 @@ function avatarInitials(name?: string | null) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'UN';
 }
-
-const inputCls =
-  'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
-const inputStyle = {
-  background: 'var(--surface-2)',
-  color: 'var(--text)',
-  border: '1px solid var(--border)',
-};
 
 const statusTone: Record<string, { bg: string; text: string; border: string }> = {
   todo: { bg: 'var(--accent-soft)', text: 'var(--accent)', border: 'var(--border)' },
@@ -232,12 +224,10 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
             onImproved={(v) => setForm((f) => ({ ...f, title: v }))}
           />
         </div>
-        <input
+        <Input
           required
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          className={inputCls}
-          style={inputStyle}
           placeholder="Task title"
         />
       </div>
@@ -254,12 +244,11 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
             showMenu
           />
         </div>
-        <textarea
+        <Textarea
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={3}
-          className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-          style={inputStyle}
+          className="resize-none"
           placeholder="Detailed description..."
         />
       </div>
@@ -304,25 +293,21 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
             {t('startDate')}
           </label>
-          <input
+          <Input
             type="date"
             value={form.start_date}
             onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-            className={inputCls}
-            style={inputStyle}
           />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
             {t('deadline')} *
           </label>
-          <input
+          <Input
             required
             type="date"
             value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
-            className={inputCls}
-            style={inputStyle}
           />
         </div>
       </div>
@@ -434,33 +419,21 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
           {t('tags')}
         </label>
-        <input
+        <Input
           value={form.tags}
           onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
-          className={inputCls}
-          style={inputStyle}
           placeholder="design, urgent, review"
         />
       </div>
 
       {/* Buttons */}
       <div className="flex justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-9 rounded-lg px-4 text-sm font-medium"
-          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-        >
+        <Button type="button" variant="secondary" onClick={onCancel}>
           {t('cancel')}
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="h-9 rounded-lg px-4 text-sm font-medium text-white transition-opacity disabled:opacity-60"
-          style={{ background: 'var(--accent)' }}
-        >
+        </Button>
+        <Button type="submit" variant="primary" disabled={saving}>
           {saving ? t('loading') : t('save')}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1407,22 +1380,12 @@ function DeleteConfirmModal({
           </div>
         )}
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 rounded-lg px-4 text-sm font-medium"
-            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             {t('cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="h-9 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
-            style={{ background: 'var(--color-danger)' }}
-          >
+          </Button>
+          <Button type="button" variant="danger" onClick={onConfirm}>
             {t('deleteTask')}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
@@ -2310,7 +2273,11 @@ export default function TasksPage() {
             <div
               role="row"
               className="grid grid-cols-[2fr,1.2fr,1fr,1fr,1fr,auto] gap-3 rounded-xl border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide"
-              style={{ ...inputStyle, color: 'var(--text-tertiary)' }}
+              style={{
+                background: 'var(--surface-2)',
+                color: 'var(--text-tertiary)',
+                borderColor: 'var(--border)',
+              }}
             >
               <span role="columnheader">Task</span>
               <span role="columnheader">Client / Project</span>

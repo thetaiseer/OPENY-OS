@@ -120,12 +120,24 @@ async function fetchAllAssets(clientId: string) {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const { data, error } = await supabase
+    let result = await supabase
       .from('assets')
       .select('id,name,storage_key,storage_provider,file_path,main_category,sub_category,month_key')
       .eq('client_id', clientId)
       .neq('is_deleted', true)
       .range(from, to);
+
+    if (result.error?.code === '42703') {
+      result = await supabase
+        .from('assets')
+        .select(
+          'id,name,storage_key,storage_provider,file_path,main_category,sub_category,month_key',
+        )
+        .eq('client_id', clientId)
+        .range(from, to);
+    }
+
+    const { data, error } = result;
 
     if (error) throw new Error(`DB error fetching assets: ${error.message}`);
     if (!data || data.length === 0) break;

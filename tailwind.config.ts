@@ -32,6 +32,7 @@ const config: Config = {
       },
       boxShadow: {
         soft: 'var(--shadow-sm)',
+        'soft-md': 'var(--shadow-md)',
       },
       maxWidth: {
         shell: '80rem',

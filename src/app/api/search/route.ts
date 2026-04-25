@@ -106,7 +106,6 @@ export async function GET(request: NextRequest) {
       .from('assets')
       .select('id, name, content_type, client_name, file_type')
       .or(`name.ilike.${pattern},client_name.ilike.${pattern}`)
-      .is('is_deleted', false)
       .limit(limit),
 
     db

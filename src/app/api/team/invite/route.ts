@@ -14,6 +14,7 @@ import { requireRole } from '@/lib/api-auth';
 import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
+import { processEvent } from '@/lib/event-engine';
 import {
   mapAccessRoleToWorkspaceRole,
   normalizeWorkspaceKey,
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
 
   // Validate access_role strictly.
   // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-  const VALID_ACCESS_ROLES = ['admin', 'team_member'];
+  const VALID_ACCESS_ROLES = ['admin', 'manager', 'team_member', 'viewer'];
   if (!VALID_ACCESS_ROLES.includes(access_role)) {
     return NextResponse.json(
       {
@@ -363,6 +364,17 @@ export async function POST(request: NextRequest) {
   }
 
   // Notify team (best-effort — after successful email send)
+  void processEvent({
+    event_type: 'invite.sent',
+    actor_id: auth.profile.id,
+    entity_type: 'team_invitation',
+    entity_id: String(invitation.id),
+    payload: {
+      inviteeName: full_name,
+      role: access_role,
+    },
+  });
+
   void (async () => {
     try {
       const { data: inviteeProfile } = await db

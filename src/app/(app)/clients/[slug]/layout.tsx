@@ -11,6 +11,11 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import Button from '@/components/ui/Button';
+import { Input, Textarea, Field } from '@/components/ui/Input';
+import { Tabs } from '@/components/ui/Tabs';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
 import type { Client } from '@/lib/types';
 import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
@@ -167,26 +172,22 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div
-          className="h-6 w-6 animate-spin rounded-full border-2"
-          style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
-        />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }
 
   if (!client) {
     return (
-      <div className="py-20 text-center">
-        <p style={{ color: 'var(--text-secondary)' }}>Client not found</p>
-        <button
-          onClick={() => router.push('/clients')}
-          className="mt-4 text-sm"
-          style={{ color: 'var(--accent)' }}
-        >
-          Back to clients
-        </button>
-      </div>
+      <EmptyState
+        title="Client not found"
+        description="This client may not exist anymore."
+        action={
+          <Button type="button" variant="secondary" onClick={() => router.push('/clients')}>
+            Back to clients
+          </Button>
+        }
+      />
     );
   }
 
@@ -265,44 +266,34 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                onClick={handleEdit}
-                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
-              >
+              <Button type="button" variant="secondary" onClick={handleEdit}>
                 <Pencil size={14} /> Edit
-              </button>
-              <button
-                onClick={() => void handleDelete()}
-                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-red-500 transition-colors"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
-              >
+              </Button>
+              <Button type="button" variant="danger" onClick={() => void handleDelete()}>
                 <Trash2 size={14} /> Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Tab navigation */}
-        <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
+        <Tabs>
           {tabs.map((tab) => (
             <Link
               key={tab}
               href={`/clients/${slug}/${tab}`}
-              className="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium capitalize transition-colors"
+              role="tab"
+              aria-selected={activeTab === tab}
+              className="h-8 rounded-control px-3 py-1.5 text-xs font-semibold no-underline transition-colors"
               style={{
-                color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
-                borderColor: activeTab === tab ? 'var(--accent)' : 'transparent',
+                background: activeTab === tab ? 'var(--accent)' : 'transparent',
+                color: activeTab === tab ? 'var(--accent-contrast)' : 'var(--text-secondary)',
               }}
             >
               {t(tab)}
             </Link>
           ))}
-        </div>
+        </Tabs>
 
         {/* Tab content */}
         <div>{children}</div>
@@ -320,28 +311,16 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
                   { label: t('industry'), key: 'industry', type: 'text', required: false },
                 ] as const
               ).map(({ label, key, type, required }) => (
-                <div key={key} className="space-y-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                    {label}
-                  </label>
-                  <input
+                <Field key={key} label={label}>
+                  <Input
                     type={type}
                     required={required}
                     value={editForm[key]}
                     onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="h-9 w-full rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                    style={{
-                      background: 'var(--surface-2)',
-                      color: 'var(--text)',
-                      border: '1px solid var(--border)',
-                    }}
                   />
-                </div>
+                </Field>
               ))}
-              <div className="space-y-1">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {t('status')}
-                </label>
+              <Field label={t('status')}>
                 <SelectDropdown
                   fullWidth
                   value={editForm.status}
@@ -352,48 +331,29 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
                     { value: 'prospect', label: t('prospect') },
                   ]}
                 />
-              </div>
+              </Field>
             </div>
-            <div className="space-y-1">
+            <Field label={t('notes')}>
               <div className="mb-1 flex items-center justify-between">
-                <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {t('notes')}
-                </label>
                 <AiImproveButton
                   value={editForm.notes}
                   onImproved={(v) => setEditForm((f) => ({ ...f, notes: v }))}
                   showMenu
                 />
               </div>
-              <textarea
+              <Textarea
                 value={editForm.notes}
                 onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                 rows={3}
-                className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                style={{
-                  background: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
               />
-            </div>
+            </Field>
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="h-9 rounded-lg px-4 text-sm font-medium"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-              >
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
                 {t('cancel')}
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
+              </Button>
+              <Button type="submit" variant="primary" disabled={saving}>
                 {saving ? t('loading') : t('save')}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>

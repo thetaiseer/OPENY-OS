@@ -13,3 +13,5 @@ type ModalProps = {
 export default function Modal(props: ModalProps) {
   return <AppModal {...props}>{props.children}</AppModal>;
 }
+
+export type { ModalProps };

@@ -46,7 +46,7 @@ export type InviteStatus = 'pending' | 'invited' | 'accepted' | 'expired' | 'rev
 export type ModuleAccess = 'full' | 'read' | 'none';
 
 /** Top-level roles within OPENY Platform */
-export type PlatformRole = 'owner' | 'admin' | 'member';
+export type PlatformRole = 'owner' | 'admin' | 'manager' | 'member' | 'viewer';
 
 /** Modules available in OPENY OS */
 export type OsModule =

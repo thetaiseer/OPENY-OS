@@ -20,6 +20,7 @@ import { PLATFORMS, POST_TYPES } from '@/components/features/publishing/Schedule
 import AppModal from '@/components/ui/AppModal';
 import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -75,18 +76,50 @@ function postTypeLabel(value: string): string {
   return pt ? pt.label : value;
 }
 
+function startOfWeek(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() - next.getDay());
+  return next;
+}
+
+function addDays(date: Date, amount: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
   const today = new Date();
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [weekAnchor, setWeekAnchor] = useState<Date>(() => startOfWeek(today));
   // Selected schedule for detail view
   const [selectedSchedule, setSelectedSchedule] = useState<PublishingSchedule | null>(null);
   const [markingPublished, setMarkingPublished] = useState(false);
 
   const queryClient = useQueryClient();
+  const queryWindow = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    if (viewMode === 'week') {
+      const start = weekAnchor;
+      const end = addDays(weekAnchor, 6);
+      return {
+        startDate: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+        endDate: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`,
+      };
+    }
+    return {
+      startDate: `${year}-${pad(month + 1)}-01`,
+      endDate: `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`,
+    };
+  }, [viewMode, weekAnchor, year, month]);
 
   // React Query caches each month independently — switching months is instant
   // for previously-visited months, and navigating away/back to the calendar
@@ -96,11 +129,9 @@ export default function CalendarPage() {
     isLoading: loading,
     error: calendarError,
   } = useQuery({
-    queryKey: ['calendar', year, month],
+    queryKey: ['calendar', viewMode, queryWindow.startDate, queryWindow.endDate],
     queryFn: async () => {
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const startDate = `${year}-${pad(month + 1)}-01`;
-      const endDate = `${year}-${pad(month + 1)}-${pad(getDaysInMonth(year, month))}`;
+      const { startDate, endDate } = queryWindow;
 
       const [tasksRes, assetsRes, schedulesRes, contentRes] = await Promise.allSettled([
         supabase
@@ -180,6 +211,10 @@ export default function CalendarPage() {
 
   const prevMonth = () => {
     setSelectedDay(null);
+    if (viewMode === 'week') {
+      setWeekAnchor((prev) => addDays(prev, -7));
+      return;
+    }
     if (month === 0) {
       setYear((y) => y - 1);
       setMonth(11);
@@ -188,6 +223,10 @@ export default function CalendarPage() {
 
   const nextMonth = () => {
     setSelectedDay(null);
+    if (viewMode === 'week') {
+      setWeekAnchor((prev) => addDays(prev, 7));
+      return;
+    }
     if (month === 11) {
       setYear((y) => y + 1);
       setMonth(0);
@@ -246,6 +285,12 @@ export default function CalendarPage() {
   const selectedAssets = selectedDay ? (assetsByDay[selectedDay] ?? []) : [];
   const selectedSchedules = selectedDay ? (schedulesByDay[selectedDay] ?? []) : [];
   const selectedContent = selectedDay ? (contentByDay[selectedDay] ?? []) : [];
+  const weekDays = useMemo(
+    () => [...Array(7)].map((_, idx) => addDays(weekAnchor, idx)),
+    [weekAnchor],
+  );
+  const weekLabel = `${MONTH_NAMES[weekAnchor.getMonth()]} ${weekAnchor.getDate()} - ${MONTH_NAMES[weekDays[6].getMonth()]} ${weekDays[6].getDate()}, ${weekDays[6].getFullYear()}`;
+  const currentPeriodLabel = viewMode === 'week' ? weekLabel : `${MONTH_NAMES[month]} ${year}`;
 
   // ── Mark as published ───────────────────────────────────────────────────────
   const handleMarkPublished = async (schedule: PublishingSchedule) => {
@@ -259,15 +304,18 @@ export default function CalendarPage() {
       if (res.ok) {
         // Optimistic update via React Query cache so the UI reflects the change
         // immediately and the update persists if the user navigates away and back.
-        queryClient.setQueryData<typeof calendarData>(['calendar', year, month], (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            schedules: old.schedules.map((s) =>
-              s.id === schedule.id ? { ...s, status: 'published' as const } : s,
-            ),
-          };
-        });
+        queryClient.setQueryData<typeof calendarData>(
+          ['calendar', viewMode, queryWindow.startDate, queryWindow.endDate],
+          (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              schedules: old.schedules.map((s) =>
+                s.id === schedule.id ? { ...s, status: 'published' as const } : s,
+              ),
+            };
+          },
+        );
         setSelectedSchedule((prev) =>
           prev?.id === schedule.id ? { ...prev, status: 'published' } : prev,
         );
@@ -287,8 +335,8 @@ export default function CalendarPage() {
             <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={prevMonth}>
               <ChevronLeft size={16} className="text-[var(--text)]" />
             </Button>
-            <span className="min-w-[9rem] px-2 text-center text-sm font-semibold text-[var(--text)]">
-              {MONTH_NAMES[month]} {year}
+            <span className="min-w-[11rem] px-2 text-center text-sm font-semibold text-[var(--text)]">
+              {currentPeriodLabel}
             </span>
             <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={nextMonth}>
               <ChevronRight size={16} className="text-[var(--text)]" />
@@ -299,6 +347,14 @@ export default function CalendarPage() {
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+        <Tabs>
+          <TabButton active={viewMode === 'month'} onClick={() => setViewMode('month')}>
+            Month
+          </TabButton>
+          <TabButton active={viewMode === 'week'} onClick={() => setViewMode('week')}>
+            Week
+          </TabButton>
+        </Tabs>
         <span className="flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
           Tasks
@@ -354,7 +410,7 @@ export default function CalendarPage() {
                   />
                 ))}
               </div>
-            ) : (
+            ) : viewMode === 'month' ? (
               <div className="grid grid-cols-7">
                 {/* Empty cells before month start */}
                 {[...Array(firstDay)].map((_, i) => (
@@ -466,6 +522,115 @@ export default function CalendarPage() {
                         {totalVisible > 2 && (
                           <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                             +{totalVisible - 2} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-7">
+                {weekDays.map((date) => {
+                  const day = date.getDate();
+                  const dateIso = date.toISOString().slice(0, 10);
+                  const isToday = todayStart.toISOString().slice(0, 10) === dateIso;
+                  const isSelected = selectedDay === day;
+                  const dayTasks = tasksByDay[day] ?? [];
+                  const dayAssets = assetsByDay[day] ?? [];
+                  const daySchedules = schedulesByDay[day] ?? [];
+                  const dayContent = contentByDay[day] ?? [];
+                  const totalVisible =
+                    dayTasks.length + dayAssets.length + daySchedules.length + dayContent.length;
+
+                  return (
+                    <div
+                      key={dateIso}
+                      onClick={() => setSelectedDay(isSelected ? null : day)}
+                      className="min-h-[9rem] cursor-pointer border-b border-r p-2 transition-colors"
+                      style={{
+                        borderColor: 'var(--border)',
+                        background: isSelected ? 'var(--accent-soft)' : 'var(--surface)',
+                      }}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {DAY_NAMES[date.getDay()]}
+                        </span>
+                        <span
+                          className="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold"
+                          style={{
+                            background: isToday ? 'var(--accent)' : 'transparent',
+                            color: isToday ? 'white' : 'var(--text)',
+                          }}
+                        >
+                          {day}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {daySchedules.slice(0, 3).map((s) => (
+                          <div
+                            key={s.id}
+                            className="flex items-center gap-1 truncate rounded px-1.5 py-1 text-xs"
+                            style={{
+                              background: `${scheduleStatusColor(s.status)}20`,
+                              color: scheduleStatusColor(s.status),
+                            }}
+                          >
+                            <Send size={9} className="shrink-0" />
+                            <span className="truncate">{s.asset?.name ?? 'Schedule'}</span>
+                          </div>
+                        ))}
+                        {dayContent.slice(0, Math.max(0, 3 - daySchedules.length)).map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center gap-1 truncate rounded px-1.5 py-1 text-xs"
+                            style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                          >
+                            <FileText size={9} className="shrink-0" />
+                            <span className="truncate">{c.title}</span>
+                          </div>
+                        ))}
+                        {dayTasks
+                          .slice(0, Math.max(0, 3 - daySchedules.length - dayContent.length))
+                          .map((t) => (
+                            <div
+                              key={t.id}
+                              className="truncate rounded px-1.5 py-1 text-xs"
+                              style={{
+                                background: `${priorityColor(t.priority)}20`,
+                                color: priorityColor(t.priority),
+                              }}
+                            >
+                              {t.title}
+                            </div>
+                          ))}
+                        {dayAssets
+                          .slice(
+                            0,
+                            Math.max(
+                              0,
+                              3 - daySchedules.length - dayContent.length - dayTasks.length,
+                            ),
+                          )
+                          .map((a) => (
+                            <div
+                              key={a.id}
+                              className="truncate rounded px-1.5 py-1 text-xs"
+                              style={{
+                                background: 'rgba(99,102,241,0.12)',
+                                color: 'var(--accent)',
+                              }}
+                            >
+                              {a.name}
+                            </div>
+                          ))}
+                        {totalVisible > 3 && (
+                          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                            +{totalVisible - 3} more
                           </div>
                         )}
                       </div>

@@ -53,14 +53,22 @@ export default function StatCard({
   return (
     <Card className={cn('space-y-2', className)}>
       <div className="flex items-start justify-between gap-2">
-        {label ? <div className="text-sm text-secondary">{label}</div> : null}
-        {iconNode ? <div className="text-secondary">{iconNode}</div> : null}
+        {label ? (
+          <div className="text-xs font-medium uppercase tracking-wide text-secondary">{label}</div>
+        ) : null}
+        {iconNode ? (
+          <div className="inline-flex h-8 w-8 items-center justify-center rounded-control bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+            {iconNode}
+          </div>
+        ) : null}
       </div>
-      {value ? <div className="text-2xl font-semibold text-primary">{value}</div> : null}
+      {value ? (
+        <div className="text-3xl font-semibold leading-none text-primary">{value}</div>
+      ) : null}
       {trendNode ? (
         <div
           className={cn(
-            'text-xs',
+            'text-xs font-medium',
             trendPositive === null
               ? 'text-secondary'
               : trendPositive

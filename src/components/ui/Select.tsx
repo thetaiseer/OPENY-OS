@@ -30,7 +30,7 @@ export default function Select({
         id={id}
         {...props}
         className={cn(
-          'h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-primary outline-none transition-colors focus:border-accent',
+          'focus:ring-[color:var(--accent)]/15 h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2',
           error ? 'border-danger' : '',
           className,
         )}

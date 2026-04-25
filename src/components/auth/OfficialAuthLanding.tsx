@@ -36,6 +36,8 @@ export default function OfficialAuthLanding() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [workspaceChoices, setWorkspaceChoices] = useState<WorkspaceKey[]>([]);
   const [selectingWorkspace, setSelectingWorkspace] = useState(false);
@@ -167,20 +169,33 @@ export default function OfficialAuthLanding() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setFormSuccess(null);
     setAccessMessage(null);
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error) throw error;
+      if (authMode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+        if (error) throw error;
+        await supabase.auth.signOut().catch(() => null);
+        setFormSuccess(
+          'Account created. Ask your workspace admin to send an invitation or grant workspace access before signing in.',
+        );
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error) throw error;
 
-      await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(
-        () => null,
-      );
-      await finalizeAuth(data.user.id, data.user.email, readSelectedWorkspace(), true);
+        await fetch('/api/auth/sessions', { method: 'POST', credentials: 'include' }).catch(
+          () => null,
+        );
+        await finalizeAuth(data.user.id, data.user.email, readSelectedWorkspace(), true);
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Network or server error. Please try again.';
@@ -191,7 +206,7 @@ export default function OfficialAuthLanding() {
     }
   };
 
-  const submitLabel = 'Sign In';
+  const submitLabel = authMode === 'signup' ? 'Create Account' : 'Sign In';
 
   const handleWorkspaceSelect = (workspace: WorkspaceKey) => {
     setSelectingWorkspace(true);
@@ -261,7 +276,7 @@ export default function OfficialAuthLanding() {
                   className="text-xs uppercase tracking-[0.2em]"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  Sign In
+                  {authMode === 'signup' ? 'Sign Up' : 'Sign In'}
                 </p>
                 <h1
                   className="mt-2 text-3xl font-semibold tracking-tight"
@@ -273,9 +288,46 @@ export default function OfficialAuthLanding() {
                   className="mt-2 text-sm leading-relaxed"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  Sign in with your assigned account. Workspace access is loaded automatically based
-                  on your membership.
+                  {authMode === 'signup'
+                    ? 'Create your account first, then your admin can grant workspace access.'
+                    : 'Sign in with your assigned account. Workspace access is loaded automatically based on your membership.'}
                 </p>
+
+                <div
+                  className="mt-4 inline-flex rounded-xl border p-1"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('signin');
+                      setFormError(null);
+                      setFormSuccess(null);
+                    }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                    style={{
+                      background: authMode === 'signin' ? 'var(--accent)' : 'transparent',
+                      color: authMode === 'signin' ? '#fff' : 'var(--text-secondary)',
+                    }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('signup');
+                      setFormError(null);
+                      setFormSuccess(null);
+                    }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                    style={{
+                      background: authMode === 'signup' ? 'var(--accent)' : 'transparent',
+                      color: authMode === 'signup' ? '#fff' : 'var(--text-secondary)',
+                    }}
+                  >
+                    Sign Up
+                  </button>
+                </div>
 
                 {workspaceChoices.length > 0 ? (
                   <div className="mt-6 space-y-3">
@@ -342,16 +394,18 @@ export default function OfficialAuthLanding() {
                       />
                     </div>
 
-                    {(formError || accessMessage) && (
+                    {(formError || accessMessage || formSuccess) && (
                       <div
                         className="whitespace-pre-line rounded-xl px-3 py-2 text-sm"
                         style={{
-                          background: 'rgba(239,68,68,0.08)',
-                          border: '1px solid rgba(239,68,68,0.28)',
-                          color: '#ef4444',
+                          background: formSuccess ? 'rgba(22,163,74,0.1)' : 'rgba(239,68,68,0.08)',
+                          border: formSuccess
+                            ? '1px solid rgba(22,163,74,0.25)'
+                            : '1px solid rgba(239,68,68,0.28)',
+                          color: formSuccess ? '#166534' : '#ef4444',
                         }}
                       >
-                        {formError ?? accessMessage}
+                        {formSuccess ?? formError ?? accessMessage}
                       </div>
                     )}
 

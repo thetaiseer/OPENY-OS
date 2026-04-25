@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { requireRole } from '@/lib/api-auth';
+import { requireModulePermission, requireRole } from '@/lib/api-auth';
 
 interface Params {
   id: string;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const moduleAuth = await requireModulePermission(req, 'docs', 'accounting', 'full');
+  if (moduleAuth instanceof NextResponse) return moduleAuth;
+
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
@@ -31,6 +34,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const moduleAuth = await requireModulePermission(req, 'docs', 'accounting', 'full');
+  if (moduleAuth instanceof NextResponse) return moduleAuth;
+
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 

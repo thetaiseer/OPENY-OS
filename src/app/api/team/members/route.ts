@@ -11,9 +11,10 @@ type TeamMemberPayload = {
   id: string;
   full_name: string;
   email: string;
-  role: 'owner' | 'admin' | 'member';
+  role: string;
   status: 'active';
   job_title: string | null;
+  profile_id: string | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -75,9 +76,12 @@ async function resolveWorkspaceRow(
   return { row: null, error: null };
 }
 
-function normalizeMemberRole(role: string | null | undefined): 'owner' | 'admin' | 'member' {
+function normalizeMemberRole(role: string | null | undefined): string {
   if (role === 'owner') return 'owner';
   if (role === 'admin') return 'admin';
+  if (role === 'manager') return 'manager';
+  if (role === 'viewer') return 'viewer';
+  if (role === 'team_member') return 'team_member';
   return 'member';
 }
 
@@ -144,13 +148,16 @@ export async function GET(request: NextRequest) {
     userIds.length > 0
       ? await db
           .from('team_members')
-          .select('id, profile_id, email, full_name, job_title, status, created_at, updated_at')
+          .select(
+            'id, profile_id, email, role, full_name, job_title, status, created_at, updated_at',
+          )
           .in('profile_id', userIds)
       : {
           data: [] as Array<{
             id: string;
             profile_id: string | null;
             email: string | null;
+            role: string | null;
             full_name: string | null;
             job_title: string | null;
             status: string | null;
@@ -181,9 +188,13 @@ export async function GET(request: NextRequest) {
       id: team?.id ?? member.user_id,
       full_name: fullName,
       email,
-      role: member.user_id === workspaceRow.owner_id ? 'owner' : normalizeMemberRole(member.role),
+      role:
+        member.user_id === workspaceRow.owner_id
+          ? 'owner'
+          : normalizeMemberRole(team?.role ?? member.role),
       status: 'active',
       job_title: team?.job_title ?? null,
+      profile_id: member.user_id,
       created_at: team?.created_at ?? member.joined_at ?? new Date().toISOString(),
       updated_at: team?.updated_at ?? null,
     };

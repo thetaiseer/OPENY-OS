@@ -24,6 +24,7 @@ import { requireRole } from '@/lib/api-auth';
 import { TASK_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { notifyTaskCompleted } from '@/lib/notification-service';
 import type { Task } from '@/lib/types';
+import { processEvent } from '@/lib/event-engine';
 
 const VALID_STATUSES = [
   'todo',
@@ -242,6 +243,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const task = data as unknown as Task;
+  void processEvent({
+    event_type: 'task.updated',
+    actor_id: auth.profile.id,
+    entity_type: 'task',
+    entity_id: task.id,
+    client_id: (task.client_id ?? existingTask?.client_id ?? null) as string | null,
+    payload: {
+      taskTitle: task.title ?? existingTask?.title ?? 'Task',
+      status: task.status ?? null,
+    },
+  });
+
   const isCompleted = ['done', 'completed'].includes(String(task.status ?? '').toLowerCase());
   if (task.id && isCompleted && !wasCompleted) {
     void notifyTaskCompleted({

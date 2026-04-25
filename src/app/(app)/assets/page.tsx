@@ -970,8 +970,7 @@ function AssetsPage() {
         const { data, error } = await supabase
           .from('assets')
           .select('id')
-          .eq('client_name', clientName)
-          .neq('is_deleted', true);
+          .eq('client_name', clientName);
         if (error) {
           toast(`Failed to fetch assets: ${error.message}`, 'error');
           return;

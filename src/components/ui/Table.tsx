@@ -9,13 +9,7 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 
 export function TableContainer({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      {...props}
-      className={cn(
-        'overflow-x-auto rounded-card border border-border bg-surface shadow-soft',
-        className,
-      )}
-    >
+    <div {...props} className={cn('openy-surface overflow-x-auto', className)}>
       {children}
     </div>
   );
@@ -30,7 +24,7 @@ export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSecti
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr {...props} className={cn('border-b border-border', className)} />;
+  return <tr {...props} className={cn('border-b border-border last:border-0', className)} />;
 }
 
 export function TableHeaderCell({

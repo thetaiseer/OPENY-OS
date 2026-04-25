@@ -66,7 +66,9 @@ const ACCESS_ROLE_VALUES = [
 
 const ACCESS_ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin — full access' },
+  { value: 'manager', label: 'Manager — operational management' },
   { value: 'team_member', label: 'Member — standard access' },
+  { value: 'viewer', label: 'Viewer — read only' },
 ];
 
 const WORKSPACE_ROLE_OPTIONS = [
@@ -160,6 +162,18 @@ function formatAccessRole(role: string | null | undefined): string {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function formatLastActive(lastActiveRaw: string | null | undefined): string {
+  if (!lastActiveRaw) return 'No recent activity';
+  const ts = new Date(lastActiveRaw).getTime();
+  if (Number.isNaN(ts)) return 'No recent activity';
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'Active just now';
+  if (diff < 3_600_000) return `Active ${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `Active ${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 604_800_000) return `Active ${Math.floor(diff / 86_400_000)}d ago`;
+  return `Active ${new Date(lastActiveRaw).toLocaleDateString()}`;
 }
 
 function parseInviteWorkspaceAccess(raw: TeamInvitation['workspace_access']): Array<'os' | 'docs'> {
@@ -1752,6 +1766,9 @@ function OwnerCard({
               {member.email}
             </p>
           )}
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {formatLastActive(member.updated_at ?? member.created_at)}
+          </p>
         </div>
         {/* Edit only — owner is never deletable */}
         {canManage && (
@@ -1854,33 +1871,36 @@ function PendingInvitationRow({
       {canManage && (
         <div className="flex items-center gap-2">
           {canResend && (
-            <button
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 text-xs"
               onClick={() => onResend(invitation)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--surface)]"
-              style={{ color: 'var(--text-secondary)' }}
             >
               <RotateCcw size={12} />
               Resend
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => onCopyLink(invitation)}
             disabled={!invitation.token}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ color: 'var(--text-secondary)' }}
+            className="h-8 text-xs"
           >
             <Copy size={12} />
             Copy Invite Link
-          </button>
+          </Button>
           {canCancel && (
-            <button
+            <Button
+              type="button"
+              variant="danger"
+              className="h-8 text-xs"
               onClick={() => onCancel(invitation)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors hover:opacity-90"
-              style={{ color: 'var(--color-danger)', background: 'var(--color-danger-bg)' }}
             >
               <XCircle size={12} />
               Cancel Invitation
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1979,6 +1999,9 @@ function MemberCard({
               {member.email}
             </p>
           )}
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {formatLastActive(member.updated_at ?? member.created_at)}
+          </p>
           <div className="mt-1">
             <p
               id={`member-access-${member.id}`}

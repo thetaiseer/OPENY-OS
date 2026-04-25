@@ -1,12 +1,15 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { PageShell } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Tabs, TabButton } from '@/components/ui/Tabs';
+import { cn } from '@/lib/cn';
 
 const DOC_TYPE_LINKS = [
+  { href: '/docs', label: 'Home', key: 'home' },
   { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
   { href: '/docs/quotation', label: 'Quotation', key: 'quotation' },
   { href: '/docs/client-contract', label: 'Client Contract', key: 'client-contract' },
@@ -15,7 +18,9 @@ const DOC_TYPE_LINKS = [
   { href: '/docs/accounting', label: 'Accounting', key: 'accounting' },
 ] as const;
 
-export function DocsDocTypeTabs({ active }: { active: (typeof DOC_TYPE_LINKS)[number]['key'] }) {
+export type DocsDocTypeTabKey = (typeof DOC_TYPE_LINKS)[number]['key'];
+
+export function DocsDocTypeTabs({ active }: { active: DocsDocTypeTabKey }) {
   return (
     <div className="docs-toolbar-tabs" role="tablist" aria-label="Document type">
       {DOC_TYPE_LINKS.map((item) => (
@@ -33,22 +38,115 @@ export function DocsDocTypeTabs({ active }: { active: (typeof DOC_TYPE_LINKS)[nu
   );
 }
 
+function subscribeLg(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  const mq = window.matchMedia('(min-width: 1024px)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+}
+
+function getLgSnapshot() {
+  return window.matchMedia('(min-width: 1024px)').matches;
+}
+
+function getLgServerSnapshot() {
+  return true;
+}
+
+function useIsLargeScreen() {
+  return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
+}
+
+type MobilePanel = 'edit' | 'preview' | 'history';
+
 export function DocsWorkspaceShell({
   toolbar,
   editor,
   preview,
+  history,
+  shellClassName,
 }: {
   toolbar: ReactNode;
   editor: ReactNode;
   preview: ReactNode;
+  history?: ReactNode;
+  shellClassName?: string;
 }) {
+  const isLg = useIsLargeScreen();
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('edit');
+  const hasHistory = Boolean(history);
+
   return (
-    <PageShell className="max-w-[96rem]">
+    <PageShell className={cn('max-w-[96rem]', shellClassName)}>
       <div className="docs-workspace">
         <header className="docs-workspace-toolbar">{toolbar}</header>
-        <div className="docs-workspace-body">
-          <section className="docs-workspace-editor">{editor}</section>
-          <aside className="docs-workspace-preview">{preview}</aside>
+
+        {!isLg ? (
+          <div className="docs-workspace-mobile-tabs lg:hidden">
+            <Tabs className="w-full justify-stretch sm:justify-center [&>button]:flex-1 sm:[&>button]:flex-none">
+              <TabButton
+                type="button"
+                active={mobilePanel === 'edit'}
+                onClick={() => setMobilePanel('edit')}
+              >
+                Edit
+              </TabButton>
+              <TabButton
+                type="button"
+                active={mobilePanel === 'preview'}
+                onClick={() => setMobilePanel('preview')}
+              >
+                Preview
+              </TabButton>
+              {hasHistory ? (
+                <TabButton
+                  type="button"
+                  active={mobilePanel === 'history'}
+                  onClick={() => setMobilePanel('history')}
+                >
+                  History
+                </TabButton>
+              ) : null}
+            </Tabs>
+          </div>
+        ) : null}
+
+        <div
+          className={clsx(
+            'docs-workspace-body',
+            isLg ? 'docs-workspace-body-desktop' : 'docs-workspace-body-mobile',
+          )}
+        >
+          <section
+            className={clsx(
+              'docs-workspace-editor',
+              !isLg && mobilePanel !== 'edit' && 'docs-workspace-panel-hidden-mobile',
+            )}
+          >
+            {editor}
+          </section>
+
+          <div className="docs-workspace-aside">
+            <div
+              className={clsx(
+                'docs-workspace-preview-slot',
+                !isLg && mobilePanel !== 'preview' && 'docs-workspace-preview-offscreen',
+              )}
+            >
+              <aside className="docs-workspace-preview">{preview}</aside>
+            </div>
+
+            {history ? (
+              <aside
+                className={clsx(
+                  'docs-workspace-history',
+                  !isLg && mobilePanel !== 'history' && 'docs-workspace-panel-hidden-mobile',
+                )}
+              >
+                {history}
+              </aside>
+            ) : null}
+          </div>
         </div>
       </div>
     </PageShell>

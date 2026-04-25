@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyClientCreated } from '@/lib/notification-service';
+import { processEvent } from '@/lib/event-engine';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -106,6 +107,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (data?.id) {
+    void processEvent({
+      event_type: 'client.created',
+      actor_id: auth.profile.id,
+      entity_type: 'client',
+      entity_id: data.id as string,
+      payload: {
+        clientName: data.name as string,
+      },
+    });
+
     void (async () => {
       try {
         const { data: admins } = await db

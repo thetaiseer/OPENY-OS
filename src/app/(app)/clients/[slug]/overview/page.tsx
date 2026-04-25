@@ -3,22 +3,27 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { CheckSquare, FolderOpen, FileText, Clock, AlertCircle } from 'lucide-react';
+import {
+  CheckSquare,
+  FolderOpen,
+  FileText,
+  Clock,
+  AlertCircle,
+  Receipt,
+  FileSignature,
+} from 'lucide-react';
 import { useClientWorkspace } from '../client-context';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import type { Task, Asset, ContentItem } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
 
 function fmtDate(d?: string) {
   if (!d) return '';
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function taskStatusColor(s: string) {
-  if (s === 'done' || s === 'completed') return '#16a34a';
-  if (s === 'overdue') return '#ef4444';
-  if (s === 'in_progress') return '#2563eb';
-  return 'var(--text-secondary)';
 }
 
 export default function ClientOverviewPage() {
@@ -26,16 +31,24 @@ export default function ClientOverviewPage() {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useLang();
 
-  const [counts, setCounts] = useState({ tasks: 0, assets: 0, content: 0 });
+  const [counts, setCounts] = useState({ tasks: 0, assets: 0, content: 0, docs: 0 });
   const [recentTasks, setRecentTasks] = useState<Task[]>([]);
   const [recentAssets, setRecentAssets] = useState<Asset[]>([]);
   const [recentContent, setRecentContent] = useState<ContentItem[]>([]);
+  const [recentDocs, setRecentDocs] = useState<
+    {
+      id: string;
+      title: string;
+      type: 'invoice' | 'quotation' | 'contract';
+      created_at?: string | null;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || !client?.name) return;
     void (async () => {
-      const [tk, ast, ct, rtk, rast, rct] = await Promise.allSettled([
+      const [tk, ast, ct, rtk, rast, rct, inv, quo, ctr] = await Promise.allSettled([
         supabase
           .from('tasks')
           .select('id', { count: 'exact', head: true })
@@ -67,11 +80,77 @@ export default function ClientOverviewPage() {
           .eq('client_id', clientId)
           .order('created_at', { ascending: false })
           .limit(4),
+        supabase
+          .from('docs_invoices')
+          .select('id,invoice_number,created_at')
+          .ilike('client_name', `%${client.name}%`)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('docs_quotations')
+          .select('id,quote_number,created_at')
+          .ilike('client_name', `%${client.name}%`)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('docs_client_contracts')
+          .select('id,contract_number,created_at')
+          .ilike('party2_client_name', `%${client.name}%`)
+          .order('created_at', { ascending: false })
+          .limit(5),
       ]);
       const taskCount = tk.status === 'fulfilled' ? (tk.value.count ?? 0) : 0;
       const assetCount = ast.status === 'fulfilled' ? (ast.value.count ?? 0) : 0;
       const contentCount = ct.status === 'fulfilled' ? (ct.value.count ?? 0) : 0;
-      setCounts({ tasks: taskCount, assets: assetCount, content: contentCount });
+      const invoiceRows =
+        inv.status === 'fulfilled' && !inv.value.error
+          ? ((inv.value.data ?? []) as {
+              id: string;
+              invoice_number?: string;
+              created_at?: string;
+            }[])
+          : [];
+      const quotationRows =
+        quo.status === 'fulfilled' && !quo.value.error
+          ? ((quo.value.data ?? []) as { id: string; quote_number?: string; created_at?: string }[])
+          : [];
+      const contractRows =
+        ctr.status === 'fulfilled' && !ctr.value.error
+          ? ((ctr.value.data ?? []) as {
+              id: string;
+              contract_number?: string;
+              created_at?: string;
+            }[])
+          : [];
+      setCounts({
+        tasks: taskCount,
+        assets: assetCount,
+        content: contentCount,
+        docs: invoiceRows.length + quotationRows.length + contractRows.length,
+      });
+      const docs = [
+        ...invoiceRows.map((d) => ({
+          id: d.id,
+          title: d.invoice_number || 'Invoice',
+          type: 'invoice' as const,
+          created_at: d.created_at ?? null,
+        })),
+        ...quotationRows.map((d) => ({
+          id: d.id,
+          title: d.quote_number || 'Quotation',
+          type: 'quotation' as const,
+          created_at: d.created_at ?? null,
+        })),
+        ...contractRows.map((d) => ({
+          id: d.id,
+          title: d.contract_number || 'Client Contract',
+          type: 'contract' as const,
+          created_at: d.created_at ?? null,
+        })),
+      ]
+        .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+        .slice(0, 4);
+      setRecentDocs(docs);
       if (rtk.status === 'fulfilled' && !rtk.value.error)
         setRecentTasks((rtk.value.data ?? []) as Task[]);
       if (rast.status === 'fulfilled' && !rast.value.error)
@@ -80,36 +159,27 @@ export default function ClientOverviewPage() {
         setRecentContent((rct.value.data ?? []) as ContentItem[]);
       setLoading(false);
     })();
-  }, [clientId]);
+  }, [clientId, client?.name]);
 
   if (!client) return null;
 
   return (
     <div className="space-y-6">
-      {/* Notes */}
       {client.notes && (
-        <div
-          className="rounded-2xl border p-5"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            {t('notes')}
-          </h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {client.notes}
-          </p>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('notes')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-secondary">{client.notes}</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Summary counts */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {loading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-24 animate-pulse rounded-2xl border p-5"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-              />
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
             ))
           : [
               {
@@ -129,6 +199,12 @@ export default function ClientOverviewPage() {
                 value: counts.content,
                 icon: <FileText size={16} />,
                 href: `/clients/${slug}/content`,
+              },
+              {
+                label: 'Docs',
+                value: counts.docs,
+                icon: <Receipt size={16} />,
+                href: '/docs',
               },
             ].map(({ label, value, icon, href }) => (
               <Link
@@ -150,12 +226,8 @@ export default function ClientOverviewPage() {
             ))}
       </div>
 
-      {/* Recent active tasks */}
       {!loading && recentTasks.length > 0 && (
-        <div
-          className="rounded-2xl border p-5"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckSquare size={15} style={{ color: 'var(--accent)' }} />
@@ -173,7 +245,7 @@ export default function ClientOverviewPage() {
           </div>
           <div className="space-y-2">
             {recentTasks.map((task) => {
-              const isOverdue =
+              const overdue =
                 task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
               return (
                 <div
@@ -182,7 +254,7 @@ export default function ClientOverviewPage() {
                   style={{ background: 'var(--surface-2)' }}
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    {isOverdue ? (
+                    {overdue ? (
                       <AlertCircle size={12} className="shrink-0" style={{ color: '#ef4444' }} />
                     ) : (
                       <Clock
@@ -199,34 +271,24 @@ export default function ClientOverviewPage() {
                     {task.due_date && (
                       <span
                         className="text-xs"
-                        style={{ color: isOverdue ? '#ef4444' : 'var(--text-secondary)' }}
+                        style={{ color: overdue ? '#ef4444' : 'var(--text-secondary)' }}
                       >
                         {fmtDate(task.due_date)}
                       </span>
                     )}
-                    <span
-                      className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                      style={{
-                        background: `${taskStatusColor(task.status)}20`,
-                        color: taskStatusColor(task.status),
-                      }}
-                    >
+                    <Badge variant={overdue ? 'danger' : 'info'} className="text-[10px]">
                       {task.status.replace('_', ' ')}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Recent assets */}
       {!loading && recentAssets.length > 0 && (
-        <div
-          className="rounded-2xl border p-5"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FolderOpen size={15} style={{ color: 'var(--accent)' }} />
@@ -279,15 +341,11 @@ export default function ClientOverviewPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Recent content */}
       {!loading && recentContent.length > 0 && (
-        <div
-          className="rounded-2xl border p-5"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText size={15} style={{ color: 'var(--accent)' }} />
@@ -313,29 +371,68 @@ export default function ClientOverviewPage() {
                 <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {item.title}
                 </p>
-                <span
-                  className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
-                  style={{
-                    background:
-                      item.status === 'published'
-                        ? 'rgba(8,145,178,0.12)'
-                        : item.status === 'scheduled'
-                          ? 'rgba(124,58,237,0.12)'
-                          : 'rgba(156,163,175,0.12)',
-                    color:
-                      item.status === 'published'
-                        ? '#0891b2'
-                        : item.status === 'scheduled'
-                          ? '#7c3aed'
-                          : '#9ca3af',
-                  }}
+                <Badge
+                  variant={
+                    item.status === 'published'
+                      ? 'success'
+                      : item.status === 'scheduled'
+                        ? 'info'
+                        : 'default'
+                  }
                 >
                   {item.status}
-                </span>
+                </Badge>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
+      )}
+
+      {!loading && (
+        <Card>
+          <CardHeader className="mb-4 items-center">
+            <div className="flex items-center gap-2">
+              <FileSignature size={15} style={{ color: 'var(--accent)' }} />
+              <CardTitle className="!text-sm">Linked Docs</CardTitle>
+            </div>
+            <Link
+              href="/docs"
+              className="text-xs transition-opacity hover:opacity-70"
+              style={{ color: 'var(--accent)' }}
+            >
+              Open docs
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {recentDocs.length === 0 ? (
+              <EmptyState
+                icon={Receipt}
+                title="No linked docs yet"
+                description="Invoices, quotations, and contracts matching this client will appear here."
+              />
+            ) : (
+              <div className="space-y-2">
+                {recentDocs.map((doc) => (
+                  <div
+                    key={`${doc.type}-${doc.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl px-3 py-2"
+                    style={{ background: 'var(--surface-2)' }}
+                  >
+                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {doc.title}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default">{doc.type}</Badge>
+                      <span className="text-xs text-secondary">
+                        {fmtDate(doc.created_at ?? undefined)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

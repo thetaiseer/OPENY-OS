@@ -39,11 +39,15 @@ export default function EmptyState({
   })();
 
   return (
-    <div>
-      {renderedIcon ? <div>{renderedIcon}</div> : null}
-      {title ? <div>{title}</div> : null}
-      {description ? <div>{description}</div> : null}
-      {action ? <div>{action}</div> : null}
+    <div className="openy-surface flex flex-col items-center justify-center gap-3 px-6 py-8 text-center">
+      {renderedIcon ? (
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+          {renderedIcon}
+        </div>
+      ) : null}
+      {title ? <div className="text-base font-semibold text-primary">{title}</div> : null}
+      {description ? <div className="max-w-xl text-sm text-secondary">{description}</div> : null}
+      {action ? <div className="pt-1">{action}</div> : null}
       {children}
     </div>
   );

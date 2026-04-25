@@ -40,7 +40,6 @@ export const TASK_LIST_COLUMNS = [
 export const ASSET_LIST_COLUMNS = [
   'id',
   'name',
-  'original_filename',
   'file_path',
   'file_url',
   'view_url',
@@ -52,7 +51,6 @@ export const ASSET_LIST_COLUMNS = [
   'client_folder_name',
   'content_type',
   'month_key',
-  'status',
   'task_id',
   'client_id',
   'client_name',
@@ -61,20 +59,11 @@ export const ASSET_LIST_COLUMNS = [
   'preview_url',
   'thumbnail_url',
   'web_view_link',
-  'duration_seconds',
-  'preview_status',
-  'last_synced_at',
-  'source_updated_at',
-  'is_deleted',
-  'upload_state',
   'tags',
-  'version_number',
-  'parent_asset_id',
   'main_category',
   'sub_category',
   'storage_key',
   'created_at',
-  'updated_at',
 ].join(',');
 
 export const ACTIVITY_LIST_COLUMNS =

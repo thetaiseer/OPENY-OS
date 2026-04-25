@@ -12,6 +12,7 @@ const REDIRECT_DELAY_MS = 1200;
 type ValidationState =
   | { status: 'loading' }
   | { status: 'invalid'; message: string }
+  | { status: 'error'; message: string }
   | {
       status: 'valid';
       invitation: {
@@ -61,6 +62,13 @@ function InvitePage() {
       const payload = await res.json().catch(() => ({}) as ValidateResponse);
 
       if (!res.ok || !payload?.invitation) {
+        if (res.status >= 500) {
+          setValidation({
+            status: 'error',
+            message: 'We could not validate this invitation right now. Please try again.',
+          });
+          return;
+        }
         if (payload?.reason === 'expired') {
           setValidation({ status: 'invalid', message: 'This invitation has expired' });
           return;
@@ -178,6 +186,22 @@ function InvitePage() {
               >
                 Go to Login →
               </Link>
+            </div>
+          ) : null}
+
+          {validation.status === 'error' ? (
+            <div className="space-y-4 text-center">
+              <h2 className="text-xl font-bold" style={{ color: '#111827' }}>
+                {validation.message}
+              </h2>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-block h-10 rounded-lg px-6 text-sm font-semibold leading-10 text-white"
+                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+              >
+                Try Again
+              </button>
             </div>
           ) : null}
 
