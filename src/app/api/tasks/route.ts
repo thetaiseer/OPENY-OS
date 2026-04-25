@@ -31,6 +31,7 @@ import type { Task } from '@/lib/types';
 import { notifyTaskCreated } from '@/lib/notification-service';
 import { sendEmail, taskAssignedEmail, logEmailSent } from '@/lib/email';
 import { processEvent } from '@/lib/event-engine';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = [
   'todo',
@@ -247,6 +248,22 @@ export async function POST(request: NextRequest) {
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    request,
+    db,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
+  insertPayload.workspace_id = workspaceId;
   const { data, error } = await db
     .from('tasks')
     .insert(insertPayload)
@@ -306,6 +323,7 @@ export async function POST(request: NextRequest) {
   // Activity log (fire-and-forget — never blocks response)
   void Promise.resolve(
     db.from('activities').insert({
+      workspace_id: workspaceId,
       type: 'task',
       description: `Task "${title}" created`,
       client_id: clientId || null,
@@ -330,6 +348,7 @@ export async function POST(request: NextRequest) {
     void db
       .from('calendar_events')
       .insert({
+        workspace_id: workspaceId,
         title: title,
         event_type: 'task',
         starts_at: calStartsAt,
@@ -349,6 +368,7 @@ export async function POST(request: NextRequest) {
     void (async () => {
       try {
         const schedPayload: Record<string, unknown> = {
+          workspace_id: workspaceId,
           asset_id: assetId || null,
           client_id: clientId || null,
           client_name: task.client_name || clientName || null,

@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = [
   'draft',
@@ -33,9 +34,25 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
     let query = db
       .from('content_items')
       .select(CONTENT_ITEM_WITH_CLIENT)
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -94,6 +111,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
+    payload.workspace_id = workspaceId;
     const { data, error } = await db
       .from('content_items')
       .insert(payload)
@@ -107,6 +140,7 @@ export async function POST(req: NextRequest) {
 
     // Activity log (best-effort)
     void db.from('activities').insert({
+      workspace_id: workspaceId,
       type: 'content_item_created',
       description: `Content item "${title}" created`,
       user_id: auth.profile.id,
@@ -124,6 +158,7 @@ export async function POST(req: NextRequest) {
       void db
         .from('calendar_events')
         .insert({
+          workspace_id: workspaceId,
           title: `Content: ${title}`,
           event_type: 'publishing',
           starts_at: calStartsAt,

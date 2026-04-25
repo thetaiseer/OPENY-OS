@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import {
-  getWorkspaceFromAppPath,
-  normalizeWorkspaceKey,
-  type WorkspaceKey,
-} from '@/lib/workspace-access';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 type TeamMemberPayload = {
   id: string;
@@ -21,60 +17,9 @@ type TeamMemberPayload = {
 
 type WorkspaceRow = {
   id: string;
-  slug: string | null;
-  name: string | null;
   owner_id: string | null;
   created_at: string | null;
 };
-
-function resolveWorkspaceKey(request: NextRequest): WorkspaceKey {
-  const fromQuery = normalizeWorkspaceKey(request.nextUrl.searchParams.get('workspace'));
-  if (fromQuery) return fromQuery;
-
-  const referer = request.headers.get('referer') ?? '';
-  if (referer) {
-    try {
-      const pathname = new URL(referer).pathname;
-      const fromPath = getWorkspaceFromAppPath(pathname);
-      if (fromPath) return fromPath;
-    } catch {}
-  }
-
-  return 'os';
-}
-
-async function resolveWorkspaceRow(
-  db: ReturnType<typeof getServiceClient>,
-  workspaceKey: WorkspaceKey,
-): Promise<{ row: WorkspaceRow | null; error: string | null }> {
-  const primary = await db
-    .from('workspaces')
-    .select('id, slug, name, owner_id, created_at')
-    .eq('slug', workspaceKey)
-    .maybeSingle();
-  if (primary.error) return { row: null, error: primary.error.message };
-  if (primary.data?.id) return { row: primary.data as WorkspaceRow, error: null };
-
-  const nameMatch = await db
-    .from('workspaces')
-    .select('id, slug, name, owner_id, created_at')
-    .ilike('name', `OPENY ${workspaceKey.toUpperCase()}`)
-    .limit(1)
-    .maybeSingle();
-  if (nameMatch.error) return { row: null, error: nameMatch.error.message };
-  if (nameMatch.data?.id) return { row: nameMatch.data as WorkspaceRow, error: null };
-
-  const fallback = await db
-    .from('workspaces')
-    .select('id, slug, name, owner_id, created_at')
-    .limit(2);
-  if (fallback.error) return { row: null, error: fallback.error.message };
-  if ((fallback.data ?? []).length === 1) {
-    return { row: (fallback.data as WorkspaceRow[])[0], error: null };
-  }
-
-  return { row: null, error: null };
-}
 
 function normalizeMemberRole(role: string | null | undefined): string {
   if (role === 'owner') return 'owner';
@@ -89,23 +34,47 @@ export async function GET(request: NextRequest) {
   const auth = await getApiUser(request);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const workspaceKey = resolveWorkspaceKey(request);
   const db = getServiceClient();
-
-  const { row: workspaceRow, error: workspaceError } = await resolveWorkspaceRow(db, workspaceKey);
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    request,
+    db,
+    auth.profile.id,
+  );
   if (workspaceError) {
     console.error('[team/members/get] Failed to resolve workspace:', workspaceError);
-    return NextResponse.json({ error: workspaceError }, { status: 500 });
+    return NextResponse.json(
+      { success: false, step: 'workspace_resolution', error: workspaceError },
+      { status: 500 },
+    );
   }
 
-  if (!workspaceRow?.id) {
-    return NextResponse.json({ members: [] as TeamMemberPayload[] });
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, step: 'workspace_resolution', error: 'Workspace not found' },
+      { status: 500 },
+    );
   }
+  const { data: workspaceRowData, error: workspaceRowError } = await db
+    .from('workspaces')
+    .select('id, owner_id, created_at')
+    .eq('id', workspaceId)
+    .maybeSingle();
+  if (workspaceRowError || !workspaceRowData?.id) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceRowError?.message ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
+  const workspaceRow = workspaceRowData as WorkspaceRow;
 
   const { data: workspaceMembers, error: membersError } = await db
     .from('workspace_members')
     .select('id, workspace_id, user_id, role, joined_at')
-    .eq('workspace_id', workspaceRow.id);
+    .eq('workspace_id', workspaceId);
 
   if (membersError) {
     console.error('[team/members/get] Failed to fetch workspace_members:', membersError.message);

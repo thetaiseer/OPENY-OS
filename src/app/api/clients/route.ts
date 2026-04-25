@@ -20,6 +20,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { notifyClientCreated } from '@/lib/notification-service';
 import { processEvent } from '@/lib/event-engine';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -27,9 +28,25 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
   const { data, error } = await db
     .from('clients')
     .select('id,name,slug,status,default_currency,created_at,updated_at')
+    .eq('workspace_id', workspaceId)
     .order('name', { ascending: true });
 
   if (error) {
@@ -91,6 +108,23 @@ export async function POST(request: NextRequest) {
 
   // 5. DB insert (service-role bypasses RLS — role already verified above)
   const db = getServiceClient();
+  const {
+    workspaceId,
+    workspaceKey,
+    error: workspaceError,
+  } = await resolveWorkspaceForRequest(request, db, auth.profile.id);
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? `Unable to resolve workspace for key "${workspaceKey}"`,
+      },
+      { status: 500 },
+    );
+  }
+  insertPayload.workspace_id = workspaceId;
+
   const { data, error } = await db.from('clients').insert(insertPayload).select().single();
 
   if (error) {

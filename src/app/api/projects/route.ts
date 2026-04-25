@@ -8,6 +8,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -21,9 +22,25 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
     let query = db
       .from('projects')
       .select(PROJECT_WITH_CLIENT)
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -72,6 +89,22 @@ export async function POST(req: NextRequest) {
   };
 
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
+  payload.workspace_id = workspaceId;
   const { data, error } = await db
     .from('projects')
     .insert(payload)
@@ -82,6 +115,7 @@ export async function POST(req: NextRequest) {
 
   // Activity log + workspace event (fire-and-forget)
   void db.from('activities').insert({
+    workspace_id: workspaceId,
     type: 'project_created',
     description: `Project "${name}" created`,
     client_id: payload.client_id || null,

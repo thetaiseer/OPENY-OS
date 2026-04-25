@@ -8,6 +8,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { NOTE_COLUMNS } from '@/lib/supabase-list-columns';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -20,9 +21,25 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search');
 
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
   let query = db
     .from('notes')
     .select(NOTE_COLUMNS)
+    .eq('workspace_id', workspaceId)
     .order('is_pinned', { ascending: false })
     .order('updated_at', { ascending: false })
     .limit(200);
@@ -58,7 +75,24 @@ export async function POST(req: NextRequest) {
       ? rawEntityType
       : null;
 
+  const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        step: 'workspace_resolution',
+        error: workspaceError ?? 'Workspace not found',
+      },
+      { status: 500 },
+    );
+  }
   const payload: Record<string, unknown> = {
+    workspace_id: workspaceId,
     title,
     content: typeof body.content === 'string' ? body.content : null,
     entity_type: entityType,
@@ -66,8 +100,6 @@ export async function POST(req: NextRequest) {
     is_pinned: body.is_pinned === true,
     created_by: auth.profile.id,
   };
-
-  const db = getServiceClient();
   const { data, error } = await db.from('notes').insert(payload).select().single();
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

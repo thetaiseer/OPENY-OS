@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { NOTIFICATION_LIST_COLUMNS } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member', 'client']);
@@ -25,9 +26,25 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
     let query = db
       .from('notifications')
       .select(NOTIFICATION_LIST_COLUMNS)
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -53,6 +70,7 @@ export async function GET(req: NextRequest) {
     let countQuery = db
       .from('notifications')
       .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
       .or(`user_id.eq.${userId},user_id.is.null`)
       .eq('read', false);
     try {
@@ -98,9 +116,25 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
     const { data, error } = await db
       .from('notifications')
       .insert({
+        workspace_id: workspaceId,
         title,
         message,
         type: typeof body.type === 'string' ? body.type : 'info',

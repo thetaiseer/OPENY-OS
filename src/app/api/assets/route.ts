@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import { ASSET_LIST_COLUMNS } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const PAGE_SIZE = 100;
 
@@ -52,11 +53,27 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      supabase,
+      profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
 
     // Build query with optional filters
     let query = supabase
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
+      .eq('workspace_id', workspaceId)
       .neq('is_deleted', true)
       .order('created_at', { ascending: false });
 
@@ -80,6 +97,7 @@ export async function GET(req: NextRequest) {
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);

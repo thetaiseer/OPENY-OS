@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { CALENDAR_EVENT_WITH_RELATIONS } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_EVENT_TYPES = [
   'task',
@@ -50,10 +51,26 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
 
     let query = db
       .from('calendar_events')
       .select(CALENDAR_EVENT_WITH_RELATIONS)
+      .eq('workspace_id', workspaceId)
       .order('starts_at', { ascending: true });
 
     if (clientId) query = query.eq('client_id', clientId);
@@ -130,6 +147,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
+    insertPayload.workspace_id = workspaceId;
 
     const { data, error } = await db
       .from('calendar_events')
