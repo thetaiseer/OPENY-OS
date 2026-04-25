@@ -14,7 +14,7 @@ import {
 } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([

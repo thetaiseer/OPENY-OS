@@ -2,6 +2,7 @@
 
 import { Bell, Moon, Search, Sun, UserCircle2 } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
+import { useLang } from '@/context/lang-context';
 import { cn } from '@/lib/cn';
 
 type TopbarProps = {
@@ -10,6 +11,7 @@ type TopbarProps = {
 
 export default function Topbar({ className }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLang();
 
   return (
     <header
@@ -24,7 +26,7 @@ export default function Topbar({ className }: TopbarProps) {
           <Search className="pointer-events-none absolute left-3 h-4 w-4 text-secondary" />
           <input
             type="search"
-            placeholder="Search..."
+            placeholder={t('search')}
             className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pl-9 pr-3 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
@@ -32,24 +34,24 @@ export default function Topbar({ className }: TopbarProps) {
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            aria-label={theme === 'light' ? t('switchToDark') : t('switchToLight')}
             aria-pressed={theme === 'dark'}
             onClick={toggleTheme}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            title={theme === 'light' ? t('switchToDark') : t('switchToLight')}
           >
             {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </button>
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
-            aria-label="Notifications"
+            aria-label={t('notifications')}
           >
             <Bell className="h-4 w-4" />
           </button>
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
-            aria-label="Profile"
+            aria-label={t('profile')}
           >
             <UserCircle2 className="h-5 w-5" />
           </button>

@@ -1,18 +1,37 @@
 'use client';
 
-import type { ReactNode, SelectHTMLAttributes } from 'react';
-import { cn } from '@/lib/cn';
-import { Field } from '@/components/ui/Input';
+import {
+  type ChangeEvent,
+  Children,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  isValidElement,
+} from 'react';
+import SelectDropdown, { type SelectOption } from '@/components/ui/SelectDropdown';
 
-export type SelectOption = {
-  value: string;
-  label: ReactNode;
-};
+function optionsFromChildren(children: ReactNode): SelectOption[] {
+  const out: SelectOption[] = [];
+  Children.forEach(children, (node) => {
+    if (isValidElement(node) && node.type === 'option') {
+      const p = node.props as { value?: string | number; children?: ReactNode; disabled?: boolean };
+      out.push({
+        value: p.value === undefined || p.value === null ? '' : String(p.value),
+        label: p.children ?? String(p.value ?? ''),
+        disabled: p.disabled,
+      });
+    }
+  });
+  return out;
+}
 
-type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+type SelectProps = Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'children' | 'multiple' | 'size'
+> & {
   label?: ReactNode;
   error?: ReactNode;
   options?: SelectOption[];
+  children?: ReactNode;
 };
 
 export default function Select({
@@ -22,26 +41,28 @@ export default function Select({
   options = [],
   className,
   children,
-  ...props
+  value,
+  defaultValue,
+  onChange,
+  ...rest
 }: SelectProps) {
+  const childOpts = optionsFromChildren(children ?? null);
+  const merged: SelectOption[] = childOpts.length > 0 ? childOpts : options;
+  const resolvedValue = value !== undefined ? value : defaultValue;
+
   return (
-    <Field label={label} error={error} htmlFor={id}>
-      <select
-        id={id}
-        {...props}
-        className={cn(
-          'focus:ring-[color:var(--accent)]/15 h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2',
-          error ? 'border-danger' : '',
-          className,
-        )}
-      >
-        {children}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <SelectDropdown
+      {...rest}
+      id={id}
+      label={label}
+      error={error}
+      className={className}
+      options={merged}
+      value={resolvedValue as string | number | null | undefined}
+      fullWidth
+      onChange={(str) => {
+        onChange?.({ target: { value: str } } as unknown as ChangeEvent<HTMLSelectElement>);
+      }}
+    />
   );
 }

@@ -19,6 +19,7 @@ import {
 } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 import { computeAccountingSettlement } from '@/lib/accounting-settlement';
 import { exportPreviewPdf } from '@/lib/docs-print';
@@ -229,27 +230,27 @@ function EntryModal({
           </div>
           <div>
             {lbl('Currency')}
-            <select
+            <SelectDropdown
+              fullWidth
               className={inp}
               value={form.currency}
-              onChange={(e) => setF('currency', e.target.value)}
-            >
-              {DOCS_CURRENCIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(v) => setF('currency', v)}
+              options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
         </div>
         <div>
           {lbl('Collected by')}
-          <select
+          <SelectDropdown
+            fullWidth
             className={inp}
             value={form.collector}
-            onChange={(e) => setCollector(e.target.value)}
-          >
-            <option value={PARTNER_A}>{PARTNER_A}</option>
-            <option value={PARTNER_B}>{PARTNER_B}</option>
-          </select>
+            onChange={(v) => setCollector(v)}
+            options={[
+              { value: PARTNER_A, label: PARTNER_A },
+              { value: PARTNER_B, label: PARTNER_B },
+            ]}
+          />
         </div>
         <div>
           {lbl('Entry date')}
@@ -411,27 +412,27 @@ function ExpenseModal({
           </div>
           <div>
             {lbl('Currency')}
-            <select
+            <SelectDropdown
+              fullWidth
               className={inp}
               value={form.currency}
-              onChange={(e) => setF('currency', e.target.value)}
-            >
-              {DOCS_CURRENCIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(v) => setF('currency', v)}
+              options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
         </div>
         <div>
           {lbl('Paid by partner')}
-          <select
+          <SelectDropdown
+            fullWidth
             className={inp}
             value={form.paid_by_partner}
-            onChange={(e) => setF('paid_by_partner', e.target.value)}
-          >
-            <option value={PARTNER_A}>{PARTNER_A}</option>
-            <option value={PARTNER_B}>{PARTNER_B}</option>
-          </select>
+            onChange={(v) => setF('paid_by_partner', v)}
+            options={[
+              { value: PARTNER_A, label: PARTNER_A },
+              { value: PARTNER_B, label: PARTNER_B },
+            ]}
+          />
         </div>
         <div>
           {lbl('Expense date')}
@@ -578,25 +579,29 @@ function TransferModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             {lbl('From')}
-            <select
+            <SelectDropdown
+              fullWidth
               className={inp}
               value={form.from_partner}
-              onChange={(e) => setF('from_partner', e.target.value)}
-            >
-              <option value={PARTNER_A}>{PARTNER_A}</option>
-              <option value={PARTNER_B}>{PARTNER_B}</option>
-            </select>
+              onChange={(v) => setF('from_partner', v)}
+              options={[
+                { value: PARTNER_A, label: PARTNER_A },
+                { value: PARTNER_B, label: PARTNER_B },
+              ]}
+            />
           </div>
           <div>
             {lbl('To')}
-            <select
+            <SelectDropdown
+              fullWidth
               className={inp}
               value={form.to_partner}
-              onChange={(e) => setF('to_partner', e.target.value)}
-            >
-              <option value={PARTNER_A}>{PARTNER_A}</option>
-              <option value={PARTNER_B}>{PARTNER_B}</option>
-            </select>
+              onChange={(v) => setF('to_partner', v)}
+              options={[
+                { value: PARTNER_A, label: PARTNER_A },
+                { value: PARTNER_B, label: PARTNER_B },
+              ]}
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -613,15 +618,13 @@ function TransferModal({
           </div>
           <div>
             {lbl('Currency')}
-            <select
+            <SelectDropdown
+              fullWidth
               className={inp}
               value={form.currency}
-              onChange={(e) => setF('currency', e.target.value)}
-            >
-              {DOCS_CURRENCIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(v) => setF('currency', v)}
+              options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
         </div>
         <div>

@@ -12,7 +12,8 @@ const paddingClasses = {
   lg: 'p-6',
 } as const;
 
-export const cardSurfaceClass = 'openy-surface';
+export const cardSurfaceClass =
+  'openy-surface openy-soft-transition bg-[color:var(--surface)]/95 backdrop-blur-[8px] shadow-[0_10px_26px_rgba(15,23,42,0.06)]';
 
 export function Card({
   children,

@@ -73,7 +73,7 @@ export default function AppModal({
       <button
         type="button"
         aria-label="Close modal backdrop"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+        className="openy-modal-backdrop absolute inset-0 bg-black/45 backdrop-blur-[1px]"
         onClick={() => {
           if (closeOnOverlayClick) onClose?.();
         }}
@@ -84,7 +84,7 @@ export default function AppModal({
           role="dialog"
           aria-modal="true"
           className={cn(
-            'openy-surface flex max-h-modal-dynamic w-full flex-col overflow-hidden rounded-xl',
+            'openy-surface openy-modal-panel flex max-h-modal-dynamic w-full flex-col overflow-hidden rounded-xl',
             SIZE_CLASS[size],
             panelClassName,
             className,

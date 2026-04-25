@@ -27,6 +27,7 @@ import {
   DocsEditorCard,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
@@ -848,38 +849,37 @@ export default function InvoicePage() {
           <div className="docs-workspace-quickbar-grid">
             <div>
               <label htmlFor="invoice-template">Mode / Template</label>
-              <select
+              <SelectDropdown
                 id="invoice-template"
+                fullWidth
                 className={inputClass}
                 value={form.invoice_template}
-                onChange={(e) => applyTemplate(asTemplateName(e.target.value))}
-              >
-                {INVOICE_TEMPLATE_OPTIONS.map((template) => (
-                  <option key={template.key} value={template.key}>
-                    {template.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => applyTemplate(asTemplateName(v))}
+                options={INVOICE_TEMPLATE_OPTIONS.map((template) => ({
+                  value: template.key,
+                  label: template.label,
+                }))}
+              />
             </div>
             <div>
               <label>Client</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 className={inputClass}
                 value={form.client_profile_id ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
+                onChange={(value) => {
                   setField('client_profile_id', value || null);
                   const profile = profiles.find((p) => p.client_id === value);
                   if (profile) setField('client_name', profile.client_name);
                 }}
-              >
-                <option value="">Select client</option>
-                {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.client_id}>
-                    {profile.client_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Select client' },
+                  ...profiles.map((profile) => ({
+                    value: profile.client_id,
+                    label: profile.client_name,
+                  })),
+                ]}
+              />
             </div>
             <div>
               <label htmlFor="invoice-campaign-month">Campaign Month</label>
@@ -903,22 +903,22 @@ export default function InvoicePage() {
             </div>
             <div>
               <label>History</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 className={inputClass}
                 value={form.id ?? ''}
-                onChange={(e) => {
-                  const selectedId = e.target.value;
+                onChange={(selectedId) => {
                   const selected = invoices.find((invoice) => invoice.id === selectedId) ?? null;
                   loadFromInvoice(selected, invoices);
                 }}
-              >
-                <option value="">New unsaved invoice</option>
-                {invoices.map((invoice) => (
-                  <option key={invoice.id} value={invoice.id}>
-                    {invoice.invoice_number} · {invoice.client_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'New unsaved invoice' },
+                  ...invoices.map((invoice) => ({
+                    value: invoice.id,
+                    label: `${invoice.invoice_number} · ${invoice.client_name}`,
+                  })),
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -983,28 +983,29 @@ export default function InvoicePage() {
                 </div>
                 <div>
                   <label>Currency</label>
-                  <select
+                  <SelectDropdown
+                    fullWidth
                     className={inputClass}
                     value={form.currency}
-                    onChange={(e) => setField('currency', e.target.value)}
-                  >
-                    {DOCS_CURRENCIES.map((currency) => (
-                      <option key={currency} value={currency}>
-                        {currency}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setField('currency', v)}
+                    options={DOCS_CURRENCIES.map((currency) => ({
+                      value: currency,
+                      label: currency,
+                    }))}
+                  />
                 </div>
                 <div>
                   <label>Status</label>
-                  <select
+                  <SelectDropdown
+                    fullWidth
                     className={inputClass}
                     value={form.status}
-                    onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}
-                  >
-                    <option value="unpaid">Unpaid</option>
-                    <option value="paid">Paid</option>
-                  </select>
+                    onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
+                    options={[
+                      { value: 'unpaid', label: 'Unpaid' },
+                      { value: 'paid', label: 'Paid' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label>Client Name</label>
@@ -1608,10 +1609,8 @@ export default function InvoicePage() {
       }
       preview={
         <section className="docs-preview-shell">
-          <div className="overflow-x-auto">
-            <div className="docs-preview-canvas" style={{ width: 820 }}>
-              <InvoicePreview model={model} />
-            </div>
+          <div className="docs-preview-canvas">
+            <InvoicePreview model={model} />
           </div>
         </section>
       }

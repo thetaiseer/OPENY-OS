@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Pin, PinOff, Trash2, Pencil, Check } from 'lucide-react';
 import type { Note } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
+import { useQuickActions } from '@/context/quick-actions-context';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 function formatRelative(iso: string): string {
   try {
@@ -31,6 +33,7 @@ async function fetchNotes(search: string): Promise<Note[]> {
 
 export default function NotesPage() {
   const queryClient = useQueryClient();
+  const { registerQuickActionHandler } = useQuickActions();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -51,12 +54,22 @@ export default function NotesPage() {
     queryFn: () => fetchNotes(debouncedSearch),
   });
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditNote(null);
     setForm({ title: '', content: '' });
     setSaveErr(null);
     setModalOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-note', openCreate);
+  }, [registerQuickActionHandler, openCreate]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-note') openCreate();
+    // intentionally once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openEdit = (note: Note) => {
     setEditNote(note);

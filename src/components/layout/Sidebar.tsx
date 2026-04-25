@@ -18,6 +18,7 @@ import {
   UserSquare2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useLang } from '@/context/lang-context';
 
 /** Single unified nav: operations + Docs hub + document tools in one shell. */
 const primaryNavItems = [
@@ -38,6 +39,7 @@ const primaryNavItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLang();
 
   return (
     <aside className="openy-glass fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-y-auto border-r md:block">
@@ -68,7 +70,7 @@ export default function Sidebar() {
               <span className="flex h-8 w-8 shrink-0 items-center justify-center">
                 <Icon className="h-4 w-4" />
               </span>
-              <span>{item.label}</span>
+              <span>{t(item.label.toLowerCase())}</span>
             </Link>
           );
         })}

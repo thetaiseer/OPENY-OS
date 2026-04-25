@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/api-auth';
 import { uploadMultipartPart, R2ConfigError } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 /**
  * POST /api/upload/multipart-part

@@ -7,7 +7,7 @@ import {
 } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 /**
  * POST /api/upload/multipart-complete

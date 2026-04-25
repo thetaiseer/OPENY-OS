@@ -16,6 +16,7 @@ import {
 } from '@/lib/docs-client-profiles';
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import {
   DocsDocTypeTabs,
   DocsEditorCard,
@@ -339,17 +340,13 @@ function EmployeeModal({
         </div>
         <div>
           {lbl('Employment Type')}
-          <select
+          <SelectDropdown
+            fullWidth
             className={inp}
             value={form.employment_type}
-            onChange={(e) => setF('employment_type', e.target.value)}
-          >
-            {DOCS_EMPLOYMENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setF('employment_type', v)}
+            options={DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          />
         </div>
         <div>
           {lbl('Hire Date')}
@@ -362,15 +359,17 @@ function EmployeeModal({
         </div>
         <div>
           {lbl('Status')}
-          <select
+          <SelectDropdown
+            fullWidth
             className={inp}
             value={form.status}
-            onChange={(e) => setF('status', e.target.value)}
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="terminated">Terminated</option>
-          </select>
+            onChange={(v) => setF('status', v)}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'terminated', label: 'Terminated' },
+            ]}
+          />
         </div>
         <div>
           {lbl('Phone')}
@@ -553,31 +552,31 @@ export default function EmployeesPage() {
               </div>
               <div>
                 <label>Status</label>
-                <select
+                <SelectDropdown
+                  fullWidth
                   className="docs-input"
                   value={statusF}
-                  onChange={(e) => setStatusF(e.target.value as StatusF)}
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="terminated">Terminated</option>
-                </select>
+                  onChange={(v) => setStatusF(v as StatusF)}
+                  options={[
+                    { value: 'all', label: 'All Statuses' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'terminated', label: 'Terminated' },
+                  ]}
+                />
               </div>
               <div>
                 <label>Employment Type</label>
-                <select
+                <SelectDropdown
+                  fullWidth
                   className="docs-input"
                   value={typeF}
-                  onChange={(e) => setTypeF(e.target.value as TypeF)}
-                >
-                  <option value="all">All Types</option>
-                  {DOCS_EMPLOYMENT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setTypeF(v as TypeF)}
+                  options={[
+                    { value: 'all', label: 'All Types' },
+                    ...DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+                  ]}
+                />
               </div>
               <div>
                 <label>Client Context</label>
@@ -735,7 +734,7 @@ export default function EmployeesPage() {
                           onChange={(e) => setSearch(e.target.value)}
                         />
                       </div>
-                      <select
+                      <SelectDropdown
                         className="rounded-lg border px-2 py-1.5 text-sm outline-none"
                         style={{
                           background: 'var(--surface-2)',
@@ -743,14 +742,15 @@ export default function EmployeesPage() {
                           color: 'var(--text)',
                         }}
                         value={statusF}
-                        onChange={(e) => setStatusF(e.target.value as StatusF)}
-                      >
-                        <option value="all">All Statuses</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="terminated">Terminated</option>
-                      </select>
-                      <select
+                        onChange={(v) => setStatusF(v as StatusF)}
+                        options={[
+                          { value: 'all', label: 'All Statuses' },
+                          { value: 'active', label: 'Active' },
+                          { value: 'inactive', label: 'Inactive' },
+                          { value: 'terminated', label: 'Terminated' },
+                        ]}
+                      />
+                      <SelectDropdown
                         className="rounded-lg border px-2 py-1.5 text-sm outline-none"
                         style={{
                           background: 'var(--surface-2)',
@@ -758,15 +758,12 @@ export default function EmployeesPage() {
                           color: 'var(--text)',
                         }}
                         value={typeF}
-                        onChange={(e) => setTypeF(e.target.value as TypeF)}
-                      >
-                        <option value="all">All Types</option>
-                        {DOCS_EMPLOYMENT_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setTypeF(v as TypeF)}
+                        options={[
+                          { value: 'all', label: 'All Types' },
+                          ...DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+                        ]}
+                      />
                     </div>
                     <button
                       onClick={() => setAddModal(true)}

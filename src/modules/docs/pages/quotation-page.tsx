@@ -31,6 +31,7 @@ import {
 } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import AppModal from '@/components/ui/AppModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 import {
   OpenyClientBlock,
@@ -946,22 +947,23 @@ export default function QuotationPage() {
             </div>
             <div>
               <label>History</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 className={inputCls}
                 value={editingId ?? ''}
-                onChange={(e) => {
-                  const selected = quotations.find((q) => q.id === e.target.value);
+                onChange={(v) => {
+                  const selected = quotations.find((q) => q.id === v);
                   if (selected) loadIntoForm(selected);
                   else resetForm();
                 }}
-              >
-                <option value="">New quotation</option>
-                {quotations.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.quote_number} · {q.client_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'New quotation' },
+                  ...quotations.map((q) => ({
+                    value: q.id,
+                    label: `${q.quote_number} · ${q.client_name}`,
+                  })),
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -1052,15 +1054,13 @@ export default function QuotationPage() {
                     >
                       Currency
                     </label>
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inputCls}
                       value={form.currency}
-                      onChange={(e) => setField('currency', e.target.value)}
-                    >
-                      {DOCS_CURRENCIES.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('currency', v)}
+                      options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                    />
                   </div>
                   <div>
                     <label
@@ -1069,14 +1069,16 @@ export default function QuotationPage() {
                     >
                       Status
                     </label>
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inputCls}
                       value={form.status}
-                      onChange={(e) => setField('status', e.target.value as 'paid' | 'unpaid')}
-                    >
-                      <option value="unpaid">Unpaid</option>
-                      <option value="paid">Paid</option>
-                    </select>
+                      onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
+                      options={[
+                        { value: 'unpaid', label: 'Unpaid' },
+                        { value: 'paid', label: 'Paid' },
+                      ]}
+                    />
                   </div>
                 </div>
               </section>
@@ -1291,15 +1293,13 @@ export default function QuotationPage() {
                       >
                         Payment Method
                       </label>
-                      <select
+                      <SelectDropdown
+                        fullWidth
                         className={inputCls}
                         value={form.payment_method}
-                        onChange={(e) => setField('payment_method', e.target.value)}
-                      >
-                        {DOCS_PAYMENT_METHODS.map((m) => (
-                          <option key={m}>{m}</option>
-                        ))}
-                      </select>
+                        onChange={(v) => setField('payment_method', v)}
+                        options={DOCS_PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                      />
                     </div>
                   </div>
                   {form.payment_method === 'Custom' && (
@@ -1372,7 +1372,7 @@ export default function QuotationPage() {
       }
       preview={
         <div className="docs-preview-shell">
-          <div className="docs-preview-canvas" style={{ width: 794 }}>
+          <div className="docs-preview-canvas">
             <QuotationPreview form={form} />
           </div>
         </div>

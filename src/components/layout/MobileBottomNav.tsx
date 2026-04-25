@@ -19,26 +19,28 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import FloatingActionButton from '@/components/ui/FloatingActionButton';
+import { useLang } from '@/context/lang-context';
 
 /** Same unified surface as desktop sidebar (horizontal strip). */
 const mobileNavItems = [
-  { href: '/dashboard', label: 'Home', icon: Gauge },
-  { href: '/clients', label: 'Clients', icon: Users },
-  { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/tasks/all', label: 'Tasks', icon: ClipboardList },
-  { href: '/content', label: 'Content', icon: FileText },
-  { href: '/docs', label: 'Docs', icon: LayoutDashboard },
-  { href: '/calendar', label: 'Cal', icon: CalendarDays },
-  { href: '/assets', label: 'Assets', icon: ImageIcon },
-  { href: '/reports/overview', label: 'Reports', icon: FileSpreadsheet },
-  { href: '/team', label: 'Team', icon: UserSquare2 },
-  { href: '/activity', label: 'Activity', icon: Activity },
-  { href: '/security/sessions', label: 'Security', icon: Shield },
-  { href: '/settings/profile', label: 'Settings', icon: Settings },
+  { href: '/dashboard', key: 'home', icon: Gauge },
+  { href: '/clients', key: 'clients', icon: Users },
+  { href: '/projects', key: 'projects', icon: FolderKanban },
+  { href: '/tasks/all', key: 'tasks', icon: ClipboardList },
+  { href: '/content', key: 'content', icon: FileText },
+  { href: '/docs', key: 'docs', icon: LayoutDashboard },
+  { href: '/calendar', key: 'calendar', icon: CalendarDays },
+  { href: '/assets', key: 'assets', icon: ImageIcon },
+  { href: '/reports/overview', key: 'reports', icon: FileSpreadsheet },
+  { href: '/team', key: 'team', icon: UserSquare2 },
+  { href: '/activity', key: 'activity', icon: Activity },
+  { href: '/security/sessions', key: 'security', icon: Shield },
+  { href: '/settings/profile', key: 'settings', icon: Settings },
 ] as const;
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { t } = useLang();
 
   return (
     <>
@@ -62,7 +64,7 @@ export default function MobileBottomNav() {
                   )}
                 >
                   <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 xs:h-5 xs:w-5" />
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               </li>
             );

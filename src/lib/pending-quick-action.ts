@@ -17,7 +17,14 @@ export function consumePendingQuickAction(): QuickActionId | null {
   try {
     const v = sessionStorage.getItem(PENDING_QUICK_ACTION_KEY);
     sessionStorage.removeItem(PENDING_QUICK_ACTION_KEY);
-    if (v === 'add-client' || v === 'add-task' || v === 'add-content' || v === 'add-asset') {
+    if (
+      v === 'add-client' ||
+      v === 'add-task' ||
+      v === 'add-project' ||
+      v === 'add-note' ||
+      v === 'add-content' ||
+      v === 'add-asset'
+    ) {
       return v;
     }
     return null;

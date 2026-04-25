@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Play, Square, Plus, Clock, Trash2, Check } from 'lucide-react';
 import type { TimeEntry, Task, Client } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -404,45 +405,41 @@ export default function TimeTrackingPage() {
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
               Task (optional)
             </label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={form.task_id}
-              onChange={(e) => setForm((f) => ({ ...f, task_id: e.target.value }))}
-              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              onChange={(v) => setForm((f) => ({ ...f, task_id: v }))}
+              className="h-9 rounded-lg px-3 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 color: 'var(--text)',
                 border: '1px solid var(--border)',
               }}
-            >
-              <option value="">— No task —</option>
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '— No task —' },
+                ...tasks.map((t) => ({ value: t.id, label: t.title })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
               Client (optional)
             </label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={form.client_id}
-              onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value }))}
-              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              onChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
+              className="h-9 rounded-lg px-3 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 color: 'var(--text)',
                 border: '1px solid var(--border)',
               }}
-            >
-              <option value="">— No client —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '— No client —' },
+                ...clients.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </div>
           <label className="flex cursor-pointer items-center gap-2">
             <input

@@ -5,6 +5,7 @@ import { PenSquare } from 'lucide-react';
 import { useToast } from '@/context/toast-context';
 import type { Client, ContentItem } from '@/lib/types';
 import AppModal from '@/components/ui/AppModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 interface NewContentModalProps {
   open: boolean;
@@ -140,23 +141,21 @@ export default function NewContentModal({
           >
             Client
           </label>
-          <select
+          <SelectDropdown
+            fullWidth
             value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="h-9 w-full rounded-lg border px-3 text-sm"
+            onChange={(v) => setClientId(v)}
+            className="h-9 rounded-lg border px-3 text-sm"
             style={{
               background: 'var(--surface-2)',
               borderColor: 'var(--border)',
               color: 'var(--text)',
             }}
-          >
-            <option value="">— No client —</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: '— No client —' },
+              ...clients.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </div>
         <div>
           <label
@@ -214,23 +213,21 @@ export default function NewContentModal({
           >
             Purpose
           </label>
-          <select
+          <SelectDropdown
+            fullWidth
             value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            className="h-9 w-full rounded-lg border px-3 text-sm"
+            onChange={(v) => setPurpose(v)}
+            className="h-9 rounded-lg border px-3 text-sm"
             style={{
               background: 'var(--surface-2)',
               borderColor: 'var(--border)',
               color: 'var(--text)',
             }}
-          >
-            <option value="">— Select purpose —</option>
-            {PURPOSES.map((p) => (
-              <option key={p} value={p}>
-                {p.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: '— Select purpose —' },
+              ...PURPOSES.map((p) => ({ value: p, label: p.replace(/_/g, ' ') })),
+            ]}
+          />
         </div>
       </form>
     </AppModal>

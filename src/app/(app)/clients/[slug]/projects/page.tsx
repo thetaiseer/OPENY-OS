@@ -11,6 +11,7 @@ import FormModal from '@/components/ui/FormModal';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
 
@@ -413,22 +414,18 @@ export default function ClientProjectsPage() {
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
               Status
             </label>
-            <select
+            <SelectDropdown
+              fullWidth
               value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}
-              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              onChange={(v) => setForm((f) => ({ ...f, status: v as ProjectStatus }))}
+              className="h-9 rounded-lg px-3 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 color: 'var(--text)',
                 border: '1px solid var(--border)',
               }}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>

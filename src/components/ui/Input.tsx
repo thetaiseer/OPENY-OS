@@ -26,9 +26,9 @@ export function Input({ label, error, icon, id, className, ...props }: InputProp
         id={id}
         {...props}
         className={cn(
-          'focus:ring-[color:var(--accent)]/15 h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60',
+          'openy-control h-11 w-full px-4 text-sm text-primary outline-none placeholder:text-secondary disabled:cursor-not-allowed disabled:opacity-60',
           icon ? 'pl-9' : '',
-          error ? 'focus:ring-[color:var(--danger)]/20 border-danger focus:border-danger' : '',
+          error ? 'border-danger focus-within:border-danger focus-within:shadow-none' : '',
           className,
         )}
       />
@@ -49,8 +49,8 @@ export function Textarea({ label, error, id, className, ...props }: TextareaProp
       id={id}
       {...props}
       className={cn(
-        'focus:ring-[color:var(--accent)]/15 min-h-[110px] w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60',
-        error ? 'focus:ring-[color:var(--danger)]/20 border-danger focus:border-danger' : '',
+        'openy-control min-h-[120px] w-full px-4 py-3 text-sm text-primary outline-none placeholder:text-secondary disabled:cursor-not-allowed disabled:opacity-60',
+        error ? 'border-danger focus-within:border-danger focus-within:shadow-none' : '',
         className,
       )}
     />

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Zap, ToggleLeft, ToggleRight, Pencil, Trash2, Check } from 'lucide-react';
 import type { AutomationRule } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 
 const TRIGGER_TYPES = [
   { value: 'task.created', label: 'Task Created' },
@@ -267,24 +268,22 @@ export default function AutomationsPage() {
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>
               Trigger *
             </label>
-            <select
+            <SelectDropdown
               required
+              fullWidth
               value={form.trigger_type}
-              onChange={(e) => setForm((f) => ({ ...f, trigger_type: e.target.value }))}
-              className="h-9 w-full rounded-lg px-3 text-sm outline-none"
+              onChange={(v) => setForm((f) => ({ ...f, trigger_type: v }))}
+              className="h-9 rounded-lg px-3 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 color: 'var(--text)',
                 border: '1px solid var(--border)',
               }}
-            >
-              <option value="">— Select trigger —</option>
-              {TRIGGER_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '— Select trigger —' },
+                ...TRIGGER_TYPES.map((t) => ({ value: t.value, label: t.label })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }}>

@@ -10,7 +10,13 @@ import {
   type ReactNode,
 } from 'react';
 
-export type QuickActionId = 'add-client' | 'add-task' | 'add-content' | 'add-asset';
+export type QuickActionId =
+  | 'add-client'
+  | 'add-task'
+  | 'add-project'
+  | 'add-note'
+  | 'add-content'
+  | 'add-asset';
 
 type QuickActionHandler = () => void;
 

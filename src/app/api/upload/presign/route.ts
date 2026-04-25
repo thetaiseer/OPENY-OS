@@ -15,8 +15,8 @@ import {
 } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
-/** Vercel / long uploads — raise on Pro if you hit timeouts. */
-export const maxDuration = 900;
+/** Keep within Vercel Hobby function duration limits. */
+export const maxDuration = 300;
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([

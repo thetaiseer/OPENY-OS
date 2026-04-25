@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Sparkles,
   Zap,
+  FileText,
 } from 'lucide-react';
 import {
   XAxis,
@@ -907,10 +908,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {[
-              { id: 'add-client' as const, label: 'New client', icon: Users2 },
-              { id: 'add-task' as const, label: 'New task', icon: CheckSquare },
-              { id: 'add-content' as const, label: 'New content', icon: FolderOpen },
-              { id: 'add-asset' as const, label: 'Upload asset', icon: ImageIcon },
+              { id: 'add-client' as const, label: t('newClient'), icon: Users2 },
+              { id: 'add-task' as const, label: t('newTask'), icon: CheckSquare },
+              { id: 'add-project' as const, label: t('newProject'), icon: FolderKanban },
+              { id: 'add-note' as const, label: t('newNote'), icon: FileText },
+              { id: 'add-content' as const, label: t('newContent'), icon: FolderOpen },
+              { id: 'add-asset' as const, label: t('uploadAsset'), icon: ImageIcon },
             ].map((action) => (
               <Button
                 key={action.id}

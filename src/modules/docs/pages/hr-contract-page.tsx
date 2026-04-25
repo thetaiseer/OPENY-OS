@@ -40,6 +40,7 @@ import {
 } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import AppModal from '@/components/ui/AppModal';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
 
 function uid() {
@@ -1017,22 +1018,23 @@ export default function HrContractPage() {
             </div>
             <div>
               <label>History</label>
-              <select
+              <SelectDropdown
+                fullWidth
                 className={inp}
                 value={editingId ?? ''}
-                onChange={(e) => {
-                  const selected = contracts.find((c) => c.id === e.target.value);
+                onChange={(v) => {
+                  const selected = contracts.find((c) => c.id === v);
                   if (selected) loadIntoForm(selected);
                   else resetForm();
                 }}
-              >
-                <option value="">New contract</option>
-                {contracts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.contract_number} · {c.employee_full_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'New contract' },
+                  ...contracts.map((c) => ({
+                    value: c.id,
+                    label: `${c.contract_number} · ${c.employee_full_name}`,
+                  })),
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -1110,38 +1112,39 @@ export default function HrContractPage() {
                   </div>
                   <div>
                     {lbl('Status')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.status}
-                      onChange={(e) => setField('status', e.target.value)}
-                    >
-                      {['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('status', v)}
+                      options={['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => ({
+                        value: s,
+                        label: s,
+                      }))}
+                    />
                   </div>
                   <div>
                     {lbl('Currency')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.currency}
-                      onChange={(e) => setField('currency', e.target.value)}
-                    >
-                      {DOCS_CURRENCIES.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('currency', v)}
+                      options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                    />
                   </div>
                   <div>
                     {lbl('Language')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.language}
-                      onChange={(e) => setField('language', e.target.value as 'ar' | 'en')}
-                    >
-                      <option value="en">English</option>
-                      <option value="ar">Arabic</option>
-                    </select>
+                      onChange={(v) => setField('language', v as 'ar' | 'en')}
+                      options={[
+                        { value: 'en', label: 'English' },
+                        { value: 'ar', label: 'Arabic' },
+                      ]}
+                    />
                   </div>
                 </div>
               </Sec>
@@ -1217,15 +1220,13 @@ export default function HrContractPage() {
                   </div>
                   <div>
                     {lbl('Marital Status')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.employee_marital_status}
-                      onChange={(e) => setField('employee_marital_status', e.target.value)}
-                    >
-                      {DOCS_MARITAL_STATUSES.map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('employee_marital_status', v)}
+                      options={DOCS_MARITAL_STATUSES.map((s) => ({ value: s, label: s }))}
+                    />
                   </div>
                 </div>
                 <div>
@@ -1266,17 +1267,16 @@ export default function HrContractPage() {
                   </div>
                   <div>
                     {lbl('Employment Type')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.employment_type}
-                      onChange={(e) => setField('employment_type', e.target.value)}
-                    >
-                      {DOCS_EMPLOYMENT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('employment_type', v)}
+                      options={DOCS_EMPLOYMENT_TYPES.map((t) => ({
+                        value: t.value,
+                        label: t.label,
+                      }))}
+                    />
                   </div>
                 </div>
               </Sec>
@@ -1333,15 +1333,13 @@ export default function HrContractPage() {
                   </div>
                   <div>
                     {lbl('Payment Method')}
-                    <select
+                    <SelectDropdown
+                      fullWidth
                       className={inp}
                       value={form.payment_method}
-                      onChange={(e) => setField('payment_method', e.target.value)}
-                    >
-                      {DOCS_PAYMENT_METHODS.map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setField('payment_method', v)}
+                      options={DOCS_PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                    />
                   </div>
                   <div>
                     {lbl('Payment Date')}
@@ -1593,7 +1591,7 @@ export default function HrContractPage() {
       }
       preview={
         <div className="docs-preview-shell">
-          <div className="docs-preview-canvas" style={{ width: 794 }}>
+          <div className="docs-preview-canvas">
             <HrContractPreview form={form} />
           </div>
         </div>

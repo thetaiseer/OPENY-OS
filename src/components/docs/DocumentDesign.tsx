@@ -21,17 +21,20 @@ export function OpenyDocumentPage({
   return (
     <div
       id={id}
-      className="w-full bg-white text-gray-900"
+      className="openy-doc-page w-full bg-white text-gray-900"
       dir={dir}
       style={{
         fontFamily: fontFamily ?? 'var(--font-arabic), Inter, system-ui, sans-serif',
         fontSize,
-        width: '210mm',
+        width: '100%',
+        maxWidth: '210mm',
         minHeight: '297mm',
         padding: '12mm',
         boxSizing: 'border-box',
         color: OPENY_DOC_BLACK,
         background: '#fff',
+        marginInline: 'auto',
+        overflow: 'hidden',
       }}
     >
       {children}

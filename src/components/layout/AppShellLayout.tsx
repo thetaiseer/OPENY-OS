@@ -10,6 +10,7 @@ import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
 import AppModal from '@/components/ui/AppModal';
 import Button from '@/components/ui/Button';
 import { useQuickActions, type QuickActionId } from '@/context/quick-actions-context';
+import { useLang } from '@/context/lang-context';
 import { queuePendingQuickAction } from '@/lib/pending-quick-action';
 
 function routePermissionTarget(
@@ -59,6 +60,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
   const router = useRouter();
   const { canView, loading } = usePermissions();
   const { fallbackAction, clearFallbackAction } = useQuickActions();
+  const { t } = useLang();
 
   const permissionTarget = useMemo(() => routePermissionTarget(pathname), [pathname]);
   const isAllowed = useMemo(() => {
@@ -76,10 +78,12 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
   }
 
   const quickActionRoutes: Record<QuickActionId, { href: string; label: string }> = {
-    'add-task': { href: '/tasks/all', label: 'Open Tasks' },
-    'add-client': { href: '/clients', label: 'Open Clients' },
-    'add-content': { href: '/content', label: 'Open Content' },
-    'add-asset': { href: '/assets', label: 'Open Assets' },
+    'add-task': { href: '/tasks/all', label: t('openTasks') },
+    'add-client': { href: '/clients', label: t('openClients') },
+    'add-project': { href: '/projects', label: t('openProjects') },
+    'add-note': { href: '/notes', label: t('openNotes') },
+    'add-content': { href: '/content', label: t('openContent') },
+    'add-asset': { href: '/assets', label: t('openAssets') },
   };
 
   const goQuickAction = (action: QuickActionId) => {
@@ -102,8 +106,8 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
       <AppModal
         open={Boolean(fallbackAction)}
         onClose={clearFallbackAction}
-        title="Quick add"
-        subtitle="Open the right page to add your item — the form will open automatically."
+        title={t('quickAdd')}
+        subtitle={t('openRightPageToAdd')}
         size="sm"
       >
         <div className="space-y-4 text-sm text-secondary">
@@ -119,7 +123,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
           ) : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="ghost" onClick={clearFallbackAction}>
-              Cancel
+              {t('cancel')}
             </Button>
           </div>
         </div>

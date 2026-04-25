@@ -33,9 +33,13 @@ export function printPreviewDocument(
       html, body { margin: 0; padding: 0; background: #fff; }
       body { display: flex; justify-content: center; }
       #print-root { width: 100%; max-width: 794px; }
+      .openy-doc-page { width: 210mm !important; max-width: 210mm !important; margin: 0 auto !important; overflow: hidden !important; }
+      .openy-doc-page table { max-width: 100% !important; }
+      .openy-doc-page th, .openy-doc-page td { overflow-wrap: anywhere !important; word-break: break-word !important; }
       @media print {
         html, body { width: auto; }
         #print-root { max-width: none; width: 100%; }
+        .openy-doc-page { width: 210mm !important; max-width: 210mm !important; }
       }
     </style>
   </head>
@@ -67,6 +71,22 @@ export async function exportPreviewPdf(
   const html2pdfModule = await import('html2pdf.js');
   const html2pdf = (html2pdfModule.default ?? html2pdfModule) as any;
 
+  const sourceClone = preview.cloneNode(true) as HTMLElement;
+  sourceClone.style.width = '210mm';
+  sourceClone.style.maxWidth = '210mm';
+  sourceClone.style.margin = '0 auto';
+  sourceClone.style.background = '#fff';
+  sourceClone.style.overflow = 'hidden';
+
+  const mount = document.createElement('div');
+  mount.style.position = 'fixed';
+  mount.style.left = '-100000px';
+  mount.style.top = '0';
+  mount.style.width = '210mm';
+  mount.style.background = '#fff';
+  mount.appendChild(sourceClone);
+  document.body.appendChild(mount);
+
   const opt = {
     margin: 12,
     filename: `${safeCode}.pdf`,
@@ -76,6 +96,10 @@ export async function exportPreviewPdf(
     pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
   };
 
-  await html2pdf().set(opt).from(preview).save();
+  try {
+    await html2pdf().set(opt).from(sourceClone).save();
+  } finally {
+    mount.remove();
+  }
   return true;
 }

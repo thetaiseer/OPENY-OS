@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -27,6 +27,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
+import { useQuickActions } from '@/context/quick-actions-context';
+import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -104,6 +106,7 @@ function tabMatches(tab: ProjectTab, status: ProjectStatus): boolean {
 export default function ProjectsPage() {
   const { t } = useLang();
   const { role } = useAuth();
+  const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
   const canManage =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
@@ -285,7 +288,7 @@ export default function ProjectsPage() {
     });
   }, [projects, tab, search]);
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditProject(null);
     setForm({
       name: '',
@@ -298,7 +301,17 @@ export default function ProjectsPage() {
     });
     setSaveErr(null);
     setModalOpen(true);
-  };
+  }, [clients]);
+
+  useEffect(() => {
+    return registerQuickActionHandler('add-project', openCreate);
+  }, [registerQuickActionHandler, openCreate]);
+
+  useEffect(() => {
+    if (consumePendingQuickAction() === 'add-project' && canManage) openCreate();
+    // intentionally once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openEdit = (project: Project) => {
     setEditProject(project);
@@ -655,8 +668,10 @@ export default function ProjectsPage() {
               fullWidth
               value={form.client_id}
               onChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
-              options={clients.map((c) => ({ value: c.id, label: c.name }))}
-              placeholder="Select client"
+              options={[
+                { value: '', label: 'Select client' },
+                ...clients.map((c) => ({ value: c.id, label: c.name })),
+              ]}
             />
           </Field>
           <Field label="Name" id="project-name">

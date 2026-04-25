@@ -12,18 +12,19 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'h-9 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-11 px-5 text-sm',
-  icon: 'h-10 w-10 p-0',
+  sm: 'h-9 px-3.5 text-sm',
+  md: 'h-11 px-4.5 text-sm',
+  lg: 'h-12 px-6 text-sm',
+  icon: 'h-11 w-11 p-0',
 };
 
 const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-contrast)] hover:bg-[color:var(--accent-hover)]',
-  secondary: 'border-border bg-surface text-primary hover:bg-[color:var(--surface-elevated)]',
+    'border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-contrast)] shadow-[0_10px_24px_rgba(47,93,255,0.24)] hover:bg-[color:var(--accent-hover)]',
+  secondary:
+    'border-border bg-[color:var(--surface)] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_22px_rgba(15,23,42,0.06)] hover:bg-[color:var(--surface-elevated)]',
   ghost:
-    'border-transparent bg-transparent text-secondary hover:bg-[color:var(--surface-elevated)]',
+    'border-transparent bg-transparent text-secondary hover:bg-[color:var(--surface-elevated)] hover:text-primary',
   danger: 'border-[color:var(--danger)] bg-[color:var(--danger)] text-white hover:brightness-95',
 };
 
@@ -46,7 +47,7 @@ export default function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'focus-visible:ring-[color:var(--accent)]/35 inline-flex items-center justify-center gap-2 rounded-control border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60',
+        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-control border font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60',
         SIZE_CLASS[resolvedSize],
         VARIANT_CLASS[resolvedVariant],
         className,
