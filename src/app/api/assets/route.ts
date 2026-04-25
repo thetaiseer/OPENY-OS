@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
-import { ASSET_LIST_COLUMNS } from '@/lib/supabase-list-columns';
+import { ASSET_LIST_COLUMNS, ASSET_LIST_COLUMNS_LEGACY } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { PG_UNDEFINED_COLUMN } from '@/lib/constants/postgres-errors';
 
 const PAGE_SIZE = 100;
 
@@ -88,12 +89,8 @@ export async function GET(req: NextRequest) {
 
     let result = await query.range(from, to);
 
-    if (result.error?.code === '42703') {
-      console.warn(
-        '[GET /api/assets] Column "is_deleted" does not exist — falling back without is_deleted filter. ' +
-          'Run supabase-migration-missing-columns.sql to add the missing column.',
-      );
-      // Rebuild the same query without the is_deleted filter
+    if (result.error?.code === PG_UNDEFINED_COLUMN) {
+      // Retry #1: same projection without `is_deleted` filter (older schemas).
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
@@ -110,6 +107,26 @@ export async function GET(req: NextRequest) {
       if (search) fallback = fallback.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
 
       result = await fallback.range(from, to);
+    }
+
+    if (result.error?.code === PG_UNDEFINED_COLUMN) {
+      // Retry #2: legacy projection for envs missing `file_path` (and similar).
+      let legacy = supabase
+        .from('assets')
+        .select(ASSET_LIST_COLUMNS_LEGACY)
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false });
+
+      if (clientId) legacy = legacy.eq('client_id', clientId);
+      if (clientName) legacy = legacy.eq('client_name', clientName);
+      if (mainCategory) legacy = legacy.eq('main_category', mainCategory);
+      if (subCategory) legacy = legacy.eq('sub_category', subCategory);
+      if (monthKey) legacy = legacy.eq('month_key', monthKey);
+      if (year) legacy = legacy.like('month_key', `${year}-%`);
+      if (fileType) legacy = legacy.like('file_type', `${fileType}%`);
+      if (search) legacy = legacy.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
+
+      result = await legacy.range(from, to);
     }
 
     const { data, error } = result;

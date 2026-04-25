@@ -66,6 +66,36 @@ export const ASSET_LIST_COLUMNS = [
   'created_at',
 ].join(',');
 
+// Backward-compatible projection for databases that still miss legacy columns
+// like `file_path`. Keep this list as a safe subset for list rendering.
+export const ASSET_LIST_COLUMNS_LEGACY = [
+  'id',
+  'name',
+  'file_url',
+  'view_url',
+  'download_url',
+  'file_type',
+  'file_size',
+  'bucket_name',
+  'storage_provider',
+  'client_folder_name',
+  'content_type',
+  'month_key',
+  'task_id',
+  'client_id',
+  'client_name',
+  'uploaded_by',
+  'mime_type',
+  'preview_url',
+  'thumbnail_url',
+  'web_view_link',
+  'tags',
+  'main_category',
+  'sub_category',
+  'storage_key',
+  'created_at',
+].join(',');
+
 export const ACTIVITY_LIST_COLUMNS =
   'id,type,description,user_id,user_uuid,client_id,entity_type,entity_id,metadata_json,created_at';
 
@@ -120,6 +150,9 @@ export const ACTIVITY_API_COLUMNS = [
 
 export const USER_SESSION_COLUMNS =
   'id,user_id,ip_address,country,city,user_agent,browser,os,device_type,is_active,last_seen_at,created_at,revoked_at,revoked_by,risk_flag';
+
+export const USER_SESSION_COLUMNS_LEGACY =
+  'id,user_id,ip_address,user_agent,browser,os,device_type,is_active,last_seen_at,created_at,revoked_at,revoked_by,risk_flag';
 
 export const NOTE_COLUMNS =
   'id,workspace_id,title,content,entity_type,entity_id,is_pinned,created_by,created_at,updated_at';

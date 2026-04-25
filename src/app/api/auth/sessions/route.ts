@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
-import { PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
-import { USER_SESSION_COLUMNS } from '@/lib/supabase-list-columns';
+import { PG_UNDEFINED_COLUMN, PG_UNDEFINED_TABLE } from '@/lib/constants/postgres-errors';
+import { USER_SESSION_COLUMNS, USER_SESSION_COLUMNS_LEGACY } from '@/lib/supabase-list-columns';
 
 // ── User-Agent parser ──────────────────────────────────────────────────────────
 
@@ -75,12 +75,26 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = getServiceClient();
-  const { data: sessions, error } = await admin
+  const primarySessionsResult = await admin
     .from('user_sessions')
     .select(USER_SESSION_COLUMNS)
     .eq('user_id', auth.profile.id)
     .order('last_seen_at', { ascending: false })
     .limit(50);
+
+  let sessions = primarySessionsResult.data as Array<Record<string, unknown>> | null;
+  let error = primarySessionsResult.error;
+
+  if (primarySessionsResult.error?.code === PG_UNDEFINED_COLUMN) {
+    const fallback = await admin
+      .from('user_sessions')
+      .select(USER_SESSION_COLUMNS_LEGACY)
+      .eq('user_id', auth.profile.id)
+      .order('last_seen_at', { ascending: false })
+      .limit(50);
+    sessions = fallback.data as Array<Record<string, unknown>> | null;
+    error = fallback.error;
+  }
 
   if (error) {
     // Table not yet created — return empty list so the UI degrades gracefully
@@ -91,8 +105,10 @@ export async function GET(request: NextRequest) {
   }
 
   const currentSid = request.cookies.get('openy-sid')?.value;
-  const sessionsWithCurrent = (sessions ?? []).map((s: Record<string, unknown>) => ({
+  const sessionsWithCurrent = (sessions ?? []).map((s) => ({
     ...s,
+    country: (s.country as string | null | undefined) ?? null,
+    city: (s.city as string | null | undefined) ?? null,
     is_current: s.id === currentSid,
   }));
 
@@ -121,7 +137,7 @@ export async function POST(request: NextRequest) {
   );
 
   // Detect suspicious login: new country compared to recent sessions
-  const { data: recentSessions } = await admin
+  const primaryRecentSessionsResult = await admin
     .from('user_sessions')
     .select('country, browser, os')
     .eq('user_id', auth.profile.id)
@@ -129,15 +145,30 @@ export async function POST(request: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(10);
 
+  let recentSessions = primaryRecentSessionsResult.data as Array<Record<string, unknown>> | null;
+
+  if (primaryRecentSessionsResult.error?.code === PG_UNDEFINED_COLUMN) {
+    const fallbackRecent = await admin
+      .from('user_sessions')
+      .select('browser, os')
+      .eq('user_id', auth.profile.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    recentSessions = fallbackRecent.data as Array<Record<string, unknown>> | null;
+  }
+
   let riskFlag = false;
   if (recentSessions && recentSessions.length > 0 && country && country !== 'Local') {
     const knownCountries = new Set(
-      (recentSessions as Array<{ country: string | null }>).map((s) => s.country).filter(Boolean),
+      recentSessions
+        .map((s) => (typeof s.country === 'string' ? s.country : null))
+        .filter((v): v is string => Boolean(v)),
     );
     if (!knownCountries.has(country)) riskFlag = true;
   }
 
-  const { data: session, error } = await admin
+  let { data: session, error } = await admin
     .from('user_sessions')
     .insert({
       user_id: auth.profile.id,
@@ -153,6 +184,25 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single();
+
+  if (error?.code === PG_UNDEFINED_COLUMN) {
+    const fallbackInsert = await admin
+      .from('user_sessions')
+      .insert({
+        user_id: auth.profile.id,
+        ip_address: ip || null,
+        user_agent: ua || null,
+        browser,
+        os,
+        device_type: deviceType,
+        is_active: true,
+        risk_flag: riskFlag,
+      })
+      .select()
+      .single();
+    session = fallbackInsert.data;
+    error = fallbackInsert.error;
+  }
 
   if (error) {
     // Table not yet created — skip session creation silently
