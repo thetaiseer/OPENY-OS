@@ -9,6 +9,7 @@ import {
   useMemo,
   Suspense,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   Upload,
   FolderOpen,
@@ -52,6 +53,7 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -416,6 +418,8 @@ function triggerDownload(url: string, filename: string): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AssetsPage() {
+  const pathname = usePathname();
+  const workspaceQs = useMemo(() => workspaceSearchParamFromPathname(pathname), [pathname]);
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -471,42 +475,47 @@ function AssetsPage() {
 
   // ── Fetch assets ──────────────────────────────────────────────────────────
 
-  const fetchAssets = useCallback(async (pageNum: number = 0) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      setFetchError(null);
-      const res = await fetch(`/api/assets?page=${pageNum}`, { signal: controller.signal });
-      let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
+  const fetchAssets = useCallback(
+    async (pageNum: number = 0) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       try {
-        json = await res.json();
-      } catch {
-        throw new Error(`Server returned non-JSON response (HTTP ${res.status})`);
-      }
-      if (!res.ok || !json.success) {
-        const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
-        setFetchError(msg);
+        setFetchError(null);
+        const res = await fetch(`/api/assets?page=${pageNum}&${workspaceQs}`, {
+          signal: controller.signal,
+        });
+        let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
+        try {
+          json = await res.json();
+        } catch {
+          throw new Error(`Server returned non-JSON response (HTTP ${res.status})`);
+        }
+        if (!res.ok || !json.success) {
+          const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
+          setFetchError(msg);
+          if (pageNum === 0) setAssets([]);
+          return;
+        }
+        const newAssets = json.assets ?? [];
+        if (pageNum === 0) setAssets(newAssets);
+        else setAssets((prev) => [...prev, ...newAssets]);
+        setHasMore(json.hasMore ?? false);
+      } catch (err: unknown) {
+        const isAbort = err instanceof Error && err.name === 'AbortError';
+        const msg = isAbort
+          ? 'Assets took too long to load. Please try again.'
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        setFetchError(isAbort ? msg : `Could not reach server: ${msg}`);
         if (pageNum === 0) setAssets([]);
-        return;
+      } finally {
+        clearTimeout(timeoutId);
+        setLoading(false);
       }
-      const newAssets = json.assets ?? [];
-      if (pageNum === 0) setAssets(newAssets);
-      else setAssets((prev) => [...prev, ...newAssets]);
-      setHasMore(json.hasMore ?? false);
-    } catch (err: unknown) {
-      const isAbort = err instanceof Error && err.name === 'AbortError';
-      const msg = isAbort
-        ? 'Assets took too long to load. Please try again.'
-        : err instanceof Error
-          ? err.message
-          : String(err);
-      setFetchError(isAbort ? msg : `Could not reach server: ${msg}`);
-      if (pageNum === 0) setAssets([]);
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }, []);
+    },
+    [workspaceQs],
+  );
 
   const loadMore = useCallback(() => {
     const next = page + 1;
@@ -940,7 +949,7 @@ function AssetsPage() {
       if (ids.length === 0) return;
       setDownloadingZip(true);
       try {
-        const res = await fetch(`/api/assets/download-zip?ids=${ids.join(',')}`);
+        const res = await fetch(`/api/assets/download-zip?ids=${ids.join(',')}&${workspaceQs}`);
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           toast(
@@ -960,7 +969,7 @@ function AssetsPage() {
         setDownloadingZip(false);
       }
     },
-    [toast],
+    [toast, workspaceQs],
   );
 
   const handleDownloadClient = useCallback(
@@ -1005,7 +1014,7 @@ function AssetsPage() {
 
   const handleDelete = async (asset: Asset) => {
     if (!confirm(`Delete "${asset.name}"?`)) return;
-    const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
     const json = await res.json();
     if (!res.ok) {
       toast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
@@ -1016,7 +1025,7 @@ function AssetsPage() {
   };
 
   const handleRename = async (asset: Asset, newName: string) => {
-    const res = await fetch(`/api/assets/${asset.id}`, {
+    const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName }),

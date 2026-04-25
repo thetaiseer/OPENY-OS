@@ -15,7 +15,6 @@ import StatCard from '@/components/ui/StatCard';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import EmptyState from '@/components/ui/EmptyState';
-import Skeleton from '@/components/ui/Skeleton';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
@@ -428,12 +427,46 @@ export default function ProjectsPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-56 rounded-2xl" />
-          ))}
-        </div>
+      {projects.length === 0 && isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+            <div
+              className="mb-5 flex h-20 w-20 animate-pulse items-center justify-center rounded-2xl"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <FolderKanban size={36} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
+              Loading projects…
+            </h3>
+            <p className="max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Fetching your workspace.
+            </p>
+          </CardContent>
+        </Card>
+      ) : projects.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+            <div
+              className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <FolderKanban size={36} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
+              No projects yet
+            </h3>
+            <p className="mb-6 max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Create a project to organize work for your clients.
+            </p>
+            {canManage ? (
+              <Button type="button" variant="primary" onClick={openCreate}>
+                <Plus size={16} />
+                Create project
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={FolderKanban}

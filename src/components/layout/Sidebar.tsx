@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Activity,
   BarChart3,
@@ -23,8 +23,6 @@ import {
   UserSquare2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { useAuth } from '@/context/auth-context';
-import { getWorkspaceHomeHref, persistSelectedWorkspace } from '@/lib/auth-workspace';
 
 const osNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Gauge },
@@ -53,56 +51,15 @@ const docsNavItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { workspaceAccess } = useAuth();
   const activeWorkspace = pathname.startsWith('/docs') ? 'docs' : 'os';
-  const canAccessOs = workspaceAccess.os || workspaceAccess.isGlobalOwner;
-  const canAccessDocs = workspaceAccess.docs || workspaceAccess.isGlobalOwner;
   const navItems = activeWorkspace === 'docs' ? docsNavItems : osNavItems;
-
-  const switchWorkspace = (workspace: 'os' | 'docs') => {
-    persistSelectedWorkspace(workspace);
-    router.push(getWorkspaceHomeHref(workspace));
-  };
 
   return (
     <aside className="openy-glass fixed inset-y-0 left-0 z-40 hidden w-[240px] border-r md:block">
       <div className="flex h-16 items-center border-b border-border px-4">
         <span className="text-lg font-semibold tracking-tight text-primary">OPENY</span>
       </div>
-      <div className="border-b border-border p-2">
-        <div className="grid grid-cols-2 gap-1 rounded-control bg-surface p-1">
-          <button
-            type="button"
-            onClick={() => switchWorkspace('os')}
-            disabled={!canAccessOs}
-            className={cn(
-              'h-8 rounded-control text-xs font-semibold transition-colors',
-              activeWorkspace === 'os'
-                ? 'bg-[color:var(--accent)] text-white'
-                : 'text-secondary hover:bg-[color:var(--surface-elevated)]',
-              !canAccessOs && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            OPENY OS
-          </button>
-          <button
-            type="button"
-            onClick={() => switchWorkspace('docs')}
-            disabled={!canAccessDocs}
-            className={cn(
-              'h-8 rounded-control text-xs font-semibold transition-colors',
-              activeWorkspace === 'docs'
-                ? 'bg-[color:var(--accent)] text-white'
-                : 'text-secondary hover:bg-[color:var(--surface-elevated)]',
-              !canAccessDocs && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            OPENY DOCS
-          </button>
-        </div>
-      </div>
-      <nav className="space-y-1.5 p-3">
+      <nav className="space-y-1.5 p-3 pt-4">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active =

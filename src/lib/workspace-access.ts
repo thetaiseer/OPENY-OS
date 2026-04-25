@@ -51,6 +51,12 @@ export function getWorkspaceFromApiPath(pathname: string): WorkspaceKey | null {
   return 'os';
 }
 
+/** `workspace=os|docs` for fetch() — browsers may omit Referer; APIs use this + path fallbacks. */
+export function workspaceSearchParamFromPathname(pathname: string): string {
+  const key = getWorkspaceFromAppPath(pathname) ?? 'os';
+  return `workspace=${key}`;
+}
+
 export function mapWorkspaceRoleToUserRole(
   role: WorkspaceRole | null,
 ): 'owner' | 'admin' | 'team_member' | 'viewer' {

@@ -104,18 +104,49 @@ const AuthContext = createContext<AuthContextType>({
   setRole: () => {},
 });
 
+function pickDisplayName(
+  profile: { full_name?: string | null; name?: string | null } | null,
+  teamMemberFullName: string | null | undefined,
+  metadata: Record<string, unknown>,
+  email: string,
+): string {
+  const pf = profile?.full_name?.trim();
+  if (pf) return pf;
+  const pn = profile?.name?.trim();
+  if (pn) return pn;
+  const tf = teamMemberFullName?.trim();
+  if (tf) return tf;
+  const mf = typeof metadata.full_name === 'string' ? (metadata.full_name as string).trim() : '';
+  if (mf) return mf;
+  const mn = typeof metadata.name === 'string' ? (metadata.name as string).trim() : '';
+  if (mn) return mn;
+  const local = email.split('@')[0];
+  return local || 'there';
+}
+
 async function fetchUserStateFromTables(
   supabase: ReturnType<typeof createClient>,
   supabaseUser: SupabaseUser,
 ): Promise<{ user: User; workspaceAccess: WorkspaceAccessState }> {
   const email = supabaseUser.email ?? '';
+  const meta = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>;
+
+  let profile: { full_name?: string | null; name?: string | null } | null = null;
+  const profileRes = await supabase
+    .from('profiles')
+    .select('name, full_name')
+    .eq('id', supabaseUser.id)
+    .maybeSingle();
+  if (!profileRes.error && profileRes.data) {
+    profile = profileRes.data as { full_name?: string | null; name?: string | null };
+  }
 
   // Force owner role for the workspace owner email without a DB round-trip.
   if (email.toLowerCase() === OWNER_EMAIL) {
     return {
       user: {
         id: supabaseUser.id,
-        name: supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+        name: pickDisplayName(profile, null, meta, email),
         email,
         role: 'owner',
       },
@@ -175,7 +206,7 @@ async function fetchUserStateFromTables(
     return {
       user: {
         id: supabaseUser.id,
-        name: data.full_name || email.split('@')[0] || '',
+        name: pickDisplayName(profile, data.full_name, meta, email),
         email: data.email || email,
         role: resolvedRole,
       },
@@ -198,7 +229,7 @@ async function fetchUserStateFromTables(
   return {
     user: {
       id: supabaseUser.id,
-      name: supabaseUser.user_metadata?.name ?? email.split('@')[0] ?? '',
+      name: pickDisplayName(profile, null, meta, email),
       email,
       role: fallbackRole,
     },

@@ -46,35 +46,7 @@ export default function Topbar({ className }: TopbarProps) {
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="mx-auto flex h-full max-w-shell items-center justify-between gap-3 px-4 md:px-6">
-        <div className="hidden items-center gap-1 md:flex">
-          <button
-            type="button"
-            onClick={() => switchWorkspace('os')}
-            disabled={!availableWorkspaces.some((workspace) => workspace.value === 'os')}
-            className={cn(
-              'h-9 rounded-control px-3 text-xs font-semibold transition-colors',
-              activeWorkspace === 'os'
-                ? 'bg-[color:var(--accent)] text-white'
-                : 'text-secondary hover:bg-[color:var(--surface-elevated)]',
-            )}
-          >
-            OPENY OS
-          </button>
-          <button
-            type="button"
-            onClick={() => switchWorkspace('docs')}
-            disabled={!availableWorkspaces.some((workspace) => workspace.value === 'docs')}
-            className={cn(
-              'h-9 rounded-control px-3 text-xs font-semibold transition-colors',
-              activeWorkspace === 'docs'
-                ? 'bg-[color:var(--accent)] text-white'
-                : 'text-secondary hover:bg-[color:var(--surface-elevated)]',
-            )}
-          >
-            OPENY DOCS
-          </button>
-        </div>
-        <label className="relative hidden w-full max-w-md items-center sm:flex">
+        <label className="relative hidden min-w-0 max-w-md flex-1 items-center sm:flex">
           <Search className="pointer-events-none absolute left-3 h-4 w-4 text-secondary" />
           <input
             type="search"
@@ -82,8 +54,8 @@ export default function Topbar({ className }: TopbarProps) {
             className="focus:ring-[color:var(--accent)]/15 h-10 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2"
           />
         </label>
-        <div className="ml-auto flex items-center gap-2">
-          {availableWorkspaces.length > 1 ? (
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {availableWorkspaces.length >= 1 ? (
             <SelectDropdown
               value={activeWorkspace}
               options={availableWorkspaces}
@@ -92,7 +64,7 @@ export default function Topbar({ className }: TopbarProps) {
                   switchWorkspace(value);
                 }
               }}
-              className="hidden min-w-[8.75rem] md:inline-flex"
+              className="inline-flex min-w-[8.75rem]"
             />
           ) : null}
           <button
