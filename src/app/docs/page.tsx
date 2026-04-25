@@ -1,8 +1,18 @@
+'use client';
+
 import Link from 'next/link';
-import { FileText, ClipboardList, FileSignature, BookOpen, Users, BarChart2 } from 'lucide-react';
+import {
+  FileText,
+  ClipboardList,
+  FileSignature,
+  BookOpen,
+  Users,
+  BarChart2,
+  ChevronRight,
+} from 'lucide-react';
+import { PageShell, PageHeader, SectionHeader } from '@/components/layout/PageLayout';
+import { Card, CardContent } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
-import { cardSurfaceClass } from '@/components/ui/Card';
-import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 
 const MODULES = [
   {
@@ -10,87 +20,89 @@ const MODULES = [
     icon: FileText,
     label: 'Invoice',
     description: 'Generate, manage and export client invoices with platform budget allocation.',
-    color: '#2563eb',
-    bg: 'rgba(37,99,235,0.08)',
   },
   {
     href: '/docs/quotation',
     icon: ClipboardList,
     label: 'Quotation',
     description: 'Create professional quotations with deliverables, pricing and payment terms.',
-    color: '#7c3aed',
-    bg: 'rgba(124,58,237,0.08)',
   },
   {
     href: '/docs/client-contract',
     icon: FileSignature,
-    label: 'Client Contract',
+    label: 'Client contract',
     description: 'Bilingual client agreements with legal clauses, services and signatures.',
-    color: '#0891b2',
-    bg: 'rgba(8,145,178,0.08)',
   },
   {
     href: '/docs/hr-contract',
     icon: BookOpen,
-    label: 'HR Contract',
+    label: 'HR contract',
     description: 'Employee contracts with job details, salary, benefits and legal clauses.',
-    color: '#059669',
-    bg: 'rgba(5,150,105,0.08)',
   },
   {
     href: '/docs/employees',
     icon: Users,
     label: 'Employees',
-    description: 'Full employee management — profiles, payroll history and salary adjustments.',
-    color: '#d97706',
-    bg: 'rgba(217,119,6,0.08)',
+    description: 'Profiles, payroll history and salary adjustments.',
   },
   {
     href: '/docs/accounting',
     icon: BarChart2,
     label: 'Accounting',
     description: 'Client ledger, expenses and partner-based settlement summaries.',
-    color: '#dc2626',
-    bg: 'rgba(220,38,38,0.08)',
   },
-];
+] as const;
 
 export default function DocsHomePage() {
   return (
-    <PageShell className="max-w-5xl">
+    <PageShell className="max-w-6xl space-y-6">
       <PageHeader
-        title="DOCS"
-        subtitle="Internal business documents — invoices, contracts, employees & accounting."
+        title="Docs"
+        subtitle="OPENY DOCS — invoices, quotations, contracts, payroll, and accounting in one workspace."
       />
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {MODULES.map(({ href, icon: Icon, label, description, color, bg }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              cardSurfaceClass,
-              'openy-motion-card group block p-6 no-underline transition-transform duration-200 hover:-translate-y-1',
-            )}
-          >
-            <div className="relative z-[1]">
-              <div
-                className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl"
-                style={{
-                  background: `linear-gradient(145deg, ${bg} 0%, color-mix(in srgb, var(--surface-elevated) 88%, transparent) 100%)`,
-                  boxShadow: `0 8px 18px ${bg}`,
-                }}
+      <Card padding="sm" className="sm:p-6">
+        <CardContent className="space-y-5 !p-0">
+          <SectionHeader
+            title="Document modules"
+            subtitle="Open a module to work with forms, exports, and saved records — same navigation and surfaces as the rest of OPENY OS."
+          />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {MODULES.map(({ href, icon: Icon, label, description }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'openy-motion-card shadow-card group flex min-h-[7.5rem] items-stretch gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 no-underline transition-all duration-200 ease-out',
+                  'hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-lg',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
+                  'active:translate-y-0 active:scale-[0.99]',
+                )}
               >
-                <Icon size={22} style={{ color }} strokeWidth={2} />
-              </div>
-              <h2 className="app-card-title mb-1.5 transition-colors group-hover:text-[var(--accent)]">
-                {label}
-              </h2>
-              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{description}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+                <span
+                  className="group-hover:border-[color:var(--accent)]/30 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[color:var(--surface-elevated)] text-[color:var(--accent)] transition-colors group-hover:bg-[color:var(--accent-soft)]"
+                  aria-hidden
+                >
+                  <Icon size={22} strokeWidth={2} />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pr-1">
+                  <span className="text-base font-semibold text-primary transition-colors group-hover:text-[color:var(--accent)]">
+                    {label}
+                  </span>
+                  <span className="text-sm leading-snug text-secondary">{description}</span>
+                </div>
+                <span className="flex shrink-0 items-center self-center text-secondary transition-colors group-hover:text-[color:var(--accent)]">
+                  <ChevronRight
+                    className="h-5 w-5 opacity-50 group-hover:opacity-100"
+                    aria-hidden
+                  />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </PageShell>
   );
 }
