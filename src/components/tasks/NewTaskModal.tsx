@@ -7,7 +7,7 @@
  * the selected task category. Supports:
  *   - All core task fields
  *   - Content / publishing conditional sections
- *   - Inline file upload to Supabase Storage (mapped to the selected client)
+ *   - Inline file upload to Cloudflare R2 (mapped to the selected client)
  *   - Smart automation (asset linking, activity log)
  */
 
@@ -32,6 +32,7 @@ import { PLATFORMS, POST_TYPES } from '@/components/features/publishing/Schedule
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import AppModal from '@/components/ui/AppModal';
 import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/types';
+import { uploadFileBytesToR2 } from '@/lib/client-r2-upload';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -299,10 +300,7 @@ export default function NewTaskModal({
   }
 
   // ── File upload handler ───────────────────────────────────────────────────
-  //
-  // Uploads the file server-side in one step:
-  //   1. POST /api/upload/presign  (multipart/form-data) → storageKey + publicUrl
-  //   2. POST /api/upload/complete → save metadata to DB → return asset id
+  // R2 via /api/upload (presign or multipart) then /api/upload/complete.
 
   interface PresignResponse {
     storageKey: string;
@@ -329,35 +327,19 @@ export default function NewTaskModal({
     const monthKey = nowMonthKey();
 
     try {
-      // Phase 1 — upload file bytes to server (server uploads to R2).
-      const formData = new FormData();
-      formData.append('file', file, file.name);
-      formData.append('fileName', file.name);
-      formData.append('fileType', file.type || 'application/octet-stream');
-      formData.append('fileSize', String(file.size));
-      formData.append('clientName', selectedClient.name);
-      formData.append('mainCategory', uploadState.mainCategory);
-      formData.append('monthKey', monthKey);
-      if (clientId) formData.append('clientId', clientId);
-
-      const presignRes = await fetch('/api/upload/presign', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!presignRes.ok) {
-        let errMsg = `Failed to upload file (HTTP ${presignRes.status})`;
-        try {
-          const j = (await presignRes.json()) as { error?: string };
-          if (j.error) errMsg = j.error;
-        } catch {
-          /* ignore */
-        }
+      let presign: PresignResponse;
+      try {
+        presign = await uploadFileBytesToR2(file, {
+          clientName: selectedClient.name,
+          clientId,
+          mainCategory: uploadState.mainCategory,
+          monthKey,
+        });
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : 'Upload failed';
         setUpload((u) => ({ ...u, uploading: false, error: errMsg }));
         return null;
       }
-
-      const presign = (await presignRes.json()) as PresignResponse;
 
       // Phase 2 — save asset metadata to the database.
       const completeRes = await fetch('/api/upload/complete', {

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { uploadFile, getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import {
+  checkUploadHourlyLimit,
+  getMaxUploadBytes,
+  getMultipartThresholdBytes,
+  uploadSizeExceededMessage,
+} from '@/lib/upload-limits';
+import {
   buildStorageKey,
   MAIN_CATEGORIES,
   SUBCATEGORIES,
@@ -9,6 +15,8 @@ import {
 } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
+/** Vercel / long uploads — raise on Pro if you hit timeouts. */
+export const maxDuration = 900;
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([
@@ -72,9 +80,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
-  // Rate limit: 60 uploads per hour per user
-  const { checkRateLimit } = await import('@/lib/rate-limit');
-  const rl = checkRateLimit(`upload:user:${auth.profile.id}`, { limit: 60, windowMs: 60 * 60_000 });
+  const rl = checkUploadHourlyLimit(auth.profile.id);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Upload limit exceeded. Please try again later.' },
@@ -165,6 +171,22 @@ export async function POST(req: NextRequest) {
   try {
     const buffer = Buffer.from(await fileField.arrayBuffer());
     const contentType = fileType || (fileField as File).type || 'application/octet-stream';
+
+    const maxBytes = getMaxUploadBytes();
+    if (maxBytes > 0 && buffer.byteLength > maxBytes) {
+      return NextResponse.json({ error: uploadSizeExceededMessage(maxBytes) }, { status: 413 });
+    }
+
+    const multipartThreshold = getMultipartThresholdBytes();
+    if (buffer.byteLength > multipartThreshold) {
+      return NextResponse.json(
+        {
+          error: `This file is ${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB. Use multipart upload for files over ${(multipartThreshold / (1024 * 1024)).toFixed(0)} MB (the Assets page does this automatically).`,
+          code: 'USE_MULTIPART',
+        },
+        { status: 413 },
+      );
+    }
 
     await uploadFile({ key: storageKey, body: buffer, contentType });
 

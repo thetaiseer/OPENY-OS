@@ -14,6 +14,9 @@
  *   R2_BUCKET_NAME       – bucket name (default: client-assets)
  *   R2_PUBLIC_URL        – public base URL for the bucket (no trailing slash)
  *                          e.g. https://files.openy-os.com
+ *
+ * Capacity: R2 has no small per-object cap in this app — large files use multipart.
+ * Org-wide caps (if any) are optional via UPLOAD_MAX_FILE_SIZE_GB (0 = unlimited).
  */
 
 import {

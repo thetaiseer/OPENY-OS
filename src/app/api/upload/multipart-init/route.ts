@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { createMultipartUploadSession, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import {
+  checkUploadHourlyLimit,
+  getMaxUploadBytes,
+  uploadSizeExceededMessage,
+} from '@/lib/upload-limits';
+import {
   buildStorageKey,
   MAIN_CATEGORIES,
   SUBCATEGORIES,
@@ -9,6 +14,7 @@ import {
 } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 900;
 
 /** Blocked executable/script extensions — security policy. */
 const BLOCKED_EXTENSIONS = new Set([
@@ -71,9 +77,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
-  // Rate limit: shared budget with /api/upload/presign
-  const { checkRateLimit } = await import('@/lib/rate-limit');
-  const rl = checkRateLimit(`upload:user:${auth.profile.id}`, { limit: 60, windowMs: 60 * 60_000 });
+  const rl = checkUploadHourlyLimit(auth.profile.id);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Upload limit exceeded. Please try again later.' },
@@ -126,6 +130,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!fileSize || fileSize <= 0) return fail('fileSize must be a positive number');
+
+  const maxBytes = getMaxUploadBytes();
+  if (maxBytes > 0 && fileSize > maxBytes) {
+    return NextResponse.json({ error: uploadSizeExceededMessage(maxBytes) }, { status: 413 });
+  }
 
   // Build storage key and display name.
   const sanitizedFile = sanitizeFileName(fileName);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser, requireRole } from '@/lib/api-auth';
 import { deleteFile, R2NotFoundError, R2ConfigError } from '@/lib/storage';
+import { checkR2Config } from '@/lib/r2';
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -40,7 +41,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const supabase = getServiceClient();
   const { data: asset, error: fetchError } = await supabase
     .from('assets')
-    .select('id, file_path, bucket_name, name, storage_provider')
+    .select('id, file_path, storage_key, bucket_name, name, storage_provider')
     .eq('id', id)
     .single();
 
@@ -151,11 +152,36 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
     }
   } else {
-    // Unknown or null provider — skip remote deletion
-    console.warn('[asset-delete] unknown storage_provider — skipping remote deletion', {
-      assetId: asset.id,
-      provider,
-    });
+    const row = asset as { storage_key?: string | null; file_path?: string | null };
+    const r2Key = (row.storage_key ?? row.file_path ?? '').trim() || null;
+    const r2Ready = checkR2Config().configured;
+    if (r2Key && r2Ready) {
+      try {
+        await deleteFile(r2Key);
+      } catch (err: unknown) {
+        if (err instanceof R2NotFoundError) {
+          warning = 'Asset record deleted. Remote R2 file was already missing.';
+        } else if (err instanceof R2ConfigError) {
+          warning =
+            'Asset record deleted. R2 storage is not configured — remote file was not removed.';
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          warning = `Asset record deleted. R2 file removal failed: ${msg}`;
+          console.error('[asset-delete] R2 delete failed (unknown provider)', {
+            assetId: asset.id,
+            r2Key,
+            error: msg,
+          });
+        }
+      }
+    } else {
+      console.warn('[asset-delete] unknown storage_provider — skipping remote deletion', {
+        assetId: asset.id,
+        provider,
+        hasKey: Boolean(r2Key),
+        r2Ready,
+      });
+    }
   }
 
   // ── 3. Delete row from assets table ──────────────────────────────────────

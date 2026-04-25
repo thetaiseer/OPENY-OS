@@ -9,6 +9,7 @@ import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 import { processEvent } from '@/lib/event-engine';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 
 /**
  * POST /api/upload/complete

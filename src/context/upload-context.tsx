@@ -8,11 +8,11 @@
  *                                 ↘ failed_db     (R2 OK, DB save failed)
  *   queued → uploading → failed_upload (upload / multipart failed)
  *
- * Small files (≤ MULTIPART_THRESHOLD) — R2 direct server upload:
+ * Small files (≤ multipart threshold, default 4 MiB) — R2 direct server upload:
  *   1. POST /api/upload/presign   → server uploads file to R2, returns storageKey + publicUrl
  *   2. POST /api/upload/complete  → save metadata to DB
  *
- * Large files (> MULTIPART_THRESHOLD) — R2 multipart upload (server-side):
+ * Large files — R2 multipart upload (server-side):
  *   1. POST /api/upload/multipart-init  → uploadId + storageKey + publicUrl
  *   2. For each chunk:
  *        POST /api/upload/multipart-part?storageKey=...&uploadId=...&partNumber=N
@@ -37,11 +37,9 @@ import React, {
   useRef,
 } from 'react';
 import type { Asset } from '@/lib/types';
+import { getMultipartThresholdBytesFromEnv } from '@/lib/upload-config-shared';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-/** Files larger than this use multipart upload (50 MB). */
-const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
 
 /** Size of each multipart chunk (8 MB — well above the R2 5 MB minimum). */
 const CHUNK_SIZE = 8 * 1024 * 1024;
@@ -645,7 +643,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (item.file.size > MULTIPART_THRESHOLD) {
+        if (item.file.size > getMultipartThresholdBytesFromEnv()) {
           await doMultipartUpload(item, fileMimeType, ctrl);
         } else {
           await doSingleUpload(item, fileMimeType, ctrl);
@@ -671,7 +669,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     [setStage],
   );
 
-  // ── Single-file upload (≤ MULTIPART_THRESHOLD) ────────────────────────────
+  // ── Single-file upload (under multipart size threshold) ────────────────────
 
   async function doSingleUpload(item: UploadItem, mimeType: string, ctrl: AbortController) {
     setStage(item.id, 'uploading', 'Preparing', {
@@ -788,7 +786,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ── Multipart upload (> MULTIPART_THRESHOLD) ──────────────────────────────
+  // ── Multipart upload (over multipart size threshold) ───────────────────────
 
   async function doMultipartUpload(item: UploadItem, mimeType: string, ctrl: AbortController) {
     const totalBytes = item.file.size;
