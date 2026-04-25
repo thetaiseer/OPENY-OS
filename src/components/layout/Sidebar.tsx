@@ -29,9 +29,9 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="border-border bg-surface fixed inset-y-0 left-0 z-40 hidden w-64 border-r md:block">
-      <div className="border-border flex h-16 items-center border-b px-4">
-        <span className="text-primary text-lg font-semibold">OPENY</span>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] border-r border-border bg-surface md:block">
+      <div className="flex h-16 items-center border-b border-border px-4">
+        <span className="text-lg font-semibold text-primary">OPENY</span>
       </div>
       <nav className="space-y-1 p-3">
         {navItems.map((item) => {
@@ -42,13 +42,15 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'rounded-control flex items-center gap-2 px-3 py-2 text-sm transition-colors',
+                'flex items-center gap-2 rounded-control px-2 py-2 text-sm transition-colors',
                 active
                   ? 'bg-accent text-white'
                   : 'text-secondary hover:bg-elevated hover:text-primary',
               )}
             >
-              <Icon className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                <Icon className="h-4 w-4" />
+              </span>
               <span>{item.label}</span>
             </Link>
           );
