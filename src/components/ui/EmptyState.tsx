@@ -21,12 +21,21 @@ export default function EmptyState({
     if (isValidElement(icon)) return icon;
 
     // Support passing icon={Users} and icon={<Users />} interchangeably.
-    if (typeof icon === 'function' || typeof icon === 'object') {
+    const maybeObject = icon as unknown;
+    if (
+      typeof icon === 'function' ||
+      (typeof maybeObject === 'object' &&
+        maybeObject !== null &&
+        '$$typeof' in (maybeObject as Record<string, unknown>))
+    ) {
       const Icon = icon as ElementType;
       return <Icon className="h-5 w-5" />;
     }
 
-    return icon;
+    // Avoid rendering plain objects as children.
+    if (typeof icon === 'object') return null;
+
+    return icon as ReactNode;
   })();
 
   return (
