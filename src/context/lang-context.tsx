@@ -772,6 +772,9 @@ const translations: Record<string, Record<string, string>> = {
     docInvCampaignMonth: 'Campaign month',
     docInvInvoiceDate: 'Invoice date',
     docInvHistory: 'History',
+    docInvHistorySectionTitle: 'Saved invoices (workspace)',
+    docInvHistorySectionBlurb:
+      'When you click Save, the invoice is stored in this workspace and listed below. PDF is generated in the browser and downloads to your device (usually the Downloads folder). Excel export is available after the invoice has been saved at least once.',
     docInvInvoiceNumber: 'Invoice number',
     docInvCurrency: 'Currency',
     docInvLoadError: 'Unable to load invoices.',
@@ -2021,6 +2024,9 @@ const translations: Record<string, Record<string, string>> = {
     docInvCampaignMonth: 'شهر الحملة',
     docInvInvoiceDate: 'تاريخ الفاتورة',
     docInvHistory: 'السجل',
+    docInvHistorySectionTitle: 'الفواتير المحفوظة (مساحة العمل)',
+    docInvHistorySectionBlurb:
+      'عند الضغط على «حفظ» تُخزَّن الفاتورة في مساحة العمل وتظهر في القائمة أدناه. زر PDF يُنشئ ملفًا من المتصفح ويُنزَّل على جهازك (غالبًا مجلد التنزيلات). تصدير Excel يظهر بعد حفظ الفاتورة مرة واحدة على الأقل.',
     docInvInvoiceNumber: 'رقم الفاتورة',
     docInvCurrency: 'العملة',
     docInvLoadError: 'تعذّر تحميل الفواتير.',

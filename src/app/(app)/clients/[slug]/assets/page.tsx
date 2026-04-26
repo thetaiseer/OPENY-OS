@@ -41,17 +41,39 @@ export default function ClientAssetsPage() {
   }, [periodYm]);
 
   const load = useCallback(async () => {
-    if (!clientId) return;
-    const { data } = await supabase
+    if (!clientId) {
+      setAssets([]);
+      setLoading(false);
+      return;
+    }
+    // List every asset for this client (all months). Filtering by workspace
+    // `periodYm` hid uploads when the modal month or legacy `month_key` differed.
+    let { data, error } = await supabase
       .from('assets')
       .select('*')
       .eq('client_id', clientId)
-      .eq('month_key', periodYm)
+      .neq('is_deleted', true)
       .order('created_at', { ascending: false })
-      .limit(100);
-    setAssets((data ?? []) as Asset[]);
+      .limit(200);
+    if (error?.code === '42703') {
+      const retry = await supabase
+        .from('assets')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) {
+      console.error('[client assets] load failed:', error);
+      addToast(error.message, 'error');
+      setAssets([]);
+    } else {
+      setAssets((data ?? []) as Asset[]);
+    }
     setLoading(false);
-  }, [clientId, periodYm]);
+  }, [clientId, addToast]);
 
   useEffect(() => {
     void load();

@@ -887,81 +887,109 @@ export default function InvoicePage() {
             </>
           }
         >
-          <div className="docs-workspace-quickbar-grid">
-            <div>
-              <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
-              <SelectDropdown
-                id="invoice-template"
-                fullWidth
-                className={inputClass}
-                value={form.invoice_template}
-                onChange={(v) => applyTemplate(asTemplateName(v))}
-                options={INVOICE_TEMPLATE_OPTIONS.map((template) => ({
-                  value: template.key,
-                  label: template.label,
-                }))}
-              />
+          <>
+            <div className="docs-workspace-quickbar-grid">
+              <div>
+                <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
+                <SelectDropdown
+                  id="invoice-template"
+                  fullWidth
+                  className={inputClass}
+                  value={form.invoice_template}
+                  onChange={(v) => applyTemplate(asTemplateName(v))}
+                  options={INVOICE_TEMPLATE_OPTIONS.map((template) => ({
+                    value: template.key,
+                    label: template.label,
+                  }))}
+                />
+              </div>
+              <div>
+                <label>{t('docInvClientField')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputClass}
+                  value={form.client_profile_id ?? ''}
+                  onChange={(value) => {
+                    setField('client_profile_id', value || null);
+                    const profile = profiles.find((p) => p.client_id === value);
+                    if (profile) setField('client_name', profile.client_name);
+                  }}
+                  options={[
+                    { value: '', label: t('docCommonSelectClient') },
+                    ...profiles.map((profile) => ({
+                      value: profile.client_id,
+                      label: profile.client_name,
+                    })),
+                  ]}
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-campaign-month">{t('docInvCampaignMonth')}</label>
+                <input
+                  id="invoice-campaign-month"
+                  type="month"
+                  className={inputClass}
+                  value={form.campaign_month}
+                  onChange={(e) => setField('campaign_month', e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-date">{t('docInvInvoiceDate')}</label>
+                <input
+                  id="invoice-date"
+                  type="date"
+                  className={inputClass}
+                  value={form.invoice_date}
+                  onChange={(e) => setField('invoice_date', e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <label>{t('docInvClientField')}</label>
-              <SelectDropdown
-                fullWidth
-                className={inputClass}
-                value={form.client_profile_id ?? ''}
-                onChange={(value) => {
-                  setField('client_profile_id', value || null);
-                  const profile = profiles.find((p) => p.client_id === value);
-                  if (profile) setField('client_name', profile.client_name);
+            <div
+              className="mt-4 rounded-xl border px-3 py-2.5"
+              style={{
+                borderColor: 'var(--border)',
+                background: 'var(--bg-elevated)',
+              }}
+            >
+              <p
+                className="mb-2"
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-secondary)',
                 }}
-                options={[
-                  { value: '', label: t('docCommonSelectClient') },
-                  ...profiles.map((profile) => ({
-                    value: profile.client_id,
-                    label: profile.client_name,
-                  })),
-                ]}
-              />
+              >
+                {t('docInvHistorySectionTitle')}
+              </p>
+              <p
+                className="mb-3 max-w-3xl text-sm leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('docInvHistorySectionBlurb')}
+              </p>
+              <div>
+                <label>{t('docInvHistory')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputClass}
+                  value={form.id ?? ''}
+                  onChange={(selectedId) => {
+                    const selected = invoices.find((invoice) => invoice.id === selectedId) ?? null;
+                    loadFromInvoice(selected, invoices);
+                  }}
+                  options={[
+                    { value: '', label: t('docCommonUnsavedNew') },
+                    ...invoices.map((invoice) => ({
+                      value: invoice.id,
+                      label: `${invoice.invoice_number} · ${invoice.client_name}`,
+                    })),
+                  ]}
+                />
+              </div>
             </div>
-            <div>
-              <label htmlFor="invoice-campaign-month">{t('docInvCampaignMonth')}</label>
-              <input
-                id="invoice-campaign-month"
-                type="month"
-                className={inputClass}
-                value={form.campaign_month}
-                onChange={(e) => setField('campaign_month', e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="invoice-date">{t('docInvInvoiceDate')}</label>
-              <input
-                id="invoice-date"
-                type="date"
-                className={inputClass}
-                value={form.invoice_date}
-                onChange={(e) => setField('invoice_date', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docInvHistory')}</label>
-              <SelectDropdown
-                fullWidth
-                className={inputClass}
-                value={form.id ?? ''}
-                onChange={(selectedId) => {
-                  const selected = invoices.find((invoice) => invoice.id === selectedId) ?? null;
-                  loadFromInvoice(selected, invoices);
-                }}
-                options={[
-                  { value: '', label: t('docCommonUnsavedNew') },
-                  ...invoices.map((invoice) => ({
-                    value: invoice.id,
-                    label: `${invoice.invoice_number} · ${invoice.client_name}`,
-                  })),
-                ]}
-              />
-            </div>
-          </div>
+          </>
         </DocsToolbarLayout>
       }
       editor={
