@@ -18,6 +18,17 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLayout';
 
+function translateAccountRole(role: string | undefined, tr: (k: string) => string): string {
+  const r = (role ?? '').toLowerCase().replace(/\s+/g, '_');
+  if (r === 'owner') return tr('teamRoleOwner');
+  if (r === 'admin') return tr('teamRoleAdmin');
+  if (r === 'manager') return tr('teamRoleManager');
+  if (r === 'team_member') return tr('teamRoleMember');
+  if (r === 'viewer') return tr('teamRoleViewer');
+  if (r === 'client') return tr('teamRoleClient');
+  return role ?? '';
+}
+
 // ── R2 Storage Card ───────────────────────────────────────────────────────────
 
 interface R2Status {
@@ -270,7 +281,9 @@ export default function SettingsProfilePage() {
           </div>
           <div>
             <p className="font-medium text-[var(--text)]">{user.name}</p>
-            <p className="text-sm text-[var(--text-secondary)]">{user.role}</p>
+            <p className="text-sm text-[var(--text-secondary)]">
+              {translateAccountRole(user.role, t)}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -332,7 +345,7 @@ export default function SettingsProfilePage() {
               </p>
               <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
               <span className="mt-1.5 inline-block rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold capitalize text-[var(--accent)]">
-                {role}
+                {translateAccountRole(role, t)}
               </span>
             </div>
           </div>

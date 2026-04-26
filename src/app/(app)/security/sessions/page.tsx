@@ -83,9 +83,18 @@ function isActiveSession(lastSeen: string): boolean {
 
 function DeviceIcon({ type }: { type: string | null }) {
   const cls = 'shrink-0';
-  if (type === 'Mobile') return <Smartphone size={20} className={cls} />;
-  if (type === 'Tablet') return <Tablet size={20} className={cls} />;
+  const n = (type ?? '').toLowerCase();
+  if (n === 'mobile') return <Smartphone size={20} className={cls} />;
+  if (n === 'tablet') return <Tablet size={20} className={cls} />;
   return <Monitor size={20} className={cls} />;
+}
+
+function deviceTypeLabel(type: string | null, t: (k: string) => string): string {
+  const n = (type ?? '').toLowerCase();
+  if (n === 'mobile') return t('deviceTypeMobile');
+  if (n === 'tablet') return t('deviceTypeTablet');
+  if (n === 'desktop') return t('deviceTypeDesktop');
+  return type?.trim() ? type : t('sessionDeviceFallback');
 }
 
 function StatusBadge({
@@ -215,7 +224,7 @@ function SessionCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              {session.device_type ?? t('sessionDeviceFallback')} — {deviceLabel}
+              {deviceTypeLabel(session.device_type, t)} — {deviceLabel}
             </span>
             <StatusBadge session={session} t={t} />
           </div>

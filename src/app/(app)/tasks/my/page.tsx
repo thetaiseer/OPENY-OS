@@ -69,11 +69,14 @@ function fmtDate(d?: string | null, lang?: 'en' | 'ar') {
 function fmtTime(time?: string | null, lang?: 'en' | 'ar') {
   if (!time) return '';
   const [h, m] = time.split(':');
-  if (lang === 'ar') return `${h}:${m ?? '00'}`;
-  const hr = parseInt(h, 10);
-  const ampm = hr >= 12 ? 'PM' : 'AM';
-  const h12 = hr % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
+  const hr = parseInt(h ?? '', 10);
+  const min = parseInt(m ?? '0', 10);
+  if (Number.isNaN(hr) || Number.isNaN(min)) return '';
+  const d = new Date(2000, 0, 1, hr, min, 0, 0);
+  return d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 const priorityVariant = (p: string) => {
@@ -406,9 +409,11 @@ export default function MyTasksPage() {
   async function duplicateTask(task: Task) {
     try {
       const copyPrefix = t('copyOfPrefix');
+      const legacyCopyPrefix = t('taskDuplicateLegacyPrefix');
       let baseTitle = task.title;
       if (baseTitle.startsWith(copyPrefix)) baseTitle = baseTitle.slice(copyPrefix.length);
-      else if (baseTitle.startsWith('Copy of ')) baseTitle = baseTitle.slice('Copy of '.length);
+      else if (baseTitle.startsWith(legacyCopyPrefix))
+        baseTitle = baseTitle.slice(legacyCopyPrefix.length);
       const body: Record<string, unknown> = {
         title: `${copyPrefix}${baseTitle}`,
         description: task.description ?? '',

@@ -119,12 +119,13 @@ function getAssetYear(asset: Asset): string {
   return 'Unknown';
 }
 
-function formatFolderBytes(bytes: number): string {
-  if (!bytes || bytes < 0) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+function formatFolderBytes(bytes: number, tf: (key: string) => string): string {
+  if (!bytes || bytes < 0) return tf('assetsEmDash');
+  if (bytes < 1024) return `${bytes} ${tf('assetsUnitB')}`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${tf('assetsUnitKb')}`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} ${tf('assetsUnitMb')}`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} ${tf('assetsUnitGb')}`;
 }
 
 type FolderAssetKind = 'image' | 'video' | 'pdf' | 'document' | 'audio' | 'archive' | 'other';
@@ -220,7 +221,7 @@ function FolderCard({
 }: FolderCardProps) {
   const { t } = useLang();
   const hasActions = onView || onDownload;
-  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes) });
+  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes, t) });
   return (
     <div
       role="button"
@@ -340,7 +341,7 @@ function ClientFolderCard({
   isDownloading: boolean;
 }) {
   const { t } = useLang();
-  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes) });
+  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes, t) });
   return (
     <div
       role="button"
@@ -493,7 +494,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: '#6b7280',
 };
 
-function fileTypeFilterLabel(value: string, tf: (key: string) => string): string {
+function fileTypeFilterLabel(
+  value: string,
+  tf: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   const keys: Record<string, string> = {
     image: 'assetsTypeImages',
     video: 'assetsTypeVideos',
@@ -501,7 +505,9 @@ function fileTypeFilterLabel(value: string, tf: (key: string) => string): string
     'application/pdf': 'assetsTypePdfs',
   };
   const k = keys[value];
-  return k ? tf(k) : value.charAt(0).toUpperCase() + value.slice(1);
+  return k
+    ? tf(k)
+    : tf('assetsOtherMimePrefix', { type: value.charAt(0).toUpperCase() + value.slice(1) });
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -602,10 +608,10 @@ function AssetsPage() {
         try {
           json = await res.json();
         } catch {
-          throw new Error(`Server returned non-JSON response (HTTP ${res.status})`);
+          throw new Error(t('assetsServerNonJson', { status: res.status }));
         }
         if (!res.ok || !json.success) {
-          const msg = json.error ?? `Failed to load assets (HTTP ${res.status})`;
+          const msg = json.error ?? t('assetsFailedLoadHttp', { status: res.status });
           setFetchError(msg);
           if (pageNum === 0) setAssets([]);
           return;
@@ -621,7 +627,7 @@ function AssetsPage() {
           : err instanceof Error
             ? err.message
             : String(err);
-        setFetchError(isAbort ? msg : `Could not reach server: ${msg}`);
+        setFetchError(isAbort ? msg : t('assetsCouldNotReach', { message: msg }));
         if (pageNum === 0) setAssets([]);
       } finally {
         clearTimeout(timeoutId);
@@ -872,9 +878,9 @@ function AssetsPage() {
   // ── Folder card labels ────────────────────────────────────────────────────
 
   const folderCardLabel = (key: string): string => {
-    if (pathDepth === 0) return key;
+    if (pathDepth === 0) return key === 'No Client' ? t('assetsNoClient') : key;
     if (pathDepth === 1) return mainCategoryLabel(key);
-    if (pathDepth === 2) return key;
+    if (pathDepth === 2) return key === 'Unknown' ? t('assetsYearUnknown') : key;
     if (pathDepth === 3) {
       if (key.length >= 7) return `${monthLabel(key.slice(5, 7), t)} ${key.slice(0, 4)}`;
       return key || t('assetsUnknownType');
@@ -1039,7 +1045,12 @@ function AssetsPage() {
         uploadedByEmail,
       },
     );
-    toast(`${items.length} file${items.length !== 1 ? 's' : ''} queued for upload`, 'success');
+    toast(
+      items.length === 1
+        ? t('assetsUploadQueuedOne')
+        : t('assetsUploadQueuedMany', { count: items.length }),
+      'success',
+    );
   };
 
   // ── Selection state ───────────────────────────────────────────────────────
@@ -1085,7 +1096,8 @@ function AssetsPage() {
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           toast(
-            (json as { error?: string }).error ?? `Download failed (HTTP ${res.status})`,
+            (json as { error?: string }).error ??
+              t('assetsDownloadFailedHttp', { status: res.status }),
             'error',
           );
           return;
@@ -1094,14 +1106,14 @@ function AssetsPage() {
         const url = URL.createObjectURL(blob);
         triggerDownload(url, archiveName);
         URL.revokeObjectURL(url);
-        toast('Download ready', 'success');
+        toast(t('assetsDownloadReady'), 'success');
       } catch (err: unknown) {
-        toast(err instanceof Error ? err.message : 'Download failed', 'error');
+        toast(err instanceof Error ? err.message : t('assetsDownloadFailed'), 'error');
       } finally {
         setDownloadingZip(false);
       }
     },
-    [toast, workspaceQs],
+    [toast, workspaceQs, t],
   );
 
   const handleDownloadClient = useCallback(
@@ -1113,22 +1125,22 @@ function AssetsPage() {
           .select('id')
           .eq('client_name', clientName);
         if (error) {
-          toast(`Failed to fetch assets: ${error.message}`, 'error');
+          toast(t('assetsFetchForZipFailed', { message: error.message }), 'error');
           return;
         }
         const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
         if (ids.length === 0) {
-          toast('No downloadable files found for this client', 'error');
+          toast(t('assetsNoZipFilesForClient'), 'error');
           return;
         }
         await downloadZip(ids, `${clientName.replace(/[/\\:*?"<>|]/g, '_')}.zip`);
       } catch (err: unknown) {
-        toast(err instanceof Error ? err.message : 'Download failed', 'error');
+        toast(err instanceof Error ? err.message : t('assetsDownloadFailed'), 'error');
       } finally {
         setDownloadingClient(null);
       }
     },
-    [downloadZip, toast],
+    [downloadZip, toast, t],
   );
 
   const handleDownloadSelected = useCallback(async () => {
@@ -1145,15 +1157,18 @@ function AssetsPage() {
   }, [selectedIds, filteredAssets, downloadZip]);
 
   const handleDelete = async (asset: Asset) => {
-    if (!confirm(`Delete "${asset.name}"?`)) return;
+    if (!confirm(t('assetsDeleteConfirm', { name: asset.name }))) return;
     const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
     const json = await res.json();
     if (!res.ok) {
-      toast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
+      toast(
+        t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) }),
+        'error',
+      );
       return;
     }
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-    toast(json.message ?? json.warning ?? 'Asset deleted successfully.', 'success');
+    toast(String(json.message ?? json.warning ?? t('assetsDeletedSuccess')), 'success');
   };
 
   const handleRename = async (asset: Asset, newName: string) => {
@@ -1164,13 +1179,16 @@ function AssetsPage() {
     });
     const json = (await res.json()) as { success?: boolean; error?: string; name?: string };
     if (!res.ok) {
-      toast(`Rename failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
+      toast(
+        t('assetsRenameFailed', { error: String(json.error ?? `HTTP ${res.status}`) }),
+        'error',
+      );
       throw new Error(json.error ?? `HTTP ${res.status}`);
     }
     setAssets((prev) =>
       prev.map((a) => (a.id === asset.id ? { ...a, name: json.name ?? newName } : a)),
     );
-    toast('Asset renamed successfully.', 'success');
+    toast(t('assetsRenamedSuccess'), 'success');
   };
 
   const handleView = (asset: Asset) => {
@@ -1180,9 +1198,9 @@ function AssetsPage() {
   const handleCopyLink = async (asset: Asset) => {
     try {
       await navigator.clipboard.writeText(asset.view_url ?? asset.file_url);
-      toast('Link copied', 'success');
+      toast(t('assetsLinkCopied'), 'success');
     } catch {
-      toast('Failed to copy link', 'error');
+      toast(t('assetsLinkCopyFailed'), 'error');
     }
   };
 
@@ -1197,7 +1215,7 @@ function AssetsPage() {
         return { ...prev, [assetId]: { count: existing.count + 1, nextDate } };
       });
     }
-    toast('Publishing scheduled successfully!', 'success');
+    toast(t('assetsPublishingScheduled'), 'success');
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterFileType);
@@ -1449,7 +1467,7 @@ function AssetsPage() {
                     setFolderPath({});
                   }}
                 >
-                  <X size={14} /> Clear all
+                  <X size={14} /> {t('assetsClearAll')}
                 </Button>
               ) : undefined
             }
@@ -1598,7 +1616,7 @@ function AssetsPage() {
           open
           onClose={() => setCommentsAsset(null)}
           title={commentsAsset.name}
-          subtitle="Asset comments"
+          subtitle={t('assetsModalCommentsSubtitle')}
           size="sm"
         >
           <CommentsPanel assetId={commentsAsset.id} />

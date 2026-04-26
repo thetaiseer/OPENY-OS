@@ -190,10 +190,7 @@ function formatAccessRole(role: string | null | undefined, t: TranslateFn): stri
   if (normalized === 'viewer') return t('teamRoleViewer');
   if (normalized === 'client') return t('teamRoleClient');
   if (!normalized) return t('teamRoleMember');
-  return normalized
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  return t('teamAccessRoleUnknown', { role: normalized });
 }
 
 function formatLastActive(lastActiveRaw: string | null | undefined, t: TranslateFn) {

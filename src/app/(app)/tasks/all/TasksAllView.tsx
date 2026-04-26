@@ -269,7 +269,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-            Project
+            {t('taskFormProject')}
           </label>
           <SelectDropdown
             fullWidth

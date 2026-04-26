@@ -85,7 +85,11 @@ function getEventStyle(type: string): EventStyle {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtDate(d: string, t: (key: string, vars?: Record<string, string | number>) => string) {
+function fmtDate(
+  d: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  lang: 'en' | 'ar',
+) {
   const date = new Date(d);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -93,7 +97,11 @@ function fmtDate(d: string, t: (key: string, vars?: Record<string, string | numb
   if (diff < 3_600_000) return t('relativeMinutesAgo', { n: Math.floor(diff / 60_000) });
   if (diff < 86_400_000) return t('relativeHoursAgo', { n: Math.floor(diff / 3_600_000) });
   if (diff < 7 * 86_400_000) return t('relativeDaysAgo', { n: Math.floor(diff / 86_400_000) });
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function fmtFull(d: string, locale: string) {
@@ -386,7 +394,7 @@ export default function ActivityTimelinePage() {
                       style={{ color: 'var(--text-secondary)' }}
                       title={fmtFull(entry.created_at, lang)}
                     >
-                      {fmtDate(entry.created_at, t)}
+                      {fmtDate(entry.created_at, t, lang)}
                     </span>
                   </div>
                   {entry.title && entry.description !== entry.title && (
@@ -416,7 +424,9 @@ export default function ActivityTimelinePage() {
                         </span>
                       )}
                       {entry.before_value && entry.after_value && (
-                        <span style={{ color: 'var(--text-secondary)' }}>→</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {t('activityArrowTo')}
+                        </span>
                       )}
                       {entry.after_value && (
                         <span
