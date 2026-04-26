@@ -234,7 +234,7 @@ export default function UploadModal({
 
   const hasErrors = files.some((f) => validateUploadName(f.uploadName) !== null);
   const canConfirm =
-    files.length > 0 && !hasErrors && (lockClient || !!clientName) && !!mainCategory;
+    files.length > 0 && !hasErrors && (lockClient || !!clientName.trim()) && !!mainCategory.trim();
 
   const subcategoryOptions = mainCategory
     ? (SUBCATEGORIES[mainCategory as MainCategorySlug] ?? [])
@@ -242,8 +242,9 @@ export default function UploadModal({
 
   const handleClientSelect = (name: string) => {
     if (!onClientChange) return;
-    const found = clients.find((c) => c.name === name);
-    onClientChange(name, found?.id ?? '');
+    const trimmed = name.trim();
+    const found = clients.find((c) => c.name === trimmed);
+    onClientChange(trimmed, found?.id ?? '');
   };
 
   const handleMainCategoryChange = (v: string) => {

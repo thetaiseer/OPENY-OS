@@ -8,6 +8,7 @@ import { notifyAssetUploaded } from '@/lib/notification-service';
 import { getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 import { processEvent } from '@/lib/event-engine';
+import { resolveUploadClientDisplayName } from '@/lib/upload-resolve-client-name';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -32,8 +33,8 @@ function fileExtensionFromDisplayName(name: string): string | null {
  * Request body (JSON):
  *   storageKey           – R2 object key returned by /api/upload/presign (required)
  *   displayName          – display name for the asset (required)
- *   clientName           – client display name (required)
- *   clientId             – Supabase client UUID (optional)
+ *   clientName           – client display name (required unless clientId resolves to a client)
+ *   clientId             – Supabase client UUID (optional; used to fill clientName when missing)
  *   fileType             – MIME type (required)
  *   fileSize             – file size in bytes (required)
  *   mainCategory         – main category slug (required)
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   const storageKey = (body.storageKey as string | undefined)?.trim() ?? '';
   const displayName = (body.displayName as string | undefined)?.trim() ?? '';
-  const clientName = (body.clientName as string | undefined)?.trim() ?? '';
+  let resolvedClientName = (body.clientName as string | undefined)?.trim() ?? '';
   const clientId = (body.clientId as string | undefined)?.trim() || null;
   const fileType = (body.fileType as string | undefined)?.trim() ?? 'application/octet-stream';
   const fileSize = Number(body.fileSize ?? 0) || null;
@@ -89,11 +90,6 @@ export async function POST(req: NextRequest) {
   if (!displayName)
     return NextResponse.json(
       { success: false, stage: 'failed_db', error: 'displayName is required' },
-      { status: 400 },
-    );
-  if (!clientName)
-    return NextResponse.json(
-      { success: false, stage: 'failed_db', error: 'clientName is required' },
       { status: 400 },
     );
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
@@ -144,6 +140,25 @@ export async function POST(req: NextRequest) {
         error: workspaceError ?? 'Unable to resolve workspace from session',
       },
       { status: 403 },
+    );
+  }
+
+  resolvedClientName = await resolveUploadClientDisplayName(
+    supabase,
+    workspaceId,
+    resolvedClientName,
+    clientId,
+  );
+
+  if (!resolvedClientName) {
+    return NextResponse.json(
+      {
+        success: false,
+        stage: 'failed_db',
+        error:
+          'clientName is required, or pass a valid clientId in this workspace so the name can be resolved.',
+      },
+      { status: 400 },
     );
   }
 
@@ -235,8 +250,8 @@ export async function POST(req: NextRequest) {
     bucket_name: bucketName,
     storage_bucket: bucketName,
     storage_provider: storageProvider,
-    client_name: clientName,
-    client_folder_name: clientName,
+    client_name: resolvedClientName,
+    client_folder_name: resolvedClientName,
     month_key: monthKey,
     main_category: mainCategory,
     sub_category: subCategory,
@@ -337,7 +352,7 @@ export async function POST(req: NextRequest) {
     .from('activities')
     .insert({
       type: 'asset',
-      description: `Asset "${displayName}" uploaded (${clientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
+      description: `Asset "${displayName}" uploaded (${resolvedClientName}/${year}/${monthName})${uploadedBy ? ` by ${uploadedBy}` : ''}`,
       entity_type: 'asset',
       entity_id: (inserted?.id as string | undefined) ?? null,
       ...(clientId ? { client_id: clientId } : {}),
@@ -356,7 +371,7 @@ export async function POST(req: NextRequest) {
       client_id: clientId ?? null,
       payload: {
         assetName: displayName,
-        clientName,
+        clientName: resolvedClientName,
       },
     });
 

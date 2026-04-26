@@ -908,10 +908,11 @@ function AssetsPage() {
   }, []);
 
   const openPendingBatch = useCallback(
-    (files: File[]) => {
+    (files: File[], opts?: { append?: boolean }) => {
       if (!files.length) return;
+      const append = Boolean(opts?.append);
       const items = filesToItems(files);
-      setPendingItems(items);
+      setPendingItems((prev) => (append && prev.length ? [...prev, ...items] : items));
       setUploadMainCategory(folderPath.mainCategory ?? MAIN_CATEGORIES[0].slug);
       setUploadSubCategory(folderPath.subCategory ?? '');
       setUploadMonth(folderPath.month ?? new Date().toISOString().slice(0, 7));
@@ -919,7 +920,7 @@ function AssetsPage() {
         const found = clients.find((c) => c.name === folderPath.client);
         setUploadClientName(folderPath.client);
         setUploadClientId(found?.id ?? '');
-      } else {
+      } else if (!append) {
         setUploadClientName('');
         setUploadClientId('');
       }
@@ -1000,6 +1001,18 @@ function AssetsPage() {
   const startUploadBatch = (andSchedule: boolean) => {
     const items = [...pendingItems];
     if (!items.length) return;
+    let clientName = uploadClientName.trim();
+    let clientId = uploadClientId.trim();
+    if (clientId && !clientName) {
+      clientName = clients.find((c) => c.id === clientId)?.name?.trim() ?? '';
+    }
+    if (clientName && !clientId) {
+      clientId = clients.find((c) => c.name === clientName)?.id?.trim() ?? '';
+    }
+    if (!clientName) {
+      toast(t('uploadClientRequired'), 'error');
+      return;
+    }
     setPendingItems([]);
     setQuickActionUploadOpen(false);
     if (andSchedule) setScheduleAfterUpload(true);
@@ -1016,8 +1029,8 @@ function AssetsPage() {
         previewBlob: i.previewBlob,
       })),
       {
-        clientName: uploadClientName,
-        clientId: uploadClientId,
+        clientName,
+        clientId,
         contentType: '',
         mainCategory: uploadMainCategory,
         subCategory: uploadSubCategory,
@@ -1541,7 +1554,7 @@ function AssetsPage() {
             setPendingItems([]);
             setQuickActionUploadOpen(false);
           }}
-          onAddFiles={(files) => openPendingBatch(Array.from(files))}
+          onAddFiles={(files) => openPendingBatch(Array.from(files), { append: true })}
           onUploadNameChange={handleUploadNameChange}
           onRemoveFile={(id) =>
             setPendingItems((prev) => {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { getServiceClient } from '@/lib/supabase/service-client';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { resolveUploadClientDisplayName } from '@/lib/upload-resolve-client-name';
 import {
   getFileUrl,
   getPresignedPutObjectUploadUrl,
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
   const fileName = (body.fileName as string | undefined)?.trim() ?? '';
   const fileType = (body.fileType as string | undefined)?.trim() ?? 'application/octet-stream';
   const fileSize = Number(body.fileSize ?? 0);
-  const clientName = (body.clientName as string | undefined)?.trim() ?? '';
+  let clientName = (body.clientName as string | undefined)?.trim() ?? '';
   const clientId = (body.clientId as string | undefined)?.trim() || null;
   const mainCategory = (body.mainCategory as string | undefined)?.trim() ?? '';
   const subCategory = (body.subCategory as string | undefined)?.trim() ?? '';
@@ -99,9 +102,35 @@ export async function POST(req: NextRequest) {
   const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
   if (!fileName) return fail('fileName is required');
-  if (!clientName) return fail('clientName is required');
   if (!mainCategory) return fail('mainCategory is required');
   if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return fail('monthKey must be YYYY-MM');
+
+  let supabase: ReturnType<typeof getServiceClient>;
+  try {
+    supabase = getServiceClient();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Supabase configuration error';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    supabase,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: workspaceError ?? 'Unable to resolve workspace from session' },
+      { status: 403 },
+    );
+  }
+
+  clientName = await resolveUploadClientDisplayName(supabase, workspaceId, clientName, clientId);
+  if (!clientName) {
+    return fail(
+      'clientName is required, or pass a valid clientId in this workspace so the name can be resolved.',
+    );
+  }
 
   if (!VALID_MAIN_CATEGORIES.includes(mainCategory)) {
     return fail(`Invalid mainCategory. Must be one of: ${VALID_MAIN_CATEGORIES.join(', ')}`);
