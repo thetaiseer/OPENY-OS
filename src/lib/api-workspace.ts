@@ -134,27 +134,18 @@ function pickWorkspaceForPreferredKey(
   return best;
 }
 
+/**
+ * Resolve a workspace UUID for an authenticated user.
+ *
+ * Only considers rows in `workspace_members` (never looks up `workspaces` by
+ * slug/name globally). The preferred UI key (`os` vs `docs`) only chooses among
+ * workspaces the user already belongs to.
+ */
 async function resolveWorkspaceIdFromSession(
   db: SupabaseClient,
   userId: string,
   preferredKey: WorkspaceKey,
 ): Promise<{ workspaceId: string | null; workspaceKey: WorkspaceKey | null }> {
-  const membership = await db
-    .from('workspace_memberships')
-    .select('workspace_key')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle();
-
-  if (!membership.error) {
-    const key = normalizeWorkspaceKey(membership.data?.workspace_key);
-    if (key) {
-      const workspaceId = await resolveWorkspaceIdByKey(db, key);
-      if (workspaceId) return { workspaceId, workspaceKey: key };
-    }
-  }
-
   const allMembers = await db
     .from('workspace_members')
     .select('workspace_id')
@@ -173,8 +164,10 @@ async function resolveWorkspaceIdFromSession(
 
   const rows = workspaces.data as WorkspaceRow[];
   const picked = pickWorkspaceForPreferredKey(rows, preferredKey);
-  if (!picked) return { workspaceId: null, workspaceKey: null };
-  return { workspaceId: picked.id, workspaceKey: preferredKey };
+  return {
+    workspaceId: picked?.id ?? null,
+    workspaceKey: picked ? preferredKey : null,
+  };
 }
 
 export async function resolveWorkspaceForRequest(
@@ -193,7 +186,7 @@ export async function resolveWorkspaceForRequest(
     }
   }
 
-  // Prefer membership-based resolution for authenticated users (slug "os" may not exist).
+  // Authenticated routes: workspace_id must come from workspace_members only.
   if (userId) {
     const bySession = await resolveWorkspaceIdFromSession(db, userId, workspaceKey);
     if (bySession.workspaceId) {
@@ -203,6 +196,11 @@ export async function resolveWorkspaceForRequest(
         error: null,
       };
     }
+    return {
+      workspaceKey,
+      workspaceId: null,
+      error: `No workspace membership found for this account (requested key "${workspaceKey}")`,
+    };
   }
 
   const byKey = await resolveWorkspaceIdByKey(db, workspaceKey);

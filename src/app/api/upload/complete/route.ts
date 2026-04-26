@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { ASSET_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { requireRole } from '@/lib/api-auth';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
 import { getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
@@ -10,6 +11,16 @@ import { processEvent } from '@/lib/event-engine';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
+
+function fileExtensionFromDisplayName(name: string): string | null {
+  const i = name.lastIndexOf('.');
+  if (i <= 0 || i >= name.length - 1) return null;
+  const ext = name
+    .slice(i + 1)
+    .trim()
+    .toLowerCase();
+  return ext.length > 0 && ext.length <= 32 ? ext : null;
+}
 
 /**
  * POST /api/upload/complete
@@ -64,10 +75,11 @@ export async function POST(req: NextRequest) {
   const providedPublicUrl = (body.publicUrl as string | undefined)?.trim() || '';
   const storageProvider = 'r2';
   const bucketName = getStorageBucketName();
-  const durationSeconds =
+  const durationSecondsRaw =
     typeof body.durationSeconds === 'number' && isFinite(body.durationSeconds as number)
       ? (body.durationSeconds as number)
       : null;
+  const durationSeconds = durationSecondsRaw !== null ? Math.round(durationSecondsRaw) : null;
 
   if (!storageKey)
     return NextResponse.json(
@@ -119,15 +131,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, stage: 'failed_db', error: msg }, { status: 500 });
   }
 
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    supabase,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      {
+        success: false,
+        stage: 'failed_db',
+        error: workspaceError ?? 'Unable to resolve workspace from session',
+      },
+      { status: 403 },
+    );
+  }
+
+  const fileExtension = fileExtensionFromDisplayName(displayName);
+
   // ── Deduplication check ────────────────────────────────────────────────────
   {
-    const { data: existing } = await supabase
+    let dedupe = supabase
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
       .eq('file_path', storageKey)
-      .maybeSingle();
+      .eq('workspace_id', workspaceId);
 
-    if (existing) {
+    const { data: existing, error: dedupeErr } = await dedupe.maybeSingle();
+
+    if (dedupeErr?.code === '42703' || dedupeErr?.code === 'PGRST204') {
+      dedupe = supabase.from('assets').select(ASSET_LIST_COLUMNS).eq('file_path', storageKey);
+      const { data: existingLegacy } = await dedupe.maybeSingle();
+      if (existingLegacy) {
+        return NextResponse.json(
+          { success: true, stage: 'completed', asset: existingLegacy, r2_key: storageKey },
+          { status: 200 },
+        );
+      }
+    } else if (existing) {
       return NextResponse.json(
         { success: true, stage: 'completed', asset: existing, r2_key: storageKey },
         { status: 200 },
@@ -172,10 +213,14 @@ export async function POST(req: NextRequest) {
     resolvedPreviewUrl = publicUrl;
   }
 
-  // ── Insert metadata ────────────────────────────────────────────────────────
+  // ── Insert metadata (column names aligned with public.assets migrations) ───
   const insertRow: Record<string, unknown> = {
+    workspace_id: workspaceId,
     name: displayName,
     file_name: displayName,
+    original_name: displayName,
+    original_filename: displayName,
+    ...(fileExtension ? { file_extension: fileExtension } : {}),
     file_path: storageKey,
     storage_path: storageKey,
     storage_key: storageKey,
@@ -198,6 +243,8 @@ export async function POST(req: NextRequest) {
     preview_url: resolvedPreviewUrl,
     thumbnail_url: thumbnailUrl,
     web_view_link: publicUrl,
+    status: 'ready',
+    is_deleted: false,
     ...(durationSeconds !== null ? { duration_seconds: durationSeconds } : {}),
     ...(clientId ? { client_id: clientId } : {}),
     // Canonical uploader identity for DB relations/auditing (UUID from auth profile).
