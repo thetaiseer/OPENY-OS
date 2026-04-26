@@ -4,8 +4,8 @@
  * R2 is S3-compatible; we use the AWS SDK v3 S3 client pointed at the R2 endpoint.
  * Never import this file from client components.
  *
- * All file access uses the public CDN URL (R2_PUBLIC_URL).  No presigned or
- * signed URLs are generated.  Uploads go server-side through Next.js API routes.
+ * Public reads use R2_PUBLIC_URL. Browser uploads use presigned PUT URLs from the
+ * server so object bytes go directly to R2 (not through Vercel body limits).
  *
  * Required environment variables:
  *   R2_ACCOUNT_ID        – Cloudflare account ID

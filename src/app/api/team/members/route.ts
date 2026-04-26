@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { pickMemberDisplayName } from '@/lib/member-display-name';
 
 type MemberStatus = 'active' | 'invited' | 'pending' | 'inactive' | 'suspended';
 
@@ -108,13 +109,32 @@ export async function GET(request: NextRequest) {
   const userIds = [
     ...new Set(normalizedWorkspaceMembers.map((member) => member.user_id).filter(Boolean)),
   ];
-  const { data: profileRows, error: profileError } =
-    userIds.length > 0
-      ? await db.from('profiles').select('id, name, email').in('id', userIds)
-      : {
-          data: [] as Array<{ id: string; name: string | null; email: string | null }>,
-          error: null,
-        };
+
+  type ProfileRow = {
+    id: string;
+    name: string | null;
+    email: string | null;
+    full_name?: string | null;
+  };
+
+  let profileRows: ProfileRow[] = [];
+  let profileError: { message: string } | null = null;
+  if (userIds.length > 0) {
+    const withFull = await db
+      .from('profiles')
+      .select('id, name, email, full_name')
+      .in('id', userIds);
+    if (!withFull.error) {
+      profileRows = (withFull.data ?? []) as ProfileRow[];
+    } else {
+      const basic = await db.from('profiles').select('id, name, email').in('id', userIds);
+      if (!basic.error) {
+        profileRows = (basic.data ?? []) as ProfileRow[];
+      } else {
+        profileError = basic.error;
+      }
+    }
+  }
 
   if (profileError) {
     console.error('[team/members/get] Failed to fetch profiles:', profileError.message);
@@ -159,9 +179,15 @@ export async function GET(request: NextRequest) {
   const members: TeamMemberPayload[] = normalizedWorkspaceMembers.map((member) => {
     const team = teamByProfileId.get(member.user_id);
     const profile = profileById.get(member.user_id);
-    const fullName = team?.full_name ?? profile?.name ?? profile?.email ?? member.user_id;
-    const email = team?.email ?? profile?.email ?? '';
     const isOwner = member.user_id === workspaceRow.owner_id;
+    const fullName = pickMemberDisplayName({
+      teamFullName: team?.full_name,
+      profileFullName: profile?.full_name,
+      profileName: profile?.name,
+      profileEmail: profile?.email,
+      fallbackLabel: isOwner ? 'Workspace owner' : undefined,
+    });
+    const email = team?.email ?? profile?.email ?? '';
     return {
       id: team?.id ?? member.user_id,
       full_name: fullName,
@@ -199,7 +225,11 @@ export async function GET(request: NextRequest) {
 
       members.push({
         id: row.id,
-        full_name: row.full_name?.trim() || row.email || 'Invited member',
+        full_name: pickMemberDisplayName({
+          teamFullName: row.full_name,
+          profileEmail: row.email,
+          fallbackLabel: 'Invited member',
+        }),
         email: row.email ?? '',
         role: normalizeMemberRole(row.role),
         status: normalizeMemberStatus(row.status),

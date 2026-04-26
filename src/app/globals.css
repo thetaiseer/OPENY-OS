@@ -53,9 +53,10 @@
   --border-subtle: #e6ebf3;
   --border: #e7ecf4;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --text-muted: #7a8797;
+  /* Match primary for strong contrast on light surfaces (empty states, hints, labels). */
+  --text-secondary: #0f172a;
+  --text-tertiary: #0f172a;
+  --text-muted: #0f172a;
   --accent: #2f5dff;
   --accent-hover: #244fef;
   --danger: #ef4444;

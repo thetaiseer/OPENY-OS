@@ -8,17 +8,21 @@
  *                                 ↘ failed_db     (R2 OK, DB save failed)
  *   queued → uploading → failed_upload (upload / multipart failed)
  *
- * Small files (≤ multipart threshold, default 4 MiB) — R2 direct server upload:
- *   1. POST /api/upload/presign   → server uploads file to R2, returns storageKey + publicUrl
- *   2. POST /api/upload/complete  → save metadata to DB
+ * Small files (≤ multipart threshold, default 4 MiB) — browser → R2 via presigned PUT:
+ *   1. POST /api/upload/presigned-put (JSON only) → { putUrl, storageKey, publicUrl, displayName }
+ *   2. PUT putUrl with the File bytes (direct to Cloudflare R2; no file through Vercel)
+ *   3. POST /api/upload/complete → save metadata to DB
  *
- * Large files — R2 multipart upload (server-side):
+ * Large files — R2 multipart (browser → R2 per part via presigned URLs):
  *   1. POST /api/upload/multipart-init  → uploadId + storageKey + publicUrl
- *   2. For each chunk:
- *        POST /api/upload/multipart-part?storageKey=...&uploadId=...&partNumber=N
- *          (raw binary body) → server uploads part to R2, returns { partNumber, etag }
+ *   2. For each part (≥ 5 MiB except the last — S3/R2 minimum):
+ *        POST /api/upload/multipart-part-url (JSON) → { url }
+ *        PUT url with raw part bytes (direct to R2)
  *   3. POST /api/upload/multipart-complete → assemble parts in R2
  *   4. POST /api/upload/complete           → save metadata to DB
+ *
+ * R2 bucket CORS must expose the ETag header so the browser can read it after each part PUT
+ * (e.g. ExposeHeaders: ETag).
  *
  * Rules:
  *  1. DB metadata is saved only after the full upload is assembled.
@@ -41,8 +45,12 @@ import { getMultipartThresholdBytesFromEnv } from '@/lib/upload-config-shared';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Size of each multipart chunk (8 MB — well above the R2 5 MB minimum). */
-const CHUNK_SIZE = 8 * 1024 * 1024;
+/**
+ * Multipart part size (except the last part, which may be smaller).
+ * S3-compatible APIs require each non-final part to be ≥ 5 MiB.
+ * Parts upload directly to R2 via presigned URLs — not limited by Vercel’s ~4.5 MB body cap.
+ */
+const MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** Maximum number of retry attempts per chunk before giving up. */
 const MAX_CHUNK_RETRIES = 3;
@@ -479,9 +487,14 @@ interface XhrResult {
   headers: Record<string, string>;
 }
 
+/** ETag from R2/S3 multipart PUT response (preserve quoting required by CompleteMultipartUpload). */
+function etagFromXhrHeaders(headers: Record<string, string>): string {
+  return (headers['etag'] ?? '').trim();
+}
+
 /**
- * Send a Blob to a URL via XHR (supports both PUT and POST).
- * Reports progress via `onProgress(loadedBytes)`.
+ * Send a Blob or ArrayBuffer to a URL via XHR (PUT/POST).
+ * When `contentType` is null, no Content-Type header is set (required for presigned multipart PUT).
  *
  * XHR `onerror` fires for two distinct situations:
  *   1. The device has no internet connection (navigator.onLine === false).
@@ -490,8 +503,8 @@ interface XhrResult {
 function sendBlobViaXHR(
   method: string,
   url: string,
-  blob: Blob,
-  contentType: string,
+  body: Blob | ArrayBuffer,
+  contentType: string | null,
   onProgress: (loaded: number) => void,
   signal: AbortSignal,
 ): Promise<XhrResult> {
@@ -529,8 +542,8 @@ function sendBlobViaXHR(
     signal.addEventListener('abort', () => xhr.abort(), { once: true });
 
     xhr.open(method, url);
-    xhr.setRequestHeader('Content-Type', contentType);
-    xhr.send(blob);
+    if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+    xhr.send(body);
   });
 }
 
@@ -695,30 +708,30 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
     setStage(item.id, 'uploading', 'Uploading', { progress: 0 });
 
-    const formData = new FormData();
-    formData.append('file', item.file, item.file.name);
-    formData.append('fileName', item.file.name);
-    formData.append('fileType', mimeType);
-    formData.append('fileSize', String(item.file.size));
-    formData.append('clientName', item.clientName);
-    formData.append('mainCategory', item.mainCategory);
-    formData.append('monthKey', monthKey);
-    if (item.clientId) formData.append('clientId', item.clientId);
-    if (item.subCategory) formData.append('subCategory', item.subCategory);
-    if (item.uploadName?.trim()) formData.append('customFileName', item.uploadName.trim());
-
-    let r2UploadRes: Response;
+    let presignRes: Response;
     try {
-      r2UploadRes = await fetch('/api/upload/presign', {
+      presignRes = await fetch('/api/upload/presigned-put', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: item.file.name,
+          fileType: mimeType,
+          fileSize: item.file.size,
+          clientName: item.clientName,
+          clientId: item.clientId || undefined,
+          mainCategory: item.mainCategory,
+          subCategory: item.subCategory || undefined,
+          monthKey,
+          customFileName: item.uploadName?.trim() || undefined,
+        }),
+        signal: ctrl.signal,
       });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step: 'r2_upload_request',
-          rawMessage: `Request to /api/upload/presign failed: ${errMsg}`,
+          rawMessage: `Request to /api/upload/presigned-put failed: ${errMsg}`,
           providerBody: errMsg,
           fileReachedStorage: false,
           dbSaved: false,
@@ -727,33 +740,35 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const r2UploadText = await r2UploadRes.text();
-    type R2UploadResponse = {
+    const presignText = await presignRes.text();
+    type PresignedPutResponse = {
+      putUrl?: string;
       storageKey?: string;
       publicUrl?: string;
       displayName?: string;
       error?: string;
     };
-    let r2UploadJson: R2UploadResponse | null = null;
+    let presignJson: PresignedPutResponse | null = null;
     try {
-      r2UploadJson = r2UploadText ? (JSON.parse(r2UploadText) as R2UploadResponse) : null;
+      presignJson = presignText ? (JSON.parse(presignText) as PresignedPutResponse) : null;
     } catch {
-      r2UploadJson = null;
+      presignJson = null;
     }
 
     if (
-      !r2UploadRes.ok ||
-      !r2UploadJson?.storageKey ||
-      !r2UploadJson.publicUrl ||
-      !r2UploadJson.displayName
+      !presignRes.ok ||
+      !presignJson?.putUrl ||
+      !presignJson.storageKey ||
+      !presignJson.publicUrl ||
+      !presignJson.displayName
     ) {
-      const errorMessage = r2UploadJson?.error ?? `Upload failed (HTTP ${r2UploadRes.status})`;
+      const errorMessage = presignJson?.error ?? `Upload failed (HTTP ${presignRes.status})`;
       setStage(item.id, 'failed_upload', 'Upload failed', {
         errorDetail: classifyUploadError({
           step: 'r2_upload',
           rawMessage: errorMessage,
-          providerBody: r2UploadText || null,
-          httpStatus: r2UploadRes.status,
+          providerBody: presignText || null,
+          httpStatus: presignRes.status,
           fileReachedStorage: false,
           dbSaved: false,
         }),
@@ -762,11 +777,63 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
     if (ctrl.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
+    const speedBaseMs = Date.now();
+    let putResult: XhrResult;
+    try {
+      putResult = await sendBlobViaXHR(
+        'PUT',
+        presignJson.putUrl,
+        item.file,
+        mimeType,
+        (loaded) => {
+          const elapsed = Date.now() - speedBaseMs;
+          const speedBps =
+            elapsed > MIN_ELAPSED_MS_FOR_SPEED ? Math.round((loaded / elapsed) * 1000) : null;
+          const pct = Math.round((loaded / item.file.size) * 95);
+          update(item.id, {
+            progress: pct,
+            uploadedBytes: loaded,
+            statusText: `Uploading — ${pct}%`,
+            statusLabel: 'Uploading',
+            uploadSpeedBps: speedBps,
+          });
+        },
+        ctrl.signal,
+      );
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') throw err;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step: 'r2_direct_put',
+          rawMessage: errMsg,
+          providerBody: errMsg,
+          fileReachedStorage: false,
+          dbSaved: false,
+        }),
+      });
+      return;
+    }
+
+    if (putResult.status < 200 || putResult.status >= 300) {
+      setStage(item.id, 'failed_upload', 'Upload failed', {
+        errorDetail: classifyUploadError({
+          step: 'r2_direct_put',
+          rawMessage: `Direct upload failed (HTTP ${putResult.status}): ${putResult.body.slice(0, 200)}`,
+          providerBody: putResult.body || null,
+          httpStatus: putResult.status,
+          fileReachedStorage: false,
+          dbSaved: false,
+        }),
+      });
+      return;
+    }
+
     update(item.id, {
-      r2Key: r2UploadJson.storageKey,
+      r2Key: presignJson.storageKey,
       r2Bucket: null,
-      r2FileName: r2UploadJson.displayName,
-      publicUrl: r2UploadJson.publicUrl,
+      r2FileName: presignJson.displayName,
+      publicUrl: presignJson.publicUrl,
       fileMimeType: mimeType,
     });
     setStage(item.id, 'uploaded', 'Saving to system\u2026', {
@@ -777,9 +844,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Phase 3: save metadata.
     await doSaveMetadata(
       item,
-      r2UploadJson.storageKey,
-      r2UploadJson.displayName,
-      r2UploadJson.publicUrl,
+      presignJson.storageKey,
+      presignJson.displayName,
+      presignJson.publicUrl,
       mimeType,
       ctrl.signal,
       null,
@@ -790,7 +857,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   async function doMultipartUpload(item: UploadItem, mimeType: string, ctrl: AbortController) {
     const totalBytes = item.file.size;
-    const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
+    const totalChunks = Math.ceil(totalBytes / MULTIPART_PART_SIZE_BYTES);
 
     // ── Resume or fresh start ─────────────────────────────────────────────────
     const isResuming = !!item.uploadId && !!item.r2Key && item.completedParts.length > 0;
@@ -930,32 +997,46 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         throw new DOMException('Upload cancelled', 'AbortError');
       }
 
-      const start = (partNumber - 1) * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, totalBytes);
+      const start = (partNumber - 1) * MULTIPART_PART_SIZE_BYTES;
+      const end = Math.min(start + MULTIPART_PART_SIZE_BYTES, totalBytes);
       const chunk = item.file.slice(start, end);
 
-      // Per-chunk retry loop.
+      // Per-chunk retry loop (fresh presigned URL each attempt).
       let chunkResult: XhrResult;
       try {
         chunkResult = await withRetry(
           async () => {
-            // POST chunk bytes directly to the server.
-            // The server uploads the part to R2 and returns { partNumber, etag }.
-            const partUrl = `/api/upload/multipart-part?${new URLSearchParams({
-              storageKey,
-              uploadId,
-              partNumber: String(partNumber),
-            }).toString()}`;
+            const urlRes = await fetch('/api/upload/multipart-part-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ storageKey, uploadId, partNumber }),
+              signal: ctrl.signal,
+            });
+            const urlText = await urlRes.text();
+            if (!urlRes.ok) {
+              throw new Error(
+                `Part ${partNumber} presign failed (HTTP ${urlRes.status}): ${urlText.slice(0, 200)}`,
+              );
+            }
+            let presignedUrl: string;
+            try {
+              presignedUrl = (JSON.parse(urlText) as { url?: string }).url ?? '';
+            } catch {
+              throw new Error(`Part ${partNumber}: invalid presign JSON`);
+            }
+            if (!presignedUrl) {
+              throw new Error(`Part ${partNumber}: missing presigned url`);
+            }
 
+            const arrayBuffer = await chunk.arrayBuffer();
             const chunkBytesStart = uploadedBytes;
-            // Capture upload start time snapshot for speed calculation.
             const speedBaseMs = item.uploadStartMs ?? Date.now();
 
             const result = await sendBlobViaXHR(
-              'POST',
-              partUrl,
-              chunk,
-              'application/octet-stream',
+              'PUT',
+              presignedUrl,
+              arrayBuffer,
+              null,
               (loaded) => {
                 const totalLoaded = chunkBytesStart + loaded;
                 const elapsed = Date.now() - speedBaseMs;
@@ -977,7 +1058,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
             if (result.status < 200 || result.status >= 300) {
               throw new Error(
-                `Part ${partNumber} upload failed (HTTP ${result.status}): ${result.body.slice(0, 200)}`,
+                `Part ${partNumber} R2 upload failed (HTTP ${result.status}): ${result.body.slice(0, 200)}`,
               );
             }
 
@@ -1018,21 +1099,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       uploadedBytes += chunk.size;
-      // The server returns { partNumber, etag } in the JSON response body.
-      let etag = '';
-      try {
-        const partResp = JSON.parse(chunkResult.body) as { etag?: string };
-        etag = partResp.etag ?? '';
-      } catch {
-        /* empty */
-      }
+      const etag = etagFromXhrHeaders(chunkResult.headers);
       if (!etag) {
         void abortMultipartSession(storageKey, uploadId);
         setStage(item.id, 'failed_upload', 'Upload failed', {
           errorDetail: classifyUploadError({
             step: `chunk_${partNumber}_etag`,
-            rawMessage: `Part ${partNumber} server response did not include an ETag.`,
-            providerBody: 'Missing ETag in server response',
+            rawMessage: `Part ${partNumber}: R2 did not return a readable ETag. Configure the R2 bucket CORS rule to expose the ETag response header.`,
+            providerBody: 'Missing ETag after direct part upload (check R2 CORS ExposeHeaders)',
             fileReachedStorage: false,
             dbSaved: false,
           }),
@@ -1190,7 +1264,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: completeJson.asset });
+    // Ensure client/workspace fields used by list UIs are present even if the DB
+    // projection omits them (so e.g. client Assets tab can prepend immediately).
+    const fromApi = completeJson.asset as Asset;
+    const resolvedClientId =
+      fromApi.client_id ?? (item.clientId?.trim() ? item.clientId.trim() : undefined);
+    const resolvedClientName =
+      fromApi.client_name ?? (item.clientName?.trim() ? item.clientName.trim() : undefined);
+    const merged: Asset = {
+      ...fromApi,
+      client_id: resolvedClientId,
+      client_name: resolvedClientName,
+    };
+    dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: merged });
     setStage(item.id, 'completed', 'Completed', { progress: 100 });
   }
 

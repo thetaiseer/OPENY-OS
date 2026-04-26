@@ -50,15 +50,21 @@ export default function ClientAssetsPage() {
     void load();
   }, [load]);
 
-  // Prepend newly uploaded assets
+  // Prepend newly uploaded assets as soon as the upload queue reports completion.
   useEffect(() => {
-    if (!latestAsset) return;
-    if (!clientId || latestAsset.client_id !== clientId) return;
+    if (!latestAsset || !clientId) return;
+    const sameClientById =
+      latestAsset.client_id != null && String(latestAsset.client_id) === String(clientId);
+    const sameClientByName =
+      Boolean(client?.name) &&
+      Boolean(latestAsset.client_name) &&
+      String(latestAsset.client_name).trim() === String(client?.name ?? '').trim();
+    if (!sameClientById && !sameClientByName) return;
     setAssets((prev) => {
       if (prev.some((a) => a.id === latestAsset.id)) return prev;
       return [latestAsset, ...prev];
     });
-  }, [latestAsset, clientId]);
+  }, [latestAsset, clientId, client?.name]);
 
   const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);

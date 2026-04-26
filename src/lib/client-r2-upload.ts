@@ -1,12 +1,18 @@
 /**
- * Browser-side R2 upload via Next.js API (presign or multipart).
+ * Browser-side R2 upload: JSON calls to Next.js + direct PUT to presigned URLs
+ * (file bytes never pass through Vercel’s body limit).
  * Use from task modals and any flow outside `UploadProvider`.
  */
 
 import { getMultipartThresholdBytesFromEnv } from '@/lib/upload-config-shared';
 
-const CHUNK_SIZE = 8 * 1024 * 1024;
+/** S3/R2: each multipart part except the last must be ≥ 5 MiB. */
+const MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024;
 const PART_RETRIES = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export type ClientR2AssetMeta = {
   clientName: string;
@@ -23,7 +29,7 @@ export type ClientR2PresignResult = {
   displayName: string;
 };
 
-async function postMultipartPart(
+async function uploadOneMultipartPart(
   storageKey: string,
   uploadId: string,
   partNumber: number,
@@ -32,37 +38,45 @@ async function postMultipartPart(
 ): Promise<{ etag: string }> {
   let lastErr: Error | null = null;
   for (let attempt = 1; attempt <= PART_RETRIES; attempt++) {
-    const url = `/api/upload/multipart-part?${new URLSearchParams({
-      storageKey,
-      uploadId,
-      partNumber: String(partNumber),
-    })}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: chunk,
-      signal,
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      lastErr = new Error(text || `Part ${partNumber} failed (HTTP ${res.status})`);
-      if (attempt < PART_RETRIES) await new Promise((r) => setTimeout(r, 400 * attempt));
-      continue;
-    }
     try {
-      const j = JSON.parse(text) as { etag?: string };
-      if (j.etag) return { etag: j.etag };
-    } catch {
-      /* fall through */
+      const urlRes = await fetch('/api/upload/multipart-part-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storageKey, uploadId, partNumber }),
+        signal,
+      });
+      const urlText = await urlRes.text();
+      if (!urlRes.ok) {
+        throw new Error(urlText || `Part ${partNumber} presign failed (HTTP ${urlRes.status})`);
+      }
+      const { url } = JSON.parse(urlText) as { url?: string };
+      if (!url) throw new Error(`Part ${partNumber}: missing presigned url`);
+
+      const bodyBuf = await chunk.arrayBuffer();
+      const putRes = await fetch(url, { method: 'PUT', body: bodyBuf, signal });
+      if (!putRes.ok) {
+        const t = await putRes.text().catch(() => '');
+        throw new Error(
+          `Part ${partNumber} PUT failed (HTTP ${putRes.status})${t ? `: ${t.slice(0, 200)}` : ''}`,
+        );
+      }
+      const etag = (putRes.headers.get('ETag') ?? putRes.headers.get('etag') ?? '').trim();
+      if (!etag) {
+        throw new Error(
+          'Missing ETag on part upload — add R2 CORS ExposeHeaders: ETag for your app origin.',
+        );
+      }
+      return { etag };
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      if (attempt < PART_RETRIES) await sleep(400 * attempt);
     }
-    lastErr = new Error(`Part ${partNumber}: missing ETag in response`);
-    if (attempt < PART_RETRIES) await new Promise((r) => setTimeout(r, 400 * attempt));
   }
   throw lastErr ?? new Error(`Part ${partNumber} failed`);
 }
 
 /**
- * Uploads file bytes to R2 through the app API and returns storage metadata
+ * Uploads file bytes to R2 (direct PUT / multipart presigned parts) and returns storage metadata
  * (caller still runs `/api/upload/complete` if they need a DB asset row).
  */
 export async function uploadFileBytesToR2(
@@ -74,26 +88,25 @@ export async function uploadFileBytesToR2(
   const threshold = getMultipartThresholdBytesFromEnv();
 
   if (file.size <= threshold) {
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-    formData.append('fileName', file.name);
-    formData.append('fileType', mime);
-    formData.append('fileSize', String(file.size));
-    formData.append('clientName', meta.clientName);
-    formData.append('mainCategory', meta.mainCategory);
-    formData.append('monthKey', meta.monthKey);
-    if (meta.clientId) formData.append('clientId', meta.clientId);
-    if (meta.subCategory) formData.append('subCategory', meta.subCategory);
-    if (meta.customFileName?.trim()) formData.append('customFileName', meta.customFileName.trim());
-
-    const presignRes = await fetch('/api/upload/presign', {
+    const presignRes = await fetch('/api/upload/presigned-put', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: mime,
+        fileSize: file.size,
+        clientName: meta.clientName,
+        clientId: meta.clientId || undefined,
+        mainCategory: meta.mainCategory,
+        subCategory: meta.subCategory || undefined,
+        monthKey: meta.monthKey,
+        customFileName: meta.customFileName?.trim() || undefined,
+      }),
       signal,
     });
     const text = await presignRes.text();
     if (!presignRes.ok) {
-      let msg = `Upload failed (HTTP ${presignRes.status})`;
+      let msg = `Presign failed (HTTP ${presignRes.status})`;
       try {
         const j = JSON.parse(text) as { error?: string };
         if (j.error) msg = j.error;
@@ -102,11 +115,34 @@ export async function uploadFileBytesToR2(
       }
       throw new Error(msg);
     }
-    return JSON.parse(text) as ClientR2PresignResult;
+    const presign = JSON.parse(text) as {
+      putUrl?: string;
+      storageKey?: string;
+      publicUrl?: string;
+      displayName?: string;
+    };
+    if (!presign.putUrl || !presign.storageKey || !presign.publicUrl || !presign.displayName) {
+      throw new Error('Invalid presigned-put response');
+    }
+    const putRes = await fetch(presign.putUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': mime },
+      signal,
+    });
+    if (!putRes.ok) {
+      const t = await putRes.text().catch(() => '');
+      throw new Error(`R2 PUT failed (HTTP ${putRes.status})${t ? `: ${t.slice(0, 200)}` : ''}`);
+    }
+    return {
+      storageKey: presign.storageKey,
+      publicUrl: presign.publicUrl,
+      displayName: presign.displayName,
+    };
   }
 
   const totalBytes = file.size;
-  const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
+  const totalChunks = Math.ceil(totalBytes / MULTIPART_PART_SIZE_BYTES);
 
   const initRes = await fetch('/api/upload/multipart-init', {
     method: 'POST',
@@ -146,10 +182,10 @@ export async function uploadFileBytesToR2(
   const parts: { partNumber: number; etag: string }[] = [];
 
   for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
-    const start = (partNumber - 1) * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, totalBytes);
+    const start = (partNumber - 1) * MULTIPART_PART_SIZE_BYTES;
+    const end = Math.min(start + MULTIPART_PART_SIZE_BYTES, totalBytes);
     const chunk = file.slice(start, end);
-    const { etag } = await postMultipartPart(storageKey, uploadId, partNumber, chunk, signal);
+    const { etag } = await uploadOneMultipartPart(storageKey, uploadId, partNumber, chunk, signal);
     parts.push({ partNumber, etag });
   }
 

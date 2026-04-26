@@ -36,18 +36,37 @@ type InvitationRow = {
     | null;
 };
 
+// Prefer flat selects first: embedded `team_member:team_members(...)` can fail if the FK
+// hint or PostgREST relationship name differs across deployments, which previously
+// caused GET to 500 and the Team page to drop pending invites after refetch.
+//
+// Some production DBs were created without `accepted_at` (or `updated_at` / workspace JSON);
+// try those shapes before selects that reference missing columns.
 const selectVariants = [
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at',
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at',
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(name, role, status)',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(name, role, status)',
+  '*',
 ];
 
 function normalizeInvitationRow(row: InvitationRow): TeamInvitation {
   const teamMember = Array.isArray(row.team_member) ? row.team_member[0] : row.team_member;
   const fullName = teamMember?.full_name ?? teamMember?.name ?? null;
+  const fallbackExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const nowIso = new Date().toISOString();
   return {
     id: row.id,
     team_member_id: row.team_member_id,
@@ -56,10 +75,10 @@ function normalizeInvitationRow(row: InvitationRow): TeamInvitation {
     token: row.token,
     status: (row.status ?? '').toLowerCase() as TeamInvitation['status'],
     invited_by: row.invited_by ?? null,
-    expires_at: row.expires_at,
+    expires_at: row.expires_at ?? fallbackExpiry,
     accepted_at: row.accepted_at ?? null,
-    created_at: row.created_at,
-    updated_at: row.updated_at ?? row.created_at,
+    created_at: row.created_at ?? nowIso,
+    updated_at: row.updated_at ?? row.created_at ?? nowIso,
     workspace_access: (row.workspace_access ?? null) as TeamInvitation['workspace_access'],
     workspace_roles: (row.workspace_roles ?? null) as TeamInvitation['workspace_roles'],
     team_member: {

@@ -1,13 +1,8 @@
 /** Black artwork — light UI backgrounds and print/PDF (white page). */
-export const OPENY_LOGO_LIGHT_FILE = 'openy-marketing-agency-black.png';
+export const OPENY_LOGO_LIGHT_URL = 'https://i.postimg.cc/ZRjtKs2G/OPENY.png';
+
 /** White artwork — dark UI backgrounds. */
-export const OPENY_LOGO_DARK_FILE = 'openy-marketing-agency-white.png';
-
-const BRANDING_DIR = '/branding';
-
-/** Same-origin paths served from `/public/branding` (see `OpenyLogo`, exports). */
-export const OPENY_LOGO_LIGHT_URL = `${BRANDING_DIR}/${OPENY_LOGO_LIGHT_FILE}`;
-export const OPENY_LOGO_DARK_URL = `${BRANDING_DIR}/${OPENY_LOGO_DARK_FILE}`;
+export const OPENY_LOGO_DARK_URL = 'https://i.postimg.cc/3N1gZhb8/White-OPENY-Logo.png';
 
 /** Source assets are 1024×194; use with `height` to keep aspect in layouts. */
 export const OPENY_MARKETING_LOGO_RATIO = 1024 / 194;

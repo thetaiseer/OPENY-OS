@@ -35,6 +35,9 @@ function buildRemotePatterns() {
     }
   }
 
+  // OPENY marketing logos (postimg CDN — see `src/lib/openy-brand.ts`)
+  patterns.push({ protocol: 'https', hostname: 'i.postimg.cc' });
+
   // Fallback: allow only known CDN patterns if env vars are missing at build time
   if (patterns.length === 0) {
     patterns.push({ protocol: 'https', hostname: '*.r2.dev' });

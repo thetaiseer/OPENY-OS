@@ -4,6 +4,8 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
+  PutObjectCommand,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
@@ -59,6 +61,52 @@ export async function getSignedFileUrl(key: string, _expiresInSeconds = 900): Pr
   return getSignedUrl(client, new GetObjectCommand({ Bucket: config.bucketName, Key: key }), {
     expiresIn: expiresInSeconds,
   });
+}
+
+/** Presigned PUT for browser → R2 single-object upload (no file bytes through Next.js). */
+export async function getPresignedPutObjectUploadUrl(
+  key: string,
+  contentType: string,
+  expiresInSeconds = 3600,
+): Promise<string> {
+  const ttl =
+    Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+      ? Math.min(Math.floor(expiresInSeconds), 86400)
+      : 3600;
+  const { client, config } = buildClient();
+  return getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ContentType: contentType || 'application/octet-stream',
+    }),
+    { expiresIn: ttl },
+  );
+}
+
+/** Presigned PUT for one multipart part — client uploads bytes directly to R2. */
+export async function getPresignedMultipartPartUploadUrl(
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  expiresInSeconds = 3600,
+): Promise<string> {
+  const ttl =
+    Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+      ? Math.min(Math.floor(expiresInSeconds), 86400)
+      : 3600;
+  const { client, config } = buildClient();
+  return getSignedUrl(
+    client,
+    new UploadPartCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    }),
+    { expiresIn: ttl },
+  );
 }
 
 export async function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {

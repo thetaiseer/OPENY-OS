@@ -43,6 +43,7 @@ import type {
 } from '@/lib/types';
 import { getWorkspaceLabel, normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
+import { looksLikeUuid } from '@/lib/member-display-name';
 
 const inputCls =
   'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
@@ -996,6 +997,13 @@ export default function TeamPage() {
   const { data: teamData, isLoading: loading } = useQuery({
     queryKey: ['team-data'],
     queryFn: async () => {
+      const prev = queryClient.getQueryData<{
+        members: TeamMember[];
+        invitations: TeamInvitation[];
+        workspaceAccess: Record<string, Record<string, { enabled: boolean; role: string }>>;
+        invitationsLoadFailed?: boolean;
+      }>(['team-data']);
+
       const [membersRes, invitesRes, workspaceAccessRes] = await Promise.all([
         fetch('/api/team/members', { credentials: 'include' }),
         fetch('/api/team/invitations', { credentials: 'include' }),
@@ -1012,7 +1020,7 @@ export default function TeamPage() {
       const membersJson = membersRes.ok ? await membersRes.json() : { members: [] as TeamMember[] };
       const invitesJson = invitesRes.ok
         ? await invitesRes.json()
-        : { invitations: [] as TeamInvitation[] };
+        : { invitations: (prev?.invitations ?? []) as TeamInvitation[] };
       const workspaceAccessJson = workspaceAccessRes.ok
         ? await workspaceAccessRes.json()
         : { access: {} as Record<string, Record<string, { enabled: boolean; role: string }>> };
@@ -1233,7 +1241,7 @@ export default function TeamPage() {
 
       setInviteOpen(false);
       setInviteForm({ ...blankInviteForm });
-      const emailSent = (data as { emailSent?: boolean }).emailSent !== false;
+      const emailSent = (data as { emailSent?: boolean }).emailSent === true;
       const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
       if (emailSent) {
         toast(`Invitation sent to ${inviteForm.email}`, 'success');
@@ -1398,21 +1406,35 @@ export default function TeamPage() {
   const ownerMembers = members.filter(
     (m) => m.role === 'owner' && (!m.status || m.status === 'active'),
   );
-  const ownerMembersForDisplay =
-    ownerMembers.length > 0
-      ? ownerMembers
-      : myRole === 'owner' && user.id && user.email
-        ? [
-            {
-              id: user.id,
-              full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
-              email: user.email,
-              role: 'owner',
-              status: 'active',
-              created_at: new Date().toISOString(),
-            } satisfies TeamMember,
-          ]
-        : [];
+  const ownerMembersForDisplay = useMemo(() => {
+    const raw =
+      ownerMembers.length > 0
+        ? ownerMembers
+        : myRole === 'owner' && user.id && user.email
+          ? [
+              {
+                id: user.id,
+                full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
+                email: user.email,
+                role: 'owner',
+                status: 'active',
+                created_at: new Date().toISOString(),
+              } satisfies TeamMember,
+            ]
+          : [];
+    return raw.map((m) => {
+      if (m.role !== 'owner' || !looksLikeUuid(m.full_name)) return m;
+      const self =
+        Boolean(user?.id) &&
+        (m.id === user.id || m.profile_id === user.id || (m.email && m.email === user.email));
+      if (self) {
+        const fromSession =
+          (user.name && user.name.trim()) || user.email?.split('@')[0]?.trim() || '';
+        if (fromSession) return { ...m, full_name: fromSession };
+      }
+      return { ...m, full_name: tr('workspaceOwner', 'Workspace Owner') };
+    });
+  }, [ownerMembers, myRole, user.id, user.email, user.name, tr]);
   const activeMembers = members
     .filter((m) => m.role !== 'owner' && (!m.status || m.status === 'active'))
     .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));

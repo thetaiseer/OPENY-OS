@@ -6,7 +6,8 @@
  *
  * Features:
  *  - Per-file name editor with validation
- *  - Client selection (lockable when uploading from a client workspace)
+ *  - Client selection (dropdown on global Assets), or read-only client name when
+ *    uploading from a client workspace (`lockClient`)
  *  - "+ Create New" button opens CreateClientModal inline
  *  - Main Category → Subcategory selectors (new asset hierarchy)
  *  - MonthYearPicker (modern calendar-style month/year picker)
@@ -23,6 +24,7 @@ import CreateClientModal from '@/components/features/upload/CreateClientModal';
 import AppModal from '@/components/ui/AppModal';
 import { MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 import type { Client } from '@/lib/types';
+import { useLang } from '@/context/lang-context';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -226,6 +228,7 @@ export default function UploadModal({
   onConfirmAndSchedule,
   onCancel,
 }: UploadModalProps) {
+  const { t } = useLang();
   const [showCreateClient, setShowCreateClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -349,11 +352,33 @@ export default function UploadModal({
           className="space-y-4 rounded-2xl border p-4"
           style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
         >
-          {/* Client selector */}
-          {!lockClient && (
+          {/* Client: dropdown on global pages; read-only when uploading from a client workspace */}
+          {lockClient ? (
+            <div>
+              <Label>{t('uploadClientLabel')}</Label>
+              <div
+                className="mt-1.5 flex min-h-[2.75rem] items-center rounded-xl border px-3 text-sm font-medium"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                }}
+                role="status"
+                aria-live="polite"
+              >
+                {clientName || '—'}
+              </div>
+              <p
+                className="mt-1.5 text-xs leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('uploadLockedClientHint')}
+              </p>
+            </div>
+          ) : (
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <Label required>Client</Label>
+                <Label required>{t('uploadClientLabel')}</Label>
                 <button
                   type="button"
                   onClick={() => setShowCreateClient(true)}
