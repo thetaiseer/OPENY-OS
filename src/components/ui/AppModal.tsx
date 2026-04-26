@@ -103,7 +103,10 @@ export default function AppModal({
                         {icon}
                       </span>
                     ) : null}
-                    <h3 className="truncate text-base font-semibold text-[color:var(--text-primary)]">
+                    <h3
+                      className="truncate text-base font-semibold"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {title}
                     </h3>
                   </div>

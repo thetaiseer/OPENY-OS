@@ -15,6 +15,9 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { processEvent } from '@/lib/event-engine';
 import { EVENT } from '@/lib/workspace-events';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const VALID_ROLES = ['owner', 'admin', 'manager', 'team_member', 'viewer', 'client'] as const;
 type ValidRole = (typeof VALID_ROLES)[number];
@@ -149,23 +152,52 @@ export async function DELETE(
 
   const db = getServiceClient();
 
-  // Fetch the member to verify they exist and check their role.
-  const { data: member, error: fetchError } = await db
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    request,
+    db,
+    auth.profile.id,
+  );
+  if (workspaceError) {
+    console.error('[team/members/delete] Workspace resolution failed:', workspaceError);
+    return NextResponse.json({ error: workspaceError }, { status: 500 });
+  }
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'Workspace not found' }, { status: 500 });
+  }
+
+  // Resolve row by team_members.id, or by profile_id when the UI sent workspace user_id (GET uses team?.id ?? user_id).
+  const byId = await db
     .from('team_members')
-    .select('id, full_name, role')
+    .select('id, full_name, role, profile_id, email')
     .eq('id', id)
     .maybeSingle();
 
-  if (fetchError) {
-    console.error('[team/members/delete] Fetch error:', fetchError.message);
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (byId.error) {
+    console.error('[team/members/delete] Fetch error:', byId.error.message);
+    return NextResponse.json({ error: byId.error.message }, { status: 500 });
+  }
+
+  let member = byId.data;
+  if (!member && UUID_RE.test(id)) {
+    const byProfile = await db
+      .from('team_members')
+      .select('id, full_name, role, profile_id, email')
+      .eq('profile_id', id)
+      .maybeSingle();
+    if (byProfile.error) {
+      console.error('[team/members/delete] Fetch by profile_id error:', byProfile.error.message);
+      return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
+    }
+    member = byProfile.data;
   }
 
   if (!member) {
+    console.warn('[team/members/delete] No team_members row for id (tried id + profile_id):', id);
     return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
   }
 
-  // Hard protection: owner cannot be deleted under any circumstances.
+  const memberId = member.id as string;
+
   if (member.role === 'owner') {
     return NextResponse.json(
       { error: 'The workspace owner cannot be removed from the team.' },
@@ -173,19 +205,77 @@ export async function DELETE(
     );
   }
 
-  const { error: deleteError } = await db.from('team_members').delete().eq('id', id);
+  const { data: workspaceRow } = await db
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .maybeSingle();
+  const ownerId = (workspaceRow as { owner_id?: string | null } | null)?.owner_id ?? null;
+  if (ownerId && member.profile_id && ownerId === member.profile_id) {
+    return NextResponse.json(
+      { error: 'The workspace owner cannot be removed from the team.' },
+      { status: 403 },
+    );
+  }
+
+  let workspaceUserId = (member.profile_id as string | null) ?? null;
+  if (!workspaceUserId && member.email) {
+    const emailLower = String(member.email).toLowerCase();
+    const { data: profile } = await db
+      .from('profiles')
+      .select('id')
+      .eq('email', emailLower)
+      .maybeSingle();
+    workspaceUserId = (profile as { id?: string } | null)?.id ?? null;
+    if (!workspaceUserId) {
+      const { data: list } = await db.auth.admin.listUsers();
+      workspaceUserId =
+        list?.users?.find((u) => (u.email ?? '').toLowerCase() === emailLower)?.id ?? null;
+    }
+  }
+
+  if (workspaceUserId) {
+    const { error: wmError } = await db
+      .from('workspace_members')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', workspaceUserId);
+    if (wmError) {
+      console.error('[team/members/delete] workspace_members delete error:', wmError.message);
+      return NextResponse.json(
+        { error: `Could not remove workspace membership: ${wmError.message}` },
+        { status: 500 },
+      );
+    }
+    console.warn('[team/members/delete] Removed workspace_members row', {
+      workspaceId,
+      userId: workspaceUserId,
+      teamMemberId: memberId,
+    });
+  } else {
+    console.warn(
+      '[team/members/delete] No profile/user id for workspace_members delete; continuing',
+      {
+        teamMemberId: memberId,
+        email: member.email,
+      },
+    );
+  }
+
+  const { error: deleteError } = await db.from('team_members').delete().eq('id', memberId);
 
   if (deleteError) {
-    console.error('[team/members/delete] Delete error:', deleteError.message);
+    console.error('[team/members/delete] team_members delete error:', deleteError.message);
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
 
-  // Emit activity event for audit log
+  console.warn('[team/members/delete] Removed team_members row', { teamMemberId: memberId });
+
   void processEvent({
     event_type: EVENT.MEMBER_REMOVED,
     actor_id: auth.profile.id,
     entity_type: 'team_member',
-    entity_id: id,
+    entity_id: memberId,
     payload: {
       memberName: member.full_name,
       actorName: auth.profile.name,

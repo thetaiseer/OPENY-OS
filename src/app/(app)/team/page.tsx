@@ -41,7 +41,12 @@ import type {
   DocsModule,
   ActivityLogEntry,
 } from '@/lib/types';
-import { getWorkspaceLabel, normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
+import {
+  getWorkspaceLabel,
+  normalizeWorkspaceKey,
+  WORKSPACE_ROLES,
+  workspaceSearchParamFromPathname,
+} from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
 
@@ -1044,12 +1049,28 @@ export default function TeamPage() {
     },
   });
 
+  const { data: teamEmailConfig } = useQuery({
+    queryKey: ['team-email-config'],
+    queryFn: async () => {
+      const res = await fetch('/api/team/email-config', { credentials: 'include' });
+      if (!res.ok) {
+        return { transactionalEmailConfigured: true, inviteAppUrlConfigured: true };
+      }
+      return (await res.json()) as {
+        transactionalEmailConfigured: boolean;
+        inviteAppUrlConfigured: boolean;
+      };
+    },
+    enabled: canManage,
+  });
+
   const members = useMemo(() => teamData?.members ?? [], [teamData?.members]);
   const invitations = useMemo(() => teamData?.invitations ?? [], [teamData?.invitations]);
   const workspaceAccessByEmail = teamData?.workspaceAccess ?? {};
   const invitationsLoadFailed = Boolean(teamData?.invitationsLoadFailed);
 
   const [saving, setSaving] = useState(false);
+  const [removingMember, setRemovingMember] = useState(false);
   const [actionError, setActionError] = useState('');
 
   // Modals
@@ -1331,8 +1352,16 @@ export default function TeamPage() {
       setDeleteMember(null);
       return;
     }
+    setRemovingMember(true);
     try {
-      const res = await fetch(`/api/team/members/${deleteMember.id}`, { method: 'DELETE' });
+      const qs =
+        typeof window !== 'undefined'
+          ? workspaceSearchParamFromPathname(window.location.pathname)
+          : 'workspace=os';
+      const res = await fetch(`/api/team/members/${encodeURIComponent(deleteMember.id)}?${qs}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast(data.error ?? 'Failed to remove member.', 'error');
@@ -1343,6 +1372,8 @@ export default function TeamPage() {
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
       toast('Network error. Please try again.', 'error');
+    } finally {
+      setRemovingMember(false);
     }
   };
 
@@ -1354,9 +1385,22 @@ export default function TeamPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ team_member_id: invitation.team_member_id }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        emailSent?: boolean;
+        emailSkippedReason?: string;
+      };
       if (!res.ok) {
         toast(data.error ?? 'Failed to resend invitation.', 'error');
+        return;
+      }
+      if (data.emailSent === false) {
+        toast(
+          data.emailSkippedReason ??
+            `Invitation was renewed but email was not sent. Use Copy invite link for ${invitation.email}.`,
+          'warning',
+        );
+        void queryClient.invalidateQueries({ queryKey: ['team-data'] });
         return;
       }
       toast(`Invitation resent to ${invitation.email}`, 'success');
@@ -1414,7 +1458,7 @@ export default function TeamPage() {
           ? [
               {
                 id: user.id,
-                full_name: user.name || tr('workspaceOwner', 'Workspace Owner'),
+                full_name: user.name || 'Workspace Owner',
                 email: user.email,
                 role: 'owner',
                 status: 'active',
@@ -1432,9 +1476,9 @@ export default function TeamPage() {
           (user.name && user.name.trim()) || user.email?.split('@')[0]?.trim() || '';
         if (fromSession) return { ...m, full_name: fromSession };
       }
-      return { ...m, full_name: tr('workspaceOwner', 'Workspace Owner') };
+      return { ...m, full_name: 'Workspace Owner' };
     });
-  }, [ownerMembers, myRole, user.id, user.email, user.name, tr]);
+  }, [ownerMembers, myRole, user.id, user.email, user.name]);
   const activeMembers = members
     .filter((m) => m.role !== 'owner' && (!m.status || m.status === 'active'))
     .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
@@ -1476,6 +1520,42 @@ export default function TeamPage() {
           {tr(
             'teamInvitationsLoadFailed',
             'Could not load the invitation list from the server. Pending invites may be incomplete until you refresh the page.',
+          )}
+        </p>
+      ) : null}
+
+      {canManage && teamEmailConfig && !teamEmailConfig.transactionalEmailConfigured && !loading ? (
+        <p
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: 'var(--border)',
+            background: 'var(--surface-2)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {tr(
+            'teamEmailNotConfiguredHint',
+            'Transactional email is not configured on the server (missing RESEND_API_KEY). Invitations are created but invitees will not receive an email until you add a Resend API key in Vercel (or your host) and redeploy. Until then, use “Copy invite link” and send the link manually (e.g. WhatsApp). Also set NEXT_PUBLIC_APP_URL to your site URL so links in emails work.',
+          )}
+        </p>
+      ) : null}
+
+      {canManage &&
+      teamEmailConfig &&
+      teamEmailConfig.transactionalEmailConfigured &&
+      !teamEmailConfig.inviteAppUrlConfigured &&
+      !loading ? (
+        <p
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: 'var(--color-warning-border, var(--border))',
+            background: 'var(--color-warning-bg, var(--surface-2))',
+            color: 'var(--color-warning, var(--text))',
+          }}
+        >
+          {tr(
+            'teamInviteUrlNotConfigured',
+            'NEXT_PUBLIC_APP_URL is not set on the server. Invitation emails may contain broken links. Set it to your production URL (e.g. https://openy-os.com) and redeploy.',
           )}
         </p>
       ) : null}
@@ -1726,30 +1806,36 @@ export default function TeamPage() {
       {/* ── Delete Confirm ────────────────────────────────────────────────── */}
       <Modal
         open={!!deleteMember}
-        onClose={() => setDeleteMember(null)}
-        title="Remove Member"
+        onClose={() => !removingMember && setDeleteMember(null)}
+        title={
+          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Remove member
+          </span>
+        }
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm" style={{ color: 'var(--text)' }}>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
             Remove <strong>{deleteMember?.full_name}</strong> from the team? This cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
             <button
               type="button"
+              disabled={removingMember}
               onClick={() => setDeleteMember(null)}
-              className="h-9 rounded-lg px-4 text-sm font-medium"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+              className="h-9 rounded-lg px-4 text-sm font-medium disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
             >
               {t('cancel')}
             </button>
             <button
               type="button"
+              disabled={removingMember}
               onClick={handleDelete}
-              className="h-9 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="h-9 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: 'var(--color-danger)' }}
             >
-              Remove
+              {removingMember ? 'Removing…' : 'Remove'}
             </button>
           </div>
         </div>
