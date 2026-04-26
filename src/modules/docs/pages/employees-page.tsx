@@ -1121,7 +1121,7 @@ export default function EmployeesPage() {
                                               ? 'text-green-600'
                                               : latest.change_type === 'decrease'
                                                 ? 'text-red-500'
-                                                : 'text-gray-500',
+                                                : 'text-[color:var(--text-secondary)]',
                                           )}
                                         >
                                           {latest.change_type === 'increase'
@@ -1183,30 +1183,34 @@ export default function EmployeesPage() {
                 style={{ borderColor: '#e5e7eb' }}
               >
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.16em] text-slate-500">
+                  <p className="text-xs font-semibold tracking-[0.16em] text-[color:var(--text-secondary)]">
                     {t('docEmpLivePreview')}
                   </p>
-                  <h2 className="text-xl font-bold text-slate-900">{t('docEmpStudioSnapshot')}</h2>
+                  <h2 className="text-xl font-bold text-[color:var(--text-primary)]">
+                    {t('docEmpStudioSnapshot')}
+                  </h2>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                <span className="rounded-full bg-[color:var(--surface-elevated)] px-3 py-1 text-xs font-semibold text-[color:var(--text-secondary)]">
                   {payrollMonth}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewTotal')}
                   </p>
-                  <p className="text-lg font-bold text-slate-900">{employees.length}</p>
+                  <p className="text-lg font-bold text-[color:var(--text-primary)]">
+                    {employees.length}
+                  </p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewActive')}
                   </p>
                   <p className="text-lg font-bold text-emerald-600">{activeCount}</p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewMonthlyPayroll')}
                   </p>
                   <p className="text-lg font-bold text-violet-700">
@@ -1214,14 +1218,14 @@ export default function EmployeesPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewContracts')}
                   </p>
                   <p className="text-lg font-bold text-amber-600">{contractCount}</p>
                 </div>
               </div>
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-700">
+                <h3 className="mb-2 text-sm font-semibold text-[color:var(--text-secondary)]">
                   {t('docEmpTopPayroll')}
                 </h3>
                 <div className="space-y-2">
@@ -1236,20 +1240,22 @@ export default function EmployeesPage() {
                         style={{ borderColor: '#e5e7eb' }}
                       >
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                             {employee.full_name}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-[color:var(--text-secondary)]">
                             {employee.job_title || t('commonEmptyDash')} · {employee.employee_id}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                           {t('docCurrencySar')} {fmtMoney(employee.salary, lang)}
                         </p>
                       </div>
                     ))}
                   {employees.length === 0 ? (
-                    <p className="text-sm text-slate-500">{t('docEmpNoEmployeesYet')}</p>
+                    <p className="text-sm text-[color:var(--text-secondary)]">
+                      {t('docEmpNoEmployeesYet')}
+                    </p>
                   ) : null}
                 </div>
               </div>

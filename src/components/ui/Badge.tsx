@@ -11,9 +11,9 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 const VARIANT_CLASS: Record<NonNullable<BadgeProps['variant']>, string> = {
   default: 'bg-[color:var(--surface-elevated)] text-secondary border-border',
   info: 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/35',
-  success: 'bg-emerald-500/18 text-emerald-950 dark:text-emerald-200 border-emerald-500/35',
-  warning: 'bg-amber-500/18 text-amber-800 dark:text-amber-200 border-amber-500/35',
-  danger: 'bg-rose-500/18 text-rose-800 dark:text-rose-200 border-rose-500/35',
+  success: 'bg-emerald-500/18 text-emerald-600 border-emerald-500/35',
+  warning: 'bg-amber-500/18 text-amber-500 border-amber-500/35',
+  danger: 'bg-rose-500/18 text-rose-500 border-rose-500/35',
 };
 
 export default function Badge({ children, variant = 'default', className, ...props }: BadgeProps) {

@@ -26,12 +26,16 @@ export default function AppError({
         </svg>
       </div>
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Something went wrong</h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+          Something went wrong
+        </h2>
+        <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
           {error.message || 'An unexpected error occurred. Please try again.'}
         </p>
         {error.digest && (
-          <p className="mt-1 font-mono text-xs text-gray-400">Error ID: {error.digest}</p>
+          <p className="text-[color:var(--text-secondary)]/80 mt-1 font-mono text-xs">
+            Error ID: {error.digest}
+          </p>
         )}
       </div>
       <button

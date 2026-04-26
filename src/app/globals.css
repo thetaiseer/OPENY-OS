@@ -3,15 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #090f1b;
-  --bg-surface: color-mix(in srgb, #0f172a 88%, #1e293b 12%);
+  --bg-base: #0a0f1e;
+  --bg-surface: #111827;
   --bg-elevated: color-mix(in srgb, #111827 80%, #1f2937 20%);
   --bg-soft: color-mix(in srgb, #0f172a 66%, transparent);
   --border-subtle: rgba(255, 255, 255, 0.14);
   --border: rgba(148, 163, 184, 0.24);
   --text-primary: #f8fafc;
-  /* Brighter secondary copy for dark surfaces (cards, modals, sidebar). */
-  --text-secondary: #e2e8f0;
+  --text-secondary: #94a3b8;
   --text-tertiary: #cbd5e1;
   --text-muted: #94a3b8;
   --accent: #4f7cff;
@@ -47,15 +46,14 @@
 }
 
 [data-theme='light'] {
-  --bg-base: #f4f7fb;
-  --bg-surface: color-mix(in srgb, #ffffff 94%, #f6f7ff 6%);
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
   --bg-elevated: color-mix(in srgb, #ffffff 78%, #eef2f9 22%);
   --bg-soft: color-mix(in srgb, #e2e8f0 30%, transparent);
   --border-subtle: #e6ebf3;
   --border: #e7ecf4;
   --text-primary: #0f172a;
-  /* Stronger contrast on white/light cards (WCAG-friendly for small text). */
-  --text-secondary: #334155;
+  --text-secondary: #475569;
   --text-tertiary: #475569;
   --text-muted: #475569;
   --accent: #2f5dff;
