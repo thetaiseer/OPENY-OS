@@ -8,10 +8,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
-import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
+import { teamInviteEmail, logEmailSent } from '@/lib/email';
 import { notifyInvitation } from '@/lib/notification-service';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { processEvent } from '@/lib/event-engine';
@@ -216,17 +217,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Domain used for invite links — prefer NEXT_PUBLIC_APP_URL so the link
-  // works in all environments (staging, preview, production).
-  const INVITE_DOMAIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  if (!INVITE_DOMAIN) {
-    console.warn('[team/invite] NEXT_PUBLIC_APP_URL is not set — invite links will be broken');
+  // Invite link base: env first, then production default (https://openy-os.com/invite?token=…)
+  const INVITE_BASE_URL = (
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://openy-os.com'
+  ).replace(/\/$/, '');
+  if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
+    console.warn(
+      '[team/invite] NEXT_PUBLIC_APP_URL is not set — using default https://openy-os.com for invite links',
+    );
   }
 
-  // Sender address: prefer RESEND_FROM_EMAIL, then INVITE_FROM_EMAIL, then default
   const fromEmail =
-    process.env.RESEND_FROM_EMAIL ??
-    process.env.INVITE_FROM_EMAIL ??
+    process.env.RESEND_FROM_EMAIL?.trim() ??
+    process.env.INVITE_FROM_EMAIL?.trim() ??
     'OPENY OS <noreply@openy-os.com>';
 
   const db = getServiceClient();
@@ -313,8 +316,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 5. Send invite email ──────────────────────────────────────────────────
-  const inviteUrl = `${INVITE_DOMAIN}/invite?token=${token}`;
+  // ── 5. Send invite email (Resend SDK) ─────────────────────────────────────
+  const inviteUrl = `${INVITE_BASE_URL}/invite?token=${encodeURIComponent(token)}`;
   const html = teamInviteEmail({
     recipientName: full_name,
     inviterName: auth.profile.name,
@@ -354,12 +357,33 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await sendEmail({
+    const apiKey = process.env.RESEND_API_KEY!.trim();
+    const resend = new Resend(apiKey);
+    const { data: resendResult, error: resendError } = await resend.emails.send({
+      from: fromEmail,
       to: email,
       subject: "You're invited to join OPENY OS",
       html,
+    });
+
+    if (resendError) {
+      const msg = resendError.message ?? JSON.stringify(resendError);
+      console.error('[team/invite] Resend API returned error:', {
+        to: email,
+        invitationId: invitation.id,
+        error: msg,
+      });
+      throw new Error(msg);
+    }
+
+    console.info('[team/invite] Resend invitation email sent successfully', {
+      to: email,
+      invitationId: invitation.id,
+      resendEmailId: resendResult?.id ?? null,
+      inviteUrl,
       from: fromEmail,
     });
+
     await logEmailSent({
       to: email,
       subject: "You're invited to join OPENY OS",
@@ -370,7 +394,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-    console.error('[team/invite] Email send failed:', errMsg);
+    console.error('[team/invite] Invitation email send failed (rolled back invitation)', {
+      to: email,
+      invitationId: invitation.id,
+      error: errMsg,
+      inviteUrl,
+    });
     await logEmailSent({
       to: email,
       subject: "You're invited to join OPENY OS",

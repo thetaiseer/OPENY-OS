@@ -1,8 +1,10 @@
 /**
  * Email notification helper.
- * Uses the Resend API (https://resend.com) — set RESEND_API_KEY env var.
+ * Uses the official Resend Node SDK — set RESEND_API_KEY.
  * Falls back gracefully if not configured.
  */
+
+import { Resend } from 'resend';
 
 export interface EmailMessage {
   to: string | string[];
@@ -11,7 +13,11 @@ export interface EmailMessage {
   from?: string;
 }
 
-const DEFAULT_FROM = process.env.EMAIL_FROM ?? 'OPENY OS <noreply@openy-os.com>';
+const DEFAULT_FROM =
+  process.env.RESEND_FROM_EMAIL?.trim() ??
+  process.env.INVITE_FROM_EMAIL?.trim() ??
+  process.env.EMAIL_FROM ??
+  'OPENY OS <noreply@openy-os.com>';
 
 // ── Startup env check ─────────────────────────────────────────────────────────
 // Runs once when this module is first imported (server startup).
@@ -20,30 +26,27 @@ if (!process.env.RESEND_API_KEY) {
 }
 
 export async function sendEmail(msg: EmailMessage): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     console.warn('[email] RESEND_API_KEY not set — email not sent:', msg.subject);
     return;
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: msg.from ?? DEFAULT_FROM,
-      to: Array.isArray(msg.to) ? msg.to : [msg.to],
-      subject: msg.subject,
-      html: msg.html,
-    }),
+  const resend = new Resend(apiKey);
+  const { data, error } = await resend.emails.send({
+    from: msg.from ?? DEFAULT_FROM,
+    to: Array.isArray(msg.to) ? msg.to : [msg.to],
+    subject: msg.subject,
+    html: msg.html,
   });
 
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error(`Email send failed (${res.status}): ${JSON.stringify(body)}`);
+  if (error) {
+    const detail = error.message ?? JSON.stringify(error);
+    console.error('[email] Resend send failed:', { subject: msg.subject, error: detail });
+    throw new Error(`Email send failed: ${detail}`);
   }
+
+  console.info('[email] Resend send ok:', { subject: msg.subject, id: data?.id ?? null });
 }
 
 // ── HTML templates ────────────────────────────────────────────────────────────
