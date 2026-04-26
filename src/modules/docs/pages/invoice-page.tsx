@@ -12,7 +12,6 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import clsx from 'clsx';
 import {
   type DocsInvoice,
   type InvoiceBranchGroup,
@@ -27,6 +26,7 @@ import {
   DocsEditorCard,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
+import { DocsTabs } from '@/components/docs/DocsUi';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
@@ -972,25 +972,16 @@ export default function InvoicePage() {
             </div>
           ) : null}
 
-          <div className="docs-tabs">
-            {(
-              [
-                ['setup', 'docTabSetup'],
-                ['generator', 'docTabGenerator'],
-                ['data', 'docTabCampaignData'],
-                ['totals', 'docTabTotals'],
-              ] as const
-            ).map(([key, labelKey]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setEditorPanel(key)}
-                className={clsx('docs-tab', editorPanel === key && 'docs-tab-active')}
-              >
-                {t(labelKey)}
-              </button>
-            ))}
-          </div>
+          <DocsTabs
+            value={editorPanel}
+            onChange={setEditorPanel}
+            items={[
+              { value: 'setup', label: t('docTabSetup') },
+              { value: 'generator', label: t('docTabGenerator') },
+              { value: 'data', label: t('docTabCampaignData') },
+              { value: 'totals', label: t('docTabTotals') },
+            ]}
+          />
 
           {editorPanel === 'setup' ? (
             <DocsEditorCard title={t('docCardDocumentSetup')}>
