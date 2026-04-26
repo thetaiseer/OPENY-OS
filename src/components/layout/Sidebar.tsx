@@ -61,7 +61,7 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-2 rounded-control border px-2.5 py-2 text-sm transition-colors',
+                'flex items-center gap-2 rounded-control border px-3 py-2.5 text-sm leading-normal transition-colors',
                 active
                   ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft'
                   : 'border-transparent text-secondary hover:border-border hover:bg-[color:var(--surface-elevated)] hover:text-primary',

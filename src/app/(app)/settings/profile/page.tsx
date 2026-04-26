@@ -300,7 +300,7 @@ export default function SettingsProfilePage() {
                 Currently: {lang === 'en' ? 'English' : 'Arabic'}
               </p>
             </div>
-            <Button type="button" variant="secondary" className="h-9 shrink-0" onClick={toggleLang}>
+            <Button type="button" variant="secondary" className="shrink-0" onClick={toggleLang}>
               Switch to {lang === 'en' ? 'Arabic' : 'English'}
             </Button>
           </div>

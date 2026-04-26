@@ -7,11 +7,7 @@ import Header from '@/components/layout/Header';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
-import AppModal from '@/components/ui/AppModal';
-import Button from '@/components/ui/Button';
-import { useQuickActions, type QuickActionId } from '@/context/quick-actions-context';
-import { useLang } from '@/context/lang-context';
-import { queuePendingQuickAction } from '@/lib/pending-quick-action';
+import GlobalQuickCreate from '@/components/layout/GlobalQuickCreate';
 
 function routePermissionTarget(
   pathname: string,
@@ -59,9 +55,6 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { canView, loading } = usePermissions();
-  const { fallbackAction, clearFallbackAction } = useQuickActions();
-  const { t } = useLang();
-
   const permissionTarget = useMemo(() => routePermissionTarget(pathname), [pathname]);
   const isAllowed = useMemo(() => {
     if (!permissionTarget) return true;
@@ -77,22 +70,6 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     return null;
   }
 
-  const quickActionRoutes: Record<QuickActionId, { href: string; label: string }> = {
-    'add-task': { href: '/tasks/all', label: t('openTasks') },
-    'add-client': { href: '/clients', label: t('openClients') },
-    'add-project': { href: '/projects', label: t('openProjects') },
-    'add-note': { href: '/notes', label: t('openNotes') },
-    'add-content': { href: '/content', label: t('openContent') },
-    'add-asset': { href: '/assets', label: t('openAssets') },
-  };
-
-  const goQuickAction = (action: QuickActionId) => {
-    const target = quickActionRoutes[action];
-    queuePendingQuickAction(action);
-    clearFallbackAction();
-    router.push(target.href);
-  };
-
   return (
     <div className="min-h-screen min-h-screen-dynamic bg-base text-primary">
       <Sidebar />
@@ -103,31 +80,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
         </PageShellProvider>
       </main>
       <MobileBottomNav />
-      <AppModal
-        open={Boolean(fallbackAction)}
-        onClose={clearFallbackAction}
-        title={t('quickAdd')}
-        subtitle={t('openRightPageToAdd')}
-        size="sm"
-      >
-        <div className="space-y-4 text-sm text-secondary">
-          {fallbackAction ? (
-            <Button
-              type="button"
-              variant="primary"
-              className="w-full"
-              onClick={() => goQuickAction(fallbackAction)}
-            >
-              {quickActionRoutes[fallbackAction].label}
-            </Button>
-          ) : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={clearFallbackAction}>
-              {t('cancel')}
-            </Button>
-          </div>
-        </div>
-      </AppModal>
+      <GlobalQuickCreate />
     </div>
   );
 }

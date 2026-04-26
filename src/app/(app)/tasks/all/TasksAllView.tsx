@@ -66,8 +66,6 @@ import {
   getPlatformDisplayColor,
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
-import { consumePendingQuickAction } from '@/lib/pending-quick-action';
-import { useQuickActions } from '@/context/quick-actions-context';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -1397,7 +1395,6 @@ const MUTATION_TIMEOUT_MS = 15_000;
 const INVALIDATION_DELAY_MS = 120;
 
 export default function TasksPage() {
-  const { registerQuickActionHandler } = useQuickActions();
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
@@ -1563,16 +1560,6 @@ export default function TasksPage() {
       }),
     );
   }, [statusFilter, clientFilter, assignedFilter, priorityFilter, dateFilter, searchQuery]);
-
-  useEffect(() => {
-    return registerQuickActionHandler('add-task', () => {
-      setCreateOpen(true);
-    });
-  }, [registerQuickActionHandler, setCreateOpen]);
-
-  useEffect(() => {
-    if (consumePendingQuickAction() === 'add-task') setCreateOpen(true);
-  }, []);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });

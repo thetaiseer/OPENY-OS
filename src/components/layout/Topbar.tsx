@@ -33,7 +33,7 @@ export default function Topbar({ className }: TopbarProps) {
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:min-w-[64px]"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-3 py-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:min-w-[4.5rem]"
             aria-label={lang === 'ar' ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
             onClick={toggleLang}
             title={lang === 'ar' ? 'Switch to English' : 'اللغة العربية'}
@@ -45,7 +45,7 @@ export default function Topbar({ className }: TopbarProps) {
           </button>
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
             aria-label={theme === 'light' ? t('switchToDark') : t('switchToLight')}
             aria-pressed={theme === 'dark'}
             onClick={toggleTheme}
@@ -55,14 +55,14 @@ export default function Topbar({ className }: TopbarProps) {
           </button>
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
             aria-label={t('notifications')}
           >
             <Bell className="h-4 w-4" />
           </button>
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-10 sm:w-10"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
             aria-label={t('profile')}
           >
             <UserCircle2 className="h-5 w-5" />

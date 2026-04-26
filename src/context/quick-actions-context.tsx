@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 export type QuickActionId =
   | 'add-client'
@@ -22,6 +14,7 @@ type QuickActionHandler = () => void;
 
 interface QuickActionsContextValue {
   triggerQuickAction: (action: QuickActionId) => void;
+  /** @deprecated No longer used; kept so existing pages do not break during refactors. */
   registerQuickActionHandler: (action: QuickActionId, handler: QuickActionHandler) => () => void;
   fallbackAction: QuickActionId | null;
   clearFallbackAction: () => void;
@@ -35,27 +28,14 @@ const QuickActionsContext = createContext<QuickActionsContextValue>({
 });
 
 export function QuickActionsProvider({ children }: { children: ReactNode }) {
-  const handlersRef = useRef<Partial<Record<QuickActionId, QuickActionHandler>>>({});
   const [fallbackAction, setFallbackAction] = useState<QuickActionId | null>(null);
 
   const triggerQuickAction = useCallback((action: QuickActionId) => {
-    const handler = handlersRef.current[action];
-    if (handler) {
-      handler();
-      return;
-    }
     setFallbackAction(action);
   }, []);
 
   const registerQuickActionHandler = useCallback(
-    (action: QuickActionId, handler: QuickActionHandler) => {
-      handlersRef.current[action] = handler;
-      return () => {
-        if (handlersRef.current[action] === handler) {
-          delete handlersRef.current[action];
-        }
-      };
-    },
+    (_action: QuickActionId, _handler: QuickActionHandler) => () => {},
     [],
   );
 

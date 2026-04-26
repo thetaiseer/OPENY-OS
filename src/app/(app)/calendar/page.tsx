@@ -334,14 +334,14 @@ export default function CalendarPage() {
         subtitle="View tasks, content, assets, and publishing schedules by date"
         actions={
           <div className="flex items-center gap-2">
-            <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={prevMonth}>
-              <ChevronLeft size={16} className="text-[var(--text)]" />
+            <Button type="button" variant="secondary" size="icon" onClick={prevMonth}>
+              <ChevronLeft size={18} className="text-[var(--text)]" />
             </Button>
             <span className="min-w-[11rem] px-2 text-center text-sm font-semibold text-[var(--text)]">
               {currentPeriodLabel}
             </span>
-            <Button type="button" variant="secondary" className="h-9 w-9 p-0" onClick={nextMonth}>
-              <ChevronRight size={16} className="text-[var(--text)]" />
+            <Button type="button" variant="secondary" size="icon" onClick={nextMonth}>
+              <ChevronRight size={18} className="text-[var(--text)]" />
             </Button>
           </div>
         }

@@ -244,14 +244,14 @@ button {
 
   .openy-modal-btn-primary {
     display: inline-flex;
-    min-height: 2.75rem;
+    min-height: 3rem;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-control);
     border: 1px solid var(--accent);
     background-color: var(--accent);
     box-shadow: 0 10px 24px rgba(47, 93, 255, 0.22);
-    padding: 0.6rem 1rem;
+    padding: 0.75rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: #fff;
@@ -270,7 +270,7 @@ button {
 
   .openy-modal-btn-secondary {
     display: inline-flex;
-    min-height: 2.75rem;
+    min-height: 3rem;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-control);
@@ -279,7 +279,7 @@ button {
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.78) inset,
       0 8px 22px rgba(15, 23, 42, 0.06);
-    padding: 0.6rem 1rem;
+    padding: 0.75rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-primary);

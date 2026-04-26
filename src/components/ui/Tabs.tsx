@@ -28,7 +28,7 @@ export function TabButton({
       role="tab"
       aria-selected={active}
       className={cn(
-        'h-8 rounded-control px-3 text-xs font-semibold transition-colors',
+        'min-h-10 rounded-control px-4 py-2 text-sm font-semibold leading-normal transition-colors',
         active
           ? 'bg-[color:var(--accent)] text-[color:var(--accent-contrast)]'
           : 'text-secondary hover:bg-[color:var(--surface-elevated)] hover:text-primary',

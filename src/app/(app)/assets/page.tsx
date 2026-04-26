@@ -47,14 +47,12 @@ import {
 } from '@/components/ui/AssetsGrid';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
-import { useQuickActions } from '@/context/quick-actions-context';
 import AppModal from '@/components/ui/AppModal';
 import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
-import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -433,8 +431,6 @@ function AssetsPage() {
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
   const { startBatch, isUploading, latestAsset } = useUpload();
-  const { registerQuickActionHandler } = useQuickActions();
-
   // ── Data state ────────────────────────────────────────────────────────────
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -589,17 +585,6 @@ function AssetsPage() {
         setScheduleCounts(counts);
       });
   }, [assets]);
-
-  useEffect(() => {
-    return registerQuickActionHandler('add-asset', () => {
-      if (!canUpload) return;
-      setQuickActionUploadOpen(true);
-    });
-  }, [canUpload, registerQuickActionHandler, setQuickActionUploadOpen]);
-
-  useEffect(() => {
-    if (consumePendingQuickAction() === 'add-asset' && canUpload) setQuickActionUploadOpen(true);
-  }, [canUpload]);
 
   // ── Derived: path depth ───────────────────────────────────────────────────
 
@@ -1173,7 +1158,7 @@ function AssetsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="ml-auto h-8 gap-1 px-2 text-xs"
+                className="ml-auto gap-1.5 text-sm"
                 onClick={goUp}
               >
                 <ChevronLeft size={12} /> Up
@@ -1224,7 +1209,7 @@ function AssetsPage() {
                 ]}
               />
               {hasActiveFilters && (
-                <Button type="button" variant="danger" className="h-10" onClick={clearFilters}>
+                <Button type="button" variant="danger" onClick={clearFilters}>
                   <X size={13} /> Clear
                 </Button>
               )}
@@ -1360,12 +1345,7 @@ function AssetsPage() {
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-9 px-6 text-sm"
-                  onClick={loadMore}
-                >
+                <Button type="button" variant="secondary" className="px-6" onClick={loadMore}>
                   Load More
                 </Button>
               </div>
@@ -1399,12 +1379,7 @@ function AssetsPage() {
             />
             {hasMore && (
               <div className="flex justify-center pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-9 px-6 text-sm"
-                  onClick={loadMore}
-                >
+                <Button type="button" variant="secondary" className="px-6" onClick={loadMore}>
                   Load More
                 </Button>
               </div>

@@ -35,8 +35,6 @@ import {
   getPlatformDisplayColor,
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
-import { useQuickActions } from '@/context/quick-actions-context';
-import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -304,7 +302,6 @@ export default function MyTasksPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
 
   const { data: queryData, isLoading: loading } = useQuery({
@@ -369,16 +366,6 @@ export default function MyTasksPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [showNewTask, setShowNewTask] = useState(false);
-
-  useEffect(() => {
-    return registerQuickActionHandler('add-task', () => {
-      setShowNewTask(true);
-    });
-  }, [registerQuickActionHandler, setShowNewTask]);
-
-  useEffect(() => {
-    if (consumePendingQuickAction() === 'add-task') setShowNewTask(true);
-  }, []);
 
   const memberTasks = useMemo(() => {
     let result = tasks;

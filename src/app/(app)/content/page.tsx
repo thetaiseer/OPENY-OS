@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useState, useCallback, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   FileText,
@@ -17,8 +17,6 @@ import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
 import { createClient as createSupabase } from '@/lib/supabase/client';
-import { useQuickActions } from '@/context/quick-actions-context';
-import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 import NewContentModal from '@/components/content/NewContentModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -166,7 +164,6 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 function ContentPage() {
-  const { registerQuickActionHandler } = useQuickActions();
   const { role } = useAuth();
   const canDeleteContent = role === 'admin' || role === 'owner';
   const { toast } = useToast();
@@ -226,16 +223,6 @@ function ContentPage() {
     },
     [clientFilter, queryClient, statusFilter],
   );
-
-  useEffect(() => {
-    return registerQuickActionHandler('add-content', () => {
-      setNewOpen(true);
-    });
-  }, [registerQuickActionHandler, setNewOpen]);
-
-  useEffect(() => {
-    if (consumePendingQuickAction() === 'add-content') setNewOpen(true);
-  }, []);
 
   async function handleStatusChange(id: string, status: ContentItemStatus) {
     try {

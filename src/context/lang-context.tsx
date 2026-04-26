@@ -1,12 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 type Lang = 'en' | 'ar';
 interface LangContextType {
   lang: Lang;
   toggleLang: () => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   dir: 'ltr' | 'rtl';
 }
 
@@ -152,6 +152,81 @@ const translations: Record<string, Record<string, string>> = {
     newProject: 'New project',
     newNote: 'New note',
     uploadAsset: 'Upload asset',
+    clientsSubtitle: 'Manage your clients and client relationships.',
+    searchClientsPlaceholder: 'Search by name, email or company…',
+    allStatuses: 'All statuses',
+    accountManager: 'Account manager',
+    comingSoon: 'Coming soon',
+    filterSoonPlaceholder: 'Filter (soon)',
+    filterIndustryPlaceholder: 'Filter by industry',
+    noRecentActivity: 'No recent activity',
+    onlyAdminCanCreateClients: 'Only admin or team members can create clients.',
+    requestTimedOut: 'Request timed out. Please try again.',
+    failedCreateClient: 'Failed to create client',
+    clientCreatedSuccess: 'Client "{{name}}" created successfully.',
+    updatedLabel: 'Updated',
+    guestName: 'there',
+    goodMorning: 'Good morning',
+    dashboardSubtitle: "Here's what's happening with your projects today.",
+    statTotalProjects: 'Total projects',
+    statInProgress: 'In progress',
+    statCompleted: 'Completed',
+    statOverdueTasks: 'Overdue tasks',
+    performanceOverview: 'Performance overview',
+    taskCompletionsPrefix: 'Task completions · last',
+    daysWord: 'days',
+    paceLabel: 'pace',
+    completionRateLabel: 'Completion rate',
+    tasksPerDay7d: 'Tasks / day (7d avg)',
+    teamOutput: 'Team output',
+    teammatesTrackedCount: '{{count}} teammates tracked',
+    teammatesTrackedNone: '—',
+    viewAll: 'View all',
+    viewAllArrow: 'View all →',
+    noUpcomingTasks: 'No upcoming tasks',
+    noUpcomingTasksDesc: 'Newly scheduled work will appear here.',
+    noOverdueTasks: 'No overdue tasks',
+    noOverdueTasksDesc: 'Great work. Everything is on track right now.',
+    noClient: 'No client',
+    noRecentActivityTitle: 'No recent activity',
+    noRecentActivityDesc: 'Actions from your team will show up here.',
+    insightsPredictions: 'Insights & predictions',
+    predictionOnTrackBanner:
+      "You're on track to clear {{count}} overdue items if you keep today's pace.",
+    projectsByStatus: 'Projects by status',
+    teamPerformanceMonth: 'Team performance (month)',
+    atRiskNext3Days: 'At-risk (next 3 days)',
+    noAtRiskTasks: 'No at-risk tasks!',
+    atRiskDaysOverdue: '{{days}}d overdue',
+    atRiskDaysLeft: '{{days}}d left',
+    noCompletionsMonth: 'No completions this month',
+    upcomingScheduledPosts: 'Upcoming Scheduled Posts',
+    noScheduledPostsTitle: 'No scheduled posts coming up',
+    noScheduledPostsDesc: 'Once content is scheduled, upcoming posts will appear here.',
+    publishingSchedule: 'Publishing schedule',
+    recentAssets: 'Recent Assets',
+    noAssetsDashTitle: 'No assets yet',
+    noAssetsDashDesc: 'Uploaded files and media previews will appear in this grid.',
+    activeClients: 'Active Clients',
+    noActiveClientsTitle: 'No active clients',
+    noActiveClientsDesc: 'Clients with recent activity will be listed here.',
+    assetUpdated: 'Updated',
+    projectInProgress: 'In progress',
+    projectCompleted: 'Completed',
+    projectPlanning: 'Planning',
+    projectOnHold: 'On hold',
+    noProjectsYet: 'No projects yet',
+    noCompletedTasksPeriod: 'No completed tasks in this period yet.',
+    noAssetsContentDist: 'No assets yet',
+    completionPace7d: 'COMPLETION PACE (7d avg)',
+    tasksPerDayUnit: 'tasks/day',
+    vsPrevWeek: '% vs prev week',
+    overdueRiskTitle: 'OVERDUE RISK',
+    onTrackTitle: 'ON TRACK',
+    onTrackNoOverdue: 'No overdue tasks 🎉',
+    overdueRiskClearedIn: '{{count}} overdue — cleared in ~{{days}}d',
+    overdueRiskCountOnly: '{{count}} overdue',
+    donutTotal: 'Total',
   },
   ar: {
     dashboard: 'لوحة التحكم',
@@ -294,34 +369,119 @@ const translations: Record<string, Record<string, string>> = {
     newProject: 'مشروع جديد',
     newNote: 'ملاحظة جديدة',
     uploadAsset: 'رفع ملف',
+    clientsSubtitle: 'إدارة عملائك وعلاقاتهم.',
+    searchClientsPlaceholder: 'ابحث بالاسم أو البريد أو الشركة…',
+    allStatuses: 'كل الحالات',
+    accountManager: 'مدير الحساب',
+    comingSoon: 'قريبًا',
+    filterSoonPlaceholder: 'تصفية (قريبًا)',
+    filterIndustryPlaceholder: 'تصفية حسب القطاع',
+    noRecentActivity: 'لا يوجد نشاط حديث',
+    onlyAdminCanCreateClients: 'يُسمح للمسؤول أو أعضاء الفريق فقط بإنشاء عملاء.',
+    requestTimedOut: 'انتهت مهلة الطلب. حاول مرة أخرى.',
+    failedCreateClient: 'تعذّر إنشاء العميل',
+    clientCreatedSuccess: 'تم إنشاء العميل «{{name}}» بنجاح.',
+    updatedLabel: 'تم التحديث',
+    guestName: 'هناك',
+    goodMorning: 'صباح الخير',
+    dashboardSubtitle: 'إليك ملخص مشاريعك اليوم.',
+    statTotalProjects: 'إجمالي المشاريع',
+    statInProgress: 'قيد التنفيذ',
+    statCompleted: 'مكتملة',
+    statOverdueTasks: 'مهام متأخرة',
+    performanceOverview: 'نظرة على الأداء',
+    taskCompletionsPrefix: 'إنجاز المهام · آخر',
+    daysWord: 'أيام',
+    paceLabel: 'إيقاع',
+    completionRateLabel: 'معدل الإنجاز',
+    tasksPerDay7d: 'مهام / يوم (متوسط 7 أيام)',
+    teamOutput: 'إنتاج الفريق',
+    teammatesTrackedCount: 'يُتابَع {{count}} من الزملاء',
+    teammatesTrackedNone: '—',
+    viewAll: 'عرض الكل',
+    viewAllArrow: 'عرض الكل ←',
+    noUpcomingTasks: 'لا مهام قادمة',
+    noUpcomingTasksDesc: 'ستظهر هنا المهام المجدولة حديثًا.',
+    noOverdueTasks: 'لا مهام متأخرة',
+    noOverdueTasksDesc: 'عمل رائع. كل شيء في موعده الآن.',
+    noClient: 'بدون عميل',
+    noRecentActivityTitle: 'لا يوجد نشاط حديث',
+    noRecentActivityDesc: 'سيظهر هنا نشاط فريقك.',
+    insightsPredictions: 'رؤى وتوقعات',
+    predictionOnTrackBanner:
+      'أنت على المسار الصحيح لتصفية {{count}} عنصر متأخر إذا حافظت على وتيرة اليوم.',
+    projectsByStatus: 'المشاريع حسب الحالة',
+    teamPerformanceMonth: 'أداء الفريق (شهر)',
+    atRiskNext3Days: 'معرّض للخطر (الثلاثة أيام القادمة)',
+    noAtRiskTasks: 'لا توجد مهام معرّضة للخطر!',
+    atRiskDaysOverdue: 'متأخر {{days}} يومًا',
+    atRiskDaysLeft: 'متبقٍّ {{days}} يومًا',
+    noCompletionsMonth: 'لا إنجازات هذا الشهر',
+    upcomingScheduledPosts: 'المنشورات المجدولة القادمة',
+    noScheduledPostsTitle: 'لا منشورات مجدولة قريبًا',
+    noScheduledPostsDesc: 'عند جدولة المحتوى ستظهر المنشورات هنا.',
+    publishingSchedule: 'جدول النشر',
+    recentAssets: 'أحدث الملفات',
+    noAssetsDashTitle: 'لا ملفات بعد',
+    noAssetsDashDesc: 'ستظهر الملفات والمعاينات في هذه الشبكة.',
+    activeClients: 'العملاء النشطون',
+    noActiveClientsTitle: 'لا عملاء نشطين',
+    noActiveClientsDesc: 'سيُدرج هنا العملاء ذوو النشاط الحديث.',
+    assetUpdated: 'تم التحديث',
+    projectInProgress: 'قيد التنفيذ',
+    projectCompleted: 'مكتملة',
+    projectPlanning: 'تخطيط',
+    projectOnHold: 'معلّقة',
+    noProjectsYet: 'لا مشاريع بعد',
+    noCompletedTasksPeriod: 'لا مهام مكتملة في هذه الفترة بعد.',
+    noAssetsContentDist: 'لا ملفات بعد',
+    completionPace7d: 'وتيرة الإنجاز (متوسط 7 أيام)',
+    tasksPerDayUnit: 'مهمة/يوم',
+    vsPrevWeek: '% مقارنة بالأسبوع السابق',
+    overdueRiskTitle: 'مخاطر التأخير',
+    onTrackTitle: 'على المسار',
+    onTrackNoOverdue: 'لا توجد مهام متأخرة 🎉',
+    overdueRiskClearedIn: '{{count}} متأخرة — تُصفى في ~{{days}} يومًا',
+    overdueRiskCountOnly: '{{count}} متأخرة',
+    donutTotal: 'الإجمالي',
   },
 };
 
 const LangContext = createContext<LangContextType | null>(null);
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useState<Lang>(() => {
+    if (typeof window === 'undefined') return 'en';
+    const saved = localStorage.getItem('lang');
+    if (saved === 'ar' || saved === 'en') return saved;
+    return 'en';
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem('lang') as Lang | null;
-    if (saved) {
-      setLang(saved);
-      document.documentElement.setAttribute('lang', saved);
-      document.documentElement.setAttribute('dir', saved === 'ar' ? 'rtl' : 'ltr');
-    }
-  }, []);
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }, [lang]);
 
   const toggleLang = () => {
     setLang((prev) => {
       const next = prev === 'en' ? 'ar' : 'en';
       localStorage.setItem('lang', next);
-      document.documentElement.setAttribute('lang', next);
-      document.documentElement.setAttribute('dir', next === 'ar' ? 'rtl' : 'ltr');
       return next;
     });
   };
 
-  const t = (key: string) => translations[lang]?.[key] ?? key;
+  const t = useCallback(
+    (key: string, vars?: Record<string, string | number>) => {
+      let s = translations[lang]?.[key] ?? translations.en[key] ?? key;
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+          s = s.replaceAll(`{{${k}}}`, String(v));
+        }
+      }
+      return s;
+    },
+    [lang],
+  );
 
   return (
     <LangContext.Provider value={{ lang, toggleLang, t, dir: lang === 'ar' ? 'rtl' : 'ltr' }}>

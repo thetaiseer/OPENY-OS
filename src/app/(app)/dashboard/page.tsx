@@ -51,10 +51,11 @@ const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 // ── Team performance ──────────────────────────────────────────────────────────
 
 function TeamPerformance({ data }: { data: { id: string; name: string; completed: number }[] }) {
+  const { t } = useLang();
   if (!data.length)
     return (
       <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-        No completions this month
+        {t('noCompletionsMonth')}
       </p>
     );
   const chartData = data
@@ -104,41 +105,42 @@ function OverdueRisk({
     client?: { name: string; slug?: string } | null;
   }[];
 }) {
+  const { t } = useLang();
   if (!tasks.length)
     return (
       <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-        🎉 No at-risk tasks!
+        🎉 {t('noAtRiskTasks')}
       </p>
     );
   return (
     <div className="space-y-2">
-      {tasks.map((t) => {
-        const daysLeft = t.due_date
-          ? Math.ceil((new Date(t.due_date).getTime() - Date.now()) / 86400000)
+      {tasks.map((task) => {
+        const daysLeft = task.due_date
+          ? Math.ceil((new Date(task.due_date).getTime() - Date.now()) / 86400000)
           : null;
         const isOverdue = daysLeft !== null && daysLeft < 0;
         return (
           <div
-            key={t.id}
+            key={task.id}
             className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
             style={{ background: isOverdue ? 'rgba(239,68,68,0.07)' : 'rgba(217,119,6,0.07)' }}
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {t.title}
+                {task.title}
               </p>
-              {t.client &&
-                (t.client.slug ? (
+              {task.client &&
+                (task.client.slug ? (
                   <Link
-                    href={`/clients/${t.client.slug}/tasks`}
+                    href={`/clients/${task.client.slug}/tasks`}
                     className="text-xs hover:underline"
                     style={{ color: 'var(--accent)' }}
                   >
-                    {t.client.name}
+                    {task.client.name}
                   </Link>
                 ) : (
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {t.client.name}
+                    {task.client.name}
                   </p>
                 ))}
             </div>
@@ -147,7 +149,9 @@ function OverdueRisk({
                 className="shrink-0 text-xs font-semibold"
                 style={{ color: isOverdue ? '#ef4444' : '#d97706' }}
               >
-                {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                {isOverdue
+                  ? t('atRiskDaysOverdue', { days: Math.abs(daysLeft) })
+                  : t('atRiskDaysLeft', { days: daysLeft })}
               </span>
             )}
           </div>
@@ -166,21 +170,24 @@ function Predictions({
   trends: { completed: number }[];
   overdueTasks: number;
 }) {
+  const { t } = useLang();
   const recentPace = trends.slice(-7).reduce((s, d) => s + d.completed, 0) / 7;
   const olderPace = trends.slice(-14, -7).reduce((s, d) => s + d.completed, 0) / 7;
   const paceChange = olderPace > 0 ? ((recentPace - olderPace) / olderPace) * 100 : 0;
+  const clearDays = recentPace > 0 ? Math.ceil(overdueTasks / recentPace) : 0;
   return (
     <div className="space-y-3">
       <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
         <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          COMPLETION PACE (7d avg)
+          {t('completionPace7d')}
         </p>
         <p className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-          {recentPace.toFixed(1)} tasks/day
+          {recentPace.toFixed(1)} {t('tasksPerDayUnit')}
         </p>
         {olderPace > 0 && (
           <p className="text-xs" style={{ color: paceChange >= 0 ? '#16a34a' : '#ef4444' }}>
-            {paceChange >= 0 ? '▲' : '▼'} {Math.abs(paceChange).toFixed(0)}% vs prev week
+            {paceChange >= 0 ? '▲' : '▼'} {Math.abs(paceChange).toFixed(0)}
+            {t('vsPrevWeek')}
           </p>
         )}
       </div>
@@ -192,12 +199,14 @@ function Predictions({
           className="mb-1 text-xs font-semibold"
           style={{ color: overdueTasks > 0 ? '#ef4444' : '#16a34a' }}
         >
-          {overdueTasks > 0 ? 'OVERDUE RISK' : 'ON TRACK'}
+          {overdueTasks > 0 ? t('overdueRiskTitle') : t('onTrackTitle')}
         </p>
         <p className="text-sm" style={{ color: 'var(--text)' }}>
           {overdueTasks > 0
-            ? `${overdueTasks} overdue${recentPace > 0 ? ` — cleared in ~${Math.ceil(overdueTasks / recentPace)}d` : ''}`
-            : 'No overdue tasks 🎉'}
+            ? recentPace > 0
+              ? t('overdueRiskClearedIn', { count: overdueTasks, days: clearDays })
+              : t('overdueRiskCountOnly', { count: overdueTasks })
+            : t('onTrackNoOverdue')}
         </p>
       </div>
     </div>
@@ -207,10 +216,11 @@ function Predictions({
 // ── Content distribution ──────────────────────────────────────────────────────
 
 function ContentDistribution({ items }: { items: { label: string; count: number }[] }) {
+  const { t } = useLang();
   if (!items.length) {
     return (
       <p className="py-10 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-        No assets yet
+        {t('noAssetsContentDist')}
       </p>
     );
   }
@@ -248,13 +258,14 @@ function ProjectsStatusDonut({
   data,
   total,
 }: {
-  data: { name: string; value: number }[];
+  data: { name: string; value: number; id?: string }[];
   total: number;
 }) {
+  const { t } = useLang();
   if (!total) {
     return (
       <p className="py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-        No projects yet
+        {t('noProjectsYet')}
       </p>
     );
   }
@@ -272,7 +283,10 @@ function ProjectsStatusDonut({
               paddingAngle={2}
             >
               {data.map((entry, index) => (
-                <Cell key={entry.name} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                <Cell
+                  key={entry.id ?? entry.name}
+                  fill={DONUT_COLORS[index % DONUT_COLORS.length]}
+                />
               ))}
             </Pie>
             <Tooltip
@@ -289,10 +303,12 @@ function ProjectsStatusDonut({
       <div className="w-full max-w-xs space-y-2">
         <p className="text-center text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
           {total}
-          <span className="ml-1 text-sm font-semibold text-[var(--text-secondary)]">Total</span>
+          <span className="ml-1 text-sm font-semibold text-[var(--text-secondary)]">
+            {t('donutTotal')}
+          </span>
         </p>
         {data.map((d, i) => (
-          <div key={d.name} className="flex items-center justify-between text-sm">
+          <div key={d.id ?? d.name} className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
               <span
                 className="h-2.5 w-2.5 rounded-full"
@@ -311,8 +327,10 @@ function ProjectsStatusDonut({
 }
 
 function PerformanceLineChart({ data }: { data: { date: string; completed: number }[] }) {
+  const { t, lang } = useLang();
+  const locale = lang === 'ar' ? 'ar' : 'en-US';
   const chartData = data.map((d) => ({
-    name: new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' }),
+    name: new Date(d.date).toLocaleDateString(locale, { weekday: 'short' }),
     completed: d.completed,
   }));
   const maxCompleted = Math.max(0, ...chartData.map((d) => d.completed));
@@ -359,7 +377,7 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
       </ResponsiveContainer>
       {allZero ? (
         <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
-          No completed tasks in this period yet.
+          {t('noCompletedTasksPeriod')}
         </p>
       ) : null}
     </div>
@@ -370,7 +388,7 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { triggerQuickAction } = useQuickActions();
   const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
 
@@ -389,9 +407,9 @@ export default function DashboardPage() {
     staleTime: 120_000,
   });
 
-  const displayName = profileDisplayName?.trim() || user?.name?.trim() || 'there';
+  const displayName = profileDisplayName?.trim() || user?.name?.trim() || t('guestName');
   const firstName = displayName.includes(' ')
-    ? (displayName.split(/\s+/)[0] ?? 'there')
+    ? (displayName.split(/\s+/)[0] ?? t('guestName'))
     : displayName;
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -554,12 +572,12 @@ export default function DashboardPage() {
       else if (p.status === 'on_hold') onHold += 1;
     }
     return [
-      { name: 'In progress', value: active },
-      { name: 'Completed', value: completed },
-      { name: 'Planning', value: planning },
-      { name: 'On hold', value: onHold },
+      { id: 'in_progress', name: t('projectInProgress'), value: active },
+      { id: 'completed', name: t('projectCompleted'), value: completed },
+      { id: 'planning', name: t('projectPlanning'), value: planning },
+      { id: 'on_hold', name: t('projectOnHold'), value: onHold },
     ].filter((d) => d.value > 0);
-  }, [projectRows]);
+  }, [projectRows, t]);
 
   const totalProjects = projectRows.length;
 
@@ -617,8 +635,8 @@ export default function DashboardPage() {
   return (
     <PageShell className="space-y-8">
       <PageHeader
-        title={`Good morning, ${firstName} 👋`}
-        subtitle="Here's what's happening with your projects today."
+        title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
+        subtitle={t('dashboardSubtitle')}
         actions={
           <>
             <Button
@@ -626,14 +644,14 @@ export default function DashboardPage() {
               variant="primary"
               onClick={() => triggerQuickAction('add-client')}
             >
-              + New client
+              + {t('newClient')}
             </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={() => triggerQuickAction('add-task')}
             >
-              New task
+              {t('newTask')}
             </Button>
           </>
         }
@@ -644,28 +662,28 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label="Total projects"
+            label={t('statTotalProjects')}
             value={totalProjects}
             icon={<FolderKanban size={20} />}
             color="blue"
             trend={{ value: '12%', positive: true }}
           />
           <StatCard
-            label="In progress"
-            value={donutData.find((d) => d.name === 'In progress')?.value ?? 0}
+            label={t('statInProgress')}
+            value={donutData.find((d) => d.id === 'in_progress')?.value ?? 0}
             icon={<TrendingUp size={20} />}
             color="mint"
             trend={{ value: '8%', positive: true }}
           />
           <StatCard
-            label="Completed"
-            value={donutData.find((d) => d.name === 'Completed')?.value ?? 0}
+            label={t('statCompleted')}
+            value={donutData.find((d) => d.id === 'completed')?.value ?? 0}
             icon={<CheckSquare size={20} />}
             color="green"
             trend={{ value: '20%', positive: true }}
           />
           <StatCard
-            label="Overdue tasks"
+            label={t('statOverdueTasks')}
             value={stats?.overdueTasks ?? 0}
             icon={<AlertTriangle size={20} />}
             color="rose"
@@ -677,13 +695,13 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="mb-2 items-center">
           <div>
-            <CardTitle className="!text-lg">Performance overview</CardTitle>
+            <CardTitle className="!text-lg">{t('performanceOverview')}</CardTitle>
             <CardDescription>
-              Task completions · last {Math.min(30, trendsData?.length ?? 0)} days
+              {t('taskCompletionsPrefix')} {Math.min(30, trendsData?.length ?? 0)} {t('daysWord')}
             </CardDescription>
           </div>
-          <Badge variant="info" className="px-3 py-1 text-sm font-semibold">
-            {completionRate}% pace
+          <Badge variant="info" className="text-sm font-semibold">
+            {completionRate}% {t('paceLabel')}
           </Badge>
         </CardHeader>
         <CardContent>
@@ -701,7 +719,7 @@ export default function DashboardPage() {
                 className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                Completion rate
+                {t('completionRateLabel')}
               </p>
               <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
                 {completionRate}%
@@ -712,7 +730,7 @@ export default function DashboardPage() {
                 className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                Tasks / day (7d avg)
+                {t('tasksPerDay7d')}
               </p>
               <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
                 {recentPace.toFixed(1)}
@@ -723,10 +741,12 @@ export default function DashboardPage() {
                 className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                Team output
+                {t('teamOutput')}
               </p>
               <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {teamPerf?.length ? `${teamPerf.length} teammates tracked` : '—'}
+                {teamPerf?.length
+                  ? t('teammatesTrackedCount', { count: teamPerf.length })
+                  : t('teammatesTrackedNone')}
               </p>
             </div>
           </div>
@@ -736,13 +756,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="mb-4 items-center">
-            <CardTitle className="!text-lg">Tasks</CardTitle>
+            <CardTitle className="!text-lg">{t('tasks')}</CardTitle>
             <Link
               href="/tasks/all"
               className="text-xs font-semibold hover:underline"
               style={{ color: 'var(--accent)' }}
             >
-              View all →
+              {t('viewAllArrow')}
             </Link>
           </CardHeader>
           <CardContent>
@@ -757,7 +777,7 @@ export default function DashboardPage() {
                 }}
                 onClick={() => setTaskTab('upcoming')}
               >
-                Upcoming
+                {t('upcoming')}
               </button>
               <button
                 type="button"
@@ -769,18 +789,16 @@ export default function DashboardPage() {
                 }}
                 onClick={() => setTaskTab('overdue')}
               >
-                Overdue ({overdueTasksList.length})
+                {t('overdue')} ({overdueTasksList.length})
               </button>
             </div>
             <div className="space-y-2">
               {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
                 <EmptyState
                   icon={CheckSquare}
-                  title={taskTab === 'upcoming' ? 'No upcoming tasks' : 'No overdue tasks'}
+                  title={taskTab === 'upcoming' ? t('noUpcomingTasks') : t('noOverdueTasks')}
                   description={
-                    taskTab === 'upcoming'
-                      ? 'Newly scheduled work will appear here.'
-                      : 'Great work. Everything is on track right now.'
+                    taskTab === 'upcoming' ? t('noUpcomingTasksDesc') : t('noOverdueTasksDesc')
                   }
                 />
               ) : (
@@ -799,9 +817,9 @@ export default function DashboardPage() {
                         {task.title}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {task.client?.name ?? 'No client'}
+                        {task.client?.name ?? t('noClient')}
                         {task.due_date
-                          ? ` · ${new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                          ? ` · ${new Date(task.due_date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US', { month: 'short', day: 'numeric' })}`
                           : ''}
                       </p>
                     </div>
@@ -826,8 +844,8 @@ export default function DashboardPage() {
             ) : activitiesData.length === 0 ? (
               <EmptyState
                 icon={Activity}
-                title="No recent activity"
-                description="Actions from your team will show up here."
+                title={t('noRecentActivityTitle')}
+                description={t('noRecentActivityDesc')}
               />
             ) : (
               <div className="space-y-4">
@@ -844,7 +862,7 @@ export default function DashboardPage() {
                         {a.description}
                       </p>
                       <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                        {new Date(a.created_at).toLocaleString(undefined, {
+                        {new Date(a.created_at).toLocaleString(lang === 'ar' ? 'ar' : 'en-US', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
@@ -862,7 +880,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="mb-4">
-          <CardTitle className="!text-lg">Insights &amp; predictions</CardTitle>
+          <CardTitle className="!text-lg">{t('insightsPredictions')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -884,8 +902,7 @@ export default function DashboardPage() {
                 className="text-center text-base font-semibold sm:text-left"
                 style={{ color: 'var(--text)' }}
               >
-                You&apos;re on track to clear {Math.max(stats?.overdueTasks ?? 0, 0)} overdue items
-                if you keep today&apos;s pace.
+                {t('predictionOnTrackBanner', { count: Math.max(stats?.overdueTasks ?? 0, 0) })}
               </p>
             </div>
             <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
@@ -896,7 +913,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader className="mb-4">
-            <CardTitle className="!text-lg">Projects by status</CardTitle>
+            <CardTitle className="!text-lg">{t('projectsByStatus')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ProjectsStatusDonut data={donutData} total={totalProjects} />
@@ -904,7 +921,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="mb-4">
-            <CardTitle className="!text-lg">Quick actions</CardTitle>
+            <CardTitle className="!text-lg">{t('quickActions')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {[
@@ -937,7 +954,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="mb-4">
-          <CardTitle className="!text-lg">Team performance (month)</CardTitle>
+          <CardTitle className="!text-lg">{t('teamPerformanceMonth')}</CardTitle>
         </CardHeader>
         <CardContent>
           {teamPerf ? (
@@ -952,7 +969,7 @@ export default function DashboardPage() {
         <CardHeader className="mb-4">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} style={{ color: 'var(--color-warning)' }} />
-            <CardTitle className="!text-lg">At-risk (next 3 days)</CardTitle>
+            <CardTitle className="!text-lg">{t('atRiskNext3Days')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -973,7 +990,7 @@ export default function DashboardPage() {
         <CardHeader className="mb-4">
           <div className="flex items-center gap-2">
             <CalendarDays size={18} style={{ color: 'var(--accent)' }} />
-            <CardTitle className="!text-lg">Upcoming Scheduled Posts</CardTitle>
+            <CardTitle className="!text-lg">{t('upcomingScheduledPosts')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -986,8 +1003,8 @@ export default function DashboardPage() {
           ) : scheduled.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
-              title="No scheduled posts coming up"
-              description="Once content is scheduled, upcoming posts will appear here."
+              title={t('noScheduledPostsTitle')}
+              description={t('noScheduledPostsDesc')}
             />
           ) : (
             <div className="space-y-3">
@@ -1001,7 +1018,7 @@ export default function DashboardPage() {
                     <Send size={16} style={{ color: 'var(--accent)' }} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
-                        {s.asset?.name ?? s.caption ?? 'Publishing schedule'}
+                        {s.asset?.name ?? s.caption ?? t('publishingSchedule')}
                       </p>
                       {s.asset?.client_name && (
                         <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -1016,7 +1033,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="shrink-0 text-xs font-medium" style={{ color: 'var(--accent)' }}>
-                    {new Date(s.scheduled_date).toLocaleDateString(undefined, {
+                    {new Date(s.scheduled_date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US', {
                       month: 'short',
                       day: 'numeric',
                     })}
@@ -1036,14 +1053,14 @@ export default function DashboardPage() {
           <CardHeader className="mb-4 items-center">
             <div className="flex items-center gap-2">
               <ImageIcon size={16} style={{ color: 'var(--accent)' }} />
-              <CardTitle className="!text-base !font-semibold">Recent Assets</CardTitle>
+              <CardTitle className="!text-base !font-semibold">{t('recentAssets')}</CardTitle>
             </div>
             <Link
               href="/assets"
               className="text-xs transition-opacity hover:opacity-70"
               style={{ color: 'var(--accent)' }}
             >
-              View all
+              {t('viewAll')}
             </Link>
           </CardHeader>
           <CardContent>
@@ -1056,8 +1073,8 @@ export default function DashboardPage() {
             ) : recentAssets.length === 0 ? (
               <EmptyState
                 icon={ImageIcon}
-                title="No assets yet"
-                description="Uploaded files and media previews will appear in this grid."
+                title={t('noAssetsDashTitle')}
+                description={t('noAssetsDashDesc')}
               />
             ) : (
               <div className="grid grid-cols-3 gap-2">
@@ -1114,14 +1131,14 @@ export default function DashboardPage() {
           <CardHeader className="mb-4 items-center">
             <div className="flex items-center gap-2">
               <Users2 size={16} style={{ color: 'var(--accent)' }} />
-              <CardTitle className="!text-base !font-semibold">Active Clients</CardTitle>
+              <CardTitle className="!text-base !font-semibold">{t('activeClients')}</CardTitle>
             </div>
             <Link
               href="/clients"
               className="text-xs transition-opacity hover:opacity-70"
               style={{ color: 'var(--accent)' }}
             >
-              View all
+              {t('viewAll')}
             </Link>
           </CardHeader>
           <CardContent>
@@ -1134,8 +1151,8 @@ export default function DashboardPage() {
             ) : activeClients.length === 0 ? (
               <EmptyState
                 icon={Users2}
-                title="No active clients"
-                description="Clients with recent activity will be listed here."
+                title={t('noActiveClientsTitle')}
+                description={t('noActiveClientsDesc')}
               />
             ) : (
               <div className="space-y-2">
@@ -1157,15 +1174,18 @@ export default function DashboardPage() {
                         {client.name}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        Updated{' '}
-                        {new Date(client.updated_at).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {t('assetUpdated')}{' '}
+                        {new Date(client.updated_at).toLocaleDateString(
+                          lang === 'ar' ? 'ar' : 'en-US',
+                          {
+                            month: 'short',
+                            day: 'numeric',
+                          },
+                        )}
                       </p>
                     </div>
                     <Badge variant="success" className="shrink-0 text-[10px]">
-                      active
+                      {t('active')}
                     </Badge>
                   </Link>
                 ))}

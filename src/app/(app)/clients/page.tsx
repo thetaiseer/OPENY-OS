@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -29,33 +29,13 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
-import { useQuickActions } from '@/context/quick-actions-context';
-import { consumePendingQuickAction } from '@/lib/pending-quick-action';
+import { formatRelativeTime } from '@/lib/relative-time';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
   if (s === 'inactive') return 'default' as const;
   return 'info' as const;
 };
-
-/** Lightweight relative-time formatter (no external dep). */
-function formatRelative(iso: string): string {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const seconds = Math.floor(diff / 1000);
-    if (seconds < 60) return 'Just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
-}
 
 interface ClientStats {
   assets: number;
@@ -66,11 +46,10 @@ interface ClientStats {
 }
 
 function ClientsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { registerQuickActionHandler } = useQuickActions();
   const queryClient = useQueryClient();
   const canManageClients =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
@@ -190,16 +169,6 @@ function ClientsPage() {
     });
   }, [clients, search, statusFilter, industryFilter]);
 
-  useEffect(() => {
-    return registerQuickActionHandler('add-client', () => {
-      setModalOpen(true);
-    });
-  }, [registerQuickActionHandler, setModalOpen]);
-
-  useEffect(() => {
-    if (consumePendingQuickAction() === 'add-client') setModalOpen(true);
-  }, []);
-
   const logActivity = (description: string, clientId?: string) => {
     void supabase
       .from('activities')
@@ -221,7 +190,7 @@ function ClientsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageClients) {
-      setSaveError('Only admin or team members can create clients.');
+      setSaveError(t('onlyAdminCanCreateClients'));
       return;
     }
     setSaving(true);
@@ -234,10 +203,7 @@ function ClientsPage() {
 
     try {
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
-        timeoutHandle = setTimeout(
-          () => reject(new Error('Request timed out. Please try again.')),
-          timeoutMs,
-        );
+        timeoutHandle = setTimeout(() => reject(new Error(t('requestTimedOut'))), timeoutMs);
         fetch('/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -260,7 +226,7 @@ function ClientsPage() {
 
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
-        const msg = result.error ?? 'Failed to create client';
+        const msg = result.error ?? t('failedCreateClient');
         throw new Error(`${msg}${step}`);
       }
 
@@ -298,7 +264,7 @@ function ClientsPage() {
         });
         router.push(`/clients/${createdClientRouteKey}`);
       } else {
-        toast(`Client "${form.name}" created successfully.`, 'success');
+        toast(t('clientCreatedSuccess', { name: form.name }), 'success');
 
         void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       }
@@ -307,7 +273,7 @@ function ClientsPage() {
       const message =
         err instanceof Error
           ? err.message
-          : ((err as { message?: string })?.message ?? 'Failed to create client');
+          : ((err as { message?: string })?.message ?? t('failedCreateClient'));
       setSaveError(message);
     } finally {
       // Always clear the timeout and reset loading — no matter what happened above.
@@ -320,12 +286,12 @@ function ClientsPage() {
     <PageShell>
       <PageHeader
         title={t('clients')}
-        subtitle="Manage your clients and client relationships."
+        subtitle={t('clientsSubtitle')}
         actions={
           canManageClients ? (
             <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
               <Plus size={16} />
-              Add client
+              {t('newClient')}
             </Button>
           ) : undefined
         }
@@ -343,20 +309,20 @@ function ClientsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email or company…"
+              placeholder={t('searchClientsPlaceholder')}
               className="pl-9"
             />
           </div>
           <div className="w-full min-w-[140px] sm:w-44">
             <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-              Status
+              {t('status')}
             </p>
             <SelectDropdown
               fullWidth
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: 'all', label: 'All statuses' },
+                { value: 'all', label: t('allStatuses') },
                 { value: 'active', label: t('active') },
                 { value: 'inactive', label: t('inactive') },
                 { value: 'prospect', label: t('prospect') },
@@ -365,23 +331,23 @@ function ClientsPage() {
           </div>
           <div className="w-full min-w-[160px] sm:w-48">
             <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-              Industry
+              {t('industry')}
             </p>
             <Input
               type="text"
               value={industryFilter}
               onChange={(e) => setIndustryFilter(e.target.value)}
-              placeholder="Filter industry"
+              placeholder={t('filterIndustryPlaceholder')}
             />
           </div>
           <div className="w-full min-w-[180px] sm:w-56">
             <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-              Account manager
+              {t('accountManager')}
             </p>
             <Input
               disabled
-              title="Coming soon"
-              placeholder="Filter (soon)"
+              title={t('comingSoon')}
+              placeholder={t('filterSoonPlaceholder')}
               className="cursor-not-allowed opacity-60"
             />
           </div>
@@ -519,9 +485,9 @@ function ClientsPage() {
                   style={{ background: 'var(--surface-2)' }}
                 >
                   {[
-                    { icon: <ImageIcon size={13} />, label: 'Assets', value: stats.assets },
-                    { icon: <CheckSquare size={13} />, label: 'Tasks', value: stats.tasks },
-                    { icon: <FileText size={13} />, label: 'Content', value: stats.content },
+                    { icon: <ImageIcon size={13} />, label: t('assets'), value: stats.assets },
+                    { icon: <CheckSquare size={13} />, label: t('tasks'), value: stats.tasks },
+                    { icon: <FileText size={13} />, label: t('content'), value: stats.content },
                   ].map(({ icon, label, value }) => (
                     <div key={label} className="flex flex-col items-center gap-0.5">
                       <div
@@ -554,15 +520,17 @@ function ClientsPage() {
                           {stats.lastDesc.length > 48
                             ? stats.lastDesc.slice(0, 48) + '…'
                             : stats.lastDesc}{' '}
-                          &middot; {formatRelative(stats.lastActivity)}
+                          &middot; {formatRelativeTime(stats.lastActivity, lang)}
                         </>
                       ) : (
-                        <>Updated {formatRelative(stats.lastActivity)}</>
+                        <>
+                          {t('updatedLabel')} {formatRelativeTime(stats.lastActivity, lang)}
+                        </>
                       )}
                     </p>
                   ) : (
                     <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>
-                      No recent activity
+                      {t('noRecentActivity')}
                     </p>
                   )}
                 </div>
@@ -578,7 +546,7 @@ function ClientsPage() {
                       textDecoration: 'none',
                     }}
                   >
-                    <FolderOpen size={12} /> Open
+                    <FolderOpen size={12} /> {t('open')}
                   </a>
                   <a
                     href={`${baseClientHref}/assets`}
@@ -590,7 +558,7 @@ function ClientsPage() {
                       textDecoration: 'none',
                     }}
                   >
-                    <ImageIcon size={11} /> Assets
+                    <ImageIcon size={11} /> {t('assets')}
                   </a>
                   <a
                     href={`${baseClientHref}/tasks`}
@@ -602,7 +570,7 @@ function ClientsPage() {
                       textDecoration: 'none',
                     }}
                   >
-                    <CheckSquare size={11} /> Tasks
+                    <CheckSquare size={11} /> {t('tasks')}
                   </a>
                 </div>
               </div>

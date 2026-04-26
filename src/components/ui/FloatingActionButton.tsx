@@ -18,7 +18,7 @@ type FloatingActionButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export default function FloatingActionButton({
-  icon = <Plus className="h-5 w-5" />,
+  icon = <Plus className="h-6 w-6" />,
   className,
   ...props
 }: FloatingActionButtonProps) {
@@ -60,13 +60,16 @@ export default function FloatingActionButton({
     <div
       ref={rootRef}
       className={cn(
-        'fixed bottom-[calc(4.35rem+env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] z-50',
+        // Desktop: equal inset from bottom & right. Mobile: same horizontal gutter; vertical matches shell pb above bottom nav.
+        'fixed z-50 flex flex-col items-end gap-2',
+        'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] right-[max(1.25rem,env(safe-area-inset-right,0px))]',
+        'md:bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] md:right-[max(1.25rem,env(safe-area-inset-right,0px))]',
         className,
       )}
     >
       {open ? (
         <div
-          className="mb-2 min-w-[12rem] overflow-hidden rounded-2xl border p-1.5"
+          className="min-w-[12rem] overflow-hidden rounded-2xl border p-1.5"
           style={{
             background: 'color-mix(in srgb, var(--surface) 94%, white 6%)',
             borderColor: 'var(--border)',
@@ -96,7 +99,7 @@ export default function FloatingActionButton({
         type="button"
         {...props}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft-md transition-transform hover:scale-[1.03] active:scale-[0.97]"
+        className="inline-flex h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft-md transition-[filter,box-shadow] hover:shadow-lg hover:brightness-105 active:brightness-95"
         title={t('quickActions')}
         aria-expanded={open}
         aria-haspopup="menu"
