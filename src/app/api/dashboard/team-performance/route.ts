@@ -4,22 +4,32 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 
 /**
  * GET /api/dashboard/team-performance
- * Returns tasks completed per team member this month.
+ * Query: period=YYYY-MM (optional). Defaults to current calendar month.
+ * Returns tasks completed per team member in that month.
  */
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const sb = getServiceClient();
+    const { searchParams } = new URL(req.url);
+    const raw = searchParams.get('period') ?? '';
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const defaultYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const period = /^\d{4}-(0[1-9]|1[0-2])$/.test(raw) ? raw : defaultYm;
+    const [py, pm] = period.split('-').map(Number);
+    const monthStart = new Date(py, pm - 1, 1).toISOString();
+    const monthEndDay = new Date(py, pm, 0).getDate();
+    const monthEnd = `${py}-${String(pm).padStart(2, '0')}-${String(monthEndDay).padStart(2, '0')}T23:59:59.999Z`;
+
+    const sb = getServiceClient();
 
     const { data: tasks, error: tErr } = await sb
       .from('tasks')
       .select('assigned_to, status, updated_at')
       .in('status', ['done', 'delivered'])
-      .gte('updated_at', monthStart);
+      .gte('updated_at', monthStart)
+      .lte('updated_at', monthEnd);
 
     if (tErr) throw new Error(tErr.message);
 

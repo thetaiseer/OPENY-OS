@@ -14,6 +14,7 @@ import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
 import { useUpload } from '@/context/upload-context';
+import { useAppPeriod } from '@/context/app-period-context';
 import { consumePendingQuickAction } from '@/lib/pending-quick-action';
 import { MAIN_CATEGORIES } from '@/lib/asset-utils';
 import { isImage as isImageFile } from '@/components/ui/AssetsGrid';
@@ -432,6 +433,7 @@ function GlobalQuickUploadModal({ clients, onClose }: { clients: Client[]; onClo
   const { user } = useAuth();
   const { toast } = useToast();
   const { startBatch } = useUpload();
+  const { periodYm } = useAppPeriod();
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [files, setFiles] = useState<File[]>([]);
 
@@ -451,7 +453,7 @@ function GlobalQuickUploadModal({ clients, onClose }: { clients: Client[]; onClo
       toast('Choose at least one file', 'error');
       return;
     }
-    const monthKey = new Date().toISOString().slice(0, 7);
+    const monthKey = periodYm;
     const mainCategory = MAIN_CATEGORIES[0]?.slug ?? 'general';
     const uploadedBy = user?.name || user?.email || null;
     const uploadedByEmail = user?.email || null;

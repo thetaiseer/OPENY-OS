@@ -32,14 +32,12 @@ import {
 import { exportPreviewPdf } from '@/lib/docs-print';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import { useLang } from '@/context/lang-context';
+import { useAppPeriod } from '@/context/app-period-context';
 
 const [PARTNER_A, PARTNER_B] = ACCOUNTING_COLLECTORS;
 
 function today() {
   return new Date().toISOString().slice(0, 10);
-}
-function thisMonth() {
-  return new Date().toISOString().slice(0, 7);
 }
 function monthKey(m: string) {
   return m.replace('-', '');
@@ -1075,7 +1073,9 @@ function SettlementPdfBlock({
 
 export default function AccountingPage() {
   const { t, lang } = useLang();
-  const [month, setMonth] = useState(thisMonth());
+  const { periodYm, setPeriodYm } = useAppPeriod();
+  const month = periodYm;
+  const setMonth = setPeriodYm;
   const mk = monthKey(month);
   const [entries, setEntries] = useState<DocsAccountingEntry[]>([]);
   const [expenses, setExpenses] = useState<DocsAccountingExpense[]>([]);

@@ -33,6 +33,7 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import AppModal from '@/components/ui/AppModal';
 import type { Client, TeamMember, TaskCategory, Task, Project } from '@/lib/types';
 import { uploadFileBytesToR2 } from '@/lib/client-r2-upload';
+import { useAppPeriod } from '@/context/app-period-context';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -118,13 +119,6 @@ const COMMON_TIMEZONES = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function nowMonthKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
-
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -177,6 +171,7 @@ export default function NewTaskModal({
   team,
   initialClientId = '',
 }: NewTaskModalProps) {
+  const { periodYm } = useAppPeriod();
   // ── Core fields ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
   const [description, setDesc] = useState('');
@@ -324,7 +319,7 @@ export default function NewTaskModal({
     setUpload((u) => ({ ...u, uploading: true, error: null }));
 
     const file = uploadState.file;
-    const monthKey = nowMonthKey();
+    const monthKey = periodYm;
 
     try {
       let presign: PresignResponse;

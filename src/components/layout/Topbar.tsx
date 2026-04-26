@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Bell, Languages, Moon, Search, Sun } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
+import { useAppPeriod } from '@/context/app-period-context';
 import { cn } from '@/lib/cn';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
@@ -16,6 +17,7 @@ type TopbarProps = {
 export default function Topbar({ className }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { t, lang, toggleLang } = useLang();
+  const { periodYm, setPeriodYm, inputMinYm, inputMaxYm } = useAppPeriod();
 
   return (
     <header
@@ -44,6 +46,33 @@ export default function Topbar({ className }: TopbarProps) {
             className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <label className="hidden items-center gap-1.5 sm:flex">
+            <span className="whitespace-nowrap text-[11px] font-medium text-secondary">
+              {t('appPeriodMonth')}
+            </span>
+            <input
+              type="month"
+              value={periodYm}
+              min={inputMinYm}
+              max={inputMaxYm}
+              onChange={(e) => setPeriodYm(e.target.value)}
+              aria-label={t('appPeriodAria')}
+              title={t('appPeriodAria')}
+              className="focus:ring-[color:var(--accent)]/15 h-9 max-w-[9.5rem] rounded-control border border-border bg-surface px-2 text-xs text-primary outline-none focus:border-accent focus:ring-2"
+            />
+          </label>
+          <input
+            type="month"
+            value={periodYm}
+            min={inputMinYm}
+            max={inputMaxYm}
+            onChange={(e) => setPeriodYm(e.target.value)}
+            aria-label={t('appPeriodAria')}
+            title={t('appPeriodAria')}
+            className="focus:ring-[color:var(--accent)]/15 h-9 max-w-[8.5rem] rounded-control border border-border bg-surface px-1.5 text-[11px] text-primary outline-none focus:border-accent focus:ring-2 sm:hidden"
+          />
+        </div>
         <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"

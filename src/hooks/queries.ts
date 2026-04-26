@@ -5,6 +5,7 @@
  */
 
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { monthDayBounds } from '@/context/app-period-context';
 import { createClient } from '@/lib/supabase/client';
 import type { Client, Task, Asset, Notification } from '@/lib/types';
 import {
@@ -200,9 +201,16 @@ export interface DashboardStats {
   totalAssets: number;
 }
 
-export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardStats>>) {
+export function useDashboardStats(
+  periodYm: string,
+  options?: Partial<UseQueryOptions<DashboardStats>>,
+) {
+  const { start, end } = monthDayBounds(periodYm);
+  const startTs = `${start}T00:00:00`;
+  const endTs = `${end}T23:59:59.999`;
+
   return useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboard-stats', periodYm],
     queryFn: async () => {
       const sb = supabase();
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -215,24 +223,33 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<DashboardSta
 
       const settled = await Promise.allSettled([
         sb.from('clients').select('id', { count: 'exact', head: true }),
-        // Active tasks: not in any terminal status
+        // Active tasks: touched in selected month, not terminal
         sb
           .from('tasks')
           .select('id', { count: 'exact', head: true })
-          .not('status', 'in', terminalStatuses),
-        // Overdue tasks: due_date is in the past AND not terminal (computed, not relying on status field)
+          .not('status', 'in', terminalStatuses)
+          .gte('updated_at', startTs)
+          .lte('updated_at', endTs),
+        // Overdue within selected month window (due date in month, before today)
         sb
           .from('tasks')
           .select('id', { count: 'exact', head: true })
-          .lt('due_date', todayStr)
-          .not('status', 'in', terminalStatuses),
+          .not('status', 'in', terminalStatuses)
+          .not('due_date', 'is', null)
+          .gte('due_date', start)
+          .lte('due_date', end)
+          .lt('due_date', todayStr),
+        // Due in the next 7 days, intersecting selected calendar month
         sb
           .from('tasks')
           .select('id', { count: 'exact', head: true })
           .gte('due_date', todayStr)
           .lte('due_date', weekLaterStr)
+          .gte('due_date', start)
+          .lte('due_date', end)
           .not('status', 'in', terminalStatuses),
-        sb.from('assets').select('id', { count: 'exact', head: true }),
+        // Assets tagged for this month
+        sb.from('assets').select('id', { count: 'exact', head: true }).eq('month_key', periodYm),
       ]);
 
       const [clients, tasks, overdue, dueThisWeek, assets] = settled;

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
+import { calendarMonthNow, useAppPeriod } from '@/context/app-period-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import EmptyState from '@/components/ui/EmptyState';
@@ -534,9 +535,16 @@ function triggerDownload(url: string, filename: string): void {
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
+function assetsFetchQuery(folderPath: FolderPath, periodYm: string): string {
+  if (folderPath.month) return `&month_key=${encodeURIComponent(folderPath.month)}`;
+  if (folderPath.year) return `&year=${encodeURIComponent(folderPath.year)}`;
+  return `&month_key=${encodeURIComponent(periodYm)}`;
+}
+
 function AssetsPage() {
   const pathname = usePathname();
   const { t } = useLang();
+  const { periodYm } = useAppPeriod();
   const { user, defaultWorkspaceId } = useAuth();
   const workspaceQs = useMemo(() => {
     if (defaultWorkspaceId) {
@@ -583,9 +591,7 @@ function AssetsPage() {
   const [pendingItems, setPendingItems] = useState<FileUploadItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState<string>(MAIN_CATEGORIES[0].slug);
   const [uploadSubCategory, setUploadSubCategory] = useState<string>('');
-  const [uploadMonth, setUploadMonth] = useState<string>(() =>
-    new Date().toISOString().slice(0, 7),
-  );
+  const [uploadMonth, setUploadMonth] = useState<string>(calendarMonthNow);
   const [uploadClientName, setUploadClientName] = useState<string>('');
   const [uploadClientId, setUploadClientId] = useState<string>('');
   const [quickActionUploadOpen, setQuickActionUploadOpen] = useState(false);
@@ -601,7 +607,8 @@ function AssetsPage() {
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       try {
         setFetchError(null);
-        const res = await fetch(`/api/assets?page=${pageNum}&${workspaceQs}`, {
+        const periodQs = assetsFetchQuery(folderPath, periodYm);
+        const res = await fetch(`/api/assets?page=${pageNum}&${workspaceQs}${periodQs}`, {
           signal: controller.signal,
         });
         let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
@@ -634,7 +641,7 @@ function AssetsPage() {
         setLoading(false);
       }
     },
-    [workspaceQs, t],
+    [workspaceQs, t, folderPath.month, folderPath.year, periodYm],
   );
 
   const loadMore = useCallback(() => {
@@ -644,8 +651,13 @@ function AssetsPage() {
   }, [page, fetchAssets]);
 
   useEffect(() => {
+    setPage(0);
     fetchAssets(0);
   }, [fetchAssets]);
+
+  useEffect(() => {
+    setUploadMonth(periodYm);
+  }, [periodYm]);
 
   // Prepend latest uploaded asset
   useEffect(() => {
@@ -921,7 +933,7 @@ function AssetsPage() {
       setPendingItems((prev) => (append && prev.length ? [...prev, ...items] : items));
       setUploadMainCategory(folderPath.mainCategory ?? MAIN_CATEGORIES[0].slug);
       setUploadSubCategory(folderPath.subCategory ?? '');
-      setUploadMonth(folderPath.month ?? new Date().toISOString().slice(0, 7));
+      setUploadMonth(folderPath.month ?? periodYm);
       if (folderPath.client) {
         const found = clients.find((c) => c.name === folderPath.client);
         setUploadClientName(folderPath.client);
@@ -965,7 +977,7 @@ function AssetsPage() {
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [folderPath, clients],
+    [folderPath, clients, periodYm],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

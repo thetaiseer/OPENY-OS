@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppPeriodProvider } from '@/context/app-period-context';
 import { QuickActionsProvider } from '@/context/quick-actions-context';
 import { ToastProvider } from '@/context/toast-context';
 import { UploadProvider } from '@/context/upload-context';
@@ -38,14 +39,16 @@ export { queryClient };
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <QuickActionsProvider>
-        <ToastProvider>
-          <UploadProvider>
-            {children}
-            <ToastContainer />
-          </UploadProvider>
-        </ToastProvider>
-      </QuickActionsProvider>
+      <AppPeriodProvider>
+        <QuickActionsProvider>
+          <ToastProvider>
+            <UploadProvider>
+              {children}
+              <ToastContainer />
+            </UploadProvider>
+          </ToastProvider>
+        </QuickActionsProvider>
+      </AppPeriodProvider>
     </QueryClientProvider>
   );
 }

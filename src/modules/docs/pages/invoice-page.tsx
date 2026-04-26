@@ -41,6 +41,7 @@ import {
 } from '@/lib/invoiceTemplates';
 import { nextPrefixedSequential } from '@/lib/docs-doc-numbers';
 import { useLang } from '@/context/lang-context';
+import { calendarMonthNow, useAppPeriod } from '@/context/app-period-context';
 import {
   createDefaultProIconKsaBranchConfigs,
   deriveProIconKsaBranchConfigs,
@@ -239,13 +240,13 @@ function normalizeKsaBranchConfigs(configs: ProIconKsaBranchConfig[]) {
   return next;
 }
 
-function blank(invoices: DocsInvoice[]): FormState {
+function blank(invoices: DocsInvoice[], campaignMonth: string): FormState {
   return {
     client_profile_id: null,
     invoice_template: 'manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
-    campaign_month: monthNow(),
+    campaign_month: campaignMonth,
     invoice_date: today(),
     currency: 'SAR',
     status: 'unpaid',
@@ -276,9 +277,10 @@ function toForm(invoice: DocsInvoice): FormState {
 
 export default function InvoicePage() {
   const { t, lang } = useLang();
+  const { periodYm } = useAppPeriod();
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
-  const [form, setForm] = useState<FormState>(() => blank([]));
+  const [form, setForm] = useState<FormState>(() => blank([], calendarMonthNow()));
   const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(() =>
     createManualDefaultBranchGroups(t),
   );
@@ -297,10 +299,16 @@ export default function InvoicePage() {
   );
   const [expandedBranchRows, setExpandedBranchRows] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (!form.id) {
+      setForm((prev) => ({ ...prev, campaign_month: periodYm }));
+    }
+  }, [periodYm, form.id]);
+
   const loadFromInvoice = useCallback(
     (invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
       if (!invoice) {
-        setForm(blank(availableInvoices));
+        setForm(blank(availableInvoices, periodYm));
         setBranchGroups(createManualDefaultBranchGroups(t));
         setTotalBudget(DEFAULT_TOTAL_BUDGET);
         setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
@@ -335,7 +343,7 @@ export default function InvoicePage() {
       );
       setGenerationSeed(0);
     },
-    [t],
+    [t, periodYm],
   );
 
   const load = useCallback(async () => {

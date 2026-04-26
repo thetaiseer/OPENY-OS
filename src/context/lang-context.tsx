@@ -25,6 +25,8 @@ const translations: Record<string, Record<string, string>> = {
     security: 'Security',
     logout: 'Log out',
     search: 'Search...',
+    appPeriodMonth: 'Period',
+    appPeriodAria: 'Workspace month and year — filters dashboards, assets list, uploads, and docs',
     welcomeBack: 'Welcome back',
     totalClients: 'Total Clients',
     activeTasks: 'Active Tasks',
@@ -1274,6 +1276,9 @@ const translations: Record<string, Record<string, string>> = {
     security: 'الأمان',
     logout: 'تسجيل الخروج',
     search: 'بحث...',
+    appPeriodMonth: 'الفترة',
+    appPeriodAria:
+      'شهر وسنة مساحة العمل — يصفّي لوحة التحكم، قائمة الملفات، الرفع، وبعض مستندات DOCS',
     welcomeBack: 'مرحباً بعودتك',
     totalClients: 'إجمالي العملاء',
     activeTasks: 'المهام النشطة',

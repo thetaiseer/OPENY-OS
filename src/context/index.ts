@@ -9,3 +9,9 @@ export { UploadProvider, useUpload } from '@/context/upload-context';
 export { AiProvider, useAi } from '@/context/ai-context';
 export { CommandPaletteProvider, useCommandPalette } from '@/context/command-palette-context';
 export { QuickActionsProvider, useQuickActions } from '@/context/quick-actions-context';
+export {
+  AppPeriodProvider,
+  useAppPeriod,
+  calendarMonthNow,
+  monthDayBounds,
+} from '@/context/app-period-context';

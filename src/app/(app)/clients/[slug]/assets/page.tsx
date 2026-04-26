@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useAppPeriod } from '@/context/app-period-context';
 import { Upload, Download } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
@@ -21,6 +22,7 @@ export default function ClientAssetsPage() {
   const { user } = useAuth();
   const { toast: addToast } = useToast();
   const { startBatch, latestAsset } = useUpload();
+  const { periodYm } = useAppPeriod();
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -32,7 +34,11 @@ export default function ClientAssetsPage() {
   const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState('social-media');
   const [uploadSubCategory, setUploadSubCategory] = useState('');
-  const [uploadMonthKey, setUploadMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [uploadMonthKey, setUploadMonthKey] = useState(periodYm);
+
+  useEffect(() => {
+    setUploadMonthKey(periodYm);
+  }, [periodYm]);
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -40,11 +46,12 @@ export default function ClientAssetsPage() {
       .from('assets')
       .select('*')
       .eq('client_id', clientId)
+      .eq('month_key', periodYm)
       .order('created_at', { ascending: false })
       .limit(100);
     setAssets((data ?? []) as Asset[]);
     setLoading(false);
-  }, [clientId]);
+  }, [clientId, periodYm]);
 
   useEffect(() => {
     void load();
@@ -82,7 +89,7 @@ export default function ClientAssetsPage() {
     setPendingItems(items);
     setUploadMainCategory('social-media');
     setUploadSubCategory('');
-    setUploadMonthKey(new Date().toISOString().slice(0, 7));
+    setUploadMonthKey(periodYm);
 
     items.forEach((item) => {
       if (!isVideoFile(item.file.name, item.file.type)) return;
