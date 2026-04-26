@@ -176,12 +176,17 @@ function SessionCard({
   lang: 'en' | 'ar';
 }) {
   const parts = [session.browser, session.os].filter(Boolean) as string[];
+  const primaryDevice = parts[0];
+  const secondaryDevice = parts[1];
   const deviceLabel =
     parts.length === 0
       ? t('sessionUnknownDevice')
       : parts.length === 1
-        ? parts[0]!
-        : t('sessionOnConnector', { a: parts[0]!, b: parts[1]! });
+        ? (primaryDevice ?? t('sessionUnknownDevice'))
+        : t('sessionOnConnector', {
+            a: primaryDevice ?? t('sessionUnknownDevice'),
+            b: secondaryDevice ?? t('sessionUnknownDevice'),
+          });
   const location =
     [session.city, session.country].filter(Boolean).join(', ') || t('sessionUnknownLocation');
 

@@ -1286,23 +1286,21 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
         updateMap.set(task.id, { status: task.status, position: index }),
       );
       const updates = reordered
+        .map((task) => {
+          const update = updateMap.get(task.id);
+          if (!update) return null;
+          const changed = task.status !== update.status || getPosition(task) !== update.position;
+          return changed ? { id: task.id, ...update } : null;
+        })
         .filter(
-          (task) =>
-            updateMap.has(task.id) &&
-            (task.status !== updateMap.get(task.id)!.status ||
-              getPosition(task) !== updateMap.get(task.id)!.position),
-        )
-        .map((task) => ({ id: task.id, ...updateMap.get(task.id)! }));
+          (item): item is { id: string; status: Task['status']; position: number } => item !== null,
+        );
       if (updates.length === 0) return;
-      const nextTasks = tasks.map((task) =>
-        updateMap.has(task.id)
-          ? {
-              ...task,
-              status: updateMap.get(task.id)!.status,
-              position: updateMap.get(task.id)!.position,
-            }
-          : task,
-      );
+      const nextTasks = tasks.map((task) => {
+        const update = updateMap.get(task.id);
+        if (!update) return task;
+        return { ...task, status: update.status, position: update.position };
+      });
       onReorder(nextTasks, tasks, updates);
       return;
     }
@@ -1335,15 +1333,11 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
       });
     if (updates.length === 0) return;
 
-    const nextTasks = tasks.map((task) =>
-      updateMap.has(task.id)
-        ? {
-            ...task,
-            status: updateMap.get(task.id)!.status,
-            position: updateMap.get(task.id)!.position,
-          }
-        : task,
-    );
+    const nextTasks = tasks.map((task) => {
+      const update = updateMap.get(task.id);
+      if (!update) return task;
+      return { ...task, status: update.status, position: update.position };
+    });
     onReorder(nextTasks, tasks, updates);
   };
 

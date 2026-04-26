@@ -354,9 +354,10 @@ export default function NewTaskModal({
 
       const complete = (await completeRes.json()) as CompleteResponse;
 
-      if (complete.success && complete.asset?.id) {
-        setUpload((u) => ({ ...u, uploading: false, uploadedAssetId: complete.asset!.id! }));
-        return complete.asset.id;
+      const uploadedId = complete.asset?.id ?? null;
+      if (complete.success && uploadedId) {
+        setUpload((u) => ({ ...u, uploading: false, uploadedAssetId: uploadedId }));
+        return uploadedId;
       }
 
       const errMsg =
@@ -448,7 +449,7 @@ export default function NewTaskModal({
         return;
       }
 
-      onCreated(json.task!);
+      if (json.task) onCreated(json.task);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error');

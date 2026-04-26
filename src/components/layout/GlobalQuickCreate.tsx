@@ -44,7 +44,8 @@ function nextFileId() {
 }
 function getFileExtension(name: string): string {
   const p = name.split('.');
-  return p.length > 1 ? `.${p.pop()!.toLowerCase()}` : '';
+  const ext = p.length > 1 ? p[p.length - 1] : '';
+  return ext ? `.${ext.toLowerCase()}` : '';
 }
 function getFileBaseName(name: string): string {
   const ext = getFileExtension(name);

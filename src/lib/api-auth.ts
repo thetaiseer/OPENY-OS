@@ -38,8 +38,8 @@ import {
 } from './permissions';
 import type { ModuleAccess, OsModule, DocsModule } from './types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 // ── Profile cache ─────────────────────────────────────────────────────────────
 // Short-lived in-memory cache that avoids a redundant Supabase round-trip on

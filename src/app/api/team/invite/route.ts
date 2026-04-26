@@ -357,9 +357,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const apiKey = process.env.RESEND_API_KEY!.trim();
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is missing');
+    }
     const resend = new Resend(apiKey);
-    const { data: resendResult, error: resendError } = await resend.emails.send({
+    const { error: resendError } = await resend.emails.send({
       from: fromEmail,
       to: email,
       subject: "You're invited to join OPENY OS",
@@ -368,21 +371,8 @@ export async function POST(request: NextRequest) {
 
     if (resendError) {
       const msg = resendError.message ?? JSON.stringify(resendError);
-      console.error('[team/invite] Resend API returned error:', {
-        to: email,
-        invitationId: invitation.id,
-        error: msg,
-      });
       throw new Error(msg);
     }
-
-    console.info('[team/invite] Resend invitation email sent successfully', {
-      to: email,
-      invitationId: invitation.id,
-      resendEmailId: resendResult?.id ?? null,
-      inviteUrl,
-      from: fromEmail,
-    });
 
     await logEmailSent({
       to: email,

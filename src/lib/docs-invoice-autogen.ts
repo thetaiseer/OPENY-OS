@@ -184,7 +184,8 @@ function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
   };
   const mmmMatch = /^([a-z]{3})-(\d{4})$/i.exec(direct);
   if (mmmMatch) {
-    const month = monthMap[mmmMatch[1]!.toLowerCase()] ?? 0;
+    const monthToken = mmmMatch[1]?.toLowerCase() ?? '';
+    const month = monthMap[monthToken] ?? 0;
     return { month, year: Number(mmmMatch[2]) };
   }
   const isoMonthMatch = /^(\d{4})[-/](\d{1,2})$/.exec(direct);
@@ -235,7 +236,9 @@ function splitBudgetWithWeights(
     .sort((a, b) => b.frac - a.frac);
   let idx = 0;
   while (remainder > 0 && fracOrder.length > 0) {
-    rounded[fracOrder[idx % fracOrder.length]!.i] += 1;
+    const entry = fracOrder[idx % fracOrder.length];
+    if (!entry) break;
+    rounded[entry.i] += 1;
     remainder -= 1;
     idx += 1;
   }
@@ -311,7 +314,10 @@ function generateRowDays(rowCount: number, rng: () => number) {
     return clamp(base + jitter, 1, MAX_SPREAD_DAY);
   }).sort((a, b) => a - b);
   for (let i = 1; i < days.length; i += 1) {
-    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, MAX_SPREAD_DAY);
+    const curr = days[i];
+    const prev = days[i - 1];
+    if (curr == null || prev == null) continue;
+    if (curr <= prev) days[i] = clamp(prev + 1, 1, MAX_SPREAD_DAY);
   }
   return days;
 }

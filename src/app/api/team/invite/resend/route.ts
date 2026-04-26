@@ -139,12 +139,6 @@ export async function POST(request: NextRequest) {
       html,
       from: fromEmail,
     });
-    console.info('[team/invite/resend] Resend invitation email sent', {
-      to: invitation.email,
-      invitationId: invitation.id,
-      inviteUrl,
-      from: fromEmail,
-    });
     await logEmailSent({
       to: invitation.email,
       subject: "You're invited to join OPENY OS",

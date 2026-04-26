@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 
-export default function ActivityLog({ children }: { children?: ReactNode; [key: string]: any }) {
+export default function ActivityLog({
+  children,
+}: { children?: ReactNode } & Record<string, unknown>) {
   return <div>{children}</div>;
 }

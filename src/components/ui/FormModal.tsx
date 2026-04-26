@@ -8,8 +8,7 @@ type FormModalProps = {
   onClose?: () => void;
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   children?: ReactNode;
-  [key: string]: any;
-};
+} & Record<string, unknown>;
 
 export default function FormModal({ onSubmit, children, ...props }: FormModalProps) {
   return (

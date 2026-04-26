@@ -191,10 +191,10 @@ export default function CalendarPage() {
     // staleTime inherited from QueryClient defaults (2 minutes)
   });
 
-  const tasks = calendarData?.tasks ?? [];
-  const assets = calendarData?.assets ?? [];
-  const schedules = calendarData?.schedules ?? [];
-  const content = calendarData?.content ?? [];
+  const tasks = useMemo(() => calendarData?.tasks ?? [], [calendarData?.tasks]);
+  const assets = useMemo(() => calendarData?.assets ?? [], [calendarData?.assets]);
+  const schedules = useMemo(() => calendarData?.schedules ?? [], [calendarData?.schedules]);
+  const content = useMemo(() => calendarData?.content ?? [], [calendarData?.content]);
 
   const error = calendarError ? t('calendarLoadError') : null;
 

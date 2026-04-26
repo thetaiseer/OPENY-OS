@@ -15,8 +15,8 @@ import {
 import { notifyMemberJoined } from '@/lib/notification-service';
 import { processEvent } from '@/lib/event-engine';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
 const DEFAULT_WORKSPACE_KEY: WorkspaceKey = 'os';
 const MAX_USER_SCAN_PAGES = 50;

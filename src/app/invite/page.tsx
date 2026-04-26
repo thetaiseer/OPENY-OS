@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Moon, Sun } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -204,13 +205,14 @@ function InvitePage() {
           className="flex flex-col items-center border-b px-6 pb-7 pt-8 text-center"
           style={{ borderColor: 'var(--border)' }}
         >
-          <img
+          <Image
             src={logoSrc}
             width={logoDims.width}
             height={logoDims.height}
             alt="OPENY"
             className="w-auto max-w-[min(100%,280px)] object-contain"
             decoding="async"
+            unoptimized
           />
           <h1
             className="mt-5 text-lg font-semibold tracking-tight"

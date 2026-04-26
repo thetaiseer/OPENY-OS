@@ -8,8 +8,7 @@ export default function FilePreviewModal({
 }: {
   open?: boolean;
   children?: ReactNode;
-  [key: string]: any;
-}) {
+} & Record<string, unknown>) {
   if (!open) return null;
   return <div>{children}</div>;
 }

@@ -94,7 +94,8 @@ export default function ClientContentPage() {
       });
       const json = (await res.json()) as { success: boolean; item?: ContentItem; error?: string };
       if (!json.success) throw new Error(json.error ?? 'Failed to create content');
-      if (json.item) setContent((prev) => [json.item!, ...prev]);
+      const createdItem = json.item;
+      if (createdItem) setContent((prev) => [createdItem, ...prev]);
       setCreateOpen(false);
       setForm({ title: '', description: '', status: 'draft', schedule_date: '' });
       addToast('Content item created', 'success');

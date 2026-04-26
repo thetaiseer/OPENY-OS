@@ -7,8 +7,7 @@ type ModalProps = {
   open?: boolean;
   onClose?: () => void;
   children?: ReactNode;
-  [key: string]: any;
-};
+} & Record<string, unknown>;
 
 export default function Modal(props: ModalProps) {
   return <AppModal {...props}>{props.children}</AppModal>;

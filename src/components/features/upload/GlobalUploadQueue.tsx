@@ -81,9 +81,8 @@ function isImageFile(name: string, type: string): boolean {
 
 function getDisplayName(item: UploadItem): string {
   const base = item.uploadName.trim();
-  const ext = item.file.name.includes('.')
-    ? `.${item.file.name.split('.').pop()!.toLowerCase()}`
-    : '';
+  const parts = item.file.name.split('.');
+  const ext = parts.length > 1 ? `.${(parts[parts.length - 1] ?? '').toLowerCase()}` : '';
   if (!base) return item.file.name;
   return base.toLowerCase().endsWith(ext.toLowerCase()) ? base : `${base}${ext}`;
 }

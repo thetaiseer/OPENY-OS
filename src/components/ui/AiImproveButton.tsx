@@ -5,7 +5,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 type AiImproveButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode;
   value?: string;
-  onImproved?: (value: any) => void;
+  onImproved?: (value: string) => void;
   showMenu?: boolean;
   mode?: string;
 };

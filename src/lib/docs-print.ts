@@ -69,7 +69,13 @@ export async function exportPreviewPdf(
 
   const safeCode = sanitizeDocCode(documentCode, fallbackCode);
   const html2pdfModule = await import('html2pdf.js');
-  const html2pdf = (html2pdfModule.default ?? html2pdfModule) as any;
+  type Html2PdfBuilder = {
+    from: (element: HTMLElement) => Html2PdfBuilder;
+    set: (options: Record<string, unknown>) => Html2PdfBuilder;
+    save: () => Promise<void>;
+  };
+  type Html2PdfFactory = () => Html2PdfBuilder;
+  const html2pdf = (html2pdfModule.default ?? html2pdfModule) as Html2PdfFactory;
 
   const sourceClone = preview.cloneNode(true) as HTMLElement;
   sourceClone.style.width = '210mm';

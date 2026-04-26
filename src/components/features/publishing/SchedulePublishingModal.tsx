@@ -255,7 +255,7 @@ export default function SchedulePublishingModal({
       }
 
       setSuccess(true);
-      onCreated?.(json.schedule!);
+      if (json.schedule) onCreated?.(json.schedule);
 
       // Auto-close after brief success flash
       setTimeout(onClose, 1500);

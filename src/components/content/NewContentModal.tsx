@@ -76,7 +76,7 @@ export default function NewContentModal({
       const json = (await res.json()) as { success: boolean; item?: ContentItem; error?: string };
       if (!json.success) throw new Error(json.error ?? 'Failed to create');
       toast('Content item created', 'success');
-      onCreated(json.item!);
+      if (json.item) onCreated(json.item);
       onClose();
       setTitle('');
       setClientId('');

@@ -6,8 +6,8 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 
-// Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here
-type Db = SupabaseClient<any>;
+// Untyped schema client — we use string-keyed dynamic table access so schema inference isn't useful here.
+type Db = SupabaseClient;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function logAction(_intent: string, _detail: string) {}

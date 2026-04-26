@@ -8,7 +8,6 @@ export default function PermissionGate({
 }: {
   children?: ReactNode;
   fallback?: ReactNode;
-  [key: string]: any;
-}) {
+} & Record<string, unknown>) {
   return <>{children ?? fallback ?? null}</>;
 }

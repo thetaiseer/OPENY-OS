@@ -445,7 +445,7 @@ export default function MyTasksPage() {
       });
       const json = (await res.json()) as { success: boolean; task?: Task; error?: string };
       if (json.success && json.task) {
-        setTasks((prev) => [json.task!, ...prev]);
+        setTasks((prev) => [json.task as Task, ...prev]);
         toast(t('taskDuplicated'), 'success');
       } else {
         toast(json.error ?? t('failedDuplicateTask'), 'error');

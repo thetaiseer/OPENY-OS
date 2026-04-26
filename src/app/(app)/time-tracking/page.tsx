@@ -91,7 +91,7 @@ export default function TimeTrackingPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [runningEntry?.id, runningEntry?.started_at]);
+  }, [runningEntry]);
 
   const handleStartStop = async () => {
     if (runningEntry) {

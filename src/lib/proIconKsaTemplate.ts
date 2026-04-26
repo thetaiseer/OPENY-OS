@@ -175,7 +175,9 @@ function normalizePercentages(values: number[], total = 100) {
     .sort((a, b) => b.frac - a.frac);
   let cursor = 0;
   while (remainder > 0 && rank.length > 0) {
-    floored[rank[cursor % rank.length]!.index] += 1;
+    const entry = rank[cursor % rank.length];
+    if (!entry) break;
+    floored[entry.index] += 1;
     remainder -= 1;
     cursor += 1;
   }
@@ -194,7 +196,9 @@ function splitBudgetByPercent(total: number, percentages: number[]) {
     .sort((a, b) => b.frac - a.frac);
   let cursor = 0;
   while (remainder > 0 && rank.length > 0) {
-    floored[rank[cursor % rank.length]!.index] += 1;
+    const entry = rank[cursor % rank.length];
+    if (!entry) break;
+    floored[entry.index] += 1;
     remainder -= 1;
     cursor += 1;
   }
@@ -245,7 +249,8 @@ function normalizeMonth(campaignMonth: string, invoiceDate?: string) {
       nov: 10,
       dec: 11,
     };
-    return { month: monthMap[mmmMatch[1]!.toLowerCase()] ?? 0, year: Number(mmmMatch[2]) };
+    const monthToken = mmmMatch[1]?.toLowerCase() ?? '';
+    return { month: monthMap[monthToken] ?? 0, year: Number(mmmMatch[2]) };
   }
   const baseDate =
     invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
@@ -278,7 +283,10 @@ function generateRowDays(rowCount: number, rng: () => number) {
     return clamp(base + jitter, 1, MAX_SPREAD_DAY);
   }).sort((a, b) => a - b);
   for (let i = 1; i < days.length; i += 1) {
-    if (days[i]! <= days[i - 1]!) days[i] = clamp(days[i - 1]! + 1, 1, MAX_SPREAD_DAY);
+    const curr = days[i];
+    const prev = days[i - 1];
+    if (curr == null || prev == null) continue;
+    if (curr <= prev) days[i] = clamp(prev + 1, 1, MAX_SPREAD_DAY);
   }
   return days;
 }
@@ -300,7 +308,9 @@ function splitBudgetWithVariance(total: number, rowCount: number, rng: () => num
     .sort((a, b) => b.frac - a.frac);
   let cursor = 0;
   while (remainder > 0 && rank.length > 0) {
-    floored[rank[cursor % rank.length]!.index] += 1;
+    const entry = rank[cursor % rank.length];
+    if (!entry) break;
+    floored[entry.index] += 1;
     remainder -= 1;
     cursor += 1;
   }

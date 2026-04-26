@@ -103,7 +103,8 @@ interface FileUploadItem {
 
 function getFileExtension(name: string): string {
   const p = name.split('.');
-  return p.length > 1 ? `.${p.pop()!.toLowerCase()}` : '';
+  const ext = p.length > 1 ? p[p.length - 1] : '';
+  return ext ? `.${ext.toLowerCase()}` : '';
 }
 function getFileBaseName(name: string): string {
   const ext = getFileExtension(name);
@@ -777,7 +778,7 @@ function AssetsPage() {
         setLoading(false);
       }
     },
-    [workspaceQs, t, folderPath.month, folderPath.year, periodYm],
+    [workspaceQs, t, folderPath, periodYm],
   );
 
   const loadMore = useCallback(() => {

@@ -33,7 +33,7 @@ export async function sendEmail(msg: EmailMessage): Promise<void> {
   }
 
   const resend = new Resend(apiKey);
-  const { data, error } = await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: msg.from ?? DEFAULT_FROM,
     to: Array.isArray(msg.to) ? msg.to : [msg.to],
     subject: msg.subject,
@@ -45,8 +45,6 @@ export async function sendEmail(msg: EmailMessage): Promise<void> {
     console.error('[email] Resend send failed:', { subject: msg.subject, error: detail });
     throw new Error(`Email send failed: ${detail}`);
   }
-
-  console.info('[email] Resend send ok:', { subject: msg.subject, id: data?.id ?? null });
 }
 
 // ── HTML templates ────────────────────────────────────────────────────────────

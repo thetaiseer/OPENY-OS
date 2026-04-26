@@ -78,7 +78,8 @@ export function validateUploadName(name: string): string | null {
 
 function getFileExtension(name: string): string {
   const parts = name.split('.');
-  return parts.length > 1 ? `.${parts.pop()!.toLowerCase()}` : '';
+  const ext = parts.length > 1 ? parts[parts.length - 1] : '';
+  return ext ? `.${ext.toLowerCase()}` : '';
 }
 
 function formatSize(bytes: number): string {

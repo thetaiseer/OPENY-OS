@@ -1,10 +1,13 @@
 'use client';
 
+'use client';
+
+import type { InputHTMLAttributes } from 'react';
+
 type MonthYearPickerProps = {
   value?: string;
-  onChange?: (value: any) => void;
-  [key: string]: any;
-};
+  onChange?: (value: string) => void;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'>;
 
 export default function MonthYearPicker({ value = '', onChange, ...props }: MonthYearPickerProps) {
   return (

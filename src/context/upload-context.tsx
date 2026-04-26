@@ -677,8 +677,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         abortControllersRef.current.delete(item.id);
         runningRef.current.delete(item.id);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [setStage],
   );
 
@@ -870,9 +870,20 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     let startFromPart: number;
 
     if (isResuming) {
-      storageKey = item.r2Key!;
-      uploadId = item.uploadId!;
-      publicUrl = item.publicUrl!;
+      if (!item.r2Key || !item.uploadId || !item.publicUrl) {
+        setStage(item.id, 'failed_upload', 'Upload failed', {
+          errorDetail: classifyUploadError({
+            step: 'multipart_resume',
+            rawMessage: 'Missing resume fields for multipart upload.',
+            fileReachedStorage: false,
+            dbSaved: false,
+          }),
+        });
+        return;
+      }
+      storageKey = item.r2Key;
+      uploadId = item.uploadId;
+      publicUrl = item.publicUrl;
       displayName = item.r2FileName ?? item.file.name;
       completedParts = [...item.completedParts];
       uploadedBytes = item.uploadedBytes;
