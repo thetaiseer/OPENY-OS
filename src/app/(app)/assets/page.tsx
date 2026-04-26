@@ -119,11 +119,87 @@ function getAssetYear(asset: Asset): string {
   return 'Unknown';
 }
 
+function formatFolderBytes(bytes: number): string {
+  if (!bytes || bytes < 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+type FolderAssetKind = 'image' | 'video' | 'pdf' | 'document' | 'audio' | 'archive' | 'other';
+
+type FolderKindCounts = Record<FolderAssetKind, number>;
+
+function emptyFolderKindCounts(): FolderKindCounts {
+  return { image: 0, video: 0, pdf: 0, document: 0, audio: 0, archive: 0, other: 0 };
+}
+
+function folderAssetKind(asset: Asset): FolderAssetKind {
+  const mime = (asset.file_type ?? asset.mime_type ?? asset.content_type ?? '').toLowerCase();
+  const name = (asset.original_filename ?? asset.name ?? '').toLowerCase();
+  const extMatch = name.match(/\.([a-z0-9]+)$/);
+  const ext = extMatch ? `.${extMatch[1]}` : '';
+
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime === 'application/pdf' || ext === '.pdf') return 'pdf';
+  if (
+    /\.(zip|rar|7z|tar|gz|tgz|bz2)$/i.test(name) ||
+    mime.includes('zip') ||
+    mime.includes('compressed') ||
+    mime.includes('x-rar') ||
+    mime.includes('x-7z')
+  )
+    return 'archive';
+  if (
+    mime.startsWith('text/') ||
+    mime.includes('word') ||
+    mime.includes('sheet') ||
+    mime.includes('excel') ||
+    mime.includes('spreadsheet') ||
+    mime.includes('presentation') ||
+    mime.includes('msword') ||
+    mime.includes('officedocument') ||
+    /\.(doc|docx|xls|xlsx|ppt|pptx|csv|txt|rtf|odt|ods|odp)$/i.test(name)
+  )
+    return 'document';
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic', '.bmp', '.ico'].includes(ext))
+    return 'image';
+  if (['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'].includes(ext)) return 'video';
+  if (['.mp3', '.wav', '.aac', '.flac', '.m4a', '.ogg'].includes(ext)) return 'audio';
+  return 'other';
+}
+
+function buildFolderKindSummary(
+  kinds: FolderKindCounts,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  const slots: { count: number; labelKey: string }[] = [
+    { count: kinds.image, labelKey: 'assetsTypeImages' },
+    { count: kinds.video, labelKey: 'assetsTypeVideos' },
+    { count: kinds.pdf, labelKey: 'assetsTypePdfs' },
+    { count: kinds.document, labelKey: 'assetsTypeDocuments' },
+    { count: kinds.audio, labelKey: 'assetsTypeAudio' },
+    { count: kinds.archive, labelKey: 'assetsTypeArchives' },
+    { count: kinds.other, labelKey: 'assetsTypeOther' },
+  ].filter((s) => s.count > 0);
+
+  if (!slots.length) return '';
+
+  return slots
+    .map(({ count, labelKey }) => t('assetsFolderKindSlot', { count, label: t(labelKey) }))
+    .join(' · ');
+}
+
 // ── Folder Card ───────────────────────────────────────────────────────────────
 
 interface FolderCardProps {
   label: string;
   count: number;
+  totalBytes: number;
+  kindSummary: string;
   color?: string;
   onClick: () => void;
   onView?: () => void;
@@ -134,6 +210,8 @@ interface FolderCardProps {
 function FolderCard({
   label,
   count,
+  totalBytes,
+  kindSummary,
   color,
   onClick,
   onView,
@@ -142,6 +220,7 @@ function FolderCard({
 }: FolderCardProps) {
   const { t } = useLang();
   const hasActions = onView || onDownload;
+  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes) });
   return (
     <div
       role="button"
@@ -153,31 +232,50 @@ function FolderCard({
           onClick();
         }
       }}
-      className="shadow-card flex cursor-pointer select-none flex-col gap-2 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
+      className="shadow-card flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
-        minHeight: hasActions ? 120 : 100,
       }}
     >
-      <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+      <div
+        className="rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs"
+        style={{
+          borderColor: 'var(--border)',
+          background: 'var(--surface-2)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {kindSummary ? (
+          <p className="line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>
+            {kindSummary}
+          </p>
+        ) : null}
+        <p
+          className={kindSummary ? 'mt-1 font-semibold' : 'font-semibold'}
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {sizeLine}
+        </p>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-3 text-center">
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-200"
+          className="flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
           style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
         >
-          <Folder size={20} style={{ color: color ?? 'var(--accent)' }} />
+          <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: color ?? 'var(--accent)' }} />
         </div>
         <div className="w-full min-w-0">
-          <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          <p className="truncate text-base font-semibold" style={{ color: 'var(--text)' }}>
             {label}
           </p>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {count === 1 ? t('assetsFileCount', { count }) : t('assetsFileCountPlural', { count })}
           </p>
         </div>
       </div>
       {hasActions && (
-        <div className="mt-auto flex gap-1.5">
+        <div className="mt-auto flex gap-2">
           {onView && (
             <button
               type="button"
@@ -185,14 +283,14 @@ function FolderCard({
                 e.stopPropagation();
                 onView();
               }}
-              className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 sm:text-sm"
               style={{
                 background: 'var(--surface-2)',
                 color: 'var(--text)',
                 border: '1px solid var(--border)',
               }}
             >
-              <FolderOpen size={11} /> {t('assetsView')}
+              <FolderOpen size={14} /> {t('assetsView')}
             </button>
           )}
           {onDownload && (
@@ -203,14 +301,14 @@ function FolderCard({
                 onDownload();
               }}
               disabled={isDownloading}
-              className="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
               style={{
                 background: 'rgba(99,102,241,0.1)',
                 color: 'var(--accent)',
                 border: '1px solid rgba(99,102,241,0.3)',
               }}
             >
-              <Download size={11} />
+              <Download size={14} />
               {isDownloading ? t('assetsZipping') : t('assetsDownload')}
             </button>
           )}
@@ -225,6 +323,8 @@ function FolderCard({
 function ClientFolderCard({
   label,
   count,
+  totalBytes,
+  kindSummary,
   slug,
   onView,
   onDownload,
@@ -232,12 +332,15 @@ function ClientFolderCard({
 }: {
   label: string;
   count: number;
+  totalBytes: number;
+  kindSummary: string;
   slug?: string;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
 }) {
   const { t } = useLang();
+  const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes) });
   return (
     <div
       role="button"
@@ -249,21 +352,41 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="shadow-card flex cursor-pointer select-none flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 120 }}
+      className="shadow-card flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div
+        className="rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs"
+        style={{
+          borderColor: 'var(--border)',
+          background: 'var(--surface-2)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {kindSummary ? (
+          <p className="line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>
+            {kindSummary}
+          </p>
+        ) : null}
+        <p
+          className={kindSummary ? 'mt-1 font-semibold' : 'font-semibold'}
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {sizeLine}
+        </p>
+      </div>
+      <div className="flex min-w-0 items-center gap-3">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors duration-200"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
           style={{ background: 'rgba(99,102,241,0.1)' }}
         >
-          <Folder size={18} style={{ color: 'var(--accent)' }} />
+          <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: 'var(--accent)' }} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          <p className="truncate text-base font-semibold" style={{ color: 'var(--text)' }}>
             {label}
           </p>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {count === 1 ? t('assetsFileCount', { count }) : t('assetsFileCountPlural', { count })}
           </p>
         </div>
@@ -272,15 +395,15 @@ function ClientFolderCard({
         <button
           type="button"
           onClick={onView}
-          className="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 sm:text-sm"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
-          <FolderOpen size={12} /> {t('assetsView')}
+          <FolderOpen size={14} /> {t('assetsView')}
         </button>
         {slug ? (
           <a
             href={`/clients/${slug}/assets`}
-            className="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 sm:text-sm"
             style={{
               background: 'var(--surface-2)',
               color: 'var(--text)',
@@ -288,21 +411,21 @@ function ClientFolderCard({
               textDecoration: 'none',
             }}
           >
-            <Users2 size={12} /> {t('assetsWorkspace')}
+            <Users2 size={14} /> {t('assetsWorkspace')}
           </a>
         ) : (
           <button
             type="button"
             onClick={onDownload}
             disabled={isDownloading}
-            className="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
             style={{
               background: 'var(--surface-2)',
               color: 'var(--text)',
               border: '1px solid var(--border)',
             }}
           >
-            <Download size={12} />
+            <Download size={14} />
             {isDownloading ? '…' : t('assetsDownload')}
           </button>
         )}
@@ -629,25 +752,37 @@ function AssetsPage() {
 
   const folderEntries = useMemo(() => {
     if (pathDepth >= 5) return [];
-    return filteredAssets
-      .reduce<{ key: string; count: number }[]>((acc, asset) => {
-        let key: string | undefined;
-        if (pathDepth === 0) key = asset.client_name ?? 'No Client';
-        else if (pathDepth === 1) key = asset.main_category ?? 'other';
-        else if (pathDepth === 2) key = getAssetYear(asset);
-        else if (pathDepth === 3) key = asset.month_key ?? '';
-        else if (pathDepth === 4) key = asset.sub_category ?? 'general';
-        if (!key) return acc;
-        const existing = acc.find((e) => e.key === key);
-        if (existing) existing.count++;
-        else acc.push({ key, count: 1 });
-        return acc;
-      }, [])
+    type Agg = { key: string; count: number; totalBytes: number; kinds: FolderKindCounts };
+    const map = new Map<string, Agg>();
+    for (const asset of filteredAssets) {
+      let key: string | undefined;
+      if (pathDepth === 0) key = asset.client_name ?? 'No Client';
+      else if (pathDepth === 1) key = asset.main_category ?? 'other';
+      else if (pathDepth === 2) key = getAssetYear(asset);
+      else if (pathDepth === 3) key = asset.month_key ?? '';
+      else if (pathDepth === 4) key = asset.sub_category ?? 'general';
+      if (!key) continue;
+      let row = map.get(key);
+      if (!row) {
+        row = { key, count: 0, totalBytes: 0, kinds: emptyFolderKindCounts() };
+        map.set(key, row);
+      }
+      row.count++;
+      row.totalBytes += asset.file_size ?? 0;
+      row.kinds[folderAssetKind(asset)]++;
+    }
+    return [...map.values()]
+      .map((row) => ({
+        key: row.key,
+        count: row.count,
+        totalBytes: row.totalBytes,
+        kindSummary: buildFolderKindSummary(row.kinds, t),
+      }))
       .sort((a, b) => {
         if (pathDepth === 2 || pathDepth === 3) return b.key.localeCompare(a.key);
         return a.key.localeCompare(b.key);
       });
-  }, [filteredAssets, pathDepth]);
+  }, [filteredAssets, pathDepth, t]);
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────
 
@@ -1258,12 +1393,12 @@ function AssetsPage() {
         {/* ── Content area ─────────────────────────────────────────────────── */}
         {loading ? (
           /* Skeleton */
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
+          <div className="min-[440px]:grid-cols-2 grid grid-cols-1 gap-4 xl:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
                 className="animate-pulse rounded-2xl"
-                style={{ background: 'var(--surface)', aspectRatio: '1' }}
+                style={{ background: 'var(--surface)', minHeight: '12rem' }}
               />
             ))}
           </div>
@@ -1309,13 +1444,15 @@ function AssetsPage() {
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {folderEntries.map(({ key, count }) =>
+            <div className="min-[440px]:grid-cols-2 grid grid-cols-1 gap-4 xl:grid-cols-3">
+              {folderEntries.map(({ key, count, totalBytes, kindSummary }) =>
                 pathDepth === 0 ? (
                   <ClientFolderCard
                     key={key}
                     label={key}
                     count={count}
+                    totalBytes={totalBytes}
+                    kindSummary={kindSummary}
                     slug={clients.find((c) => c.name === key)?.slug}
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
@@ -1326,6 +1463,8 @@ function AssetsPage() {
                     key={key}
                     label={folderCardLabel(key)}
                     count={count}
+                    totalBytes={totalBytes}
+                    kindSummary={kindSummary}
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
                   />
