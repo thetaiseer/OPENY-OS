@@ -642,6 +642,9 @@ const translations: Record<string, Record<string, string>> = {
     assetsSubtitle: 'Manage uploaded files · Drag & drop or click Upload',
     assetsUploading: 'Uploading…',
     assetsSelect: 'Select',
+    assetsSelectionFolderHint:
+      'Tick a folder to select every file inside it for download, or open folders until you see files — each file has its own checkbox.',
+    assetsSelectFolderAria: 'Select all files in this folder ({{count}})',
     assetsDeselectAll: 'Deselect all',
     assetsSelectAll: 'Select all',
     assetsPreparing: 'Preparing…',
@@ -1888,6 +1891,9 @@ const translations: Record<string, Record<string, string>> = {
     assetsSubtitle: 'إدارة الملفات المرفوعة · اسحب وأفلت أو اضغط رفع',
     assetsUploading: 'جارٍ الرفع…',
     assetsSelect: 'تحديد',
+    assetsSelectionFolderHint:
+      'فعّل المربع بجانب أي مجلد لتحديد كل الملفات بداخله للتنزيل، أو ادخل المجلدات حتى تظهر الملفات — لكل ملف مربع خاص.',
+    assetsSelectFolderAria: 'تحديد كل الملفات في هذا المجلد ({{count}})',
     assetsDeselectAll: 'إلغاء تحديد الكل',
     assetsSelectAll: 'تحديد الكل',
     assetsPreparing: 'جارٍ التحضير…',

@@ -26,6 +26,7 @@ import {
   CheckSquare,
   Users2,
 } from 'lucide-react';
+import clsx from 'clsx';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { calendarMonthNow, useAppPeriod } from '@/context/app-period-context';
@@ -120,6 +121,26 @@ function getAssetYear(asset: Asset): string {
   return 'Unknown';
 }
 
+/** IDs of assets grouped under this folder card at the current breadcrumb depth. */
+function assetIdsForFolderEntry(assets: Asset[], pathDepth: number, key: string): string[] {
+  if (pathDepth === 0) {
+    return assets.filter((a) => (a.client_name ?? 'No Client') === key).map((a) => a.id);
+  }
+  if (pathDepth === 1) {
+    return assets.filter((a) => (a.main_category ?? 'other') === key).map((a) => a.id);
+  }
+  if (pathDepth === 2) {
+    return assets.filter((a) => getAssetYear(a) === key).map((a) => a.id);
+  }
+  if (pathDepth === 3) {
+    return assets.filter((a) => (a.month_key ?? '') === key).map((a) => a.id);
+  }
+  if (pathDepth === 4) {
+    return assets.filter((a) => (a.sub_category ?? 'general') === key).map((a) => a.id);
+  }
+  return [];
+}
+
 function formatFolderBytes(bytes: number, tf: (key: string) => string): string {
   if (!bytes || bytes < 0) return tf('assetsEmDash');
   if (bytes < 1024) return `${bytes} ${tf('assetsUnitB')}`;
@@ -207,6 +228,10 @@ interface FolderCardProps {
   onView?: () => void;
   onDownload?: () => void;
   isDownloading?: boolean;
+  selectionMode?: boolean;
+  folderAssetIds?: string[];
+  selectedIds?: Set<string>;
+  onToggleFolderSelect?: () => void;
 }
 
 function FolderCard({
@@ -219,10 +244,20 @@ function FolderCard({
   onView,
   onDownload,
   isDownloading,
+  selectionMode = false,
+  folderAssetIds = [],
+  selectedIds,
+  onToggleFolderSelect,
 }: FolderCardProps) {
   const { t } = useLang();
   const hasActions = onView || onDownload;
   const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes, t) });
+  const ids = folderAssetIds;
+  const sel = selectedIds ?? new Set<string>();
+  const allSelected = ids.length > 0 && ids.every((id) => sel.has(id));
+  const someSelected = ids.some((id) => sel.has(id)) && !allSelected;
+  const showFolderCheckbox = Boolean(selectionMode && ids.length > 0 && onToggleFolderSelect);
+
   return (
     <div
       role="button"
@@ -234,14 +269,47 @@ function FolderCard({
           onClick();
         }
       }}
-      className="shadow-card flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
+      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
       style={{
         background: 'var(--surface)',
-        borderColor: 'var(--border)',
+        borderColor: allSelected
+          ? 'var(--accent)'
+          : someSelected
+            ? 'color-mix(in srgb, var(--accent) 55%, var(--border))'
+            : 'var(--border)',
+        boxShadow:
+          allSelected || someSelected
+            ? '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
+            : undefined,
       }}
     >
+      {showFolderCheckbox ? (
+        <div
+          className="absolute start-4 top-4 z-10 flex items-center gap-2 rounded-lg border bg-[var(--surface)] px-2 py-1.5 shadow-sm"
+          style={{ borderColor: 'var(--border)' }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someSelected;
+            }}
+            onChange={() => onToggleFolderSelect?.()}
+            className="h-4 w-4 shrink-0 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]"
+            aria-label={t('assetsSelectFolderAria', { count: ids.length })}
+          />
+          <span className="max-w-[8rem] truncate text-[10px] font-medium text-[var(--text-secondary)] sm:max-w-[10rem] sm:text-[11px]">
+            {t('assetsSelect')}
+          </span>
+        </div>
+      ) : null}
       <div
-        className="rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs"
+        className={clsx(
+          'rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs',
+          showFolderCheckbox && 'mt-10',
+        )}
         style={{
           borderColor: 'var(--border)',
           background: 'var(--surface-2)',
@@ -331,6 +399,10 @@ function ClientFolderCard({
   onView,
   onDownload,
   isDownloading,
+  selectionMode = false,
+  folderAssetIds = [],
+  selectedIds,
+  onToggleFolderSelect,
 }: {
   label: string;
   count: number;
@@ -340,9 +412,19 @@ function ClientFolderCard({
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
+  selectionMode?: boolean;
+  folderAssetIds?: string[];
+  selectedIds?: Set<string>;
+  onToggleFolderSelect?: () => void;
 }) {
   const { t } = useLang();
   const sizeLine = t('assetsFolderTotalSize', { size: formatFolderBytes(totalBytes, t) });
+  const ids = folderAssetIds;
+  const sel = selectedIds ?? new Set<string>();
+  const allSelected = ids.length > 0 && ids.every((id) => sel.has(id));
+  const someSelected = ids.some((id) => sel.has(id)) && !allSelected;
+  const showFolderCheckbox = Boolean(selectionMode && ids.length > 0 && onToggleFolderSelect);
+
   return (
     <div
       role="button"
@@ -354,11 +436,47 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="shadow-card flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
+      style={{
+        background: 'var(--surface)',
+        borderColor: allSelected
+          ? 'var(--accent)'
+          : someSelected
+            ? 'color-mix(in srgb, var(--accent) 55%, var(--border))'
+            : 'var(--border)',
+        boxShadow:
+          allSelected || someSelected
+            ? '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)'
+            : undefined,
+      }}
     >
+      {showFolderCheckbox ? (
+        <div
+          className="absolute start-4 top-4 z-10 flex items-center gap-2 rounded-lg border bg-[var(--surface)] px-2 py-1.5 shadow-sm"
+          style={{ borderColor: 'var(--border)' }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someSelected;
+            }}
+            onChange={() => onToggleFolderSelect?.()}
+            className="h-4 w-4 shrink-0 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]"
+            aria-label={t('assetsSelectFolderAria', { count: ids.length })}
+          />
+          <span className="max-w-[8rem] truncate text-[10px] font-medium text-[var(--text-secondary)] sm:max-w-[10rem] sm:text-[11px]">
+            {t('assetsSelect')}
+          </span>
+        </div>
+      ) : null}
       <div
-        className="rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs"
+        className={clsx(
+          'rounded-xl border px-3 py-2.5 text-start text-[11px] leading-snug sm:text-xs',
+          showFolderCheckbox && 'mt-10',
+        )}
         style={{
           borderColor: 'var(--border)',
           background: 'var(--surface-2)',
@@ -1080,6 +1198,17 @@ function AssetsPage() {
     });
   }, []);
 
+  const toggleSelectFolder = useCallback((ids: string[]) => {
+    if (!ids.length) return;
+    setSelectedIds((prev) => {
+      const allIn = ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allIn) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+
   const exitSelectionMode = useCallback(() => {
     setSelectionMode(false);
     setSelectedIds(new Set());
@@ -1487,9 +1616,22 @@ function AssetsPage() {
         ) : pathDepth < 5 && folderEntries.length > 0 ? (
           /* ── Folder grid (navigate deeper) ─────────────────────────────── */
           <>
+            {selectionMode ? (
+              <div
+                className="mb-4 rounded-xl border px-4 py-3 text-sm leading-relaxed"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--accent) 35%, var(--border))',
+                  background: 'color-mix(in srgb, var(--accent) 7%, var(--surface-2))',
+                  color: 'var(--text)',
+                }}
+              >
+                {t('assetsSelectionFolderHint')}
+              </div>
+            ) : null}
             <div className="min-[440px]:grid-cols-2 grid grid-cols-1 gap-4 xl:grid-cols-3">
-              {folderEntries.map(({ key, count, totalBytes, kindSummary }) =>
-                pathDepth === 0 ? (
+              {folderEntries.map(({ key, count, totalBytes, kindSummary }) => {
+                const folderIds = assetIdsForFolderEntry(filteredAssets, pathDepth, key);
+                return pathDepth === 0 ? (
                   <ClientFolderCard
                     key={key}
                     label={key}
@@ -1500,6 +1642,10 @@ function AssetsPage() {
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
                     isDownloading={downloadingClient === key}
+                    selectionMode={selectionMode}
+                    folderAssetIds={folderIds}
+                    selectedIds={selectedIds}
+                    onToggleFolderSelect={() => toggleSelectFolder(folderIds)}
                   />
                 ) : (
                   <FolderCard
@@ -1510,9 +1656,13 @@ function AssetsPage() {
                     kindSummary={kindSummary}
                     color={folderCardColor(key)}
                     onClick={() => navigateInto(key)}
+                    selectionMode={selectionMode}
+                    folderAssetIds={folderIds}
+                    selectedIds={selectedIds}
+                    onToggleFolderSelect={() => toggleSelectFolder(folderIds)}
                   />
-                ),
-              )}
+                );
+              })}
             </div>
             {hasMore && (
               <div className="flex justify-center pt-2">
