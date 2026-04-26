@@ -3,10 +3,18 @@
 import { FormEvent, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Moon, Sun } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeWorkspaceKey } from '@/lib/workspace-access';
+import { useTheme } from '@/context/theme-context';
+import {
+  OPENY_LOGO_DARK_URL,
+  OPENY_LOGO_LIGHT_URL,
+  openyMarketingLogoDimensions,
+} from '@/lib/openy-brand';
+import { cn } from '@/lib/cn';
+import Button from '@/components/ui/Button';
 
-// Small delay lets users see success feedback before redirecting.
 const REDIRECT_DELAY_MS = 1200;
 
 type ValidationState =
@@ -34,9 +42,16 @@ function formatRole(value: string | null | undefined): string {
 
 const supabaseClient = createClient();
 
+const fieldClass = cn(
+  'h-11 w-full rounded-[var(--radius-control)] border px-3 text-sm outline-none transition-[box-shadow,border-color]',
+  'focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:color-mix(in_srgb,var(--accent)_35%,transparent)]',
+  'placeholder:text-[color:var(--text-tertiary)]',
+);
+
 function InvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { theme, toggleTheme } = useTheme();
   const token = searchParams.get('token') ?? '';
 
   const [validation, setValidation] = useState<ValidationState>({ status: 'loading' });
@@ -46,6 +61,9 @@ function InvitePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const logoSrc = theme === 'dark' ? OPENY_LOGO_DARK_URL : OPENY_LOGO_LIGHT_URL;
+  const logoDims = openyMarketingLogoDimensions(36);
 
   useEffect(() => {
     const run = async () => {
@@ -81,7 +99,6 @@ function InvitePage() {
       setValidation({ status: 'valid', invitation: payload.invitation });
     };
 
-    // Fire-and-forget: result updates component state internally.
     void run();
   }, [token]);
 
@@ -148,121 +165,218 @@ function InvitePage() {
     }
   };
 
+  const fieldStyle = {
+    borderColor: 'var(--border)',
+    background: 'var(--surface-2)',
+    color: 'var(--text-primary)',
+  } as const;
+
   return (
     <div
-      className="flex min-h-screen items-center justify-center p-4"
-      style={{ background: 'var(--bg, #f9fafb)' }}
+      className="relative flex min-h-[100dvh] flex-col items-center justify-center p-4 sm:p-6"
+      style={{ background: 'var(--bg-base)' }}
     >
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="openy-soft-transition absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] border transition-colors"
+        style={{
+          borderColor: 'var(--border)',
+          background: 'var(--surface)',
+          color: 'var(--text-secondary)',
+        }}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? (
+          <Sun size={20} strokeWidth={1.75} />
+        ) : (
+          <Moon size={20} strokeWidth={1.75} />
+        )}
+      </button>
+
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl border shadow-xl"
-        style={{ background: '#ffffff', borderColor: '#e5e7eb' }}
+        className={cn(
+          'openy-surface w-full max-w-md overflow-hidden rounded-[var(--radius-card)]',
+          'openy-motion-card shadow-[var(--shadow-md)]',
+        )}
       >
         <div
-          className="px-8 py-7 text-center"
-          style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+          className="flex flex-col items-center border-b px-6 pb-7 pt-8 text-center"
+          style={{ borderColor: 'var(--border)' }}
         >
-          <h1 className="text-2xl font-bold tracking-tight text-white">OPENY OS</h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-            Team Invitation
+          <img
+            src={logoSrc}
+            width={logoDims.width}
+            height={logoDims.height}
+            alt="OPENY"
+            className="h-9 w-auto max-w-[min(100%,280px)] object-contain"
+            decoding="async"
+          />
+          <h1
+            className="mt-5 text-lg font-semibold tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Team invitation
+          </h1>
+          <p
+            className="mt-1 max-w-sm text-sm leading-relaxed"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Join your workspace on OPENY OS. Complete the form below to activate your account.
           </p>
         </div>
 
-        <div className="space-y-4 px-8 py-8">
+        <div className="space-y-4 px-6 py-8 sm:px-8">
           {validation.status === 'loading' ? (
-            <p className="text-center text-sm" style={{ color: '#6b7280' }}>
+            <p className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
               Validating invitation…
             </p>
           ) : null}
 
           {validation.status === 'invalid' ? (
-            <div className="space-y-4 text-center">
-              <h2 className="text-xl font-bold" style={{ color: '#111827' }}>
+            <div className="space-y-5 text-center">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {validation.message}
               </h2>
               <Link
                 href="/"
-                className="inline-block h-10 rounded-lg px-6 text-sm font-semibold leading-10 text-white"
-                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+                className={cn(
+                  'inline-flex h-12 w-full items-center justify-center gap-2 rounded-control border font-medium leading-normal transition-all duration-150',
+                  'border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-contrast)]',
+                  'shadow-[0_10px_24px_rgba(47,93,255,0.24)] hover:bg-[color:var(--accent-hover)] active:translate-y-[1px]',
+                )}
               >
-                Go to Login →
+                Go to login
               </Link>
             </div>
           ) : null}
 
           {validation.status === 'error' ? (
-            <div className="space-y-4 text-center">
-              <h2 className="text-xl font-bold" style={{ color: '#111827' }}>
+            <div className="space-y-5 text-center">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {validation.message}
               </h2>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                className="w-full"
                 onClick={() => window.location.reload()}
-                className="inline-block h-10 rounded-lg px-6 text-sm font-semibold leading-10 text-white"
-                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
               >
-                Try Again
-              </button>
+                Try again
+              </Button>
             </div>
           ) : null}
 
           {validation.status === 'valid' ? (
-            <form className="space-y-3" onSubmit={onAccept}>
-              <p className="text-sm" style={{ color: '#374151' }}>
-                <strong>Email:</strong> {validation.invitation.email}
-              </p>
-              <p className="text-sm" style={{ color: '#374151' }}>
-                <strong>Role:</strong> {formatRole(validation.invitation.role)}
-              </p>
-              <input
-                type="text"
-                placeholder="Full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="h-10 w-full rounded-lg border px-3 text-sm"
-                style={{ borderColor: '#d1d5db' }}
-              />
-              <input
-                type="password"
-                placeholder="Set password (required for new users)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 w-full rounded-lg border px-3 text-sm"
-                style={{ borderColor: '#d1d5db' }}
-              />
-              <input
-                type="password"
-                placeholder="Confirm password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-10 w-full rounded-lg border px-3 text-sm"
-                style={{ borderColor: '#d1d5db' }}
-              />
+            <form className="space-y-4" onSubmit={onAccept}>
+              <div
+                className="rounded-[var(--radius-control)] border px-4 py-3 text-sm"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <p className="m-0">
+                  <span style={{ color: 'var(--text-tertiary)' }}>Email</span>{' '}
+                  <span className="font-medium">{validation.invitation.email}</span>
+                </p>
+                <p className="mb-0 mt-2">
+                  <span style={{ color: 'var(--text-tertiary)' }}>Role</span>{' '}
+                  <span className="font-medium">{formatRole(validation.invitation.role)}</span>
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Full name
+                </label>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Your name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={fieldClass}
+                  style={fieldStyle}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Password
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={fieldClass}
+                  style={fieldStyle}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Confirm password
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Repeat password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={fieldClass}
+                  style={fieldStyle}
+                />
+              </div>
 
               {submitError ? (
                 <p
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}
+                  className="rounded-[var(--radius-control)] border px-3 py-2.5 text-sm"
+                  style={{
+                    color: 'var(--danger)',
+                    borderColor: 'color-mix(in srgb, var(--danger) 35%, var(--border))',
+                    background: 'color-mix(in srgb, var(--danger) 12%, var(--surface))',
+                  }}
                 >
                   {submitError}
                 </p>
               ) : null}
               {submitMessage ? (
                 <p
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  style={{ color: '#166534', borderColor: '#bbf7d0', background: '#f0fdf4' }}
+                  className="rounded-[var(--radius-control)] border px-3 py-2.5 text-sm"
+                  style={{
+                    color: 'var(--success)',
+                    borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))',
+                    background: 'color-mix(in srgb, var(--success) 12%, var(--surface))',
+                  }}
                 >
                   {submitMessage}
                 </p>
               ) : null}
 
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="md"
+                className="mt-2 w-full"
                 disabled={submitting}
-                className="h-10 w-full rounded-lg text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)' }}
+                loading={submitting}
               >
-                {submitting ? 'Accepting…' : 'Accept Invitation'}
-              </button>
+                {submitting ? 'Accepting…' : 'Accept invitation'}
+              </Button>
             </form>
           ) : null}
         </div>
