@@ -103,11 +103,13 @@ export default function AppModal({
                         {icon}
                       </span>
                     ) : null}
-                    <h3 className="truncate text-base font-semibold text-[var(--text)]">{title}</h3>
+                    <h3 className="truncate text-base font-semibold text-[color:var(--text-primary)]">
+                      {title}
+                    </h3>
                   </div>
                 ) : null}
                 {subtitle ? (
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">{subtitle}</p>
+                  <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{subtitle}</p>
                 ) : null}
               </div>
 
@@ -115,7 +117,7 @@ export default function AppModal({
                 <button
                   type="button"
                   onClick={() => onClose?.()}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] hover:text-[color:var(--text-primary)]"
                   aria-label="Close modal"
                 >
                   <X size={16} />

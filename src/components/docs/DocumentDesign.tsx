@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { INVOICE_ADDRESS, INVOICE_EMAIL, INVOICE_WEBSITE } from '@/lib/docs-invoice-document-model';
-import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
+import { OPENY_DOC_BLACK, openyMarketingLogoDimensions } from '@/lib/openy-brand';
 
 export function OpenyDocumentPage({
   id,
@@ -34,7 +34,7 @@ export function OpenyDocumentPage({
         color: OPENY_DOC_BLACK,
         background: '#fff',
         marginInline: 'auto',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       {children}
@@ -68,10 +68,15 @@ export function OpenyDocumentHeader({
           alignItems: 'flex-start',
           marginBottom: 20,
           gap: 24,
+          minWidth: 0,
         }}
       >
-        <div>
-          <OpenyLogo forceVariant="light" width={146} height={40} alt="OPENY" />
+        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+          <OpenyLogo
+            forceVariant="light"
+            {...openyMarketingLogoDimensions(40)}
+            alt="OPENY MARKETING AGENCY"
+          />
           <div style={{ fontSize: 11, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
             {INVOICE_ADDRESS} | {INVOICE_EMAIL} | {INVOICE_WEBSITE}
             {subtitle ? (
@@ -82,7 +87,14 @@ export function OpenyDocumentHeader({
             ) : null}
           </div>
         </div>
-        <div style={{ textAlign: centerTitle ? ('center' as const) : ('right' as const) }}>
+        <div
+          style={{
+            textAlign: centerTitle ? ('center' as const) : ('right' as const),
+            minWidth: 0,
+            flex: '0 1 auto',
+            overflowWrap: 'anywhere',
+          }}
+        >
           <div
             style={{
               fontSize: 31,
@@ -90,6 +102,8 @@ export function OpenyDocumentHeader({
               letterSpacing: 2,
               color: OPENY_DOC_BLACK,
               marginBottom: 8,
+              lineHeight: 1.05,
+              overflowWrap: 'anywhere',
             }}
           >
             {title}

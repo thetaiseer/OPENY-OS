@@ -29,6 +29,7 @@ import {
 } from '@/components/docs/DocsWorkspace';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
+import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import { buildInvoiceDocumentModel } from '@/lib/docs-invoice-document-model';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import {
@@ -1608,11 +1609,9 @@ export default function InvoicePage() {
         </div>
       }
       preview={
-        <section className="docs-preview-shell">
-          <div className="docs-preview-canvas">
-            <InvoicePreview model={model} />
-          </div>
-        </section>
+        <ScaledDocumentPreview>
+          <InvoicePreview model={model} />
+        </ScaledDocumentPreview>
       }
     />
   );

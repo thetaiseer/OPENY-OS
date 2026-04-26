@@ -18,7 +18,6 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import FloatingActionButton from '@/components/ui/FloatingActionButton';
 import { useLang } from '@/context/lang-context';
 
 /** Same unified surface as desktop sidebar (horizontal strip). */
@@ -71,7 +70,6 @@ export default function MobileBottomNav() {
           })}
         </ul>
       </nav>
-      <FloatingActionButton aria-label="Quick action" />
     </>
   );
 }

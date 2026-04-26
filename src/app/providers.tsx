@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { QuickActionsProvider } from '@/context/quick-actions-context';
 import { ToastProvider } from '@/context/toast-context';
 import { UploadProvider } from '@/context/upload-context';
-import GlobalUploadQueue from '@/components/features/upload/GlobalUploadQueue';
 import ToastContainer from '@/components/ui/ToastContainer';
 
 // Singleton QueryClient shared across all route trees (OS, Docs, workspace selector).
@@ -43,7 +42,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <ToastProvider>
           <UploadProvider>
             {children}
-            <GlobalUploadQueue />
             <ToastContainer />
           </UploadProvider>
         </ToastProvider>

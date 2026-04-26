@@ -188,6 +188,8 @@ button {
     border-radius: var(--radius-card);
     background-color: var(--surface);
     box-shadow: var(--shadow-sm);
+    /* Ensure body copy on light cards/modals is always readable (inherits on children). */
+    color: var(--text-primary);
   }
 
   .openy-elevated {
@@ -195,6 +197,7 @@ button {
     border-radius: var(--radius-card);
     background-color: var(--surface-elevated);
     box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
   }
 
   .openy-control {

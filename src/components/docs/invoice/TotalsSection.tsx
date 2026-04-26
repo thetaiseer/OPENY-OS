@@ -22,7 +22,7 @@ const valueCell: CSSProperties = {
   fontSize: 11,
   textAlign: 'center',
   background: '#fff',
-  whiteSpace: 'nowrap',
+  overflowWrap: 'anywhere',
   width: '40%',
 };
 

@@ -62,7 +62,7 @@ export function PageHeader({
     >
       <div className="space-y-1">
         {title ? <h1 className="openy-heading-1">{title}</h1> : null}
-        {subtitle ? <p className="text-sm text-secondary">{subtitle}</p> : null}
+        {subtitle ? <p className="text-sm text-[color:var(--text-secondary)]">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -79,7 +79,7 @@ export function SectionTitle({
   return (
     <div {...props} className={cn('space-y-1', props.className)}>
       {title ? <Component className="openy-heading-2">{title}</Component> : null}
-      {subtitle ? <p className="text-sm text-secondary">{subtitle}</p> : null}
+      {subtitle ? <p className="text-sm text-[color:var(--text-secondary)]">{subtitle}</p> : null}
       {children}
     </div>
   );

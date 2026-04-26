@@ -1,9 +1,13 @@
 'use client';
 
-import { Bell, Languages, Moon, Search, Sun, UserCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { Bell, Languages, Moon, Search, Sun } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
 import { cn } from '@/lib/cn';
+import OpenyLogo from '@/components/branding/OpenyLogo';
+import { openyMarketingLogoDimensions } from '@/lib/openy-brand';
+import UserAccountMenu from '@/components/layout/UserAccountMenu';
 
 type TopbarProps = {
   className?: string;
@@ -22,6 +26,16 @@ export default function Topbar({ className }: TopbarProps) {
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-2 px-[max(0.75rem,env(safe-area-inset-left,0px))] sm:gap-3 sm:px-4 md:px-6 md:pr-[max(1rem,env(safe-area-inset-right,0px))]">
+        <Link
+          href="/dashboard"
+          className="mr-1 flex min-w-0 shrink-0 items-center md:hidden"
+          aria-label={t('dashboard')}
+        >
+          <OpenyLogo
+            {...openyMarketingLogoDimensions(34)}
+            className="max-w-[min(100vw-12rem,200px)]"
+          />
+        </Link>
         <label className="relative flex min-w-0 max-w-md flex-1 items-center">
           <Search className="pointer-events-none absolute left-3 h-4 w-4 text-secondary" />
           <input
@@ -60,13 +74,7 @@ export default function Topbar({ className }: TopbarProps) {
           >
             <Bell className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
-            aria-label={t('profile')}
-          >
-            <UserCircle2 className="h-5 w-5" />
-          </button>
+          <UserAccountMenu />
         </div>
       </div>
     </header>

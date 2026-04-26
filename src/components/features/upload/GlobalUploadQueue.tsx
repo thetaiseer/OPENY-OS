@@ -1,7 +1,10 @@
 'use client';
 
 /**
- * GlobalUploadQueue — Fixed-position upload progress panel.
+ * GlobalUploadQueue — Upload queue UI (rendered inside FloatingDock next to the FAB).
+ *
+ * Collapsed: circular trigger (same 3.5rem size as the quick-action button) with ring progress.
+ * Expanded: popover panel above the trigger with per-file rows.
  *
  * Each upload item card shows:
  *   - file name + icon
@@ -18,8 +21,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Upload,
-  ChevronDown,
-  ChevronUp,
   CheckCircle,
   AlertCircle,
   AlertTriangle,
@@ -405,11 +406,27 @@ function QueueRow({ item }: { item: UploadItem }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
+const RING_R = 20;
+const RING_C = 2 * Math.PI * RING_R;
+
 export default function GlobalUploadQueue() {
   const { queue, clearCompleted } = useUpload();
   const { toast } = useToast();
-  const [minimised, setMinimised] = useState(false);
+  /** Detail panel above the circular trigger (FAB sits to the right). */
+  const [panelOpen, setPanelOpen] = useState(false);
   const toastedIds = useRef<Set<string>>(new Set());
+  const prevQueueLen = useRef(0);
+
+  // Open the detail panel when new files enter the queue (user can close with ×).
+  useEffect(() => {
+    if (queue.length === 0) {
+      setPanelOpen(false);
+      prevQueueLen.current = 0;
+      return;
+    }
+    if (queue.length > prevQueueLen.current) setPanelOpen(true);
+    prevQueueLen.current = queue.length;
+  }, [queue.length]);
 
   // Show a success toast the first time each item reaches 'completed'.
   useEffect(() => {
@@ -465,109 +482,156 @@ export default function GlobalUploadQueue() {
   const clearableCount = completed + failedDb;
   // Paused items should not be auto-cleared (user can resume them).
 
+  const ringOffset = active > 0 ? RING_C * (1 - Math.min(100, Math.max(0, overallPct)) / 100) : 0;
+
   return (
-    <div
-      className="fixed bottom-[80px] right-5 z-[51] overflow-hidden rounded-2xl border"
-      style={{
-        background: 'var(--surface)',
-        borderColor: 'var(--border)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10)',
-        width: 'min(320px, calc(100vw - 24px))',
-        maxHeight: minimised ? 'auto' : 480,
-      }}
-    >
-      {/* ── Header ── */}
-      <div
-        className="flex cursor-pointer select-none items-center gap-2.5 px-4 py-3"
-        style={{
-          background: 'var(--surface-2)',
-          borderBottom: minimised ? 'none' : '1px solid var(--border)',
-        }}
-        onClick={() => setMinimised((m) => !m)}
-      >
+    <div className="relative flex flex-col items-end">
+      {panelOpen && (
         <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+          className="absolute bottom-[calc(100%+0.75rem)] end-0 z-[60] max-h-[min(480px,calc(100dvh-8rem))] w-[min(320px,calc(100vw-5.5rem))] overflow-hidden rounded-2xl border shadow-lg"
           style={{
-            background:
-              active > 0
-                ? 'var(--accent-soft)'
-                : allDone && failed === 0 && failedDb === 0
-                  ? 'rgba(22,163,74,0.10)'
-                  : allDone && failedDb > 0 && failed === 0
-                    ? 'rgba(217,119,6,0.10)'
-                    : 'var(--surface)',
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10)',
           }}
         >
-          {active > 0 ? (
-            <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-          ) : allDone && failed === 0 && failedDb === 0 ? (
-            <CheckCircle size={14} style={{ color: '#16a34a' }} />
-          ) : allDone && failedDb > 0 && failed === 0 ? (
-            <AlertTriangle size={14} style={{ color: '#d97706' }} />
-          ) : (
-            <Upload size={14} style={{ color: 'var(--accent)' }} />
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-bold" style={{ color: 'var(--text)' }}>
-            {titleText}
-          </p>
-          {!minimised && active > 0 && (
-            <p className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
-              {overallPct}% overall
-            </p>
-          )}
-        </div>
-
-        <button
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-opacity hover:opacity-70"
-          style={{ color: 'var(--text-secondary)' }}
-          aria-label={minimised ? 'Expand upload queue' : 'Minimise upload queue'}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMinimised((m) => !m);
-          }}
-        >
-          {minimised ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-      </div>
-
-      {/* ── Overall progress bar ── */}
-      {!minimised && active > 0 && (
-        <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+          {/* ── Header ── */}
           <div
-            className="w-full overflow-hidden rounded-full"
-            style={{ height: 4, background: 'var(--border)' }}
+            className="flex select-none items-center gap-2.5 px-4 py-3"
+            style={{
+              background: 'var(--surface-2)',
+              borderBottom: '1px solid var(--border)',
+            }}
           >
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${overallPct}%`, background: 'var(--accent)' }}
-            />
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+              style={{
+                background:
+                  active > 0
+                    ? 'var(--accent-soft)'
+                    : allDone && failed === 0 && failedDb === 0
+                      ? 'rgba(22,163,74,0.10)'
+                      : allDone && failedDb > 0 && failed === 0
+                        ? 'rgba(217,119,6,0.10)'
+                        : 'var(--surface)',
+              }}
+            >
+              {active > 0 ? (
+                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
+              ) : allDone && failed === 0 && failedDb === 0 ? (
+                <CheckCircle size={14} style={{ color: '#16a34a' }} />
+              ) : allDone && failedDb > 0 && failed === 0 ? (
+                <AlertTriangle size={14} style={{ color: '#d97706' }} />
+              ) : (
+                <Upload size={14} style={{ color: 'var(--accent)' }} />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold" style={{ color: 'var(--text)' }}>
+                {titleText}
+              </p>
+              {active > 0 && (
+                <p
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {overallPct}% overall
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+              style={{ color: 'var(--text-secondary)' }}
+              aria-label="Close upload panel"
+              onClick={() => setPanelOpen(false)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {active > 0 && (
+            <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div
+                className="w-full overflow-hidden rounded-full"
+                style={{ height: 4, background: 'var(--border)' }}
+              >
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${overallPct}%`, background: 'var(--accent)' }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="max-h-[360px] space-y-2 overflow-y-auto p-3">
+            {queue.map((item) => (
+              <QueueRow key={item.id} item={item} />
+            ))}
+            {clearableCount > 0 && (
+              <button
+                type="button"
+                onClick={() => clearCompleted()}
+                className="w-full rounded-xl py-2 text-xs font-medium transition-opacity hover:opacity-70"
+                style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
+              >
+                Clear {clearableCount} completed
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Queue list ── */}
-      {!minimised && (
-        <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: 360 }}>
-          {queue.map((item) => (
-            <QueueRow key={item.id} item={item} />
-          ))}
-          {clearableCount > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                clearCompleted();
-              }}
-              className="w-full rounded-xl py-2 text-xs font-medium transition-opacity hover:opacity-70"
-              style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
-            >
-              Clear {clearableCount} completed
-            </button>
+      {/* Circular trigger — h/w match FloatingActionButton (3.5rem) */}
+      <button
+        type="button"
+        onClick={() => setPanelOpen((o) => !o)}
+        aria-expanded={panelOpen}
+        aria-label={titleText}
+        title={titleText}
+        className="relative flex h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border border-border bg-[color:var(--surface)] text-[color:var(--text)] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-[box-shadow,transform] hover:shadow-md active:scale-[0.98] dark:shadow-[0_4px_18px_rgba(0,0,0,0.35)]"
+      >
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full -rotate-90"
+          viewBox="0 0 56 56"
+          aria-hidden
+        >
+          <circle cx="28" cy="28" r={RING_R} fill="none" stroke="var(--border)" strokeWidth="3" />
+          {active > 0 ? (
+            <circle
+              cx="28"
+              cy="28"
+              r={RING_R}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={RING_C}
+              strokeDashoffset={ringOffset}
+              className="transition-[stroke-dashoffset] duration-500"
+            />
+          ) : null}
+        </svg>
+        <span className="relative flex items-center justify-center leading-none">
+          {active > 0 ? (
+            <span className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+              {overallPct}%
+            </span>
+          ) : allDone && failed === 0 && failedDb === 0 ? (
+            <CheckCircle className="h-6 w-6" style={{ color: '#16a34a' }} aria-hidden />
+          ) : failed > 0 ? (
+            <AlertCircle className="h-6 w-6" style={{ color: '#ef4444' }} aria-hidden />
+          ) : failedDb > 0 ? (
+            <AlertTriangle className="h-6 w-6" style={{ color: '#d97706' }} aria-hidden />
+          ) : paused > 0 && active === 0 ? (
+            <Pause className="h-6 w-6" style={{ color: '#6366f1' }} aria-hidden />
+          ) : (
+            <Upload className="h-6 w-6" style={{ color: 'var(--accent)' }} aria-hidden />
           )}
-        </div>
-      )}
+        </span>
+      </button>
     </div>
   );
 }

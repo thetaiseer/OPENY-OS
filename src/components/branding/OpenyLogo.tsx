@@ -2,7 +2,13 @@
 
 import Image from 'next/image';
 import { useTheme } from '@/context/theme-context';
-import { OPENY_LOGO_DARK_URL, OPENY_LOGO_LIGHT_URL } from '@/lib/openy-brand';
+import {
+  OPENY_LOGO_DARK_URL,
+  OPENY_LOGO_LIGHT_URL,
+  openyMarketingLogoDimensions,
+} from '@/lib/openy-brand';
+
+const DEFAULT_LOGO = openyMarketingLogoDimensions(36);
 
 type OpenyLogoProps = {
   className?: string;
@@ -14,9 +20,9 @@ type OpenyLogoProps = {
 
 export default function OpenyLogo({
   className,
-  width = 116,
-  height = 32,
-  alt = 'OPENY',
+  width = DEFAULT_LOGO.width,
+  height = DEFAULT_LOGO.height,
+  alt = 'OPENY MARKETING AGENCY',
   forceVariant,
 }: OpenyLogoProps) {
   const { theme } = useTheme();
@@ -30,9 +36,11 @@ export default function OpenyLogo({
       className={className}
       width={width}
       height={height}
+      unoptimized
       loading="lazy"
       priority={false}
-      style={{ width, height, objectFit: 'contain' }}
+      sizes={`${width}px`}
+      style={{ width, height, maxWidth: '100%', objectFit: 'contain' }}
     />
   );
 }

@@ -33,7 +33,7 @@ export function printPreviewDocument(
       html, body { margin: 0; padding: 0; background: #fff; }
       body { display: flex; justify-content: center; }
       #print-root { width: 100%; max-width: 794px; }
-      .openy-doc-page { width: 210mm !important; max-width: 210mm !important; margin: 0 auto !important; overflow: hidden !important; }
+      .openy-doc-page { width: 210mm !important; max-width: 210mm !important; margin: 0 auto !important; overflow: visible !important; }
       .openy-doc-page table { max-width: 100% !important; }
       .openy-doc-page th, .openy-doc-page td { overflow-wrap: anywhere !important; word-break: break-word !important; }
       @media print {
@@ -74,24 +74,38 @@ export async function exportPreviewPdf(
   const sourceClone = preview.cloneNode(true) as HTMLElement;
   sourceClone.style.width = '210mm';
   sourceClone.style.maxWidth = '210mm';
-  sourceClone.style.margin = '0 auto';
+  sourceClone.style.margin = '0';
   sourceClone.style.background = '#fff';
-  sourceClone.style.overflow = 'hidden';
+  /** Page padding is already inside `.openy-doc-page` (12mm); extra jsPDF margin caused scaling/clipping vs on-screen preview. */
+  sourceClone.style.overflow = 'visible';
 
   const mount = document.createElement('div');
   mount.style.position = 'fixed';
-  mount.style.left = '-100000px';
+  mount.style.left = '-10000px';
   mount.style.top = '0';
   mount.style.width = '210mm';
   mount.style.background = '#fff';
   mount.appendChild(sourceClone);
   document.body.appendChild(mount);
 
+  const w = sourceClone.scrollWidth;
+  const h = sourceClone.scrollHeight;
+
   const opt = {
-    margin: 12,
+    margin: 0,
     filename: `${safeCode}.pdf`,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      scrollY: 0,
+      scrollX: 0,
+      width: w,
+      height: h,
+      windowWidth: w,
+      windowHeight: h,
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
   };

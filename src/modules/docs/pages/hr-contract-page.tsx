@@ -39,6 +39,7 @@ import {
   isVirtualDocsProfileId,
 } from '@/lib/docs-client-profiles';
 import { exportPreviewPdf } from '@/lib/docs-print';
+import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
@@ -1590,11 +1591,9 @@ export default function HrContractPage() {
         </div>
       }
       preview={
-        <div className="docs-preview-shell">
-          <div className="docs-preview-canvas">
-            <HrContractPreview form={form} />
-          </div>
-        </div>
+        <ScaledDocumentPreview>
+          <HrContractPreview form={form} />
+        </ScaledDocumentPreview>
       }
     />
   );

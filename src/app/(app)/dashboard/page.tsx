@@ -161,9 +161,9 @@ function OverdueRisk({
   );
 }
 
-// ── Predictions ───────────────────────────────────────────────────────────────
+// ── Insights & predictions (aligned with dashboard cards / Badge) ───────────
 
-function Predictions({
+function InsightsPredictions({
   trends,
   overdueTasks,
 }: {
@@ -175,39 +175,88 @@ function Predictions({
   const olderPace = trends.slice(-14, -7).reduce((s, d) => s + d.completed, 0) / 7;
   const paceChange = olderPace > 0 ? ((recentPace - olderPace) / olderPace) * 100 : 0;
   const clearDays = recentPace > 0 ? Math.ceil(overdueTasks / recentPace) : 0;
+  const overdue = Math.max(overdueTasks, 0);
+
+  const summaryText =
+    overdue > 0 ? t('predictionOnTrackBanner', { count: overdue }) : t('predictionBannerNoOverdue');
+
+  const statusBody =
+    overdue > 0
+      ? recentPace > 0
+        ? t('overdueRiskClearedIn', { count: overdue, days: clearDays })
+        : t('overdueRiskCountOnly', { count: overdue })
+      : t('onTrackNoOverdue');
+
   return (
-    <div className="space-y-3">
-      <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-2)' }}>
-        <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          {t('completionPace7d')}
-        </p>
-        <p className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-          {recentPace.toFixed(1)} {t('tasksPerDayUnit')}
-        </p>
-        {olderPace > 0 && (
-          <p className="text-xs" style={{ color: paceChange >= 0 ? '#16a34a' : '#ef4444' }}>
-            {paceChange >= 0 ? '▲' : '▼'} {Math.abs(paceChange).toFixed(0)}
-            {t('vsPrevWeek')}
-          </p>
-        )}
-      </div>
+    <div className="space-y-5">
       <div
-        className="rounded-xl px-4 py-3"
-        style={{ background: overdueTasks > 0 ? 'rgba(239,68,68,0.07)' : 'rgba(22,163,74,0.07)' }}
+        className="flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-start sm:gap-5 md:p-6"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
       >
-        <p
-          className="mb-1 text-xs font-semibold"
-          style={{ color: overdueTasks > 0 ? '#ef4444' : '#16a34a' }}
+        <div
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:mt-0.5"
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
         >
-          {overdueTasks > 0 ? t('overdueRiskTitle') : t('onTrackTitle')}
+          <Sparkles className="h-6 w-6" aria-hidden />
+        </div>
+        <p
+          className="min-w-0 flex-1 text-sm font-medium leading-relaxed md:text-[0.9375rem]"
+          style={{ color: 'var(--text)' }}
+        >
+          {summaryText}
         </p>
-        <p className="text-sm" style={{ color: 'var(--text)' }}>
-          {overdueTasks > 0
-            ? recentPace > 0
-              ? t('overdueRiskClearedIn', { count: overdueTasks, days: clearDays })
-              : t('overdueRiskCountOnly', { count: overdueTasks })
-            : t('onTrackNoOverdue')}
-        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div
+          className="flex flex-col rounded-2xl border p-5 md:p-6"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+        >
+          <div className="mb-3 flex items-center gap-2.5">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              <TrendingUp className="h-4 w-4" aria-hidden />
+            </span>
+            <p
+              className="text-xs font-medium leading-snug"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {t('completionPace7d')}
+            </p>
+          </div>
+          <p
+            className="text-2xl font-bold tabular-nums tracking-tight"
+            style={{ color: 'var(--text)' }}
+          >
+            {recentPace.toFixed(1)}{' '}
+            <span className="text-base font-semibold">{t('tasksPerDayUnit')}</span>
+          </p>
+          {olderPace > 0 && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <span
+                style={{ color: paceChange >= 0 ? '#16a34a' : '#ef4444' }}
+                className="font-medium"
+              >
+                {paceChange >= 0 ? '↑' : '↓'} {Math.abs(paceChange).toFixed(0)}
+                {t('vsPrevWeek')}
+              </span>
+            </p>
+          )}
+        </div>
+
+        <div
+          className="flex flex-col gap-3 rounded-2xl border p-5 md:p-6"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+        >
+          <Badge variant={overdue > 0 ? 'danger' : 'success'} className="w-fit">
+            {overdue > 0 ? t('overdueRiskTitle') : t('onTrackTitle')}
+          </Badge>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
+            {statusBody}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -883,30 +932,7 @@ export default function DashboardPage() {
           <CardTitle className="!text-lg">{t('insightsPredictions')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div
-              className="flex flex-col justify-center rounded-xl border p-5 sm:flex-row sm:items-center sm:gap-5"
-              style={{
-                borderColor: 'var(--border)',
-                background:
-                  'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(17,24,39,0.4) 100%)',
-              }}
-            >
-              <div
-                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl sm:mx-0 sm:mb-0"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-              >
-                <Sparkles size={28} />
-              </div>
-              <p
-                className="text-center text-base font-semibold sm:text-left"
-                style={{ color: 'var(--text)' }}
-              >
-                {t('predictionOnTrackBanner', { count: Math.max(stats?.overdueTasks ?? 0, 0) })}
-              </p>
-            </div>
-            <Predictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
-          </div>
+          <InsightsPredictions trends={trendsData ?? []} overdueTasks={stats?.overdueTasks ?? 0} />
         </CardContent>
       </Card>
 

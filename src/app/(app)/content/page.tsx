@@ -325,8 +325,10 @@ function ContentPage() {
       ) : filtered.length === 0 ? (
         <Card padding="md" className="p-16 text-center">
           <FileText size={36} className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30" />
-          <p className="text-base font-medium text-[var(--text)]">No content items yet</p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          <p className="text-base font-medium text-[color:var(--text-primary)]">
+            No content items yet
+          </p>
+          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
             Click &ldquo;New Content&rdquo; to start your pipeline
           </p>
         </Card>

@@ -123,9 +123,16 @@ export default function BranchTable({
                 )}
 
                 <td style={td}>{row.ad_name || '—'}</td>
-                <td style={{ ...td, whiteSpace: 'nowrap' }}>{row.date || '—'}</td>
+                <td style={{ ...td, overflowWrap: 'anywhere' }}>{row.date || '—'}</td>
                 <td style={td}>{row.results || '—'}</td>
-                <td style={{ ...td, textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                <td
+                  style={{
+                    ...td,
+                    textAlign: 'right',
+                    fontWeight: 600,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {fmt(row.cost, currency)}
                 </td>
               </tr>
@@ -151,7 +158,7 @@ export default function BranchTable({
                 background: '#E5E7EB',
                 fontWeight: 700,
                 textAlign: 'right',
-                whiteSpace: 'nowrap',
+                overflowWrap: 'anywhere',
               }}
             >
               {fmt(branchTable.subtotal, currency)}

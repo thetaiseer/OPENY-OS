@@ -38,7 +38,10 @@ export function CardHeader({ children, className, ...props }: DivProps) {
 
 export function CardTitle({ children, className, ...props }: DivProps) {
   return (
-    <h3 {...props} className={cn('text-lg font-semibold text-primary', className)}>
+    <h3
+      {...props}
+      className={cn('text-lg font-semibold text-[color:var(--text-primary)]', className)}
+    >
       {children}
     </h3>
   );
@@ -46,7 +49,7 @@ export function CardTitle({ children, className, ...props }: DivProps) {
 
 export function CardDescription({ children, className, ...props }: DivProps) {
   return (
-    <p {...props} className={cn('text-sm text-secondary', className)}>
+    <p {...props} className={cn('text-sm text-[color:var(--text-secondary)]', className)}>
       {children}
     </p>
   );

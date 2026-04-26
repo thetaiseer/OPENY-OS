@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useLang } from '@/context/lang-context';
+import OpenyLogo from '@/components/branding/OpenyLogo';
+import { openyMarketingLogoDimensions } from '@/lib/openy-brand';
 
 /** Single unified nav: operations + Docs hub + document tools in one shell. */
 const primaryNavItems = [
@@ -43,8 +45,14 @@ export default function Sidebar() {
 
   return (
     <aside className="openy-glass fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-y-auto border-r md:block">
-      <div className="flex h-16 shrink-0 items-center border-b border-border px-4">
-        <span className="text-lg font-semibold tracking-tight text-primary">OPENY</span>
+      <div className="flex h-16 min-w-0 shrink-0 items-center border-b border-border px-3">
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 max-w-full items-center py-1"
+          aria-label={t('dashboard')}
+        >
+          <OpenyLogo {...openyMarketingLogoDimensions(38)} className="min-w-0" />
+        </Link>
       </div>
       <nav className="space-y-1.5 p-3 pb-8 pt-4">
         {primaryNavItems.map((item) => {

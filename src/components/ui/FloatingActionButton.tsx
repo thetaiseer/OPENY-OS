@@ -57,16 +57,7 @@ export default function FloatingActionButton({
   }, [open]);
 
   return (
-    <div
-      ref={rootRef}
-      className={cn(
-        // Desktop: equal inset from bottom & right. Mobile: same horizontal gutter; vertical matches shell pb above bottom nav.
-        'fixed z-50 flex flex-col items-end gap-2',
-        'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] right-[max(1.25rem,env(safe-area-inset-right,0px))]',
-        'md:bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] md:right-[max(1.25rem,env(safe-area-inset-right,0px))]',
-        className,
-      )}
-    >
+    <div ref={rootRef} className={cn('relative z-50 flex flex-col items-end gap-2', className)}>
       {open ? (
         <div
           className="min-w-[12rem] overflow-hidden rounded-2xl border p-1.5"
