@@ -54,10 +54,10 @@
   --border-subtle: #e6ebf3;
   --border: #e7ecf4;
   --text-primary: #0f172a;
-  /* Darker grays on light surfaces — never as light as the background. */
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --text-muted: #64748b;
+  /* Stronger contrast on white/light cards (WCAG-friendly for small text). */
+  --text-secondary: #334155;
+  --text-tertiary: #475569;
+  --text-muted: #475569;
   --accent: #2f5dff;
   --accent-hover: #244fef;
   --danger: #ef4444;

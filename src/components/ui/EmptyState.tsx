@@ -49,7 +49,9 @@ export default function EmptyState({
         <div className="text-base font-semibold text-[color:var(--text-primary)]">{title}</div>
       ) : null}
       {description ? (
-        <div className="max-w-xl text-sm text-[color:var(--text-secondary)]">{description}</div>
+        <div className="max-w-xl text-sm font-medium leading-relaxed text-[color:var(--text-secondary)]">
+          {description}
+        </div>
       ) : null}
       {action ? <div className="pt-1">{action}</div> : null}
       {children}
