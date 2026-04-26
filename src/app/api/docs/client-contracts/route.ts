@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { dbAllocateNextDocNumber } from '@/lib/docs-doc-numbers';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -41,17 +42,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { contract_number } = body as { contract_number?: string };
-  if (!contract_number?.trim())
-    return NextResponse.json({ error: 'contract_number is required' }, { status: 400 });
-
   const db = getServiceClient();
+  const contract_number = await dbAllocateNextDocNumber(db, 'docs_client_contracts', 'CC');
   const { data, error } = await db
     .from('docs_client_contracts')
-    .insert({ ...body, created_by: auth.profile.id })
+    .insert({ ...body, contract_number, created_by: auth.profile.id })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const dup = error.code === '23505';
+    return NextResponse.json(
+      {
+        error: dup
+          ? 'This document number is already in use. Choose a different number.'
+          : error.message,
+        ...(dup ? { code: 'duplicate_document_number' as const } : {}),
+      },
+      { status: dup ? 409 : 500 },
+    );
+  }
   return NextResponse.json({ contract: data }, { status: 201 });
 }

@@ -30,6 +30,7 @@ import {
   OpenySectionTitle,
 } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import { nextPrefixedSequential } from '@/lib/docs-doc-numbers';
 import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import {
   type DocsClientProfile,
@@ -40,7 +41,11 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
+import {
+  DocsDocTypeTabs,
+  DocsToolbarLayout,
+  DocsWorkspaceShell,
+} from '@/components/docs/DocsWorkspace';
 import { useLang } from '@/context/lang-context';
 
 type DocsT = (key: string, vars?: Record<string, string | number>) => string;
@@ -154,10 +159,10 @@ function fmt(n: number, cur: string) {
 }
 
 function nextCNum(list: DocsClientContract[]) {
-  const nums = list
-    .map((c) => parseInt(c.contract_number.replace(/\D/g, '') || '0'))
-    .filter(Boolean);
-  return `CC-${String((nums.length ? Math.max(...nums) : 0) + 1).padStart(4, '0')}`;
+  return nextPrefixedSequential(
+    list.map((c) => c.contract_number),
+    'CC',
+  );
 }
 
 function ContractPreview({ form }: { form: FormState }) {
@@ -805,10 +810,6 @@ export default function ClientContractPage() {
   }
 
   async function save() {
-    if (!form.contract_number.trim()) {
-      setError(t('docCcNumberRequired'));
-      return;
-    }
     setSaving(true);
     setError('');
     try {
@@ -821,7 +822,12 @@ export default function ClientContractPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? t('docQtSaveFailed'));
+        const errJson = (await res.json()) as { error?: string; code?: string };
+        setError(
+          errJson.code === 'duplicate_document_number'
+            ? t('docDuplicateDocumentNumber')
+            : (errJson.error ?? t('docQtSaveFailed')),
+        );
         return;
       }
       setSaved(true);
@@ -924,10 +930,10 @@ export default function ClientContractPage() {
   return (
     <DocsWorkspaceShell
       toolbar={
-        <div className="docs-workspace-quickbar">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <DocsDocTypeTabs active="client-contract" />
-            <div className="flex items-center gap-2">
+        <DocsToolbarLayout
+          navigation={<DocsDocTypeTabs active="client-contract" />}
+          actions={
+            <>
               <button
                 onClick={save}
                 disabled={saving}
@@ -961,14 +967,17 @@ export default function ClientContractPage() {
               >
                 <Download size={12} className="me-1 inline" /> {t('docCcWord')}
               </button>
-            </div>
-          </div>
+            </>
+          }
+        >
           <div className="docs-workspace-quickbar-grid">
             <div>
               <label>{t('docCcContractNumber')}</label>
               <input
                 className={inputCls}
                 value={form.contract_number}
+                readOnly={!editingId}
+                title={!editingId ? t('docDocNumberAutoHint') : undefined}
                 onChange={(e) => setField('contract_number', e.target.value)}
               />
             </div>
@@ -1010,7 +1019,7 @@ export default function ClientContractPage() {
               />
             </div>
           </div>
-        </div>
+        </DocsToolbarLayout>
       }
       editor={
         <div
@@ -1063,6 +1072,8 @@ export default function ClientContractPage() {
                     <input
                       className={inputCls}
                       value={form.contract_number}
+                      readOnly={!editingId}
+                      title={!editingId ? t('docDocNumberAutoHint') : undefined}
                       onChange={(e) => setField('contract_number', e.target.value)}
                     />
                   </div>

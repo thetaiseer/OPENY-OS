@@ -24,6 +24,7 @@ import ClientProfileSelector from '@/components/docs/ClientProfileSelector';
 import {
   DocsDocTypeTabs,
   DocsEditorCard,
+  DocsToolbarLayout,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
 import { DocsTabs } from '@/components/docs/DocsUi';
@@ -38,6 +39,7 @@ import {
   normalizeInvoiceTemplateName,
   type InvoiceTemplateKey,
 } from '@/lib/invoiceTemplates';
+import { nextPrefixedSequential } from '@/lib/docs-doc-numbers';
 import { useLang } from '@/context/lang-context';
 import {
   createDefaultProIconKsaBranchConfigs,
@@ -168,11 +170,10 @@ function normalizeBranchGroupsForEditor(
 }
 
 function nextInvoiceNumber(invoices: DocsInvoice[]) {
-  const maxNumber = invoices
-    .map((invoice) => parseInt(invoice.invoice_number.replace(/\D/g, '') || '0', 10))
-    .filter((value) => Number.isFinite(value))
-    .reduce((max, value) => (value > max ? value : max), 0);
-  return `INV-${String(maxNumber + 1).padStart(4, '0')}`;
+  return nextPrefixedSequential(
+    invoices.map((invoice) => invoice.invoice_number),
+    'INV',
+  );
 }
 
 function distributePercentages(rawValues: number[]) {
@@ -701,10 +702,6 @@ export default function InvoicePage() {
   }
 
   async function saveInvoice() {
-    if (!form.invoice_number.trim()) {
-      setError(t('docInvNumberRequired'));
-      return;
-    }
     if (!form.client_name.trim()) {
       setError(t('docInvClientRequired'));
       return;
@@ -736,8 +733,17 @@ export default function InvoicePage() {
         body: JSON.stringify(payload),
       });
 
-      const json = (await res.json()) as { invoice?: DocsInvoice; error?: string };
-      if (!res.ok || !json.invoice) throw new Error(json.error ?? t('docInvSaveError'));
+      const json = (await res.json()) as {
+        invoice?: DocsInvoice;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok || !json.invoice) {
+        if (res.status === 409 && json.code === 'duplicate_document_number') {
+          throw new Error(t('docDuplicateDocumentNumber'));
+        }
+        throw new Error(json.error ?? t('docInvSaveError'));
+      }
 
       const savedInvoice = json.invoice;
       setForm(toForm(savedInvoice));
@@ -811,10 +817,10 @@ export default function InvoicePage() {
   return (
     <DocsWorkspaceShell
       toolbar={
-        <div className="docs-workspace-quickbar">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <DocsDocTypeTabs active="invoice" />
-            <div className="flex items-center gap-2">
+        <DocsToolbarLayout
+          navigation={<DocsDocTypeTabs active="invoice" />}
+          actions={
+            <>
               <button
                 type="button"
                 onClick={createNew}
@@ -866,8 +872,9 @@ export default function InvoicePage() {
                   <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
                 </button>
               ) : null}
-            </div>
-          </div>
+            </>
+          }
+        >
           <div className="docs-workspace-quickbar-grid">
             <div>
               <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
@@ -943,7 +950,7 @@ export default function InvoicePage() {
               />
             </div>
           </div>
-        </div>
+        </DocsToolbarLayout>
       }
       editor={
         <div className="space-y-3 overflow-y-auto pe-1">
@@ -972,16 +979,18 @@ export default function InvoicePage() {
             </div>
           ) : null}
 
-          <DocsTabs
-            value={editorPanel}
-            onChange={setEditorPanel}
-            items={[
-              { value: 'setup', label: t('docTabSetup') },
-              { value: 'generator', label: t('docTabGenerator') },
-              { value: 'data', label: t('docTabCampaignData') },
-              { value: 'totals', label: t('docTabTotals') },
-            ]}
-          />
+          <div className="docs-editor-subtabs">
+            <DocsTabs
+              value={editorPanel}
+              onChange={setEditorPanel}
+              items={[
+                { value: 'setup', label: t('docTabSetup') },
+                { value: 'generator', label: t('docTabGenerator') },
+                { value: 'data', label: t('docTabCampaignData') },
+                { value: 'totals', label: t('docTabTotals') },
+              ]}
+            />
+          </div>
 
           {editorPanel === 'setup' ? (
             <DocsEditorCard title={t('docCardDocumentSetup')}>
@@ -991,6 +1000,8 @@ export default function InvoicePage() {
                   <input
                     className={inputClass}
                     value={form.invoice_number}
+                    readOnly={!form.id}
+                    title={!form.id ? t('docDocNumberAutoHint') : undefined}
                     onChange={(e) => setField('invoice_number', e.target.value)}
                   />
                 </div>

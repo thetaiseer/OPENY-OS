@@ -120,7 +120,7 @@ export function DocsTabs<T extends string>({
   items: Array<{ value: T; label: string }>;
 }) {
   return (
-    <div className="docs-tabs">
+    <div className="docs-tabs flex flex-wrap items-center gap-2">
       {items.map((item) => (
         <button
           key={item.value}

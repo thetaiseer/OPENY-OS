@@ -357,7 +357,7 @@ select {
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
-    padding: 0.25rem 0;
+    padding: 0;
   }
 
   .docs-tab {
@@ -410,7 +410,7 @@ select {
   .docs-workspace-body-desktop {
     display: grid;
     gap: 1rem;
-    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 1.05fr);
     align-items: start;
   }
 
@@ -438,9 +438,9 @@ select {
     min-width: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius-card);
-    background: var(--bg-surface);
+    background: color-mix(in srgb, var(--text-primary) 3.5%, var(--bg-surface));
     box-shadow: var(--shadow-sm);
-    padding: 0.75rem;
+    padding: 0.65rem 0.5rem 0.85rem;
   }
 
   .docs-workspace-history {
@@ -470,23 +470,100 @@ select {
   }
 
   .docs-workspace-quickbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius-card);
     background: var(--bg-surface);
     box-shadow: var(--shadow-sm);
-    padding: 0.75rem;
+    padding: 1rem 1.125rem;
+  }
+
+  .docs-toolbar-top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
+  }
+
+  .docs-toolbar-nav {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  .docs-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .docs-toolbar-meta {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .docs-toolbar-meta .docs-workspace-quickbar-grid {
+    width: 100%;
+  }
+
+  .docs-toolbar-meta label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  .docs-toolbar-blurb {
+    margin: 0;
+    max-width: 56rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
   }
 
   .docs-workspace-quickbar-grid {
     display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .docs-editor-subtabs {
+    margin-top: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
   }
 
   .docs-preview-shell {
     width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  /* Live A4 preview: mat + scaled page (see ScaledDocumentPreview). */
+  .docs-preview-viewport {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: calc(var(--radius-card) - 4px);
+    background: color-mix(in srgb, var(--text-primary) 5%, var(--bg-elevated));
+    padding: 0.85rem 0.5rem 1rem;
+  }
+
+  .docs-preview-paper-root .openy-doc-page {
+    border-radius: 1px;
+    box-shadow:
+      0 1px 0 rgba(15, 23, 42, 0.06),
+      0 18px 44px rgba(15, 23, 42, 0.12);
   }
 
   .docs-preview-canvas {

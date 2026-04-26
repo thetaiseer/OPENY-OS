@@ -20,8 +20,15 @@ import {
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
-import { computeAccountingSettlement } from '@/lib/accounting-settlement';
+import {
+  DocsDocTypeTabs,
+  DocsToolbarLayout,
+  DocsWorkspaceShell,
+} from '@/components/docs/DocsWorkspace';
+import {
+  computeAccountingSettlement,
+  type AccountingSettlementResult,
+} from '@/lib/accounting-settlement';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import { useLang } from '@/context/lang-context';
@@ -96,7 +103,7 @@ function EntryModal({
           client_name: '',
           service: '',
           amount: 0,
-          currency: 'SAR',
+          currency: 'EGP',
           collector: PARTNER_A,
           collection_type: 'local',
           entry_date: today(),
@@ -250,10 +257,19 @@ function EntryModal({
             value={form.collector}
             onChange={(v) => setCollector(v)}
             options={[
-              { value: PARTNER_A, label: PARTNER_A },
-              { value: PARTNER_B, label: PARTNER_B },
+              {
+                value: PARTNER_A,
+                label: `${PARTNER_A} — ${t('docAcctRegionEgyptShort')}`,
+              },
+              {
+                value: PARTNER_B,
+                label: `${PARTNER_B} — ${t('docAcctRegionAbroadShort')}`,
+              },
             ]}
           />
+          <p className="mt-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
+            {t('docAcctCollectorFieldHelp')}
+          </p>
         </div>
         <div>
           {lbl(t('docAcctEntryDate'))}
@@ -314,7 +330,7 @@ function ExpenseModal({
       : {
           description: '',
           amount: 0,
-          currency: 'SAR',
+          currency: 'EGP',
           expense_date: today(),
           paid_by_partner: PARTNER_B,
           notes: '',
@@ -433,10 +449,19 @@ function ExpenseModal({
             value={form.paid_by_partner}
             onChange={(v) => setF('paid_by_partner', v)}
             options={[
-              { value: PARTNER_A, label: PARTNER_A },
-              { value: PARTNER_B, label: PARTNER_B },
+              {
+                value: PARTNER_A,
+                label: `${PARTNER_A} — ${t('docAcctRegionEgyptShort')}`,
+              },
+              {
+                value: PARTNER_B,
+                label: `${PARTNER_B} — ${t('docAcctRegionAbroadShort')}`,
+              },
             ]}
           />
+          <p className="mt-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
+            {t('docAcctExpensePaidByHelp')}
+          </p>
         </div>
         <div>
           {lbl(t('docAcctExpenseDate'))}
@@ -498,7 +523,7 @@ function TransferModal({
           from_partner: PARTNER_A,
           to_partner: PARTNER_B,
           amount: 0,
-          currency: 'SAR',
+          currency: 'EGP',
           transfer_date: today(),
           notes: '',
         },
@@ -655,6 +680,182 @@ function TransferModal({
   );
 }
 
+// ── Live month-close dashboard ─────────────────────────────────────────────────
+
+function AccountingSettlementDashboard({
+  monthLabel,
+  settlement,
+  currency,
+  entriesCount,
+  expensesCount,
+}: {
+  monthLabel: string;
+  settlement: AccountingSettlementResult;
+  currency: string;
+  entriesCount: number;
+  expensesCount: number;
+}) {
+  const { t } = useLang();
+  const [p0, p1] = settlement.partners;
+  const hasData = entriesCount > 0 || expensesCount > 0;
+
+  const stepClass =
+    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide bg-[var(--accent-soft)] text-[var(--accent)]';
+
+  const partnerBlock = (
+    name: string,
+    regionKey: 'docAcctRegionEgyptShort' | 'docAcctRegionAbroadShort',
+  ) => (
+    <div
+      className="rounded-xl border p-3"
+      style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+    >
+      <div className="text-sm font-bold text-[var(--text)]">{name}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)]">
+        {t(regionKey)}
+      </div>
+      <dl className="mt-2 space-y-1.5 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt className="text-[var(--text-secondary)]">{t('docAcctCollectedShort')}</dt>
+          <dd className="font-semibold text-emerald-700">
+            {fmtMoney(settlement.collectedBy[name] ?? 0, currency)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-[var(--text-secondary)]">{t('docAcctExpensesPaidShort')}</dt>
+          <dd className="font-semibold text-red-600">
+            {fmtMoney(settlement.expensesPaidBy[name] ?? 0, currency)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2 border-t border-[var(--border)] pt-1.5">
+          <dt className="font-semibold text-[var(--text)]">{t('docAcctNetInHandShort')}</dt>
+          <dd className="font-bold text-[var(--text)]">
+            {fmtMoney(settlement.netInHand[name] ?? 0, currency)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+
+  return (
+    <section
+      className="rounded-2xl border p-5 shadow-sm"
+      style={{
+        borderColor: 'color-mix(in srgb, var(--accent) 30%, var(--border))',
+        background:
+          'linear-gradient(165deg, color-mix(in srgb, var(--accent) 7%, var(--surface)) 0%, var(--surface) 55%)',
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-[var(--text)]">{t('docAcctDashboardTitle')}</h2>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{monthLabel}</p>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--text-secondary)]">
+            {t('docAcctDashboardSubtitle')}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <span className={stepClass}>1 · {t('docAcctStepRevenues')}</span>
+          <span className={stepClass}>2 · {t('docAcctStepExpenses')}</span>
+          <span className={stepClass}>3 · {t('docAcctStepClose')}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div
+          className="rounded-xl border px-3 py-2.5"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+            {t('docAcctTotalRevenue')}
+          </div>
+          <div className="mt-1 text-lg font-black text-emerald-700">
+            {fmtMoney(settlement.totalRevenue, currency)}
+          </div>
+        </div>
+        <div
+          className="rounded-xl border px-3 py-2.5"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+            {t('docAcctTotalExpenses')}
+          </div>
+          <div className="mt-1 text-lg font-black text-red-600">
+            {fmtMoney(settlement.totalExpenses, currency)}
+          </div>
+        </div>
+        <div
+          className="rounded-xl border px-3 py-2.5"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+            {t('docAcctNetProfit')}
+          </div>
+          <div className="mt-1 text-lg font-black text-[var(--text)]">
+            {fmtMoney(settlement.netProfit, currency)}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="mt-3 rounded-xl border px-4 py-3"
+        style={{
+          borderColor: 'var(--border)',
+          background: 'color-mix(in srgb, var(--accent) 9%, var(--surface))',
+        }}
+      >
+        <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+          {t('docAcctPartnerShare')}
+        </div>
+        <div className="mt-1 flex flex-wrap items-baseline gap-2">
+          <span className="text-xl font-black text-[var(--accent)]">
+            {fmtMoney(settlement.partnerShare, currency)}
+          </span>
+          <span className="text-xs text-[var(--text-secondary)]">({t('docAcctEachPartner')})</span>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+          {t('docAcctSettlementExplainer')}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {partnerBlock(p0, 'docAcctRegionEgyptShort')}
+        {partnerBlock(p1, 'docAcctRegionAbroadShort')}
+      </div>
+
+      <div
+        className={clsx(
+          'mt-4 rounded-xl border-2 border-dashed px-4 py-3',
+          settlement.debtor
+            ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+            : 'border-[var(--border)]',
+        )}
+      >
+        <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+          {t('docAcctTransferVerdict')}
+        </div>
+        {settlement.debtor && settlement.creditor ? (
+          <p className="mt-2 text-base font-bold text-[var(--text)]">
+            {t('docAcctDebtorOwes', {
+              debtor: settlement.debtor,
+              creditor: settlement.creditor,
+              amount: fmtMoney(settlement.settlementAmount, currency),
+            })}
+          </p>
+        ) : (
+          <p className="mt-2 text-sm font-semibold text-[var(--text)]">{t('docAcctBalanced')}</p>
+        )}
+      </div>
+
+      {!hasData ? (
+        <p className="mt-3 text-center text-xs text-[var(--text-secondary)]">
+          {t('docAcctDashboardEmpty')}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 // ── PDF / preview block ───────────────────────────────────────────────────────
 
 function SettlementPdfBlock({
@@ -665,6 +866,7 @@ function SettlementPdfBlock({
   expenses,
   transfers,
   monthNotes,
+  reportCurrency,
 }: {
   monthLabelText: string;
   monthKeyStr: string;
@@ -673,37 +875,39 @@ function SettlementPdfBlock({
   expenses: DocsAccountingExpense[];
   transfers: DocsAccountingTransfer[];
   monthNotes: string;
+  reportCurrency: string;
 }) {
   const { t } = useLang();
   const s = OPENY_DOC_STYLE;
+  const cur = reportCurrency;
   const summaryRows: [string, string][] = [
-    [t('docAcctTotalRevenue'), fmtMoney(settlement.totalRevenue)],
-    [t('docAcctTotalExpenses'), fmtMoney(settlement.totalExpenses)],
-    [t('docAcctNetProfit'), fmtMoney(settlement.netProfit)],
-    [t('docAcctPartnerShare'), fmtMoney(settlement.partnerShare)],
+    [t('docAcctTotalRevenue'), fmtMoney(settlement.totalRevenue, cur)],
+    [t('docAcctTotalExpenses'), fmtMoney(settlement.totalExpenses, cur)],
+    [t('docAcctNetProfit'), fmtMoney(settlement.netProfit, cur)],
+    [t('docAcctPartnerShare'), fmtMoney(settlement.partnerShare, cur)],
     [
       t('docAcctCollectedPrefix', { partner: PARTNER_A }),
-      fmtMoney(settlement.collectedBy[PARTNER_A] ?? 0),
+      fmtMoney(settlement.collectedBy[PARTNER_A] ?? 0, cur),
     ],
     [
       t('docAcctCollectedPrefix', { partner: PARTNER_B }),
-      fmtMoney(settlement.collectedBy[PARTNER_B] ?? 0),
+      fmtMoney(settlement.collectedBy[PARTNER_B] ?? 0, cur),
     ],
     [
       t('docAcctExpensesPaidPrefix', { partner: PARTNER_A }),
-      fmtMoney(settlement.expensesPaidBy[PARTNER_A] ?? 0),
+      fmtMoney(settlement.expensesPaidBy[PARTNER_A] ?? 0, cur),
     ],
     [
       t('docAcctExpensesPaidPrefix', { partner: PARTNER_B }),
-      fmtMoney(settlement.expensesPaidBy[PARTNER_B] ?? 0),
+      fmtMoney(settlement.expensesPaidBy[PARTNER_B] ?? 0, cur),
     ],
     [
       t('docAcctNetInHandPrefix', { partner: PARTNER_A }),
-      fmtMoney(settlement.netInHand[PARTNER_A] ?? 0),
+      fmtMoney(settlement.netInHand[PARTNER_A] ?? 0, cur),
     ],
     [
       t('docAcctNetInHandPrefix', { partner: PARTNER_B }),
-      fmtMoney(settlement.netInHand[PARTNER_B] ?? 0),
+      fmtMoney(settlement.netInHand[PARTNER_B] ?? 0, cur),
     ],
   ];
   return (
@@ -761,7 +965,7 @@ function SettlementPdfBlock({
             ? t('docAcctDebtorOwes', {
                 debtor: settlement.debtor,
                 creditor: settlement.creditor,
-                amount: fmtMoney(settlement.settlementAmount),
+                amount: fmtMoney(settlement.settlementAmount, cur),
               })
             : t('docAcctBalanced')}
         </div>
@@ -976,6 +1180,12 @@ export default function AccountingPage() {
     [entries, expenses],
   );
 
+  const monthCurrency = useMemo(() => {
+    const fromEntry = entries.find((e) => e.currency)?.currency;
+    const fromExpense = expenses.find((e) => e.currency)?.currency;
+    return fromEntry || fromExpense || 'EGP';
+  }, [entries, expenses]);
+
   const visibleEntries = entries.filter((e) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -1029,10 +1239,10 @@ export default function AccountingPage() {
       <DocsWorkspaceShell
         shellClassName="min-h-0"
         toolbar={
-          <div className="docs-workspace-quickbar">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <DocsDocTypeTabs active="accounting" />
-              <div className="flex flex-wrap items-center gap-2">
+          <DocsToolbarLayout
+            navigation={<DocsDocTypeTabs active="accounting" />}
+            actions={
+              <>
                 <DocsDateField
                   value={month}
                   onChange={setMonth}
@@ -1055,12 +1265,13 @@ export default function AccountingPage() {
                 >
                   <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </a>
-              </div>
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+              </>
+            }
+          >
+            <p className="docs-toolbar-blurb">
               {t('docAcctPartnersBlurb', { a: PARTNER_A, b: PARTNER_B })}
             </p>
-          </div>
+          </DocsToolbarLayout>
         }
         editor={
           <div className="max-h-[calc(100vh-10rem)] space-y-6 overflow-y-auto pe-1 lg:max-h-none">
@@ -1068,30 +1279,29 @@ export default function AccountingPage() {
               <p className="text-sm text-[var(--text-secondary)]">{t('docAcctLoadingMonth')}</p>
             ) : null}
 
-            <section
-              className="rounded-2xl border p-4"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-            >
-              <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
-                {t('docAcctMonthNotesTitle')}
-              </h2>
-              <textarea
-                className={inp}
-                rows={4}
-                value={monthNotes}
-                onChange={(e) => scheduleSaveNotes(e.target.value)}
-                placeholder={t('docAcctMonthNotesPlaceholder')}
+            {!loading ? (
+              <AccountingSettlementDashboard
+                monthLabel={monthHeading(month, lang)}
+                settlement={settlement}
+                currency={monthCurrency}
+                entriesCount={entries.length}
+                expensesCount={expenses.length}
               />
-            </section>
+            ) : null}
 
             <section
               className="rounded-2xl border p-4"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-[var(--text)]">
-                  {t('docAcctRevenuesSection')}
-                </h2>
+                <div>
+                  <h2 className="text-sm font-semibold text-[var(--text)]">
+                    {t('docAcctRevenuesSection')}
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {t('docAcctRevenuesIntro')}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setAddEntry(true)}
@@ -1197,9 +1407,14 @@ export default function AccountingPage() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-[var(--text)]">
-                  {t('docAcctExpensesSection')}
-                </h2>
+                <div>
+                  <h2 className="text-sm font-semibold text-[var(--text)]">
+                    {t('docAcctExpensesSection')}
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {t('docAcctExpensesIntro')}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setAddExpense(true)}
@@ -1294,7 +1509,7 @@ export default function AccountingPage() {
                 </button>
               </div>
               <p className="mb-3 text-xs text-[var(--text-secondary)]">
-                {t('docAcctTransfersHelp')}
+                {t('docAcctTransfersIntroShort')} {t('docAcctTransfersHelp')}
               </p>
               <div
                 className="overflow-x-auto rounded-xl border"
@@ -1360,6 +1575,22 @@ export default function AccountingPage() {
                 </table>
               </div>
             </section>
+
+            <section
+              className="rounded-2xl border p-4"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+            >
+              <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
+                {t('docAcctMonthNotesTitle')}
+              </h2>
+              <textarea
+                className={inp}
+                rows={4}
+                value={monthNotes}
+                onChange={(e) => scheduleSaveNotes(e.target.value)}
+                placeholder={t('docAcctMonthNotesPlaceholder')}
+              />
+            </section>
           </div>
         }
         preview={
@@ -1379,6 +1610,7 @@ export default function AccountingPage() {
               expenses={expenses}
               transfers={transfers}
               monthNotes={monthNotes}
+              reportCurrency={monthCurrency}
             />
           </div>
         }

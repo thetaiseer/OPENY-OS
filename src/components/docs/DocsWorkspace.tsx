@@ -38,6 +38,29 @@ export function DocsDocTypeTabs({ active }: { active: DocsDocTypeTabKey }) {
   );
 }
 
+/** Two-row toolbar: doc-type tabs + actions, then optional metadata / quick fields (shared across Docs workspaces). */
+export function DocsToolbarLayout({
+  navigation,
+  actions,
+  children,
+}: {
+  navigation: ReactNode;
+  actions: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="docs-workspace-quickbar">
+      <div className="docs-toolbar-top-row">
+        <div className="docs-toolbar-nav">{navigation}</div>
+        <div className="docs-toolbar-actions">{actions}</div>
+      </div>
+      {children != null && children !== false ? (
+        <div className="docs-toolbar-meta">{children}</div>
+      ) : null}
+    </div>
+  );
+}
+
 function subscribeLg(callback: () => void) {
   if (typeof window === 'undefined') return () => {};
   const mq = window.matchMedia('(min-width: 1024px)');

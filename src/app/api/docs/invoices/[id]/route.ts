@@ -8,6 +8,7 @@ import {
   normalizeInvoiceBranchGroups,
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
+import { dbDocumentNumberIsUnique } from '@/lib/docs-doc-numbers';
 
 interface Params {
   id: string;
@@ -77,6 +78,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   };
 
   const db = getServiceClient();
+
+  const nextNum = typeof body.invoice_number === 'string' ? body.invoice_number.trim() : undefined;
+  if (nextNum) {
+    const { data: current } = await db
+      .schema('public')
+      .from('docs_invoices')
+      .select('invoice_number')
+      .eq('id', id)
+      .maybeSingle();
+    const prevNum = (current as { invoice_number?: string } | null)?.invoice_number?.trim();
+    if (nextNum !== prevNum) {
+      const unique = await dbDocumentNumberIsUnique(db, 'docs_invoices', nextNum, id);
+      if (!unique) {
+        return NextResponse.json(
+          {
+            error:
+              'This invoice number is already used by another invoice. Choose a different number.',
+            code: 'duplicate_document_number',
+          },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
@@ -90,9 +116,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       error,
       payload,
     });
+    const dup = error.code === '23505';
     return NextResponse.json(
-      { error: mapInvoiceDbError(error, 'Unable to update invoice right now.') },
-      { status: 500 },
+      {
+        error: mapInvoiceDbError(error, 'Unable to update invoice right now.'),
+        ...(dup ? { code: 'duplicate_document_number' as const } : {}),
+      },
+      { status: dup ? 409 : 500 },
     );
   }
   try {

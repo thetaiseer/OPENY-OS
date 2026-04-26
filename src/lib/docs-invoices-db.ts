@@ -124,6 +124,9 @@ export function mapInvoiceDbError(
   if (isSchemaIssue(error)) {
     return 'Invoice data tables are unavailable. Please verify invoice migrations and Supabase schema cache.';
   }
+  if (error?.code === '23505') {
+    return 'This invoice number is already in use. Each invoice must have a unique number.';
+  }
   return fallbackMessage;
 }
 

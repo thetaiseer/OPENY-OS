@@ -20,6 +20,7 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import {
   DocsDocTypeTabs,
   DocsEditorCard,
+  DocsToolbarLayout,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
 import { useLang } from '@/context/lang-context';
@@ -556,10 +557,10 @@ export default function EmployeesPage() {
     <>
       <DocsWorkspaceShell
         toolbar={
-          <div className="docs-workspace-quickbar">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <DocsDocTypeTabs active="employees" />
-              <div className="flex items-center gap-2">
+          <DocsToolbarLayout
+            navigation={<DocsDocTypeTabs active="employees" />}
+            actions={
+              <>
                 <DocsDateField
                   value={payrollMonth}
                   onChange={setPayrollMonth}
@@ -573,8 +574,9 @@ export default function EmployeesPage() {
                 >
                   <Download size={13} /> {t('docEmpExportCsv')}
                 </button>
-              </div>
-            </div>
+              </>
+            }
+          >
             <div className="docs-workspace-quickbar-grid">
               <div>
                 <label>{t('docEmpSearchLabel')}</label>
@@ -646,7 +648,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </DocsToolbarLayout>
         }
         editor={
           <div className="overflow-y-auto pe-1">

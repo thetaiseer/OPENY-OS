@@ -33,7 +33,11 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
+import {
+  DocsDocTypeTabs,
+  DocsToolbarLayout,
+  DocsWorkspaceShell,
+} from '@/components/docs/DocsWorkspace';
 import {
   OpenyClientBlock,
   OpenyDocumentHeader,
@@ -46,6 +50,7 @@ import {
   openyThStyle,
 } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import { nextPrefixedSequential } from '@/lib/docs-doc-numbers';
 import { useLang } from '@/context/lang-context';
 
 type DocsT = (key: string, vars?: Record<string, string | number>) => string;
@@ -76,9 +81,10 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 function nextQNum(list: DocsQuotation[]) {
-  const nums = list.map((q) => parseInt(q.quote_number.replace(/\D/g, '') || '0')).filter(Boolean);
-  const max = nums.length ? Math.max(...nums) : 0;
-  return `QUO-${String(max + 1).padStart(4, '0')}`;
+  return nextPrefixedSequential(
+    list.map((q) => q.quote_number),
+    'QUO',
+  );
 }
 
 interface FormState {
@@ -817,7 +823,12 @@ export default function QuotationPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? t('docQtSaveFailed'));
+        const errJson = (await res.json()) as { error?: string; code?: string };
+        setError(
+          errJson.code === 'duplicate_document_number'
+            ? t('docDuplicateDocumentNumber')
+            : (errJson.error ?? t('docQtSaveFailed')),
+        );
         return;
       }
       setSaved(true);
@@ -901,10 +912,10 @@ export default function QuotationPage() {
   return (
     <DocsWorkspaceShell
       toolbar={
-        <div className="docs-workspace-quickbar">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <DocsDocTypeTabs active="quotation" />
-            <div className="flex items-center gap-2">
+        <DocsToolbarLayout
+          navigation={<DocsDocTypeTabs active="quotation" />}
+          actions={
+            <>
               <button
                 onClick={save}
                 disabled={saving}
@@ -952,14 +963,17 @@ export default function QuotationPage() {
               >
                 <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
               </button>
-            </div>
-          </div>
+            </>
+          }
+        >
           <div className="docs-workspace-quickbar-grid">
             <div>
               <label>{t('docQtQuoteNumber')}</label>
               <input
                 className={inputCls}
                 value={form.quote_number}
+                readOnly={!editingId}
+                title={!editingId ? t('docDocNumberAutoHint') : undefined}
                 onChange={(e) => setField('quote_number', e.target.value)}
               />
             </div>
@@ -1001,7 +1015,7 @@ export default function QuotationPage() {
               />
             </div>
           </div>
-        </div>
+        </DocsToolbarLayout>
       }
       editor={
         <div
@@ -1065,6 +1079,8 @@ export default function QuotationPage() {
                     <input
                       className={inputCls}
                       value={form.quote_number}
+                      readOnly={!editingId}
+                      title={!editingId ? t('docDocNumberAutoHint') : undefined}
                       onChange={(e) => setField('quote_number', e.target.value)}
                     />
                   </div>

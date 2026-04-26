@@ -8,6 +8,7 @@ import {
   normalizeInvoiceBranchGroups,
   replaceInvoiceBranchGroups,
 } from '@/lib/docs-invoices-db';
+import { dbAllocateNextDocNumber } from '@/lib/docs-doc-numbers';
 import { processEvent } from '@/lib/event-engine';
 
 export async function GET(req: NextRequest) {
@@ -75,21 +76,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { invoice_number, client_name } = body as { invoice_number?: string; client_name?: string };
-  if (!invoice_number?.trim())
-    return NextResponse.json({ error: 'invoice_number is required' }, { status: 400 });
+  const { client_name } = body as { client_name?: string };
   if (!client_name?.trim())
     return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
 
   const branchGroups = normalizeInvoiceBranchGroups(body.branch_groups);
   const totals = calculateInvoiceTotals(branchGroups, body.our_fees);
+
+  const db = getServiceClient();
+  const invoice_number = await dbAllocateNextDocNumber(db, 'docs_invoices', 'INV');
   const payload = {
     ...body,
+    invoice_number,
     branch_groups: branchGroups,
     ...totals,
   };
-
-  const db = getServiceClient();
   const { data, error } = await db
     .schema('public')
     .from('docs_invoices')
@@ -99,9 +100,13 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error('[docs/invoices][POST] Failed to upsert invoice root record:', error, payload);
+    const dup = error.code === '23505';
     return NextResponse.json(
-      { error: mapInvoiceDbError(error, 'Unable to save invoice right now.') },
-      { status: 500 },
+      {
+        error: mapInvoiceDbError(error, 'Unable to save invoice right now.'),
+        ...(dup ? { code: 'duplicate_document_number' as const } : {}),
+      },
+      { status: dup ? 409 : 500 },
     );
   }
 

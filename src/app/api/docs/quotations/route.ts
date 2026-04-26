@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireModulePermission, requireRole } from '@/lib/api-auth';
+import { dbAllocateNextDocNumber } from '@/lib/docs-doc-numbers';
 
 export async function GET(req: NextRequest) {
   const auth = await requireModulePermission(req, 'docs', 'quotation', 'read');
@@ -46,19 +47,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { quote_number, client_name } = body as { quote_number?: string; client_name?: string };
-  if (!quote_number?.trim())
-    return NextResponse.json({ error: 'quote_number is required' }, { status: 400 });
+  const { client_name } = body as { client_name?: string };
   if (!client_name?.trim())
     return NextResponse.json({ error: 'client_name is required' }, { status: 400 });
 
   const db = getServiceClient();
+  const quote_number = await dbAllocateNextDocNumber(db, 'docs_quotations', 'QUO');
   const { data, error } = await db
     .from('docs_quotations')
-    .insert({ ...body, created_by: auth.profile.id })
+    .insert({ ...body, quote_number, created_by: auth.profile.id })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const dup = error.code === '23505';
+    return NextResponse.json(
+      {
+        error: dup
+          ? 'This document number is already in use. Choose a different number.'
+          : error.message,
+        ...(dup ? { code: 'duplicate_document_number' as const } : {}),
+      },
+      { status: dup ? 409 : 500 },
+    );
+  }
   return NextResponse.json({ quotation: data }, { status: 201 });
 }
