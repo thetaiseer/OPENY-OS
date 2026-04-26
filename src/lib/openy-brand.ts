@@ -14,6 +14,14 @@ export function openyMarketingLogoDimensions(heightPx: number): { width: number;
   };
 }
 
+/** ~30% smaller on-screen logo in app shell / auth; remote PNG URLs unchanged. */
+export const OPENY_APP_LOGO_UI_SCALE = 0.7;
+
+/** Use in sidebar, topbar, login, invite — not in document preview or export HTML. */
+export function openyAppChromeLogoDimensions(heightPx: number): { width: number; height: number } {
+  return openyMarketingLogoDimensions(Math.round(heightPx * OPENY_APP_LOGO_UI_SCALE));
+}
+
 export const OPENY_DOC_BLACK = '#111';
 
 export const OPENY_DOC_STYLE = {

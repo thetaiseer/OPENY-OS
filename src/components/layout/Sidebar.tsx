@@ -20,7 +20,7 @@ import {
 import { cn } from '@/lib/cn';
 import { useLang } from '@/context/lang-context';
 import OpenyLogo from '@/components/branding/OpenyLogo';
-import { openyMarketingLogoDimensions } from '@/lib/openy-brand';
+import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 
 /** Single unified nav: operations + Docs hub + document tools in one shell. */
 const primaryNavItems = [
@@ -51,7 +51,7 @@ export default function Sidebar() {
           className="flex min-w-0 max-w-full items-center py-1"
           aria-label={t('dashboard')}
         >
-          <OpenyLogo {...openyMarketingLogoDimensions(38)} className="min-w-0" />
+          <OpenyLogo {...openyAppChromeLogoDimensions(38)} className="min-w-0" />
         </Link>
       </div>
       <nav className="space-y-1.5 p-3 pb-8 pt-4">

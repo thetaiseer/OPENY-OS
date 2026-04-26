@@ -10,7 +10,7 @@ import { useTheme } from '@/context/theme-context';
 import {
   OPENY_LOGO_DARK_URL,
   OPENY_LOGO_LIGHT_URL,
-  openyMarketingLogoDimensions,
+  openyAppChromeLogoDimensions,
 } from '@/lib/openy-brand';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
@@ -63,7 +63,7 @@ function InvitePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const logoSrc = theme === 'dark' ? OPENY_LOGO_DARK_URL : OPENY_LOGO_LIGHT_URL;
-  const logoDims = openyMarketingLogoDimensions(36);
+  const logoDims = openyAppChromeLogoDimensions(36);
 
   useEffect(() => {
     const run = async () => {
@@ -209,7 +209,7 @@ function InvitePage() {
             width={logoDims.width}
             height={logoDims.height}
             alt="OPENY"
-            className="h-9 w-auto max-w-[min(100%,280px)] object-contain"
+            className="w-auto max-w-[min(100%,280px)] object-contain"
             decoding="async"
           />
           <h1

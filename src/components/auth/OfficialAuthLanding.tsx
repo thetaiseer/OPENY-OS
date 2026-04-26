@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Lock, Moon, Sun } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
-import { openyMarketingLogoDimensions } from '@/lib/openy-brand';
+import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/context/toast-context';
 import { useTheme } from '@/context/theme-context';
@@ -231,7 +231,7 @@ export default function OfficialAuthLanding() {
           >
             <div className="flex items-center gap-3">
               <OpenyLogo
-                {...openyMarketingLogoDimensions(40)}
+                {...openyAppChromeLogoDimensions(40)}
                 className="max-w-[min(100%,220px)]"
               />
               <span

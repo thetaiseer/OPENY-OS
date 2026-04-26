@@ -6,7 +6,7 @@ import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
 import { cn } from '@/lib/cn';
 import OpenyLogo from '@/components/branding/OpenyLogo';
-import { openyMarketingLogoDimensions } from '@/lib/openy-brand';
+import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 import UserAccountMenu from '@/components/layout/UserAccountMenu';
 
 type TopbarProps = {
@@ -32,7 +32,7 @@ export default function Topbar({ className }: TopbarProps) {
           aria-label={t('dashboard')}
         >
           <OpenyLogo
-            {...openyMarketingLogoDimensions(34)}
+            {...openyAppChromeLogoDimensions(34)}
             className="max-w-[min(100vw-12rem,200px)]"
           />
         </Link>
