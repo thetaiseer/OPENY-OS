@@ -41,7 +41,7 @@ export default function Topbar({ className }: TopbarProps) {
           <input
             type="search"
             placeholder={t('search')}
-            className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
+            className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
         <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">

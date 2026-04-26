@@ -10,9 +10,10 @@
   --border-subtle: rgba(255, 255, 255, 0.14);
   --border: rgba(148, 163, 184, 0.24);
   --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-muted: #7b8ca3;
+  /* Brighter secondary copy for dark surfaces (cards, modals, sidebar). */
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-muted: #94a3b8;
   --accent: #4f7cff;
   --accent-hover: #6089ff;
   --danger: #ef4444;
@@ -53,10 +54,10 @@
   --border-subtle: #e6ebf3;
   --border: #e7ecf4;
   --text-primary: #0f172a;
-  /* Match primary for strong contrast on light surfaces (empty states, hints, labels). */
-  --text-secondary: #0f172a;
-  --text-tertiary: #0f172a;
-  --text-muted: #0f172a;
+  /* Darker grays on light surfaces — never as light as the background. */
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-muted: #64748b;
   --accent: #2f5dff;
   --accent-hover: #244fef;
   --danger: #ef4444;
@@ -110,10 +111,17 @@ body {
 
 input,
 textarea,
-select,
-button {
+select {
   font: inherit;
   color: inherit;
+}
+
+@layer base {
+  button {
+    font: inherit;
+    /* Default label color; utility classes (e.g. text-secondary) still win in @layer utilities. */
+    color: var(--text-primary);
+  }
 }
 
 @layer components {
