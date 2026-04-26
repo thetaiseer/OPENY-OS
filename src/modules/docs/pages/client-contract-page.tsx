@@ -150,8 +150,8 @@ function blank(num: string): FormState {
   };
 }
 
-function fmt(n: number, cur: string) {
-  return new Intl.NumberFormat('en-US', {
+function fmt(n: number, cur: string, lang: 'en' | 'ar') {
+  return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
     style: 'currency',
     currency: cur,
     minimumFractionDigits: 2,
@@ -166,7 +166,7 @@ function nextCNum(list: DocsClientContract[]) {
 }
 
 function ContractPreview({ form }: { form: FormState }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const dir = form.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
@@ -179,7 +179,7 @@ function ContractPreview({ form }: { form: FormState }) {
       />
       <OpenyClientBlock
         label={t('docQtPreparedFor')}
-        name={form.party2_client_name || '—'}
+        name={form.party2_client_name || t('commonEmptyDash')}
         subtext={form.party2_contact_person || form.party2_email || undefined}
       />
       <div>
@@ -294,7 +294,7 @@ function ContractPreview({ form }: { form: FormState }) {
                 {t('docCcTotalValue')}{' '}
               </span>
               <span style={{ fontWeight: 700, fontSize: 14, color: OPENY_DOC_STYLE.title }}>
-                {fmt(form.total_value, form.currency)}
+                {fmt(form.total_value, form.currency, lang)}
               </span>
             </div>
             <div>
@@ -389,7 +389,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -447,7 +447,10 @@ function BackupModal({
                 {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {new Date(b.created_at).toLocaleString()}
+                {new Date(b.created_at).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -493,7 +496,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -631,10 +634,11 @@ function HistoryPanel({
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {c.party2_client_name ?? '—'} · {c.contract_date ?? '—'}
+                  {c.party2_client_name ?? t('commonEmptyDash')} ·{' '}
+                  {c.contract_date ?? t('commonEmptyDash')}
                 </div>
                 <div className="mt-0.5 text-xs font-semibold" style={{ color: '#0891b2' }}>
-                  {fmt(c.total_value, c.currency)}
+                  {fmt(c.total_value, c.currency, lang)}
                 </div>
                 <a
                   href={`/api/docs/client-contracts/${c.id}/export`}

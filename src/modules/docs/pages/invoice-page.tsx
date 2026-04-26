@@ -254,6 +254,10 @@ function blank(invoices: DocsInvoice[]): FormState {
   };
 }
 
+function formatInvoiceAmount(n: number, lang: 'en' | 'ar') {
+  return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US').format(n);
+}
+
 function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
@@ -271,7 +275,7 @@ function toForm(invoice: DocsInvoice): FormState {
 }
 
 export default function InvoicePage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [form, setForm] = useState<FormState>(() => blank([]));
@@ -1097,7 +1101,7 @@ export default function InvoicePage() {
                         <span style={{ color: 'var(--text-secondary)' }}>{t('docDeduction')}</span>
                         <span className="font-semibold" style={{ color: 'var(--text)' }}>
                           {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
-                            ? `${PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount.toLocaleString()} ${form.currency}`
+                            ? `${formatInvoiceAmount(PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount, lang)} ${form.currency}`
                             : `0 ${form.currency}`}
                         </span>
                       </div>
@@ -1132,7 +1136,7 @@ export default function InvoicePage() {
                             style={{ color: 'var(--accent)' }}
                           >
                             {branch.enabled
-                              ? `${branchBudget.toLocaleString()} ${form.currency}`
+                              ? `${formatInvoiceAmount(branchBudget, lang)} ${form.currency}`
                               : t('docDisabled')}
                           </span>
                         </div>
@@ -1215,7 +1219,7 @@ export default function InvoicePage() {
                                   style={{ color: 'var(--accent)' }}
                                 >
                                   {platform.enabled
-                                    ? `${platformBudget.toLocaleString()} ${form.currency}`
+                                    ? `${formatInvoiceAmount(platformBudget, lang)} ${form.currency}`
                                     : t('docDisabled')}
                                 </span>
                                 <button
@@ -1386,7 +1390,7 @@ export default function InvoicePage() {
                           className="rounded-lg px-2 py-1 text-xs font-semibold"
                           style={{ background: 'var(--surface)', color: 'var(--accent)' }}
                         >
-                          {branchTotal.toLocaleString()} {form.currency}
+                          {formatInvoiceAmount(branchTotal, lang)} {form.currency}
                         </div>
                         <div className="flex items-center gap-1">
                           <button
@@ -1439,7 +1443,7 @@ export default function InvoicePage() {
                                     className="rounded-lg px-2 py-1 text-xs font-semibold"
                                     style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
                                   >
-                                    {platformTotal.toLocaleString()} {form.currency}
+                                    {formatInvoiceAmount(platformTotal, lang)} {form.currency}
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <button
@@ -1594,7 +1598,7 @@ export default function InvoicePage() {
                 >
                   <span style={{ color: 'var(--text-secondary)' }}>{t('docFinalBudget')}</span>
                   <span className="font-semibold" style={{ color: 'var(--text)' }}>
-                    {model.totals.finalBudget.toLocaleString()} {form.currency}
+                    {formatInvoiceAmount(model.totals.finalBudget, lang)} {form.currency}
                   </span>
                 </div>
                 <div
@@ -1617,7 +1621,7 @@ export default function InvoicePage() {
                 >
                   <span className="font-bold">{t('docGrandTotal')}</span>
                   <span className="font-black">
-                    {model.totals.grandTotal.toLocaleString()} {form.currency}
+                    {formatInvoiceAmount(model.totals.grandTotal, lang)} {form.currency}
                   </span>
                 </div>
                 {loading ? (

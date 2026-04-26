@@ -49,9 +49,13 @@ function statusVariant(s: string) {
   return 'info' as const;
 }
 
-function formatDate(d: string | null | undefined) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString(undefined, {
+function formatDate(
+  d: string | null | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  lang: 'en' | 'ar',
+) {
+  if (!d) return t('commonEmptyDash');
+  return new Date(d).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -61,6 +65,7 @@ function formatDate(d: string | null | undefined) {
 function formatRelativeDate(
   d: string | null | undefined,
   t: (key: string, vars?: Record<string, string | number>) => string,
+  lang: 'en' | 'ar',
 ) {
   if (!d) return t('noRecentActivity');
   const diff = Date.now() - new Date(d).getTime();
@@ -71,7 +76,7 @@ function formatRelativeDate(
   if (hours < 24) return t('relativeHoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
   if (days < 7) return t('relativeDaysAgo', { n: days });
-  return formatDate(d);
+  return formatDate(d, t, lang);
 }
 
 function derivePriority(tasks: Task[]): 'high' | 'medium' | 'low' | 'none' {
@@ -107,7 +112,7 @@ function tabMatches(tab: ProjectTab, status: ProjectStatus): boolean {
 }
 
 export default function ProjectsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const STATUS_LABEL = useMemo(() => statusLabels(t), [t]);
   const { role } = useAuth();
   const queryClient = useQueryClient();
@@ -586,16 +591,20 @@ export default function ProjectsPage() {
                   className="mt-auto flex flex-wrap gap-3 text-xs"
                   style={{ color: 'var(--text-tertiary)' }}
                 >
-                  <span>{t('projectsStart', { date: formatDate(project.start_date) })}</span>
+                  <span>
+                    {t('projectsStart', { date: formatDate(project.start_date, t, lang) })}
+                  </span>
                   <span>·</span>
                   <span>
-                    {t('projectsDue', { date: formatDate(meta?.nextDue ?? project.end_date) })}
+                    {t('projectsDue', {
+                      date: formatDate(meta?.nextDue ?? project.end_date, t, lang),
+                    })}
                   </span>
                 </div>
                 <p className="mt-2 line-clamp-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   {t('projectsActivity')}{' '}
                   {meta?.activity?.description
-                    ? `${meta.activity.description} · ${formatRelativeDate(meta.activity.created_at, t)}`
+                    ? `${meta.activity.description} · ${formatRelativeDate(meta.activity.created_at, t, lang)}`
                     : t('projectsNoProjectActivity')}
                 </p>
                 {meta?.assignedNames && meta.assignedNames.length > 0 && (
@@ -604,7 +613,9 @@ export default function ProjectsPage() {
                     style={{ color: 'var(--text-secondary)' }}
                   >
                     {t('projectsTeam')} {meta.assignedNames.slice(0, 3).join(', ')}
-                    {meta.assignedNames.length > 3 ? ` +${meta.assignedNames.length - 3}` : ''}
+                    {meta.assignedNames.length > 3
+                      ? ` ${t('projectsTruncatedMore', { count: meta.assignedNames.length - 3 })}`
+                      : ''}
                   </p>
                 )}
                 {canManage && (

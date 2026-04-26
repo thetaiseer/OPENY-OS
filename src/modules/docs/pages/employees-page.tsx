@@ -56,8 +56,10 @@ function salaryChangeLabel(type: string, t: DocsT) {
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(n);
+function fmtMoney(n: number, lang: 'en' | 'ar') {
+  return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
+    minimumFractionDigits: 2,
+  }).format(n);
 }
 function nextEmpId(list: DocsEmployee[]) {
   const nums = list.map((e) => parseInt(e.employee_id.replace(/\D/g, '') || '0')).filter(Boolean);
@@ -113,7 +115,7 @@ function SalaryModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [newSalary, setNewSalary] = useState(employee.salary);
   const [note, setNote] = useState('');
   const [effDate, setEffDate] = useState(today());
@@ -178,7 +180,7 @@ function SalaryModal({
           {t('docEmpCurrentSalary')}
         </label>
         <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>
-          SAR {fmt(employee.salary)}
+          {t('docCurrencySar')} {fmtMoney(employee.salary, lang)}
         </div>
       </div>
       <div>
@@ -468,7 +470,7 @@ function EmployeeModal({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [employees, setEmployees] = useState<DocsEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
@@ -661,7 +663,11 @@ export default function EmployeesPage() {
                       [t('docEmpTotalEmployees'), String(employees.length), '#d97706'],
                       [t('docEmpPreviewActive'), String(activeCount), '#059669'],
                       [t('docEmpFullTime'), String(fullTimeCount), '#2563eb'],
-                      [t('docEmpMonthlyPayroll'), `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
+                      [
+                        t('docEmpMonthlyPayroll'),
+                        `${t('docCurrencySar')} ${fmtMoney(totalPayroll, lang)}`,
+                        '#7c3aed',
+                      ],
                     ].map(([l, v, c]) => (
                       <div
                         key={l}
@@ -734,7 +740,8 @@ export default function EmployeesPage() {
                                 {e.full_name}
                               </div>
                               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                {e.job_title ?? '—'} · {e.hire_date ?? '—'}
+                                {e.job_title ?? t('commonEmptyDash')} ·{' '}
+                                {e.hire_date ?? t('commonEmptyDash')}
                               </div>
                             </div>
                             <span
@@ -901,11 +908,11 @@ export default function EmployeesPage() {
                                 {e.full_name}
                               </div>
                               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                {e.employee_id} · {e.phone ?? '—'}
+                                {e.employee_id} · {e.phone ?? t('commonEmptyDash')}
                               </div>
                             </td>
                             <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                              {e.job_title ?? '—'}
+                              {e.job_title ?? t('commonEmptyDash')}
                             </td>
                             <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
                               {employmentTypeLabel(e.employment_type, t)}
@@ -922,7 +929,7 @@ export default function EmployeesPage() {
                               className="px-4 py-3 text-end font-semibold"
                               style={{ color: 'var(--text)' }}
                             >
-                              SAR {fmt(e.salary)}
+                              {t('docCurrencySar')} {fmtMoney(e.salary, lang)}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
@@ -989,10 +996,14 @@ export default function EmployeesPage() {
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                       {[
                         [t('docEmpActiveEmployees'), String(activeCount), '#059669'],
-                        [t('docEmpTotalPayroll'), `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
+                        [
+                          t('docEmpTotalPayroll'),
+                          `${t('docCurrencySar')} ${fmtMoney(totalPayroll, lang)}`,
+                          '#7c3aed',
+                        ],
                         [
                           t('docEmpAvgSalary'),
-                          `SAR ${fmt(activeCount > 0 ? totalPayroll / activeCount : 0)}`,
+                          `${t('docCurrencySar')} ${fmtMoney(activeCount > 0 ? totalPayroll / activeCount : 0, lang)}`,
                           '#d97706',
                         ],
                       ].map(([l, v, c]) => (
@@ -1086,19 +1097,19 @@ export default function EmployeesPage() {
                                     className="px-4 py-3"
                                     style={{ color: 'var(--text-secondary)' }}
                                   >
-                                    {e.job_title ?? '—'}
+                                    {e.job_title ?? t('commonEmptyDash')}
                                   </td>
                                   <td
                                     className="px-4 py-3 text-end"
                                     style={{ color: 'var(--text)' }}
                                   >
-                                    {e.daily_hours}h
+                                    {t('docEmpHoursSuffix', { n: String(e.daily_hours) })}
                                   </td>
                                   <td
                                     className="px-4 py-3 text-end font-bold"
                                     style={{ color: '#7c3aed' }}
                                   >
-                                    SAR {fmt(e.salary)}
+                                    {t('docCurrencySar')} {fmtMoney(e.salary, lang)}
                                   </td>
                                   <td className="px-4 py-3">
                                     {latest && (
@@ -1124,7 +1135,7 @@ export default function EmployeesPage() {
                                           className="ms-1"
                                           style={{ color: 'var(--text-secondary)' }}
                                         >
-                                          {latest.effective_date ?? '—'}
+                                          {latest.effective_date ?? t('commonEmptyDash')}
                                         </span>
                                       </div>
                                     )}
@@ -1151,7 +1162,7 @@ export default function EmployeesPage() {
                               className="px-4 py-3 text-end text-sm font-bold"
                               style={{ color: '#7c3aed' }}
                             >
-                              SAR {fmt(totalPayroll)}
+                              {t('docCurrencySar')} {fmtMoney(totalPayroll, lang)}
                             </td>
                             <td />
                           </tr>
@@ -1198,7 +1209,9 @@ export default function EmployeesPage() {
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
                     {t('docEmpPreviewMonthlyPayroll')}
                   </p>
-                  <p className="text-lg font-bold text-violet-700">SAR {fmt(totalPayroll)}</p>
+                  <p className="text-lg font-bold text-violet-700">
+                    {t('docCurrencySar')} {fmtMoney(totalPayroll, lang)}
+                  </p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
@@ -1227,11 +1240,11 @@ export default function EmployeesPage() {
                             {employee.full_name}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {employee.job_title || '—'} · {employee.employee_id}
+                            {employee.job_title || t('commonEmptyDash')} · {employee.employee_id}
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-slate-800">
-                          SAR {fmt(employee.salary)}
+                          {t('docCurrencySar')} {fmtMoney(employee.salary, lang)}
                         </p>
                       </div>
                     ))}

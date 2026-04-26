@@ -1064,7 +1064,7 @@ function SettlementPdfBlock({
             color: monthNotes ? s.text : s.textMuted,
           }}
         >
-          {monthNotes || '—'}
+          {monthNotes || t('commonEmptyDash')}
         </div>
       </section>
     </div>
@@ -1370,7 +1370,7 @@ export default function AccountingPage() {
                           {e.client_name}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">
-                          {e.service ?? '—'}
+                          {e.service ?? t('commonEmptyDash')}
                         </td>
                         <td className="px-3 py-2 text-end font-semibold text-emerald-700">
                           {fmtMoney(e.amount, e.currency)}

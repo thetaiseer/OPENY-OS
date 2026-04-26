@@ -1254,6 +1254,11 @@ const translations: Record<string, Record<string, string>> = {
     assetsClearAll: 'Clear all',
     assetsModalCommentsSubtitle: 'Asset comments',
     assetsOtherMimePrefix: '{{type}}',
+    commonEmptyDash: '—',
+    docCurrencySar: 'SAR',
+    projectsFetchFailed: 'Failed to load projects.',
+    projectsTruncatedMore: '+{{count}}',
+    docEmpHoursSuffix: '{{n}} h',
   },
   ar: {
     dashboard: 'لوحة التحكم',
@@ -2485,6 +2490,11 @@ const translations: Record<string, Record<string, string>> = {
     assetsClearAll: 'مسح الكل',
     assetsModalCommentsSubtitle: 'تعليقات الملف',
     assetsOtherMimePrefix: '{{type}}',
+    commonEmptyDash: '—',
+    docCurrencySar: 'ر.س',
+    projectsFetchFailed: 'تعذّر تحميل المشاريع.',
+    projectsTruncatedMore: '+{{count}}',
+    docEmpHoursSuffix: '{{n}} س',
   },
 };
 

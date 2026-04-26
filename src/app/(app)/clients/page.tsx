@@ -302,7 +302,7 @@ function ClientsPage() {
           <div className="relative min-w-[200px] flex-1">
             <Search
               size={16}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              className="pointer-events-none absolute start-3 top-1/2 z-[1] -translate-y-1/2"
               style={{ color: 'var(--text-secondary)' }}
             />
             <Input
@@ -310,7 +310,7 @@ function ClientsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('searchClientsPlaceholder')}
-              className="pl-9"
+              className="ps-9"
             />
           </div>
           <div className="w-full min-w-[140px] sm:w-44">

@@ -101,8 +101,8 @@ function uid() {
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
-function fmt(n: number, cur: string) {
-  return new Intl.NumberFormat('en-US', {
+function fmt(n: number, cur: string, lang: 'en' | 'ar') {
+  return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
     style: 'currency',
     currency: cur,
     minimumFractionDigits: 2,
@@ -202,7 +202,7 @@ function blank(num: string): SF {
 }
 
 function HrContractPreview({ form }: { form: SF }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const dir = form.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
@@ -215,7 +215,7 @@ function HrContractPreview({ form }: { form: SF }) {
       />
       <OpenyClientBlock
         label={t('docQtPreparedFor')}
-        name={form.employee_full_name || '—'}
+        name={form.employee_full_name || t('commonEmptyDash')}
         subtext={form.job_title || form.department || undefined}
       />
       <div>
@@ -382,7 +382,7 @@ function HrContractPreview({ form }: { form: SF }) {
           <div
             style={{ fontSize: 15, fontWeight: 800, color: OPENY_DOC_STYLE.title, marginBottom: 8 }}
           >
-            {fmt(form.salary, form.currency)} {t('docHrSalaryPerMonthSuffix')}
+            {fmt(form.salary, form.currency, lang)} {t('docHrSalaryPerMonthSuffix')}
           </div>
           <div style={{ fontSize: 12, marginBottom: 4 }}>
             <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docCcPaymentPrefix')} </span>
@@ -502,7 +502,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -560,7 +560,10 @@ function BackupModal({
                 {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {new Date(b.created_at).toLocaleString()}
+                {new Date(b.created_at).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -606,7 +609,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -744,10 +747,10 @@ function HistoryPanel({
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {c.employee_full_name} · {c.job_title ?? '—'}
+                  {c.employee_full_name} · {c.job_title ?? t('commonEmptyDash')}
                 </div>
                 <div className="mt-0.5 text-xs font-semibold" style={{ color: '#059669' }}>
-                  {fmt(c.salary, c.currency)} {t('docHrSalaryPerMonthSuffix')}
+                  {fmt(c.salary, c.currency, lang)} {t('docHrSalaryPerMonthSuffix')}
                 </div>
                 <a
                   href={`/api/docs/hr-contracts/${c.id}/export`}

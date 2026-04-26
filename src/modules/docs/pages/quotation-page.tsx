@@ -70,8 +70,8 @@ function docsPaymentMethodLabel(method: string, t: DocsT) {
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
-function fmt(n: number, cur: string) {
-  return new Intl.NumberFormat('en-US', {
+function fmt(n: number, cur: string, lang: 'en' | 'ar') {
+  return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
     style: 'currency',
     currency: cur,
     minimumFractionDigits: 2,
@@ -126,7 +126,7 @@ function blank(num: string): FormState {
 }
 
 function QuotationPreview({ form }: { form: FormState }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const delivTotal = form.deliverables.reduce((s, d) => s + d.total, 0);
   const total = form.total_value || delivTotal;
   const finalBudget = delivTotal > 0 ? delivTotal : total;
@@ -141,7 +141,7 @@ function QuotationPreview({ form }: { form: FormState }) {
       />
       <OpenyClientBlock
         label={t('docQtPreparedFor')}
-        name={form.client_name || '—'}
+        name={form.client_name || t('commonEmptyDash')}
         subtext={form.project_title || form.company_brand || form.project_description || undefined}
       />
       <div>
@@ -161,12 +161,12 @@ function QuotationPreview({ form }: { form: FormState }) {
               </div>
             )}
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ textAlign: 'end' }}>
             <table style={{ fontSize: 12 }}>
               <tbody>
                 <tr>
                   <td style={openyMetaKeyStyle()}>{t('docQtLabelDate')}</td>
-                  <td style={{ fontWeight: 600 }}>{form.quote_date || '—'}</td>
+                  <td style={{ fontWeight: 600 }}>{form.quote_date || t('commonEmptyDash')}</td>
                 </tr>
                 <tr>
                   <td style={openyMetaKeyStyle()}>{t('docQtLabelCurrency')}</td>
@@ -211,10 +211,10 @@ function QuotationPreview({ form }: { form: FormState }) {
                       {d.quantity}
                     </td>
                     <td style={openyTdStyle('right', false, { whiteSpace: 'nowrap' })}>
-                      {fmt(d.unitPrice, form.currency)}
+                      {fmt(d.unitPrice, form.currency, lang)}
                     </td>
                     <td style={openyTdStyle('right', true, { whiteSpace: 'nowrap' })}>
-                      {fmt(d.total, form.currency)}
+                      {fmt(d.total, form.currency, lang)}
                     </td>
                   </tr>
                 ))}
@@ -256,7 +256,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {fmt(finalBudget, form.currency)}
+                    {fmt(finalBudget, form.currency, lang)}
                   </td>
                 </tr>
               )}
@@ -273,7 +273,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {fmt(finalBudget, form.currency)}
+                  {fmt(finalBudget, form.currency, lang)}
                 </td>
               </tr>
               <tr>
@@ -289,7 +289,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {fmt(ourFees, form.currency)}
+                  {fmt(ourFees, form.currency, lang)}
                 </td>
               </tr>
               <tr>
@@ -318,7 +318,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {fmt(total, form.currency)}
+                  {fmt(total, form.currency, lang)}
                 </td>
               </tr>
             </tbody>
@@ -395,7 +395,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -453,7 +453,10 @@ function BackupModal({
                 {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {new Date(b.created_at).toLocaleString()}
+                {new Date(b.created_at).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -499,7 +502,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -638,10 +641,10 @@ function HistoryPanel({
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {q.client_name} · {q.quote_date ?? '—'}
+                  {q.client_name} · {q.quote_date ?? t('commonEmptyDash')}
                 </div>
                 <div className="mt-0.5 text-xs font-semibold" style={{ color: '#7c3aed' }}>
-                  {fmt(q.total_value, q.currency)}
+                  {fmt(q.total_value, q.currency, lang)}
                 </div>
                 <a
                   href={`/api/docs/quotations/${q.id}/export`}
